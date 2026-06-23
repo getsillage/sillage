@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
-import { exportDiaryBackup } from "../app/lib/backup/export";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { exportDiaryBackup, runScheduledBackup } from "../app/lib/backup/export";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { putAttachment } from "../app/lib/storage/attachments";
@@ -17,6 +17,10 @@ describe("diary backup export", () => {
     await env.DB.prepare("DELETE FROM attachments").run();
     await env.DB.prepare("DELETE FROM entries").run();
     await env.DB.prepare("DELETE FROM tags").run();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("writes JSON and Markdown backups to R2", async () => {
@@ -63,5 +67,54 @@ describe("diary backup export", () => {
     });
     expect(payload?.attachments[0]?.filename).toBe("photo.png");
     expect(await markdownObject?.text()).toContain("## 2026-06-23 海边散步");
+  });
+
+  it("renders summary/sentiment lines and falls back to the date for untitled entries", async () => {
+    const entryId = await createEntry(db, {
+      entryDate: "2026-06-20",
+      title: "",
+      body: "无标题正文",
+      tags: [],
+    });
+    await env.DB.prepare("UPDATE entries SET summary = ?, sentiment = ? WHERE id = ?")
+      .bind("一段摘要", "积极", entryId)
+      .run();
+
+    const { markdownKey } = await exportDiaryBackup(env, new Date("2026-06-21T00:00:00.000Z"));
+    const markdown = (await (await env.BLOBS.get(markdownKey))?.text()) ?? "";
+
+    // Untitled entry → heading falls back to the entry date.
+    expect(markdown).toContain("## 2026-06-20 2026-06-20");
+    expect(markdown).toContain("摘要：一段摘要");
+    expect(markdown).toContain("情绪：积极");
+    // No tags/mood/weather were set, so those lines are omitted.
+    expect(markdown).not.toContain("标签：");
+    expect(markdown).not.toContain("心情：");
+    expect(markdown).not.toContain("天气：");
+  });
+
+  it("runScheduledBackup writes a backup on success", async () => {
+    await createEntry(db, { entryDate: "2026-06-19", title: "T", body: "B", tags: [] });
+
+    await expect(runScheduledBackup(env)).resolves.toBeUndefined();
+
+    const listing = await env.BLOBS.list({ prefix: "backups/" });
+    expect(listing.objects.length).toBeGreaterThan(0);
+  });
+
+  it("runScheduledBackup logs context and rethrows when R2 fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failingEnv = {
+      ...env,
+      BLOBS: {
+        put: async () => {
+          throw new Error("r2 unavailable");
+        },
+      },
+    } as unknown as Env;
+
+    await expect(runScheduledBackup(failingEnv)).rejects.toThrow("r2 unavailable");
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain("diary-backup");
   });
 });

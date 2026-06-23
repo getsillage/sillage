@@ -112,4 +112,85 @@ describe("AI text generation", () => {
 
     expect(result).toEqual({ text: null, skipped: true, reason: "network down" });
   });
+
+  it("skips Anthropic when no API key is configured", async () => {
+    const result = await generateText(
+      envOf({}),
+      { ...baseConfig, textProvider: "anthropic" },
+      { purpose: "summary", system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({
+      text: null,
+      skipped: true,
+      reason: "ANTHROPIC_API_KEY not configured",
+    });
+  });
+
+  it("skips OpenAI when no API key is configured", async () => {
+    const result = await generateText(
+      envOf({}),
+      { ...baseConfig, textProvider: "openai" },
+      { purpose: "sentiment", system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({
+      text: null,
+      skipped: true,
+      reason: "OPENAI_API_KEY not configured",
+    });
+  });
+
+  it("reports a skipped result when Anthropic returns a non-OK status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("error", { status: 500 })),
+    );
+
+    const result = await generateText(
+      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
+      { ...baseConfig, textProvider: "anthropic" },
+      { purpose: "summary", system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({
+      text: null,
+      skipped: true,
+      reason: "Anthropic API returned 500",
+    });
+  });
+
+  it("reports a skipped result when OpenAI returns a non-OK status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("error", { status: 429 })),
+    );
+
+    const result = await generateText(
+      envOf({ OPENAI_API_KEY: "openai-key" }),
+      { ...baseConfig, textProvider: "openai" },
+      { purpose: "sentiment", system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({
+      text: null,
+      skipped: true,
+      reason: "OpenAI API returned 429",
+    });
+  });
+
+  it("returns null text when Anthropic responds with a refusal stop reason", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ content: [], stop_reason: "refusal" })),
+    );
+
+    const result = await generateText(
+      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
+      { ...baseConfig, textProvider: "anthropic" },
+      { purpose: "summary", system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: null, skipped: false });
+  });
 });

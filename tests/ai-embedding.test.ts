@@ -87,4 +87,52 @@ describe("AI embeddings", () => {
       reason: "embedding offline",
     });
   });
+
+  it("skips OpenAI embeddings when no API key is configured", async () => {
+    const result = await embedText(
+      envOf({}),
+      { ...baseConfig, embeddingProvider: "openai" },
+      "日记正文",
+    );
+
+    expect(result).toEqual({
+      vector: null,
+      skipped: true,
+      reason: "OPENAI_API_KEY not configured",
+    });
+  });
+
+  it("reports a skipped result when OpenAI embeddings return a non-OK status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("error", { status: 503 })),
+    );
+
+    const result = await embedText(
+      envOf({ OPENAI_API_KEY: "openai-key" }),
+      { ...baseConfig, embeddingProvider: "openai" },
+      "日记正文",
+    );
+
+    expect(result).toEqual({
+      vector: null,
+      skipped: true,
+      reason: "OpenAI embeddings returned 503",
+    });
+  });
+
+  it("returns a null vector when OpenAI omits embedding data", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data: [] })),
+    );
+
+    const result = await embedText(
+      envOf({ OPENAI_API_KEY: "openai-key" }),
+      { ...baseConfig, embeddingProvider: "openai" },
+      "日记正文",
+    );
+
+    expect(result).toEqual({ vector: null, skipped: false });
+  });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { loadAiSettings } from "~/lib/settings/ai-settings";
 
 export type TextProvider = "disabled" | "workers-ai" | "anthropic" | "openai";
 export type EmbeddingProvider = "disabled" | "workers-ai" | "openai";
@@ -14,6 +15,9 @@ export interface AiConfig {
   openaiModel: string;
   openaiEmbeddingModel: string;
   openaiBaseUrl: string;
+  // Resolved API keys (from web settings or env). Undefined when not configured.
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
 }
 
 const DEFAULTS: AiConfig = {
@@ -58,5 +62,36 @@ export function getAiConfig(env: Env): AiConfig {
     openaiModel: envString(env, "OPENAI_MODEL", DEFAULTS.openaiModel),
     openaiEmbeddingModel: envString(env, "OPENAI_EMBEDDING_MODEL", DEFAULTS.openaiEmbeddingModel),
     openaiBaseUrl: envString(env, "OPENAI_BASE_URL", DEFAULTS.openaiBaseUrl),
+    anthropicApiKey: env.ANTHROPIC_API_KEY,
+    openaiApiKey: env.OPENAI_API_KEY,
+  };
+}
+
+/**
+ * Resolves the effective AI config: web-managed settings (when present and
+ * enabled) drive the text/chat provider and override its model, base URL, and
+ * key; everything else falls back to env config. Used by the AI pipeline.
+ */
+export async function loadAiConfig(env: Env): Promise<AiConfig> {
+  const base = getAiConfig(env);
+  const web = await loadAiSettings(env);
+  if (!web?.enabled) {
+    return base;
+  }
+  if (web.protocol === "anthropic") {
+    return {
+      ...base,
+      textProvider: "anthropic",
+      anthropicModel: web.model,
+      anthropicBaseUrl: web.baseUrl,
+      anthropicApiKey: web.apiKey || base.anthropicApiKey,
+    };
+  }
+  return {
+    ...base,
+    textProvider: "openai",
+    openaiModel: web.model,
+    openaiBaseUrl: web.baseUrl,
+    openaiApiKey: web.apiKey || base.openaiApiKey,
   };
 }

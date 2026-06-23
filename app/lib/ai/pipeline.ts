@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entries } from "~/lib/db/schema";
-import { getAiConfig } from "./config";
+import { loadAiConfig } from "./config";
 import { embedText } from "./embedding";
 import { generateText } from "./text";
 
@@ -42,7 +42,7 @@ async function upsertVector(
  * saves never fail merely because an AI provider is unavailable or misconfigured.
  */
 export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiPipelineResult> {
-  const config = getAiConfig(env);
+  const config = await loadAiConfig(env);
   const skippedReasons: string[] = [];
   const text = entryText(entry);
 

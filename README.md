@@ -46,7 +46,9 @@ npm run dev                      # http://localhost:5173
 
 ### AI 提供商（可选，默认全部关闭）
 
-两个开关独立控制「文本生成（摘要/情绪）」和「向量嵌入（语义搜索）」。只有在选择了某个提供商**并**配好对应密钥时，才会发起外部调用。
+> **推荐：文本生成（摘要 / 情绪）直接在网页端「设置」页配置。** 登录后进入 `/settings`，选择 **Anthropic** 或 **OpenAI** 协议，填写 Base URL / 模型 / API Key，点「测试连接」实时验证后保存。API Key 会经 AES-256-GCM 加密后存于 KV，不会回传浏览器；网页配置启用时会覆盖下面的环境变量。**向量嵌入（语义搜索）目前仍只能用环境变量配置。**
+
+下面的环境变量是文本生成的**回退**方式，以及向量嵌入的唯一配置方式。两个开关独立控制「文本生成（摘要/情绪）」和「向量嵌入（语义搜索）」，只有在选择了某个提供商**并**配好对应密钥时才会发起外部调用。
 
 | 变量 | 取值 | 说明 |
 |---|---|---|
@@ -91,11 +93,12 @@ npm run db:migrate:remote
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put APP_PASSWORD_HASH
 npx wrangler secret put ATTACH_ENCRYPTION_KEY
-#    可选（启用 AI 时）：
-npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler secret put OPENAI_API_KEY
+#    文本生成（摘要/情绪）推荐部署后在网页端「设置」页配置，无需在此设置密钥。
+#    若用环境变量回退，或启用向量嵌入（语义搜索）：
+npx wrangler secret put ANTHROPIC_API_KEY    # 文本生成回退用
+npx wrangler secret put OPENAI_API_KEY       # 文本生成回退 / 向量嵌入用
 
-# 6) （可选）在 wrangler.jsonc 的 vars 中把 AI_*_PROVIDER 改成想用的提供商
+# 6) （可选）在 wrangler.jsonc 的 vars 中设置向量嵌入提供商 AI_EMBEDDING_PROVIDER
 
 # 7) 部署
 npm run deploy
@@ -115,6 +118,7 @@ npm run deploy
 | 详情 / 编辑 | `/entries/:id` | 查看、编辑、删除 |
 | 月历 | `/calendar` | 按月查看有日记的日期 |
 | 搜索 | `/search` | 关键词（FTS）+ 语义（启用嵌入后）混合检索 |
+| 设置 | `/settings` | 配置 AI 文本提供商（Anthropic / OpenAI 协议），含「测试连接」 |
 | 退出 | `/logout` | 清除会话 |
 
 - 启用 AI 后，保存日记会**异步**生成摘要 / 情绪并写回，且生成向量供语义搜索——这些都不阻塞保存，失败也不会影响写入。

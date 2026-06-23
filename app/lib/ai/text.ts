@@ -44,7 +44,8 @@ async function generateWithAnthropic(
   config: AiConfig,
   input: GenerateTextInput,
 ): Promise<GenerateTextResult> {
-  if (!env.ANTHROPIC_API_KEY) {
+  const apiKey = config.anthropicApiKey ?? env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
     return { text: null, skipped: true, reason: "ANTHROPIC_API_KEY not configured" };
   }
 
@@ -52,7 +53,7 @@ async function generateWithAnthropic(
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
+      "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
@@ -76,7 +77,8 @@ async function generateWithOpenAi(
   config: AiConfig,
   input: GenerateTextInput,
 ): Promise<GenerateTextResult> {
-  if (!env.OPENAI_API_KEY) {
+  const apiKey = config.openaiApiKey ?? env.OPENAI_API_KEY;
+  if (!apiKey) {
     return { text: null, skipped: true, reason: "OPENAI_API_KEY not configured" };
   }
 
@@ -84,7 +86,7 @@ async function generateWithOpenAi(
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: config.openaiModel,

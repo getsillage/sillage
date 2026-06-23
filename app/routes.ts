@@ -9,6 +9,7 @@ export default [
     route("entries/:id", "routes/entry.tsx"),
     route("calendar", "routes/calendar.tsx"),
     route("search", "routes/search.tsx"),
+    route("settings", "routes/settings.tsx"),
     route("upload", "routes/upload.tsx"),
     route("attachments/:id", "routes/attachment.tsx"),
   ]),

@@ -41,7 +41,8 @@ async function embedWithWorkersAi(
 }
 
 async function embedWithOpenAi(env: Env, config: AiConfig, text: string): Promise<EmbeddingResult> {
-  if (!env.OPENAI_API_KEY) {
+  const apiKey = config.openaiApiKey ?? env.OPENAI_API_KEY;
+  if (!apiKey) {
     return { vector: null, skipped: true, reason: "OPENAI_API_KEY not configured" };
   }
 
@@ -49,7 +50,7 @@ async function embedWithOpenAi(env: Env, config: AiConfig, text: string): Promis
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ model: config.openaiEmbeddingModel, input: text }),
   });

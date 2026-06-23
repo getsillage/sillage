@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { daysInMonth, firstWeekday, monthGrid, pad2, toISODate } from "../app/lib/date";
+import {
+  daysInMonth,
+  firstWeekday,
+  monthGrid,
+  pad2,
+  toISODate,
+  yearsBetween,
+} from "../app/lib/date";
 
 describe("date helpers", () => {
   it("formats dates as YYYY-MM-DD", () => {
@@ -19,6 +26,12 @@ describe("date helpers", () => {
   it("calculates the first weekday", () => {
     // 2026-06-01 is Monday.
     expect(firstWeekday(2026, 6)).toBe(1);
+  });
+
+  it("computes whole years between two YYYY-MM-DD dates", () => {
+    expect(yearsBetween("2024-06-23", "2026-06-23")).toBe(2);
+    expect(yearsBetween("2025-06-23", "2026-06-23")).toBe(1);
+    expect(yearsBetween("2026-06-23", "2026-06-23")).toBe(0);
   });
 
   it("builds a calendar grid with null padding", () => {

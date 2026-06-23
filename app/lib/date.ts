@@ -23,6 +23,11 @@ export function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
+/** Whole calendar years from `fromISO` to `toISO` (both YYYY-MM-DD). */
+export function yearsBetween(fromISO: string, toISO: string): number {
+  return Number(toISO.slice(0, 4)) - Number(fromISO.slice(0, 4));
+}
+
 /**
  * Builds the calendar grid for a month as rows of 7 cells; cells outside the
  * month are null. Each in-month cell is the YYYY-MM-DD date string.

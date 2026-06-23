@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { Link } from "react-router";
 import { requireSession } from "~/lib/auth/session";
-import { todayISO } from "~/lib/date";
+import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
@@ -24,7 +24,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const db = getDb(env.DB);
   const today = todayISO();
   const [entries, onThisDay] = await Promise.all([listEntries(db), getOnThisDay(db, today)]);
-  return { entries, onThisDay };
+  return { entries, onThisDay, today };
 }
 
 function excerpt(body: string, max = 120): string {
@@ -33,7 +33,7 @@ function excerpt(body: string, max = 120): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { entries, onThisDay } = loaderData;
+  const { entries, onThisDay, today } = loaderData;
 
   return (
     <main className="mx-auto max-w-2xl p-6">
@@ -51,17 +51,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <h2 className="font-medium text-amber-900 text-sm">那年今日</h2>
           <ul className="mt-2 space-y-2">
-            {onThisDay.map((entry) => (
-              <li key={entry.id}>
-                <Link
-                  to={`/entries/${entry.id}`}
-                  className="block text-amber-900 text-sm hover:underline"
-                >
-                  <span className="text-amber-700">{entry.entryDate}</span> ·{" "}
-                  {entry.title || excerpt(entry.body, 40) || "（无标题）"}
-                </Link>
-              </li>
-            ))}
+            {onThisDay.map((entry) => {
+              const years = yearsBetween(entry.entryDate, today);
+              return (
+                <li key={entry.id}>
+                  <Link
+                    to={`/entries/${entry.id}`}
+                    className="block text-amber-900 text-sm hover:underline"
+                  >
+                    <span className="font-medium text-amber-800">{years}年前</span>
+                    <span className="text-amber-600"> · {entry.entryDate}</span>
+                    {entry.mood ? <span> {MOOD_EMOJI[entry.mood]}</span> : null} ·{" "}
+                    {entry.title || excerpt(entry.body, 40) || "（无标题）"}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}

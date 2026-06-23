@@ -1,0 +1,23 @@
+# Copy to `.dev.vars` for local development (gitignored).
+# Generate APP_PASSWORD_HASH with: node scripts/hash-password.mjs <your-password>
+# Generate random keys with: node -e "console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64'))"
+SESSION_SECRET="<random-base64-32-bytes>"
+APP_PASSWORD_HASH="pbkdf2$100000$<salt-base64>$<hash-base64>"
+ATTACH_ENCRYPTION_KEY="<random-base64-32-bytes>"
+
+# Optional AI providers. Leave disabled for fully local/dev-safe behavior.
+# Text generation: disabled | workers-ai | anthropic | openai
+AI_TEXT_PROVIDER="disabled"
+# Embeddings: disabled | workers-ai | openai
+AI_EMBEDDING_PROVIDER="disabled"
+
+# Anthropic/Claude (set only if AI_TEXT_PROVIDER=anthropic)
+ANTHROPIC_API_KEY=""
+ANTHROPIC_MODEL="claude-opus-4-8"
+ANTHROPIC_BASE_URL="https://api.anthropic.com"
+
+# OpenAI-compatible endpoints (set if AI_TEXT_PROVIDER=openai or AI_EMBEDDING_PROVIDER=openai)
+OPENAI_API_KEY=""
+OPENAI_MODEL="gpt-5.1-mini"
+OPENAI_EMBEDDING_MODEL="text-embedding-3-large"
+OPENAI_BASE_URL="https://api.openai.com/v1"

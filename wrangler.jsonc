@@ -1,0 +1,73 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * NOTE on resource IDs: the `database_id` / KV `id` values below are placeholders
+ * for local development (Miniflare simulates D1/KV/R2 locally by binding name).
+ * Before deploying remotely, create the real resources and replace the IDs:
+ *   wrangler d1 create diary-db
+ *   wrangler kv namespace create SESSIONS
+ *   wrangler r2 bucket create diary-blobs
+ *   wrangler vectorize create diary-entries --dimensions=1024 --metric=cosine
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "t",
+	"compatibility_date": "2026-06-23",
+	"main": "./workers/app.ts",
+	"vars": {
+		"AI_TEXT_PROVIDER": "disabled",
+		"AI_EMBEDDING_PROVIDER": "disabled",
+		"AI_SUMMARY_MODEL": "@cf/qwen/qwen2.5-coder-32b-instruct",
+		"AI_SENTIMENT_MODEL": "@cf/qwen/qwen2.5-coder-32b-instruct",
+		"AI_EMBEDDING_MODEL": "@cf/baai/bge-m3",
+		"ANTHROPIC_MODEL": "claude-opus-4-8",
+		"ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+		"OPENAI_MODEL": "gpt-5.1-mini",
+		"OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
+		"OPENAI_BASE_URL": "https://api.openai.com/v1"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"compatibility_flags": ["nodejs_compat"],
+
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "diary-db",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "drizzle/migrations"
+		}
+	],
+
+	"kv_namespaces": [
+		{
+			"binding": "SESSIONS",
+			"id": "sessions_local_placeholder"
+		}
+	],
+
+	"r2_buckets": [
+		{
+			"binding": "BLOBS",
+			"bucket_name": "diary-blobs"
+		}
+	],
+
+	"vectorize": [
+		{
+			"binding": "VEC",
+			"index_name": "diary-entries"
+		}
+	],
+
+	"ai": {
+		"binding": "AI"
+	},
+
+	"triggers": {
+		"crons": ["0 19 * * *"]
+	}
+}

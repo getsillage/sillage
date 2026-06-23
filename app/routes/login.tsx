@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { Form, redirect, useNavigation } from "react-router";
 import { verifyPassword } from "~/lib/auth/password";
+import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "~/lib/auth/rate-limit";
 import { safeRedirect } from "~/lib/auth/redirect";
 import { createUserSession, isAuthenticated } from "~/lib/auth/session";
 import { loginSchema } from "~/lib/validation/auth";
@@ -18,6 +19,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  if (await isLoginRateLimited(env, request)) {
+    return { error: "登录尝试次数过多，请稍后再试" };
+  }
+
   const form = await request.formData();
   const parsed = loginSchema.safeParse({
     password: form.get("password"),
@@ -29,9 +34,11 @@ export async function action({ request }: Route.ActionArgs) {
 
   const valid = await verifyPassword(parsed.data.password, env.APP_PASSWORD_HASH);
   if (!valid) {
+    await recordFailedLogin(env, request);
     return { error: "密码错误" };
   }
 
+  await clearLoginAttempts(env, request);
   return createUserSession(env, safeRedirect(parsed.data.redirectTo));
 }
 

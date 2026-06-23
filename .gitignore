@@ -7,6 +7,9 @@
 /.react-router/
 /build/
 
+# Test coverage
+/coverage/
+
 # Cloudflare
 .mf
 .wrangler

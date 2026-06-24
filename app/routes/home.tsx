@@ -22,6 +22,7 @@ import {
   normalizeNoteType,
   noteTypeLabel,
 } from "~/lib/product/entry-fields";
+import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
@@ -83,12 +84,18 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const today = todayISO();
-  const [entries, todayEntries, onThisDay] = await Promise.all([
-    listEntries(db, 12),
+  const [recentEntries, todayEntries, onThisDay] = await Promise.all([
+    listEntries(db, 80),
     listEntriesByDate(db, today),
     getOnThisDay(db, today),
   ]);
-  return { entries, todayEntries, onThisDay, today };
+  return {
+    entries: recentEntries.slice(0, 12),
+    suggestions: buildEntryFormSuggestions(recentEntries),
+    todayEntries,
+    onThisDay,
+    today,
+  };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -160,6 +167,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             <EntryForm
               error={actionData?.error}
               defaults={actionData?.values ?? newDefaults(today)}
+              suggestions={loaderData.suggestions}
               submitLabel="保存"
             />
           </section>

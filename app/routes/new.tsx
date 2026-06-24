@@ -5,8 +5,9 @@ import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO } from "~/lib/date";
 import { getDb } from "~/lib/db/client";
-import { createEntry, getEntry } from "~/lib/db/entries";
+import { createEntry, getEntry, listEntries } from "~/lib/db/entries";
 import { normalizeEntryKind } from "~/lib/product/entry-fields";
+import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/new";
@@ -19,6 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
   const url = new URL(request.url);
   const kind = normalizeEntryKind(url.searchParams.get("kind"));
+  const recentEntries = await listEntries(getDb(env.DB), 80);
   const defaults: EntryFormDefaults = {
     entryDate: todayISO(),
     title: "",
@@ -35,6 +37,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
   return {
     defaults,
+    suggestions: buildEntryFormSuggestions(recentEntries),
   };
 }
 
@@ -68,6 +71,7 @@ export default function NewEntry({ loaderData, actionData }: Route.ComponentProp
       <EntryForm
         error={actionData?.error}
         defaults={actionData?.values ?? loaderData.defaults}
+        suggestions={loaderData.suggestions}
         submitLabel="保存"
       />
     </main>

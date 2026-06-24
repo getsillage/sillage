@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
 import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
+import type { EntryFormSuggestions } from "~/lib/product/entry-suggestions";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { helperTextClass, inputClass, labelClass, primaryButtonClass } from "./ui";
 
@@ -22,6 +23,7 @@ export interface EntryFormDefaults {
 
 interface EntryFormProps {
   defaults?: EntryFormDefaults;
+  suggestions?: EntryFormSuggestions;
   error?: string | null;
   submitLabel?: string;
   intent?: string;
@@ -49,12 +51,114 @@ const NOTE_TYPE_LABELS: Record<NoteType, string> = {
   freeform: "自由笔记",
 };
 
-export function EntryForm({ defaults, error, submitLabel = "保存", intent }: EntryFormProps) {
+const WEATHER_OPTIONS = ["晴", "多云", "阴", "小雨", "雨", "大雨", "雪", "雾", "风"] as const;
+
+function includeCurrentOption(options: readonly string[], current: string | null | undefined) {
+  const value = current?.trim();
+  return value && !options.includes(value) ? [value, ...options] : options;
+}
+
+function splitDelimitedValues(raw: string): string[] {
+  return raw
+    .split(/[,，\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function setInputValue(input: HTMLInputElement | null, value: string) {
+  if (!input) {
+    return;
+  }
+  input.value = value;
+  input.focus();
+}
+
+function appendInputValue(input: HTMLInputElement | null, value: string) {
+  if (!input) {
+    return;
+  }
+  const existing = splitDelimitedValues(input.value);
+  if (!existing.includes(value)) {
+    existing.push(value);
+  }
+  input.value = existing.join(", ");
+  input.focus();
+}
+
+function SuggestionMenu({
+  label,
+  options,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (options.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="absolute top-2 right-2 z-20">
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span aria-hidden="true" className="-mt-0.5 text-base leading-none">
+          ⌄
+        </span>
+      </button>
+      {open ? (
+        <div className="absolute top-9 right-0 z-30 max-h-48 min-w-36 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="block w-full px-3 py-1.5 text-left text-gray-700 text-sm transition hover:bg-gray-50 hover:text-gray-950 focus:bg-gray-50 focus:outline-none"
+              onClick={() => {
+                onSelect(option);
+                setOpen(false);
+              }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function suggestionInputClass(options: string[]): string {
+  return options.length > 0 ? `${inputClass} pr-12` : inputClass;
+}
+
+export function EntryForm({
+  defaults,
+  suggestions,
+  error,
+  submitLabel = "保存",
+  intent,
+}: EntryFormProps) {
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const defaultKind = defaults?.kind ?? "fragment";
   const [selectedKind, setSelectedKind] = useState<EntryKind>(defaultKind);
   const defaultNoteType = defaults?.noteType ?? "daily";
+  const weatherOptions = includeCurrentOption(WEATHER_OPTIONS, defaults?.weather);
+  const locationSuggestions = suggestions?.locations ?? [];
+  const peopleSuggestions = suggestions?.people ?? [];
+  const relationshipSuggestions = suggestions?.relationships ?? [];
+  const tagSuggestions = suggestions?.tags ?? [];
+  const locationRef = useRef<HTMLInputElement>(null);
+  const peopleRef = useRef<HTMLInputElement>(null);
+  const relationshipRef = useRef<HTMLInputElement>(null);
+  const tagRef = useRef<HTMLInputElement>(null);
 
   return (
     <Form method="post" className="space-y-6">
@@ -73,25 +177,34 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
         </label>
         <label className={labelClass}>
           天气
-          <input
-            type="text"
-            name="weather"
-            placeholder="晴 / 阴 / 雨…"
-            defaultValue={defaults?.weather ?? ""}
-            className={inputClass}
-          />
+          <select name="weather" defaultValue={defaults?.weather ?? ""} className={inputClass}>
+            <option value="">未选择</option>
+            {weatherOptions.map((weather) => (
+              <option key={weather} value={weather}>
+                {weather}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 
       <label className={labelClass}>
         地点
-        <input
-          type="text"
-          name="location"
-          placeholder="某个城市、房间、路口…"
-          defaultValue={defaults?.location ?? ""}
-          className={inputClass}
-        />
+        <div className="relative">
+          <input
+            ref={locationRef}
+            type="text"
+            name="location"
+            placeholder="某个城市、房间、路口…"
+            defaultValue={defaults?.location ?? ""}
+            className={suggestionInputClass(locationSuggestions)}
+          />
+          <SuggestionMenu
+            label="选择已有地点"
+            options={locationSuggestions}
+            onSelect={(value) => setInputValue(locationRef.current, value)}
+          />
+        </div>
       </label>
 
       <label className={labelClass}>
@@ -183,35 +296,59 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
       <div className="grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
           人物
-          <input
-            type="text"
-            name="people"
-            placeholder="用逗号或空格分隔"
-            defaultValue={defaults?.people.join(", ") ?? ""}
-            className={inputClass}
-          />
+          <div className="relative">
+            <input
+              ref={peopleRef}
+              type="text"
+              name="people"
+              placeholder="输入人物，用逗号分隔"
+              defaultValue={defaults?.people.join(", ") ?? ""}
+              className={suggestionInputClass(peopleSuggestions)}
+            />
+            <SuggestionMenu
+              label="添加已有人物"
+              options={peopleSuggestions}
+              onSelect={(value) => appendInputValue(peopleRef.current, value)}
+            />
+          </div>
         </label>
         <label className={labelClass}>
           关系
-          <input
-            type="text"
-            name="relationships"
-            placeholder="朋友 / 家人 / 同事…"
-            defaultValue={defaults?.relationships.join(", ") ?? ""}
-            className={inputClass}
-          />
+          <div className="relative">
+            <input
+              ref={relationshipRef}
+              type="text"
+              name="relationships"
+              placeholder="输入关系，用逗号分隔"
+              defaultValue={defaults?.relationships.join(", ") ?? ""}
+              className={suggestionInputClass(relationshipSuggestions)}
+            />
+            <SuggestionMenu
+              label="添加已有关系"
+              options={relationshipSuggestions}
+              onSelect={(value) => appendInputValue(relationshipRef.current, value)}
+            />
+          </div>
         </label>
       </div>
 
       <label className={labelClass}>
         标签
-        <input
-          type="text"
-          name="tags"
-          placeholder="用逗号或空格分隔，如：散步, 工作"
-          defaultValue={defaults?.tags.join(", ") ?? ""}
-          className={inputClass}
-        />
+        <div className="relative">
+          <input
+            ref={tagRef}
+            type="text"
+            name="tags"
+            placeholder="输入标签，用逗号分隔"
+            defaultValue={defaults?.tags.join(", ") ?? ""}
+            className={suggestionInputClass(tagSuggestions)}
+          />
+          <SuggestionMenu
+            label="添加已有标签"
+            options={tagSuggestions}
+            onSelect={(value) => appendInputValue(tagRef.current, value)}
+          />
+        </div>
       </label>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

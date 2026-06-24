@@ -6,7 +6,7 @@ import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
-import { deleteEntry, getEntry, updateEntry } from "~/lib/db/entries";
+import { deleteEntry, getEntry, listEntries, updateEntry } from "~/lib/db/entries";
 import {
   entryKindLabel,
   normalizeEntryKind,
@@ -14,6 +14,7 @@ import {
   noteTypeLabel,
   parseTextList,
 } from "~/lib/product/entry-fields";
+import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
@@ -51,12 +52,16 @@ function formDefaults(entry: EntryWithTags) {
 export async function loader({ request, params }: Route.LoaderArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
-  const entry = await getEntry(db, params.id);
+  const [entry, recentEntries] = await Promise.all([getEntry(db, params.id), listEntries(db, 80)]);
   if (!entry) {
     throw new Response("Not Found", { status: 404 });
   }
   const url = new URL(request.url);
-  return { entry, editing: url.searchParams.has("edit") };
+  return {
+    entry,
+    editing: url.searchParams.has("edit"),
+    suggestions: buildEntryFormSuggestions(recentEntries),
+  };
 }
 
 export async function action({ request, params, context }: Route.ActionArgs) {
@@ -108,6 +113,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
           submitLabel="更新"
           error={actionData?.error}
           defaults={actionData?.values ?? formDefaults(entry)}
+          suggestions={loaderData.suggestions}
         />
       </main>
     );

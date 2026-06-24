@@ -1,0 +1,477 @@
+import { env } from "cloudflare:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildEntriesDigest, generateSummary } from "../app/lib/ai/summarize";
+import { rangeForPeriod } from "../app/lib/date";
+import { listEntriesByDateRange } from "../app/lib/db/calendar";
+import { getDb } from "../app/lib/db/client";
+import { createEntry, type EntryWithTags, getEntry } from "../app/lib/db/entries";
+import {
+  collectEntriesForTopic,
+  createSummary,
+  deleteSummary,
+  findPeriodSummary,
+  getSummary,
+  listSummaries,
+  updateSummary,
+} from "../app/lib/db/summaries";
+import {
+  isSummaryPeriodType,
+  isSummaryScope,
+  isSummaryStyle,
+} from "../app/lib/product/summary-fields";
+import { saveAiSettings } from "../app/lib/settings/ai-settings";
+import { summaryGenerateFromData, summaryGenerateSchema } from "../app/lib/validation/summary";
+
+const db = getDb(env.DB);
+
+async function resetDb() {
+  await env.DB.prepare("DELETE FROM summaries").run();
+  await env.DB.prepare("DELETE FROM entry_tags").run();
+  await env.DB.prepare("DELETE FROM entry_ai").run();
+  await env.DB.prepare("DELETE FROM entries").run();
+  await env.DB.prepare("DELETE FROM tags").run();
+  await env.SESSIONS.delete("ai-settings");
+}
+
+async function seedEntry(overrides: {
+  entryDate: string;
+  title?: string;
+  body?: string;
+  people?: string[];
+  relationships?: string[];
+  tags?: string[];
+}): Promise<EntryWithTags> {
+  const id = await createEntry(db, {
+    entryDate: overrides.entryDate,
+    title: overrides.title ?? "",
+    body: overrides.body ?? "记录正文",
+    people: overrides.people ?? [],
+    relationships: overrides.relationships ?? [],
+    tags: overrides.tags ?? [],
+  });
+  const entry = await getEntry(db, id);
+  if (!entry) {
+    throw new Error("seed entry not created");
+  }
+  return entry;
+}
+
+function form(fields: Record<string, string>): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    data.set(key, value);
+  }
+  return data;
+}
+
+describe("rangeForPeriod", () => {
+  it("computes day/week/month/quarter/year windows", () => {
+    expect(rangeForPeriod("day", "2026-06-24")).toEqual({
+      startDate: "2026-06-24",
+      endDate: "2026-06-24",
+    });
+    // 2026-06-24 is a Wednesday → week is Mon 22 .. Sun 28.
+    expect(rangeForPeriod("week", "2026-06-24")).toEqual({
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+    });
+    expect(rangeForPeriod("month", "2026-06-24")).toEqual({
+      startDate: "2026-06-01",
+      endDate: "2026-06-30",
+    });
+    expect(rangeForPeriod("quarter", "2026-06-24")).toEqual({
+      startDate: "2026-04-01",
+      endDate: "2026-06-30",
+    });
+    expect(rangeForPeriod("year", "2026-06-24")).toEqual({
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    // custom has no implicit window → falls back to the reference day.
+    expect(rangeForPeriod("custom", "2026-06-24")).toEqual({
+      startDate: "2026-06-24",
+      endDate: "2026-06-24",
+    });
+  });
+});
+
+describe("summary field guards", () => {
+  it("narrows valid values and rejects junk", () => {
+    expect(isSummaryScope("period")).toBe(true);
+    expect(isSummaryScope("nope")).toBe(false);
+    expect(isSummaryPeriodType("week")).toBe(true);
+    expect(isSummaryPeriodType("decade")).toBe(false);
+    expect(isSummaryStyle("narrative")).toBe(true);
+    expect(isSummaryStyle("haiku")).toBe(false);
+  });
+});
+
+describe("summaryGenerate validation", () => {
+  it("accepts a period request and parses form data", () => {
+    const raw = summaryGenerateFromData(
+      form({ scope: "period", periodType: "week", style: "brief" }),
+    );
+    const parsed = summaryGenerateSchema.safeParse(raw);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("requires custom dates when periodType is custom", () => {
+    const parsed = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(form({ scope: "period", periodType: "custom", style: "brief" })),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects a custom range with start after end", () => {
+    const parsed = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(
+        form({
+          scope: "period",
+          periodType: "custom",
+          style: "brief",
+          startDate: "2026-06-30",
+          endDate: "2026-06-01",
+        }),
+      ),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("requires a non-empty filter for topic scope", () => {
+    const empty = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(form({ scope: "topic", style: "narrative" })),
+    );
+    expect(empty.success).toBe(false);
+
+    const withTag = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(form({ scope: "topic", style: "narrative", tags: "工作, 生活" })),
+    );
+    expect(withTag.success).toBe(true);
+    if (withTag.success) {
+      expect(withTag.data.filter.tags).toEqual(["工作", "生活"]);
+    }
+  });
+});
+
+describe("listEntriesByDateRange", () => {
+  beforeEach(resetDb);
+
+  it("returns live entries within an inclusive window, newest day first", async () => {
+    await seedEntry({ entryDate: "2026-06-01", title: "早" });
+    await seedEntry({ entryDate: "2026-06-15", title: "中" });
+    await seedEntry({ entryDate: "2026-07-01", title: "晚" });
+
+    const rows = await listEntriesByDateRange(db, "2026-06-01", "2026-06-30");
+    expect(rows.map((row) => row.title)).toEqual(["中", "早"]);
+  });
+});
+
+describe("summaries repository", () => {
+  beforeEach(resetDb);
+
+  it("creates, reads back parsed JSON, lists, and soft-deletes", async () => {
+    const id = await createSummary(db, {
+      scope: "topic",
+      periodType: null,
+      startDate: "2026-06-01",
+      endDate: "2026-06-30",
+      style: "structured",
+      filter: { tags: ["工作"], keyword: "项目" },
+      title: "工作回顾",
+      content: "正文",
+      model: "test-model",
+      sourceEntryIds: ["a", "b"],
+      generatedAt: new Date("2026-06-30T00:00:00Z"),
+    });
+
+    const view = await getSummary(db, id);
+    expect(view?.filter).toEqual({ tags: ["工作"], keyword: "项目" });
+    expect(view?.sourceEntryIds).toEqual(["a", "b"]);
+
+    const all = await listSummaries(db);
+    expect(all).toHaveLength(1);
+    expect(await listSummaries(db, { scope: "period" })).toHaveLength(0);
+
+    await deleteSummary(db, id);
+    expect(await getSummary(db, id)).toBeNull();
+    expect(await listSummaries(db)).toHaveLength(0);
+  });
+
+  it("orders by generatedAt descending", async () => {
+    await createSummary(db, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "brief",
+      filter: null,
+      title: "旧",
+      content: "x",
+      model: null,
+      sourceEntryIds: [],
+      generatedAt: new Date("2026-06-01T00:00:00Z"),
+    });
+    await createSummary(db, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-02",
+      endDate: "2026-06-02",
+      style: "brief",
+      filter: null,
+      title: "新",
+      content: "y",
+      model: null,
+      sourceEntryIds: [],
+      generatedAt: new Date("2026-06-02T00:00:00Z"),
+    });
+    const rows = await listSummaries(db);
+    expect(rows.map((row) => row.title)).toEqual(["新", "旧"]);
+  });
+
+  it("finds a period summary by window and overwrites it on update", async () => {
+    const id = await createSummary(db, {
+      scope: "period",
+      periodType: "week",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      style: "brief",
+      filter: null,
+      title: "本周",
+      content: "旧内容",
+      model: null,
+      sourceEntryIds: [],
+    });
+
+    const found = await findPeriodSummary(db, "week", "2026-06-22", "2026-06-28");
+    expect(found?.id).toBe(id);
+    expect(await findPeriodSummary(db, "week", "2026-06-01", "2026-06-07")).toBeNull();
+
+    await updateSummary(db, id, {
+      title: "本周(新)",
+      content: "新内容",
+      model: "m2",
+      style: "narrative",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      sourceEntryIds: ["e1"],
+    });
+    const updated = await getSummary(db, id);
+    expect(updated?.title).toBe("本周(新)");
+    expect(updated?.content).toBe("新内容");
+    expect(updated?.sourceEntryIds).toEqual(["e1"]);
+  });
+});
+
+describe("collectEntriesForTopic", () => {
+  beforeEach(resetDb);
+
+  it("returns an empty set for an empty filter", async () => {
+    await seedEntry({ entryDate: "2026-06-01", title: "孤立" });
+    expect(await collectEntriesForTopic(db, {})).toEqual([]);
+  });
+
+  it("matches by tag, people, relationships, keyword, and explicit ids, de-duplicated", async () => {
+    const tagged = await seedEntry({ entryDate: "2026-06-01", title: "标签", tags: ["工作"] });
+    const personed = await seedEntry({ entryDate: "2026-06-02", title: "人物", people: ["小明"] });
+    const related = await seedEntry({
+      entryDate: "2026-06-03",
+      title: "关系",
+      relationships: ["同事"],
+    });
+    const keyworded = await seedEntry({
+      entryDate: "2026-06-04",
+      title: "关键词",
+      body: "今天去爬山看日出",
+    });
+    const picked = await seedEntry({ entryDate: "2026-06-05", title: "手选" });
+
+    const byTag = await collectEntriesForTopic(db, { tags: ["工作"] });
+    expect(byTag.map((row) => row.id)).toEqual([tagged.id]);
+
+    const byPeople = await collectEntriesForTopic(db, { people: ["小明"] });
+    expect(byPeople.map((row) => row.id)).toEqual([personed.id]);
+
+    const byRelationship = await collectEntriesForTopic(db, { relationships: ["同事"] });
+    expect(byRelationship.map((row) => row.id)).toEqual([related.id]);
+
+    const byKeyword = await collectEntriesForTopic(db, { keyword: "日出" });
+    expect(byKeyword.map((row) => row.id)).toContain(keyworded.id);
+
+    const byIds = await collectEntriesForTopic(db, { entryIds: [picked.id] });
+    expect(byIds.map((row) => row.id)).toEqual([picked.id]);
+
+    // Combined filter de-duplicates and respects an optional window.
+    const combined = await collectEntriesForTopic(
+      db,
+      { tags: ["工作"], people: ["小明"], entryIds: [tagged.id] },
+      { startDate: "2026-06-01", endDate: "2026-06-01" },
+    );
+    expect(combined.map((row) => row.id)).toEqual([tagged.id]);
+  });
+});
+
+describe("buildEntriesDigest", () => {
+  it("truncates long bodies and notes omitted entries beyond the cap", () => {
+    const base: EntryWithTags = {
+      id: "x",
+      entryDate: "2026-06-01",
+      title: "标题",
+      body: "正文",
+      kind: "fragment",
+      noteType: null,
+      mood: null,
+      moodText: "平静",
+      weather: null,
+      location: null,
+      people: JSON.stringify(["小红"]),
+      relationships: JSON.stringify(["朋友"]),
+      isPinned: false,
+      utcOffsetMinutes: null,
+      metadata: null,
+      version: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      summary: null,
+      sentiment: null,
+      tags: ["生活"],
+    };
+    const many = Array.from({ length: 65 }, (_, index) => ({
+      ...base,
+      id: `e${index}`,
+      body: "字".repeat(600),
+    }));
+    const digest = buildEntriesDigest(many);
+    expect(digest).toContain("另有 5 条更早的记录未纳入");
+    expect(digest).toContain("…"); // body was truncated
+    expect(digest).toContain("人物：小红");
+    expect(digest).toContain("#生活");
+  });
+});
+
+describe("generateSummary", () => {
+  beforeEach(resetDb);
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function configureAnthropic() {
+    await saveAiSettings(env, {
+      enabled: true,
+      name: "Claude",
+      protocol: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-test",
+      apiKey: "sk-ant-web",
+    });
+  }
+
+  it("skips with a reason when there are no entries", async () => {
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "brief",
+      entries: [],
+    });
+    expect(draft.ok).toBe(false);
+    expect(draft.skippedReason).toBe("所选范围内没有记录");
+  });
+
+  it("skips when the provider is disabled", async () => {
+    const entry = await seedEntry({ entryDate: "2026-06-01", title: "一天" });
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "brief",
+      entries: [entry],
+    });
+    expect(draft.ok).toBe(false);
+    expect(draft.skippedReason).toContain("disabled");
+  });
+
+  it("splits a leading title line from the body on success", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "# 六月回顾\n\n这一周你过得平稳而充实。" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "week",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      style: "structured",
+      entries: [entry],
+    });
+    expect(draft.ok).toBe(true);
+    expect(draft.title).toBe("六月回顾");
+    expect(draft.content).toBe("这一周你过得平稳而充实。");
+    expect(draft.model).toBe("claude-test");
+  });
+
+  it("falls back to a derived title when the model omits one (topic + period)", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "没有标题行的正文。" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+    const entry = await seedEntry({ entryDate: "2026-06-01", title: "孤立", tags: ["工作"] });
+
+    const topic = await generateSummary(env, {
+      scope: "topic",
+      periodType: null,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "narrative",
+      entries: [entry],
+      topicLabel: "#工作",
+    });
+    expect(topic.ok).toBe(true);
+    expect(topic.title).toBe("#工作回顾");
+    expect(topic.content).toBe("没有标题行的正文。");
+
+    const day = await generateSummary(env, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "brief",
+      entries: [entry],
+    });
+    expect(day.title).toBe("2026-06-01 回顾");
+  });
+
+  it("reports a skip when the provider returns no usable text", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ content: [{ type: "text", text: "" }], stop_reason: "refusal" }),
+      ),
+    );
+    const entry = await seedEntry({ entryDate: "2026-06-01" });
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "day",
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      style: "brief",
+      entries: [entry],
+    });
+    expect(draft.ok).toBe(false);
+    expect(draft.skippedReason).toBe("AI 未返回内容");
+  });
+});

@@ -146,6 +146,58 @@ export const attachments = sqliteTable(
   ],
 );
 
+/**
+ * AI-generated reviews that aggregate *many* entries — period digests (day/week/
+ * month/…), topic threads ("one event / one state"), woven narratives. Unlike
+ * `entryAi` (1:1 with an entry) these are standalone documents, so they live in
+ * their own table and reference their sources only by `sourceEntryIds` (JSON, no
+ * FK) — deleting a source entry must not cascade-delete a review that mentions it.
+ *
+ * Follows the entries sync conventions: UUIDv7 id, `updatedAt` watermark, and a
+ * `deletedAt` soft-delete tombstone. `trigger` distinguishes manual generation
+ * from the scheduled cron path (phase 2).
+ */
+export const summaries = sqliteTable(
+  "summaries",
+  {
+    id: text("id").primaryKey(),
+    // "period" = a time window; "topic" = a thread filtered by tags/people/keyword.
+    scope: text("scope").notNull(),
+    // For scope=period: day|week|month|quarter|year|custom. Null for topic.
+    periodType: text("period_type"),
+    // Effective window actually summarized (YYYY-MM-DD, inclusive). For a topic
+    // without an explicit window this is the min/max date of the matched entries.
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    // Output depth/voice: brief | structured | narrative (narrative = long-form).
+    style: text("style").notNull().default("brief"),
+    // JSON of the topic filter ({ tags?, people?, relationships?, keyword?, entryIds? }).
+    // Null for a pure period summary.
+    filter: text("filter"),
+    title: text("title").notNull().default(""),
+    content: text("content").notNull(),
+    // Which provider/model produced this (audit), same idea as entry_ai.model.
+    model: text("model"),
+    // JSON array of the entry ids this review was built from (provenance).
+    sourceEntryIds: text("source_entry_ids"),
+    // How it was produced: "manual" now; "scheduled" reserved for the cron phase.
+    trigger: text("trigger").notNull().default("manual"),
+    generatedAt: integer("generated_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("idx_summaries_updated_at").on(table.updatedAt),
+    // Dedup / "regenerate overwrites" lookup for period summaries.
+    index("idx_summaries_scope_period_start").on(table.scope, table.periodType, table.startDate),
+  ],
+);
+
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type EntryAi = typeof entryAi.$inferSelect;
@@ -154,3 +206,5 @@ export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;
 export type NewAttachment = typeof attachments.$inferInsert;
+export type Summary = typeof summaries.$inferSelect;
+export type NewSummary = typeof summaries.$inferInsert;

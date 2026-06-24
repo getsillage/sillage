@@ -17,7 +17,7 @@ export interface AiPipelineResult {
 }
 
 /** The model name backing the currently selected text provider, for audit. */
-function activeModel(config: AiConfig): string | null {
+export function activeModel(config: AiConfig): string | null {
   if (config.textProvider === "anthropic") {
     return config.anthropicModel;
   }

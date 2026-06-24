@@ -34,6 +34,27 @@ export async function listEntriesByDate(db: Db, date: string): Promise<EntryWith
   return composeEntries(db, rows);
 }
 
+/** Lists live entries within [startDate, endDate] (inclusive), newest day first. */
+export async function listEntriesByDateRange(
+  db: Db,
+  startDate: string,
+  endDate: string,
+): Promise<EntryWithTags[]> {
+  const rows = await db
+    .select()
+    .from(entries)
+    .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+    .where(
+      and(
+        gte(entries.entryDate, startDate),
+        lte(entries.entryDate, endDate),
+        isNull(entries.deletedAt),
+      ),
+    )
+    .orderBy(desc(entries.entryDate), desc(entries.createdAt));
+  return composeEntries(db, rows);
+}
+
 /**
  * "On this day": live entries from the same month/day (MM-DD) in other years.
  * `today` is a full YYYY-MM-DD string.

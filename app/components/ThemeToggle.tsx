@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 
-type ThemeMode = "system" | "light" | "dark";
+type ThemeMode = "light" | "dark";
+type ThemePreference = ThemeMode | "system";
 
 const STORAGE_KEY = "sillage-theme";
-const MODES: ThemeMode[] = ["system", "light", "dark"];
 const MODE_LABELS: Record<ThemeMode, string> = {
-  system: "系统",
   light: "浅色",
   dark: "深色",
 };
 
-function readStoredMode(): ThemeMode {
+function readStoredPreference(): ThemePreference {
   if (typeof window === "undefined") {
     return "system";
   }
@@ -25,31 +24,36 @@ function systemPrefersDark(): boolean {
   );
 }
 
-function applyTheme(mode: ThemeMode): boolean {
-  const isDark = mode === "dark" || (mode === "system" && systemPrefersDark());
+function getEffectiveMode(preference: ThemePreference): ThemeMode {
+  if (preference !== "system") {
+    return preference;
+  }
+  return systemPrefersDark() ? "dark" : "light";
+}
+
+function applyTheme(preference: ThemePreference): ThemeMode {
+  const effectiveMode = getEffectiveMode(preference);
+  const isDark = effectiveMode === "dark";
   document.documentElement.classList.toggle("dark", isDark);
-  document.documentElement.dataset.theme = mode;
+  document.documentElement.dataset.theme = preference;
   document.documentElement.style.colorScheme = isDark ? "dark" : "light";
-  if (mode === "system") {
+  if (preference === "system") {
     window.localStorage.removeItem(STORAGE_KEY);
   } else {
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    window.localStorage.setItem(STORAGE_KEY, preference);
   }
-  return isDark;
+  return effectiveMode;
 }
 
 function nextMode(mode: ThemeMode): ThemeMode {
-  return MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+  return mode === "dark" ? "light" : "dark";
 }
 
 export function ThemeToggle() {
-  const [mode, setMode] = useState<ThemeMode>("system");
-  const [isDark, setIsDark] = useState(false);
+  const [mode, setMode] = useState<ThemeMode>("light");
 
   useEffect(() => {
-    const stored = readStoredMode();
-    setMode(stored);
-    setIsDark(applyTheme(stored));
+    setMode(applyTheme(readStoredPreference()));
   }, []);
 
   useEffect(() => {
@@ -58,7 +62,7 @@ export function ThemeToggle() {
       return;
     }
     function onChange() {
-      setIsDark(applyTheme(readStoredMode()));
+      setMode(applyTheme(readStoredPreference()));
     }
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
@@ -73,13 +77,13 @@ export function ThemeToggle() {
       onClick={() => {
         const next = nextMode(mode);
         setMode(next);
-        setIsDark(applyTheme(next));
+        applyTheme(next);
       }}
     >
       <span
         aria-hidden="true"
         className={`h-2.5 w-2.5 rounded-full ring-1 ring-inset ${
-          isDark ? "bg-gray-100 ring-gray-400" : "bg-gray-900 ring-gray-900"
+          mode === "dark" ? "bg-gray-100 ring-gray-400" : "bg-gray-900 ring-gray-900"
         }`}
       />
       <span>{MODE_LABELS[mode]}</span>

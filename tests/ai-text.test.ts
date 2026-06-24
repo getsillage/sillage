@@ -86,7 +86,54 @@ describe("AI text generation", () => {
     expect(JSON.parse(String(init.body))).toMatchObject({
       model: "gpt-5.1-mini",
       max_completion_tokens: 20,
+      reasoning_effort: "low",
     });
+  });
+
+  it("extracts OpenAI-compatible text from multipart chat content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          choices: [
+            {
+              message: {
+                content: [
+                  { type: "text", text: "第一段" },
+                  { type: "output_text", text: { value: "第二段" } },
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      {
+        ...baseConfig,
+        textProvider: "openai",
+        openaiModel: "custom-chat-model",
+        openaiApiKey: "openai-key",
+      },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "第一段第二段", skipped: false });
+  });
+
+  it("extracts OpenAI-compatible text from legacy choice text and output_text fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ choices: [{ text: " 旧字段 " }], output_text: "" })),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "openai", openaiApiKey: "openai-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "旧字段", skipped: false });
   });
 
   it("captures provider failures as skipped results", async () => {

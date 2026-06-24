@@ -27,8 +27,18 @@ interface AnthropicMessageResponse {
   stop_reason?: string | null;
 }
 
+interface OpenAiTextPart {
+  type?: string;
+  text?: string | { value?: string };
+  content?: string;
+}
+
 interface OpenAiChatResponse {
-  choices?: Array<{ message?: { content?: string | null } }>;
+  choices?: Array<{
+    message?: { content?: string | OpenAiTextPart[] | null };
+    text?: string | null;
+  }>;
+  output_text?: string;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -41,6 +51,43 @@ function textFromAnthropic(response: AnthropicMessageResponse): string | null {
   }
   const block = response.content.find((item): item is AnthropicTextBlock => item.type === "text");
   return block?.text.trim() || null;
+}
+
+function textFromOpenAiContent(content: string | OpenAiTextPart[] | null | undefined): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .map((part) => {
+      if (typeof part.text === "string") {
+        return part.text;
+      }
+      if (typeof part.text?.value === "string") {
+        return part.text.value;
+      }
+      return part.content ?? "";
+    })
+    .join("");
+}
+
+function textFromOpenAi(response: OpenAiChatResponse): string | null {
+  const choice = response.choices?.[0];
+  const text = [
+    textFromOpenAiContent(choice?.message?.content),
+    choice?.text ?? "",
+    response.output_text ?? "",
+  ]
+    .join("")
+    .trim();
+  return text || null;
+}
+
+function supportsReasoningEffort(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  return /^(gpt-5|o[1-9])/.test(normalized);
 }
 
 async function generateWithAnthropic(
@@ -102,6 +149,7 @@ async function generateWithOpenAi(
           { role: "user", content: input.prompt },
         ],
         max_completion_tokens: input.maxTokens ?? 512,
+        ...(supportsReasoningEffort(config.openaiModel) ? { reasoning_effort: "low" } : {}),
       }),
     },
   );
@@ -111,10 +159,7 @@ async function generateWithOpenAi(
   }
 
   const data = (await response.json()) as OpenAiChatResponse;
-  return {
-    text: data.choices?.[0]?.message?.content?.trim() || null,
-    skipped: false,
-  };
+  return { text: textFromOpenAi(data), skipped: false };
 }
 
 export async function generateText(

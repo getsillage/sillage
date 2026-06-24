@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Form, useFetcher, useNavigation } from "react-router";
+import { SuggestedInput } from "~/components/SuggestedInput";
 import { listAiModels } from "~/lib/ai/models";
 import { testAiConnection } from "~/lib/ai/test-connection";
 import { requireSession } from "~/lib/auth/session";
@@ -137,65 +138,6 @@ const statusClass = (ok: boolean) =>
   `rounded-lg border px-3 py-2 text-sm ${
     ok ? "border-green-300 bg-green-50 text-green-800" : "border-red-300 bg-red-50 text-red-800"
   }`;
-
-function modelInputClass(options: string[]): string {
-  return options.length > 0 ? `${inputClass} pr-20` : inputClass;
-}
-
-function ModelField({
-  model,
-  options,
-  onModelChange,
-}: {
-  model: string;
-  options: string[];
-  onModelChange: (model: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <input
-        id="model"
-        type="text"
-        name="model"
-        value={model}
-        onChange={(event) => onModelChange(event.target.value)}
-        placeholder="输入模型名称"
-        className={modelInputClass(options)}
-      />
-      {options.length > 0 ? (
-        <div className="absolute top-2 right-2 z-20">
-          <button
-            type="button"
-            aria-label="选择已获取的模型"
-            aria-expanded={open}
-            className="h-7 rounded-md px-2 text-gray-500 text-xs transition hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-            onClick={() => setOpen((value) => !value)}
-          >
-            选择
-          </button>
-          {open ? (
-            <div className="absolute top-9 right-0 z-30 max-h-56 min-w-64 overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-              {options.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className="block w-full px-3 py-1.5 text-left text-gray-700 text-sm transition hover:bg-gray-50 hover:text-gray-950 focus:bg-gray-50 focus:outline-none"
-                  onClick={() => {
-                    onModelChange(option);
-                    setOpen(false);
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function defaultProfile(protocol: AiProtocol = "anthropic") {
   return {
@@ -449,7 +391,16 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             </button>
           </div>
 
-          <ModelField model={model} options={visibleModelOptions} onModelChange={setModel} />
+          <SuggestedInput
+            id="model"
+            name="model"
+            optionLabel="选择已获取的模型"
+            options={visibleModelOptions}
+            placeholder="输入模型名称"
+            value={model}
+            onValueChange={setModel}
+            inputClassName={inputClass}
+          />
 
           {modelData?.intent === "models" ? (
             <p className={`mt-3 ${statusClass(modelData.ok)}`}>{modelData.message}</p>

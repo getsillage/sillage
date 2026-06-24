@@ -50,6 +50,8 @@ npm run deploy           # build && wrangler deploy(需先准备真实资源 ID 
 
 **搜索(`app/lib/search/`)。** `fts.ts` 实现记忆搜索:标题/正文走 D1 FTS5,同时补充匹配 `moodText`、`location`、`people`、`relationships` 等 Sillage 字段。
 
+**UI 组件。** 基础样式常量集中在 `app/components/ui.ts`。需要“自由输入 + 已有值/远端结果建议”的字段统一使用 `app/components/SuggestedInput.tsx`:单值字段用默认替换模式,多值字段用 `selectionMode="append"` 追加为逗号分隔值。不要再为这类场景额外放置占布局的 `<select>` 或宽按钮;建议入口应是输入框内的轻量触发区,建议列表作为浮层出现。
+
 **同步 API(`routes/api.sync.tsx` + `app/lib/api/serialize.ts`)。** `GET /api/sync?cursor=<opaque>`(受会话守护)返回游标之后的全部变更——包括软删除墓碑,以便客户端镜像删除——并附带可回传的不透明 `cursor`。分页对每个流采用 `(updatedAt, id)` 的 keyset 游标,避免同一毫秒的行在翻页边界被跳过。行经 `serialize.ts` DTO 层映射(ISO 8601 时间戳、解析 `metadata`、剔除 R2 key、附件 `url`),使内部 schema 演进不破坏非 web 客户端(如移动 app)。契约见 `docs/api/sync.md`。
 
 **备份(`app/lib/backup/export.ts`)。** 每日 cron(wrangler.jsonc 的 `triggers.crons`)将整个 Sillage 数据导出为 JSON + Markdown 到 R2 的 `backups/<date>/sillage-<timestamp>.{json,md}`。`runScheduledBackup` 记录失败并重新抛出,使失败的 cron 运行可见。

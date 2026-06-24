@@ -1,24 +1,21 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runAiPipeline } from "../app/lib/ai/pipeline";
 import { getDb } from "../app/lib/db/client";
 import { createEntry, getEntry } from "../app/lib/db/entries";
+import { saveAiSettings } from "../app/lib/settings/ai-settings";
 
 const db = getDb(env.DB);
-
-interface AiRunCall {
-  model: string;
-  input: unknown;
-}
-
-function testEnv(values: Partial<Env>): Env {
-  return { ...env, ...values } as Env;
-}
 
 describe("AI pipeline", () => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM entries").run();
     await env.DB.prepare("DELETE FROM tags").run();
+    await env.SESSIONS.delete("ai-settings");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("degrades safely when AI providers are disabled", async () => {
@@ -33,22 +30,16 @@ describe("AI pipeline", () => {
       throw new Error("entry not created");
     }
 
-    const result = await runAiPipeline(testEnv({}), entry);
+    const result = await runAiPipeline(env, entry);
     const updated = await getEntry(db, id);
 
     expect(result.summaryUpdated).toBe(false);
-    expect(result.sentimentUpdated).toBe(false);
-    expect(result.vectorUpdated).toBe(false);
-    expect(result.skippedReasons).toEqual([
-      "AI_TEXT_PROVIDER disabled",
-      "AI_TEXT_PROVIDER disabled",
-      "AI_EMBEDDING_PROVIDER disabled",
-    ]);
+    expect(result.skippedReasons).toEqual(["AI text generation disabled"]);
     expect(updated?.summary).toBeNull();
     expect(updated?.sentiment).toBeNull();
   });
 
-  it("writes summary, sentiment, and Vectorize embedding when configured", async () => {
+  it("writes summary when a web AI profile is configured", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
       title: "海边散步",
@@ -60,52 +51,31 @@ describe("AI pipeline", () => {
       throw new Error("entry not created");
     }
 
-    const aiCalls: AiRunCall[] = [];
-    const aiRun = vi.fn(async (model: string, input: unknown) => {
-      aiCalls.push({ model, input });
-      if (model === "summary-model") {
-        return { response: "看夕阳的一天" };
-      }
-      if (model === "sentiment-model") {
-        return { response: "开心" };
-      }
-      return { data: [[0.1, 0.2, 0.3]] };
+    await saveAiSettings(env, {
+      enabled: true,
+      name: "Claude",
+      protocol: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-test-model",
+      apiKey: "sk-ant-web",
     });
-    const upsert = vi.fn(async () => undefined);
-
-    const result = await runAiPipeline(
-      testEnv({
-        AI_TEXT_PROVIDER: "workers-ai",
-        AI_EMBEDDING_PROVIDER: "workers-ai",
-        AI_SUMMARY_MODEL: "summary-model",
-        AI_SENTIMENT_MODEL: "sentiment-model",
-        AI_EMBEDDING_MODEL: "embedding-model",
-        AI: { run: aiRun } as unknown as Env["AI"],
-        VEC: { upsert } as unknown as Env["VEC"],
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        content: [{ type: "text", text: "看夕阳的一天" }],
+        stop_reason: "end_turn",
       }),
-      entry,
     );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runAiPipeline(env, entry);
     const updated = await getEntry(db, id);
 
     expect(result).toEqual({
       summaryUpdated: true,
-      sentimentUpdated: true,
-      vectorUpdated: true,
       skippedReasons: [],
     });
     expect(updated?.summary).toBe("看夕阳的一天");
-    expect(updated?.sentiment).toBe("开心");
-    expect(aiCalls.map((call) => call.model).sort()).toEqual([
-      "embedding-model",
-      "sentiment-model",
-      "summary-model",
-    ]);
-    expect(upsert).toHaveBeenCalledWith([
-      {
-        id,
-        values: [0.1, 0.2, 0.3],
-        metadata: { entryDate: "2026-06-23" },
-      },
-    ]);
+    expect(updated?.sentiment).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -9,23 +9,6 @@ declare global {
     APP_PASSWORD_HASH: string;
     /** Base64 AES-256 key for app-layer encryption of R2 attachments. */
     ATTACH_ENCRYPTION_KEY: string;
-
-    /** Text-generation provider: disabled | workers-ai | anthropic | openai. */
-    AI_TEXT_PROVIDER?: string;
-    /** Embedding provider: disabled | workers-ai | openai. */
-    AI_EMBEDDING_PROVIDER?: string;
-    AI_SUMMARY_MODEL?: string;
-    AI_SENTIMENT_MODEL?: string;
-    AI_EMBEDDING_MODEL?: string;
-
-    ANTHROPIC_API_KEY?: string;
-    ANTHROPIC_MODEL?: string;
-    ANTHROPIC_BASE_URL?: string;
-
-    OPENAI_API_KEY?: string;
-    OPENAI_MODEL?: string;
-    OPENAI_EMBEDDING_MODEL?: string;
-    OPENAI_BASE_URL?: string;
   }
 }
 

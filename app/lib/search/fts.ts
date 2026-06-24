@@ -6,7 +6,7 @@ import { getTagsForEntries } from "~/lib/db/tags";
 
 export interface SearchResult extends EntryWithTags {
   score: number;
-  source: "keyword" | "semantic";
+  source: "keyword";
 }
 
 function normalizeQuery(query: string): string {

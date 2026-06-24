@@ -3,7 +3,7 @@ import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlit
 /**
  * Diary entries. `body` is stored as Markdown plaintext (relying on Cloudflare's
  * at-rest encryption + access control) so that FTS5 and AI features can operate
- * on it. `summary` / `sentiment` are written back asynchronously by the AI pipeline.
+ * on it. `summary` is written back asynchronously by the AI pipeline.
  */
 export const entries = sqliteTable(
   "entries",

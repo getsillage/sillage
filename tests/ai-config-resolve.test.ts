@@ -16,6 +16,7 @@ describe("loadAiConfig resolution", () => {
   it("lets enabled Anthropic web settings drive the text provider", async () => {
     await saveAiSettings(env, {
       enabled: true,
+      name: "Claude",
       protocol: "anthropic",
       baseUrl: "https://anthropic.example/test",
       model: "claude-test-model",
@@ -32,6 +33,7 @@ describe("loadAiConfig resolution", () => {
   it("lets enabled OpenAI web settings drive the text provider", async () => {
     await saveAiSettings(env, {
       enabled: true,
+      name: "OpenAI",
       protocol: "openai",
       baseUrl: "https://gateway.example/v1",
       model: "gpt-web-model",
@@ -48,6 +50,7 @@ describe("loadAiConfig resolution", () => {
   it("ignores web settings when disabled", async () => {
     await saveAiSettings(env, {
       enabled: false,
+      name: "Claude disabled",
       protocol: "anthropic",
       baseUrl: "https://anthropic.example/test",
       model: "claude-test-model",

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
 import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
@@ -52,6 +53,7 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const defaultKind = defaults?.kind ?? "fragment";
+  const [selectedKind, setSelectedKind] = useState<EntryKind>(defaultKind);
   const defaultNoteType = defaults?.noteType ?? "daily";
 
   return (
@@ -115,7 +117,8 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
                 type="radio"
                 name="kind"
                 value={kind}
-                defaultChecked={defaultKind === kind}
+                checked={selectedKind === kind}
+                onChange={() => setSelectedKind(kind)}
                 className="sr-only"
               />
               <span className="font-medium">{KIND_LABELS[kind].label}</span>
@@ -125,17 +128,19 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
         </div>
       </fieldset>
 
-      <label className={labelClass}>
-        笔记类型
-        <select name="noteType" defaultValue={defaultNoteType} className={inputClass}>
-          {NOTE_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {NOTE_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
-        <span className={helperTextClass}>仅在保存为笔记时使用。</span>
-      </label>
+      {selectedKind === "note" ? (
+        <label className={labelClass}>
+          笔记类型
+          <select name="noteType" defaultValue={defaultNoteType} className={inputClass}>
+            {NOTE_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {NOTE_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
+          <span className={helperTextClass}>用于区分今日笔记、周笔记、主题笔记等整理方式。</span>
+        </label>
+      ) : null}
 
       <fieldset>
         <legend className={labelClass}>预设心情</legend>

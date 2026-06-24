@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "201339bb-af96-400e-a93e-21a2191c1ef2",
-  "prevId": "b7c2e4a0-9f1d-4c3a-8e6b-2a5d7f0c1e92",
+  "id": "8ceb4ff9-34bf-455f-9c69-956f9c772959",
+  "prevId": "201339bb-af96-400e-a93e-21a2191c1ef2",
   "tables": {
     "attachments": {
       "name": "attachments",
@@ -176,8 +176,8 @@
           "autoincrement": false,
           "default": "'fragment'"
         },
-        "reflection_type": {
-          "name": "reflection_type",
+        "note_type": {
+          "name": "note_type",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -491,7 +491,9 @@
   "_meta": {
     "schemas": {},
     "tables": {},
-    "columns": {}
+    "columns": {
+      "\"entries\".\"reflection_type\"": "\"entries\".\"note_type\""
+    }
   },
   "internal": {
     "indexes": {}

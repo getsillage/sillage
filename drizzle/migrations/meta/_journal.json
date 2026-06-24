@@ -29,6 +29,13 @@
       "when": 1782294233558,
       "tag": "0003_fuzzy_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782297939196,
+      "tag": "0004_bitter_tombstone",
+      "breakpoints": true
     }
   ]
 }

@@ -176,8 +176,8 @@
           "autoincrement": false,
           "default": "'fragment'"
         },
-        "reflection_type": {
-          "name": "reflection_type",
+        "note_type": {
+          "name": "note_type",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

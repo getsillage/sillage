@@ -1,11 +1,6 @@
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
-import {
-  ENTRY_KINDS,
-  type EntryKind,
-  REFLECTION_TYPES,
-  type ReflectionType,
-} from "~/lib/product/entry-fields";
+import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { helperTextClass, inputClass, labelClass, primaryButtonClass } from "./ui";
 
@@ -18,7 +13,7 @@ export interface EntryFormDefaults {
   weather: string | null;
   location: string | null;
   kind: EntryKind;
-  reflectionType: ReflectionType | null;
+  noteType: NoteType | null;
   people: string[];
   relationships: string[];
   tags: string[];
@@ -41,23 +36,23 @@ const MOODS: ReadonlyArray<{ value: number; emoji: string; label: string }> = [
 
 const KIND_LABELS: Record<EntryKind, { label: string; help: string }> = {
   fragment: { label: "片段", help: "当下的一件事或一种感受" },
-  reflection: { label: "回顾", help: "认真整理一段时间或主题" },
+  note: { label: "笔记", help: "认真整理一段时间或主题" },
   draft: { label: "草稿", help: "先放下，还不决定形态" },
 };
 
-const REFLECTION_LABELS: Record<ReflectionType, string> = {
-  daily: "今日回顾",
-  weekly: "周回顾",
-  monthly: "月回顾",
-  topic: "主题回顾",
-  freeform: "自由回顾",
+const NOTE_TYPE_LABELS: Record<NoteType, string> = {
+  daily: "今日笔记",
+  weekly: "周笔记",
+  monthly: "月笔记",
+  topic: "主题笔记",
+  freeform: "自由笔记",
 };
 
 export function EntryForm({ defaults, error, submitLabel = "保存", intent }: EntryFormProps) {
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const defaultKind = defaults?.kind ?? "fragment";
-  const defaultReflectionType = defaults?.reflectionType ?? "daily";
+  const defaultNoteType = defaults?.noteType ?? "daily";
 
   return (
     <Form method="post" className="space-y-6">
@@ -131,15 +126,15 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
       </fieldset>
 
       <label className={labelClass}>
-        回顾类型
-        <select name="reflectionType" defaultValue={defaultReflectionType} className={inputClass}>
-          {REFLECTION_TYPES.map((type) => (
+        笔记类型
+        <select name="noteType" defaultValue={defaultNoteType} className={inputClass}>
+          {NOTE_TYPES.map((type) => (
             <option key={type} value={type}>
-              {REFLECTION_LABELS[type]}
+              {NOTE_TYPE_LABELS[type]}
             </option>
           ))}
         </select>
-        <span className={helperTextClass}>仅在保存为回顾时使用。</span>
+        <span className={helperTextClass}>仅在保存为笔记时使用。</span>
       </label>
 
       <fieldset>

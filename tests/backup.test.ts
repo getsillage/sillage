@@ -28,8 +28,8 @@ describe("Sillage backup export", () => {
       entryDate: "2026-06-23",
       title: "海边散步",
       body: "今天看到了漂亮夕阳。",
-      kind: "reflection",
-      reflectionType: "daily",
+      kind: "note",
+      noteType: "daily",
       mood: 5,
       moodText: "很明亮，也有一点想念",
       weather: "晴",
@@ -66,7 +66,7 @@ describe("Sillage backup export", () => {
         id: string;
         title: string;
         kind: string;
-        reflectionType: string | null;
+        noteType: string | null;
         moodText: string | null;
         location: string | null;
         people: string[];
@@ -79,8 +79,8 @@ describe("Sillage backup export", () => {
     expect(payload?.entries[0]).toMatchObject({
       id: entryId,
       title: "海边散步",
-      kind: "reflection",
-      reflectionType: "daily",
+      kind: "note",
+      noteType: "daily",
       moodText: "很明亮，也有一点想念",
       location: "海边",
       people: ["朋友"],

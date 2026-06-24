@@ -34,8 +34,8 @@ describe("entries repository", () => {
       entryDate: "2026-06-23",
       title: "标题",
       body: "正文内容",
-      kind: "reflection",
-      reflectionType: "daily",
+      kind: "note",
+      noteType: "daily",
       mood: 4,
       moodText: "轻松但有一点想念",
       weather: "晴",
@@ -47,8 +47,8 @@ describe("entries repository", () => {
 
     const entry = await getEntry(db, id);
     expect(entry?.title).toBe("标题");
-    expect(entry?.kind).toBe("reflection");
-    expect(entry?.reflectionType).toBe("daily");
+    expect(entry?.kind).toBe("note");
+    expect(entry?.noteType).toBe("daily");
     expect(entry?.mood).toBe(4);
     expect(entry?.moodText).toBe("轻松但有一点想念");
     expect(entry?.location).toBe("海边");

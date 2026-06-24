@@ -20,8 +20,8 @@ describe("entry form parsing + validation", () => {
         moodText: "有点松了一口气",
         weather: "晴",
         location: "海边",
-        kind: "reflection",
-        reflectionType: "daily",
+        kind: "note",
+        noteType: "daily",
         people: "朋友, 家人",
         relationships: "朋友",
         tags: "旅行, 美食  摄影，旅行",
@@ -32,8 +32,8 @@ describe("entry form parsing + validation", () => {
     expect(values.moodText).toBe("有点松了一口气");
     expect(values.weather).toBe("晴");
     expect(values.location).toBe("海边");
-    expect(values.kind).toBe("reflection");
-    expect(values.reflectionType).toBe("daily");
+    expect(values.kind).toBe("note");
+    expect(values.noteType).toBe("daily");
     expect(values.people).toEqual(["朋友", "家人"]);
     expect(values.relationships).toEqual(["朋友"]);
     expect(entrySchema.safeParse(values).success).toBe(true);
@@ -48,7 +48,7 @@ describe("entry form parsing + validation", () => {
     expect(values.moodText).toBeNull();
     expect(values.location).toBeNull();
     expect(values.kind).toBe("fragment");
-    expect(values.reflectionType).toBeNull();
+    expect(values.noteType).toBeNull();
   });
 
   it("rejects an entry with neither title nor body", () => {

@@ -1,9 +1,9 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import {
   type EntryKind,
+  type NoteType,
   normalizeEntryKind,
-  normalizeReflectionType,
-  type ReflectionType,
+  normalizeNoteType,
   serializeTextList,
 } from "~/lib/product/entry-fields";
 import type { Db } from "./client";
@@ -16,7 +16,7 @@ export interface EntryInput {
   title: string;
   body: string;
   kind?: EntryKind;
-  reflectionType?: ReflectionType | null;
+  noteType?: NoteType | null;
   mood?: number | null;
   moodText?: string | null;
   weather?: string | null;
@@ -78,7 +78,7 @@ export async function createEntry(db: Db, input: EntryInput): Promise<string> {
     title: input.title,
     body: input.body,
     kind,
-    reflectionType: normalizeReflectionType(input.reflectionType, kind),
+    noteType: normalizeNoteType(input.noteType, kind),
     mood: input.mood ?? null,
     moodText: input.moodText ?? null,
     weather: input.weather ?? null,
@@ -125,7 +125,7 @@ export async function updateEntry(
     title: input.title,
     body: input.body,
     kind,
-    reflectionType: normalizeReflectionType(input.reflectionType, kind),
+    noteType: normalizeNoteType(input.noteType, kind),
     mood: input.mood ?? null,
     moodText: input.moodText ?? null,
     weather: input.weather ?? null,

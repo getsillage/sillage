@@ -3,14 +3,14 @@ import {
   cleanTextList,
   ENTRY_KINDS,
   type EntryKind,
-  REFLECTION_TYPES,
-  type ReflectionType,
+  NOTE_TYPES,
+  type NoteType,
 } from "~/lib/product/entry-fields";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const kindSchema = z.enum(ENTRY_KINDS);
-const reflectionTypeSchema = z.enum(REFLECTION_TYPES);
+const noteTypeSchema = z.enum(NOTE_TYPES);
 
 const baseEntrySchema = z
   .object({
@@ -22,7 +22,7 @@ const baseEntrySchema = z
     weather: z.string().trim().max(50, "天气过长").nullable(),
     location: z.string().trim().max(120, "地点过长").nullable(),
     kind: kindSchema,
-    reflectionType: reflectionTypeSchema.nullable(),
+    noteType: noteTypeSchema.nullable(),
     people: z.array(z.string().trim().max(80, "人物名称过长")),
     relationships: z.array(z.string().trim().max(80, "关系描述过长")),
     tags: z.array(z.string()),
@@ -37,7 +37,7 @@ export const entrySchema = baseEntrySchema.transform((value) => ({
   title: value.title,
   body: value.body,
   kind: value.kind,
-  reflectionType: value.reflectionType,
+  noteType: value.noteType,
   mood: value.mood,
   moodText: value.moodText,
   weather: value.weather,
@@ -66,14 +66,11 @@ function parseKind(raw: FormDataEntryValue | null): EntryKind {
   return ENTRY_KINDS.includes(raw as EntryKind) ? (raw as EntryKind) : "fragment";
 }
 
-function parseReflectionType(
-  raw: FormDataEntryValue | null,
-  kind: EntryKind,
-): ReflectionType | null {
-  if (kind !== "reflection") {
+function parseNoteType(raw: FormDataEntryValue | null, kind: EntryKind): NoteType | null {
+  if (kind !== "note") {
     return null;
   }
-  return REFLECTION_TYPES.includes(raw as ReflectionType) ? (raw as ReflectionType) : "daily";
+  return NOTE_TYPES.includes(raw as NoteType) ? (raw as NoteType) : "daily";
 }
 
 /** Extracts raw entry fields from submitted form data (before validation). */
@@ -91,7 +88,7 @@ export function entryFormFromData(form: FormData): EntryFormValues {
     weather: nullableText(form, "weather"),
     location: nullableText(form, "location"),
     kind,
-    reflectionType: parseReflectionType(form.get("reflectionType"), kind),
+    noteType: parseNoteType(form.get("noteType"), kind),
     people: parseDelimited(String(form.get("people") ?? "")),
     relationships: parseDelimited(String(form.get("relationships") ?? "")),
     tags: parseDelimited(String(form.get("tags") ?? "")),

@@ -78,7 +78,7 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
           <section>
             <h2 className="mb-3 font-medium text-gray-950 text-sm">搜索结果</h2>
             {results.length === 0 ? (
-              <p className="text-gray-400 text-sm">没有找到相关记忆。换一个词，或者问问回声。</p>
+              <p className="text-gray-400 text-sm">没有找到相关记忆。换一个词，或者看看洞察。</p>
             ) : (
               <ul className="space-y-3">
                 {results.map((entry) => (

@@ -10,9 +10,9 @@ import { deleteEntry, getEntry, updateEntry } from "~/lib/db/entries";
 import {
   entryKindLabel,
   normalizeEntryKind,
-  normalizeReflectionType,
+  normalizeNoteType,
+  noteTypeLabel,
   parseTextList,
-  reflectionTypeLabel,
 } from "~/lib/product/entry-fields";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
@@ -41,7 +41,7 @@ function formDefaults(entry: EntryWithTags) {
     weather: entry.weather,
     location: entry.location,
     kind,
-    reflectionType: normalizeReflectionType(entry.reflectionType, kind),
+    noteType: normalizeNoteType(entry.noteType, kind),
     people: parseTextList(entry.people),
     relationships: parseTextList(entry.relationships),
     tags: entry.tags,
@@ -92,7 +92,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
   const kindLabel = entryKindLabel(kind);
-  const reflectionLabel = reflectionTypeLabel(normalizeReflectionType(entry.reflectionType, kind));
+  const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
 
   if (editing) {
     return (
@@ -144,7 +144,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         <div className="flex items-center gap-2 text-gray-500 text-sm">
           <time>{entry.entryDate}</time>
           <span>· {kindLabel}</span>
-          {reflectionLabel ? <span>· {reflectionLabel}</span> : null}
+          {noteLabel ? <span>· {noteLabel}</span> : null}
           {entry.weather ? <span>· {entry.weather}</span> : null}
           {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
         </div>
@@ -188,7 +188,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
 
       {entry.summary ? (
         <section className="border-gray-100 border-t py-4 text-sm">
-          <h2 className="font-medium text-gray-900 text-xs">回声</h2>
+          <h2 className="font-medium text-gray-900 text-xs">洞察</h2>
           <p className="mt-1 text-gray-600">{entry.summary}</p>
         </section>
       ) : null}

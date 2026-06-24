@@ -3,9 +3,9 @@ import type { EntryWithTags } from "~/lib/db/entries";
 import {
   entryKindLabel,
   normalizeEntryKind,
-  normalizeReflectionType,
+  normalizeNoteType,
+  noteTypeLabel,
   parseTextList,
-  reflectionTypeLabel,
 } from "~/lib/product/entry-fields";
 import { rowLinkClass } from "./ui";
 
@@ -24,7 +24,7 @@ function excerpt(body: string, max = 120): string {
 
 export function EntryCard({ entry }: { entry: EntryWithTags }) {
   const kind = normalizeEntryKind(entry.kind);
-  const reflectionLabel = reflectionTypeLabel(normalizeReflectionType(entry.reflectionType, kind));
+  const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
 
@@ -33,7 +33,7 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
       <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
         <time>{entry.entryDate}</time>
         <span>{entryKindLabel(kind)}</span>
-        {reflectionLabel ? <span>{reflectionLabel}</span> : null}
+        {noteLabel ? <span>{noteLabel}</span> : null}
         {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
         {entry.location ? <span>{entry.location}</span> : null}
       </div>

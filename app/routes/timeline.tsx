@@ -29,7 +29,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
       <section className={pageSectionClass}>
         <header>
           <h1 className={pageTitleClass}>时间线</h1>
-          <p className={pageLeadClass}>片段和回顾按时间混排，保留生活流本来的形状。</p>
+          <p className={pageLeadClass}>片段和笔记按时间混排，保留生活流本来的形状。</p>
         </header>
 
         {entries.length === 0 ? (

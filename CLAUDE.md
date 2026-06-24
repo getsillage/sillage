@@ -10,7 +10,7 @@
 
 ## 项目
 
-Sillage 是单用户私人记忆空间,完全运行在 Cloudflare Workers 上。Worker 上采用 React Router v8 框架模式(SSR),搭配 D1(SQL)、R2(附件)、KV(会话)。存储在服务端,带静态加密(非端到端加密)——服务端读取明文,以便运行全文搜索、记忆检索与 AI 回声。界面文案为中文。产品指导文件见 `docs/product/sillage.md`。
+Sillage 是单用户私人记忆空间,完全运行在 Cloudflare Workers 上。Worker 上采用 React Router v8 框架模式(SSR),搭配 D1(SQL)、R2(附件)、KV(会话)。存储在服务端,带静态加密(非端到端加密)——服务端读取明文,以便运行全文搜索、记忆检索与 AI 洞察。界面文案为中文。产品指导文件见 `docs/product/sillage.md`。
 
 ## 命令
 
@@ -38,13 +38,13 @@ npm run deploy           # build && wrangler deploy(需先准备真实资源 ID 
 
 **数据层(`app/lib/db/`)。** Drizzle ORM;schema 在 `schema.ts`。访问通过按聚合划分的小型仓储式模块(`entries.ts`、`tags.ts`、`calendar.ts`),每个都接收来自 `getDb(env.DB)` 的 `Db`。时间戳是 `timestamp_ms` 的 Date 列。关键词搜索使用 D1 FTS5 虚拟表(trigram 分词器以支持 CJK),由迁移中的触发器保持同步。
 
-该 schema 面向**同步 / 多端**设计:id 为可按时间排序的 **UUIDv7**(`id.ts`,可在客户端生成,也可当游标);每个聚合都带 `updatedAt`(有索引)+ 软删除墓碑 `deletedAt`;`entries` 另有乐观并发 `version`、`utcOffsetMinutes`,以及向前兼容的 JSON `metadata`。Sillage 产品字段是 entries 的一等列: `kind`(`fragment|reflection|draft`)、`reflectionType`、`moodText`、`location`、`people`、`relationships`。人物/关系以 JSON 字符串数组存储,在边界用 `app/lib/product/entry-fields.ts` 解析。`deleteEntry` 执行**软删除**(打墓碑,保留标签关联/附件以便撤销;`restoreEntry`/`purgeEntry` 完成生命周期);读取一律过滤 `deletedAt IS NULL`,FTS 触发器按墓碑增删行;`updateEntry` 以**“比较并交换(CAS)”**方式更新——`UPDATE` 以读到的 `version` 作为条件,影响 0 行即返回 `{status: conflict}`,从而杜绝并发丢更新,且绝不覆盖 input 未提供的 `metadata`/offset。**机器派生的 AI 输出存放在 `entry_ai` 侧表**(1:1),通过 `composeEntries`/`fts.ts`/备份里的左连接读回——因此重新生成回声不会 bump `entries.updatedAt`,也不会扰动 FTS。`sync.ts`(`getChangesSince`)是同步 API 背后的增量读模型。
+该 schema 面向**同步 / 多端**设计:id 为可按时间排序的 **UUIDv7**(`id.ts`,可在客户端生成,也可当游标);每个聚合都带 `updatedAt`(有索引)+ 软删除墓碑 `deletedAt`;`entries` 另有乐观并发 `version`、`utcOffsetMinutes`,以及向前兼容的 JSON `metadata`。Sillage 产品字段是 entries 的一等列: `kind`(`fragment|note|draft`)、`noteType`、`moodText`、`location`、`people`、`relationships`。人物/关系以 JSON 字符串数组存储,在边界用 `app/lib/product/entry-fields.ts` 解析。`deleteEntry` 执行**软删除**(打墓碑,保留标签关联/附件以便撤销;`restoreEntry`/`purgeEntry` 完成生命周期);读取一律过滤 `deletedAt IS NULL`,FTS 触发器按墓碑增删行;`updateEntry` 以**“比较并交换(CAS)”**方式更新——`UPDATE` 以读到的 `version` 作为条件,影响 0 行即返回 `{status: conflict}`,从而杜绝并发丢更新,且绝不覆盖 input 未提供的 `metadata`/offset。**机器派生的 AI 输出存放在 `entry_ai` 侧表**(1:1),通过 `composeEntries`/`fts.ts`/备份里的左连接读回——因此重新生成洞察不会 bump `entries.updatedAt`,也不会扰动 FTS。`sync.ts`(`getChangesSince`)是同步 API 背后的增量读模型。
 
 **鉴权(`app/lib/auth/`)。** 单一密码守护一切:PBKDF2 哈希与 `APP_PASSWORD_HASH` 比对,会话经 RR `createSessionStorage` 存于 KV(cookie 仅存不透明 id;HttpOnly/Secure/SameSite)。`requireSession(request, env)` 守护 loader/action。登录 action 按客户端 IP 限流(`rate-limit.ts`,基于 KV,15 分钟内 10 次失败)。`safeRedirect` 阻止 `redirectTo` 上的开放重定向。
 
 **附件(`app/lib/storage/`)。** 字节在应用层用 `ATTACH_ENCRYPTION_KEY` 做 AES-256-GCM 加密后再写入 R2。读取路由(`routes/attachment.tsx`)受会话守护,解密并流式返回。上传在边界处校验类型/大小。
 
-**AI 流水线(`app/lib/ai/`)。** 保存后,单条记录回声生成通过 `context.get(waitUntilContext)(runAiPipeline(env, entry))` **在请求关键路径之外**运行——绝不在 action 中 `await`。流水线绝不让保存失败:provider 错误被记录为 `skippedReasons`。provider 默认 `disabled`;启用的 web 配置使用 `anthropic|openai`。Anthropic 与 OpenAI 兼容端点通过原始 `fetch` 调用。仅当选定 provider **且**其 API key 已解析时才发起远程调用。结果**upsert 进 `entry_ai`**(带来源 `model`),绝不回写 `entries`,从而让同步流与 FTS 索引对纯派生改动保持安静。
+**AI 流水线(`app/lib/ai/`)。** 保存后,单条记录洞察生成通过 `context.get(waitUntilContext)(runAiPipeline(env, entry))` **在请求关键路径之外**运行——绝不在 action 中 `await`。流水线绝不让保存失败:provider 错误被记录为 `skippedReasons`。provider 默认 `disabled`;启用的 web 配置使用 `anthropic|openai`。Anthropic 与 OpenAI 兼容端点通过原始 `fetch` 调用。仅当选定 provider **且**其 API key 已解析时才发起远程调用。结果**upsert 进 `entry_ai`**(带来源 `model`),绝不回写 `entries`,从而让同步流与 FTS 索引对纯派生改动保持安静。
 
 配置解析:流水线调用 `loadAiConfig(env)`(异步),从 KV 读取 **web 管理的设置**。当 web 设置存在且启用时,由其驱动摘要 provider(协议 `anthropic|openai`、base URL、模型、key)。web 的 API key **静态加密存储**(KV,`ATTACH_ENCRYPTION_KEY`),且绝不发送到浏览器——loader 只返回 `hasApiKey` 视图。`/settings` 路由保存多个配置,并提供模型列出与实时“测试连接”(`test-connection.ts`)。
 

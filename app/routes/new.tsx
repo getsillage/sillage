@@ -28,7 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     weather: null,
     location: null,
     kind,
-    reflectionType: kind === "reflection" ? "daily" : null,
+    noteType: kind === "note" ? "daily" : null,
     people: [],
     relationships: [],
     tags: [],

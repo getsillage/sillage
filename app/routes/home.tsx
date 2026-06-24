@@ -19,8 +19,8 @@ import { createEntry, type EntryWithTags, getEntry, listEntries } from "~/lib/db
 import {
   entryKindLabel,
   normalizeEntryKind,
-  normalizeReflectionType,
-  reflectionTypeLabel,
+  normalizeNoteType,
+  noteTypeLabel,
 } from "~/lib/product/entry-fields";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
@@ -48,7 +48,7 @@ function newDefaults(today: string): EntryFormDefaults {
     weather: null,
     location: null,
     kind: "fragment",
-    reflectionType: "daily",
+    noteType: "daily",
     people: [],
     relationships: [],
     tags: [],
@@ -62,13 +62,13 @@ function excerpt(body: string, max = 96): string {
 
 function splitToday(entries: EntryWithTags[]) {
   const fragments: EntryWithTags[] = [];
-  const reflections: EntryWithTags[] = [];
+  const notes: EntryWithTags[] = [];
   const drafts: EntryWithTags[] = [];
 
   for (const entry of entries) {
     const kind = normalizeEntryKind(entry.kind);
-    if (kind === "reflection") {
-      reflections.push(entry);
+    if (kind === "note") {
+      notes.push(entry);
     } else if (kind === "draft") {
       drafts.push(entry);
     } else {
@@ -76,7 +76,7 @@ function splitToday(entries: EntryWithTags[]) {
     }
   }
 
-  return { fragments, reflections, drafts };
+  return { fragments, notes, drafts };
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -118,9 +118,7 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
     <ul className="space-y-2">
       {entries.map((entry) => {
         const kind = normalizeEntryKind(entry.kind);
-        const reflectionLabel = reflectionTypeLabel(
-          normalizeReflectionType(entry.reflectionType, kind),
-        );
+        const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
         return (
           <li key={entry.id}>
             <Link
@@ -129,7 +127,7 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
             >
               <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
                 <span>{entryKindLabel(kind)}</span>
-                {reflectionLabel ? <span>{reflectionLabel}</span> : null}
+                {noteLabel ? <span>{noteLabel}</span> : null}
                 {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
               </div>
               <p className="mt-1 line-clamp-2 text-gray-800 text-sm">
@@ -145,8 +143,8 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
 
 export default function Home({ loaderData, actionData }: Route.ComponentProps) {
   const { entries, todayEntries, onThisDay, today } = loaderData;
-  const { fragments, reflections, drafts } = splitToday(todayEntries);
-  const todayEchoes = todayEntries.filter((entry) => entry.summary);
+  const { fragments, notes, drafts } = splitToday(todayEntries);
+  const todayInsights = todayEntries.filter((entry) => entry.summary);
 
   return (
     <main className={`${pageShellClass} max-w-6xl`}>
@@ -175,9 +173,9 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             </section>
 
             <section className={`${panelClass} p-4`}>
-              <h2 className="font-medium text-gray-950 text-sm">今日回顾</h2>
+              <h2 className="font-medium text-gray-950 text-sm">今日笔记</h2>
               <div className="mt-3">
-                <EntryMiniList entries={reflections} empty="今天还没有被整理。" />
+                <EntryMiniList entries={notes} empty="今天还没有被整理。" />
               </div>
             </section>
 
@@ -191,14 +189,14 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             ) : null}
 
             <section className={`${panelClass} p-4`}>
-              <h2 className="font-medium text-gray-950 text-sm">今日回声</h2>
-              {todayEchoes.length === 0 ? (
+              <h2 className="font-medium text-gray-950 text-sm">今日洞察</h2>
+              {todayInsights.length === 0 ? (
                 <p className="mt-3 text-gray-400 text-sm">
-                  写下一些内容后，Sillage 会帮你听见它们之间的回声。
+                  写下一些内容后，Sillage 会帮你看见它们之间的线索。
                 </p>
               ) : (
                 <ul className="mt-3 space-y-2">
-                  {todayEchoes.map((entry) => (
+                  {todayInsights.map((entry) => (
                     <li key={entry.id} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
                       <p className="text-gray-700">{entry.summary}</p>
                       <Link

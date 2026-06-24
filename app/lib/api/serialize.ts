@@ -16,7 +16,7 @@ export interface EntryDto {
   title: string;
   body: string;
   kind: string;
-  reflectionType: string | null;
+  noteType: string | null;
   mood: number | null;
   moodText: string | null;
   weather: string | null;
@@ -76,7 +76,7 @@ export function toEntryDto(entry: EntryWithTags): EntryDto {
     title: entry.title,
     body: entry.body,
     kind: entry.kind,
-    reflectionType: entry.reflectionType,
+    noteType: entry.noteType,
     mood: entry.mood,
     moodText: entry.moodText,
     weather: entry.weather,

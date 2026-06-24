@@ -4,9 +4,9 @@ import { entryAi } from "~/lib/db/schema";
 import {
   entryKindLabel,
   normalizeEntryKind,
-  normalizeReflectionType,
+  normalizeNoteType,
+  noteTypeLabel,
   parseTextList,
-  reflectionTypeLabel,
 } from "~/lib/product/entry-fields";
 import { type AiConfig, loadAiConfig } from "./config";
 import { generateText } from "./text";
@@ -29,9 +29,9 @@ function activeModel(config: AiConfig): string | null {
 
 function entryText(entry: EntryWithTags): string {
   const kind = normalizeEntryKind(entry.kind);
-  const reflectionType = normalizeReflectionType(entry.reflectionType, kind);
+  const noteType = normalizeNoteType(entry.noteType, kind);
   const labels = [
-    `类型：${entryKindLabel(kind)}${reflectionType ? ` / ${reflectionTypeLabel(reflectionType)}` : ""}`,
+    `类型：${entryKindLabel(kind)}${noteType ? ` / ${noteTypeLabel(noteType)}` : ""}`,
     entry.moodText ? `细腻感受：${entry.moodText}` : "",
     entry.location ? `地点：${entry.location}` : "",
     parseTextList(entry.people).length > 0 ? `人物：${parseTextList(entry.people).join("、")}` : "",
@@ -59,7 +59,7 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
 
   const summary = await generateText(config, {
     system:
-      "你是 Sillage 的回声层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
+      "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
     prompt: text,
     maxTokens: 160,
   });

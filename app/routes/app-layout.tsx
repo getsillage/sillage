@@ -34,11 +34,11 @@ export default function AppLayout() {
               <NavLink to="/timeline" className={navClass}>
                 时间线
               </NavLink>
-              <NavLink to="/reflections" className={navClass}>
-                回顾
+              <NavLink to="/notes" className={navClass}>
+                笔记
               </NavLink>
-              <NavLink to="/echoes" className={navClass}>
-                回声
+              <NavLink to="/insights" className={navClass}>
+                洞察
               </NavLink>
               <NavLink to="/memory" className={navClass}>
                 记忆

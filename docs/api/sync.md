@@ -53,8 +53,8 @@ GET /api/sync?cursor=<token>
 | `entryDate` | string | `YYYY-MM-DD`,该条目“所属”的日历日期 |
 | `title` | string | |
 | `body` | string | Markdown 明文 |
-| `kind` | string | `fragment` / `reflection` / `draft` |
-| `reflectionType` | string \| null | `daily` / `weekly` / `monthly` / `topic` / `freeform`;非回顾通常为 null |
+| `kind` | string | `fragment` / `note` / `draft` |
+| `noteType` | string \| null | `daily` / `weekly` / `monthly` / `topic` / `freeform`;非笔记通常为 null |
 | `mood` | number \| null | 1–5 |
 | `moodText` | string \| null | 自由文本细腻感受 |
 | `weather` | string \| null | |
@@ -111,7 +111,7 @@ loop:
 ### 注意事项与保证
 
 - **墓碑,而非空缺。** 删除以带非空 `deletedAt` 的行返回,而不是悄无声息地消失,因此离线客户端可以镜像删除。(若服务端曾执行硬清除,则属例外。)
-- **AI 更新是安静的。** 重新生成回声只写 `entry_ai` 侧表,**不会** bump `entries.updatedAt`——所以回声刷新本身不会重新投递该条目。如需立刻拿到最新 `ai` 字段,请单独重新获取该条目。
+- **AI 更新是安静的。** 重新生成洞察只写 `entry_ai` 侧表,**不会** bump `entries.updatedAt`——所以洞察刷新本身不会重新投递该条目。如需立刻拿到最新 `ai` 字段,请单独重新获取该条目。
 - **Keyset 游标。** 分页键是 `(updatedAt, id)`,因此共享同一毫秒的行会被正确翻页而非跳过。该游标仍是按流的高水位线,面向本单用户 Sillage 设计,而非并发多写者的扇出场景。
 
 ## 示例

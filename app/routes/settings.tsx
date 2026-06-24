@@ -324,7 +324,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             onChange={(event) => setEnabled(event.target.checked)}
             className="h-4 w-4 rounded border-gray-300"
           />
-          启用当前配置（保存记录后自动生成回声）
+          启用当前配置（保存记录后自动生成洞察）
         </label>
 
         <label className={labelClass}>

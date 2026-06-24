@@ -1,48 +1,48 @@
-export const ENTRY_KINDS = ["fragment", "reflection", "draft"] as const;
+export const ENTRY_KINDS = ["fragment", "note", "draft"] as const;
 export type EntryKind = (typeof ENTRY_KINDS)[number];
 
-export const REFLECTION_TYPES = ["daily", "weekly", "monthly", "topic", "freeform"] as const;
-export type ReflectionType = (typeof REFLECTION_TYPES)[number];
+export const NOTE_TYPES = ["daily", "weekly", "monthly", "topic", "freeform"] as const;
+export type NoteType = (typeof NOTE_TYPES)[number];
 
 const ENTRY_KIND_LABELS: Record<EntryKind, string> = {
   fragment: "片段",
-  reflection: "回顾",
+  note: "笔记",
   draft: "草稿",
 };
 
-const REFLECTION_TYPE_LABELS: Record<ReflectionType, string> = {
-  daily: "今日回顾",
-  weekly: "周回顾",
-  monthly: "月回顾",
-  topic: "主题回顾",
-  freeform: "自由回顾",
+const NOTE_TYPE_LABELS: Record<NoteType, string> = {
+  daily: "今日笔记",
+  weekly: "周笔记",
+  monthly: "月笔记",
+  topic: "主题笔记",
+  freeform: "自由笔记",
 };
 
 export function isEntryKind(value: unknown): value is EntryKind {
   return typeof value === "string" && ENTRY_KINDS.includes(value as EntryKind);
 }
 
-export function isReflectionType(value: unknown): value is ReflectionType {
-  return typeof value === "string" && REFLECTION_TYPES.includes(value as ReflectionType);
+export function isNoteType(value: unknown): value is NoteType {
+  return typeof value === "string" && NOTE_TYPES.includes(value as NoteType);
 }
 
 export function normalizeEntryKind(value: unknown): EntryKind {
   return isEntryKind(value) ? value : "fragment";
 }
 
-export function normalizeReflectionType(value: unknown, kind: EntryKind): ReflectionType | null {
-  if (kind !== "reflection") {
+export function normalizeNoteType(value: unknown, kind: EntryKind): NoteType | null {
+  if (kind !== "note") {
     return null;
   }
-  return isReflectionType(value) ? value : "daily";
+  return isNoteType(value) ? value : "daily";
 }
 
 export function entryKindLabel(kind: EntryKind): string {
   return ENTRY_KIND_LABELS[kind];
 }
 
-export function reflectionTypeLabel(type: ReflectionType | null): string | null {
-  return type ? REFLECTION_TYPE_LABELS[type] : null;
+export function noteTypeLabel(type: NoteType | null): string | null {
+  return type ? NOTE_TYPE_LABELS[type] : null;
 }
 
 export function cleanText(value: unknown): string | null {

@@ -23,10 +23,10 @@ export const entries = sqliteTable(
     entryDate: text("entry_date").notNull(),
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
-    // Product shape: fragments are in-the-moment notes, reflections are deliberate
-    // daily/weekly/monthly/topic reviews, and drafts are undecided writing.
+    // Product shape: fragments capture the moment, notes are deliberate
+    // daily/weekly/monthly/topic writing, and drafts are undecided writing.
     kind: text("kind").notNull().default("fragment"),
-    reflectionType: text("reflection_type"),
+    noteType: text("note_type"),
     // Mood on a 1-5 scale; null when not set.
     mood: integer("mood"),
     // Free-form mood nuance, alongside the preset numeric mood.

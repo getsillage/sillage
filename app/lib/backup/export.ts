@@ -20,7 +20,7 @@ interface BackupEntry {
   title: string;
   body: string;
   kind: string;
-  reflectionType: string | null;
+  noteType: string | null;
   mood: number | null;
   moodText: string | null;
   weather: string | null;
@@ -91,7 +91,7 @@ function renderMarkdown(payload: SillageBackupPayload): string {
       entry.relationships.length > 0 ? `\n关系：${entry.relationships.join("、")}` : "";
     const summaryLine = entry.summary ? `\n摘要：${entry.summary}` : "";
     const sentimentLine = entry.sentiment ? `\n情绪：${entry.sentiment}` : "";
-    return `## ${entry.entryDate} ${title}\n类型：${entry.kind}${entry.reflectionType ? ` / ${entry.reflectionType}` : ""}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
+    return `## ${entry.entryDate} ${title}\n类型：${entry.kind}${entry.noteType ? ` / ${entry.noteType}` : ""}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
   });
   return [`# Sillage 备份`, ``, `导出时间：${payload.exportedAt}`, ``, ...sections].join("\n");
 }
@@ -130,7 +130,7 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBa
       title: entry.title,
       body: entry.body,
       kind: entry.kind,
-      reflectionType: entry.reflectionType,
+      noteType: entry.noteType,
       mood: entry.mood,
       moodText: entry.moodText,
       weather: entry.weather,

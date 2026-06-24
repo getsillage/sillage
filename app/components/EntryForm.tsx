@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
 import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
@@ -147,6 +147,7 @@ export function EntryForm({
 }: EntryFormProps) {
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
+  const idBase = useId().replaceAll(":", "");
   const defaultKind = defaults?.kind ?? "fragment";
   const [selectedKind, setSelectedKind] = useState<EntryKind>(defaultKind);
   const defaultNoteType = defaults?.noteType ?? "daily";
@@ -159,6 +160,10 @@ export function EntryForm({
   const peopleRef = useRef<HTMLInputElement>(null);
   const relationshipRef = useRef<HTMLInputElement>(null);
   const tagRef = useRef<HTMLInputElement>(null);
+  const locationId = `${idBase}-location`;
+  const peopleId = `${idBase}-people`;
+  const relationshipId = `${idBase}-relationships`;
+  const tagId = `${idBase}-tags`;
 
   return (
     <Form method="post" className="space-y-6">
@@ -188,10 +193,13 @@ export function EntryForm({
         </label>
       </div>
 
-      <label className={labelClass}>
-        地点
+      <div>
+        <label htmlFor={locationId} className={labelClass}>
+          地点
+        </label>
         <div className="relative">
           <input
+            id={locationId}
             ref={locationRef}
             type="text"
             name="location"
@@ -205,7 +213,7 @@ export function EntryForm({
             onSelect={(value) => setInputValue(locationRef.current, value)}
           />
         </div>
-      </label>
+      </div>
 
       <label className={labelClass}>
         标题
@@ -294,10 +302,13 @@ export function EntryForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
-          人物
+        <div>
+          <label htmlFor={peopleId} className={labelClass}>
+            人物
+          </label>
           <div className="relative">
             <input
+              id={peopleId}
               ref={peopleRef}
               type="text"
               name="people"
@@ -311,11 +322,14 @@ export function EntryForm({
               onSelect={(value) => appendInputValue(peopleRef.current, value)}
             />
           </div>
-        </label>
-        <label className={labelClass}>
-          关系
+        </div>
+        <div>
+          <label htmlFor={relationshipId} className={labelClass}>
+            关系
+          </label>
           <div className="relative">
             <input
+              id={relationshipId}
               ref={relationshipRef}
               type="text"
               name="relationships"
@@ -329,13 +343,16 @@ export function EntryForm({
               onSelect={(value) => appendInputValue(relationshipRef.current, value)}
             />
           </div>
-        </label>
+        </div>
       </div>
 
-      <label className={labelClass}>
-        标签
+      <div>
+        <label htmlFor={tagId} className={labelClass}>
+          标签
+        </label>
         <div className="relative">
           <input
+            id={tagId}
             ref={tagRef}
             type="text"
             name="tags"
@@ -349,7 +366,7 @@ export function EntryForm({
             onSelect={(value) => appendInputValue(tagRef.current, value)}
           />
         </div>
-      </label>
+      </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 

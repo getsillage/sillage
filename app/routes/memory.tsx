@@ -131,10 +131,10 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
           <p className={pageLeadClass}>记录之间亮起的一点光：照见来路，也照向前路。</p>
           <nav className="mt-4 flex gap-5 border-gray-200 border-b dark:border-gray-800">
             <Link to="/memory?tab=review" className={tabClass(loaderData.tab === "review")}>
-              回顾
+              照见
             </Link>
             <Link to="/memory?tab=ask" className={tabClass(loaderData.tab === "ask")}>
-              追问
+              探寻
             </Link>
           </nav>
         </header>

@@ -42,7 +42,7 @@ function FacetCloud({
   );
 }
 
-/** The 追问 tab: conversation with your memory, keyword search, people & relationships. */
+/** The 探寻 tab: conversation with your memory, keyword search, people & relationships. */
 export function AskTab({ query, results, people, relationships }: AskTabProps) {
   return (
     <>
@@ -67,7 +67,7 @@ export function AskTab({ query, results, people, relationships }: AskTabProps) {
           <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">搜索结果</h2>
           {results.length === 0 ? (
             <p className="text-gray-400 text-sm dark:text-gray-500">
-              没有找到相关记忆。换一个词，或者看看回顾。
+              没有找到相关记忆。换一个词，或者看看照见。
             </p>
           ) : (
             <ul className="space-y-3">

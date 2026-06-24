@@ -86,7 +86,7 @@ function rangeFromEntries(
   return { startDate: entries[entries.length - 1].entryDate, endDate: entries[0].entryDate };
 }
 
-/** Runs the "回顾" intents: generate / delete / regenerate a summary or entry insight. */
+/** Runs the "照见" intents: generate / delete / regenerate a summary or entry insight. */
 export async function runSummaryAction(
   db: Db,
   form: FormData,

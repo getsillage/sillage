@@ -295,7 +295,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
       <section className="mt-8">
         <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 提供商</h2>
         <p className={`mt-1 text-sm ${subtleTextClass}`}>
-          配置用于手动总结与追问的 AI 提供商；所有 AI 配置都在这里管理。
+          配置用于手动总结与问答的 AI 提供商；所有 AI 配置都在这里管理。
         </p>
       </section>
 

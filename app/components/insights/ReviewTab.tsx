@@ -15,7 +15,7 @@ interface ReviewTabProps {
   summaries: LoadedSummary[];
 }
 
-/** The 回顾 tab: AI's proactive output — generated reviews, today's lingering, themes. */
+/** The 照见 tab: AI's proactive output — generated reviews, today's lingering, themes. */
 export function ReviewTab({
   todayInsights,
   recentInsights,
@@ -107,7 +107,7 @@ export function ReviewTab({
       </section>
 
       <div className={`${subtlePanelClass} px-4 py-3 text-gray-500 text-sm dark:text-gray-400`}>
-        想主动检索或追问，切到上方的「追问」。这里聚焦 AI 主动生成的回顾与浮现的主题。
+        想主动搜索或提问，去上方的「探寻」。这里聚焦 AI 主动照见的线索与浮现的主题。
       </div>
     </>
   );

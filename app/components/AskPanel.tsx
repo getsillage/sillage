@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useFetcher } from "react-router";
-import { type AskSourceType, DEFAULT_ASK_SOURCE_TYPES } from "~/lib/ai/ask-context";
+import {
+  ASK_SOURCE_TYPES,
+  type AskSourceType,
+  DEFAULT_ASK_SOURCE_TYPES,
+} from "~/lib/ai/ask-context";
 import { Markdown } from "./Markdown";
 import {
   helperTextClass,
@@ -34,14 +38,165 @@ interface Turn {
   error?: boolean;
 }
 
+interface StoredAskPanelState {
+  turns: Turn[];
+  input: string;
+  sourceTypes: AskSourceType[];
+}
+
+const STORAGE_KEY = "sillage.memory.ask-panel.v1";
+const ASK_FETCHER_KEY = "memory-ask-panel";
+const MAX_STORED_TURNS = 30;
+const INTERRUPTED_ANSWER = "上一次回答在页面切换时中断了，可以重新发送这个问题。";
+
+function isAskSourceType(value: unknown): value is AskSourceType {
+  return typeof value === "string" && ASK_SOURCE_TYPES.includes(value as AskSourceType);
+}
+
+function normalizeSourceTypes(value: unknown): AskSourceType[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_ASK_SOURCE_TYPES];
+  }
+  return [...new Set(value.filter(isAskSourceType))];
+}
+
+function normalizeSource(value: unknown): AskSource | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const source = value as AskSource;
+  if (
+    typeof source.id !== "string" ||
+    typeof source.title !== "string" ||
+    typeof source.label !== "string" ||
+    typeof source.href !== "string" ||
+    (source.kind !== "entry" && source.kind !== "summary")
+  ) {
+    return null;
+  }
+  return source;
+}
+
+function normalizeTurn(value: unknown, fallbackId: string): Turn | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const turn = value as Turn;
+  if (typeof turn.question !== "string") {
+    return null;
+  }
+  const answer =
+    typeof turn.answer === "string"
+      ? turn.answer
+      : turn.answer === null
+        ? INTERRUPTED_ANSWER
+        : null;
+  if (answer === null) {
+    return null;
+  }
+  const sources = Array.isArray(turn.sources)
+    ? turn.sources.map(normalizeSource).filter((source): source is AskSource => source !== null)
+    : undefined;
+  return {
+    id: typeof turn.id === "string" && turn.id ? turn.id : fallbackId,
+    question: turn.question,
+    answer,
+    sources,
+    error: turn.answer === null || turn.error === true,
+  };
+}
+
+function readStoredState(): StoredAskPanelState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<StoredAskPanelState>;
+    return {
+      turns: Array.isArray(parsed.turns)
+        ? parsed.turns
+            .map((turn, index) => normalizeTurn(turn, `restored-${index + 1}`))
+            .filter((turn): turn is Turn => turn !== null)
+            .slice(-MAX_STORED_TURNS)
+        : [],
+      input: typeof parsed.input === "string" ? parsed.input : "",
+      sourceTypes: normalizeSourceTypes(parsed.sourceTypes),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function hasDefaultSourceTypes(sourceTypes: AskSourceType[]): boolean {
+  return (
+    sourceTypes.length === DEFAULT_ASK_SOURCE_TYPES.length &&
+    DEFAULT_ASK_SOURCE_TYPES.every((type) => sourceTypes.includes(type))
+  );
+}
+
+function writeStoredState(state: StoredAskPanelState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const trimmedState = {
+      ...state,
+      turns: state.turns.slice(-MAX_STORED_TURNS),
+    };
+    if (
+      trimmedState.turns.length === 0 &&
+      trimmedState.input.trim() === "" &&
+      hasDefaultSourceTypes(trimmedState.sourceTypes)
+    ) {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmedState));
+  } catch {
+    // Storage can be unavailable in hardened browsers; the panel still works in memory.
+  }
+}
+
+function nextTurnSequence(turns: Turn[]): number {
+  return turns.reduce((max, turn) => {
+    const match = /^t(\d+)$/.exec(turn.id);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, turns.length);
+}
+
 export function AskPanel() {
-  const fetcher = useFetcher<AskActionData>();
+  const fetcher = useFetcher<AskActionData>({ key: ASK_FETCHER_KEY });
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
-  const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(DEFAULT_ASK_SOURCE_TYPES);
+  const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(() => [
+    ...DEFAULT_ASK_SOURCE_TYPES,
+  ]);
+  const [storageReady, setStorageReady] = useState(false);
   const pendingRef = useRef(false);
   const turnSeq = useRef(0);
   const busy = fetcher.state !== "idle";
+
+  useEffect(() => {
+    const stored = readStoredState();
+    if (stored) {
+      setTurns(stored.turns);
+      setInput(stored.input);
+      setSourceTypes(stored.sourceTypes);
+      turnSeq.current = nextTurnSequence(stored.turns);
+    }
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) {
+      return;
+    }
+    writeStoredState({ turns, input, sourceTypes });
+  }, [input, sourceTypes, storageReady, turns]);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !pendingRef.current || fetcher.data?.intent !== "ask") {
@@ -66,6 +221,11 @@ export function AskPanel() {
     });
   }, [fetcher.state, fetcher.data]);
 
+  function clearTurns() {
+    setTurns([]);
+    writeStoredState({ turns: [], input, sourceTypes });
+  }
+
   function submit() {
     const question = input.trim();
     if (!question || busy || sourceTypes.length === 0) {
@@ -76,7 +236,10 @@ export function AskPanel() {
       .slice(-4)
       .map((turn) => ({ question: turn.question, answer: turn.answer }));
     turnSeq.current += 1;
-    setTurns((prev) => [...prev, { id: `t${turnSeq.current}`, question, answer: null }]);
+    const optimisticTurn = { id: `t${turnSeq.current}`, question, answer: null };
+    const nextTurns = [...turns, optimisticTurn];
+    setTurns(nextTurns);
+    writeStoredState({ turns: nextTurns, input: "", sourceTypes });
     setInput("");
     pendingRef.current = true;
     const formData = new FormData();
@@ -103,7 +266,7 @@ export function AskPanel() {
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">手记问答</h2>
         {turns.length > 0 ? (
-          <button type="button" onClick={() => setTurns([])} className={subtleButtonClass}>
+          <button type="button" onClick={clearTurns} className={subtleButtonClass}>
             清空对话
           </button>
         ) : null}

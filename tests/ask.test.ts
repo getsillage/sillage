@@ -113,7 +113,42 @@ describe("answerQuestion", () => {
     expect(body.system).toContain("总结、复盘、模式识别和温和建议");
     expect(body.system).toContain("不要要求记忆里必须已经写过明确的「建议」");
     expect(body.system).not.toContain("不要总结、复盘、诊断或扩写");
-    expect(body.max_tokens).toBe(1000);
+    expect(body.max_tokens).toBe(1800);
+  });
+
+  it("retries with a larger budget when the answer is truncated", async () => {
+    await configureAnthropic();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [{ type: "text", text: "从你最近的记录里，我推导出四条建议" }],
+          stop_reason: "max_tokens",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [{ type: "text", text: "完整建议：减少切换，保留早晨写作。" }],
+          stop_reason: "end_turn",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await answerQuestion(env, {
+      question: "你推荐我做哪些调整？",
+      evidence: "最消耗的是反复切换上下文，最稳定的能量来自早晨写作。",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      answer: "完整建议：减少切换，保留早晨写作。",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(firstBody.max_tokens).toBe(1800);
+    expect(secondBody.max_tokens).toBe(3200);
+    expect(secondBody.messages[0].content).toContain("请重新生成完整答案");
   });
 
   it("notes when there are no relevant records", async () => {

@@ -227,4 +227,41 @@ describe("AI text generation", () => {
 
     expect(result).toEqual({ text: null, skipped: false });
   });
+
+  it("marks Anthropic max_tokens responses as truncated", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "未完成的回答" }],
+          stop_reason: "max_tokens",
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "未完成的回答", skipped: false, truncated: true });
+  });
+
+  it("marks OpenAI-compatible length finish reasons as truncated", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          choices: [{ message: { content: "未完成的回答" }, finish_reason: "length" }],
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "openai", openaiApiKey: "openai-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "未完成的回答", skipped: false, truncated: true });
+  });
 });

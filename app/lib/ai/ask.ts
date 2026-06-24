@@ -29,6 +29,8 @@ const SYSTEM_PROMPT = [
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 4;
+const ASK_MAX_TOKENS = 1800;
+const ASK_RETRY_MAX_TOKENS = 3200;
 
 function historyText(history: AskTurn[]): string {
   return history
@@ -55,17 +57,33 @@ export async function answerQuestion(env: Env, request: AskRequest): Promise<Ask
     .filter(Boolean)
     .join("\n\n");
 
-  const result = await generateText(config, {
+  let result = await generateText(config, {
     system: SYSTEM_PROMPT,
     prompt,
-    maxTokens: 1000,
+    maxTokens: ASK_MAX_TOKENS,
   });
+
+  if (!result.skipped && result.truncated) {
+    result = await generateText(config, {
+      system: SYSTEM_PROMPT,
+      prompt: `${prompt}\n\n【回答要求】\n请重新生成完整答案，直接给出完整的结论和条目，不要只写标题或开头。`,
+      maxTokens: ASK_RETRY_MAX_TOKENS,
+    });
+  }
 
   if (result.skipped) {
     return { ok: false, answer: "", model, skippedReason: result.reason ?? "AI 已跳过" };
   }
   if (!result.text) {
     return { ok: false, answer: "", model, skippedReason: "AI 未返回内容" };
+  }
+  if (result.truncated) {
+    return {
+      ok: false,
+      answer: "",
+      model,
+      skippedReason: "AI 回答过长被截断了，请缩小问题范围后重试",
+    };
   }
   return { ok: true, answer: result.text, model };
 }

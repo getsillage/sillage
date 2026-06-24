@@ -15,6 +15,7 @@ export interface GenerateTextResult {
   text: string | null;
   skipped: boolean;
   reason?: string;
+  truncated?: boolean;
 }
 
 interface AnthropicTextBlock {
@@ -37,8 +38,11 @@ interface OpenAiChatResponse {
   choices?: Array<{
     message?: { content?: string | OpenAiTextPart[] | null };
     text?: string | null;
+    finish_reason?: string | null;
   }>;
   output_text?: string;
+  status?: string;
+  incomplete_details?: { reason?: string | null } | null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -85,6 +89,13 @@ function textFromOpenAi(response: OpenAiChatResponse): string | null {
   return text || null;
 }
 
+function isOpenAiTruncated(response: OpenAiChatResponse): boolean {
+  return (
+    response.choices?.some((choice) => choice.finish_reason === "length") === true ||
+    response.incomplete_details?.reason === "max_output_tokens"
+  );
+}
+
 function supportsReasoningEffort(model: string): boolean {
   const normalized = model.trim().toLowerCase();
   return /^(gpt-5|o[1-9])/.test(normalized);
@@ -122,7 +133,11 @@ async function generateWithAnthropic(
   }
 
   const data = (await response.json()) as AnthropicMessageResponse;
-  return { text: textFromAnthropic(data), skipped: false };
+  return {
+    text: textFromAnthropic(data),
+    skipped: false,
+    truncated: data.stop_reason === "max_tokens" || undefined,
+  };
 }
 
 async function generateWithOpenAi(
@@ -159,7 +174,11 @@ async function generateWithOpenAi(
   }
 
   const data = (await response.json()) as OpenAiChatResponse;
-  return { text: textFromOpenAi(data), skipped: false };
+  return {
+    text: textFromOpenAi(data),
+    skipped: false,
+    truncated: isOpenAiTruncated(data) || undefined,
+  };
 }
 
 export async function generateText(

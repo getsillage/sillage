@@ -10,6 +10,7 @@ import {
   restoreEntry,
   updateEntry,
 } from "../app/lib/db/entries";
+import { parseTextList } from "../app/lib/product/entry-fields";
 
 async function readMeta(id: string): Promise<{ off: number | null; metadata: string | null }> {
   const { results } = await env.DB.prepare(
@@ -33,14 +34,26 @@ describe("entries repository", () => {
       entryDate: "2026-06-23",
       title: "标题",
       body: "正文内容",
+      kind: "reflection",
+      reflectionType: "daily",
       mood: 4,
+      moodText: "轻松但有一点想念",
       weather: "晴",
+      location: "海边",
+      people: ["朋友", "朋友", ""],
+      relationships: ["朋友"],
       tags: ["旅行", " 旅行 ", "美食", ""],
     });
 
     const entry = await getEntry(db, id);
     expect(entry?.title).toBe("标题");
+    expect(entry?.kind).toBe("reflection");
+    expect(entry?.reflectionType).toBe("daily");
     expect(entry?.mood).toBe(4);
+    expect(entry?.moodText).toBe("轻松但有一点想念");
+    expect(entry?.location).toBe("海边");
+    expect(parseTextList(entry?.people)).toEqual(["朋友"]);
+    expect(parseTextList(entry?.relationships)).toEqual(["朋友"]);
     expect(entry?.tags).toEqual(["旅行", "美食"]); // sorted + deduped
   });
 
@@ -56,8 +69,11 @@ describe("entries repository", () => {
       entryDate: "2026-06-24",
       title: "新标题",
       body: "新内容",
+      kind: "fragment",
       mood: null,
       weather: null,
+      people: ["新朋友"],
+      relationships: ["同事"],
       tags: ["b", "c"],
     });
 
@@ -65,6 +81,9 @@ describe("entries repository", () => {
     const entry = await getEntry(db, id);
     expect(entry?.title).toBe("新标题");
     expect(entry?.entryDate).toBe("2026-06-24");
+    expect(entry?.kind).toBe("fragment");
+    expect(parseTextList(entry?.people)).toEqual(["新朋友"]);
+    expect(parseTextList(entry?.relationships)).toEqual(["同事"]);
     expect(entry?.tags).toEqual(["b", "c"]);
   });
 

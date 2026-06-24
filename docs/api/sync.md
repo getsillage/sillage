@@ -1,8 +1,8 @@
 # 同步 API
 
-面向非 web 客户端(例如移动 app)的增量同步端点。它返回自某个游标以来的所有变更——**包括软删除的行**——因此客户端可以用一个可重复调用把本地的日记镜像保持最新。
+面向非 web 客户端(例如移动 app)的增量同步端点。它返回自某个游标以来的所有变更——**包括软删除的行**——因此客户端可以用一个可重复调用把本地的 Sillage 镜像保持最新。
 
-> 状态:目前**只读**。日记条目已带有用于乐观并发的 `version`(见 [写回(未来)](#写回未来)),但写入端点尚未纳入本 API。
+> 状态:目前**只读**。记录已带有用于乐观并发的 `version`(见 [写回(未来)](#写回未来)),但写入端点尚未纳入本 API。
 
 ## 鉴权
 
@@ -53,8 +53,14 @@ GET /api/sync?cursor=<token>
 | `entryDate` | string | `YYYY-MM-DD`,该条目“所属”的日历日期 |
 | `title` | string | |
 | `body` | string | Markdown 明文 |
+| `kind` | string | `fragment` / `reflection` / `draft` |
+| `reflectionType` | string \| null | `daily` / `weekly` / `monthly` / `topic` / `freeform`;非回顾通常为 null |
 | `mood` | number \| null | 1–5 |
+| `moodText` | string \| null | 自由文本细腻感受 |
 | `weather` | string \| null | |
+| `location` | string \| null | 地点 |
+| `people` | string[] | 人物 |
+| `relationships` | string[] | 关系 |
 | `isPinned` | boolean | |
 | `utcOffsetMinutes` | number \| null | 保存时写入者的 UTC 偏移;用于解析 `entryDate` 的本地含义 |
 | `metadata` | object \| null | 向前兼容的客户端附加字段;由存储的 JSON 解析而来 |
@@ -105,15 +111,15 @@ loop:
 ### 注意事项与保证
 
 - **墓碑,而非空缺。** 删除以带非空 `deletedAt` 的行返回,而不是悄无声息地消失,因此离线客户端可以镜像删除。(若服务端曾执行硬清除,则属例外。)
-- **AI 更新是安静的。** 重新生成摘要只写 `entry_ai` 侧表,**不会** bump `entries.updatedAt`——所以摘要刷新本身不会重新投递该条目。如需立刻拿到最新 `ai` 字段,请单独重新获取该条目。
-- **Keyset 游标。** 分页键是 `(updatedAt, id)`,因此共享同一毫秒的行会被正确翻页而非跳过。该游标仍是按流的高水位线,面向本单用户日记设计,而非并发多写者的扇出场景。
+- **AI 更新是安静的。** 重新生成回声只写 `entry_ai` 侧表,**不会** bump `entries.updatedAt`——所以回声刷新本身不会重新投递该条目。如需立刻拿到最新 `ai` 字段,请单独重新获取该条目。
+- **Keyset 游标。** 分页键是 `(updatedAt, id)`,因此共享同一毫秒的行会被正确翻页而非跳过。该游标仍是按流的高水位线,面向本单用户 Sillage 设计,而非并发多写者的扇出场景。
 
 ## 示例
 
 ```bash
 # 1. 登录,保存会话 cookie。
 curl -c jar.txt -X POST https://<host>/login \
-  --data-urlencode "password=$DIARY_PASSWORD"
+  --data-urlencode "password=$SILLAGE_PASSWORD"
 
 # 2. 全量快照。
 curl -b jar.txt "https://<host>/api/sync"

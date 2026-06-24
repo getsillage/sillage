@@ -16,8 +16,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply diary-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply diary-db --remote"
+    "db:migrate:local": "wrangler d1 migrations apply sillage-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply sillage-db --remote"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

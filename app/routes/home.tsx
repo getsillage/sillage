@@ -1,109 +1,281 @@
 import { env } from "cloudflare:workers";
-import { Link } from "react-router";
+import { Link, redirect } from "react-router";
+import { EntryForm, type EntryFormDefaults } from "~/components/EntryForm";
 import {
   pageLeadClass,
   pageSectionClass,
   pageShellClass,
   pageTitleClass,
   panelClass,
-  primaryButtonClass,
   rowLinkClass,
   subtlePanelClass,
 } from "~/components/ui";
+import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO, yearsBetween } from "~/lib/date";
-import { getOnThisDay } from "~/lib/db/calendar";
+import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
-import { listEntries } from "~/lib/db/entries";
+import { createEntry, type EntryWithTags, getEntry, listEntries } from "~/lib/db/entries";
+import {
+  entryKindLabel,
+  normalizeEntryKind,
+  normalizeReflectionType,
+  reflectionTypeLabel,
+} from "~/lib/product/entry-fields";
+import { waitUntilContext } from "~/lib/request-context";
+import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
 
-const MOOD_EMOJI: Record<number, string> = {
-  1: "😞",
-  2: "😕",
-  3: "😐",
-  4: "🙂",
-  5: "😄",
+const MOOD_LABEL: Record<number, string> = {
+  1: "低落",
+  2: "失落",
+  3: "平静",
+  4: "轻松",
+  5: "明亮",
 };
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "我的日记" }, { name: "description", content: "个人日记" }];
+  return [{ title: "今天 · Sillage" }, { name: "description", content: "Sillage" }];
+}
+
+function newDefaults(today: string): EntryFormDefaults {
+  return {
+    entryDate: today,
+    title: "",
+    body: "",
+    mood: null,
+    moodText: null,
+    weather: null,
+    location: null,
+    kind: "fragment",
+    reflectionType: "daily",
+    people: [],
+    relationships: [],
+    tags: [],
+  };
+}
+
+function excerpt(body: string, max = 96): string {
+  const text = body.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function splitToday(entries: EntryWithTags[]) {
+  const fragments: EntryWithTags[] = [];
+  const reflections: EntryWithTags[] = [];
+  const drafts: EntryWithTags[] = [];
+
+  for (const entry of entries) {
+    const kind = normalizeEntryKind(entry.kind);
+    if (kind === "reflection") {
+      reflections.push(entry);
+    } else if (kind === "draft") {
+      drafts.push(entry);
+    } else {
+      fragments.push(entry);
+    }
+  }
+
+  return { fragments, reflections, drafts };
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const today = todayISO();
-  const [entries, onThisDay] = await Promise.all([listEntries(db), getOnThisDay(db, today)]);
-  return { entries, onThisDay, today };
+  const [entries, todayEntries, onThisDay] = await Promise.all([
+    listEntries(db, 12),
+    listEntriesByDate(db, today),
+    getOnThisDay(db, today),
+  ]);
+  return { entries, todayEntries, onThisDay, today };
 }
 
-function excerpt(body: string, max = 120): string {
-  const text = body.replace(/\s+/g, " ").trim();
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+export async function action({ request, context }: Route.ActionArgs) {
+  await requireSession(request, env);
+  const form = await request.formData();
+  const values = entryFormFromData(form);
+  const parsed = entrySchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "输入有误", values };
+  }
+
+  const db = getDb(env.DB);
+  const id = await createEntry(db, parsed.data);
+  const entry = await getEntry(db, id);
+  if (entry) {
+    context.get(waitUntilContext)(runAiPipeline(env, entry));
+  }
+  return redirect("/");
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
-  const { entries, onThisDay, today } = loaderData;
+function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: string }) {
+  if (entries.length === 0) {
+    return <p className="text-gray-400 text-sm">{empty}</p>;
+  }
 
   return (
-    <main className={pageShellClass}>
+    <ul className="space-y-2">
+      {entries.map((entry) => {
+        const kind = normalizeEntryKind(entry.kind);
+        const reflectionLabel = reflectionTypeLabel(
+          normalizeReflectionType(entry.reflectionType, kind),
+        );
+        return (
+          <li key={entry.id}>
+            <Link
+              to={`/entries/${entry.id}`}
+              className="block rounded-lg border border-gray-200 bg-white px-3 py-2 transition hover:border-gray-300 hover:bg-gray-50"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
+                <span>{entryKindLabel(kind)}</span>
+                {reflectionLabel ? <span>{reflectionLabel}</span> : null}
+                {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
+              </div>
+              <p className="mt-1 line-clamp-2 text-gray-800 text-sm">
+                {entry.title || excerpt(entry.body, 56) || "未命名记录"}
+              </p>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export default function Home({ loaderData, actionData }: Route.ComponentProps) {
+  const { entries, todayEntries, onThisDay, today } = loaderData;
+  const { fragments, reflections, drafts } = splitToday(todayEntries);
+  const todayEchoes = todayEntries.filter((entry) => entry.summary);
+
+  return (
+    <main className={`${pageShellClass} max-w-6xl`}>
       <section className={pageSectionClass}>
-        <header className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className={pageTitleClass}>时间线</h1>
-            <p className={pageLeadClass}>按时间顺序查看最近记录，点开即可继续编辑或回看。</p>
-          </div>
-          <Link to="/new" className={primaryButtonClass}>
-            写日记
-          </Link>
+        <header>
+          <p className="text-gray-500 text-sm">{today}</p>
+          <h1 className={pageTitleClass}>今天留下些什么？</h1>
+          <p className={pageLeadClass}>What lingers today?</p>
         </header>
 
-        {onThisDay.length > 0 ? (
-          <section className={`${panelClass} border-amber-200 bg-amber-50/70 p-4`}>
-            <h2 className="font-medium text-amber-950 text-sm">那年今日</h2>
-            <ul className="mt-3 space-y-2">
-              {onThisDay.map((entry) => {
-                const years = yearsBetween(entry.entryDate, today);
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className={`${panelClass} p-5`}>
+            <EntryForm
+              error={actionData?.error}
+              defaults={actionData?.values ?? newDefaults(today)}
+              submitLabel="保存"
+            />
+          </section>
+
+          <aside className="space-y-4">
+            <section className={`${panelClass} p-4`}>
+              <h2 className="font-medium text-gray-950 text-sm">今日片段</h2>
+              <div className="mt-3">
+                <EntryMiniList entries={fragments} empty="还没有留下片段。" />
+              </div>
+            </section>
+
+            <section className={`${panelClass} p-4`}>
+              <h2 className="font-medium text-gray-950 text-sm">今日回顾</h2>
+              <div className="mt-3">
+                <EntryMiniList entries={reflections} empty="今天还没有被整理。" />
+              </div>
+            </section>
+
+            {drafts.length > 0 ? (
+              <section className={`${panelClass} p-4`}>
+                <h2 className="font-medium text-gray-950 text-sm">草稿</h2>
+                <div className="mt-3">
+                  <EntryMiniList entries={drafts} empty="" />
+                </div>
+              </section>
+            ) : null}
+
+            <section className={`${panelClass} p-4`}>
+              <h2 className="font-medium text-gray-950 text-sm">今日回声</h2>
+              {todayEchoes.length === 0 ? (
+                <p className="mt-3 text-gray-400 text-sm">
+                  写下一些内容后，Sillage 会帮你听见它们之间的回声。
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {todayEchoes.map((entry) => (
+                    <li key={entry.id} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <p className="text-gray-700">{entry.summary}</p>
+                      <Link
+                        to={`/entries/${entry.id}`}
+                        className="mt-1 inline-block text-gray-400 text-xs hover:text-gray-900"
+                      >
+                        查看来源
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {onThisDay.length > 0 ? (
+              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
+                <h2 className="font-medium text-amber-950 text-sm">那年今日</h2>
+                <ul className="mt-3 space-y-2">
+                  {onThisDay.map((entry) => {
+                    const years = yearsBetween(entry.entryDate, today);
+                    return (
+                      <li key={entry.id}>
+                        <Link
+                          to={`/entries/${entry.id}`}
+                          className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-sm text-amber-950 transition hover:border-amber-300 hover:bg-white"
+                        >
+                          <span className="font-medium text-amber-800">{years}年前</span>
+                          <span className="text-amber-700"> · {entry.entryDate}</span>
+                          <span> · {entry.title || excerpt(entry.body, 40) || "未命名记录"}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+          </aside>
+        </div>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-medium text-gray-950 text-sm">最近记录</h2>
+            <Link to="/timeline" className="text-gray-500 text-sm hover:text-gray-900">
+              查看时间线
+            </Link>
+          </div>
+          {entries.length === 0 ? (
+            <div className={`${subtlePanelClass} px-4 py-10 text-center text-sm text-gray-500`}>
+              还没有留下什么。可以从一个瞬间开始。
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {entries.map((entry) => {
+                const kind = normalizeEntryKind(entry.kind);
                 return (
                   <li key={entry.id}>
-                    <Link
-                      to={`/entries/${entry.id}`}
-                      className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-sm text-amber-950 transition hover:border-amber-300 hover:bg-white"
-                    >
-                      <span className="font-medium text-amber-800">{years}年前</span>
-                      <span className="text-amber-700"> · {entry.entryDate}</span>
-                      {entry.mood ? <span> {MOOD_EMOJI[entry.mood]}</span> : null} ·{" "}
-                      {entry.title || excerpt(entry.body, 40) || "（无标题）"}
+                    <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
+                      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
+                        <time>{entry.entryDate}</time>
+                        <span>{entryKindLabel(kind)}</span>
+                        {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
+                      </div>
+                      <h3 className="mt-1 font-medium text-gray-950">
+                        {entry.title || "未命名记录"}
+                      </h3>
+                      {entry.body ? (
+                        <p className="mt-1 text-gray-500 text-sm leading-6">
+                          {excerpt(entry.body)}
+                        </p>
+                      ) : null}
                     </Link>
                   </li>
                 );
               })}
             </ul>
-          </section>
-        ) : null}
-
-        {entries.length === 0 ? (
-          <div className={`${subtlePanelClass} px-4 py-10 text-center text-sm text-gray-500`}>
-            还没有日记，先写下第一篇吧。
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {entries.map((entry) => (
-              <li key={entry.id}>
-                <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <time>{entry.entryDate}</time>
-                    {entry.mood ? <span>{MOOD_EMOJI[entry.mood]}</span> : null}
-                  </div>
-                  <h2 className="mt-1 font-medium text-gray-950">{entry.title || "（无标题）"}</h2>
-                  {entry.body ? (
-                    <p className="mt-1 text-sm leading-6 text-gray-500">{excerpt(entry.body)}</p>
-                  ) : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+          )}
+        </section>
       </section>
     </main>
   );

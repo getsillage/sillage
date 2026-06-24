@@ -5,7 +5,15 @@ import { Markdown } from "~/components/Markdown";
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
+import type { EntryWithTags } from "~/lib/db/entries";
 import { deleteEntry, getEntry, updateEntry } from "~/lib/db/entries";
+import {
+  entryKindLabel,
+  normalizeEntryKind,
+  normalizeReflectionType,
+  parseTextList,
+  reflectionTypeLabel,
+} from "~/lib/product/entry-fields";
 import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
@@ -19,7 +27,25 @@ const MOOD_EMOJI: Record<number, string> = {
 };
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "日记 · 我的日记" }];
+  return [{ title: "记录 · Sillage" }];
+}
+
+function formDefaults(entry: EntryWithTags) {
+  const kind = normalizeEntryKind(entry.kind);
+  return {
+    entryDate: entry.entryDate,
+    title: entry.title,
+    body: entry.body,
+    mood: entry.mood,
+    moodText: entry.moodText,
+    weather: entry.weather,
+    location: entry.location,
+    kind,
+    reflectionType: normalizeReflectionType(entry.reflectionType, kind),
+    people: parseTextList(entry.people),
+    relationships: parseTextList(entry.relationships),
+    tags: entry.tags,
+  };
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -48,6 +74,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "输入有误", values };
   }
+
   const result = await updateEntry(db, params.id, parsed.data);
   if (result.status === "missing") {
     throw new Response("Not Found", { status: 404 });
@@ -61,12 +88,17 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
 export default function EntryDetail({ loaderData, actionData }: Route.ComponentProps) {
   const { entry, editing } = loaderData;
+  const kind = normalizeEntryKind(entry.kind);
+  const people = parseTextList(entry.people);
+  const relationships = parseTextList(entry.relationships);
+  const kindLabel = entryKindLabel(kind);
+  const reflectionLabel = reflectionTypeLabel(normalizeReflectionType(entry.reflectionType, kind));
 
   if (editing) {
     return (
       <main className="mx-auto max-w-2xl p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">编辑日记</h1>
+          <h1 className="text-xl font-semibold">编辑记录</h1>
           <Link to={`/entries/${entry.id}`} className="text-sm text-gray-500 hover:text-gray-900">
             取消
           </Link>
@@ -75,16 +107,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
           intent="update"
           submitLabel="更新"
           error={actionData?.error}
-          defaults={
-            actionData?.values ?? {
-              entryDate: entry.entryDate,
-              title: entry.title,
-              body: entry.body,
-              mood: entry.mood,
-              weather: entry.weather,
-              tags: entry.tags,
-            }
-          }
+          defaults={actionData?.values ?? formDefaults(entry)}
         />
       </main>
     );
@@ -106,7 +129,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
               type="submit"
               className="text-red-600 hover:text-red-700"
               onClick={(event) => {
-                if (!confirm("确定删除这篇日记？")) {
+                if (!confirm("确定删除这条记录？")) {
                   event.preventDefault();
                 }
               }}
@@ -120,6 +143,8 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
       <header className="border-gray-100 border-b pb-4">
         <div className="flex items-center gap-2 text-gray-500 text-sm">
           <time>{entry.entryDate}</time>
+          <span>· {kindLabel}</span>
+          {reflectionLabel ? <span>· {reflectionLabel}</span> : null}
           {entry.weather ? <span>· {entry.weather}</span> : null}
           {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
         </div>
@@ -131,6 +156,42 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
       <article className="py-6">
         <Markdown content={entry.body} />
       </article>
+
+      {entry.moodText || entry.location || people.length > 0 || relationships.length > 0 ? (
+        <section className="grid gap-3 border-gray-100 border-t py-4 text-sm sm:grid-cols-2">
+          {entry.moodText ? (
+            <div>
+              <h2 className="font-medium text-gray-900 text-xs">细腻感受</h2>
+              <p className="mt-1 text-gray-600">{entry.moodText}</p>
+            </div>
+          ) : null}
+          {entry.location ? (
+            <div>
+              <h2 className="font-medium text-gray-900 text-xs">地点</h2>
+              <p className="mt-1 text-gray-600">{entry.location}</p>
+            </div>
+          ) : null}
+          {people.length > 0 ? (
+            <div>
+              <h2 className="font-medium text-gray-900 text-xs">人物</h2>
+              <p className="mt-1 text-gray-600">{people.join("、")}</p>
+            </div>
+          ) : null}
+          {relationships.length > 0 ? (
+            <div>
+              <h2 className="font-medium text-gray-900 text-xs">关系</h2>
+              <p className="mt-1 text-gray-600">{relationships.join("、")}</p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {entry.summary ? (
+        <section className="border-gray-100 border-t py-4 text-sm">
+          <h2 className="font-medium text-gray-900 text-xs">回声</h2>
+          <p className="mt-1 text-gray-600">{entry.summary}</p>
+        </section>
+      ) : null}
 
       {entry.tags.length > 0 ? (
         <footer className="flex flex-wrap gap-2 border-gray-100 border-t pt-4">

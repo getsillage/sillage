@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, like, or, sql } from "drizzle-orm";
 import type { Db } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entries, entryAi } from "~/lib/db/schema";
@@ -34,7 +34,7 @@ export async function searchEntriesByKeyword(
     return [];
   }
 
-  const rows = await db
+  const ftsRows = await db
     .select({
       entry: entries,
       ai: entryAi,
@@ -46,6 +46,39 @@ export async function searchEntriesByKeyword(
     .where(and(sql`entries_fts MATCH ${toFtsPhrase(normalized)}`, isNull(entries.deletedAt)))
     .orderBy(sql`bm25(entries_fts)`)
     .limit(limit);
+
+  const pattern = `%${normalized}%`;
+  const fieldRows = await db
+    .select({
+      entry: entries,
+      ai: entryAi,
+      rank: sql<number>`0`,
+    })
+    .from(entries)
+    .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+    .where(
+      and(
+        isNull(entries.deletedAt),
+        or(
+          like(entries.title, pattern),
+          like(entries.body, pattern),
+          like(entries.moodText, pattern),
+          like(entries.location, pattern),
+          like(entries.people, pattern),
+          like(entries.relationships, pattern),
+        ),
+      ),
+    )
+    .limit(limit);
+
+  const seen = new Set<string>();
+  const rows = [...ftsRows, ...fieldRows].filter((row) => {
+    if (seen.has(row.entry.id)) {
+      return false;
+    }
+    seen.add(row.entry.id);
+    return true;
+  });
 
   const tagMap = await getTagsForEntries(
     db,

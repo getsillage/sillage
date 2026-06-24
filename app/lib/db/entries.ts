@@ -1,4 +1,11 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
+import {
+  type EntryKind,
+  normalizeEntryKind,
+  normalizeReflectionType,
+  type ReflectionType,
+  serializeTextList,
+} from "~/lib/product/entry-fields";
 import type { Db } from "./client";
 import { uuidv7 } from "./id";
 import { type Entry, type EntryAi, entries, entryAi } from "./schema";
@@ -8,8 +15,14 @@ export interface EntryInput {
   entryDate: string;
   title: string;
   body: string;
+  kind?: EntryKind;
+  reflectionType?: ReflectionType | null;
   mood?: number | null;
+  moodText?: string | null;
   weather?: string | null;
+  location?: string | null;
+  people?: string[];
+  relationships?: string[];
   tags: string[];
   // Optional, client-supplied. Omit the key entirely to leave the stored value
   // untouched on update (so a web edit never wipes mobile-set fields).
@@ -50,17 +63,28 @@ function serializeMetadata(metadata: Record<string, unknown> | null | undefined)
   return metadata ? JSON.stringify(metadata) : null;
 }
 
+function entryKind(input: EntryInput): EntryKind {
+  return normalizeEntryKind(input.kind);
+}
+
 /** Creates an entry with its tags and returns the new id. */
 export async function createEntry(db: Db, input: EntryInput): Promise<string> {
   const id = uuidv7();
   const now = new Date();
+  const kind = entryKind(input);
   await db.insert(entries).values({
     id,
     entryDate: input.entryDate,
     title: input.title,
     body: input.body,
+    kind,
+    reflectionType: normalizeReflectionType(input.reflectionType, kind),
     mood: input.mood ?? null,
+    moodText: input.moodText ?? null,
     weather: input.weather ?? null,
+    location: input.location ?? null,
+    people: serializeTextList(input.people ?? []),
+    relationships: serializeTextList(input.relationships ?? []),
     utcOffsetMinutes: input.utcOffsetMinutes ?? null,
     metadata: serializeMetadata(input.metadata),
     version: 1,
@@ -95,12 +119,19 @@ export async function updateEntry(
   }
 
   const nextVersion = existing.version + 1;
+  const kind = entryKind(input);
   const patch: Partial<typeof entries.$inferInsert> = {
     entryDate: input.entryDate,
     title: input.title,
     body: input.body,
+    kind,
+    reflectionType: normalizeReflectionType(input.reflectionType, kind),
     mood: input.mood ?? null,
+    moodText: input.moodText ?? null,
     weather: input.weather ?? null,
+    location: input.location ?? null,
+    people: serializeTextList(input.people ?? []),
+    relationships: serializeTextList(input.relationships ?? []),
     version: nextVersion,
     updatedAt: new Date(),
   };

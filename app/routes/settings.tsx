@@ -32,7 +32,7 @@ type SettingsActionData = {
 };
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "设置 · 我的日记" }];
+  return [{ title: "设置 · Sillage" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -324,7 +324,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             onChange={(event) => setEnabled(event.target.checked)}
             className="h-4 w-4 rounded border-gray-300"
           />
-          启用当前配置（写日记后自动生成摘要）
+          启用当前配置（保存记录后自动生成回声）
         </label>
 
         <label className={labelClass}>

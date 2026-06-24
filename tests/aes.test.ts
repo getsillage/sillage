@@ -11,10 +11,10 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
 
 describe("AES-256-GCM attachment encryption", () => {
   it("round-trips plaintext", async () => {
-    const plaintext = bytes("机密日记附件内容 📎");
+    const plaintext = bytes("Sillage 私密附件内容");
     const encrypted = await encryptBytes(plaintext, KEY_A);
     const decrypted = await decryptBytes(encrypted, KEY_A);
-    expect(new TextDecoder().decode(decrypted)).toBe("机密日记附件内容 📎");
+    expect(new TextDecoder().decode(decrypted)).toBe("Sillage 私密附件内容");
   });
 
   it("produces different ciphertext each time (unique IV)", async () => {

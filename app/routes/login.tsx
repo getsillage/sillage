@@ -9,7 +9,7 @@ import { loginSchema } from "~/lib/validation/auth";
 import type { Route } from "./+types/login";
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "登录 · 我的日记" }];
+  return [{ title: "登录 · Sillage" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -53,7 +53,7 @@ export default function Login({ actionData }: Route.ComponentProps) {
         method="post"
         className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
       >
-        <h1 className={pageTitleClass}>我的日记</h1>
+        <h1 className={pageTitleClass}>Sillage</h1>
         <p className={pageLeadClass}>输入密码以继续。</p>
 
         <label className="mt-6 block text-sm font-medium text-gray-900">

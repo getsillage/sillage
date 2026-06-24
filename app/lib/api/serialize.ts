@@ -1,5 +1,6 @@
 import type { EntryWithTags } from "~/lib/db/entries";
 import type { Attachment } from "~/lib/db/schema";
+import { parseTextList } from "~/lib/product/entry-fields";
 
 /**
  * Stable, client-facing representations of the domain rows. Keeping this mapping
@@ -14,8 +15,14 @@ export interface EntryDto {
   entryDate: string;
   title: string;
   body: string;
+  kind: string;
+  reflectionType: string | null;
   mood: number | null;
+  moodText: string | null;
   weather: string | null;
+  location: string | null;
+  people: string[];
+  relationships: string[];
   isPinned: boolean;
   utcOffsetMinutes: number | null;
   metadata: Record<string, unknown> | null;
@@ -68,8 +75,14 @@ export function toEntryDto(entry: EntryWithTags): EntryDto {
     entryDate: entry.entryDate,
     title: entry.title,
     body: entry.body,
+    kind: entry.kind,
+    reflectionType: entry.reflectionType,
     mood: entry.mood,
+    moodText: entry.moodText,
     weather: entry.weather,
+    location: entry.location,
+    people: parseTextList(entry.people),
+    relationships: parseTextList(entry.relationships),
     isPinned: entry.isPinned,
     utcOffsetMinutes: entry.utcOffsetMinutes,
     metadata: parseMetadata(entry.metadata),

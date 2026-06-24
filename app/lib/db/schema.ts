@@ -1,7 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
- * Diary entries — the user-authored record. `body` is Markdown plaintext (relying
+ * Sillage entries — the user-authored record. `body` is Markdown plaintext (relying
  * on Cloudflare's at-rest encryption + access control) so FTS5 and AI features can
  * operate on it.
  *
@@ -23,9 +23,20 @@ export const entries = sqliteTable(
     entryDate: text("entry_date").notNull(),
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
+    // Product shape: fragments are in-the-moment notes, reflections are deliberate
+    // daily/weekly/monthly/topic reviews, and drafts are undecided writing.
+    kind: text("kind").notNull().default("fragment"),
+    reflectionType: text("reflection_type"),
     // Mood on a 1-5 scale; null when not set.
     mood: integer("mood"),
+    // Free-form mood nuance, alongside the preset numeric mood.
+    moodText: text("mood_text"),
     weather: text("weather"),
+    location: text("location"),
+    // JSON-encoded string arrays. They are first-class product fields, stored as
+    // text to keep D1 reads/writes simple and explicit.
+    people: text("people").notNull().default("[]"),
+    relationships: text("relationships").notNull().default("[]"),
     isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
     // Writer's UTC offset in minutes when the entry was saved; resolves the local
     // meaning of `entryDate` across devices in different time zones. Null = unknown.
@@ -46,6 +57,7 @@ export const entries = sqliteTable(
   },
   (table) => [
     index("idx_entries_entry_date").on(table.entryDate),
+    index("idx_entries_kind").on(table.kind),
     index("idx_entries_updated_at").on(table.updatedAt),
   ],
 );

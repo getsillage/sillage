@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { exportDiaryBackup, runScheduledBackup } from "../app/lib/backup/export";
+import { exportSillageBackup, runScheduledBackup } from "../app/lib/backup/export";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { putAttachment } from "../app/lib/storage/attachments";
@@ -12,7 +12,7 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(text) as Uint8Array<ArrayBuffer>;
 }
 
-describe("diary backup export", () => {
+describe("Sillage backup export", () => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM attachments").run();
     await env.DB.prepare("DELETE FROM entries").run();
@@ -28,8 +28,14 @@ describe("diary backup export", () => {
       entryDate: "2026-06-23",
       title: "海边散步",
       body: "今天看到了漂亮夕阳。",
+      kind: "reflection",
+      reflectionType: "daily",
       mood: 5,
+      moodText: "很明亮，也有一点想念",
       weather: "晴",
+      location: "海边",
+      people: ["朋友"],
+      relationships: ["朋友"],
       tags: ["旅行", "生活"],
     });
     await putAttachment(db, env.BLOBS, KEY, {
@@ -40,11 +46,11 @@ describe("diary backup export", () => {
     });
 
     const exportedAt = new Date("2026-06-24T03:04:05.000Z");
-    const result = await exportDiaryBackup(env, exportedAt);
+    const result = await exportSillageBackup(env, exportedAt);
 
     expect(result).toEqual({
-      jsonKey: "backups/2026-06-24/diary-2026-06-24T03-04-05-000Z.json",
-      markdownKey: "backups/2026-06-24/diary-2026-06-24T03-04-05-000Z.md",
+      jsonKey: "backups/2026-06-24/sillage-2026-06-24T03-04-05-000Z.json",
+      markdownKey: "backups/2026-06-24/sillage-2026-06-24T03-04-05-000Z.md",
       entryCount: 1,
     });
 
@@ -56,13 +62,29 @@ describe("diary backup export", () => {
     const payload = await jsonObject?.json<{
       version: 1;
       exportedAt: string;
-      entries: Array<{ id: string; title: string; tags: string[] }>;
+      entries: Array<{
+        id: string;
+        title: string;
+        kind: string;
+        reflectionType: string | null;
+        moodText: string | null;
+        location: string | null;
+        people: string[];
+        relationships: string[];
+        tags: string[];
+      }>;
       attachments: Array<{ filename: string; r2Key: string }>;
     }>();
     expect(payload?.exportedAt).toBe("2026-06-24T03:04:05.000Z");
     expect(payload?.entries[0]).toMatchObject({
       id: entryId,
       title: "海边散步",
+      kind: "reflection",
+      reflectionType: "daily",
+      moodText: "很明亮，也有一点想念",
+      location: "海边",
+      people: ["朋友"],
+      relationships: ["朋友"],
       tags: ["旅行", "生活"],
     });
     expect(payload?.attachments[0]?.filename).toBe("photo.png");
@@ -80,7 +102,7 @@ describe("diary backup export", () => {
       .bind(entryId, "一段摘要", "积极")
       .run();
 
-    const { markdownKey } = await exportDiaryBackup(env, new Date("2026-06-21T00:00:00.000Z"));
+    const { markdownKey } = await exportSillageBackup(env, new Date("2026-06-21T00:00:00.000Z"));
     const markdown = (await (await env.BLOBS.get(markdownKey))?.text()) ?? "";
 
     // Untitled entry → heading falls back to the entry date.
@@ -115,6 +137,6 @@ describe("diary backup export", () => {
 
     await expect(runScheduledBackup(failingEnv)).rejects.toThrow("r2 unavailable");
     expect(errorSpy).toHaveBeenCalledOnce();
-    expect(String(errorSpy.mock.calls[0]?.[0])).toContain("diary-backup");
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain("sillage-backup");
   });
 });

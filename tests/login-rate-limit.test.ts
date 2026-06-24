@@ -12,7 +12,7 @@ function reqFrom(ip: string | null): Request {
   if (ip !== null) {
     headers.set("CF-Connecting-IP", ip);
   }
-  return new Request("https://diary.example/login", { method: "POST", headers });
+  return new Request("https://sillage.example/login", { method: "POST", headers });
 }
 
 describe("login rate limiting", () => {

@@ -1,5 +1,5 @@
 /**
- * Brute-force protection for the single password that guards the whole diary.
+ * Brute-force protection for the single password that guards Sillage.
  * Failed login attempts are counted per client IP in the SESSIONS KV namespace
  * with a rolling expiry, so an attacker is locked out after too many misses
  * while a legitimate user's successful login clears the counter immediately.

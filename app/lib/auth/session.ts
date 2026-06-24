@@ -1,6 +1,6 @@
 import { createSessionStorage, redirect } from "react-router";
 
-const SESSION_COOKIE = "__diary_session";
+const SESSION_COOKIE = "__sillage_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const KV_MIN_TTL_SECONDS = 60;
 

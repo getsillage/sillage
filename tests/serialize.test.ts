@@ -9,8 +9,14 @@ function makeEntry(overrides: Partial<EntryWithTags> = {}): EntryWithTags {
     entryDate: "2026-06-24",
     title: "标题",
     body: "正文",
+    kind: "reflection",
+    reflectionType: "daily",
     mood: 4,
+    moodText: "轻松但想念",
     weather: "晴",
+    location: "海边",
+    people: JSON.stringify(["朋友"]),
+    relationships: JSON.stringify(["朋友"]),
     isPinned: false,
     utcOffsetMinutes: 480,
     metadata: null,
@@ -68,6 +74,12 @@ describe("toEntryDto", () => {
     expect(dto.updatedAt).toBe("2026-06-24T02:00:00.000Z");
     expect(dto.deletedAt).toBeNull();
     expect(dto.metadata).toEqual({ client: "ios" });
+    expect(dto.kind).toBe("reflection");
+    expect(dto.reflectionType).toBe("daily");
+    expect(dto.moodText).toBe("轻松但想念");
+    expect(dto.location).toBe("海边");
+    expect(dto.people).toEqual(["朋友"]);
+    expect(dto.relationships).toEqual(["朋友"]);
     expect(dto.version).toBe(3);
     expect(dto.ai).toEqual({ summary: "一句摘要", sentiment: "积极" });
     expect(dto.tags).toEqual(["旅行", "生活"]);

@@ -5,9 +5,9 @@
  * NOTE on resource IDs: the `database_id` / KV `id` values below are placeholders
  * for local development (Miniflare simulates D1/KV/R2 locally by binding name).
  * Before deploying remotely, create the real resources and replace the IDs:
- *   wrangler d1 create diary-db
+ *   wrangler d1 create sillage-db
  *   wrangler kv namespace create SESSIONS
- *   wrangler r2 bucket create diary-blobs
+ *   wrangler r2 bucket create sillage-blobs
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
@@ -23,7 +23,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "diary-db",
+			"database_name": "sillage-db",
 			"database_id": "00000000-0000-0000-0000-000000000000",
 			"migrations_dir": "drizzle/migrations"
 		}
@@ -39,7 +39,7 @@
 	"r2_buckets": [
 		{
 			"binding": "BLOBS",
-			"bucket_name": "diary-blobs"
+			"bucket_name": "sillage-blobs"
 		}
 	],
 

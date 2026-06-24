@@ -1,8 +1,9 @@
 import { asc, eq, isNull } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
 import { attachments, entries, entryAi, entryTags, tags } from "~/lib/db/schema";
+import { parseTextList } from "~/lib/product/entry-fields";
 
-export interface DiaryBackupResult {
+export interface SillageBackupResult {
   jsonKey: string;
   markdownKey: string;
   entryCount: number;
@@ -18,8 +19,14 @@ interface BackupEntry {
   entryDate: string;
   title: string;
   body: string;
+  kind: string;
+  reflectionType: string | null;
   mood: number | null;
+  moodText: string | null;
   weather: string | null;
+  location: string | null;
+  people: string[];
+  relationships: string[];
   isPinned: boolean;
   summary: string | null;
   sentiment: string | null;
@@ -28,7 +35,7 @@ interface BackupEntry {
   tags: string[];
 }
 
-interface DiaryBackupPayload {
+interface SillageBackupPayload {
   version: 1;
   exportedAt: string;
   entries: BackupEntry[];
@@ -55,7 +62,7 @@ function backupTimestamp(date: Date): string {
 
 function tagsByEntry(
   links: BackupTagLink[],
-  tagRows: DiaryBackupPayload["tags"],
+  tagRows: SillageBackupPayload["tags"],
 ): Map<string, string[]> {
   const namesById = new Map(tagRows.map((tag) => [tag.id, tag.name]));
   const result = new Map<string, string[]>();
@@ -70,21 +77,26 @@ function tagsByEntry(
   return result;
 }
 
-function renderMarkdown(payload: DiaryBackupPayload): string {
+function renderMarkdown(payload: SillageBackupPayload): string {
   const sections = payload.entries.map((entry) => {
     const title = entry.title || entry.entryDate;
     const tagLine =
       entry.tags.length > 0 ? `\n标签：${entry.tags.map((tag) => `#${tag}`).join(" ")}` : "";
     const moodLine = entry.mood ? `\n心情：${entry.mood}/5` : "";
+    const moodTextLine = entry.moodText ? `\n细腻感受：${entry.moodText}` : "";
     const weatherLine = entry.weather ? `\n天气：${entry.weather}` : "";
+    const locationLine = entry.location ? `\n地点：${entry.location}` : "";
+    const peopleLine = entry.people.length > 0 ? `\n人物：${entry.people.join("、")}` : "";
+    const relationshipLine =
+      entry.relationships.length > 0 ? `\n关系：${entry.relationships.join("、")}` : "";
     const summaryLine = entry.summary ? `\n摘要：${entry.summary}` : "";
     const sentimentLine = entry.sentiment ? `\n情绪：${entry.sentiment}` : "";
-    return `## ${entry.entryDate} ${title}${tagLine}${moodLine}${weatherLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
+    return `## ${entry.entryDate} ${title}\n类型：${entry.kind}${entry.reflectionType ? ` / ${entry.reflectionType}` : ""}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
   });
-  return [`# 日记备份`, ``, `导出时间：${payload.exportedAt}`, ``, ...sections].join("\n");
+  return [`# Sillage 备份`, ``, `导出时间：${payload.exportedAt}`, ``, ...sections].join("\n");
 }
 
-async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBackupPayload> {
+async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBackupPayload> {
   const db = getDb(env.DB);
   const [entryRows, tagRowsRaw, linkRows, attachmentRows] = await Promise.all([
     db
@@ -117,8 +129,14 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBack
       entryDate: entry.entryDate,
       title: entry.title,
       body: entry.body,
+      kind: entry.kind,
+      reflectionType: entry.reflectionType,
       mood: entry.mood,
+      moodText: entry.moodText,
       weather: entry.weather,
+      location: entry.location,
+      people: parseTextList(entry.people),
+      relationships: parseTextList(entry.relationships),
       isPinned: entry.isPinned,
       summary: ai?.summary ?? null,
       sentiment: ai?.sentiment ?? null,
@@ -140,25 +158,25 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBack
   };
 }
 
-export async function exportDiaryBackup(
+export async function exportSillageBackup(
   env: Env,
   exportedAt = new Date(),
-): Promise<DiaryBackupResult> {
+): Promise<SillageBackupResult> {
   const payload = await buildBackupPayload(env, exportedAt);
   const date = exportedAt.toISOString().slice(0, 10);
   const timestamp = backupTimestamp(exportedAt);
-  const baseKey = `backups/${date}/diary-${timestamp}`;
+  const baseKey = `backups/${date}/sillage-${timestamp}`;
   const jsonKey = `${baseKey}.json`;
   const markdownKey = `${baseKey}.md`;
 
   await Promise.all([
     env.BLOBS.put(jsonKey, JSON.stringify(payload, null, 2), {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
-      customMetadata: { type: "diary-backup", format: "json", version: "1" },
+      customMetadata: { type: "sillage-backup", format: "json", version: "1" },
     }),
     env.BLOBS.put(markdownKey, renderMarkdown(payload), {
       httpMetadata: { contentType: "text/markdown; charset=utf-8" },
-      customMetadata: { type: "diary-backup", format: "markdown", version: "1" },
+      customMetadata: { type: "sillage-backup", format: "markdown", version: "1" },
     }),
   ]);
 
@@ -172,11 +190,11 @@ export async function exportDiaryBackup(
  */
 export async function runScheduledBackup(env: Env): Promise<void> {
   try {
-    await exportDiaryBackup(env);
+    await exportSillageBackup(env);
   } catch (error) {
     console.error(
       JSON.stringify({
-        event: "diary-backup",
+        event: "sillage-backup",
         status: "error",
         message: error instanceof Error ? error.message : String(error),
       }),

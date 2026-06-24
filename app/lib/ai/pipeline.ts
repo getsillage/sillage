@@ -1,6 +1,13 @@
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entryAi } from "~/lib/db/schema";
+import {
+  entryKindLabel,
+  normalizeEntryKind,
+  normalizeReflectionType,
+  parseTextList,
+  reflectionTypeLabel,
+} from "~/lib/product/entry-fields";
 import { type AiConfig, loadAiConfig } from "./config";
 import { generateText } from "./text";
 
@@ -21,7 +28,18 @@ function activeModel(config: AiConfig): string | null {
 }
 
 function entryText(entry: EntryWithTags): string {
-  return [entry.title, entry.body, entry.tags.map((tag) => `#${tag}`).join(" ")]
+  const kind = normalizeEntryKind(entry.kind);
+  const reflectionType = normalizeReflectionType(entry.reflectionType, kind);
+  const labels = [
+    `类型：${entryKindLabel(kind)}${reflectionType ? ` / ${reflectionTypeLabel(reflectionType)}` : ""}`,
+    entry.moodText ? `细腻感受：${entry.moodText}` : "",
+    entry.location ? `地点：${entry.location}` : "",
+    parseTextList(entry.people).length > 0 ? `人物：${parseTextList(entry.people).join("、")}` : "",
+    parseTextList(entry.relationships).length > 0
+      ? `关系：${parseTextList(entry.relationships).join("、")}`
+      : "",
+  ];
+  return [entry.title, ...labels, entry.body, entry.tags.map((tag) => `#${tag}`).join(" ")]
     .filter(Boolean)
     .join("\n\n");
 }
@@ -40,7 +58,8 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   const text = entryText(entry);
 
   const summary = await generateText(config, {
-    system: "你是个人日记助手。请用中文写一句简洁摘要，不要添加解释。",
+    system:
+      "你是 Sillage 的回声层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
     prompt: text,
     maxTokens: 160,
   });

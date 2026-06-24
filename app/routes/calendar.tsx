@@ -8,7 +8,7 @@ import type { Route } from "./+types/calendar";
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "日历 · 我的日记" }];
+  return [{ title: "日历 · Sillage" }];
 }
 
 function clampMonth(year: number, month: number): { year: number; month: number } {
@@ -101,7 +101,7 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
         <section className="mt-6">
           <h2 className="mb-2 font-medium text-gray-700 text-sm">{selectedDate}</h2>
           {dayEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm">这一天没有日记。</p>
+            <p className="text-gray-400 text-sm">这一天没有记录。</p>
           ) : (
             <ul className="space-y-2">
               {dayEntries.map((entry) => (

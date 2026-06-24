@@ -25,17 +25,23 @@ export default function AppLayout() {
               to="/"
               className="text-sm font-semibold tracking-tight text-gray-950 sm:text-base"
             >
-              我的日记
+              Sillage
             </Link>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <NavLink to="/" end className={navClass}>
+                今天
+              </NavLink>
+              <NavLink to="/timeline" className={navClass}>
                 时间线
               </NavLink>
-              <NavLink to="/calendar" className={navClass}>
-                日历
+              <NavLink to="/reflections" className={navClass}>
+                回顾
               </NavLink>
-              <NavLink to="/search" className={navClass}>
-                搜索
+              <NavLink to="/echoes" className={navClass}>
+                回声
+              </NavLink>
+              <NavLink to="/memory" className={navClass}>
+                记忆
               </NavLink>
               <NavLink to="/settings" className={navClass}>
                 设置
@@ -44,7 +50,7 @@ export default function AppLayout() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/new" className={primaryButtonClass}>
-              写日记
+              写下片段
             </Link>
             <Form method="post" action="/logout">
               <button type="submit" className={subtleButtonClass}>

@@ -65,4 +65,20 @@ describe("keyword search", () => {
     const results = await searchEntriesByKeyword(db, '"special"');
     expect(results.map((entry) => entry.title)).toEqual(["引号测试"]);
   });
+
+  it("falls back to field matching for long natural-language queries", async () => {
+    await createEntry(db, {
+      entryDate: "2026-06-23",
+      title: "今天的时间",
+      body: "系统里的今天是 2026-06-24。",
+      tags: [],
+    });
+
+    const results = await searchEntriesByKeyword(
+      db,
+      "不要根据记录，我问的是你系统里指定的今天是什么时间",
+    );
+
+    expect(results.map((entry) => entry.title)).toEqual(["今天的时间"]);
+  });
 });

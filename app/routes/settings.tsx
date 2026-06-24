@@ -129,14 +129,16 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-gray-400 bg-white px-3 py-2 text-gray-950 text-sm placeholder:text-gray-500 focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-600";
+  "mt-1 w-full rounded-lg border border-gray-400 bg-white px-3 py-2 text-gray-950 text-sm placeholder:text-gray-500 focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-200 dark:focus:ring-gray-100/20 dark:disabled:bg-gray-900 dark:disabled:text-gray-500";
 const secondaryButtonClass =
-  "rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-500";
-const subtleTextClass = "text-gray-700";
-const labelClass = "block text-gray-900 text-sm font-medium";
+  "rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:disabled:border-gray-800 dark:disabled:bg-gray-900 dark:disabled:text-gray-600";
+const subtleTextClass = "text-gray-700 dark:text-gray-400";
+const labelClass = "block text-gray-900 text-sm font-medium dark:text-gray-100";
 const statusClass = (ok: boolean) =>
   `rounded-lg border px-3 py-2 text-sm ${
-    ok ? "border-green-300 bg-green-50 text-green-800" : "border-red-300 bg-red-50 text-red-800"
+    ok
+      ? "border-green-300 bg-green-50 text-green-800 dark:border-green-900/70 dark:bg-green-950/50 dark:text-green-200"
+      : "border-red-300 bg-red-50 text-red-800 dark:border-red-900/70 dark:bg-red-950/50 dark:text-red-200"
   }`;
 
 function defaultProfile(protocol: AiProtocol = "anthropic") {
@@ -261,14 +263,14 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="font-semibold text-gray-950 text-xl">设置</h1>
+      <h1 className="font-semibold text-gray-950 text-xl dark:text-gray-50">设置</h1>
       <p className={`mt-1 text-sm ${subtleTextClass}`}>
         配置用于自动摘要的 AI 提供商；所有 AI 配置都在这里管理。
       </p>
 
       <Form
         method="post"
-        className="mt-6 space-y-5 rounded-xl border border-gray-300 bg-white p-6 shadow-sm"
+        className="mt-6 space-y-5 rounded-xl border border-gray-300 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
       >
         <input type="hidden" name="id" value={selectedProfileId} />
 
@@ -323,13 +325,13 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
           />
         </label>
 
-        <label className="flex items-center gap-2 text-gray-900 text-sm">
+        <label className="flex items-center gap-2 text-gray-900 text-sm dark:text-gray-100">
           <input
             type="checkbox"
             name="enabled"
             checked={enabled}
             onChange={(event) => setEnabled(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
           />
           启用当前配置（保存记录后自动生成洞察）
         </label>
@@ -371,7 +373,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
           />
         </label>
 
-        <section className="rounded-lg border border-gray-300 bg-slate-50 p-4">
+        <section className="rounded-lg border border-gray-300 bg-slate-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <label htmlFor="model" className={labelClass}>
@@ -420,7 +422,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             name="intent"
             value="save"
             disabled={busy}
-            className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white text-sm hover:bg-gray-800 disabled:opacity-60"
+            className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white text-sm hover:bg-gray-800 disabled:opacity-60 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
           >
             保存并设为当前
           </button>

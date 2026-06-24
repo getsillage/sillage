@@ -55,22 +55,22 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
       <div className="mb-4 flex items-center justify-between">
         <Link
           to={`/calendar?y=${prev.year}&m=${prev.month}`}
-          className="text-gray-500 text-sm hover:text-gray-900"
+          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
         >
           ← {prev.year}年{prev.month}月
         </Link>
-        <h1 className="font-semibold text-lg">
+        <h1 className="font-semibold text-lg dark:text-gray-50">
           {year}年{month}月
         </h1>
         <Link
           to={`/calendar?y=${next.year}&m=${next.month}`}
-          className="text-gray-500 text-sm hover:text-gray-900"
+          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
         >
           {next.year}年{next.month}月 →
         </Link>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-gray-400 text-xs">
+      <div className="grid grid-cols-7 gap-1 text-center text-gray-400 text-xs dark:text-gray-500">
         {WEEKDAYS.map((day) => (
           <div key={day} className="py-1">
             {day}
@@ -99,16 +99,18 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
 
       {selectedDate ? (
         <section className="mt-6">
-          <h2 className="mb-2 font-medium text-gray-700 text-sm">{selectedDate}</h2>
+          <h2 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+            {selectedDate}
+          </h2>
           {dayEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm">这一天没有记录。</p>
+            <p className="text-gray-400 text-sm dark:text-gray-500">这一天没有记录。</p>
           ) : (
             <ul className="space-y-2">
               {dayEntries.map((entry) => (
                 <li key={entry.id}>
                   <Link
                     to={`/entries/${entry.id}`}
-                    className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
+                    className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
                   >
                     {entry.title || "（无标题）"}
                   </Link>
@@ -135,17 +137,21 @@ function DayCell({ date, count, isToday, isSelected, year, month }: DayCellProps
   const day = Number(date.slice(8));
   const base = "flex aspect-square flex-col items-center justify-center rounded-lg border text-sm";
   const state = isSelected
-    ? "border-gray-900 bg-gray-900 text-white"
+    ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
     : count > 0
-      ? "border-gray-300 bg-white hover:bg-gray-50"
-      : "border-transparent text-gray-400 hover:bg-gray-100";
+      ? "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800"
+      : "border-transparent text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-900";
 
   return (
     <Link to={`/calendar?y=${year}&m=${month}&date=${date}`} className={`${base} ${state}`}>
-      <span className={isToday && !isSelected ? "font-bold text-gray-900" : ""}>{day}</span>
+      <span className={isToday && !isSelected ? "font-bold text-gray-900 dark:text-gray-50" : ""}>
+        {day}
+      </span>
       {count > 0 ? (
         <span
-          className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-gray-900"}`}
+          className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
+            isSelected ? "bg-white dark:bg-gray-950" : "bg-gray-900 dark:bg-gray-100"
+          }`}
         />
       ) : null}
     </Link>

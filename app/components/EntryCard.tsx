@@ -30,19 +30,23 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
 
   return (
     <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
-      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
         <time>{entry.entryDate}</time>
         <span>{entryKindLabel(kind)}</span>
         {noteLabel ? <span>{noteLabel}</span> : null}
         {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
         {entry.location ? <span>{entry.location}</span> : null}
       </div>
-      <h2 className="mt-1 font-medium text-gray-950">{entry.title || "未命名记录"}</h2>
+      <h2 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
+        {entry.title || "未命名记录"}
+      </h2>
       {entry.body ? (
-        <p className="mt-1 text-gray-500 text-sm leading-6">{excerpt(entry.body)}</p>
+        <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
+          {excerpt(entry.body)}
+        </p>
       ) : null}
       {entry.summary ? (
-        <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 text-gray-500 text-sm">
+        <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 text-gray-500 text-sm dark:bg-gray-950 dark:text-gray-300">
           {entry.summary}
         </p>
       ) : null}
@@ -51,7 +55,7 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
           {people.map((person) => (
             <span
               key={`person-${person}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               {person}
             </span>
@@ -59,7 +63,7 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
           {relationships.map((relationship) => (
             <span
               key={`relationship-${relationship}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               {relationship}
             </span>
@@ -67,7 +71,7 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
           {entry.tags.map((tag) => (
             <span
               key={`tag-${tag}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               #{tag}
             </span>

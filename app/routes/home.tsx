@@ -118,7 +118,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: string }) {
   if (entries.length === 0) {
-    return <p className="text-gray-400 text-sm">{empty}</p>;
+    return <p className="text-gray-400 text-sm dark:text-gray-500">{empty}</p>;
   }
 
   return (
@@ -130,14 +130,14 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
           <li key={entry.id}>
             <Link
               to={`/entries/${entry.id}`}
-              className="block rounded-lg border border-gray-200 bg-white px-3 py-2 transition hover:border-gray-300 hover:bg-gray-50"
+              className="block rounded-lg border border-gray-200 bg-white px-3 py-2 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-gray-700 dark:hover:bg-gray-900"
             >
-              <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
                 <span>{entryKindLabel(kind)}</span>
                 {noteLabel ? <span>{noteLabel}</span> : null}
                 {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
               </div>
-              <p className="mt-1 line-clamp-2 text-gray-800 text-sm">
+              <p className="mt-1 line-clamp-2 text-gray-800 text-sm dark:text-gray-200">
                 {entry.title || excerpt(entry.body, 56) || "未命名记录"}
               </p>
             </Link>
@@ -157,7 +157,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
     <main className={`${pageShellClass} max-w-6xl`}>
       <section className={pageSectionClass}>
         <header>
-          <p className="text-gray-500 text-sm">{today}</p>
+          <p className="text-gray-500 text-sm dark:text-gray-400">{today}</p>
           <h1 className={pageTitleClass}>今天留下些什么？</h1>
           <p className={pageLeadClass}>What lingers today?</p>
         </header>
@@ -174,14 +174,14 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
 
           <aside className="space-y-4">
             <section className={`${panelClass} p-4`}>
-              <h2 className="font-medium text-gray-950 text-sm">今日片段</h2>
+              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日片段</h2>
               <div className="mt-3">
                 <EntryMiniList entries={fragments} empty="还没有留下片段。" />
               </div>
             </section>
 
             <section className={`${panelClass} p-4`}>
-              <h2 className="font-medium text-gray-950 text-sm">今日笔记</h2>
+              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日笔记</h2>
               <div className="mt-3">
                 <EntryMiniList entries={notes} empty="今天还没有被整理。" />
               </div>
@@ -189,7 +189,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
 
             {drafts.length > 0 ? (
               <section className={`${panelClass} p-4`}>
-                <h2 className="font-medium text-gray-950 text-sm">草稿</h2>
+                <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">草稿</h2>
                 <div className="mt-3">
                   <EntryMiniList entries={drafts} empty="" />
                 </div>
@@ -197,19 +197,22 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             ) : null}
 
             <section className={`${panelClass} p-4`}>
-              <h2 className="font-medium text-gray-950 text-sm">今日洞察</h2>
+              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日洞察</h2>
               {todayInsights.length === 0 ? (
-                <p className="mt-3 text-gray-400 text-sm">
+                <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
                   写下一些内容后，Sillage 会帮你看见它们之间的线索。
                 </p>
               ) : (
                 <ul className="mt-3 space-y-2">
                   {todayInsights.map((entry) => (
-                    <li key={entry.id} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                      <p className="text-gray-700">{entry.summary}</p>
+                    <li
+                      key={entry.id}
+                      className="rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950"
+                    >
+                      <p className="text-gray-700 dark:text-gray-300">{entry.summary}</p>
                       <Link
                         to={`/entries/${entry.id}`}
-                        className="mt-1 inline-block text-gray-400 text-xs hover:text-gray-900"
+                        className="mt-1 inline-block text-gray-400 text-xs hover:text-gray-900 dark:hover:text-gray-100"
                       >
                         查看来源
                       </Link>
@@ -220,8 +223,8 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             </section>
 
             {onThisDay.length > 0 ? (
-              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
-                <h2 className="font-medium text-amber-950 text-sm">那年今日</h2>
+              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+                <h2 className="font-medium text-amber-950 text-sm dark:text-amber-100">那年今日</h2>
                 <ul className="mt-3 space-y-2">
                   {onThisDay.map((entry) => {
                     const years = yearsBetween(entry.entryDate, today);
@@ -229,10 +232,15 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
                       <li key={entry.id}>
                         <Link
                           to={`/entries/${entry.id}`}
-                          className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-sm text-amber-950 transition hover:border-amber-300 hover:bg-white"
+                          className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-amber-950 text-sm transition hover:border-amber-300 hover:bg-white dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:border-amber-800 dark:hover:bg-amber-950/50"
                         >
-                          <span className="font-medium text-amber-800">{years}年前</span>
-                          <span className="text-amber-700"> · {entry.entryDate}</span>
+                          <span className="font-medium text-amber-800 dark:text-amber-200">
+                            {years}年前
+                          </span>
+                          <span className="text-amber-700 dark:text-amber-300">
+                            {" "}
+                            · {entry.entryDate}
+                          </span>
                           <span> · {entry.title || excerpt(entry.body, 40) || "未命名记录"}</span>
                         </Link>
                       </li>
@@ -246,13 +254,18 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-medium text-gray-950 text-sm">最近记录</h2>
-            <Link to="/timeline" className="text-gray-500 text-sm hover:text-gray-900">
+            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">最近记录</h2>
+            <Link
+              to="/timeline"
+              className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            >
               查看时间线
             </Link>
           </div>
           {entries.length === 0 ? (
-            <div className={`${subtlePanelClass} px-4 py-10 text-center text-sm text-gray-500`}>
+            <div
+              className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
+            >
               还没有留下什么。可以从一个瞬间开始。
             </div>
           ) : (
@@ -262,16 +275,16 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
                 return (
                   <li key={entry.id}>
                     <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
-                      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
                         <time>{entry.entryDate}</time>
                         <span>{entryKindLabel(kind)}</span>
                         {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
                       </div>
-                      <h3 className="mt-1 font-medium text-gray-950">
+                      <h3 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
                         {entry.title || "未命名记录"}
                       </h3>
                       {entry.body ? (
-                        <p className="mt-1 text-gray-500 text-sm leading-6">
+                        <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
                           {excerpt(entry.body)}
                         </p>
                       ) : null}

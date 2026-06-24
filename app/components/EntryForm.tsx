@@ -141,7 +141,7 @@ export function EntryForm({
           {ENTRY_KINDS.map((kind) => (
             <label
               key={kind}
-              className="flex min-h-20 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white"
+              className="flex min-h-20 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:has-[:checked]:border-gray-100 dark:has-[:checked]:bg-gray-100 dark:has-[:checked]:text-gray-950"
             >
               <input
                 type="radio"
@@ -178,7 +178,7 @@ export function EntryForm({
           {MOODS.map((mood) => (
             <label
               key={mood.value}
-              className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white"
+              className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-500 text-xs transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:has-[:checked]:border-gray-100 dark:has-[:checked]:bg-gray-100 dark:has-[:checked]:text-gray-950"
             >
               <input
                 type="radio"
@@ -256,7 +256,7 @@ export function EntryForm({
         />
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-red-600 text-sm dark:text-red-400">{error}</p> : null}
 
       <button type="submit" disabled={busy} className={primaryButtonClass}>
         {busy ? "保存中…" : submitLabel}

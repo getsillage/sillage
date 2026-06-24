@@ -57,19 +57,19 @@ export default function Insights({ loaderData }: Route.ComponentProps) {
         </header>
 
         <section className={`${panelClass} p-4`}>
-          <h2 className="font-medium text-gray-950 text-sm">今日余韵</h2>
+          <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日余韵</h2>
           {todayInsights.length === 0 ? (
-            <p className="mt-3 text-gray-400 text-sm">
+            <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
               写下一些内容后，Sillage 会帮你看见它们之间的线索。
             </p>
           ) : (
             <ul className="mt-3 space-y-3">
               {todayInsights.map((entry) => (
-                <li key={entry.id} className="rounded-lg bg-gray-50 px-3 py-2">
-                  <p className="text-gray-700 text-sm">{entry.summary}</p>
+                <li key={entry.id} className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-950">
+                  <p className="text-gray-700 text-sm dark:text-gray-300">{entry.summary}</p>
                   <Link
                     to={`/entries/${entry.id}`}
-                    className="mt-2 inline-block text-gray-400 text-xs hover:text-gray-900"
+                    className="mt-2 inline-block text-gray-400 text-xs hover:text-gray-900 dark:hover:text-gray-100"
                   >
                     查看来源
                   </Link>
@@ -80,17 +80,23 @@ export default function Insights({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className={`${panelClass} p-4`}>
-          <h2 className="font-medium text-gray-950 text-sm">最近洞察</h2>
+          <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">最近洞察</h2>
           {recentInsights.length === 0 ? (
-            <p className="mt-3 text-gray-400 text-sm">还没有可展示的洞察。</p>
+            <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">还没有可展示的洞察。</p>
           ) : (
             <ul className="mt-3 space-y-3">
               {recentInsights.map((entry) => (
-                <li key={entry.id} className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                  <p className="text-gray-700 text-sm">{entry.summary}</p>
+                <li
+                  key={entry.id}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-800 dark:bg-gray-950"
+                >
+                  <p className="text-gray-700 text-sm dark:text-gray-300">{entry.summary}</p>
                   <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-gray-400">基于 1 条记录生成</span>
-                    <Link to={`/entries/${entry.id}`} className="text-gray-500 hover:text-gray-900">
+                    <span className="text-gray-400 dark:text-gray-500">基于 1 条记录生成</span>
+                    <Link
+                      to={`/entries/${entry.id}`}
+                      className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                    >
                       查看来源
                     </Link>
                   </div>
@@ -101,25 +107,29 @@ export default function Insights({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className={`${panelClass} p-4`}>
-          <h2 className="font-medium text-gray-950 text-sm">萦绕主题</h2>
+          <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">萦绕主题</h2>
           {topThemes.length === 0 ? (
-            <p className="mt-3 text-gray-400 text-sm">更多记录之后，这里会浮现反复出现的主题。</p>
+            <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
+              更多记录之后，这里会浮现反复出现的主题。
+            </p>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {topThemes.map(([tag, count]) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-sm"
+                  className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-sm dark:bg-gray-800 dark:text-gray-300"
                 >
                   #{tag} · {count}
                 </span>
               ))}
             </div>
           )}
-          <p className="mt-3 text-gray-400 text-xs">已整理 {noteCount} 篇笔记。</p>
+          <p className="mt-3 text-gray-400 text-xs dark:text-gray-500">
+            已整理 {noteCount} 篇笔记。
+          </p>
         </section>
 
-        <div className={`${subtlePanelClass} px-4 py-3 text-gray-500 text-sm`}>
+        <div className={`${subtlePanelClass} px-4 py-3 text-gray-500 text-sm dark:text-gray-400`}>
           记忆问答已独立放在“记忆”入口，洞察页只保留主动浮现的余韵和主题。
         </div>
       </section>

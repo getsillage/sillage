@@ -59,8 +59,8 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
-      <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 p-1 text-sm">
+    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-950">
+      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-50 p-1 text-sm dark:border-gray-800 dark:bg-gray-900">
         <TabButton active={!preview} onClick={() => setPreview(false)}>
           编辑
         </TabButton>
@@ -101,17 +101,19 @@ export function MarkdownEditor({
         className={`${textareaClass} rounded-t-none font-mono text-sm ${preview ? "hidden" : ""}`}
       />
       {preview ? (
-        <div className="min-h-48 bg-white p-3">
+        <div className="min-h-48 bg-white p-3 dark:bg-gray-950">
           {value.trim() ? (
             <Markdown content={value} />
           ) : (
-            <p className="text-gray-400 text-sm">没有可预览的内容</p>
+            <p className="text-gray-400 text-sm dark:text-gray-500">没有可预览的内容</p>
           )}
         </div>
       ) : null}
 
       {error ? (
-        <p className="border-gray-200 border-t px-3 py-2 text-sm text-red-600">{error}</p>
+        <p className="border-gray-200 border-t px-3 py-2 text-red-600 text-sm dark:border-gray-800 dark:text-red-400">
+          {error}
+        </p>
       ) : null}
     </div>
   );
@@ -130,8 +132,8 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 transition ${
         active
-          ? "bg-white font-medium text-gray-950 shadow-sm"
-          : "text-gray-500 hover:text-gray-950"
+          ? "bg-white font-medium text-gray-950 shadow-sm dark:bg-gray-800 dark:text-gray-50"
+          : "text-gray-500 hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-100"
       }`}
     >
       {children}

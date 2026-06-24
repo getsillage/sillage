@@ -48,15 +48,15 @@ export default function Login({ actionData }: Route.ComponentProps) {
   const submitting = navigation.state === "submitting";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10 dark:bg-gray-950">
       <Form
         method="post"
-        className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+        className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
       >
         <h1 className={pageTitleClass}>Sillage</h1>
         <p className={pageLeadClass}>输入密码以继续。</p>
 
-        <label className="mt-6 block text-sm font-medium text-gray-900">
+        <label className="mt-6 block font-medium text-gray-900 text-sm dark:text-gray-100">
           密码
           <input
             type="password"
@@ -67,7 +67,9 @@ export default function Login({ actionData }: Route.ComponentProps) {
           />
         </label>
 
-        {actionData?.error ? <p className="mt-3 text-sm text-red-600">{actionData.error}</p> : null}
+        {actionData?.error ? (
+          <p className="mt-3 text-red-600 text-sm dark:text-red-400">{actionData.error}</p>
+        ) : null}
 
         <button type="submit" disabled={submitting} className={`${primaryButtonClass} mt-6 w-full`}>
           {submitting ? "登录中…" : "登录"}

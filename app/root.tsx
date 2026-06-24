@@ -25,10 +25,12 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-Hans">
+    <html lang="zh-Hans" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <script src="/theme-init.js" />
         <Meta />
         <Links />
       </head>
@@ -63,7 +65,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <h1>{message}</h1>
       <p>{details}</p>
       {stack && (
-        <pre className="w-full overflow-x-auto rounded-lg bg-gray-100 p-4 text-sm">
+        <pre className="w-full overflow-x-auto rounded-lg bg-gray-100 p-4 text-sm dark:bg-gray-900 dark:text-gray-100">
           <code>{stack}</code>
         </pre>
       )}

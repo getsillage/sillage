@@ -76,9 +76,11 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
 
         {query ? (
           <section>
-            <h2 className="mb-3 font-medium text-gray-950 text-sm">搜索结果</h2>
+            <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">搜索结果</h2>
             {results.length === 0 ? (
-              <p className="text-gray-400 text-sm">没有找到相关记忆。换一个词，或者看看洞察。</p>
+              <p className="text-gray-400 text-sm dark:text-gray-500">
+                没有找到相关记忆。换一个词，或者看看洞察。
+              </p>
             ) : (
               <ul className="space-y-3">
                 {results.map((entry) => (
@@ -93,16 +95,18 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
 
         <section className="grid gap-4 sm:grid-cols-2">
           <div className={`${subtlePanelClass} p-4`}>
-            <h2 className="font-medium text-gray-950 text-sm">人物</h2>
+            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">人物</h2>
             {people.length === 0 ? (
-              <p className="mt-3 text-gray-400 text-sm">记录人物后，这里会出现关系线索。</p>
+              <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
+                记录人物后，这里会出现关系线索。
+              </p>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
                 {people.map(([person, count]) => (
                   <Link
                     key={person}
                     to={`/memory?q=${encodeURIComponent(person)}`}
-                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950"
+                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
                   >
                     {person} · {count}
                   </Link>
@@ -112,16 +116,18 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
           </div>
 
           <div className={`${subtlePanelClass} p-4`}>
-            <h2 className="font-medium text-gray-950 text-sm">关系</h2>
+            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">关系</h2>
             {relationships.length === 0 ? (
-              <p className="mt-3 text-gray-400 text-sm">记录关系后，这里会帮助你回看变化。</p>
+              <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
+                记录关系后，这里会帮助你回看变化。
+              </p>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
                 {relationships.map(([relationship, count]) => (
                   <Link
                     key={relationship}
                     to={`/memory?q=${encodeURIComponent(relationship)}`}
-                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950"
+                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
                   >
                     {relationship} · {count}
                   </Link>

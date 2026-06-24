@@ -44,7 +44,9 @@ export default function Notes({ loaderData }: Route.ComponentProps) {
         </header>
 
         {notes.length === 0 ? (
-          <div className={`${subtlePanelClass} px-4 py-10 text-center text-sm text-gray-500`}>
+          <div
+            className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
+          >
             今天还没有被整理。晚些时候回来看看也可以。
           </div>
         ) : (

@@ -33,7 +33,9 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         </header>
 
         {entries.length === 0 ? (
-          <div className={`${subtlePanelClass} px-4 py-10 text-center text-sm text-gray-500`}>
+          <div
+            className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
+          >
             还没有留下什么。可以从一个瞬间开始。
           </div>
         ) : (

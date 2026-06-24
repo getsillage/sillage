@@ -103,8 +103,11 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
     return (
       <main className="mx-auto max-w-2xl p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">编辑记录</h1>
-          <Link to={`/entries/${entry.id}`} className="text-sm text-gray-500 hover:text-gray-900">
+          <h1 className="font-semibold text-xl dark:text-gray-50">编辑记录</h1>
+          <Link
+            to={`/entries/${entry.id}`}
+            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
             取消
           </Link>
         </div>
@@ -122,18 +125,24 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
   return (
     <main className="mx-auto max-w-2xl p-6">
       <div className="mb-4 flex items-center justify-between text-sm">
-        <Link to="/" className="text-gray-500 hover:text-gray-900">
+        <Link
+          to="/"
+          className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+        >
           ← 返回
         </Link>
         <div className="flex items-center gap-3">
-          <Link to={`/entries/${entry.id}?edit`} className="text-gray-500 hover:text-gray-900">
+          <Link
+            to={`/entries/${entry.id}?edit`}
+            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
             编辑
           </Link>
           <Form method="post">
             <input type="hidden" name="intent" value="delete" />
             <button
               type="submit"
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
               onClick={(event) => {
                 if (!confirm("确定删除这条记录？")) {
                   event.preventDefault();
@@ -146,8 +155,8 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         </div>
       </div>
 
-      <header className="border-gray-100 border-b pb-4">
-        <div className="flex items-center gap-2 text-gray-500 text-sm">
+      <header className="border-gray-100 border-b pb-4 dark:border-gray-800">
+        <div className="flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
           <time>{entry.entryDate}</time>
           <span>· {kindLabel}</span>
           {noteLabel ? <span>· {noteLabel}</span> : null}
@@ -155,7 +164,9 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
           {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
         </div>
         {entry.title ? (
-          <h1 className="mt-2 font-semibold text-2xl text-gray-900">{entry.title}</h1>
+          <h1 className="mt-2 font-semibold text-2xl text-gray-900 dark:text-gray-50">
+            {entry.title}
+          </h1>
         ) : null}
       </header>
 
@@ -164,45 +175,48 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
       </article>
 
       {entry.moodText || entry.location || people.length > 0 || relationships.length > 0 ? (
-        <section className="grid gap-3 border-gray-100 border-t py-4 text-sm sm:grid-cols-2">
+        <section className="grid gap-3 border-gray-100 border-t py-4 text-sm sm:grid-cols-2 dark:border-gray-800">
           {entry.moodText ? (
             <div>
-              <h2 className="font-medium text-gray-900 text-xs">细腻感受</h2>
-              <p className="mt-1 text-gray-600">{entry.moodText}</p>
+              <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">细腻感受</h2>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.moodText}</p>
             </div>
           ) : null}
           {entry.location ? (
             <div>
-              <h2 className="font-medium text-gray-900 text-xs">地点</h2>
-              <p className="mt-1 text-gray-600">{entry.location}</p>
+              <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">地点</h2>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.location}</p>
             </div>
           ) : null}
           {people.length > 0 ? (
             <div>
-              <h2 className="font-medium text-gray-900 text-xs">人物</h2>
-              <p className="mt-1 text-gray-600">{people.join("、")}</p>
+              <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">人物</h2>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">{people.join("、")}</p>
             </div>
           ) : null}
           {relationships.length > 0 ? (
             <div>
-              <h2 className="font-medium text-gray-900 text-xs">关系</h2>
-              <p className="mt-1 text-gray-600">{relationships.join("、")}</p>
+              <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">关系</h2>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">{relationships.join("、")}</p>
             </div>
           ) : null}
         </section>
       ) : null}
 
       {entry.summary ? (
-        <section className="border-gray-100 border-t py-4 text-sm">
-          <h2 className="font-medium text-gray-900 text-xs">洞察</h2>
-          <p className="mt-1 text-gray-600">{entry.summary}</p>
+        <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
+          <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">洞察</h2>
+          <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.summary}</p>
         </section>
       ) : null}
 
       {entry.tags.length > 0 ? (
-        <footer className="flex flex-wrap gap-2 border-gray-100 border-t pt-4">
+        <footer className="flex flex-wrap gap-2 border-gray-100 border-t pt-4 dark:border-gray-800">
           {entry.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-xs">
+            <span
+              key={tag}
+              className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
+            >
               #{tag}
             </span>
           ))}

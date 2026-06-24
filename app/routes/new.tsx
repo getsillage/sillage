@@ -63,8 +63,11 @@ export default function NewEntry({ loaderData, actionData }: Route.ComponentProp
   return (
     <main className="mx-auto max-w-2xl p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">写下片段</h1>
-        <Link to="/" className="text-sm text-gray-500 hover:text-gray-900">
+        <h1 className="font-semibold text-xl dark:text-gray-50">写下片段</h1>
+        <Link
+          to="/"
+          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+        >
           ← 返回
         </Link>
       </div>

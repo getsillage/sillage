@@ -299,183 +299,198 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
         </p>
       </section>
 
-      <Form
-        method="post"
-        className="mt-6 space-y-5 rounded-xl border border-gray-300 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-      >
+      <Form method="post" className="mt-6 space-y-4">
         <input type="hidden" name="id" value={selectedProfileId} />
 
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        <section className="rounded-xl border border-gray-300 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 功能</h3>
+              <p className={`mt-1 text-sm ${subtleTextClass}`}>
+                保存并开启后，「探寻」问答和手动生成洞察会使用当前配置；关闭后保留配置但不调用模型。
+              </p>
+            </div>
+            <label
+              className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+              aria-label="启用 AI 功能"
+            >
+              <input
+                type="checkbox"
+                name="enabled"
+                checked={enabled}
+                onChange={(event) => setEnabled(event.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="relative h-6 w-11 rounded-full bg-gray-300 transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-gray-900 peer-checked:after:translate-x-5 dark:bg-gray-700 dark:peer-checked:bg-gray-100 dark:peer-checked:after:bg-gray-950" />
+              <span className="min-w-12 text-gray-900 dark:text-gray-100">
+                {enabled ? "已启用" : "已停用"}
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section className="space-y-5 rounded-xl border border-gray-300 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <label className={labelClass}>
+              已保存配置
+              <select
+                value={selectedProfileId}
+                onChange={(event) => onProfileSelect(event.target.value)}
+                disabled={profiles.length === 0}
+                className={inputClass}
+              >
+                {profiles.length === 0 ? <option value="">暂无配置</option> : null}
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                    {profile.id === settings.activeProfileId ? "（当前）" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-end gap-2">
+              <button type="button" onClick={onNewProfile} className={secondaryButtonClass}>
+                新建配置
+              </button>
+              <button
+                type="submit"
+                name="intent"
+                value="delete"
+                disabled={busy || !selectedProfileId}
+                onClick={(event) => {
+                  if (!confirm("确定删除这个 AI 配置吗？")) {
+                    event.preventDefault();
+                  }
+                }}
+                className={secondaryButtonClass}
+              >
+                删除
+              </button>
+            </div>
+          </div>
+
           <label className={labelClass}>
-            已保存配置
+            配置名称
+            <input
+              type="text"
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className={inputClass}
+            />
+          </label>
+
+          <label className={labelClass}>
+            协议
             <select
-              value={selectedProfileId}
-              onChange={(event) => onProfileSelect(event.target.value)}
-              disabled={profiles.length === 0}
+              name="protocol"
+              value={protocol}
+              onChange={(event) => onProtocolChange(event.target.value as AiProtocol)}
               className={inputClass}
             >
-              {profiles.length === 0 ? <option value="">暂无配置</option> : null}
-              {profiles.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.name}
-                  {profile.id === settings.activeProfileId ? "（当前）" : ""}
-                </option>
-              ))}
+              <option value="anthropic">Anthropic（Claude Messages API）</option>
+              <option value="openai">OpenAI（兼容 Chat Completions）</option>
             </select>
           </label>
 
-          <div className="flex items-end gap-2">
-            <button type="button" onClick={onNewProfile} className={secondaryButtonClass}>
-              新建配置
+          <label className={labelClass}>
+            API 地址（Base URL）
+            <input
+              type="url"
+              name="baseUrl"
+              value={baseUrl}
+              onChange={(event) => setBaseUrl(event.target.value)}
+              className={inputClass}
+            />
+          </label>
+
+          <label className={labelClass}>
+            API Key
+            <input
+              type="password"
+              name="apiKey"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              autoComplete="off"
+              placeholder={hasStoredApiKey ? "已配置（留空保持不变）" : "sk-..."}
+              className={inputClass}
+            />
+          </label>
+
+          <section className="rounded-lg border border-gray-300 bg-slate-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <label htmlFor="model" className={labelClass}>
+                  模型
+                </label>
+                <p className={`mt-1 text-xs ${subtleTextClass}`}>
+                  可先获取模型列表下拉选择；如果网关不支持列模型，也可以直接手动输入模型名称。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onFetchModels}
+                disabled={fetchingModels || !baseUrl.trim() || (!apiKey && !hasStoredApiKey)}
+                className={secondaryButtonClass}
+              >
+                {fetchingModels ? "获取中..." : "获取模型列表"}
+              </button>
+            </div>
+
+            <SuggestedInput
+              id="model"
+              name="model"
+              optionLabel="选择已获取的模型"
+              options={visibleModelOptions}
+              placeholder="输入模型名称"
+              value={model}
+              onValueChange={setModel}
+              inputClassName={inputClass}
+            />
+
+            {modelData?.intent === "models" ? (
+              <p className={`mt-3 ${statusClass(modelData.ok)}`}>{modelData.message}</p>
+            ) : null}
+          </section>
+
+          {actionData ? (
+            <p className={statusClass(actionData.ok)}>
+              {actionData.intent === "test" ? "测试：" : ""}
+              {actionData.message}
+            </p>
+          ) : null}
+
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              name="intent"
+              value="save"
+              disabled={busy}
+              className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white text-sm hover:bg-gray-800 disabled:opacity-60 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
+            >
+              保存并设为当前
             </button>
             <button
               type="submit"
               name="intent"
-              value="delete"
-              disabled={busy || !selectedProfileId}
-              onClick={(event) => {
-                if (!confirm("确定删除这个 AI 配置吗？")) {
-                  event.preventDefault();
-                }
-              }}
+              value="test"
+              disabled={busy}
               className={secondaryButtonClass}
             >
-              删除
+              测试连接
             </button>
-          </div>
-        </div>
-
-        <label className={labelClass}>
-          配置名称
-          <input
-            type="text"
-            name="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        <label className="flex items-center gap-2 text-gray-900 text-sm dark:text-gray-100">
-          <input
-            type="checkbox"
-            name="enabled"
-            checked={enabled}
-            onChange={(event) => setEnabled(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
-          />
-          启用当前配置（仅供手动生成洞察时使用）
-        </label>
-
-        <label className={labelClass}>
-          协议
-          <select
-            name="protocol"
-            value={protocol}
-            onChange={(event) => onProtocolChange(event.target.value as AiProtocol)}
-            className={inputClass}
-          >
-            <option value="anthropic">Anthropic（Claude Messages API）</option>
-            <option value="openai">OpenAI（兼容 Chat Completions）</option>
-          </select>
-        </label>
-
-        <label className={labelClass}>
-          API 地址（Base URL）
-          <input
-            type="url"
-            name="baseUrl"
-            value={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        <label className={labelClass}>
-          API Key
-          <input
-            type="password"
-            name="apiKey"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            autoComplete="off"
-            placeholder={hasStoredApiKey ? "已配置（留空保持不变）" : "sk-..."}
-            className={inputClass}
-          />
-        </label>
-
-        <section className="rounded-lg border border-gray-300 bg-slate-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <label htmlFor="model" className={labelClass}>
-                模型
-              </label>
-              <p className={`mt-1 text-xs ${subtleTextClass}`}>
-                可先获取模型列表下拉选择；如果网关不支持列模型，也可以直接手动输入模型名称。
-              </p>
-            </div>
             <button
-              type="button"
-              onClick={onFetchModels}
-              disabled={fetchingModels || !baseUrl.trim() || (!apiKey && !hasStoredApiKey)}
+              type="submit"
+              name="intent"
+              value="activate"
+              disabled={busy || !selectedProfileId || selectedProfileId === settings.activeProfileId}
               className={secondaryButtonClass}
             >
-              {fetchingModels ? "获取中..." : "获取模型列表"}
+              设为当前
             </button>
           </div>
-
-          <SuggestedInput
-            id="model"
-            name="model"
-            optionLabel="选择已获取的模型"
-            options={visibleModelOptions}
-            placeholder="输入模型名称"
-            value={model}
-            onValueChange={setModel}
-            inputClassName={inputClass}
-          />
-
-          {modelData?.intent === "models" ? (
-            <p className={`mt-3 ${statusClass(modelData.ok)}`}>{modelData.message}</p>
-          ) : null}
         </section>
-
-        {actionData ? (
-          <p className={statusClass(actionData.ok)}>
-            {actionData.intent === "test" ? "测试：" : ""}
-            {actionData.message}
-          </p>
-        ) : null}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            name="intent"
-            value="save"
-            disabled={busy}
-            className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white text-sm hover:bg-gray-800 disabled:opacity-60 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
-          >
-            保存并设为当前
-          </button>
-          <button
-            type="submit"
-            name="intent"
-            value="test"
-            disabled={busy}
-            className={secondaryButtonClass}
-          >
-            测试连接
-          </button>
-          <button
-            type="submit"
-            name="intent"
-            value="activate"
-            disabled={busy || !selectedProfileId || selectedProfileId === settings.activeProfileId}
-            className={secondaryButtonClass}
-          >
-            设为当前
-          </button>
-        </div>
       </Form>
 
       <p className={`mt-4 text-xs ${subtleTextClass}`}>

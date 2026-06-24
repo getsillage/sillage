@@ -264,14 +264,16 @@ export function AskPanel() {
   return (
     <section className={`${panelClass} p-4`}>
       <div className="flex items-center justify-between">
-        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">手记问答</h2>
+        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">记忆对话</h2>
         {turns.length > 0 ? (
           <button type="button" onClick={clearTurns} className={subtleButtonClass}>
             清空对话
           </button>
         ) : null}
       </div>
-      <p className={helperTextClass}>用自然语言提问，AI 只依据你勾选的手记来源回答。</p>
+      <p className={helperTextClass}>
+        可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
+      </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <SourceToggle
@@ -353,7 +355,7 @@ export function AskPanel() {
             }
           }}
           rows={2}
-          placeholder="比如：上个月我和谁见面最多？最近反复出现了什么？"
+          placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
           className={`${textareaClass} min-w-0 flex-1`}
         />
         <button

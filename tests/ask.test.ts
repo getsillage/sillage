@@ -96,6 +96,26 @@ describe("answerQuestion", () => {
     expect(prompt).toContain("小明。");
   });
 
+  it("frames advice as grounded memory synthesis instead of exact-match retrieval", async () => {
+    await configureAnthropic();
+    const fetchMock = anthropicText("可以先减少上下文切换，并保留早晨写作。");
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await answerQuestion(env, {
+      question: "你推荐我做哪些调整？",
+      evidence:
+        "【2026-06-15】月中回顾\n最消耗的是反复切换上下文，最稳定的能量来自早晨写作、傍晚散步和拆分任务。",
+      history: [{ question: "我最近状态怎么样？", answer: "整体稳定，但上下文切换消耗较大。" }],
+    });
+
+    expect(result.ok).toBe(true);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.system).toContain("总结、复盘、模式识别和温和建议");
+    expect(body.system).toContain("不要要求记忆里必须已经写过明确的「建议」");
+    expect(body.system).not.toContain("不要总结、复盘、诊断或扩写");
+    expect(body.max_tokens).toBe(1000);
+  });
+
   it("notes when there are no relevant records", async () => {
     await configureAnthropic();
     const fetchMock = anthropicText("记录里没有相关内容。");

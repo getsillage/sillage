@@ -4,20 +4,11 @@ import { generateText } from "../app/lib/ai/text";
 
 const baseConfig: AiConfig = {
   textProvider: "disabled",
-  embeddingProvider: "disabled",
-  summaryModel: "@cf/summary",
-  sentimentModel: "@cf/sentiment",
-  embeddingModel: "@cf/embed",
   anthropicModel: "claude-opus-4-8",
   anthropicBaseUrl: "https://api.anthropic.com",
   openaiModel: "gpt-5.1-mini",
-  openaiEmbeddingModel: "text-embedding-3-large",
   openaiBaseUrl: "https://api.openai.com/v1",
 };
-
-function envOf(values: Partial<Env>): Env {
-  return values as Env;
-}
 
 describe("AI text generation", () => {
   afterEach(() => {
@@ -25,8 +16,7 @@ describe("AI text generation", () => {
   });
 
   it("skips when text generation is disabled", async () => {
-    const result = await generateText(envOf({}), baseConfig, {
-      purpose: "summary",
+    const result = await generateText(baseConfig, {
       system: "s",
       prompt: "p",
     });
@@ -34,7 +24,7 @@ describe("AI text generation", () => {
     expect(result).toEqual({
       text: null,
       skipped: true,
-      reason: "AI_TEXT_PROVIDER disabled",
+      reason: "AI text generation disabled",
     });
   });
 
@@ -48,9 +38,8 @@ describe("AI text generation", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await generateText(
-      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
-      { ...baseConfig, textProvider: "anthropic" },
-      { purpose: "summary", system: "system prompt", prompt: "正文", maxTokens: 123 },
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "system prompt", prompt: "正文", maxTokens: 123 },
     );
 
     expect(result).toEqual({ text: "摘要", skipped: false });
@@ -73,17 +62,21 @@ describe("AI text generation", () => {
 
   it("calls OpenAI-compatible chat completions with configured base URL", async () => {
     const fetchMock = vi.fn(async () =>
-      Response.json({ choices: [{ message: { content: " 平静 " } }] }),
+      Response.json({ choices: [{ message: { content: " 摘要 " } }] }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await generateText(
-      envOf({ OPENAI_API_KEY: "openai-key" }),
-      { ...baseConfig, textProvider: "openai", openaiBaseUrl: "https://gateway.example/v1" },
-      { purpose: "sentiment", system: "classify", prompt: "今天很好", maxTokens: 20 },
+      {
+        ...baseConfig,
+        textProvider: "openai",
+        openaiBaseUrl: "https://gateway.example/v1",
+        openaiApiKey: "openai-key",
+      },
+      { system: "summarize", prompt: "今天很好", maxTokens: 20 },
     );
 
-    expect(result).toEqual({ text: "平静", skipped: false });
+    expect(result).toEqual({ text: "摘要", skipped: false });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://gateway.example/v1/chat/completions");
     expect(init.headers).toMatchObject({
@@ -105,9 +98,8 @@ describe("AI text generation", () => {
     );
 
     const result = await generateText(
-      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
-      { ...baseConfig, textProvider: "anthropic" },
-      { purpose: "summary", system: "s", prompt: "p" },
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({ text: null, skipped: true, reason: "network down" });
@@ -115,29 +107,27 @@ describe("AI text generation", () => {
 
   it("skips Anthropic when no API key is configured", async () => {
     const result = await generateText(
-      envOf({}),
       { ...baseConfig, textProvider: "anthropic" },
-      { purpose: "summary", system: "s", prompt: "p" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({
       text: null,
       skipped: true,
-      reason: "ANTHROPIC_API_KEY not configured",
+      reason: "Anthropic API key not configured",
     });
   });
 
   it("skips OpenAI when no API key is configured", async () => {
     const result = await generateText(
-      envOf({}),
       { ...baseConfig, textProvider: "openai" },
-      { purpose: "sentiment", system: "s", prompt: "p" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({
       text: null,
       skipped: true,
-      reason: "OPENAI_API_KEY not configured",
+      reason: "OpenAI API key not configured",
     });
   });
 
@@ -148,9 +138,8 @@ describe("AI text generation", () => {
     );
 
     const result = await generateText(
-      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
-      { ...baseConfig, textProvider: "anthropic" },
-      { purpose: "summary", system: "s", prompt: "p" },
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({
@@ -167,9 +156,8 @@ describe("AI text generation", () => {
     );
 
     const result = await generateText(
-      envOf({ OPENAI_API_KEY: "openai-key" }),
-      { ...baseConfig, textProvider: "openai" },
-      { purpose: "sentiment", system: "s", prompt: "p" },
+      { ...baseConfig, textProvider: "openai", openaiApiKey: "openai-key" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({
@@ -186,9 +174,8 @@ describe("AI text generation", () => {
     );
 
     const result = await generateText(
-      envOf({ ANTHROPIC_API_KEY: "secret-key" }),
-      { ...baseConfig, textProvider: "anthropic" },
-      { purpose: "summary", system: "s", prompt: "p" },
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "s", prompt: "p" },
     );
 
     expect(result).toEqual({ text: null, skipped: false });

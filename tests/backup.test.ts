@@ -76,8 +76,8 @@ describe("diary backup export", () => {
       body: "无标题正文",
       tags: [],
     });
-    await env.DB.prepare("UPDATE entries SET summary = ?, sentiment = ? WHERE id = ?")
-      .bind("一段摘要", "积极", entryId)
+    await env.DB.prepare("INSERT INTO entry_ai (entry_id, summary, sentiment) VALUES (?, ?, ?)")
+      .bind(entryId, "一段摘要", "积极")
       .run();
 
     const { markdownKey } = await exportDiaryBackup(env, new Date("2026-06-21T00:00:00.000Z"));

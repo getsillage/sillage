@@ -1,10 +1,14 @@
 import type { AiConfig } from "./config";
+import {
+  anthropicEndpointCandidates,
+  fetchWithEndpointFallback,
+  openAiEndpointCandidates,
+} from "./endpoints";
 
 export interface GenerateTextInput {
   system: string;
   prompt: string;
   maxTokens?: number;
-  purpose: "summary" | "sentiment";
 }
 
 export interface GenerateTextResult {
@@ -40,29 +44,31 @@ function textFromAnthropic(response: AnthropicMessageResponse): string | null {
 }
 
 async function generateWithAnthropic(
-  env: Env,
   config: AiConfig,
   input: GenerateTextInput,
 ): Promise<GenerateTextResult> {
-  const apiKey = config.anthropicApiKey ?? env.ANTHROPIC_API_KEY;
+  const apiKey = config.anthropicApiKey;
   if (!apiKey) {
-    return { text: null, skipped: true, reason: "ANTHROPIC_API_KEY not configured" };
+    return { text: null, skipped: true, reason: "Anthropic API key not configured" };
   }
 
-  const response = await fetch(`${config.anthropicBaseUrl}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+  const response = await fetchWithEndpointFallback(
+    anthropicEndpointCandidates(config.anthropicBaseUrl, "messages"),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: config.anthropicModel,
+        max_tokens: input.maxTokens ?? 512,
+        system: input.system,
+        messages: [{ role: "user", content: input.prompt }],
+      }),
     },
-    body: JSON.stringify({
-      model: config.anthropicModel,
-      max_tokens: input.maxTokens ?? 512,
-      system: input.system,
-      messages: [{ role: "user", content: input.prompt }],
-    }),
-  });
+  );
 
   if (!response.ok) {
     return { text: null, skipped: true, reason: `Anthropic API returned ${response.status}` };
@@ -73,30 +79,32 @@ async function generateWithAnthropic(
 }
 
 async function generateWithOpenAi(
-  env: Env,
   config: AiConfig,
   input: GenerateTextInput,
 ): Promise<GenerateTextResult> {
-  const apiKey = config.openaiApiKey ?? env.OPENAI_API_KEY;
+  const apiKey = config.openaiApiKey;
   if (!apiKey) {
-    return { text: null, skipped: true, reason: "OPENAI_API_KEY not configured" };
+    return { text: null, skipped: true, reason: "OpenAI API key not configured" };
   }
 
-  const response = await fetch(`${config.openaiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
+  const response = await fetchWithEndpointFallback(
+    openAiEndpointCandidates(config.openaiBaseUrl, "chat/completions"),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.openaiModel,
+        messages: [
+          { role: "system", content: input.system },
+          { role: "user", content: input.prompt },
+        ],
+        max_completion_tokens: input.maxTokens ?? 512,
+      }),
     },
-    body: JSON.stringify({
-      model: config.openaiModel,
-      messages: [
-        { role: "system", content: input.system },
-        { role: "user", content: input.prompt },
-      ],
-      max_completion_tokens: input.maxTokens ?? 512,
-    }),
-  });
+  );
 
   if (!response.ok) {
     return { text: null, skipped: true, reason: `OpenAI API returned ${response.status}` };
@@ -109,47 +117,18 @@ async function generateWithOpenAi(
   };
 }
 
-async function generateWithWorkersAi(
-  env: Env,
-  config: AiConfig,
-  input: GenerateTextInput,
-): Promise<GenerateTextResult> {
-  const model = input.purpose === "sentiment" ? config.sentimentModel : config.summaryModel;
-  const output = (await env.AI.run(
-    model as never,
-    {
-      messages: [
-        { role: "system", content: input.system },
-        { role: "user", content: input.prompt },
-      ],
-      max_tokens: input.maxTokens ?? 512,
-    } as never,
-  )) as unknown;
-
-  const text =
-    typeof output === "object" && output !== null && "response" in output
-      ? String(output.response).trim()
-      : typeof output === "string"
-        ? output.trim()
-        : null;
-  return { text, skipped: false };
-}
-
 export async function generateText(
-  env: Env,
   config: AiConfig,
   input: GenerateTextInput,
 ): Promise<GenerateTextResult> {
   try {
     switch (config.textProvider) {
       case "anthropic":
-        return await generateWithAnthropic(env, config, input);
+        return await generateWithAnthropic(config, input);
       case "openai":
-        return await generateWithOpenAi(env, config, input);
-      case "workers-ai":
-        return await generateWithWorkersAi(env, config, input);
+        return await generateWithOpenAi(config, input);
       case "disabled":
-        return { text: null, skipped: true, reason: "AI_TEXT_PROVIDER disabled" };
+        return { text: null, skipped: true, reason: "AI text generation disabled" };
     }
   } catch (error: unknown) {
     return { text: null, skipped: true, reason: getErrorMessage(error) };

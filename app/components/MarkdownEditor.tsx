@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Markdown } from "./Markdown";
+import { subtleButtonClass, textareaClass } from "./ui";
 
 interface MarkdownEditorProps {
   name: string;
@@ -58,8 +59,8 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="rounded-lg border border-gray-300">
-      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-50 p-1 text-sm">
+    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+      <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 p-1 text-sm">
         <TabButton active={!preview} onClick={() => setPreview(false)}>
           编辑
         </TabButton>
@@ -71,7 +72,7 @@ export function MarkdownEditor({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="rounded px-3 py-1 text-gray-500 hover:text-gray-900 disabled:opacity-60"
+            className={subtleButtonClass}
           >
             {uploading ? "上传中…" : "🖼 图片"}
           </button>
@@ -97,12 +98,10 @@ export function MarkdownEditor({
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
         rows={14}
-        className={`block w-full resize-y rounded-b-lg p-3 font-mono text-sm focus:outline-none ${
-          preview ? "hidden" : ""
-        }`}
+        className={`${textareaClass} rounded-t-none font-mono text-sm ${preview ? "hidden" : ""}`}
       />
       {preview ? (
-        <div className="min-h-48 p-3">
+        <div className="min-h-48 bg-white p-3">
           {value.trim() ? (
             <Markdown content={value} />
           ) : (
@@ -112,7 +111,7 @@ export function MarkdownEditor({
       ) : null}
 
       {error ? (
-        <p className="border-gray-200 border-t px-3 py-2 text-red-600 text-sm">{error}</p>
+        <p className="border-gray-200 border-t px-3 py-2 text-sm text-red-600">{error}</p>
       ) : null}
     </div>
   );
@@ -129,8 +128,10 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded px-3 py-1 ${
-        active ? "bg-white font-medium text-gray-900 shadow-sm" : "text-gray-500"
+      className={`rounded-lg px-3 py-1.5 transition ${
+        active
+          ? "bg-white font-medium text-gray-950 shadow-sm"
+          : "text-gray-500 hover:text-gray-950"
       }`}
     >
       {children}

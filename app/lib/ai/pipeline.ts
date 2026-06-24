@@ -1,16 +1,23 @@
-import { eq } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
-import { entries } from "~/lib/db/schema";
-import { loadAiConfig } from "./config";
-import { embedText } from "./embedding";
+import { entryAi } from "~/lib/db/schema";
+import { type AiConfig, loadAiConfig } from "./config";
 import { generateText } from "./text";
 
 export interface AiPipelineResult {
   summaryUpdated: boolean;
-  sentimentUpdated: boolean;
-  vectorUpdated: boolean;
   skippedReasons: string[];
+}
+
+/** The model name backing the currently selected text provider, for audit. */
+function activeModel(config: AiConfig): string | null {
+  if (config.textProvider === "anthropic") {
+    return config.anthropicModel;
+  }
+  if (config.textProvider === "openai") {
+    return config.openaiModel;
+  }
+  return null;
 }
 
 function entryText(entry: EntryWithTags): string {
@@ -19,81 +26,48 @@ function entryText(entry: EntryWithTags): string {
     .join("\n\n");
 }
 
-async function upsertVector(
-  env: Env,
-  entry: EntryWithTags,
-  vector: number[] | null,
-): Promise<boolean> {
-  if (!vector) {
-    return false;
-  }
-  await env.VEC.upsert([
-    {
-      id: entry.id,
-      values: vector,
-      metadata: { entryDate: entry.entryDate },
-    },
-  ]);
-  return true;
-}
-
 /**
  * Runs post-write AI enrichment. Errors are captured as skipped reasons so entry
  * saves never fail merely because an AI provider is unavailable or misconfigured.
+ *
+ * The result is written to the `entry_ai` side table (upsert), never to `entries`,
+ * so regenerating a summary does not bump `entries.updatedAt` or re-index FTS —
+ * keeping the sync feed and search index quiet for a purely machine-derived change.
  */
 export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiPipelineResult> {
   const config = await loadAiConfig(env);
   const skippedReasons: string[] = [];
   const text = entryText(entry);
 
-  const [summary, sentiment, embedding] = await Promise.all([
-    generateText(env, config, {
-      purpose: "summary",
-      system: "你是个人日记助手。请用中文写一句简洁摘要，不要添加解释。",
-      prompt: text,
-      maxTokens: 160,
-    }),
-    generateText(env, config, {
-      purpose: "sentiment",
-      system:
-        "你是情绪分类器。只输出一个中文情绪词，例如：开心、平静、低落、焦虑、疲惫、感恩。不要解释。",
-      prompt: text,
-      maxTokens: 32,
-    }),
-    embedText(env, config, text),
-  ]);
+  const summary = await generateText(config, {
+    system: "你是个人日记助手。请用中文写一句简洁摘要，不要添加解释。",
+    prompt: text,
+    maxTokens: 160,
+  });
 
   if (summary.skipped && summary.reason) {
     skippedReasons.push(summary.reason);
   }
-  if (sentiment.skipped && sentiment.reason) {
-    skippedReasons.push(sentiment.reason);
-  }
-  if (embedding.skipped && embedding.reason) {
-    skippedReasons.push(embedding.reason);
-  }
 
-  const db = getDb(env.DB);
-  const updateValues = {
-    ...(summary.text ? { summary: summary.text } : {}),
-    ...(sentiment.text ? { sentiment: sentiment.text } : {}),
-    updatedAt: new Date(),
-  };
-  if (summary.text || sentiment.text) {
-    await db.update(entries).set(updateValues).where(eq(entries.id, entry.id));
-  }
-
-  let vectorUpdated = false;
-  try {
-    vectorUpdated = await upsertVector(env, entry, embedding.vector);
-  } catch (cause) {
-    skippedReasons.push(cause instanceof Error ? cause.message : "Vectorize upsert failed");
+  if (summary.text) {
+    const db = getDb(env.DB);
+    const now = new Date();
+    await db
+      .insert(entryAi)
+      .values({
+        entryId: entry.id,
+        summary: summary.text,
+        model: activeModel(config),
+        generatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: entryAi.entryId,
+        set: { summary: summary.text, model: activeModel(config), generatedAt: now },
+      });
   }
 
   return {
     summaryUpdated: Boolean(summary.text),
-    sentimentUpdated: Boolean(sentiment.text),
-    vectorUpdated,
     skippedReasons,
   };
 }

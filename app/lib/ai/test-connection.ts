@@ -1,4 +1,5 @@
 import type { AiProtocol } from "~/lib/settings/ai-settings";
+import { endpointCandidates, fetchWithEndpointFallback, responseErrorDetail } from "./endpoints";
 
 export interface ConnectionTestParams {
   protocol: AiProtocol;
@@ -13,45 +14,40 @@ export interface ConnectionTestResult {
   message: string;
 }
 
-const MAX_ERROR_DETAIL = 200;
-
 function ping(params: ConnectionTestParams): Promise<Response> {
   if (params.protocol === "anthropic") {
-    return fetch(`${params.baseUrl}/v1/messages`, {
+    return fetchWithEndpointFallback(
+      endpointCandidates(params.protocol, params.baseUrl, "messages"),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": params.apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: params.model,
+          max_tokens: 1,
+          messages: [{ role: "user", content: "ping" }],
+        }),
+      },
+    );
+  }
+  return fetchWithEndpointFallback(
+    endpointCandidates(params.protocol, params.baseUrl, "chat/completions"),
+    {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": params.apiKey,
-        "anthropic-version": "2023-06-01",
+        authorization: `Bearer ${params.apiKey}`,
       },
       body: JSON.stringify({
         model: params.model,
-        max_tokens: 1,
+        max_completion_tokens: 1,
         messages: [{ role: "user", content: "ping" }],
       }),
-    });
-  }
-  return fetch(`${params.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${params.apiKey}`,
     },
-    body: JSON.stringify({
-      model: params.model,
-      max_completion_tokens: 1,
-      messages: [{ role: "user", content: "ping" }],
-    }),
-  });
-}
-
-async function errorDetail(response: Response): Promise<string> {
-  try {
-    const text = await response.text();
-    return text ? `：${text.slice(0, MAX_ERROR_DETAIL)}` : "";
-  } catch {
-    return "";
-  }
+  );
 }
 
 /**
@@ -77,7 +73,7 @@ export async function testAiConnection(
     return {
       ok: false,
       status: response.status,
-      message: `请求失败（${response.status}）${await errorDetail(response)}`,
+      message: `请求失败（${response.status}）${await responseErrorDetail(response)}`,
     };
   } catch (error) {
     return {

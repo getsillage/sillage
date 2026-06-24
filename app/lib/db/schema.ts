@@ -1,9 +1,19 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
- * Diary entries. `body` is stored as Markdown plaintext (relying on Cloudflare's
- * at-rest encryption + access control) so that FTS5 and AI features can operate
- * on it. `summary` / `sentiment` are written back asynchronously by the AI pipeline.
+ * Diary entries — the user-authored record. `body` is Markdown plaintext (relying
+ * on Cloudflare's at-rest encryption + access control) so FTS5 and AI features can
+ * operate on it.
+ *
+ * Sync/robustness columns:
+ * - `version` is an optimistic-concurrency token bumped on every content update,
+ *   so a second client editing a stale copy is rejected instead of silently
+ *   overwriting.
+ * - `deletedAt` is a soft-delete tombstone (null = live). Hard deletes are invisible
+ *   to offline clients; a tombstone lets them learn about removals and supports undo.
+ * - `updatedAt` (indexed) is the delta-sync watermark: "give me everything changed
+ *   since X". Machine-derived data lives in `entryAi` precisely so regenerating it
+ *   never bumps this and churns the sync feed.
  */
 export const entries = sqliteTable(
   "entries",
@@ -17,26 +27,62 @@ export const entries = sqliteTable(
     mood: integer("mood"),
     weather: text("weather"),
     isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
-    // AI-generated, nullable until the pipeline fills them in.
-    summary: text("summary"),
-    sentiment: text("sentiment"),
+    // Writer's UTC offset in minutes when the entry was saved; resolves the local
+    // meaning of `entryDate` across devices in different time zones. Null = unknown.
+    utcOffsetMinutes: integer("utc_offset_minutes"),
+    // Forward-compatible JSON bag for client-specific / experimental fields, so new
+    // clients can extend an entry without a schema migration. Null when unused.
+    metadata: text("metadata"),
+    // Optimistic-concurrency token; starts at 1, +1 on each content update.
+    version: integer("version").notNull().default(1),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
+    // Soft-delete tombstone; null = live.
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("idx_entries_entry_date").on(table.entryDate)],
+  (table) => [
+    index("idx_entries_entry_date").on(table.entryDate),
+    index("idx_entries_updated_at").on(table.updatedAt),
+  ],
 );
 
-export const tags = sqliteTable("tags", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+/**
+ * Machine-derived enrichment for an entry, kept in a 1:1 side table rather than on
+ * `entries`. Writing it (the AI pipeline) must not bump `entries.updatedAt` or fire
+ * the FTS triggers — otherwise every summary regeneration would wake every synced
+ * client and re-index the row. New derived fields (embeddings, keywords, …) can be
+ * added here without widening the hot table.
+ */
+export const entryAi = sqliteTable("entry_ai", {
+  entryId: text("entry_id")
+    .primaryKey()
+    .references(() => entries.id, { onDelete: "cascade" }),
+  summary: text("summary"),
+  sentiment: text("sentiment"),
+  // Which provider/model produced the current values (audit + regeneration logic).
+  model: text("model"),
+  generatedAt: integer("generated_at", { mode: "timestamp_ms" }),
 });
+
+export const tags = sqliteTable(
+  "tags",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [index("idx_tags_updated_at").on(table.updatedAt)],
+);
 
 export const entryTags = sqliteTable(
   "entry_tags",
@@ -65,15 +111,33 @@ export const attachments = sqliteTable(
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
     size: integer("size").notNull(),
+    // SHA-256 (hex) of the plaintext bytes: integrity check, dedup, and resumable
+    // uploads. Null for rows predating the column.
+    sha256: text("sha256"),
+    // Pixel dimensions when the attachment is an image, so clients can reserve
+    // layout space without downloading the bytes. Null when unknown / non-image.
+    width: integer("width"),
+    height: integer("height"),
+    // Upload lifecycle: "pending" until the bytes are committed, then "stored".
+    status: text("status").notNull().default("stored"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
-  (table) => [index("idx_attachments_entry_id").on(table.entryId)],
+  (table) => [
+    index("idx_attachments_entry_id").on(table.entryId),
+    index("idx_attachments_updated_at").on(table.updatedAt),
+  ],
 );
 
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
+export type EntryAi = typeof entryAi.$inferSelect;
+export type NewEntryAi = typeof entryAi.$inferInsert;
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;

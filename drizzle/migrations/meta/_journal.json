@@ -15,6 +15,13 @@
       "when": 1782207573350,
       "tag": "0001_clumsy_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782208000000,
+      "tag": "0002_sync_ready_schema",
+      "breakpoints": true
     }
   ]
 }

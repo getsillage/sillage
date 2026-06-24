@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "../app/lib/db/client";
-import { createEntry } from "../app/lib/db/entries";
+import { createEntry, deleteEntry, restoreEntry } from "../app/lib/db/entries";
 import { searchEntriesByKeyword } from "../app/lib/search/fts";
 
 const db = getDb(env.DB);
@@ -35,6 +35,23 @@ describe("keyword search", () => {
 
   it("returns an empty list for blank queries", async () => {
     expect(await searchEntriesByKeyword(db, "   ")).toEqual([]);
+  });
+
+  it("drops soft-deleted entries from the index and re-adds on restore", async () => {
+    const id = await createEntry(db, {
+      entryDate: "2026-06-23",
+      title: "海边散步",
+      body: "今天去了海边，看到很漂亮的夕阳。",
+      tags: [],
+    });
+
+    expect(await searchEntriesByKeyword(db, "漂亮的夕阳")).toHaveLength(1);
+
+    await deleteEntry(db, id);
+    expect(await searchEntriesByKeyword(db, "漂亮的夕阳")).toHaveLength(0);
+
+    await restoreEntry(db, id);
+    expect(await searchEntriesByKeyword(db, "漂亮的夕阳")).toHaveLength(1);
   });
 
   it("handles quotes in user queries safely", async () => {

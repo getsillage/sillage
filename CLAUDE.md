@@ -8,6 +8,41 @@
 - 与用户交流一律使用**简体中文**。
 - 本文件除下方 `# RTK (Rust Token Killer)` 部分(保留英文原文)外,统一使用简体中文。
 
+## Commit 规范
+
+提交代码或资料时遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。
+
+格式:
+
+```text
+<type>(<scope>): <subject>
+```
+
+- `type` 必填,使用下列类型之一:
+  - `feat`: 新功能或新增资料
+  - `fix`: 修复问题
+  - `docs`: 文档变更
+  - `style`: 格式调整(不影响内容语义)
+  - `refactor`: 结构整理或重构(不修复问题也不新增功能)
+  - `perf`: 性能优化
+  - `test`: 添加或修改测试
+  - `chore`: 构建过程、辅助工具或仓库维护变更
+  - `ci`: CI 配置变更
+  - `revert`: 回滚之前的 commit
+- `scope` 可选,用小写短词标识影响范围,如 `auth`、`ui`、`db`、`docs`;无明确范围时省略括号。
+- `subject` 必填,使用简洁的动宾短语描述本次变更,不以句号结尾。
+- 如有破坏性变更,在 `type` 或 `scope` 后加 `!`,并在正文或 footer 中说明 `BREAKING CHANGE:`。
+- 需要说明动机、迁移步骤或影响范围时,在空行后添加正文;关联 issue 可在 footer 写 `Refs #123` 或 `Closes #123`。
+
+示例:
+
+```text
+feat(entries): 支持按人物筛选记忆
+fix(auth): 修复登录失败计数过期问题
+docs(sync): 补充游标分页说明
+chore: 更新依赖锁文件
+```
+
 ## 项目
 
 Sillage 是单用户私人记忆空间,完全运行在 Cloudflare Workers 上。Worker 上采用 React Router v8 框架模式(SSR),搭配 D1(SQL)、R2(附件)、KV(会话)。存储在服务端,带静态加密(非端到端加密)——服务端读取明文,以便运行全文搜索、记忆检索与 AI 洞察。界面文案为中文。产品指导文件见 `docs/product/sillage.md`。

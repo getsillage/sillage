@@ -15,6 +15,7 @@ export default [
     route("calendar", "routes/calendar.tsx"),
     route("settings", "routes/settings.tsx"),
     route("upload", "routes/upload.tsx"),
+    route("capture", "routes/capture.tsx"),
     route("attachments/:id", "routes/attachment.tsx"),
   ]),
 ] satisfies RouteConfig;

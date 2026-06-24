@@ -4,7 +4,6 @@ import { createUserSession } from "../app/lib/auth/session";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { saveAiSettings } from "../app/lib/settings/ai-settings";
-import { action as insightsAction } from "../app/routes/insights";
 import { action as memoryAction } from "../app/routes/memory";
 
 const db = getDb(env.DB);
@@ -104,19 +103,5 @@ describe("ask routes", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.messages[0].content).toContain("【对话历史】");
     expect(body.messages[0].content).toContain("和小明在咖啡馆聊了很久");
-  });
-
-  it("does not handle ask requests from /insights", async () => {
-    const result = await insightsAction({
-      request: await authenticatedRequest(
-        { intent: "ask", question: "最近我见了谁？" },
-        "https://sillage.example/insights",
-      ),
-      context: undefined as never,
-      params: {},
-    } as never);
-
-    expect(result.intent).toBe("generate");
-    expect(result.ok).toBe(false);
   });
 });

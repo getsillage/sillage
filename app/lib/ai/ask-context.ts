@@ -290,7 +290,7 @@ function summaryCitation(summary: SummaryView): AskCitation {
     id: summary.id,
     title: summary.title || "未命名总结",
     label: `AI 总结 · ${summary.title || summaryLabel(summary)}`,
-    href: `/insights#summary-${summary.id}`,
+    href: `/memory?tab=review#summary-${summary.id}`,
     kind: "summary",
   };
 }

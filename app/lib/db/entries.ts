@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, type SQL } from "drizzle-orm";
 import {
   type EntryKind,
   type NoteType,
@@ -9,7 +9,7 @@ import {
 import type { Db } from "./client";
 import { uuidv7 } from "./id";
 import { type RevisionSnapshot, recordEntryRevision } from "./revisions";
-import { type Entry, type EntryAi, entries, entryAi } from "./schema";
+import { type Entry, type EntryAi, entries, entryAi, entryTags, tags } from "./schema";
 import { getTagsForEntries, setEntryTags } from "./tags";
 
 export interface EntryInput {
@@ -233,6 +233,66 @@ export async function listEntries(db: Db, limit = 50): Promise<EntryWithTags[]> 
     .from(entries)
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
     .where(isNull(entries.deletedAt))
+    .orderBy(desc(entries.entryDate), desc(entries.createdAt))
+    .limit(limit);
+  return composeEntries(db, rows);
+}
+
+export interface EntryFilter {
+  kind?: EntryKind;
+  tag?: string;
+  person?: string;
+  relationship?: string;
+  mood?: number;
+}
+
+/** Live entry ids carrying a given tag name (via the entry_tags join). */
+async function entryIdsForTag(db: Db, name: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: entryTags.entryId })
+    .from(entryTags)
+    .innerJoin(tags, eq(entryTags.tagId, tags.id))
+    .where(eq(tags.name, name));
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Lists live entries matching an optional facet filter (kind / tag / person /
+ * relationship / mood), newest day first. People & relationships match against the
+ * stored JSON string arrays (same `"value"` matcher as the topic collector); tags
+ * resolve through the entry_tags join. An unknown tag yields an empty result rather
+ * than every entry.
+ */
+export async function listEntriesFiltered(
+  db: Db,
+  filter: EntryFilter,
+  limit = 120,
+): Promise<EntryWithTags[]> {
+  const conditions: SQL[] = [isNull(entries.deletedAt)];
+  if (filter.kind) {
+    conditions.push(eq(entries.kind, filter.kind));
+  }
+  if (typeof filter.mood === "number") {
+    conditions.push(eq(entries.mood, filter.mood));
+  }
+  if (filter.person) {
+    conditions.push(like(entries.people, `%"${filter.person}"%`));
+  }
+  if (filter.relationship) {
+    conditions.push(like(entries.relationships, `%"${filter.relationship}"%`));
+  }
+  if (filter.tag) {
+    const ids = await entryIdsForTag(db, filter.tag);
+    if (ids.length === 0) {
+      return [];
+    }
+    conditions.push(inArray(entries.id, ids));
+  }
+  const rows = await db
+    .select()
+    .from(entries)
+    .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+    .where(and(...conditions))
     .orderBy(desc(entries.entryDate), desc(entries.createdAt))
     .limit(limit);
   return composeEntries(db, rows);

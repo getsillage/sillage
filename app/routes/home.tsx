@@ -37,6 +37,8 @@ export function meta(_: Route.MetaArgs) {
   return [{ title: "今天 · Sillage" }, { name: "description", content: "Sillage" }];
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 function newDefaults(today: string): EntryFormDefaults {
   return {
     entryDate: today,
@@ -82,6 +84,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const today = todayISO();
+  const url = new URL(request.url);
+  const kind = normalizeEntryKind(url.searchParams.get("kind"));
+  const dateParam = url.searchParams.get("date");
+  const entryDate = dateParam && DATE_RE.test(dateParam) ? dateParam : today;
   const [recentEntries, todayEntries, onThisDay] = await Promise.all([
     listEntries(db, 80),
     listEntriesByDate(db, today),
@@ -93,6 +99,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     todayEntries,
     onThisDay,
     today,
+    defaults: { ...newDefaults(entryDate), kind },
   };
 }
 
@@ -143,7 +150,7 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
 }
 
 export default function Home({ loaderData, actionData }: Route.ComponentProps) {
-  const { entries, todayEntries, onThisDay, today } = loaderData;
+  const { entries, todayEntries, onThisDay, today, defaults } = loaderData;
   const { fragments, notes, drafts } = splitToday(todayEntries);
   const todayInsights = todayEntries.filter((entry) => entry.summary);
 
@@ -160,7 +167,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
           <section className={`${panelClass} p-5`}>
             <EntryForm
               error={actionData?.error}
-              defaults={actionData?.values ?? newDefaults(today)}
+              defaults={actionData?.values ?? defaults}
               suggestions={loaderData.suggestions}
               submitLabel="保存"
             />

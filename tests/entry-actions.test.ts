@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUserSession } from "../app/lib/auth/session";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
+import { action as captureAction } from "../app/routes/capture";
 import { action as entryAction } from "../app/routes/entry";
 import { action as homeAction } from "../app/routes/home";
-import { action as newAction } from "../app/routes/new";
 
 const db = getDb(env.DB);
 
@@ -73,16 +73,16 @@ describe("entry actions", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("does not invoke AI when creating a new entry from the new-entry page", async () => {
+  it("does not invoke AI when quick-capturing a fragment", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await newAction({
+    const result = (await captureAction({
       request: await authenticatedRequest(
         {
           entryDate: "2026-06-24",
-          title: "新建记录",
-          body: "保存后不应自动生成洞察。",
+          title: "",
+          body: "速记一条，不触发 AI。",
           kind: "fragment",
           noteType: "",
           mood: "",
@@ -93,13 +93,13 @@ describe("entry actions", () => {
           relationships: "",
           tags: "",
         },
-        "https://sillage.example/new",
+        "https://sillage.example/capture",
       ),
       context: undefined as never,
       params: {},
-    } as never);
+    } as never)) as { ok: boolean };
 
-    expect(response.status).toBe(302);
+    expect(result).toMatchObject({ ok: true });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

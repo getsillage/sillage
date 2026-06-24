@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Form, useFetcher, useNavigation } from "react-router";
 import { SuggestedInput } from "~/components/SuggestedInput";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { listAiModels } from "~/lib/ai/models";
 import { testAiConnection } from "~/lib/ai/test-connection";
 import { requireSession } from "~/lib/auth/session";
@@ -264,9 +265,21 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
   return (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="font-semibold text-gray-950 text-xl dark:text-gray-50">设置</h1>
-      <p className={`mt-1 text-sm ${subtleTextClass}`}>
-        配置用于手动摘要的 AI 提供商；所有 AI 配置都在这里管理。
-      </p>
+
+      <section className="mt-6">
+        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">外观</h2>
+        <p className={`mt-1 text-sm ${subtleTextClass}`}>切换浅色 / 深色主题，或跟随系统。</p>
+        <div className="mt-3">
+          <ThemeToggle />
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 提供商</h2>
+        <p className={`mt-1 text-sm ${subtleTextClass}`}>
+          配置用于手动总结与追问的 AI 提供商；所有 AI 配置都在这里管理。
+        </p>
+      </section>
 
       <Form
         method="post"

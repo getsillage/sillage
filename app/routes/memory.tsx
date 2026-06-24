@@ -1,228 +1,162 @@
 import { env } from "cloudflare:workers";
-import { Form, Link } from "react-router";
-import { AskPanel } from "~/components/AskPanel";
-import { EntryCard } from "~/components/EntryCard";
-import {
-  inputClass,
-  pageLeadClass,
-  pageSectionClass,
-  pageShellClass,
-  pageTitleClass,
-  primaryButtonClass,
-  subtlePanelClass,
-} from "~/components/ui";
-import { type AskTurn, answerQuestion } from "~/lib/ai/ask";
-import { askSourceTypesFromForm, collectAskContext } from "~/lib/ai/ask-context";
+import { Link } from "react-router";
+import { ReviewTab } from "~/components/insights/ReviewTab";
+import { AskTab } from "~/components/memory/AskTab";
+import { pageLeadClass, pageSectionClass, pageShellClass, pageTitleClass } from "~/components/ui";
+import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
+import { todayISO } from "~/lib/date";
+import { listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
-import { parseTextList } from "~/lib/product/entry-fields";
+import { listSummaries } from "~/lib/db/summaries";
+import { normalizeEntryKind, parseTextList } from "~/lib/product/entry-fields";
+import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
+import {
+  isSummaryIntent,
+  runSummaryAction,
+  type SummaryActionData,
+} from "~/lib/product/summary-actions";
 import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Route } from "./+types/memory";
 
-type MemoryActionData = {
-  intent: "ask";
-  ok: boolean;
-  message: string;
-  answer?: string;
-  sources?: Array<{
-    id: string;
-    title: string;
-    label: string;
-    href: string;
-    kind: "entry" | "summary";
-  }>;
-};
-
-function parseAskHistory(raw: string): AskTurn[] {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter(
-        (turn): turn is AskTurn =>
-          typeof turn === "object" &&
-          turn !== null &&
-          typeof (turn as AskTurn).question === "string" &&
-          typeof (turn as AskTurn).answer === "string",
-      )
-      .slice(-4);
-  } catch {
-    return [];
-  }
-}
-
-function friendlyReason(reason?: string): string {
-  if (!reason) {
-    return "未能回答";
-  }
-  if (reason.includes("disabled")) {
-    return "AI 未启用，请先在「设置」中配置并启用 AI 提供商";
-  }
-  if (reason.includes("key not configured")) {
-    return "尚未配置 API Key，请到「设置」补全";
-  }
-  return `未能回答：${reason}`;
-}
-
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "记忆 · Sillage" }];
+  return [{ title: "微光 · Sillage" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
-  const url = new URL(request.url);
-  const query = url.searchParams.get("q")?.trim() ?? "";
   const db = getDb(env.DB);
-  const [recentEntries, results] = await Promise.all([
-    listEntries(db, 80),
-    query ? searchEntriesByKeyword(db, query) : Promise.resolve([]),
-  ]);
+  const url = new URL(request.url);
+  const tab = url.searchParams.get("tab") === "ask" ? "ask" : "review";
 
-  const people = new Map<string, number>();
-  const relationships = new Map<string, number>();
-  for (const entry of recentEntries) {
-    for (const person of parseTextList(entry.people)) {
-      people.set(person, (people.get(person) ?? 0) + 1);
+  if (tab === "ask") {
+    const query = url.searchParams.get("q")?.trim() ?? "";
+    const [recentEntries, results] = await Promise.all([
+      listEntries(db, 80),
+      query ? searchEntriesByKeyword(db, query) : Promise.resolve([]),
+    ]);
+
+    const people = new Map<string, number>();
+    const relationships = new Map<string, number>();
+    for (const entry of recentEntries) {
+      for (const person of parseTextList(entry.people)) {
+        people.set(person, (people.get(person) ?? 0) + 1);
+      }
+      for (const relationship of parseTextList(entry.relationships)) {
+        relationships.set(relationship, (relationships.get(relationship) ?? 0) + 1);
+      }
     }
-    for (const relationship of parseTextList(entry.relationships)) {
-      relationships.set(relationship, (relationships.get(relationship) ?? 0) + 1);
-    }
+
+    return {
+      tab: "ask" as const,
+      query,
+      results,
+      people: [...people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
+      relationships: [...relationships.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
+    };
   }
 
+  const today = todayISO();
+  const [todayEntries, recentEntries, summaryRows] = await Promise.all([
+    listEntriesByDate(db, today),
+    listEntries(db, 80),
+    listSummaries(db, { limit: 30 }),
+  ]);
+
   return {
-    query,
-    results,
-    people: [...people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
-    relationships: [...relationships.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
+    tab: "review" as const,
+    todayInsights: todayEntries
+      .filter((entry) => entry.summary)
+      .map((entry) => ({ id: entry.id, summary: entry.summary })),
+    recentInsights: recentEntries
+      .filter((entry) => entry.summary)
+      .slice(0, 12)
+      .map((entry) => ({ id: entry.id, summary: entry.summary })),
+    themes: recentEntries
+      .flatMap((entry) => entry.tags)
+      .reduce<Record<string, number>>((acc, tag) => {
+        acc[tag] = (acc[tag] ?? 0) + 1;
+        return acc;
+      }, {}),
+    noteCount: recentEntries.filter((entry) => normalizeEntryKind(entry.kind) === "note").length,
+    suggestions: buildEntryFormSuggestions(recentEntries),
+    pickerEntries: recentEntries
+      .slice(0, 40)
+      .map((entry) => ({ id: entry.id, entryDate: entry.entryDate, title: entry.title })),
+    summaries: summaryRows.map((row) => ({
+      id: row.id,
+      scope: row.scope,
+      periodType: row.periodType,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      style: row.style,
+      title: row.title,
+      content: row.content,
+      sourceEntryIds: row.sourceEntryIds,
+      generatedAt: row.generatedAt,
+    })),
   };
 }
 
-export async function action({ request }: Route.ActionArgs): Promise<MemoryActionData> {
+export async function action({
+  request,
+}: Route.ActionArgs): Promise<AskActionData | SummaryActionData> {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
 
-  if (intent !== "ask") {
-    return { intent: "ask", ok: false, message: "未知操作" };
+  if (intent === "ask") {
+    return runAskAction(db, form);
   }
+  if (isSummaryIntent(intent)) {
+    return runSummaryAction(db, form, intent);
+  }
+  return { intent: "ask", ok: false, message: "未知操作" };
+}
 
-  const question = String(form.get("question") ?? "").trim();
-  if (!question) {
-    return { intent: "ask", ok: false, message: "请输入问题" };
-  }
-  if (question.length > 500) {
-    return { intent: "ask", ok: false, message: "问题过长（最多 500 字）" };
-  }
-
-  const sourceTypes = askSourceTypesFromForm(form);
-  const history = parseAskHistory(String(form.get("history") ?? ""));
-  const context = await collectAskContext(db, question, sourceTypes);
-  const result = await answerQuestion(env, { question, evidence: context.evidence, history });
-  if (!result.ok) {
-    return { intent: "ask", ok: false, message: friendlyReason(result.skippedReason) };
-  }
-
-  return {
-    intent: "ask",
-    ok: true,
-    message: "",
-    answer: result.answer,
-    sources: context.citations,
-  };
+function tabClass(active: boolean): string {
+  return active
+    ? "border-gray-950 border-b-2 pb-2 font-medium text-gray-950 text-sm dark:border-gray-50 dark:text-gray-50"
+    : "border-transparent border-b-2 pb-2 text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100";
 }
 
 export default function Memory({ loaderData }: Route.ComponentProps) {
-  const { query, results, people, relationships } = loaderData;
-
   return (
     <main className={pageShellClass}>
       <section className={pageSectionClass}>
         <header>
-          <h1 className={pageTitleClass}>记忆</h1>
-          <p className={pageLeadClass}>问答、搜索，或从人物与关系重新进入过去。</p>
+          <h1 className={pageTitleClass}>微光</h1>
+          <p className={pageLeadClass}>记录之间亮起的一点光：照见来路，也照向前路。</p>
+          <nav className="mt-4 flex gap-5 border-gray-200 border-b dark:border-gray-800">
+            <Link to="/memory?tab=review" className={tabClass(loaderData.tab === "review")}>
+              回顾
+            </Link>
+            <Link to="/memory?tab=ask" className={tabClass(loaderData.tab === "ask")}>
+              追问
+            </Link>
+          </nav>
         </header>
 
-        <AskPanel />
-
-        <Form method="get" className="flex gap-2">
-          <input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="搜索一个词、地点、人物或关系…"
-            className={`${inputClass} mt-0 min-w-0 flex-1`}
+        {loaderData.tab === "review" ? (
+          <ReviewTab
+            todayInsights={loaderData.todayInsights}
+            recentInsights={loaderData.recentInsights}
+            themes={loaderData.themes}
+            noteCount={loaderData.noteCount}
+            suggestions={loaderData.suggestions}
+            pickerEntries={loaderData.pickerEntries}
+            summaries={loaderData.summaries}
           />
-          <button type="submit" className={primaryButtonClass}>
-            搜索
-          </button>
-        </Form>
-
-        {query ? (
-          <section>
-            <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">搜索结果</h2>
-            {results.length === 0 ? (
-              <p className="text-gray-400 text-sm dark:text-gray-500">
-                没有找到相关记忆。换一个词，或者看看洞察。
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {results.map((entry) => (
-                  <li key={entry.id}>
-                    <EntryCard entry={entry} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : null}
-
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className={`${subtlePanelClass} p-4`}>
-            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">人物</h2>
-            {people.length === 0 ? (
-              <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
-                记录人物后，这里会出现关系线索。
-              </p>
-            ) : (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {people.map(([person, count]) => (
-                  <Link
-                    key={person}
-                    to={`/memory?q=${encodeURIComponent(person)}`}
-                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
-                  >
-                    {person} · {count}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={`${subtlePanelClass} p-4`}>
-            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">关系</h2>
-            {relationships.length === 0 ? (
-              <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
-                记录关系后，这里会帮助你回看变化。
-              </p>
-            ) : (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {relationships.map(([relationship, count]) => (
-                  <Link
-                    key={relationship}
-                    to={`/memory?q=${encodeURIComponent(relationship)}`}
-                    className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
-                  >
-                    {relationship} · {count}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+        ) : (
+          <AskTab
+            query={loaderData.query}
+            results={loaderData.results}
+            people={loaderData.people}
+            relationships={loaderData.relationships}
+          />
+        )}
       </section>
     </main>
   );

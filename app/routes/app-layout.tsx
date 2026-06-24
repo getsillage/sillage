@@ -1,7 +1,8 @@
 import { env } from "cloudflare:workers";
 import { Form, Link, NavLink, Outlet } from "react-router";
+import { QuickCapture } from "~/components/QuickCapture";
 import { ThemeToggle } from "~/components/ThemeToggle";
-import { pageShellClass, primaryButtonClass, subtleButtonClass } from "~/components/ui";
+import { pageShellClass, subtleButtonClass } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import type { Route } from "./+types/app-layout";
 
@@ -32,19 +33,13 @@ export default function AppLayout() {
             </Link>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <NavLink to="/" end className={navClass}>
-                今天
+                此刻
               </NavLink>
               <NavLink to="/timeline" className={navClass}>
-                时间线
-              </NavLink>
-              <NavLink to="/notes" className={navClass}>
-                笔记
-              </NavLink>
-              <NavLink to="/insights" className={navClass}>
-                洞察
+                痕迹
               </NavLink>
               <NavLink to="/memory" className={navClass}>
-                记忆
+                微光
               </NavLink>
               <NavLink to="/settings" className={navClass}>
                 设置
@@ -53,9 +48,6 @@ export default function AppLayout() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link to="/new" className={primaryButtonClass}>
-              写下片段
-            </Link>
             <Form method="post" action="/logout">
               <button type="submit" className={subtleButtonClass}>
                 退出
@@ -65,6 +57,7 @@ export default function AppLayout() {
         </div>
       </header>
       <Outlet />
+      <QuickCapture />
     </div>
   );
 }

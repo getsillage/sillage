@@ -1,11 +1,14 @@
 import { env } from "cloudflare:workers";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Form, useFetcher, useNavigation } from "react-router";
+import { BackupSection } from "~/components/BackupSection";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { listAiModels } from "~/lib/ai/models";
 import { testAiConnection } from "~/lib/ai/test-connection";
 import { requireSession } from "~/lib/auth/session";
+import { exportSillageBackup } from "~/lib/backup/export";
+import { listBackups } from "~/lib/backup/list";
 import {
   type AiProtocol,
   type AiSettingsView,
@@ -26,7 +29,7 @@ const PROTOCOL_DEFAULTS: Record<AiProtocol, { baseUrl: string; model: string }> 
 const LEGACY_DEFAULT_MODELS = new Set(["claude-opus-4-8", "gpt-5.1-mini"]);
 
 type SettingsActionData = {
-  intent: "save" | "test" | "models" | "delete" | "activate";
+  intent: "save" | "test" | "models" | "delete" | "activate" | "export";
   ok: boolean;
   message: string;
   models?: string[];
@@ -39,7 +42,8 @@ export function meta(_: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
-  return { settings: await loadAiSettingsView(env) };
+  const [settings, backups] = await Promise.all([loadAiSettingsView(env), listBackups(env)]);
+  return { settings, backups };
 }
 
 function parseSettingsForm(form: FormData) {
@@ -74,6 +78,20 @@ export async function action({ request }: Route.ActionArgs) {
   await requireSession(request, env);
   const form = await request.formData();
   const rawIntent = String(form.get("intent") ?? "save");
+
+  if (rawIntent === "export") {
+    try {
+      const result = await exportSillageBackup(env);
+      return { intent: "export" as const, ok: true, message: `已导出 ${result.entryCount} 条记录` };
+    } catch (error) {
+      return {
+        intent: "export" as const,
+        ok: false,
+        message: error instanceof Error ? error.message : "导出失败",
+      };
+    }
+  }
+
   const intent = (
     ["save", "test", "models", "delete", "activate"].includes(rawIntent) ? rawIntent : "save"
   ) as SettingsActionData["intent"];
@@ -155,7 +173,7 @@ function defaultProfile(protocol: AiProtocol = "anthropic") {
 }
 
 export default function Settings({ loaderData, actionData }: Route.ComponentProps) {
-  const { settings } = loaderData;
+  const { settings, backups } = loaderData;
   const navigation = useNavigation();
   const modelFetcher = useFetcher<SettingsActionData>();
   const busy = navigation.state === "submitting";
@@ -464,6 +482,8 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
         API Key 只会加密保存到服务端 KV；浏览器再次打开页面时只能看到“已配置”的状态，不会拿到明文
         key。
       </p>
+
+      <BackupSection backups={backups} />
     </main>
   );
 }

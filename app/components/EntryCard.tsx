@@ -28,11 +28,14 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
   const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
+  const createdDate = entry.createdAt.toISOString().slice(0, 10);
+  const showEntryDate = entry.entryDate !== createdDate;
 
   return (
     <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
       <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
-        <time>{entry.entryDate}</time>
+        <LocalDateTime value={entry.createdAt} />
+        {showEntryDate ? <time>归属 {entry.entryDate}</time> : null}
         <span>{entryKindLabel(kind)}</span>
         {noteLabel ? <span>{noteLabel}</span> : null}
         {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}

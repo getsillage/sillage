@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
+import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import {
@@ -19,7 +20,7 @@ import {
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import { generateSummary } from "~/lib/ai/summarize";
 import { requireSession } from "~/lib/auth/session";
-import { rangeForPeriod, todayISO, toISODate } from "~/lib/date";
+import { rangeForPeriod, todayISO } from "~/lib/date";
 import { listEntriesByDate, listEntriesByDateRange } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
 import { getEntry, listEntries } from "~/lib/db/entries";
@@ -93,7 +94,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       title: row.title,
       content: row.content,
       sourceEntryIds: row.sourceEntryIds,
-      generatedAt: toISODate(new Date(row.generatedAt)),
+      generatedAt: row.generatedAt,
     })),
   };
 }
@@ -556,7 +557,8 @@ function SummaryCard({ summary }: { summary: LoadedSummary }) {
           <span className={badgeClass()}>{styleLabel}</span>
           <span className="text-gray-400 text-xs dark:text-gray-500">{range}</span>
           <span className="text-gray-400 text-xs dark:text-gray-500">
-            · 基于 {summary.sourceEntryIds.length} 条 · 生成于 {summary.generatedAt}
+            · 基于 {summary.sourceEntryIds.length} 条 · 生成于{" "}
+            <LocalDateTime value={summary.generatedAt} />
           </span>
         </div>
       </summary>

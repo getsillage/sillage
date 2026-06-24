@@ -78,4 +78,42 @@ describe("AI pipeline", () => {
     expect(updated?.sentiment).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("writes summary via an OpenAI profile and records the model", async () => {
+    const id = await createEntry(db, {
+      entryDate: "2026-06-23",
+      title: "山里徒步",
+      body: "走了很久的山路。",
+      tags: [],
+    });
+    const entry = await getEntry(db, id);
+    if (!entry) {
+      throw new Error("entry not created");
+    }
+
+    await saveAiSettings(env, {
+      enabled: true,
+      name: "OpenAI",
+      protocol: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-test-model",
+      apiKey: "sk-openai-web",
+    });
+    const fetchMock = vi.fn(async () =>
+      Response.json({ choices: [{ message: { content: "徒步的一天" } }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runAiPipeline(env, entry);
+    const updated = await getEntry(db, id);
+
+    expect(result.summaryUpdated).toBe(true);
+    expect(updated?.summary).toBe("徒步的一天");
+
+    // The side table records which model produced the summary.
+    const { results } = await env.DB.prepare("SELECT model FROM entry_ai WHERE entry_id = ?")
+      .bind(id)
+      .all<{ model: string | null }>();
+    expect(results[0]?.model).toBe("gpt-test-model");
+  });
 });

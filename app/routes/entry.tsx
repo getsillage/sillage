@@ -48,8 +48,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "输入有误", values };
   }
-  const ok = await updateEntry(db, params.id, parsed.data);
-  if (!ok) {
+  const result = await updateEntry(db, params.id, parsed.data);
+  if (result.status === "missing") {
     throw new Response("Not Found", { status: 404 });
   }
   const entry = await getEntry(db, params.id);

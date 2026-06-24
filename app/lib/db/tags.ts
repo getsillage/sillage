@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "./client";
+import { uuidv7 } from "./id";
 import { entryTags, tags } from "./schema";
 
 /** Trims, drops empties, and de-duplicates a list of tag names (case-sensitive). */
@@ -19,7 +20,7 @@ async function ensureTags(db: Db, names: readonly string[]): Promise<Map<string,
   if (names.length === 0) {
     return new Map();
   }
-  const rows = names.map((name) => ({ id: crypto.randomUUID(), name }));
+  const rows = names.map((name) => ({ id: uuidv7(), name }));
   await db.insert(tags).values(rows).onConflictDoNothing();
 
   const existing = await db

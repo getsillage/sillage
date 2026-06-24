@@ -1,6 +1,6 @@
-import { asc } from "drizzle-orm";
+import { asc, eq, isNull } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
-import { attachments, entries, entryTags, tags } from "~/lib/db/schema";
+import { attachments, entries, entryAi, entryTags, tags } from "~/lib/db/schema";
 
 export interface DiaryBackupResult {
   jsonKey: string;
@@ -87,10 +87,19 @@ function renderMarkdown(payload: DiaryBackupPayload): string {
 async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBackupPayload> {
   const db = getDb(env.DB);
   const [entryRows, tagRowsRaw, linkRows, attachmentRows] = await Promise.all([
-    db.select().from(entries).orderBy(asc(entries.entryDate), asc(entries.createdAt)),
-    db.select().from(tags).orderBy(asc(tags.name)),
+    db
+      .select()
+      .from(entries)
+      .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+      .where(isNull(entries.deletedAt))
+      .orderBy(asc(entries.entryDate), asc(entries.createdAt)),
+    db.select().from(tags).where(isNull(tags.deletedAt)).orderBy(asc(tags.name)),
     db.select().from(entryTags),
-    db.select().from(attachments).orderBy(asc(attachments.createdAt)),
+    db
+      .select()
+      .from(attachments)
+      .where(isNull(attachments.deletedAt))
+      .orderBy(asc(attachments.createdAt)),
   ]);
 
   const tagRows = tagRowsRaw.map((tag) => ({
@@ -103,7 +112,7 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBack
   return {
     version: 1,
     exportedAt: iso(exportedAt),
-    entries: entryRows.map((entry) => ({
+    entries: entryRows.map(({ entries: entry, entry_ai: ai }) => ({
       id: entry.id,
       entryDate: entry.entryDate,
       title: entry.title,
@@ -111,8 +120,8 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<DiaryBack
       mood: entry.mood,
       weather: entry.weather,
       isPinned: entry.isPinned,
-      summary: entry.summary,
-      sentiment: entry.sentiment,
+      summary: ai?.summary ?? null,
+      sentiment: ai?.sentiment ?? null,
       createdAt: iso(entry.createdAt),
       updatedAt: iso(entry.updatedAt),
       tags: tagMap.get(entry.id) ?? [],

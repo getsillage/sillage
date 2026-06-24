@@ -1,6 +1,7 @@
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { helperTextClass, inputClass, labelClass, primaryButtonClass } from "./ui";
 
 export interface EntryFormDefaults {
   entryDate: string;
@@ -31,50 +32,50 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
   const busy = navigation.state !== "idle";
 
   return (
-    <Form method="post" className="space-y-5">
+    <Form method="post" className="space-y-6">
       {intent ? <input type="hidden" name="intent" value={intent} /> : null}
 
-      <div className="flex flex-wrap gap-4">
-        <label className="text-sm font-medium text-gray-700">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={labelClass}>
           日期
           <input
             type="date"
             name="entryDate"
             required
             defaultValue={defaults?.entryDate ?? todayISO()}
-            className="mt-1 block rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className={inputClass}
           />
         </label>
-        <label className="text-sm font-medium text-gray-700">
+        <label className={labelClass}>
           天气
           <input
             type="text"
             name="weather"
             placeholder="晴 / 阴 / 雨…"
             defaultValue={defaults?.weather ?? ""}
-            className="mt-1 block rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className={inputClass}
           />
         </label>
       </div>
 
-      <label className="block text-sm font-medium text-gray-700">
+      <label className={labelClass}>
         标题
         <input
           type="text"
           name="title"
           placeholder="给今天起个标题"
           defaultValue={defaults?.title ?? ""}
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className={inputClass}
         />
       </label>
 
       <fieldset>
-        <legend className="text-sm font-medium text-gray-700">心情</legend>
-        <div className="mt-2 flex gap-2">
+        <legend className={labelClass}>心情</legend>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
           {MOODS.map((mood) => (
             <label
               key={mood.value}
-              className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 has-[:checked]:border-gray-900 has-[:checked]:text-gray-900"
+              className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white"
             >
               <input
                 type="radio"
@@ -91,28 +92,25 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
       </fieldset>
 
       <div>
-        <span className="mb-1 block text-sm font-medium text-gray-700">内容</span>
+        <span className={`${labelClass} mb-1 block`}>内容</span>
         <MarkdownEditor name="body" defaultValue={defaults?.body ?? ""} />
       </div>
 
-      <label className="block text-sm font-medium text-gray-700">
+      <label className={labelClass}>
         标签
         <input
           type="text"
           name="tags"
           placeholder="用逗号或空格分隔，如：旅行, 美食"
           defaultValue={defaults?.tags.join(", ") ?? ""}
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className={inputClass}
         />
+        <span className={helperTextClass}>输入后会自动拆分为多个标签。</span>
       </label>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-60"
-      >
+      <button type="submit" disabled={busy} className={primaryButtonClass}>
         {busy ? "保存中…" : submitLabel}
       </button>
     </Form>

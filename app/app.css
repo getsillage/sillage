@@ -15,3 +15,31 @@ body {
     color-scheme: dark;
   }
 }
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply font-sans text-gray-900 antialiased dark:text-gray-100;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgb(17 24 39 / 0.12);
+}
+
+::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}

@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { Link, useFetcher } from "react-router";
+import type { EntryInsightActionData } from "~/lib/ai/entry-insights";
 import type { EntryWithTags } from "~/lib/db/entries";
 import {
   entryKindLabel,
@@ -23,7 +24,15 @@ function excerpt(body: string, max = 120): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-export function EntryCard({ entry }: { entry: EntryWithTags }) {
+export function EntryCard({
+  entry,
+  showEntryInsight = false,
+}: {
+  entry: EntryWithTags;
+  showEntryInsight?: boolean;
+}) {
+  const fetcher = useFetcher<EntryInsightActionData>();
+  const busy = fetcher.state !== "idle";
   const kind = normalizeEntryKind(entry.kind);
   const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
   const people = parseTextList(entry.people);
@@ -32,7 +41,7 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
   const showEntryDate = entry.entryDate !== createdDate;
 
   return (
-    <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
+    <article className={rowLinkClass}>
       <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
         <LocalDateTime value={entry.createdAt} />
         {showEntryDate ? <time>归属 {entry.entryDate}</time> : null}
@@ -47,17 +56,48 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
         ) : null}
       </div>
       <h2 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
-        {entry.title || "未命名记录"}
+        <Link to={`/entries/${entry.id}`} className="hover:underline">
+          {entry.title || "未命名记录"}
+        </Link>
       </h2>
       {entry.body ? (
         <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
           {excerpt(entry.body)}
         </p>
       ) : null}
-      {entry.summary ? (
-        <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 text-gray-500 text-sm dark:bg-gray-950 dark:text-gray-300">
-          {entry.summary}
-        </p>
+      {showEntryInsight ? (
+        <section className="mt-2 rounded-md bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950">
+          {entry.summary ? (
+            <p className="text-gray-500 dark:text-gray-300">{entry.summary}</p>
+          ) : (
+            <p className="text-gray-400 dark:text-gray-500">尚未生成 AI 洞察。</p>
+          )}
+          <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+            <fetcher.Form method="post" action={`/entries/${entry.id}`}>
+              <input
+                type="hidden"
+                name="intent"
+                value={entry.summary ? "regenerate-entry-insight" : "generate-entry-insight"}
+              />
+              <button
+                type="submit"
+                disabled={busy}
+                className="text-gray-500 hover:text-gray-900 disabled:opacity-60 dark:text-gray-400 dark:hover:text-gray-100"
+              >
+                {busy ? "处理中…" : entry.summary ? "重新生成洞察" : "生成洞察"}
+              </button>
+            </fetcher.Form>
+            <Link
+              to={`/entries/${entry.id}`}
+              className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            >
+              查看详情
+            </Link>
+          </div>
+          {fetcher.data && !fetcher.data.ok ? (
+            <p className="mt-2 text-red-600 text-xs dark:text-red-400">{fetcher.data.message}</p>
+          ) : null}
+        </section>
       ) : null}
       {people.length > 0 || relationships.length > 0 || entry.tags.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -87,6 +127,6 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
           ))}
         </div>
       ) : null}
-    </Link>
+    </article>
   );
 }

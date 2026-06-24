@@ -2,7 +2,8 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUserSession } from "../app/lib/auth/session";
 import { getDb } from "../app/lib/db/client";
-import { createEntry } from "../app/lib/db/entries";
+import { createEntry, listEntries } from "../app/lib/db/entries";
+import { saveAiSettings } from "../app/lib/settings/ai-settings";
 import { action as captureAction } from "../app/routes/capture";
 import { action as entryAction } from "../app/routes/entry";
 import { action as homeAction } from "../app/routes/home";
@@ -71,6 +72,59 @@ describe("entry actions", () => {
 
     expect(response.status).toBe(302);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("generates an entry insight after saving from the home page when requested", async () => {
+    await saveAiSettings(env, {
+      enabled: true,
+      name: "Claude",
+      protocol: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-test-model",
+      apiKey: "sk-ant-web",
+    });
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        content: [{ type: "text", text: "这一刻被整理成了洞察" }],
+        stop_reason: "end_turn",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const waitUntilPromises: Promise<unknown>[] = [];
+    const response = await homeAction({
+      request: await authenticatedRequest(
+        {
+          entryDate: "2026-06-24",
+          title: "手动保存",
+          body: "保存后需要生成洞察。",
+          kind: "note",
+          noteType: "daily",
+          mood: "",
+          moodText: "",
+          weather: "",
+          location: "",
+          people: "",
+          relationships: "",
+          tags: "",
+          generateEntryInsight: "on",
+        },
+        "https://sillage.example/",
+      ),
+      context: {
+        get() {
+          return (promise: Promise<unknown>) => waitUntilPromises.push(promise);
+        },
+      },
+      params: {},
+    } as never);
+
+    expect(response.status).toBe(302);
+    await Promise.all(waitUntilPromises);
+
+    const [entry] = await listEntries(db, 1);
+    expect(entry?.summary).toBe("这一刻被整理成了洞察");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not invoke AI when quick-capturing a fragment", async () => {

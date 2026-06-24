@@ -1,5 +1,6 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Form, useNavigation } from "react-router";
+import { ENTRY_INSIGHT_FORM_FIELD } from "~/lib/ai/entry-insights";
 import { todayISO } from "~/lib/date";
 import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
 import type { EntryFormSuggestions } from "~/lib/product/entry-suggestions";
@@ -28,6 +29,8 @@ interface EntryFormProps {
   error?: string | null;
   submitLabel?: string;
   intent?: string;
+  showEntryInsightOption?: boolean;
+  defaultEntryInsightForKind?: (kind: EntryKind) => boolean;
 }
 
 const MOODS: ReadonlyArray<{ value: number; emoji: string; label: string }> = [
@@ -65,12 +68,17 @@ export function EntryForm({
   error,
   submitLabel = "保存",
   intent,
+  showEntryInsightOption = false,
+  defaultEntryInsightForKind,
 }: EntryFormProps) {
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const idBase = useId().replaceAll(":", "");
   const defaultKind = defaults?.kind ?? "fragment";
   const [selectedKind, setSelectedKind] = useState<EntryKind>(defaultKind);
+  const [generateEntryInsight, setGenerateEntryInsight] = useState(
+    defaultEntryInsightForKind?.(defaultKind) ?? false,
+  );
   const defaultNoteType = defaults?.noteType ?? "daily";
   const weatherOptions = includeCurrentOption(WEATHER_OPTIONS, defaults?.weather);
   const locationSuggestions = suggestions?.locations ?? [];
@@ -81,6 +89,12 @@ export function EntryForm({
   const peopleId = `${idBase}-people`;
   const relationshipId = `${idBase}-relationships`;
   const tagId = `${idBase}-tags`;
+
+  useEffect(() => {
+    if (showEntryInsightOption) {
+      setGenerateEntryInsight(defaultEntryInsightForKind?.(selectedKind) ?? false);
+    }
+  }, [defaultEntryInsightForKind, selectedKind, showEntryInsightOption]);
 
   return (
     <Form method="post" className="space-y-6">
@@ -258,9 +272,26 @@ export function EntryForm({
 
       {error ? <p className="text-red-600 text-sm dark:text-red-400">{error}</p> : null}
 
-      <button type="submit" disabled={busy} className={primaryButtonClass}>
-        {busy ? "保存中…" : submitLabel}
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {showEntryInsightOption ? (
+          <label className="flex items-center gap-2 text-gray-700 text-sm dark:text-gray-300">
+            <input
+              type="checkbox"
+              name={ENTRY_INSIGHT_FORM_FIELD}
+              checked={generateEntryInsight}
+              onChange={(event) => setGenerateEntryInsight(event.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
+            />
+            保存后生成 AI 洞察
+          </label>
+        ) : (
+          <span />
+        )}
+
+        <button type="submit" disabled={busy} className={primaryButtonClass}>
+          {busy ? "保存中…" : submitLabel}
+        </button>
+      </div>
     </Form>
   );
 }

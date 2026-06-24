@@ -5,8 +5,6 @@ import { AskTab } from "~/components/memory/AskTab";
 import { pageLeadClass, pageSectionClass, pageShellClass, pageTitleClass } from "~/components/ui";
 import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
-import { todayISO } from "~/lib/date";
-import { listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
 import { listSummaries } from "~/lib/db/summaries";
@@ -57,22 +55,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     };
   }
 
-  const today = todayISO();
-  const [todayEntries, recentEntries, summaryRows] = await Promise.all([
-    listEntriesByDate(db, today),
+  const [recentEntries, summaryRows] = await Promise.all([
     listEntries(db, 80),
     listSummaries(db, { limit: 30 }),
   ]);
 
   return {
     tab: "review" as const,
-    todayInsights: todayEntries
-      .filter((entry) => entry.summary)
-      .map((entry) => ({ id: entry.id, summary: entry.summary })),
-    recentInsights: recentEntries
-      .filter((entry) => entry.summary)
-      .slice(0, 12)
-      .map((entry) => ({ id: entry.id, summary: entry.summary })),
     themes: recentEntries
       .flatMap((entry) => entry.tags)
       .reduce<Record<string, number>>((acc, tag) => {
@@ -141,8 +130,6 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
 
         {loaderData.tab === "review" ? (
           <ReviewTab
-            todayInsights={loaderData.todayInsights}
-            recentInsights={loaderData.recentInsights}
             themes={loaderData.themes}
             noteCount={loaderData.noteCount}
             suggestions={loaderData.suggestions}

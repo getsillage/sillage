@@ -15,10 +15,14 @@ import {
   activateAiSettingsProfile,
   aiProviderCredentialsSchema,
   aiSettingsInputSchema,
+  DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   deleteAiSettingsProfile,
+  ENTRY_INSIGHT_AUTO_MODES,
+  type EntryInsightAutoMode,
   loadAiSettingsProfile,
   loadAiSettingsView,
   saveAiSettings,
+  saveEntryInsightAutoMode,
 } from "~/lib/settings/ai-settings";
 import type { Route } from "./+types/settings";
 
@@ -27,6 +31,12 @@ const PROTOCOL_DEFAULTS: Record<AiProtocol, { baseUrl: string; model: string }> 
   openai: { baseUrl: "https://api.openai.com/v1", model: "" },
 };
 const LEGACY_DEFAULT_MODELS = new Set(["claude-opus-4-8", "gpt-5.1-mini"]);
+
+const ENTRY_INSIGHT_AUTO_MODE_LABELS: Record<EntryInsightAutoMode, string> = {
+  notes: "仅笔记自动生成",
+  all: "所有记录自动生成",
+  off: "不自动生成",
+};
 
 type SettingsActionData = {
   intent: "save" | "test" | "models" | "delete" | "activate" | "export";
@@ -47,6 +57,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 function parseSettingsForm(form: FormData) {
+  const entryInsightAutoMode = String(
+    form.get("entryInsightAutoMode") ?? DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+  );
   return {
     id: String(form.get("id") ?? ""),
     name: String(form.get("name") ?? ""),
@@ -55,6 +68,11 @@ function parseSettingsForm(form: FormData) {
     baseUrl: String(form.get("baseUrl") ?? ""),
     model: String(form.get("model") ?? ""),
     apiKey: String(form.get("apiKey") ?? ""),
+    entryInsightAutoMode: ENTRY_INSIGHT_AUTO_MODES.includes(
+      entryInsightAutoMode as EntryInsightAutoMode,
+    )
+      ? (entryInsightAutoMode as EntryInsightAutoMode)
+      : DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   };
 }
 
@@ -138,12 +156,14 @@ export async function action({ request }: Route.ActionArgs) {
     return { intent, ok: result.ok, message: result.message };
   }
 
-  const parsed = aiSettingsInputSchema.safeParse(parseSettingsForm(form));
+  const rawSettings = parseSettingsForm(form);
+  const parsed = aiSettingsInputSchema.safeParse(rawSettings);
   if (!parsed.success) {
     return { intent, ok: false, message: parsed.error.issues[0]?.message ?? "配置无效" };
   }
 
   const profileId = await saveAiSettings(env, parsed.data);
+  await saveEntryInsightAutoMode(env, rawSettings.entryInsightAutoMode);
   return { intent, ok: true, message: "已保存并设为当前配置", profileId };
 }
 
@@ -192,6 +212,9 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
   const [model, setModel] = useState(initialProfile.model);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelOptionsKey, setModelOptionsKey] = useState("");
+  const [entryInsightAutoMode, setEntryInsightAutoMode] = useState<EntryInsightAutoMode>(
+    settings.entryInsightAutoMode,
+  );
   const appliedActiveProfileIdRef = useRef(initialProfile.id);
 
   const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId) ?? null;
@@ -326,6 +349,29 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                 {enabled ? "已启用" : "已停用"}
               </span>
             </label>
+          </div>
+
+          <div className="mt-5 border-gray-200 border-t pt-4 dark:border-gray-800">
+            <label className={labelClass}>
+              单条 AI 洞察
+              <select
+                name="entryInsightAutoMode"
+                value={entryInsightAutoMode}
+                onChange={(event) =>
+                  setEntryInsightAutoMode(event.target.value as EntryInsightAutoMode)
+                }
+                className={inputClass}
+              >
+                {ENTRY_INSIGHT_AUTO_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {ENTRY_INSIGHT_AUTO_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className={`mt-1 text-xs ${subtleTextClass}`}>
+              默认只为笔记自动生成；片段和草稿仍可在「痕迹」或记录详情中手动生成。
+            </p>
           </div>
         </section>
 
@@ -484,7 +530,9 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
               type="submit"
               name="intent"
               value="activate"
-              disabled={busy || !selectedProfileId || selectedProfileId === settings.activeProfileId}
+              disabled={
+                busy || !selectedProfileId || selectedProfileId === settings.activeProfileId
+              }
               className={secondaryButtonClass}
             >
               设为当前

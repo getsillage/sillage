@@ -201,7 +201,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               <ul className="space-y-3">
                 {loaderData.entries.map((entry) => (
                   <li key={entry.id}>
-                    <EntryCard entry={entry} />
+                    <EntryCard entry={entry} showEntryInsight />
                   </li>
                 ))}
               </ul>

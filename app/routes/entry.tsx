@@ -3,6 +3,11 @@ import { Form, Link, redirect } from "react-router";
 import { EntryForm } from "~/components/EntryForm";
 import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
+import {
+  type EntryInsightActionData,
+  isEntryInsightIntent,
+  runEntryInsightAction,
+} from "~/lib/ai/entry-insights";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
@@ -96,10 +101,15 @@ export async function action({ request, params }: Route.ActionArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
 
-  if (form.get("intent") === "delete") {
+  if (intent === "delete") {
     await deleteEntry(db, params.id);
     return redirect("/");
+  }
+
+  if (isEntryInsightIntent(intent)) {
+    return runEntryInsightAction(db, params.id, intent);
   }
 
   const values = entryFormFromData(form);
@@ -115,8 +125,57 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/entries/${params.id}`);
 }
 
+function EntryInsightSection({
+  entry,
+  actionData,
+}: {
+  entry: EntryWithTags;
+  actionData?: EntryInsightActionData | { error?: string } | undefined;
+}) {
+  const intent = entry.summary ? "regenerate-entry-insight" : "generate-entry-insight";
+  const label = entry.summary ? "重新生成洞察" : "生成洞察";
+  const insightActionData =
+    actionData && "intent" in actionData && isEntryInsightIntent(actionData.intent)
+      ? actionData
+      : null;
+
+  return (
+    <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">AI 洞察</h2>
+        <Form method="post">
+          <input type="hidden" name="intent" value={intent} />
+          <button
+            type="submit"
+            className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
+            {label}
+          </button>
+        </Form>
+      </div>
+      {entry.summary ? (
+        <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.summary}</p>
+      ) : (
+        <p className="mt-1 text-gray-400 dark:text-gray-500">还没有为这条记录生成洞察。</p>
+      )}
+      {insightActionData ? (
+        <p
+          className={`mt-2 text-xs ${
+            insightActionData.ok
+              ? "text-green-700 dark:text-green-300"
+              : "text-red-600 dark:text-red-400"
+          }`}
+        >
+          {insightActionData.message}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function EntryDetail({ loaderData, actionData }: Route.ComponentProps) {
   const { entry, editing, revisions } = loaderData;
+  const formActionData = actionData && "error" in actionData ? actionData : undefined;
   const kind = normalizeEntryKind(entry.kind);
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
@@ -138,8 +197,8 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         <EntryForm
           intent="update"
           submitLabel="更新"
-          error={actionData?.error}
-          defaults={actionData?.values ?? formDefaults(entry)}
+          error={formActionData?.error}
+          defaults={formActionData?.values ?? formDefaults(entry)}
           suggestions={loaderData.suggestions}
         />
       </main>
@@ -240,12 +299,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         </section>
       ) : null}
 
-      {entry.summary ? (
-        <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
-          <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">洞察</h2>
-          <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.summary}</p>
-        </section>
-      ) : null}
+      <EntryInsightSection entry={entry} actionData={actionData} />
 
       {revisions.length > 1 ? (
         <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">

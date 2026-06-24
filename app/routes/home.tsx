@@ -10,6 +10,11 @@ import {
   rowLinkClass,
   subtlePanelClass,
 } from "~/components/ui";
+import {
+  entryInsightRequestedByForm,
+  scheduleEntryInsight,
+  shouldGenerateEntryInsightForKind,
+} from "~/lib/ai/entry-insights";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
@@ -22,6 +27,8 @@ import {
   noteTypeLabel,
 } from "~/lib/product/entry-fields";
 import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
+import { waitUntilContext } from "~/lib/request-context";
+import { loadEntryInsightAutoMode } from "~/lib/settings/ai-settings";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
 
@@ -88,10 +95,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   const kind = normalizeEntryKind(url.searchParams.get("kind"));
   const dateParam = url.searchParams.get("date");
   const entryDate = dateParam && DATE_RE.test(dateParam) ? dateParam : today;
-  const [recentEntries, todayEntries, onThisDay] = await Promise.all([
+  const [recentEntries, todayEntries, onThisDay, entryInsightAutoMode] = await Promise.all([
     listEntries(db, 80),
     listEntriesByDate(db, today),
     getOnThisDay(db, today),
+    loadEntryInsightAutoMode(env),
   ]);
   return {
     entries: recentEntries.slice(0, 12),
@@ -100,10 +108,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     onThisDay,
     today,
     defaults: { ...newDefaults(entryDate), kind },
+    entryInsightAutoMode,
   };
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request, context }: Route.ActionArgs) {
   await requireSession(request, env);
   const form = await request.formData();
   const values = entryFormFromData(form);
@@ -113,7 +122,15 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const db = getDb(env.DB);
-  await createEntry(db, parsed.data);
+  const id = await createEntry(db, parsed.data);
+  if (entryInsightRequestedByForm(form)) {
+    scheduleEntryInsight(
+      env,
+      db,
+      context?.get(waitUntilContext) ?? ((promise) => void promise),
+      id,
+    );
+  }
   return redirect("/");
 }
 
@@ -153,6 +170,8 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
   const { entries, todayEntries, onThisDay, today, defaults } = loaderData;
   const { fragments, notes, drafts } = splitToday(todayEntries);
   const todayInsights = todayEntries.filter((entry) => entry.summary);
+  const defaultEntryInsightForKind = (kind: EntryWithTags["kind"]) =>
+    shouldGenerateEntryInsightForKind(loaderData.entryInsightAutoMode, kind);
 
   return (
     <main className={`${pageShellClass} max-w-6xl`}>
@@ -170,6 +189,8 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
               defaults={actionData?.values ?? defaults}
               suggestions={loaderData.suggestions}
               submitLabel="保存"
+              showEntryInsightOption
+              defaultEntryInsightForKind={defaultEntryInsightForKind}
             />
           </section>
 

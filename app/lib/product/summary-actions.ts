@@ -1,10 +1,8 @@
 import { env } from "cloudflare:workers";
-import { runAiPipeline } from "~/lib/ai/pipeline";
 import { generateSummary } from "~/lib/ai/summarize";
 import { rangeForPeriod, todayISO } from "~/lib/date";
 import { listEntriesByDateRange } from "~/lib/db/calendar";
 import type { Db } from "~/lib/db/client";
-import { getEntry } from "~/lib/db/entries";
 import {
   collectEntriesForTopic,
   createSummary,
@@ -21,7 +19,7 @@ import {
 } from "~/lib/product/summary-fields";
 import { summaryGenerateFromData, summaryGenerateSchema } from "~/lib/validation/summary";
 
-export type SummaryIntent = "generate" | "delete" | "regenerate-summary" | "regenerate-entry";
+export type SummaryIntent = "generate" | "delete" | "regenerate-summary";
 
 export interface SummaryActionData {
   intent: SummaryIntent;
@@ -33,7 +31,6 @@ export const SUMMARY_INTENTS: readonly SummaryIntent[] = [
   "generate",
   "delete",
   "regenerate-summary",
-  "regenerate-entry",
 ];
 
 export function isSummaryIntent(value: string): value is SummaryIntent {
@@ -86,7 +83,7 @@ function rangeFromEntries(
   return { startDate: entries[entries.length - 1].entryDate, endDate: entries[0].entryDate };
 }
 
-/** Runs the "照见" intents: generate / delete / regenerate a summary or entry insight. */
+/** Runs the "照见" intents: generate / delete / regenerate a multi-entry summary. */
 export async function runSummaryAction(
   db: Db,
   form: FormData,
@@ -98,22 +95,6 @@ export async function runSummaryAction(
       await deleteSummary(db, id);
     }
     return { intent: "delete", ok: true, message: "已删除总结" };
-  }
-
-  if (intent === "regenerate-entry") {
-    const entryId = String(form.get("entryId") ?? "").trim();
-    const entry = entryId ? await getEntry(db, entryId) : null;
-    if (!entry) {
-      return { intent: "regenerate-entry", ok: false, message: "记录不存在" };
-    }
-    const result = await runAiPipeline(env, entry);
-    return result.summaryUpdated
-      ? { intent: "regenerate-entry", ok: true, message: "已重新生成摘要" }
-      : {
-          intent: "regenerate-entry",
-          ok: false,
-          message: friendlyReason(result.skippedReasons[0]),
-        };
   }
 
   if (intent === "regenerate-summary") {

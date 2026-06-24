@@ -7,7 +7,9 @@ import {
   loadAiSettings,
   loadAiSettingsProfile,
   loadAiSettingsView,
+  loadEntryInsightAutoMode,
   saveAiSettings,
+  saveEntryInsightAutoMode,
 } from "../app/lib/settings/ai-settings";
 
 const baseInput: AiSettingsInput = {
@@ -26,7 +28,11 @@ describe("AI settings storage", () => {
 
   it("returns null before anything is configured", async () => {
     expect(await loadAiSettings(env)).toBeNull();
-    expect(await loadAiSettingsView(env)).toEqual({ activeProfileId: null, profiles: [] });
+    expect(await loadAiSettingsView(env)).toEqual({
+      activeProfileId: null,
+      profiles: [],
+      entryInsightAutoMode: "notes",
+    });
   });
 
   it("round-trips settings and decrypts the stored key", async () => {
@@ -119,6 +125,18 @@ describe("AI settings storage", () => {
     expect(await deleteAiSettingsProfile(env, secondId)).toBe(true);
     expect((await loadAiSettingsView(env)).activeProfileId).toBe(firstId);
     expect(await deleteAiSettingsProfile(env, firstId)).toBe(true);
-    expect(await loadAiSettingsView(env)).toEqual({ activeProfileId: null, profiles: [] });
+    expect(await loadAiSettingsView(env)).toEqual({
+      activeProfileId: null,
+      profiles: [],
+      entryInsightAutoMode: "notes",
+    });
+  });
+
+  it("stores the entry insight auto-generation preference", async () => {
+    expect(await loadEntryInsightAutoMode(env)).toBe("notes");
+
+    await saveEntryInsightAutoMode(env, "all");
+    expect(await loadEntryInsightAutoMode(env)).toBe("all");
+    expect((await loadAiSettingsView(env)).entryInsightAutoMode).toBe("all");
   });
 });

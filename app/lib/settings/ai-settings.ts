@@ -13,6 +13,9 @@ const STORE_VERSION = 2;
 
 export const AI_PROTOCOLS = ["anthropic", "openai"] as const;
 export type AiProtocol = (typeof AI_PROTOCOLS)[number];
+export const ENTRY_INSIGHT_AUTO_MODES = ["off", "notes", "all"] as const;
+export type EntryInsightAutoMode = (typeof ENTRY_INSIGHT_AUTO_MODES)[number];
+export const DEFAULT_ENTRY_INSIGHT_AUTO_MODE: EntryInsightAutoMode = "notes";
 
 /** Full settings including the decrypted key — server-side use only. */
 export interface AiSettings {
@@ -39,6 +42,7 @@ export interface AiSettingsView {
 export interface AiSettingsStoreView {
   activeProfileId: string | null;
   profiles: AiSettingsView[];
+  entryInsightAutoMode: EntryInsightAutoMode;
 }
 
 interface StoredAiSettingsProfile {
@@ -57,6 +61,7 @@ interface StoredAiSettingsV2 {
   version: typeof STORE_VERSION;
   activeProfileId: string | null;
   profiles: StoredAiSettingsProfile[];
+  entryInsightAutoMode: EntryInsightAutoMode;
 }
 
 interface StoredAiSettingsV1 {
@@ -118,6 +123,12 @@ function defaultNameFor(protocol: AiProtocol): string {
   return protocol === "anthropic" ? "Claude" : "OpenAI";
 }
 
+function normalizeEntryInsightAutoMode(value: unknown): EntryInsightAutoMode {
+  return ENTRY_INSIGHT_AUTO_MODES.includes(value as EntryInsightAutoMode)
+    ? (value as EntryInsightAutoMode)
+    : DEFAULT_ENTRY_INSIGHT_AUTO_MODE;
+}
+
 function normalizeId(id: string | undefined): string | undefined {
   const trimmed = id?.trim();
   return trimmed || undefined;
@@ -166,13 +177,19 @@ function migrateV1(stored: StoredAiSettingsV1): StoredAiSettingsV2 {
         updatedAt: now,
       },
     ],
+    entryInsightAutoMode: DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   };
 }
 
 async function readStored(env: Env): Promise<StoredAiSettingsV2> {
   const raw = await env.SESSIONS.get(KV_KEY);
   if (!raw) {
-    return { version: STORE_VERSION, activeProfileId: null, profiles: [] };
+    return {
+      version: STORE_VERSION,
+      activeProfileId: null,
+      profiles: [],
+      entryInsightAutoMode: DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+    };
   }
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -183,14 +200,27 @@ async function readStored(env: Env): Promise<StoredAiSettingsV2> {
         profiles: parsed.profiles.filter((profile) =>
           AI_PROTOCOLS.includes(profile.protocol as AiProtocol),
         ),
+        entryInsightAutoMode: normalizeEntryInsightAutoMode(
+          (parsed as { entryInsightAutoMode?: unknown }).entryInsightAutoMode,
+        ),
       };
     }
     if (isStoredV1(parsed)) {
       return migrateV1(parsed);
     }
-    return { version: STORE_VERSION, activeProfileId: null, profiles: [] };
+    return {
+      version: STORE_VERSION,
+      activeProfileId: null,
+      profiles: [],
+      entryInsightAutoMode: DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+    };
   } catch {
-    return { version: STORE_VERSION, activeProfileId: null, profiles: [] };
+    return {
+      version: STORE_VERSION,
+      activeProfileId: null,
+      profiles: [],
+      entryInsightAutoMode: DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+    };
   }
 }
 
@@ -252,7 +282,23 @@ export async function loadAiSettingsView(env: Env): Promise<AiSettingsStoreView>
   return {
     activeProfileId: stored.activeProfileId,
     profiles: stored.profiles.map(profileView),
+    entryInsightAutoMode: stored.entryInsightAutoMode,
   };
+}
+
+/** Loads the default behavior for per-entry AI insights after saving records. */
+export async function loadEntryInsightAutoMode(env: Env): Promise<EntryInsightAutoMode> {
+  return (await readStored(env)).entryInsightAutoMode;
+}
+
+/** Updates the default behavior for per-entry AI insights after saving records. */
+export async function saveEntryInsightAutoMode(
+  env: Env,
+  mode: EntryInsightAutoMode,
+): Promise<void> {
+  const stored = await readStored(env);
+  stored.entryInsightAutoMode = normalizeEntryInsightAutoMode(mode);
+  await writeStored(env, stored);
 }
 
 /**

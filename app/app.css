@@ -20,8 +20,11 @@ body {
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
+/* Respect users who opt out of motion (vestibular comfort). */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {

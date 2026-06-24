@@ -1,62 +1,93 @@
-import { asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, or, type SQL } from "drizzle-orm";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client";
 import { composeEntries, type EntryWithTags } from "./entries";
 import { type Attachment, attachments, entries, entryAi } from "./schema";
 
 /**
- * Delta-sync read model. Returns everything that changed after `since` — including
- * soft-deleted rows, so an offline client can mirror removals — ordered by the
- * `updatedAt` watermark. The returned `cursor` is the high-water mark to pass back
- * on the next poll.
+ * Delta-sync read model. Returns everything that changed after the cursor —
+ * including soft-deleted rows, so an offline client can mirror removals.
  *
- * Single-user, low-write workload: a millisecond `updatedAt` watermark with a strict
- * `>` comparison is sufficient. (A multi-writer system would want a monotonic
- * server sequence to disambiguate same-millisecond writes.)
+ * Pagination is **keyset by `(updatedAt, id)`** per stream. The `id` tie-breaker is
+ * what makes a page boundary that lands in the middle of rows sharing a single
+ * millisecond resume correctly on the next request, instead of permanently skipping
+ * the rest of that millisecond (which a bare `updatedAt > cursor` would do).
  */
+export interface StreamCursor {
+  updatedAt: number; // ms epoch of the last row returned for this stream
+  id: string; // id of the last row returned for this stream (tie-breaker)
+}
+
+export interface SyncCursor {
+  entries: StreamCursor | null;
+  attachments: StreamCursor | null;
+}
+
 export interface SyncChanges {
   entries: EntryWithTags[];
   attachments: Attachment[];
-  cursor: number;
+  cursor: SyncCursor;
   hasMore: boolean;
 }
 
+/** Start-of-history cursor: a full snapshot. */
+export const EMPTY_CURSOR: SyncCursor = { entries: null, attachments: null };
+
 const DEFAULT_LIMIT = 200;
 
-function maxUpdatedAt(values: Date[], fallback: number): number {
-  return values.reduce((max, value) => Math.max(max, value.getTime()), fallback);
+/** Keyset predicate: rows strictly after `(updatedAt, id)`. */
+function afterCursor(
+  updatedAtCol: SQLiteColumn,
+  idCol: SQLiteColumn,
+  cursor: StreamCursor | null,
+): SQL | undefined {
+  if (!cursor) {
+    return undefined;
+  }
+  const ts = new Date(cursor.updatedAt);
+  return or(gt(updatedAtCol, ts), and(eq(updatedAtCol, ts), gt(idCol, cursor.id)));
+}
+
+function nextStreamCursor(
+  rows: ReadonlyArray<{ updatedAt: Date; id: string }>,
+  previous: StreamCursor | null,
+): StreamCursor | null {
+  const last = rows.at(-1);
+  return last ? { updatedAt: last.updatedAt.getTime(), id: last.id } : previous;
 }
 
 export async function getChangesSince(
   db: Db,
-  since: Date,
+  cursor: SyncCursor = EMPTY_CURSOR,
   limit: number = DEFAULT_LIMIT,
 ): Promise<SyncChanges> {
   const entryRows = await db
     .select()
     .from(entries)
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
-    .where(gt(entries.updatedAt, since))
-    .orderBy(asc(entries.updatedAt))
+    .where(afterCursor(entries.updatedAt, entries.id, cursor.entries))
+    .orderBy(asc(entries.updatedAt), asc(entries.id))
     .limit(limit);
 
   const attachmentRows = await db
     .select()
     .from(attachments)
-    .where(gt(attachments.updatedAt, since))
-    .orderBy(asc(attachments.updatedAt))
+    .where(afterCursor(attachments.updatedAt, attachments.id, cursor.attachments))
+    .orderBy(asc(attachments.updatedAt), asc(attachments.id))
     .limit(limit);
 
   const changedEntries = await composeEntries(db, entryRows);
 
-  const cursor = maxUpdatedAt(
-    [...changedEntries.map((entry) => entry.updatedAt), ...attachmentRows.map((a) => a.updatedAt)],
-    since.getTime(),
-  );
-
   return {
     entries: changedEntries,
     attachments: attachmentRows,
-    cursor,
+    cursor: {
+      entries: nextStreamCursor(
+        entryRows.map((row) => row.entries),
+        cursor.entries,
+      ),
+      attachments: nextStreamCursor(attachmentRows, cursor.attachments),
+    },
     hasMore: entryRows.length === limit || attachmentRows.length === limit,
   };
 }

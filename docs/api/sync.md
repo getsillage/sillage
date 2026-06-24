@@ -21,22 +21,25 @@ The same single-password session that gates the web app guards this endpoint.
 ## Endpoint
 
 ```
-GET /api/sync?since=<cursor>
+GET /api/sync?cursor=<token>
 ```
 
-### `since` cursor
+### `cursor` token
 
-| Form | Example | Meaning |
-|------|---------|---------|
-| omitted / empty | `/api/sync` | full snapshot (everything, from epoch) |
-| pure digits | `?since=1782208000000` | Unix epoch **milliseconds** |
-| anything else | `?since=2026-06-24T02:00:00.000Z` | ISO 8601 timestamp |
+| Form | Meaning |
+|------|---------|
+| omitted / empty | full snapshot (everything, from the beginning) |
+| `?cursor=<token>` | the **opaque** token returned by the previous response |
 
-Pass back the `cursor` from the previous response verbatim. The server returns it as
-an ISO 8601 string; either form is accepted on the way back in.
+The cursor is an **opaque string** — pass back exactly what the previous response
+gave you in `cursor` and treat its contents as private. (Internally it is a
+base64-encoded keyset `(updatedAt, id)` per stream; a malformed token is treated as
+"start from the beginning" and triggers a full resync rather than an error.)
 
-The comparison is **strict** (`updatedAt > since`), so re-sending the last cursor
-will not re-deliver the rows you already have.
+Delivery is **exactly-once-per-change** with respect to a cursor: re-sending the
+last cursor will not re-deliver rows you already have, and — because the cursor
+keys on `(updatedAt, id)` rather than `updatedAt` alone — rows sharing a single
+millisecond are never skipped at a page boundary.
 
 ## Response
 
@@ -46,12 +49,12 @@ will not re-deliver the rows you already have.
 {
   "entries": [ /* EntryDto, oldest-changed first */ ],
   "attachments": [ /* AttachmentDto */ ],
-  "cursor": "2026-06-24T02:00:00.000Z", // high-water mark; send as `since` next time
-  "hasMore": false                       // true => a page was full; poll again immediately
+  "cursor": "eyJlbnRyaWVzIjp...", // opaque; send back as ?cursor= next time
+  "hasMore": false                // true => a page was full; poll again immediately
 }
 ```
 
-- `entries` are ordered by ascending `updatedAt` (the sync watermark).
+- `entries` and `attachments` are each ordered by ascending `(updatedAt, id)`.
 - Each page returns at most **200** entries and **200** attachments. When
   `hasMore` is `true`, immediately request again with the returned `cursor` to
   drain the backlog before going idle.
@@ -99,7 +102,7 @@ The internal R2 object key is **never** exposed; fetch bytes via `url`.
 ```text
 cursor = load_saved_cursor()            // null on first run
 loop:
-  res = GET /api/sync?since=cursor
+  res = GET /api/sync?cursor=cursor       // omit the param when cursor is null
   for entry in res.entries:
     if entry.deletedAt != null: delete_local(entry.id)
     else:                       upsert_local(entry)   // includes its tags + ai
@@ -123,9 +126,10 @@ each call only ships what changed after `cursor`.
   side table and does **not** bump `entries.updatedAt` — so a summary refresh will
   not, by itself, re-deliver the entry. Re-fetch a specific entry if you need the
   latest `ai` fields immediately.
-- **Single-writer watermark.** The cursor is a millisecond `updatedAt` value with a
-  strict `>` comparison, sufficient for this single-user diary. It is not designed
-  for concurrent multi-writer fan-out.
+- **Keyset cursor.** Pagination keys on `(updatedAt, id)`, so rows that share a
+  millisecond are paged through correctly rather than skipped. The cursor is still a
+  per-stream high-water mark sized for this single-user diary, not concurrent
+  multi-writer fan-out.
 
 ## Example
 
@@ -137,8 +141,8 @@ curl -c jar.txt -X POST https://<host>/login \
 # 2. Full snapshot.
 curl -b jar.txt "https://<host>/api/sync"
 
-# 3. Incremental: pass back the previous `cursor`.
-curl -b jar.txt "https://<host>/api/sync?since=2026-06-24T02:00:00.000Z"
+# 3. Incremental: pass back the opaque `cursor` from the previous response.
+curl -b jar.txt "https://<host>/api/sync?cursor=eyJlbnRyaWVzIjp..."
 ```
 
 ## Writing back (future)

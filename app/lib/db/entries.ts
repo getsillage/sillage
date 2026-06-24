@@ -111,7 +111,26 @@ export async function updateEntry(
     patch.metadata = serializeMetadata(input.metadata);
   }
 
-  await db.update(entries).set(patch).where(eq(entries.id, id));
+  // Compare-and-swap on the version we just read: if another writer slipped in
+  // between the read above and here, zero rows match and we report a conflict
+  // instead of silently clobbering the newer copy (lost update).
+  const updated = await db
+    .update(entries)
+    .set(patch)
+    .where(
+      and(eq(entries.id, id), isNull(entries.deletedAt), eq(entries.version, existing.version)),
+    )
+    .returning({ id: entries.id });
+  if (updated.length === 0) {
+    const [current] = await db
+      .select({ version: entries.version })
+      .from(entries)
+      .where(and(eq(entries.id, id), isNull(entries.deletedAt)));
+    return current
+      ? { status: "conflict", currentVersion: current.version }
+      : { status: "missing" };
+  }
+
   await setEntryTags(db, id, input.tags);
   return { status: "updated", version: nextVersion };
 }

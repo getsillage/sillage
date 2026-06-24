@@ -3,7 +3,6 @@ import { Form, Link, redirect } from "react-router";
 import { EntryForm } from "~/components/EntryForm";
 import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
-import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
@@ -17,7 +16,6 @@ import {
   parseTextList,
 } from "~/lib/product/entry-fields";
 import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
-import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
 
@@ -94,7 +92,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   };
 }
 
-export async function action({ request, params, context }: Route.ActionArgs) {
+export async function action({ request, params }: Route.ActionArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const form = await request.formData();
@@ -113,10 +111,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const result = await updateEntry(db, params.id, parsed.data);
   if (result.status === "missing") {
     throw new Response("Not Found", { status: 404 });
-  }
-  const entry = await getEntry(db, params.id);
-  if (entry) {
-    context.get(waitUntilContext)(runAiPipeline(env, entry));
   }
   return redirect(`/entries/${params.id}`);
 }

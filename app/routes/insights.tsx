@@ -1,7 +1,6 @@
 import { env } from "cloudflare:workers";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
-import { AskPanel } from "~/components/AskPanel";
 import { Markdown } from "~/components/Markdown";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import {
@@ -17,7 +16,6 @@ import {
   subtleButtonClass,
   subtlePanelClass,
 } from "~/components/ui";
-import { type AskTurn, answerQuestion } from "~/lib/ai/ask";
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import { generateSummary } from "~/lib/ai/summarize";
 import { requireSession } from "~/lib/auth/session";
@@ -47,55 +45,14 @@ import {
   type SummaryPeriodType,
   type SummaryStyle,
 } from "~/lib/product/summary-fields";
-import { searchEntriesByKeyword } from "~/lib/search/fts";
 import { summaryGenerateFromData, summaryGenerateSchema } from "~/lib/validation/summary";
 import type { Route } from "./+types/insights";
 
-type AskSource = { id: string; title: string; entryDate: string };
-
 type SummaryActionData = {
-  intent: "generate" | "delete" | "regenerate-summary" | "regenerate-entry" | "ask";
+  intent: "generate" | "delete" | "regenerate-summary" | "regenerate-entry";
   ok: boolean;
   message: string;
-  answer?: string;
-  sources?: AskSource[];
 };
-
-function parseAskHistory(raw: string): AskTurn[] {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter(
-        (turn): turn is AskTurn =>
-          typeof turn === "object" &&
-          turn !== null &&
-          typeof (turn as AskTurn).question === "string" &&
-          typeof (turn as AskTurn).answer === "string",
-      )
-      .slice(-4);
-  } catch {
-    return [];
-  }
-}
-
-function dedupeById<T extends { id: string }>(rows: T[], limit: number): T[] {
-  const seen = new Set<string>();
-  const result: T[] = [];
-  for (const row of rows) {
-    if (seen.has(row.id)) {
-      continue;
-    }
-    seen.add(row.id);
-    result.push(row);
-    if (result.length >= limit) {
-      break;
-    }
-  }
-  return result;
-}
 
 export function meta(_: Route.MetaArgs) {
   return [{ title: "洞察 · Sillage" }];
@@ -192,31 +149,10 @@ export async function action({ request }: Route.ActionArgs): Promise<SummaryActi
   const db = getDb(env.DB);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "generate");
+  const allowedIntents = ["generate", "delete", "regenerate-summary", "regenerate-entry"];
 
-  if (intent === "ask") {
-    const question = String(form.get("question") ?? "").trim();
-    if (!question) {
-      return { intent: "ask", ok: false, message: "请输入问题" };
-    }
-    if (question.length > 500) {
-      return { intent: "ask", ok: false, message: "问题过长（最多 500 字）" };
-    }
-    const history = parseAskHistory(String(form.get("history") ?? ""));
-    const [matched, recent] = await Promise.all([
-      searchEntriesByKeyword(db, question, 20),
-      listEntries(db, 40),
-    ]);
-    const entries = dedupeById([...matched, ...recent], 60);
-    const result = await answerQuestion(env, { question, entries, history });
-    if (!result.ok) {
-      return { intent: "ask", ok: false, message: friendlyReason(result.skippedReason) };
-    }
-    const sources: AskSource[] = matched.slice(0, 6).map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      entryDate: entry.entryDate,
-    }));
-    return { intent: "ask", ok: true, message: "", answer: result.answer, sources };
+  if (!allowedIntents.includes(intent)) {
+    return { intent: "generate", ok: false, message: "不支持的操作" };
   }
 
   if (intent === "delete") {
@@ -607,7 +543,10 @@ function SummaryCard({ summary }: { summary: LoadedSummary }) {
       : `${summary.startDate} – ${summary.endDate}`;
 
   return (
-    <details className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950">
+    <details
+      id={`summary-${summary.id}`}
+      className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
+    >
       <summary className="cursor-pointer list-none">
         <span className="font-medium text-gray-950 text-sm dark:text-gray-50">
           {summary.title || "未命名总结"}
@@ -726,10 +665,8 @@ export default function Insights({ loaderData }: Route.ComponentProps) {
       <section className={pageSectionClass}>
         <header>
           <h1 className={pageTitleClass}>洞察</h1>
-          <p className={pageLeadClass}>问问记忆，或主动生成回顾，短摘要与线索随后展开。</p>
+          <p className={pageLeadClass}>主动生成回顾，短摘要与线索随后展开。</p>
         </header>
-
-        <AskPanel />
 
         <GeneratePanel suggestions={suggestions} pickerEntries={pickerEntries} />
 

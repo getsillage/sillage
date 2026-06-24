@@ -10,12 +10,11 @@ import {
   rowLinkClass,
   subtlePanelClass,
 } from "~/components/ui";
-import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
-import { createEntry, type EntryWithTags, getEntry, listEntries } from "~/lib/db/entries";
+import { createEntry, type EntryWithTags, listEntries } from "~/lib/db/entries";
 import {
   entryKindLabel,
   normalizeEntryKind,
@@ -23,7 +22,6 @@ import {
   noteTypeLabel,
 } from "~/lib/product/entry-fields";
 import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
-import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
 
@@ -98,7 +96,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export async function action({ request, context }: Route.ActionArgs) {
+export async function action({ request }: Route.ActionArgs) {
   await requireSession(request, env);
   const form = await request.formData();
   const values = entryFormFromData(form);
@@ -108,11 +106,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const db = getDb(env.DB);
-  const id = await createEntry(db, parsed.data);
-  const entry = await getEntry(db, id);
-  if (entry) {
-    context.get(waitUntilContext)(runAiPipeline(env, entry));
-  }
+  await createEntry(db, parsed.data);
   return redirect("/");
 }
 

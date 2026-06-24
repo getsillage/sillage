@@ -1,14 +1,12 @@
 import { env } from "cloudflare:workers";
 import { Link, redirect } from "react-router";
 import { EntryForm, type EntryFormDefaults } from "~/components/EntryForm";
-import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO } from "~/lib/date";
 import { getDb } from "~/lib/db/client";
-import { createEntry, getEntry, listEntries } from "~/lib/db/entries";
+import { createEntry, listEntries } from "~/lib/db/entries";
 import { normalizeEntryKind } from "~/lib/product/entry-fields";
 import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
-import { waitUntilContext } from "~/lib/request-context";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/new";
 
@@ -41,7 +39,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export async function action({ request, context }: Route.ActionArgs) {
+export async function action({ request }: Route.ActionArgs) {
   await requireSession(request, env);
   const form = await request.formData();
   const values = entryFormFromData(form);
@@ -52,10 +50,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const db = getDb(env.DB);
   const id = await createEntry(db, parsed.data);
-  const entry = await getEntry(db, id);
-  if (entry) {
-    context.get(waitUntilContext)(runAiPipeline(env, entry));
-  }
   return redirect(`/entries/${id}`);
 }
 

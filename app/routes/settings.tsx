@@ -265,7 +265,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="font-semibold text-gray-950 text-xl dark:text-gray-50">设置</h1>
       <p className={`mt-1 text-sm ${subtleTextClass}`}>
-        配置用于自动摘要的 AI 提供商；所有 AI 配置都在这里管理。
+        配置用于手动摘要的 AI 提供商；所有 AI 配置都在这里管理。
       </p>
 
       <Form
@@ -333,7 +333,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             onChange={(event) => setEnabled(event.target.checked)}
             className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
           />
-          启用当前配置（保存记录后自动生成洞察）
+          启用当前配置（仅供手动生成洞察时使用）
         </label>
 
         <label className={labelClass}>

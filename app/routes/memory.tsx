@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { Form, Link } from "react-router";
+import { AskPanel } from "~/components/AskPanel";
 import { EntryCard } from "~/components/EntryCard";
 import {
   inputClass,
@@ -10,12 +11,61 @@ import {
   primaryButtonClass,
   subtlePanelClass,
 } from "~/components/ui";
+import { type AskTurn, answerQuestion } from "~/lib/ai/ask";
+import { askSourceTypesFromForm, collectAskContext } from "~/lib/ai/ask-context";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
 import { parseTextList } from "~/lib/product/entry-fields";
 import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Route } from "./+types/memory";
+
+type MemoryActionData = {
+  intent: "ask";
+  ok: boolean;
+  message: string;
+  answer?: string;
+  sources?: Array<{
+    id: string;
+    title: string;
+    label: string;
+    href: string;
+    kind: "entry" | "summary";
+  }>;
+};
+
+function parseAskHistory(raw: string): AskTurn[] {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter(
+        (turn): turn is AskTurn =>
+          typeof turn === "object" &&
+          turn !== null &&
+          typeof (turn as AskTurn).question === "string" &&
+          typeof (turn as AskTurn).answer === "string",
+      )
+      .slice(-4);
+  } catch {
+    return [];
+  }
+}
+
+function friendlyReason(reason?: string): string {
+  if (!reason) {
+    return "未能回答";
+  }
+  if (reason.includes("disabled")) {
+    return "AI 未启用，请先在「设置」中配置并启用 AI 提供商";
+  }
+  if (reason.includes("key not configured")) {
+    return "尚未配置 API Key，请到「设置」补全";
+  }
+  return `未能回答：${reason}`;
+}
 
 export function meta(_: Route.MetaArgs) {
   return [{ title: "记忆 · Sillage" }];
@@ -50,6 +100,41 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
+export async function action({ request }: Route.ActionArgs): Promise<MemoryActionData> {
+  await requireSession(request, env);
+  const db = getDb(env.DB);
+  const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+
+  if (intent !== "ask") {
+    return { intent: "ask", ok: false, message: "未知操作" };
+  }
+
+  const question = String(form.get("question") ?? "").trim();
+  if (!question) {
+    return { intent: "ask", ok: false, message: "请输入问题" };
+  }
+  if (question.length > 500) {
+    return { intent: "ask", ok: false, message: "问题过长（最多 500 字）" };
+  }
+
+  const sourceTypes = askSourceTypesFromForm(form);
+  const history = parseAskHistory(String(form.get("history") ?? ""));
+  const context = await collectAskContext(db, question, sourceTypes);
+  const result = await answerQuestion(env, { question, evidence: context.evidence, history });
+  if (!result.ok) {
+    return { intent: "ask", ok: false, message: friendlyReason(result.skippedReason) };
+  }
+
+  return {
+    intent: "ask",
+    ok: true,
+    message: "",
+    answer: result.answer,
+    sources: context.citations,
+  };
+}
+
 export default function Memory({ loaderData }: Route.ComponentProps) {
   const { query, results, people, relationships } = loaderData;
 
@@ -58,15 +143,17 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
       <section className={pageSectionClass}>
         <header>
           <h1 className={pageTitleClass}>记忆</h1>
-          <p className={pageLeadClass}>搜索、问问记忆，或从人物与关系重新进入过去。</p>
+          <p className={pageLeadClass}>问答、搜索，或从人物与关系重新进入过去。</p>
         </header>
+
+        <AskPanel />
 
         <Form method="get" className="flex gap-2">
           <input
             type="search"
             name="q"
             defaultValue={query}
-            placeholder="问问你的记忆，或搜索一个词…"
+            placeholder="搜索一个词、地点、人物或关系…"
             className={`${inputClass} mt-0 min-w-0 flex-1`}
           />
           <button type="submit" className={primaryButtonClass}>

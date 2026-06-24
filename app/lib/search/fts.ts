@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entries, entryAi } from "~/lib/db/schema";
@@ -57,11 +57,12 @@ const SEARCH_STOPWORDS = new Set([
   "今天的",
 ]);
 
-function extractSearchTerms(query: string): string[] {
+export function extractSearchTerms(query: string): string[] {
   const terms = new Set<string>();
-  const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
-    ? new Intl.Segmenter("zh-Hans", { granularity: "word" })
-    : null;
+  const segmenter =
+    typeof Intl !== "undefined" && "Segmenter" in Intl
+      ? new Intl.Segmenter("zh-Hans", { granularity: "word" })
+      : null;
 
   if (segmenter) {
     for (const segment of segmenter.segment(query)) {
@@ -77,7 +78,7 @@ function extractSearchTerms(query: string): string[] {
   }
 
   if (terms.size === 0) {
-    for (const part of query.split(/[\s,，.。!?！？、；;:：()（）【】\[\]{}<>《》"'“”‘’/\\|]+/)) {
+    for (const part of query.split(/[\s,，.。!?！？、；;:：()（）【】[\]{}<>《》"'“”‘’/\\|]+/)) {
       const text = part.trim();
       if (text.length >= 2 && !SEARCH_STOPWORDS.has(text)) {
         terms.add(text);
@@ -167,7 +168,8 @@ export async function searchEntriesByKeyword(
   const patternArgs = terms.flatMap((term) => Array(6).fill(`%${term}%`));
   const conditions = terms
     .map(
-      () => `(title LIKE ? OR body LIKE ? OR mood_text LIKE ? OR location LIKE ? OR people LIKE ? OR relationships LIKE ?)`,
+      () =>
+        `(title LIKE ? OR body LIKE ? OR mood_text LIKE ? OR location LIKE ? OR people LIKE ? OR relationships LIKE ?)`,
     )
     .join(" OR ");
   const fieldQuery = `

@@ -1,7 +1,5 @@
-import type { EntryWithTags } from "~/lib/db/entries";
 import { loadAiConfig } from "./config";
 import { activeModel } from "./pipeline";
-import { buildEntriesDigest } from "./summarize";
 import { generateText } from "./text";
 
 export interface AskTurn {
@@ -11,7 +9,7 @@ export interface AskTurn {
 
 export interface AskRequest {
   question: string;
-  entries: EntryWithTags[];
+  evidence: string;
   history?: AskTurn[];
 }
 
@@ -23,7 +21,7 @@ export interface AskResult {
 }
 
 const SYSTEM_PROMPT =
-  "你是 Sillage 的记忆助手。请只依据下面提供的记录回答用户的问题，用中文，简洁、具体、可追溯，可引用记录中的日期。如果提供的记录里没有相关信息，就如实说「记录里没有相关内容」，不要编造或臆测。";
+  "你是 Sillage 的手记问答助手。请只依据下面提供的记忆证据直接回答用户的问题，用中文，简洁、具体、可追溯。不要总结、复盘、诊断或扩写；不要编造，不要把推测写成事实。如果证据不足，就明确说「记忆里没有足够信息」，并指出缺口。";
 
 const MAX_HISTORY_TURNS = 4;
 
@@ -43,11 +41,10 @@ export async function answerQuestion(env: Env, request: AskRequest): Promise<Ask
   const config = await loadAiConfig(env);
   const model = activeModel(config);
 
-  const context = request.entries.length > 0 ? buildEntriesDigest(request.entries) : "";
   const history = request.history ? historyText(request.history) : "";
   const prompt = [
     history ? `【对话历史】\n${history}` : "",
-    `【相关记录】\n${context || "（没有检索到相关记录）"}`,
+    `【记忆证据】\n${request.evidence.trim() || "（所选来源里没有找到相关证据）"}`,
     `【问题】\n${request.question}`,
   ]
     .filter(Boolean)

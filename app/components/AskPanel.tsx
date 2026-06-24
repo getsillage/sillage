@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useFetcher } from "react-router";
+import { type AskSourceType, DEFAULT_ASK_SOURCE_TYPES } from "~/lib/ai/ask-context";
 import { Markdown } from "./Markdown";
 import {
   helperTextClass,
@@ -12,7 +13,9 @@ import {
 interface AskSource {
   id: string;
   title: string;
-  entryDate: string;
+  label: string;
+  href: string;
+  kind: "entry" | "summary";
 }
 
 interface AskActionData {
@@ -35,6 +38,7 @@ export function AskPanel() {
   const fetcher = useFetcher<AskActionData>();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
+  const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(DEFAULT_ASK_SOURCE_TYPES);
   const pendingRef = useRef(false);
   const turnSeq = useRef(0);
   const busy = fetcher.state !== "idle";
@@ -64,7 +68,7 @@ export function AskPanel() {
 
   function submit() {
     const question = input.trim();
-    if (!question || busy) {
+    if (!question || busy || sourceTypes.length === 0) {
       return;
     }
     const history = turns
@@ -79,20 +83,65 @@ export function AskPanel() {
     formData.set("intent", "ask");
     formData.set("question", question);
     formData.set("history", JSON.stringify(history));
+    for (const sourceType of sourceTypes) {
+      formData.append("sources", sourceType);
+    }
     fetcher.submit(formData, { method: "post" });
+  }
+
+  function toggleSource(type: AskSourceType) {
+    setSourceTypes((current) => {
+      if (current.includes(type)) {
+        return current.filter((value) => value !== type);
+      }
+      return [...current, type];
+    });
   }
 
   return (
     <section className={`${panelClass} p-4`}>
       <div className="flex items-center justify-between">
-        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">问问记忆</h2>
+        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">手记问答</h2>
         {turns.length > 0 ? (
           <button type="button" onClick={() => setTurns([])} className={subtleButtonClass}>
             清空对话
           </button>
         ) : null}
       </div>
-      <p className={helperTextClass}>用自然语言提问，AI 会依据你的记录来回答。</p>
+      <p className={helperTextClass}>用自然语言提问，AI 只依据你勾选的手记来源回答。</p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <SourceToggle
+          type="fragment"
+          label="片段"
+          checked={sourceTypes.includes("fragment")}
+          onChange={toggleSource}
+        />
+        <SourceToggle
+          type="note"
+          label="笔记"
+          checked={sourceTypes.includes("note")}
+          onChange={toggleSource}
+        />
+        <SourceToggle
+          type="draft"
+          label="草稿"
+          checked={sourceTypes.includes("draft")}
+          onChange={toggleSource}
+        />
+        <SourceToggle
+          type="entry-ai"
+          label="AI 洞察"
+          checked={sourceTypes.includes("entry-ai")}
+          onChange={toggleSource}
+        />
+        <SourceToggle
+          type="summary"
+          label="AI 总结"
+          checked={sourceTypes.includes("summary")}
+          onChange={toggleSource}
+        />
+      </div>
 
       {turns.length > 0 ? (
         <div className="mt-4 space-y-4">
@@ -116,11 +165,10 @@ export function AskPanel() {
                     {turn.sources.map((source) => (
                       <Link
                         key={source.id}
-                        to={`/entries/${source.id}`}
+                        to={source.href}
                         className="text-gray-400 text-xs hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
                       >
-                        {source.entryDate}
-                        {source.title ? ` · ${source.title}` : ""}
+                        {source.label}
                       </Link>
                     ))}
                   </div>
@@ -142,18 +190,42 @@ export function AskPanel() {
             }
           }}
           rows={2}
-          placeholder="比如：上个月我和谁见面最多？最近在反复想什么？"
+          placeholder="比如：上个月我和谁见面最多？最近反复出现了什么？"
           className={`${textareaClass} min-w-0 flex-1`}
         />
         <button
           type="button"
           onClick={submit}
-          disabled={busy || input.trim().length === 0}
+          disabled={busy || input.trim().length === 0 || sourceTypes.length === 0}
           className={primaryButtonClass}
         >
           {busy ? "思考中…" : "发送"}
         </button>
       </div>
     </section>
+  );
+}
+
+function SourceToggle({
+  type,
+  label,
+  checked,
+  onChange,
+}: {
+  type: AskSourceType;
+  label: string;
+  checked: boolean;
+  onChange: (type: AskSourceType) => void;
+}) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 text-sm transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onChange(type)}
+        className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
+      />
+      {label}
+    </label>
   );
 }

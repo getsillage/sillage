@@ -53,7 +53,7 @@ describe("answerQuestion", () => {
 
   it("skips when the provider is disabled", async () => {
     const entry = await seedEntry();
-    const result = await answerQuestion(env, { question: "我见了谁？", entries: [entry] });
+    const result = await answerQuestion(env, { question: "我见了谁？", evidence: entry.body });
     expect(result.ok).toBe(false);
     expect(result.skippedReason).toContain("disabled");
   });
@@ -63,8 +63,10 @@ describe("answerQuestion", () => {
     const fetchMock = anthropicText("你在 6 月 20 日和小明见了面。");
     vi.stubGlobal("fetch", fetchMock);
 
-    const entry = await seedEntry();
-    const result = await answerQuestion(env, { question: "最近我见了谁？", entries: [entry] });
+    const result = await answerQuestion(env, {
+      question: "最近我见了谁？",
+      evidence: "【2026-06-20】见面\n和小明在咖啡馆聊了很久。",
+    });
 
     expect(result.ok).toBe(true);
     expect(result.answer).toBe("你在 6 月 20 日和小明见了面。");
@@ -74,7 +76,7 @@ describe("answerQuestion", () => {
     const prompt = body.messages[0].content as string;
     expect(prompt).toContain("最近我见了谁？");
     expect(prompt).toContain("小明");
-    expect(prompt).toContain("【相关记录】");
+    expect(prompt).toContain("【记忆证据】");
   });
 
   it("includes prior turns when history is provided", async () => {
@@ -82,10 +84,9 @@ describe("answerQuestion", () => {
     const fetchMock = anthropicText("是的，你们聊了很久。");
     vi.stubGlobal("fetch", fetchMock);
 
-    const entry = await seedEntry();
     const result = await answerQuestion(env, {
       question: "聊了很久吗？",
-      entries: [entry],
+      evidence: "【2026-06-20】见面\n和小明在咖啡馆聊了很久。",
       history: [{ question: "我见了谁？", answer: "小明。" }],
     });
 
@@ -100,17 +101,16 @@ describe("answerQuestion", () => {
     const fetchMock = anthropicText("记录里没有相关内容。");
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await answerQuestion(env, { question: "我去过南极吗？", entries: [] });
+    const result = await answerQuestion(env, { question: "我去过南极吗？", evidence: "" });
     expect(result.ok).toBe(true);
     const prompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[0].content;
-    expect(prompt).toContain("没有检索到相关记录");
+    expect(prompt).toContain("所选来源里没有找到相关证据");
   });
 
   it("reports a skip when the model returns no usable text", async () => {
     await configureAnthropic();
     vi.stubGlobal("fetch", anthropicText("", "refusal"));
-    const entry = await seedEntry();
-    const result = await answerQuestion(env, { question: "?", entries: [entry] });
+    const result = await answerQuestion(env, { question: "?", evidence: "证据" });
     expect(result.ok).toBe(false);
     expect(result.skippedReason).toBe("AI 未返回内容");
   });

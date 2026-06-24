@@ -7,6 +7,7 @@ import {
   noteTypeLabel,
   parseTextList,
 } from "~/lib/product/entry-fields";
+import { LocalDateTime } from "./LocalDateTime";
 import { rowLinkClass } from "./ui";
 
 const MOOD_LABEL: Record<number, string> = {
@@ -36,6 +37,11 @@ export function EntryCard({ entry }: { entry: EntryWithTags }) {
         {noteLabel ? <span>{noteLabel}</span> : null}
         {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
         {entry.location ? <span>{entry.location}</span> : null}
+        {entry.version > 1 ? (
+          <span className="text-gray-400 dark:text-gray-500">
+            · 改于 <LocalDateTime value={entry.updatedAt} />
+          </span>
+        ) : null}
       </div>
       <h2 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
         {entry.title || "未命名记录"}

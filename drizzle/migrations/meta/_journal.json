@@ -43,6 +43,13 @@
       "when": 1782303446248,
       "tag": "0005_smooth_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782305121486,
+      "tag": "0006_sharp_jackpot",
+      "breakpoints": true
     }
   ]
 }

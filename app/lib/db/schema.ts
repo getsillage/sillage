@@ -80,6 +80,32 @@ export const entryAi = sqliteTable("entry_ai", {
   generatedAt: integer("generated_at", { mode: "timestamp_ms" }),
 });
 
+/**
+ * Append-only edit history for an entry. One row is written on creation and on
+ * every successful content update, snapshotting that version's content so the
+ * user can review "what changed when". `createdAt` is the moment the version
+ * became current; rows are immutable and cascade-deleted with the entry.
+ */
+export const entryRevisions = sqliteTable(
+  "entry_revisions",
+  {
+    id: text("id").primaryKey(),
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => entries.id, { onDelete: "cascade" }),
+    // The entry `version` this snapshot represents (1 = creation).
+    version: integer("version").notNull(),
+    title: text("title").notNull().default(""),
+    body: text("body").notNull().default(""),
+    // JSON snapshot of the secondary fields (mood, location, people, tags, …).
+    fields: text("fields"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [index("idx_entry_revisions_entry_id").on(table.entryId)],
+);
+
 export const tags = sqliteTable(
   "tags",
   {
@@ -202,6 +228,8 @@ export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type EntryAi = typeof entryAi.$inferSelect;
 export type NewEntryAi = typeof entryAi.$inferInsert;
+export type EntryRevision = typeof entryRevisions.$inferSelect;
+export type NewEntryRevision = typeof entryRevisions.$inferInsert;
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;

@@ -8,6 +8,7 @@ import {
 } from "~/lib/product/entry-fields";
 import type { Db } from "./client";
 import { uuidv7 } from "./id";
+import { type RevisionSnapshot, recordEntryRevision } from "./revisions";
 import { type Entry, type EntryAi, entries, entryAi } from "./schema";
 import { getTagsForEntries, setEntryTags } from "./tags";
 
@@ -67,6 +68,23 @@ function entryKind(input: EntryInput): EntryKind {
   return normalizeEntryKind(input.kind);
 }
 
+function revisionSnapshot(input: EntryInput, kind: EntryKind): RevisionSnapshot {
+  return {
+    entryDate: input.entryDate,
+    title: input.title,
+    body: input.body,
+    kind,
+    noteType: normalizeNoteType(input.noteType, kind),
+    mood: input.mood ?? null,
+    moodText: input.moodText ?? null,
+    weather: input.weather ?? null,
+    location: input.location ?? null,
+    people: input.people ?? [],
+    relationships: input.relationships ?? [],
+    tags: input.tags,
+  };
+}
+
 /** Creates an entry with its tags and returns the new id. */
 export async function createEntry(db: Db, input: EntryInput): Promise<string> {
   const id = uuidv7();
@@ -92,6 +110,7 @@ export async function createEntry(db: Db, input: EntryInput): Promise<string> {
     updatedAt: now,
   });
   await setEntryTags(db, id, input.tags);
+  await recordEntryRevision(db, id, 1, revisionSnapshot(input, kind), now);
   return id;
 }
 
@@ -120,6 +139,7 @@ export async function updateEntry(
 
   const nextVersion = existing.version + 1;
   const kind = entryKind(input);
+  const now = new Date();
   const patch: Partial<typeof entries.$inferInsert> = {
     entryDate: input.entryDate,
     title: input.title,
@@ -133,7 +153,7 @@ export async function updateEntry(
     people: serializeTextList(input.people ?? []),
     relationships: serializeTextList(input.relationships ?? []),
     version: nextVersion,
-    updatedAt: new Date(),
+    updatedAt: now,
   };
   if ("utcOffsetMinutes" in input) {
     patch.utcOffsetMinutes = input.utcOffsetMinutes ?? null;
@@ -163,6 +183,7 @@ export async function updateEntry(
   }
 
   await setEntryTags(db, id, input.tags);
+  await recordEntryRevision(db, id, nextVersion, revisionSnapshot(input, kind), now);
   return { status: "updated", version: nextVersion };
 }
 

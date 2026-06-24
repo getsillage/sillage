@@ -1,12 +1,14 @@
 import { env } from "cloudflare:workers";
 import { Form, Link, redirect } from "react-router";
 import { EntryForm } from "~/components/EntryForm";
+import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { deleteEntry, getEntry, listEntries, updateEntry } from "~/lib/db/entries";
+import { type EntryRevisionView, listEntryRevisions } from "~/lib/db/revisions";
 import {
   entryKindLabel,
   normalizeEntryKind,
@@ -31,6 +33,29 @@ export function meta(_: Route.MetaArgs) {
   return [{ title: "记录 · Sillage" }];
 }
 
+function revisionFieldSummary(fields: EntryRevisionView["fields"]): string {
+  const parts: string[] = [];
+  if (fields.entryDate) {
+    parts.push(fields.entryDate);
+  }
+  if (fields.mood) {
+    parts.push(`心情 ${fields.mood}`);
+  }
+  if (fields.location) {
+    parts.push(fields.location);
+  }
+  if (fields.people.length > 0) {
+    parts.push(`人物 ${fields.people.join("、")}`);
+  }
+  if (fields.relationships.length > 0) {
+    parts.push(fields.relationships.join("、"));
+  }
+  if (fields.tags.length > 0) {
+    parts.push(fields.tags.map((tag) => `#${tag}`).join(" "));
+  }
+  return parts.join(" · ");
+}
+
 function formDefaults(entry: EntryWithTags) {
   const kind = normalizeEntryKind(entry.kind);
   return {
@@ -52,7 +77,11 @@ function formDefaults(entry: EntryWithTags) {
 export async function loader({ request, params }: Route.LoaderArgs) {
   await requireSession(request, env);
   const db = getDb(env.DB);
-  const [entry, recentEntries] = await Promise.all([getEntry(db, params.id), listEntries(db, 80)]);
+  const [entry, recentEntries, revisions] = await Promise.all([
+    getEntry(db, params.id),
+    listEntries(db, 80),
+    listEntryRevisions(db, params.id),
+  ]);
   if (!entry) {
     throw new Response("Not Found", { status: 404 });
   }
@@ -61,6 +90,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     entry,
     editing: url.searchParams.has("edit"),
     suggestions: buildEntryFormSuggestions(recentEntries),
+    revisions,
   };
 }
 
@@ -92,7 +122,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 export default function EntryDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { entry, editing } = loaderData;
+  const { entry, editing, revisions } = loaderData;
   const kind = normalizeEntryKind(entry.kind);
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
@@ -163,6 +193,19 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
           {entry.weather ? <span>· {entry.weather}</span> : null}
           {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
         </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-gray-400 text-xs dark:text-gray-500">
+          <span>
+            创建于 <LocalDateTime value={entry.createdAt} />
+          </span>
+          {entry.version > 1 ? (
+            <>
+              <span>
+                · 最近修改 <LocalDateTime value={entry.updatedAt} />
+              </span>
+              <span>· 共修改 {entry.version - 1} 次</span>
+            </>
+          ) : null}
+        </div>
         {entry.title ? (
           <h1 className="mt-2 font-semibold text-2xl text-gray-900 dark:text-gray-50">
             {entry.title}
@@ -207,6 +250,47 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
           <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">洞察</h2>
           <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.summary}</p>
+        </section>
+      ) : null}
+
+      {revisions.length > 1 ? (
+        <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
+          <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">
+            修改记录 · 共 {revisions.length} 个版本
+          </h2>
+          <ol className="mt-3 space-y-2">
+            {revisions.map((revision, index) => {
+              const summary = revisionFieldSummary(revision.fields);
+              return (
+                <li key={revision.id}>
+                  <details className="rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-800">
+                    <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-gray-600 dark:text-gray-300">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {index === 0 ? "当前版本" : `第 ${revision.version} 版`}
+                      </span>
+                      <LocalDateTime
+                        value={revision.createdAt}
+                        className="text-gray-400 text-xs dark:text-gray-500"
+                      />
+                      <span className="truncate text-gray-500 text-xs dark:text-gray-400">
+                        {revision.title || "(无标题)"}
+                      </span>
+                    </summary>
+                    <div className="mt-2 border-gray-100 border-t pt-2 dark:border-gray-800">
+                      {revision.body ? (
+                        <Markdown content={revision.body} />
+                      ) : (
+                        <p className="text-gray-400 text-xs dark:text-gray-500">(无正文)</p>
+                      )}
+                      {summary ? (
+                        <p className="mt-2 text-gray-400 text-xs dark:text-gray-500">{summary}</p>
+                      ) : null}
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
+          </ol>
         </section>
       ) : null}
 

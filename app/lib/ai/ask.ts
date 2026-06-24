@@ -29,8 +29,8 @@ const SYSTEM_PROMPT = [
 ].join("\n");
 
 const MAX_HISTORY_TURNS = 4;
-const ASK_MAX_TOKENS = 1800;
-const ASK_RETRY_MAX_TOKENS = 3200;
+const ASK_MAX_TOKENS = 3200;
+const ASK_RETRY_MAX_TOKENS = 4800;
 
 function historyText(history: AskTurn[]): string {
   return history
@@ -75,14 +75,14 @@ export async function answerQuestion(env: Env, request: AskRequest): Promise<Ask
     return { ok: false, answer: "", model, skippedReason: result.reason ?? "AI 已跳过" };
   }
   if (!result.text) {
-    return { ok: false, answer: "", model, skippedReason: "AI 未返回内容" };
+    return { ok: false, answer: "", model, skippedReason: result.reason ?? "AI 未返回内容" };
   }
   if (result.truncated) {
     return {
       ok: false,
       answer: "",
       model,
-      skippedReason: "AI 回答过长被截断了，请缩小问题范围后重试",
+      skippedReason: `${result.reason ?? "AI 回答过长被截断了"}，请缩小问题范围后重试`,
     };
   }
   return { ok: true, answer: result.text, model };

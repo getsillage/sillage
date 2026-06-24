@@ -16,6 +16,9 @@ export interface AiPipelineResult {
   skippedReasons: string[];
 }
 
+const SUMMARY_MAX_TOKENS = 320;
+const SUMMARY_RETRY_MAX_TOKENS = 640;
+
 /** The model name backing the currently selected text provider, for audit. */
 export function activeModel(config: AiConfig): string | null {
   if (config.textProvider === "anthropic") {
@@ -57,18 +60,34 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   const skippedReasons: string[] = [];
   const text = entryText(entry);
 
-  const summary = await generateText(config, {
+  const prompt = text;
+  let summary = await generateText(config, {
     system:
       "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
-    prompt: text,
-    maxTokens: 160,
+    prompt,
+    maxTokens: SUMMARY_MAX_TOKENS,
   });
+
+  if (!summary.skipped && summary.truncated) {
+    summary = await generateText(config, {
+      system:
+        "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
+      prompt: `${prompt}\n\n【生成要求】\n上一次输出达到长度上限。请重新生成一句完整短摘要，确保句子结束。`,
+      maxTokens: SUMMARY_RETRY_MAX_TOKENS,
+    });
+  }
 
   if (summary.skipped && summary.reason) {
     skippedReasons.push(summary.reason);
   }
+  if (!summary.skipped && !summary.text) {
+    skippedReasons.push(summary.reason ?? "AI 未返回内容");
+  }
+  if (!summary.skipped && summary.text && summary.truncated) {
+    skippedReasons.push(summary.reason ?? "AI 输出达到长度上限");
+  }
 
-  if (summary.text) {
+  if (summary.text && !summary.truncated) {
     const db = getDb(env.DB);
     const now = new Date();
     await db
@@ -86,7 +105,7 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   }
 
   return {
-    summaryUpdated: Boolean(summary.text),
+    summaryUpdated: Boolean(summary.text && !summary.truncated),
     skippedReasons,
   };
 }

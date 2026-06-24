@@ -9,6 +9,7 @@ const db = getDb(env.DB);
 
 describe("AI pipeline", () => {
   beforeEach(async () => {
+    await env.DB.prepare("DELETE FROM entry_ai").run();
     await env.DB.prepare("DELETE FROM entries").run();
     await env.DB.prepare("DELETE FROM tags").run();
     await env.SESSIONS.delete("ai-settings");
@@ -115,5 +116,47 @@ describe("AI pipeline", () => {
       .bind(id)
       .all<{ model: string | null }>();
     expect(results[0]?.model).toBe("gpt-test-model");
+  });
+
+  it("retries truncated entry summaries and does not store a still-truncated result", async () => {
+    const id = await createEntry(db, {
+      entryDate: "2026-06-23",
+      title: "长记录",
+      body: "很多细节。",
+      tags: [],
+    });
+    const entry = await getEntry(db, id);
+    if (!entry) {
+      throw new Error("entry not created");
+    }
+
+    await saveAiSettings(env, {
+      enabled: true,
+      name: "Claude",
+      protocol: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-test-model",
+      apiKey: "sk-ant-web",
+    });
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        content: [{ type: "text", text: "半截摘要" }],
+        stop_reason: "max_tokens",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runAiPipeline(env, entry);
+    const updated = await getEntry(db, id);
+
+    expect(result).toEqual({
+      summaryUpdated: false,
+      skippedReasons: ["Anthropic 输出达到长度上限（max_tokens）"],
+    });
+    expect(updated?.summary).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(secondBody.max_tokens).toBe(640);
+    expect(secondBody.messages[0].content).toContain("确保句子结束");
   });
 });

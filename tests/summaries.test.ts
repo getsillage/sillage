@@ -454,7 +454,73 @@ describe("generateSummary", () => {
     expect(day.title).toBe("2026-06-01 回顾");
   });
 
-  it("reports a skip when the provider returns no usable text", async () => {
+  it("retries with a larger budget when the summary is truncated", async () => {
+    await configureAnthropic();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [{ type: "text", text: "# 六月回顾\n\n这一周刚开了个头" }],
+          stop_reason: "max_tokens",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [{ type: "text", text: "# 六月回顾\n\n这一周完整收束。" }],
+          stop_reason: "end_turn",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "week",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      style: "structured",
+      entries: [entry],
+    });
+
+    expect(draft.ok).toBe(true);
+    expect(draft.content).toBe("这一周完整收束。");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(firstBody.max_tokens).toBe(1600);
+    expect(secondBody.max_tokens).toBe(2600);
+    expect(secondBody.messages[0].content).toContain("请重新生成完整回顾");
+  });
+
+  it("reports a length-limit reason when the retry is still truncated", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "# 六月回顾\n\n仍然不完整" }],
+          stop_reason: "max_tokens",
+        }),
+      ),
+    );
+
+    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const draft = await generateSummary(env, {
+      scope: "period",
+      periodType: "week",
+      startDate: "2026-06-22",
+      endDate: "2026-06-28",
+      style: "structured",
+      entries: [entry],
+    });
+
+    expect(draft.ok).toBe(false);
+    expect(draft.skippedReason).toBe(
+      "Anthropic 输出达到长度上限（max_tokens），请缩小范围或改用更短风格后重试",
+    );
+  });
+
+  it("reports provider detail when the provider returns no usable text", async () => {
     await configureAnthropic();
     vi.stubGlobal(
       "fetch",
@@ -472,6 +538,6 @@ describe("generateSummary", () => {
       entries: [entry],
     });
     expect(draft.ok).toBe(false);
-    expect(draft.skippedReason).toBe("AI 未返回内容");
+    expect(draft.skippedReason).toBe("Anthropic 未返回可用文本（refusal）");
   });
 });

@@ -19,9 +19,15 @@ const SYSTEM_PROMPTS: Record<SummaryStyle, string> = {
 };
 
 const MAX_TOKENS: Record<SummaryStyle, number> = {
-  brief: 400,
-  structured: 800,
-  narrative: 1200,
+  brief: 900,
+  structured: 1600,
+  narrative: 2400,
+};
+
+const RETRY_MAX_TOKENS: Record<SummaryStyle, number> = {
+  brief: 1400,
+  structured: 2600,
+  narrative: 3600,
 };
 
 export interface SummaryRequest {
@@ -115,11 +121,20 @@ export async function generateSummary(env: Env, request: SummaryRequest): Promis
     return { ok: false, title: "", content: "", model, skippedReason: "所选范围内没有记录" };
   }
 
-  const result = await generateText(config, {
+  const prompt = `${promptHeader(request)}\n\n${buildEntriesDigest(request.entries)}`;
+  let result = await generateText(config, {
     system: SYSTEM_PROMPTS[request.style],
-    prompt: `${promptHeader(request)}\n\n${buildEntriesDigest(request.entries)}`,
+    prompt,
     maxTokens: MAX_TOKENS[request.style],
   });
+
+  if (!result.skipped && result.truncated) {
+    result = await generateText(config, {
+      system: SYSTEM_PROMPTS[request.style],
+      prompt: `${prompt}\n\n【生成要求】\n上一次输出达到长度上限。请重新生成完整回顾，保留标题和正文，但更克制地压缩表达，确保有结尾。`,
+      maxTokens: RETRY_MAX_TOKENS[request.style],
+    });
+  }
 
   if (result.skipped) {
     return {
@@ -131,7 +146,22 @@ export async function generateSummary(env: Env, request: SummaryRequest): Promis
     };
   }
   if (!result.text) {
-    return { ok: false, title: "", content: "", model, skippedReason: "AI 未返回内容" };
+    return {
+      ok: false,
+      title: "",
+      content: "",
+      model,
+      skippedReason: result.reason ?? "AI 未返回内容",
+    };
+  }
+  if (result.truncated) {
+    return {
+      ok: false,
+      title: "",
+      content: "",
+      model,
+      skippedReason: `${result.reason ?? "AI 输出达到长度上限"}，请缩小范围或改用更短风格后重试`,
+    };
   }
 
   const { title, content } = splitTitle(result.text, fallbackTitle(request));

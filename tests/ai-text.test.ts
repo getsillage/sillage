@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiConfig } from "../app/lib/ai/config";
 import { generateText } from "../app/lib/ai/text";
 
@@ -11,8 +11,17 @@ const baseConfig: AiConfig = {
 };
 
 describe("AI text generation", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("skips when text generation is disabled", async () => {
@@ -58,6 +67,29 @@ describe("AI text generation", () => {
       system: "system prompt",
       messages: [{ role: "user", content: "正文" }],
     });
+  });
+
+  it("extracts Anthropic text from all text blocks", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [
+            { type: "text", text: "第一段" },
+            { type: "thinking", thinking: "hidden" },
+            { type: "text", text: "第二段" },
+          ],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "anthropic", anthropicApiKey: "secret-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "第一段第二段", skipped: false });
   });
 
   it("calls OpenAI-compatible chat completions with configured base URL", async () => {
@@ -136,6 +168,32 @@ describe("AI text generation", () => {
     expect(result).toEqual({ text: "旧字段", skipped: false });
   });
 
+  it("extracts OpenAI Responses-style output content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          output: [
+            {
+              type: "message",
+              content: [
+                { type: "output_text", text: "第一段" },
+                { type: "output_text", text: { value: "第二段" } },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "openai", openaiApiKey: "openai-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({ text: "第一段第二段", skipped: false });
+  });
+
   it("captures provider failures as skipped results", async () => {
     vi.stubGlobal(
       "fetch",
@@ -150,6 +208,10 @@ describe("AI text generation", () => {
     );
 
     expect(result).toEqual({ text: null, skipped: true, reason: "network down" });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[ai] Anthropic request errored",
+      expect.objectContaining({ model: "claude-opus-4-8", reason: "network down" }),
+    );
   });
 
   it("skips Anthropic when no API key is configured", async () => {
@@ -192,8 +254,12 @@ describe("AI text generation", () => {
     expect(result).toEqual({
       text: null,
       skipped: true,
-      reason: "Anthropic API returned 500",
+      reason: "Anthropic API returned 500：error",
     });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai] Anthropic request failed",
+      expect.objectContaining({ status: 500, reason: "Anthropic API returned 500：error" }),
+    );
   });
 
   it("reports a skipped result when OpenAI returns a non-OK status", async () => {
@@ -210,8 +276,12 @@ describe("AI text generation", () => {
     expect(result).toEqual({
       text: null,
       skipped: true,
-      reason: "OpenAI API returned 429",
+      reason: "OpenAI API returned 429：error",
     });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai] OpenAI request failed",
+      expect.objectContaining({ status: 429, reason: "OpenAI API returned 429：error" }),
+    );
   });
 
   it("returns null text when Anthropic responds with a refusal stop reason", async () => {
@@ -225,7 +295,15 @@ describe("AI text generation", () => {
       { system: "s", prompt: "p" },
     );
 
-    expect(result).toEqual({ text: null, skipped: false });
+    expect(result).toEqual({
+      text: null,
+      skipped: false,
+      reason: "Anthropic 未返回可用文本（refusal）",
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai] Anthropic returned no usable text",
+      expect.objectContaining({ stopReason: "refusal" }),
+    );
   });
 
   it("marks Anthropic max_tokens responses as truncated", async () => {
@@ -244,7 +322,12 @@ describe("AI text generation", () => {
       { system: "s", prompt: "p" },
     );
 
-    expect(result).toEqual({ text: "未完成的回答", skipped: false, truncated: true });
+    expect(result).toEqual({
+      text: "未完成的回答",
+      skipped: false,
+      reason: "Anthropic 输出达到长度上限（max_tokens）",
+      truncated: true,
+    });
   });
 
   it("marks OpenAI-compatible length finish reasons as truncated", async () => {
@@ -262,6 +345,35 @@ describe("AI text generation", () => {
       { system: "s", prompt: "p" },
     );
 
-    expect(result).toEqual({ text: "未完成的回答", skipped: false, truncated: true });
+    expect(result).toEqual({
+      text: "未完成的回答",
+      skipped: false,
+      reason: "OpenAI 输出达到长度上限（length）",
+      truncated: true,
+    });
+  });
+
+  it("treats OpenAI incomplete responses without text as truncation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+        }),
+      ),
+    );
+
+    const result = await generateText(
+      { ...baseConfig, textProvider: "openai", openaiApiKey: "openai-key" },
+      { system: "s", prompt: "p" },
+    );
+
+    expect(result).toEqual({
+      text: null,
+      skipped: false,
+      reason: "OpenAI 输出达到长度上限（max_output_tokens）",
+      truncated: true,
+    });
   });
 });

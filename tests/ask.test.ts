@@ -113,7 +113,7 @@ describe("answerQuestion", () => {
     expect(body.system).toContain("总结、复盘、模式识别和温和建议");
     expect(body.system).toContain("不要要求记忆里必须已经写过明确的「建议」");
     expect(body.system).not.toContain("不要总结、复盘、诊断或扩写");
-    expect(body.max_tokens).toBe(1800);
+    expect(body.max_tokens).toBe(3200);
   });
 
   it("retries with a larger budget when the answer is truncated", async () => {
@@ -146,8 +146,8 @@ describe("answerQuestion", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
-    expect(firstBody.max_tokens).toBe(1800);
-    expect(secondBody.max_tokens).toBe(3200);
+    expect(firstBody.max_tokens).toBe(3200);
+    expect(secondBody.max_tokens).toBe(4800);
     expect(secondBody.messages[0].content).toContain("请重新生成完整答案");
   });
 
@@ -162,11 +162,39 @@ describe("answerQuestion", () => {
     expect(prompt).toContain("所选来源里没有找到相关证据");
   });
 
-  it("reports a skip when the model returns no usable text", async () => {
+  it("retries even when a truncated answer has no visible text", async () => {
+    await configureAnthropic();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [],
+          stop_reason: "max_tokens",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          content: [{ type: "text", text: "完整回答。" }],
+          stop_reason: "end_turn",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await answerQuestion(env, {
+      question: "请完整总结",
+      evidence: "一些较长的证据",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.answer).toBe("完整回答。");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports provider detail when the model returns no usable text", async () => {
     await configureAnthropic();
     vi.stubGlobal("fetch", anthropicText("", "refusal"));
     const result = await answerQuestion(env, { question: "?", evidence: "证据" });
     expect(result.ok).toBe(false);
-    expect(result.skippedReason).toBe("AI 未返回内容");
+    expect(result.skippedReason).toBe("Anthropic 未返回可用文本（refusal）");
   });
 });

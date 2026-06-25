@@ -27,9 +27,10 @@ export default function AppLayout() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
               to="/"
-              className="text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
+              className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
             >
-              Sillage
+              <img src="/sillage-icon.svg" alt="" className="h-6 w-6 shrink-0" />
+              <span>Sillage</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <NavLink to="/" end className={navClass}>

@@ -53,7 +53,10 @@ export default function Login({ actionData }: Route.ComponentProps) {
         method="post"
         className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
       >
-        <h1 className={pageTitleClass}>Sillage</h1>
+        <h1 className={`${pageTitleClass} flex items-center gap-2`}>
+          <img src="/sillage-icon.svg" alt="" className="h-7 w-7 shrink-0" />
+          <span>Sillage</span>
+        </h1>
         <p className={pageLeadClass}>输入密码以继续。</p>
 
         <label className="mt-6 block font-medium text-gray-900 text-sm dark:text-gray-100">

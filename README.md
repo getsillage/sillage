@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./public/sillage-icon.svg" alt="Sillage" width="96" height="96">
+</p>
+
 # Sillage · Cloudflare Workers
 
 Sillage 是一个完全运行在 Cloudflare 边缘平台上的**单用户私人记忆空间**。它记录事件、情绪、想法，以及它们留下的余韵：白天可以留下片段，事后可以写笔记，AI 则生成可追溯的洞察。

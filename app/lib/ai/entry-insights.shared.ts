@@ -7,12 +7,6 @@ export const ENTRY_INSIGHT_INTENTS = [
 ] as const;
 export type EntryInsightIntent = (typeof ENTRY_INSIGHT_INTENTS)[number];
 
-export interface EntryInsightActionData {
-  intent: EntryInsightIntent;
-  ok: boolean;
-  message: string;
-}
-
 export const ENTRY_INSIGHT_AUTO_MODES = ["off", "notes", "all"] as const;
 export type EntryInsightAutoMode = (typeof ENTRY_INSIGHT_AUTO_MODES)[number];
 export const DEFAULT_ENTRY_INSIGHT_AUTO_MODE: EntryInsightAutoMode = "notes";

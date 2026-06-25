@@ -77,6 +77,38 @@ export function rangeForPeriod(periodType: SummaryPeriodType, refDateISO: string
 }
 
 /**
+ * A gentle relative-time phrase for a past moment, e.g. "刚刚 / 12 分钟前 / 昨天".
+ * Bucketed from the millisecond delta (not calendar-aware) so it stays pure and
+ * deterministic; falls back to the YYYY-MM-DD date once a moment is over a week old
+ * or sits in the future.
+ */
+export function relativeTime(value: Date, now: Date = new Date()): string {
+  const deltaMs = now.getTime() - value.getTime();
+  if (deltaMs < 0) {
+    return toISODate(value);
+  }
+  const minutes = Math.floor(deltaMs / 60_000);
+  if (minutes < 1) {
+    return "刚刚";
+  }
+  if (minutes < 60) {
+    return `${minutes} 分钟前`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours} 小时前`;
+  }
+  const days = Math.floor(hours / 24);
+  if (days === 1) {
+    return "昨天";
+  }
+  if (days < 7) {
+    return `${days} 天前`;
+  }
+  return toISODate(value);
+}
+
+/**
  * Builds the calendar grid for a month as rows of 7 cells; cells outside the
  * month are null. Each in-month cell is the YYYY-MM-DD date string.
  */

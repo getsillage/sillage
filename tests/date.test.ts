@@ -4,6 +4,7 @@ import {
   firstWeekday,
   monthGrid,
   pad2,
+  relativeTime,
   toISODate,
   yearsBetween,
 } from "../app/lib/date";
@@ -46,5 +47,28 @@ describe("date helpers", () => {
       "2026-06-06",
     ]);
     expect(grid.at(-1)?.at(-1)).toBeNull();
+  });
+});
+
+describe("relativeTime", () => {
+  const now = new Date("2026-06-25T12:00:00.000Z");
+
+  it("says 刚刚 within a minute", () => {
+    expect(relativeTime(new Date("2026-06-25T11:59:30.000Z"), now)).toBe("刚刚");
+  });
+
+  it("counts minutes and hours", () => {
+    expect(relativeTime(new Date("2026-06-25T11:48:00.000Z"), now)).toBe("12 分钟前");
+    expect(relativeTime(new Date("2026-06-25T09:00:00.000Z"), now)).toBe("3 小时前");
+  });
+
+  it("says 昨天 then N 天前", () => {
+    expect(relativeTime(new Date("2026-06-24T10:00:00.000Z"), now)).toBe("昨天");
+    expect(relativeTime(new Date("2026-06-22T12:00:00.000Z"), now)).toBe("3 天前");
+  });
+
+  it("falls back to the date past a week or in the future", () => {
+    expect(relativeTime(new Date("2026-06-10T12:00:00.000Z"), now)).toBe("2026-06-10");
+    expect(relativeTime(new Date("2026-06-26T12:00:00.000Z"), now)).toBe("2026-06-26");
   });
 });

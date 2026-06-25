@@ -26,6 +26,10 @@ function makeEntry(overrides: Partial<EntryWithTags> = {}): EntryWithTags {
     deletedAt: null,
     summary: "一句摘要",
     sentiment: "积极",
+    aiModel: null,
+    aiDurationMs: null,
+    aiGeneratedAt: null,
+    aiGenerationCount: 0,
     tags: ["旅行", "生活"],
     ...overrides,
   };

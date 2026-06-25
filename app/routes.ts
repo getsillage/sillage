@@ -4,6 +4,8 @@ export default [
   route("login", "routes/login.tsx"),
   route("logout", "routes/logout.tsx"),
   route("api/sync", "routes/api.sync.tsx"),
+  route("api/entry-insight", "routes/api.entry-insight.tsx"),
+  route("api/summary", "routes/api.summary.tsx"),
   layout("routes/app-layout.tsx", [
     index("routes/home.tsx"),
     route("timeline", "routes/timeline.tsx"),

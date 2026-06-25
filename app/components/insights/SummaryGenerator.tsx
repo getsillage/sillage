@@ -1,5 +1,7 @@
+import type { FormEvent } from "react";
 import { useState } from "react";
-import { useFetcher } from "react-router";
+import { GenerationStatus } from "~/components/ai/GenerationStatus";
+import { useAiGeneration } from "~/components/ai/useAiGeneration";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import {
   helperTextClass,
@@ -8,10 +10,10 @@ import {
   panelClass,
   primaryButtonClass,
 } from "~/components/ui";
+import { SUMMARY_PHASES } from "~/lib/ai/progress";
 import type { EntryFormSuggestions } from "~/lib/product/entry-suggestions";
-import type { SummaryActionData } from "~/lib/product/summary-actions";
 import type { SummaryPeriodType, SummaryStyle } from "~/lib/product/summary-fields";
-import { ChipGroup, PERIOD_OPTIONS, STYLE_OPTIONS, statusClass } from "./shared";
+import { ChipGroup, PERIOD_OPTIONS, STYLE_OPTIONS } from "./shared";
 
 export interface PickerEntry {
   id: string;
@@ -24,16 +26,26 @@ interface SummaryGeneratorProps {
   pickerEntries: PickerEntry[];
 }
 
+/** Collects the rendered form fields into a flat record for the JSON endpoint. */
+function formFields(form: HTMLFormElement): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const [key, value] of new FormData(form).entries()) {
+    if (typeof value === "string") {
+      fields[key] = value;
+    }
+  }
+  return fields;
+}
+
 /** "回顾" generation form: pick a period or a topic thread, let AI weave a review. */
 export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGeneratorProps) {
-  const fetcher = useFetcher<SummaryActionData>();
+  const generation = useAiGeneration("/api/summary");
   const [scope, setScope] = useState<"period" | "topic">("period");
   const [periodType, setPeriodType] = useState<SummaryPeriodType>("week");
   const [style, setStyle] = useState<SummaryStyle>("brief");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const generating = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "generate";
-  const data = fetcher.data;
+  const generating = generation.status === "running";
 
   function toggleEntry(id: string) {
     setSelectedIds((current) =>
@@ -41,12 +53,17 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
     );
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    generation.run(formFields(event.currentTarget));
+  }
+
   return (
     <section className={`${panelClass} p-4`}>
       <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">生成总结</h2>
       <p className={helperTextClass}>挑一个时间范围或一条主题线索，让 AI 把记录织成一篇回顾。</p>
 
-      <fetcher.Form method="post" className="mt-4 space-y-4">
+      <form method="post" onSubmit={handleSubmit} className="mt-4 space-y-4">
         <input type="hidden" name="intent" value="generate" />
         <input type="hidden" name="scope" value={scope} />
         <input type="hidden" name="style" value={style} />
@@ -168,10 +185,8 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
           </button>
         </div>
 
-        {data && data.intent === "generate" ? (
-          <p className={statusClass(data.ok)}>{data.message}</p>
-        ) : null}
-      </fetcher.Form>
+        <GenerationStatus state={generation} phases={SUMMARY_PHASES} />
+      </form>
     </section>
   );
 }

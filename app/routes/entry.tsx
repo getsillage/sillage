@@ -1,10 +1,9 @@
 import { env } from "cloudflare:workers";
 import { Form, Link, redirect } from "react-router";
+import { EntryInsightControl } from "~/components/ai/EntryInsightControl";
 import { EntryForm } from "~/components/EntryForm";
 import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
-import { runEntryInsightAction } from "~/lib/ai/entry-insights";
-import { type EntryInsightActionData, isEntryInsightIntent } from "~/lib/ai/entry-insights.shared";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
@@ -18,6 +17,7 @@ import {
   parseTextList,
 } from "~/lib/product/entry-fields";
 import { buildEntryFormSuggestions } from "~/lib/product/entry-suggestions";
+import { formatReadingStats, readingStats } from "~/lib/product/reading-stats";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
 
@@ -105,10 +105,6 @@ export async function action({ request, params }: Route.ActionArgs) {
     return redirect("/");
   }
 
-  if (isEntryInsightIntent(intent)) {
-    return runEntryInsightAction(env, db, params.id, intent);
-  }
-
   const values = entryFormFromData(form);
   const parsed = entrySchema.safeParse(values);
   if (!parsed.success) {
@@ -122,50 +118,13 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/entries/${params.id}`);
 }
 
-function EntryInsightSection({
-  entry,
-  actionData,
-}: {
-  entry: EntryWithTags;
-  actionData?: EntryInsightActionData | { error?: string } | undefined;
-}) {
-  const intent = entry.summary ? "regenerate-entry-insight" : "generate-entry-insight";
-  const label = entry.summary ? "重新生成洞察" : "生成洞察";
-  const insightActionData =
-    actionData && "intent" in actionData && isEntryInsightIntent(actionData.intent)
-      ? actionData
-      : null;
-
+function EntryInsightSection({ entry }: { entry: EntryWithTags }) {
   return (
     <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">AI 洞察</h2>
-        <Form method="post">
-          <input type="hidden" name="intent" value={intent} />
-          <button
-            type="submit"
-            className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-          >
-            {label}
-          </button>
-        </Form>
+      <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">AI 洞察</h2>
+      <div className="mt-1">
+        <EntryInsightControl entry={entry} />
       </div>
-      {entry.summary ? (
-        <p className="mt-1 text-gray-600 dark:text-gray-300">{entry.summary}</p>
-      ) : (
-        <p className="mt-1 text-gray-400 dark:text-gray-500">还没有为这条记录生成洞察。</p>
-      )}
-      {insightActionData ? (
-        <p
-          className={`mt-2 text-xs ${
-            insightActionData.ok
-              ? "text-green-700 dark:text-green-300"
-              : "text-red-600 dark:text-red-400"
-          }`}
-        >
-          {insightActionData.message}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -178,6 +137,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
   const relationships = parseTextList(entry.relationships);
   const kindLabel = entryKindLabel(kind);
   const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
+  const readingLine = formatReadingStats(readingStats(entry.body));
 
   if (editing) {
     return (
@@ -255,6 +215,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
               <span>· 共修改 {entry.version - 1} 次</span>
             </>
           ) : null}
+          {readingLine ? <span>· {readingLine}</span> : null}
         </div>
         {entry.title ? (
           <h1 className="mt-2 font-semibold text-2xl text-gray-900 dark:text-gray-50">
@@ -296,7 +257,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         </section>
       ) : null}
 
-      <EntryInsightSection entry={entry} actionData={actionData} />
+      <EntryInsightSection entry={entry} />
 
       {revisions.length > 1 ? (
         <section className="border-gray-100 border-t py-4 text-sm dark:border-gray-800">

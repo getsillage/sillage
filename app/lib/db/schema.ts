@@ -77,6 +77,12 @@ export const entryAi = sqliteTable("entry_ai", {
   sentiment: text("sentiment"),
   // Which provider/model produced the current values (audit + regeneration logic).
   model: text("model"),
+  // Wall-clock of the last successful generation, in milliseconds (audit + the UI's
+  // "用时" line). Null until a generation has succeeded.
+  durationMs: integer("duration_ms"),
+  // How many times insight has been (re)generated for this entry; powers the
+  // "生成历史" affordance without a separate history table.
+  generationCount: integer("generation_count").notNull().default(0),
   generatedAt: integer("generated_at", { mode: "timestamp_ms" }),
 });
 

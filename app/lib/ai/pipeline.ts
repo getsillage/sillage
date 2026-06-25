@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entryAi } from "~/lib/db/schema";
@@ -14,6 +15,11 @@ import { generateText } from "./text";
 export interface AiPipelineResult {
   summaryUpdated: boolean;
   skippedReasons: string[];
+  // Provenance + wall-clock of this run, surfaced by the manual-generation UI. The
+  // model is the configured one even when the run is skipped; duration is the time
+  // actually spent calling the provider.
+  model: string | null;
+  durationMs: number;
 }
 
 const SUMMARY_MAX_TOKENS = 320;
@@ -61,6 +67,7 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   const text = entryText(entry);
 
   const prompt = text;
+  const startedAt = Date.now();
   let summary = await generateText(config, {
     system:
       "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
@@ -87,6 +94,9 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
     skippedReasons.push(summary.reason ?? "AI 输出达到长度上限");
   }
 
+  const durationMs = Date.now() - startedAt;
+  const model = activeModel(config);
+
   if (summary.text && !summary.truncated) {
     const db = getDb(env.DB);
     const now = new Date();
@@ -95,17 +105,28 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
       .values({
         entryId: entry.id,
         summary: summary.text,
-        model: activeModel(config),
+        model,
+        durationMs,
+        generationCount: 1,
         generatedAt: now,
       })
       .onConflictDoUpdate({
         target: entryAi.entryId,
-        set: { summary: summary.text, model: activeModel(config), generatedAt: now },
+        set: {
+          summary: summary.text,
+          model,
+          durationMs,
+          // Each successful (re)generation bumps the counter for the history line.
+          generationCount: sql`${entryAi.generationCount} + 1`,
+          generatedAt: now,
+        },
       });
   }
 
   return {
     summaryUpdated: Boolean(summary.text && !summary.truncated),
     skippedReasons,
+    model,
+    durationMs,
   };
 }

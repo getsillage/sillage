@@ -1,8 +1,6 @@
-import {
-  ENTRY_INSIGHT_FORM_FIELD,
-  type EntryInsightActionData,
-  type EntryInsightIntent,
-} from "~/lib/ai/entry-insights.shared";
+import { ENTRY_INSIGHT_FORM_FIELD, type EntryInsightIntent } from "~/lib/ai/entry-insights.shared";
+import { classifyAiFailure } from "~/lib/ai/failure";
+import type { AiGenerationResult } from "~/lib/ai/generation-result";
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import type { Db } from "~/lib/db/client";
 import { getEntry } from "~/lib/db/entries";
@@ -10,19 +8,6 @@ import type { WaitUntil } from "~/lib/request-context";
 
 export function entryInsightRequestedByForm(form: FormData): boolean {
   return form.get(ENTRY_INSIGHT_FORM_FIELD) === "on";
-}
-
-function friendlyReason(reason?: string): string {
-  if (!reason) {
-    return "未能生成洞察";
-  }
-  if (reason.includes("disabled")) {
-    return "AI 未启用，请先在「设置」中配置并启用 AI 功能";
-  }
-  if (reason.includes("key not configured")) {
-    return "尚未配置 API Key，请到「设置」补全";
-  }
-  return `未能生成：${reason}`;
 }
 
 export function scheduleEntryInsight(
@@ -50,13 +35,20 @@ export async function runEntryInsightAction(
   db: Db,
   entryId: string,
   intent: EntryInsightIntent,
-): Promise<EntryInsightActionData> {
+): Promise<AiGenerationResult> {
   const entry = await getEntry(db, entryId);
   if (!entry) {
-    return { intent, ok: false, message: "记录不存在" };
+    return { ok: false, message: "记录不存在", category: "unknown" };
   }
   const result = await runAiPipeline(env, entry);
-  return result.summaryUpdated
-    ? { intent, ok: true, message: entry.summary ? "已重新生成洞察" : "已生成洞察" }
-    : { intent, ok: false, message: friendlyReason(result.skippedReasons[0]) };
+  if (result.summaryUpdated) {
+    return {
+      ok: true,
+      message: intent === "regenerate-entry-insight" ? "已重新生成洞察" : "已生成洞察",
+      model: result.model,
+      durationMs: result.durationMs,
+    };
+  }
+  const failure = classifyAiFailure(result.skippedReasons[0]);
+  return { ok: false, message: failure.message, hint: failure.hint, category: failure.category };
 }

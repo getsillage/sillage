@@ -334,6 +334,10 @@ describe("buildEntriesDigest", () => {
       deletedAt: null,
       summary: null,
       sentiment: null,
+      aiModel: null,
+      aiDurationMs: null,
+      aiGeneratedAt: null,
+      aiGenerationCount: 0,
       tags: ["生活"],
     };
     const many = Array.from({ length: 65 }, (_, index) => ({

@@ -36,6 +36,11 @@ export interface EntryWithTags extends Entry {
   // null until the pipeline fills them in.
   summary: string | null;
   sentiment: string | null;
+  // Provenance + cost of the current insight, surfaced in the UI's meta line.
+  aiModel: string | null;
+  aiDurationMs: number | null;
+  aiGeneratedAt: Date | null;
+  aiGenerationCount: number;
   tags: string[];
 }
 
@@ -56,6 +61,10 @@ export async function composeEntries(db: Db, rows: JoinedRow[]): Promise<EntryWi
     ...row.entries,
     summary: row.entry_ai?.summary ?? null,
     sentiment: row.entry_ai?.sentiment ?? null,
+    aiModel: row.entry_ai?.model ?? null,
+    aiDurationMs: row.entry_ai?.durationMs ?? null,
+    aiGeneratedAt: row.entry_ai?.generatedAt ?? null,
+    aiGenerationCount: row.entry_ai?.generationCount ?? 0,
     tags: tagMap.get(row.entries.id) ?? [],
   }));
 }

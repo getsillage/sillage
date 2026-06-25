@@ -1,5 +1,5 @@
 import { Link, useFetcher } from "react-router";
-import type { EntryInsightActionData } from "~/lib/ai/entry-insights";
+import type { EntryInsightActionData } from "~/lib/ai/entry-insights.shared";
 import type { EntryWithTags } from "~/lib/db/entries";
 import {
   entryKindLabel,

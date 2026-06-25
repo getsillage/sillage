@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+  ENTRY_INSIGHT_AUTO_MODES,
+  type EntryInsightAutoMode,
+} from "~/lib/ai/entry-insights.shared";
 import { decryptBytes, encryptBytes } from "~/lib/crypto/aes";
 import { base64ToBytes, bytesToBase64 } from "~/lib/crypto/encoding";
 
@@ -13,9 +18,6 @@ const STORE_VERSION = 2;
 
 export const AI_PROTOCOLS = ["anthropic", "openai"] as const;
 export type AiProtocol = (typeof AI_PROTOCOLS)[number];
-export const ENTRY_INSIGHT_AUTO_MODES = ["off", "notes", "all"] as const;
-export type EntryInsightAutoMode = (typeof ENTRY_INSIGHT_AUTO_MODES)[number];
-export const DEFAULT_ENTRY_INSIGHT_AUTO_MODE: EntryInsightAutoMode = "notes";
 
 /** Full settings including the decrypted key — server-side use only. */
 export interface AiSettings {

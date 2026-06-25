@@ -10,11 +10,8 @@ import {
   rowLinkClass,
   subtlePanelClass,
 } from "~/components/ui";
-import {
-  entryInsightRequestedByForm,
-  scheduleEntryInsight,
-  shouldGenerateEntryInsightForKind,
-} from "~/lib/ai/entry-insights";
+import { entryInsightRequestedByForm, scheduleEntryInsight } from "~/lib/ai/entry-insights";
+import { shouldGenerateEntryInsightForKind } from "~/lib/ai/entry-insights.shared";
 import { requireSession } from "~/lib/auth/session";
 import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";

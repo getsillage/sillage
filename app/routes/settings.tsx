@@ -4,6 +4,11 @@ import { Form, useFetcher, useNavigation } from "react-router";
 import { BackupSection } from "~/components/BackupSection";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import {
+  DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
+  ENTRY_INSIGHT_AUTO_MODES,
+  type EntryInsightAutoMode,
+} from "~/lib/ai/entry-insights.shared";
 import { listAiModels } from "~/lib/ai/models";
 import { testAiConnection } from "~/lib/ai/test-connection";
 import { requireSession } from "~/lib/auth/session";
@@ -15,10 +20,7 @@ import {
   activateAiSettingsProfile,
   aiProviderCredentialsSchema,
   aiSettingsInputSchema,
-  DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   deleteAiSettingsProfile,
-  ENTRY_INSIGHT_AUTO_MODES,
-  type EntryInsightAutoMode,
   loadAiSettingsProfile,
   loadAiSettingsView,
   saveAiSettings,

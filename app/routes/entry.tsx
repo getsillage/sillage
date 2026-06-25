@@ -3,11 +3,8 @@ import { Form, Link, redirect } from "react-router";
 import { EntryForm } from "~/components/EntryForm";
 import { LocalDateTime } from "~/components/LocalDateTime";
 import { Markdown } from "~/components/Markdown";
-import {
-  type EntryInsightActionData,
-  isEntryInsightIntent,
-  runEntryInsightAction,
-} from "~/lib/ai/entry-insights";
+import { runEntryInsightAction } from "~/lib/ai/entry-insights";
+import { type EntryInsightActionData, isEntryInsightIntent } from "~/lib/ai/entry-insights.shared";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
@@ -109,7 +106,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   if (isEntryInsightIntent(intent)) {
-    return runEntryInsightAction(db, params.id, intent);
+    return runEntryInsightAction(env, db, params.id, intent);
   }
 
   const values = entryFormFromData(form);

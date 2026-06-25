@@ -1,41 +1,12 @@
-import { env } from "cloudflare:workers";
+import {
+  ENTRY_INSIGHT_FORM_FIELD,
+  type EntryInsightActionData,
+  type EntryInsightIntent,
+} from "~/lib/ai/entry-insights.shared";
 import { runAiPipeline } from "~/lib/ai/pipeline";
 import type { Db } from "~/lib/db/client";
 import { getEntry } from "~/lib/db/entries";
-import { type EntryKind, normalizeEntryKind } from "~/lib/product/entry-fields";
 import type { WaitUntil } from "~/lib/request-context";
-import type { EntryInsightAutoMode } from "~/lib/settings/ai-settings";
-
-export const ENTRY_INSIGHT_FORM_FIELD = "generateEntryInsight";
-export const ENTRY_INSIGHT_INTENTS = [
-  "generate-entry-insight",
-  "regenerate-entry-insight",
-] as const;
-export type EntryInsightIntent = (typeof ENTRY_INSIGHT_INTENTS)[number];
-
-export interface EntryInsightActionData {
-  intent: EntryInsightIntent;
-  ok: boolean;
-  message: string;
-}
-
-export function isEntryInsightIntent(value: string): value is EntryInsightIntent {
-  return (ENTRY_INSIGHT_INTENTS as readonly string[]).includes(value);
-}
-
-export function shouldGenerateEntryInsightForKind(
-  mode: EntryInsightAutoMode,
-  kind: EntryKind | string | null | undefined,
-): boolean {
-  const normalized = normalizeEntryKind(kind);
-  if (mode === "all") {
-    return true;
-  }
-  if (mode === "notes") {
-    return normalized === "note";
-  }
-  return false;
-}
 
 export function entryInsightRequestedByForm(form: FormData): boolean {
   return form.get(ENTRY_INSIGHT_FORM_FIELD) === "on";
@@ -75,6 +46,7 @@ export function scheduleEntryInsight(
 }
 
 export async function runEntryInsightAction(
+  env: Env,
   db: Db,
   entryId: string,
   intent: EntryInsightIntent,

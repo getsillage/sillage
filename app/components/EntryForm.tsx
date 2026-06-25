@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { Form, useNavigation } from "react-router";
-import { ENTRY_INSIGHT_FORM_FIELD } from "~/lib/ai/entry-insights";
+import { ENTRY_INSIGHT_FORM_FIELD } from "~/lib/ai/entry-insights.shared";
 import { todayISO } from "~/lib/date";
 import { ENTRY_KINDS, type EntryKind, NOTE_TYPES, type NoteType } from "~/lib/product/entry-fields";
 import type { EntryFormSuggestions } from "~/lib/product/entry-suggestions";

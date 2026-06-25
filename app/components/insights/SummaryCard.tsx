@@ -30,7 +30,9 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
   const busy = fetcher.state !== "idle";
   const scopeLabel =
     summary.scope === "topic"
-      ? "主题"
+      ? summary.periodType && isSummaryPeriodType(summary.periodType)
+        ? `主题 · ${PERIOD_TYPE_LABELS[summary.periodType]}`
+        : "主题"
       : summary.periodType && isSummaryPeriodType(summary.periodType)
         ? PERIOD_TYPE_LABELS[summary.periodType]
         : "时间范围";

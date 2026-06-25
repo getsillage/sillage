@@ -148,6 +148,26 @@ export async function findPeriodSummary(
   return row ? toSummaryView(row) : null;
 }
 
+/** Finds the latest live period summary for a period type regardless of its stored window. */
+export async function findLatestPeriodSummary(
+  db: Db,
+  periodType: SummaryPeriodType,
+): Promise<SummaryView | null> {
+  const [row] = await db
+    .select()
+    .from(summaries)
+    .where(
+      and(
+        eq(summaries.scope, "period"),
+        eq(summaries.periodType, periodType),
+        isNull(summaries.deletedAt),
+      ),
+    )
+    .orderBy(desc(summaries.generatedAt))
+    .limit(1);
+  return row ? toSummaryView(row) : null;
+}
+
 export async function listSummaries(
   db: Db,
   options: { scope?: SummaryScope; limit?: number } = {},

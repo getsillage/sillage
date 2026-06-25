@@ -1,12 +1,13 @@
 import { env } from "cloudflare:workers";
 import { generateSummary } from "~/lib/ai/summarize";
 import { rangeForPeriod, todayISO } from "~/lib/date";
-import { listEntriesByDateRange } from "~/lib/db/calendar";
+import { listAllEntriesByDate, listEntriesByDateRange } from "~/lib/db/calendar";
 import type { Db } from "~/lib/db/client";
 import {
   collectEntriesForTopic,
   createSummary,
   deleteSummary,
+  findLatestPeriodSummary,
   findPeriodSummary,
   getSummary,
   updateSummary,
@@ -17,7 +18,11 @@ import {
   type SummaryFilter,
   type SummaryPeriodType,
 } from "~/lib/product/summary-fields";
-import { summaryGenerateFromData, summaryGenerateSchema } from "~/lib/validation/summary";
+import {
+  type SummaryGenerateInput,
+  summaryGenerateFromData,
+  summaryGenerateSchema,
+} from "~/lib/validation/summary";
 
 export type SummaryIntent = "generate" | "delete" | "regenerate-summary";
 
@@ -73,6 +78,34 @@ function topicLabelFromFilter(filter: SummaryFilter): string {
   return parts.join(" · ");
 }
 
+function topicFilterFromInput(input: SummaryGenerateInput): SummaryFilter {
+  const filter: SummaryFilter = {};
+  if (input.filter.tags.length) filter.tags = input.filter.tags;
+  if (input.filter.people.length) filter.people = input.filter.people;
+  if (input.filter.relationships.length) filter.relationships = input.filter.relationships;
+  if (input.filter.keyword) filter.keyword = input.filter.keyword;
+  if (input.filter.entryIds.length) filter.entryIds = input.filter.entryIds;
+  return filter;
+}
+
+function periodWindowFromInput(
+  input: SummaryGenerateInput,
+  today: string,
+): {
+  periodType: SummaryPeriodType;
+  window: { startDate: string; endDate: string } | null;
+} {
+  const periodType = input.periodType as SummaryPeriodType;
+  if (periodType === "all") {
+    return { periodType, window: null };
+  }
+  const window =
+    periodType === "custom" && input.startDate && input.endDate
+      ? { startDate: input.startDate, endDate: input.endDate }
+      : rangeForPeriod(periodType, today);
+  return { periodType, window };
+}
+
 function rangeFromEntries(
   entries: { entryDate: string }[],
   fallback: { startDate: string; endDate: string },
@@ -106,14 +139,23 @@ export async function runSummaryAction(
     const style = isSummaryStyle(existing.style) ? existing.style : "brief";
     const periodType =
       existing.periodType && isSummaryPeriodType(existing.periodType) ? existing.periodType : null;
+    const existingWindow =
+      periodType && periodType !== "all"
+        ? { startDate: existing.startDate, endDate: existing.endDate }
+        : undefined;
     const entries =
       existing.scope === "topic"
-        ? await collectEntriesForTopic(db, existing.filter ?? {})
-        : await listEntriesByDateRange(db, existing.startDate, existing.endDate);
-    const range = rangeFromEntries(entries, {
-      startDate: existing.startDate,
-      endDate: existing.endDate,
-    });
+        ? await collectEntriesForTopic(db, existing.filter ?? {}, existingWindow)
+        : periodType === "all"
+          ? await listAllEntriesByDate(db)
+          : await listEntriesByDateRange(db, existing.startDate, existing.endDate);
+    const storedWindow = { startDate: existing.startDate, endDate: existing.endDate };
+    const range =
+      existing.scope === "topic" && (!periodType || periodType === "all")
+        ? rangeFromEntries(entries, storedWindow)
+        : periodType === "all"
+          ? rangeFromEntries(entries, storedWindow)
+          : storedWindow;
     const draft = await generateSummary(env, {
       scope: existing.scope === "topic" ? "topic" : "period",
       periodType,
@@ -154,41 +196,43 @@ export async function runSummaryAction(
   const input = parsed.data;
   const today = todayISO();
 
-  if (input.scope === "period") {
-    const periodType = input.periodType as SummaryPeriodType;
-    const window =
-      periodType === "custom" && input.startDate && input.endDate
-        ? { startDate: input.startDate, endDate: input.endDate }
-        : rangeForPeriod(periodType, today);
-    const entries = await listEntriesByDateRange(db, window.startDate, window.endDate);
+  if (!input.useTopic) {
+    const { periodType, window } = periodWindowFromInput(input, today);
+    const entries = window
+      ? await listEntriesByDateRange(db, window.startDate, window.endDate)
+      : await listAllEntriesByDate(db);
+    const range = window ?? rangeFromEntries(entries, { startDate: today, endDate: today });
     const draft = await generateSummary(env, {
       scope: "period",
       periodType,
-      startDate: window.startDate,
-      endDate: window.endDate,
+      startDate: range.startDate,
+      endDate: range.endDate,
       style: input.style,
       entries,
     });
     if (!draft.ok) {
       return { intent: "generate", ok: false, message: friendlyReason(draft.skippedReason) };
     }
-    const existing = await findPeriodSummary(db, periodType, window.startDate, window.endDate);
+    const existing =
+      periodType === "all"
+        ? await findLatestPeriodSummary(db, periodType)
+        : await findPeriodSummary(db, periodType, range.startDate, range.endDate);
     if (existing) {
       await updateSummary(db, existing.id, {
         title: draft.title,
         content: draft.content,
         model: draft.model,
         style: input.style,
-        startDate: window.startDate,
-        endDate: window.endDate,
+        startDate: range.startDate,
+        endDate: range.endDate,
         sourceEntryIds: entries.map((entry) => entry.id),
       });
     } else {
       await createSummary(db, {
         scope: "period",
         periodType,
-        startDate: window.startDate,
-        endDate: window.endDate,
+        startDate: range.startDate,
+        endDate: range.endDate,
         style: input.style,
         filter: null,
         title: draft.title,
@@ -200,19 +244,13 @@ export async function runSummaryAction(
     return { intent: "generate", ok: true, message: "已生成总结" };
   }
 
-  // scope === "topic"
-  const filter: SummaryFilter = {};
-  if (input.filter.tags.length) filter.tags = input.filter.tags;
-  if (input.filter.people.length) filter.people = input.filter.people;
-  if (input.filter.relationships.length) filter.relationships = input.filter.relationships;
-  if (input.filter.keyword) filter.keyword = input.filter.keyword;
-  if (input.filter.entryIds.length) filter.entryIds = input.filter.entryIds;
-
-  const entries = await collectEntriesForTopic(db, filter);
-  const range = rangeFromEntries(entries, { startDate: today, endDate: today });
+  const filter = topicFilterFromInput(input);
+  const period = input.usePeriod ? periodWindowFromInput(input, today) : null;
+  const entries = await collectEntriesForTopic(db, filter, period?.window ?? undefined);
+  const range = period?.window ?? rangeFromEntries(entries, { startDate: today, endDate: today });
   const draft = await generateSummary(env, {
     scope: "topic",
-    periodType: null,
+    periodType: period?.periodType ?? null,
     startDate: range.startDate,
     endDate: range.endDate,
     style: input.style,
@@ -224,7 +262,7 @@ export async function runSummaryAction(
   }
   await createSummary(db, {
     scope: "topic",
-    periodType: null,
+    periodType: period?.periodType ?? null,
     startDate: range.startDate,
     endDate: range.endDate,
     style: input.style,

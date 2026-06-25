@@ -40,8 +40,7 @@ function formFields(form: HTMLFormElement): Record<string, string> {
 /** "回顾" generation form: pick a period or a topic thread, let AI weave a review. */
 export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGeneratorProps) {
   const generation = useAiGeneration("/api/summary");
-  const [scope, setScope] = useState<"period" | "topic">("period");
-  const [periodType, setPeriodType] = useState<SummaryPeriodType>("week");
+  const [periodType, setPeriodType] = useState<SummaryPeriodType>("all");
   const [style, setStyle] = useState<SummaryStyle>("brief");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -61,46 +60,61 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
   return (
     <section className={`${panelClass} p-4 sm:p-5 lg:p-6`}>
       <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">生成总结</h2>
-      <p className={helperTextClass}>挑一个时间范围或一条主题线索，让 AI 把记录织成一篇回顾。</p>
+      <p className={helperTextClass}>
+        时间范围和主题线索可以一起使用；主题留空时，就按所选时间生成回顾。
+      </p>
 
       <form method="post" onSubmit={handleSubmit} className="mt-4 space-y-5">
         <input type="hidden" name="intent" value="generate" />
-        <input type="hidden" name="scope" value={scope} />
+        <input type="hidden" name="scope" value="period" />
+        <input type="hidden" name="usePeriod" value="1" />
+        <input type="hidden" name="useTopic" value="auto" />
         <input type="hidden" name="style" value={style} />
 
-        <ChipGroup
-          options={[
-            { value: "period", label: "时间范围" },
-            { value: "topic", label: "主题线索" },
-          ]}
-          value={scope}
-          onChange={(value) => setScope(value as "period" | "topic")}
-        />
-
-        {scope === "period" ? (
-          <div>
-            <span className={labelClass}>时间范围</span>
-            <input type="hidden" name="periodType" value={periodType} />
-            <ChipGroup
-              options={PERIOD_OPTIONS}
-              value={periodType}
-              onChange={(value) => setPeriodType(value as SummaryPeriodType)}
-            />
-            {periodType === "custom" ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className={labelClass}>
-                  起始
-                  <input type="date" name="startDate" required className={inputClass} />
-                </label>
-                <label className={labelClass}>
-                  结束
-                  <input type="date" name="endDate" required className={inputClass} />
-                </label>
-              </div>
-            ) : null}
+        <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-950/60">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className={labelClass}>时间范围</span>
+              <p className={helperTextClass}>先圈定时间，再按需要叠加主题线索。</p>
+            </div>
+            <span className="rounded-full bg-white px-2.5 py-1 text-gray-500 text-xs ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:ring-gray-800">
+              {periodType === "all" ? "不限制日期" : "按日期筛选"}
+            </span>
           </div>
-        ) : (
-          <div className="space-y-3">
+          <input type="hidden" name="periodType" value={periodType} />
+          <ChipGroup
+            options={PERIOD_OPTIONS}
+            value={periodType}
+            onChange={(value) => setPeriodType(value as SummaryPeriodType)}
+          />
+          {periodType === "custom" ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className={labelClass}>
+                起始
+                <input type="date" name="startDate" required className={inputClass} />
+              </label>
+              <label className={labelClass}>
+                结束
+                <input type="date" name="endDate" required className={inputClass} />
+              </label>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-950">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className={labelClass}>主题线索</span>
+              <p className={helperTextClass}>
+                填任意一项就会自动生成主题回顾；全部留空则只看时间。
+              </p>
+            </div>
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-400">
+              可选
+            </span>
+          </div>
+
+          <div className="mt-3 space-y-3">
             <div>
               <span className={labelClass}>标签 / 人物 / 关系</span>
               <div className="mt-1 grid gap-3 sm:grid-cols-3">
@@ -168,7 +182,7 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
               </details>
             ) : null}
           </div>
-        )}
+        </div>
 
         <div>
           <span className={labelClass}>风格</span>

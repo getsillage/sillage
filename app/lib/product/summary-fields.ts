@@ -7,13 +7,22 @@
 export const SUMMARY_SCOPES = ["period", "topic"] as const;
 export type SummaryScope = (typeof SUMMARY_SCOPES)[number];
 
-export const SUMMARY_PERIOD_TYPES = ["day", "week", "month", "quarter", "year", "custom"] as const;
+export const SUMMARY_PERIOD_TYPES = [
+  "all",
+  "day",
+  "week",
+  "month",
+  "quarter",
+  "year",
+  "custom",
+] as const;
 export type SummaryPeriodType = (typeof SUMMARY_PERIOD_TYPES)[number];
 
 export const SUMMARY_STYLES = ["brief", "structured", "narrative"] as const;
 export type SummaryStyle = (typeof SUMMARY_STYLES)[number];
 
 export const PERIOD_TYPE_LABELS: Record<SummaryPeriodType, string> = {
+  all: "全部时间",
   day: "当日",
   week: "本周",
   month: "本月",

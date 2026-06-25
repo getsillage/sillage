@@ -14,6 +14,7 @@ import {
   listSummaries,
   updateSummary,
 } from "../app/lib/db/summaries";
+import { runSummaryAction } from "../app/lib/product/summary-actions";
 import {
   isSummaryPeriodType,
   isSummaryScope,
@@ -64,6 +65,17 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
+async function configureAnthropic() {
+  await saveAiSettings(env, {
+    enabled: true,
+    name: "Claude",
+    protocol: "anthropic",
+    baseUrl: "https://api.anthropic.com",
+    model: "claude-test",
+    apiKey: "sk-ant-web",
+  });
+}
+
 describe("rangeForPeriod", () => {
   it("computes day/week/month/quarter/year windows", () => {
     expect(rangeForPeriod("day", "2026-06-24")).toEqual({
@@ -99,6 +111,7 @@ describe("summary field guards", () => {
   it("narrows valid values and rejects junk", () => {
     expect(isSummaryScope("period")).toBe(true);
     expect(isSummaryScope("nope")).toBe(false);
+    expect(isSummaryPeriodType("all")).toBe(true);
     expect(isSummaryPeriodType("week")).toBe(true);
     expect(isSummaryPeriodType("decade")).toBe(false);
     expect(isSummaryStyle("narrative")).toBe(true);
@@ -113,6 +126,10 @@ describe("summaryGenerate validation", () => {
     );
     const parsed = summaryGenerateSchema.safeParse(raw);
     expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.usePeriod).toBe(true);
+      expect(parsed.data.useTopic).toBe(false);
+    }
   });
 
   it("requires custom dates when periodType is custom", () => {
@@ -149,6 +166,56 @@ describe("summaryGenerate validation", () => {
     expect(withTag.success).toBe(true);
     if (withTag.success) {
       expect(withTag.data.filter.tags).toEqual(["工作", "生活"]);
+      expect(withTag.data.usePeriod).toBe(false);
+      expect(withTag.data.useTopic).toBe(true);
+    }
+  });
+
+  it("accepts period and topic filters together", () => {
+    const parsed = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(
+        form({
+          scope: "period",
+          usePeriod: "1",
+          useTopic: "auto",
+          periodType: "custom",
+          startDate: "2026-06-01",
+          endDate: "2026-06-30",
+          style: "structured",
+          people: "小明",
+          keyword: "复盘",
+        }),
+      ),
+    );
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.usePeriod).toBe(true);
+      expect(parsed.data.useTopic).toBe(true);
+      expect(parsed.data.periodType).toBe("custom");
+      expect(parsed.data.startDate).toBe("2026-06-01");
+      expect(parsed.data.endDate).toBe("2026-06-30");
+      expect(parsed.data.filter.people).toEqual(["小明"]);
+      expect(parsed.data.filter.keyword).toBe("复盘");
+    }
+  });
+
+  it("keeps auto topic disabled when topic fields are empty", () => {
+    const parsed = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(
+        form({
+          scope: "period",
+          usePeriod: "1",
+          useTopic: "auto",
+          periodType: "all",
+          style: "brief",
+        }),
+      ),
+    );
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.usePeriod).toBe(true);
+      expect(parsed.data.useTopic).toBe(false);
+      expect(parsed.data.periodType).toBe("all");
     }
   });
 });
@@ -310,6 +377,131 @@ describe("collectEntriesForTopic", () => {
   });
 });
 
+describe("runSummaryAction", () => {
+  beforeEach(resetDb);
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("generates a pure all-time period summary when topic fields are empty", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "# 全部回顾\n\n所有记录被收束在一起。" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+
+    const older = await seedEntry({ entryDate: "2026-05-01", title: "早" });
+    const newer = await seedEntry({ entryDate: "2026-07-01", title: "晚" });
+
+    const result = await runSummaryAction(
+      db,
+      form({
+        scope: "period",
+        usePeriod: "1",
+        useTopic: "auto",
+        periodType: "all",
+        style: "brief",
+      }),
+      "generate",
+    );
+
+    expect(result.ok).toBe(true);
+    const [summary] = await listSummaries(db);
+    expect(summary.scope).toBe("period");
+    expect(summary.periodType).toBe("all");
+    expect(summary.startDate).toBe("2026-05-01");
+    expect(summary.endDate).toBe("2026-07-01");
+    expect(summary.filter).toBeNull();
+    expect(summary.sourceEntryIds).toEqual([newer.id, older.id]);
+  });
+
+  it("combines topic clues with a custom time range", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "# 六月工作\n\n六月里的工作线索被收束在一起。" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+
+    await seedEntry({ entryDate: "2026-05-30", title: "五月工作", tags: ["工作"] });
+    const juneEntry = await seedEntry({
+      entryDate: "2026-06-12",
+      title: "六月工作",
+      tags: ["工作"],
+    });
+    await seedEntry({ entryDate: "2026-07-01", title: "七月工作", tags: ["工作"] });
+
+    const result = await runSummaryAction(
+      db,
+      form({
+        scope: "topic",
+        usePeriod: "1",
+        useTopic: "1",
+        periodType: "custom",
+        startDate: "2026-06-01",
+        endDate: "2026-06-30",
+        style: "brief",
+        tags: "工作",
+      }),
+      "generate",
+    );
+
+    expect(result.ok).toBe(true);
+    const [summary] = await listSummaries(db);
+    expect(summary.scope).toBe("topic");
+    expect(summary.periodType).toBe("custom");
+    expect(summary.startDate).toBe("2026-06-01");
+    expect(summary.endDate).toBe("2026-06-30");
+    expect(summary.filter).toEqual({ tags: ["工作"] });
+    expect(summary.sourceEntryIds).toEqual([juneEntry.id]);
+  });
+
+  it("auto-detects topic clues across all time", async () => {
+    await configureAnthropic();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          content: [{ type: "text", text: "# 工作线索\n\n所有工作记录被收束在一起。" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+
+    const older = await seedEntry({ entryDate: "2026-05-30", title: "五月工作", tags: ["工作"] });
+    const newer = await seedEntry({ entryDate: "2026-07-01", title: "七月工作", tags: ["工作"] });
+
+    const result = await runSummaryAction(
+      db,
+      form({
+        scope: "period",
+        usePeriod: "1",
+        useTopic: "auto",
+        periodType: "all",
+        style: "brief",
+        tags: "工作",
+      }),
+      "generate",
+    );
+
+    expect(result.ok).toBe(true);
+    const [summary] = await listSummaries(db);
+    expect(summary.scope).toBe("topic");
+    expect(summary.periodType).toBe("all");
+    expect(summary.startDate).toBe("2026-05-30");
+    expect(summary.endDate).toBe("2026-07-01");
+    expect(summary.filter).toEqual({ tags: ["工作"] });
+    expect(summary.sourceEntryIds).toEqual([newer.id, older.id]);
+  });
+});
+
 describe("buildEntriesDigest", () => {
   it("truncates long bodies and notes omitted entries beyond the cap", () => {
     const base: EntryWithTags = {
@@ -356,17 +548,6 @@ describe("buildEntriesDigest", () => {
 describe("generateSummary", () => {
   beforeEach(resetDb);
   afterEach(() => vi.unstubAllGlobals());
-
-  async function configureAnthropic() {
-    await saveAiSettings(env, {
-      enabled: true,
-      name: "Claude",
-      protocol: "anthropic",
-      baseUrl: "https://api.anthropic.com",
-      model: "claude-test",
-      apiKey: "sk-ant-web",
-    });
-  }
 
   it("skips with a reason when there are no entries", async () => {
     const draft = await generateSummary(env, {

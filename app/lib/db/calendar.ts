@@ -55,6 +55,17 @@ export async function listEntriesByDateRange(
   return composeEntries(db, rows);
 }
 
+/** Lists all live entries, newest day first. */
+export async function listAllEntriesByDate(db: Db): Promise<EntryWithTags[]> {
+  const rows = await db
+    .select()
+    .from(entries)
+    .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+    .where(isNull(entries.deletedAt))
+    .orderBy(desc(entries.entryDate), desc(entries.createdAt));
+  return composeEntries(db, rows);
+}
+
 /**
  * "On this day": live entries from the same month/day (MM-DD) in other years.
  * `today` is a full YYYY-MM-DD string.

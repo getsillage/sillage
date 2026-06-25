@@ -39,7 +39,8 @@ export interface DateRange {
  * Resolves a period type to an inclusive [startDate, endDate] window around a
  * reference date (YYYY-MM-DD), using the same UTC calendar math as the rest of
  * this module. Weeks start on Monday. "custom" has no implicit window — callers
- * supply explicit dates — so it falls back to the single reference day.
+ * supply explicit dates. "all" is resolved by callers against the actual matched
+ * entries, so it also falls back to the single reference day here.
  */
 export function rangeForPeriod(periodType: SummaryPeriodType, refDateISO: string): DateRange {
   const year = Number(refDateISO.slice(0, 4));

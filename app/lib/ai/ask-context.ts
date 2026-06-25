@@ -218,15 +218,15 @@ function entryEvidenceBlock(entry: EntryWithTags, selected: Set<AskSourceType>):
 }
 
 function summaryLabel(summary: SummaryView): string {
-  if (summary.scope === "topic") {
-    return "主题总结";
-  }
   const period =
     summary.periodType && isSummaryPeriodType(summary.periodType)
       ? PERIOD_TYPE_LABELS[summary.periodType]
-      : "时间范围";
+      : null;
+  if (summary.scope === "topic") {
+    return period ? `主题总结 · ${period}` : "主题总结";
+  }
   const style = isSummaryStyle(summary.style) ? STYLE_LABELS[summary.style] : summary.style;
-  return `${period} · ${style}`;
+  return `${period ?? "时间范围"} · ${style}`;
 }
 
 function summaryEvidenceBlock(summary: SummaryView): string {

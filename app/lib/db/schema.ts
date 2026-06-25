@@ -195,7 +195,7 @@ export const summaries = sqliteTable(
     id: text("id").primaryKey(),
     // "period" = a time window; "topic" = a thread filtered by tags/people/keyword.
     scope: text("scope").notNull(),
-    // For scope=period: day|week|month|quarter|year|custom. Null for topic.
+    // day|week|month|quarter|year|custom. Null when a topic review has no period filter.
     periodType: text("period_type"),
     // Effective window actually summarized (YYYY-MM-DD, inclusive). For a topic
     // without an explicit window this is the min/max date of the matched entries.

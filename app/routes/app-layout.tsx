@@ -13,16 +13,16 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return isActive
-    ? "rounded-full bg-gray-950 px-3 py-1.5 font-medium text-white dark:bg-gray-100 dark:text-gray-950"
-    : "rounded-full px-3 py-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
+    ? "shrink-0 rounded-full bg-gray-950 px-3 py-1.5 font-medium text-white dark:bg-gray-100 dark:text-gray-950"
+    : "shrink-0 rounded-full px-3 py-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
 }
 
 export default function AppLayout() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-950 dark:bg-gray-950 dark:text-gray-50">
       <header className="sticky top-0 z-30 border-gray-200/80 border-b bg-white/90 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90">
-        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 py-3 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             <Link
               to="/"
               className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
@@ -30,32 +30,32 @@ export default function AppLayout() {
               <img src="/sillage-icon.svg" alt="" className="h-6 w-6 shrink-0" />
               <span>Sillage</span>
             </Link>
-            <nav className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
-              <NavLink to="/" end className={navClass}>
-                此刻
-              </NavLink>
-              <NavLink to="/timeline" className={navClass}>
-                痕迹
-              </NavLink>
-              <NavLink to="/review" className={navClass}>
-                照见
-              </NavLink>
-              <NavLink to="/ask" className={navClass}>
-                探寻
-              </NavLink>
-              <NavLink to="/settings" className={navClass}>
-                设置
-              </NavLink>
-            </nav>
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
+              <Form method="post" action="/logout">
+                <button type="submit" className={subtleButtonClass}>
+                  退出
+                </button>
+              </Form>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Form method="post" action="/logout">
-              <button type="submit" className={subtleButtonClass}>
-                退出
-              </button>
-            </Form>
-          </div>
+          <nav className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1 pb-1 text-sm sm:flex-wrap sm:overflow-visible sm:pb-0">
+            <NavLink to="/" end className={navClass}>
+              此刻
+            </NavLink>
+            <NavLink to="/timeline" className={navClass}>
+              痕迹
+            </NavLink>
+            <NavLink to="/review" className={navClass}>
+              照见
+            </NavLink>
+            <NavLink to="/ask" className={navClass}>
+              探寻
+            </NavLink>
+            <NavLink to="/settings" className={navClass}>
+              设置
+            </NavLink>
+          </nav>
         </div>
       </header>
       <Outlet />

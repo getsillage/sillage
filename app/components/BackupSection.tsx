@@ -24,7 +24,7 @@ function formatSize(bytes: number): string {
 }
 
 const buttonClass =
-  "rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800";
+  "inline-flex w-full items-center justify-center rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:opacity-60 sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800";
 const statusClass = (ok: boolean) =>
   `mt-3 rounded-lg border px-3 py-2 text-sm ${
     ok
@@ -78,7 +78,7 @@ export function BackupSection({ backups }: { backups: BackupItem[] }) {
                   {new Date(item.uploaded).toLocaleString("zh-CN")}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:justify-end">
                 {item.files.map((file) => (
                   <a
                     key={file.key}

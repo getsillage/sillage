@@ -1,7 +1,7 @@
 export const pageShellClass =
-  "mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12";
+  "mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10 2xl:px-12";
 
-export const pageSectionClass = "space-y-8";
+export const pageSectionClass = "space-y-6 sm:space-y-8";
 
 export const pageTitleClass = "text-2xl font-semibold text-gray-950 sm:text-3xl dark:text-gray-50";
 

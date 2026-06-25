@@ -51,7 +51,7 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer list-none">
-        <span className="font-medium text-gray-950 text-sm dark:text-gray-50">
+        <span className="block break-words font-medium text-gray-950 text-sm dark:text-gray-50">
           {summary.title || "未命名总结"}
         </span>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -83,16 +83,21 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
             </div>
           ) : null}
 
-          <div className="mt-3 flex items-center gap-2">
-            <fetcher.Form method="post">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <fetcher.Form method="post" className="sm:w-auto">
               <input type="hidden" name="intent" value="regenerate-summary" />
               <input type="hidden" name="id" value={summary.id} />
-              <button type="submit" disabled={busy} className={subtleButtonClass}>
+              <button
+                type="submit"
+                disabled={busy}
+                className={`${subtleButtonClass} w-full sm:w-auto`}
+              >
                 {busy ? "处理中…" : "重新生成"}
               </button>
             </fetcher.Form>
             <fetcher.Form
               method="post"
+              className="sm:w-auto"
               onSubmit={(event) => {
                 if (!confirm("确定删除这篇总结吗？")) {
                   event.preventDefault();
@@ -101,7 +106,11 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
             >
               <input type="hidden" name="intent" value="delete" />
               <input type="hidden" name="id" value={summary.id} />
-              <button type="submit" disabled={busy} className={subtleButtonClass}>
+              <button
+                type="submit"
+                disabled={busy}
+                className={`${subtleButtonClass} w-full sm:w-auto`}
+              >
                 删除
               </button>
             </fetcher.Form>

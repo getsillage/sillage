@@ -68,7 +68,7 @@ export async function action({ request }: Route.ActionArgs): Promise<SummaryActi
 export default function Review({ loaderData }: Route.ComponentProps) {
   return (
     <main className={pageShellClass}>
-      <section className={`${pageSectionClass} min-h-[calc(100vh-92px)]`}>
+      <section className={`${pageSectionClass} min-h-[calc(100svh-92px)]`}>
         <header>
           <h1 className={pageTitleClass}>照见</h1>
           <p className={pageLeadClass}>让 AI 主动整理最近留下的线索，回看那些正在浮现的主题。</p>

@@ -385,7 +385,7 @@ export function AskPanel({
 
   return (
     <section className={`${panelClass} overflow-hidden`}>
-      <div className="grid min-h-[calc(100vh-220px)] gap-0 lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr]">
+      <div className="grid gap-0 lg:min-h-[calc(100svh-220px)] lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr]">
         <aside className="border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
@@ -414,12 +414,12 @@ export function AskPanel({
               </Link>
             </div>
           </Form>
-          <nav className="mt-3 max-h-[42vh] space-y-1 overflow-auto lg:max-h-[calc(100vh-420px)]">
+          <nav className="mt-3 flex max-h-44 gap-2 overflow-x-auto pb-1 lg:block lg:max-h-[calc(100svh-420px)] lg:space-y-1 lg:overflow-auto lg:pb-0">
             {conversations.map((conversation) => (
               <Link
                 key={conversation.id}
                 to={`/ask?conversation=${conversation.id}${includeArchived ? "&archived=1" : ""}`}
-                className={`block rounded-lg px-3 py-2 text-sm transition ${
+                className={`block w-56 shrink-0 rounded-lg px-3 py-2 text-sm transition lg:w-auto ${
                   currentConversation?.id === conversation.id
                     ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"
                     : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
@@ -435,17 +435,19 @@ export function AskPanel({
               </Link>
             ))}
             {conversations.length === 0 ? (
-              <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">没有会话。</p>
+              <p className="w-full px-2 py-4 text-gray-400 text-sm dark:text-gray-500">
+                没有会话。
+              </p>
             ) : null}
           </nav>
         </aside>
 
-        <div className="flex min-h-[calc(100vh-220px)] flex-col">
+        <div className="flex min-h-[70svh] flex-col lg:min-h-[calc(100svh-220px)]">
           <ThreadHeader conversation={currentConversation} />
 
-          <div className="flex-1 space-y-6 overflow-auto px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex-1 space-y-4 overflow-auto px-3 py-4 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
             {messages.length === 0 ? (
-              <div className="mx-auto flex min-h-72 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-8 text-center dark:border-gray-800">
+              <div className="mx-auto flex min-h-56 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-5 text-center sm:min-h-72 sm:p-8 dark:border-gray-800">
                 <p className="font-medium text-gray-950 text-base dark:text-gray-50">
                   问问你的记忆
                 </p>
@@ -467,7 +469,7 @@ export function AskPanel({
             )}
           </div>
 
-          <div className="border-gray-200 border-t bg-white/95 p-4 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
+          <div className="border-gray-200 border-t bg-white/95 p-3 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-900/95">
             <div className="mb-3 flex flex-wrap gap-2">
               {ASK_SOURCE_TYPES.map((type) => (
                 <SourceToggle
@@ -487,7 +489,7 @@ export function AskPanel({
                 </button>
               </div>
             ) : null}
-            <div className="mx-auto flex max-w-4xl items-end gap-2">
+            <div className="mx-auto flex max-w-4xl flex-col items-stretch gap-2 sm:flex-row sm:items-end">
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -499,10 +501,14 @@ export function AskPanel({
                 }}
                 rows={2}
                 placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
-                className={`${textareaClass} min-w-0 flex-1`}
+                className={`${textareaClass} min-h-24 min-w-0 flex-1 sm:min-h-0`}
               />
               {busy ? (
-                <button type="button" onClick={stream.stop} className={primaryButtonClass}>
+                <button
+                  type="button"
+                  onClick={stream.stop}
+                  className={`${primaryButtonClass} sm:w-auto`}
+                >
                   停止
                 </button>
               ) : (
@@ -510,7 +516,7 @@ export function AskPanel({
                   type="button"
                   onClick={submit}
                   disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                  className={primaryButtonClass}
+                  className={`${primaryButtonClass} sm:w-auto`}
                 >
                   发送
                 </button>
@@ -536,17 +542,17 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
 
   if (!conversation) {
     return (
-      <header className="border-gray-200 border-b p-4 dark:border-gray-800">
+      <header className="border-gray-200 border-b p-3 sm:p-4 dark:border-gray-800">
         <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">新对话</h2>
       </header>
     );
   }
 
   return (
-    <header className="space-y-3 border-gray-200 border-b p-4 dark:border-gray-800">
+    <header className="space-y-3 border-gray-200 border-b p-3 sm:p-4 dark:border-gray-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {renaming ? (
-          <fetcher.Form method="post" className="flex min-w-0 flex-1 gap-2">
+          <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
             <input type="hidden" name="intent" value="renameAskConversation" />
             <input type="hidden" name="conversationId" value={conversation.id} />
             <input
@@ -652,8 +658,8 @@ function ThreadMessage({
       <div
         className={
           isUser
-            ? "max-w-[86%] rounded-lg bg-gray-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-gray-100 dark:text-gray-950"
-            : "max-w-[92%] rounded-lg bg-gray-50 px-4 py-3 text-sm leading-6 dark:bg-gray-950"
+            ? "max-w-[92%] rounded-lg bg-gray-900 px-3 py-2.5 text-sm leading-6 text-white sm:max-w-[86%] sm:px-4 dark:bg-gray-100 dark:text-gray-950"
+            : "max-w-[96%] rounded-lg bg-gray-50 px-3 py-3 text-sm leading-6 sm:max-w-[92%] sm:px-4 dark:bg-gray-950"
         }
       >
         {isUser ? (

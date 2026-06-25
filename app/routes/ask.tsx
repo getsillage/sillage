@@ -112,7 +112,7 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 export default function Ask({ loaderData }: Route.ComponentProps) {
   return (
     <main className={pageShellClass}>
-      <section className={`${pageSectionClass} min-h-[calc(100vh-92px)]`}>
+      <section className={`${pageSectionClass} min-h-[calc(100svh-92px)]`}>
         <header>
           <h1 className={pageTitleClass}>探寻</h1>
           <p className={pageLeadClass}>向自己的记录提问，搜索那些人物、关系和正在回响的线索。</p>

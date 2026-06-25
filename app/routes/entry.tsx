@@ -144,7 +144,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
     return (
       <main className={pageShellClass}>
         <section className="mx-auto max-w-5xl">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between gap-3">
             <h1 className="font-semibold text-2xl text-gray-950 dark:text-gray-50">编辑记录</h1>
             <Link
               to={`/entries/${entry.id}`}
@@ -169,14 +169,14 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
 
   return (
     <main className={pageShellClass}>
-      <div className="mb-6 flex items-center justify-between text-sm">
+      <div className="mb-5 flex items-center justify-between gap-3 text-sm sm:mb-6">
         <Link
           to="/"
           className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
         >
           ← 返回
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <Link
             to={`/entries/${entry.id}?edit`}
             className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
@@ -201,7 +201,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
-        <article className={`${panelClass} min-w-0 p-5 sm:p-8 lg:p-10`}>
+        <article className={`${panelClass} min-w-0 p-4 sm:p-8 lg:p-10`}>
           <header className="border-gray-100 border-b pb-5 dark:border-gray-800">
             <div className="flex flex-wrap items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
               <time>{entry.entryDate}</time>
@@ -211,13 +211,13 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
               {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
             </div>
             {entry.title ? (
-              <h1 className="mt-2 max-w-3xl font-semibold text-3xl text-gray-900 tracking-normal dark:text-gray-50">
+              <h1 className="mt-2 max-w-3xl break-words font-semibold text-2xl text-gray-900 tracking-normal sm:text-3xl dark:text-gray-50">
                 {entry.title}
               </h1>
             ) : null}
           </header>
 
-          <div className="max-w-3xl py-8">
+          <div className="max-w-3xl py-6 sm:py-8">
             <LazyMarkdown content={entry.body} />
           </div>
         </article>
@@ -295,7 +295,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
                             value={revision.createdAt}
                             className="text-gray-400 text-xs dark:text-gray-500"
                           />
-                          <span className="truncate text-gray-500 text-xs dark:text-gray-400">
+                          <span className="min-w-0 max-w-full truncate text-gray-500 text-xs dark:text-gray-400">
                             {revision.title || "(无标题)"}
                           </span>
                         </summary>

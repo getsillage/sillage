@@ -272,7 +272,7 @@ export function EntryForm({
 
       {error ? <p className="text-red-600 text-sm dark:text-red-400">{error}</p> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {showEntryInsightOption ? (
           <label className="flex items-center gap-2 text-gray-700 text-sm dark:text-gray-300">
             <input
@@ -288,7 +288,7 @@ export function EntryForm({
           <span />
         )}
 
-        <button type="submit" disabled={busy} className={primaryButtonClass}>
+        <button type="submit" disabled={busy} className={`${primaryButtonClass} w-full sm:w-auto`}>
           {busy ? "保存中…" : submitLabel}
         </button>
       </div>

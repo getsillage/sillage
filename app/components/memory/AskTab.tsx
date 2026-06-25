@@ -67,7 +67,7 @@ export function AskTab({
         includeArchived={includeArchived}
       />
 
-      <Form method="get" className="flex gap-2">
+      <Form method="get" className="flex flex-col gap-2 sm:flex-row">
         <input
           type="search"
           name="q"
@@ -75,7 +75,7 @@ export function AskTab({
           placeholder="搜索一个词、地点、人物或关系…"
           className={`${inputClass} mt-0 min-w-0 flex-1`}
         />
-        <button type="submit" className={primaryButtonClass}>
+        <button type="submit" className={`${primaryButtonClass} sm:w-auto`}>
           搜索
         </button>
       </Form>

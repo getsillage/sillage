@@ -193,8 +193,12 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          <button type="submit" disabled={generating} className={primaryButtonClass}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="submit"
+            disabled={generating}
+            className={`${primaryButtonClass} w-full sm:w-auto`}
+          >
             {generating ? "生成中…" : "生成"}
           </button>
         </div>

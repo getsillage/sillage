@@ -42,21 +42,21 @@ export function CalendarView({
   const next = clampMonth(year, month + 1);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-lg border border-gray-200/80 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900/90">
-        <div className="mb-5 flex items-center justify-between gap-3">
+    <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="rounded-lg border border-gray-200/80 bg-white p-3 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900/90">
+        <div className="mb-4 grid grid-cols-2 items-center gap-3 sm:mb-5 sm:flex sm:justify-between">
           <Link
             to={monthHref(prev.year, prev.month)}
             className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           >
             ← {prev.year}年{prev.month}月
           </Link>
-          <h2 className="font-medium text-gray-950 dark:text-gray-50">
+          <h2 className="order-first col-span-2 text-center font-medium text-gray-950 sm:order-none sm:col-auto dark:text-gray-50">
             {year}年{month}月
           </h2>
           <Link
             to={monthHref(next.year, next.month)}
-            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className="text-right text-gray-500 text-sm hover:text-gray-900 sm:text-left dark:text-gray-400 dark:hover:text-gray-100"
           >
             {next.year}年{next.month}月 →
           </Link>
@@ -90,7 +90,7 @@ export function CalendarView({
         </div>
       </section>
 
-      <aside className="rounded-lg border border-gray-200/80 bg-white p-4 shadow-sm sm:p-5 dark:border-gray-800 dark:bg-gray-900/90">
+      <aside className="rounded-lg border border-gray-200/80 bg-white p-3 shadow-sm sm:p-5 dark:border-gray-800 dark:bg-gray-900/90">
         {selectedDate ? (
           <>
             <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
@@ -133,7 +133,7 @@ interface DayCellProps {
 function DayCell({ date, count, isToday, isSelected, year, month }: DayCellProps) {
   const day = Number(date.slice(8));
   const base =
-    "flex aspect-square min-h-12 flex-col items-center justify-center rounded-lg border text-sm sm:text-base";
+    "flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg border text-sm sm:min-h-12 sm:text-base";
   const state = isSelected
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
     : count > 0

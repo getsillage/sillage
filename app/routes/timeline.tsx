@@ -3,12 +3,14 @@ import { Link } from "react-router";
 import { CalendarView } from "~/components/CalendarView";
 import { EntryCard } from "~/components/EntryCard";
 import { TimelineFilters } from "~/components/TimelineFilters";
+import { TraceThread, TraceThreadItem } from "~/components/TraceThread";
 import {
   pageLeadClass,
   pageSectionClass,
-  pageShellClass,
   pageTitleClass,
+  serifTitleClass,
   subtlePanelClass,
+  wideShellClass,
 } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import { monthGrid, pad2, todayISO, yearsBetween } from "~/lib/date";
@@ -115,13 +117,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 function viewToggleClass(active: boolean): string {
   return active
-    ? "rounded-md bg-gray-950 px-3 py-1 text-sm text-white dark:bg-gray-100 dark:text-gray-950"
-    : "rounded-md px-3 py-1 text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100";
+    ? "rounded-md bg-celadon-50 px-3 py-1 text-sm text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
+    : "rounded-md px-3 py-1 text-gray-500 text-sm hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
 }
 
 function ViewToggle({ view }: { view: "list" | "calendar" }) {
   return (
-    <div className="flex gap-0.5 rounded-lg border border-gray-200 p-0.5 dark:border-gray-800">
+    <div className="flex gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-800 dark:bg-gray-900">
       <Link to="/timeline" className={viewToggleClass(view === "list")}>
         列表
       </Link>
@@ -139,19 +141,17 @@ function excerpt(body: string, max = 40): string {
 
 function OnThisDay({ entries, today }: { entries: EntryWithTags[]; today: string }) {
   return (
-    <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
-      <h2 className="font-medium text-amber-950 text-sm dark:text-amber-100">那年今日</h2>
+    <section className="rounded-lg bg-clay-50 p-4 dark:bg-clay-900/50">
+      <h2 className={`text-sm ${serifTitleClass}`}>那年今日</h2>
       <ul className="mt-3 space-y-2">
         {entries.map((entry) => (
           <li key={entry.id}>
             <Link
               to={`/entries/${entry.id}`}
-              className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-amber-950 text-sm transition hover:border-amber-300 hover:bg-white dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:border-amber-800 dark:hover:bg-amber-950/50"
+              className="block rounded-lg px-3 py-2 text-clay-600 text-sm transition hover:bg-white/60 dark:text-clay-300 dark:hover:bg-gray-900/50"
             >
-              <span className="font-medium text-amber-800 dark:text-amber-200">
-                {yearsBetween(entry.entryDate, today)}年前
-              </span>
-              <span className="text-amber-700 dark:text-amber-300"> · {entry.entryDate}</span>
+              <span className="font-medium">{yearsBetween(entry.entryDate, today)}年前</span>
+              <span> · {entry.entryDate}</span>
               <span> · {entry.title || excerpt(entry.body) || "未命名记录"}</span>
             </Link>
           </li>
@@ -163,7 +163,7 @@ function OnThisDay({ entries, today }: { entries: EntryWithTags[]; today: string
 
 export default function Timeline({ loaderData }: Route.ComponentProps) {
   return (
-    <main className={pageShellClass}>
+    <main className={wideShellClass}>
       <section className={pageSectionClass}>
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -185,7 +185,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           />
         ) : (
           <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
-            <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+            <aside className="space-y-4 xl:sticky xl:top-10 xl:self-start">
               <section className={`${subtlePanelClass} p-4 sm:p-5`}>
                 <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">筛选</h2>
                 <TimelineFilters facets={loaderData.facets} active={loaderData.active} />
@@ -204,13 +204,13 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                   没有符合条件的记录。换个筛选，或从一个瞬间开始。
                 </div>
               ) : (
-                <ul className="grid gap-3 2xl:grid-cols-2">
+                <TraceThread>
                   {loaderData.entries.map((entry) => (
-                    <li key={entry.id}>
+                    <TraceThreadItem key={entry.id}>
                       <EntryCard entry={entry} showEntryInsight openOnCardClick />
-                    </li>
+                    </TraceThreadItem>
                   ))}
-                </ul>
+                </TraceThread>
               )}
             </section>
           </div>

@@ -97,7 +97,7 @@ export function EntryForm({
   }, [defaultEntryInsightForKind, selectedKind, showEntryInsightOption]);
 
   return (
-    <Form method="post" className="space-y-6">
+    <Form method="post" className="space-y-5">
       {intent ? <input type="hidden" name="intent" value={intent} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -155,7 +155,7 @@ export function EntryForm({
           {ENTRY_KINDS.map((kind) => (
             <label
               key={kind}
-              className="flex min-h-20 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:has-[:checked]:border-gray-100 dark:has-[:checked]:bg-gray-100 dark:has-[:checked]:text-gray-950"
+              className="flex min-h-16 cursor-pointer flex-col rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition hover:bg-gray-100 has-[:checked]:border-celadon-600 has-[:checked]:bg-celadon-50 has-[:checked]:text-celadon-800 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900 dark:has-[:checked]:border-celadon-400 dark:has-[:checked]:bg-celadon-900/40 dark:has-[:checked]:text-celadon-200"
             >
               <input
                 type="radio"
@@ -188,11 +188,11 @@ export function EntryForm({
 
       <fieldset>
         <legend className={labelClass}>预设心情</legend>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="mt-2 flex flex-wrap gap-2">
           {MOODS.map((mood) => (
             <label
               key={mood.value}
-              className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-500 text-xs transition hover:border-gray-300 hover:bg-gray-50 has-[:checked]:border-gray-950 has-[:checked]:bg-gray-950 has-[:checked]:text-white dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:has-[:checked]:border-gray-100 dark:has-[:checked]:bg-gray-100 dark:has-[:checked]:text-gray-950"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-500 text-xs transition hover:bg-gray-100 has-[:checked]:border-celadon-600 has-[:checked]:bg-celadon-50 has-[:checked]:text-celadon-800 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400 dark:hover:bg-gray-900 dark:has-[:checked]:border-celadon-400 dark:has-[:checked]:bg-celadon-900/40 dark:has-[:checked]:text-celadon-200"
             >
               <input
                 type="radio"
@@ -201,7 +201,7 @@ export function EntryForm({
                 defaultChecked={defaults?.mood === mood.value}
                 className="sr-only"
               />
-              <span className="font-semibold text-sm">{mood.value}</span>
+              <span className="font-medium text-sm">{mood.value}</span>
               {mood.label}
             </label>
           ))}
@@ -280,7 +280,7 @@ export function EntryForm({
               name={ENTRY_INSIGHT_FORM_FIELD}
               checked={generateEntryInsight}
               onChange={(event) => setGenerateEntryInsight(event.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
+              className="h-4 w-4 rounded border-gray-300 accent-celadon-600 dark:border-gray-700"
             />
             保存后生成 AI 洞察
           </label>

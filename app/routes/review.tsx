@@ -1,6 +1,11 @@
 import { env } from "cloudflare:workers";
 import { ReviewTab } from "~/components/insights/ReviewTab";
-import { pageLeadClass, pageSectionClass, pageShellClass, pageTitleClass } from "~/components/ui";
+import {
+  pageLeadClass,
+  pageSectionClass,
+  pageTitleClass,
+  readingShellClass,
+} from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
@@ -67,7 +72,7 @@ export async function action({ request }: Route.ActionArgs): Promise<SummaryActi
 
 export default function Review({ loaderData }: Route.ComponentProps) {
   return (
-    <main className={pageShellClass}>
+    <main className={readingShellClass}>
       <section className={`${pageSectionClass} min-h-[calc(100svh-92px)]`}>
         <header>
           <h1 className={pageTitleClass}>照见</h1>

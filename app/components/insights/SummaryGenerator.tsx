@@ -59,7 +59,7 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
 
   return (
     <section className={`${panelClass} p-4 sm:p-5 lg:p-6`}>
-      <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">生成总结</h2>
+      <h2 className="font-serif text-gray-900 text-lg dark:text-gray-50">生成总结</h2>
       <p className={helperTextClass}>
         时间范围和主题线索可以一起使用；主题留空时，就按所选时间生成回顾。
       </p>
@@ -71,7 +71,7 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
         <input type="hidden" name="useTopic" value="auto" />
         <input type="hidden" name="style" value={style} />
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-950/60">
+        <div className="rounded-lg bg-gray-100/60 p-3 dark:bg-gray-950/60">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <span className={labelClass}>时间范围</span>

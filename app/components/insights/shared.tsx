@@ -7,8 +7,8 @@ import {
 
 export function chipClass(active: boolean): string {
   return active
-    ? "rounded-full border border-gray-950 bg-gray-950 px-3 py-1.5 text-sm text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
-    : "rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 text-sm transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900";
+    ? "rounded-full border border-celadon-600 bg-celadon-50 px-3 py-1.5 text-celadon-800 text-sm dark:border-celadon-400 dark:bg-celadon-900/40 dark:text-celadon-200"
+    : "rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900";
 }
 
 export function badgeClass(): string {

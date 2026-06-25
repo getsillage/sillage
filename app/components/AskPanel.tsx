@@ -381,8 +381,8 @@ export function AskPanel({
   }
 
   return (
-    <section className="-mx-3 overflow-hidden border-gray-200/80 border-y bg-white shadow-sm sm:mx-0 sm:rounded-lg sm:border dark:border-gray-800 dark:bg-gray-900/90">
-      <div className="grid gap-0 lg:min-h-[calc(100svh-220px)] lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr]">
+    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div className="grid gap-0 lg:min-h-[calc(100svh-220px)] lg:grid-cols-[220px_1fr]">
         <MobileConversationSwitcher
           conversations={conversations}
           currentConversation={currentConversation}
@@ -390,7 +390,7 @@ export function AskPanel({
           includeArchived={includeArchived}
         />
 
-        <aside className="hidden border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:block lg:border-r lg:border-b-0">
+        <aside className="hidden border-gray-200 border-b bg-gray-100/50 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:block lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
             <Link to="/ask" className={subtleButtonClass}>
@@ -414,9 +414,7 @@ export function AskPanel({
           <div className="flex-1 space-y-4 overflow-auto overscroll-contain px-3 py-4 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
             {messages.length === 0 ? (
               <div className="mx-auto flex min-h-44 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-5 text-center sm:min-h-72 sm:p-8 dark:border-gray-800">
-                <p className="font-medium text-gray-950 text-base dark:text-gray-50">
-                  问问你的记忆
-                </p>
+                <p className="font-serif text-gray-900 text-xl dark:text-gray-50">问问你的记忆</p>
                 <p className={helperTextClass}>
                   可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
                 </p>
@@ -435,7 +433,7 @@ export function AskPanel({
             )}
           </div>
 
-          <div className="border-gray-200 border-t bg-white/95 p-2 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-900/95">
+          <div className="border-gray-200 border-t bg-gray-50/95 p-2 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-950/80">
             <details className="mb-2 sm:hidden">
               <summary className="cursor-pointer list-none px-2 py-1 text-gray-500 text-xs dark:text-gray-400">
                 来源 · 已选 {sourceTypes.length} 项
@@ -464,14 +462,14 @@ export function AskPanel({
               ))}
             </div>
             {editing ? (
-              <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-amber-900 text-sm dark:bg-amber-950/40 dark:text-amber-100">
+              <div className="mb-2 flex items-center justify-between rounded-lg bg-clay-50 px-3 py-2 text-clay-600 text-sm dark:bg-clay-900/50 dark:text-clay-300">
                 <span>正在编辑一条旧问题，会创建新的分支。</span>
                 <button type="button" className="font-medium" onClick={() => setEditing(null)}>
                   取消
                 </button>
               </div>
             ) : null}
-            <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-3xl border border-gray-200 bg-gray-50 p-2 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+            <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-xl border border-gray-200 bg-white p-2 pl-4 dark:border-gray-800 dark:bg-gray-900">
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -483,13 +481,13 @@ export function AskPanel({
                 }}
                 rows={2}
                 placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
-                className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-gray-950 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
+                className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-0 py-2 text-gray-900 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
               />
               {busy ? (
                 <button
                   type="button"
                   onClick={stream.stop}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 font-medium text-white text-sm transition hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 font-medium text-white text-sm transition hover:bg-celadon-700 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
                 >
                   <span aria-hidden="true">■</span>
                   <span className="sr-only">停止</span>
@@ -499,7 +497,7 @@ export function AskPanel({
                   type="button"
                   onClick={submit}
                   disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 font-medium text-white text-lg transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 font-medium text-white text-lg transition hover:bg-celadon-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
                 >
                   <span aria-hidden="true">↑</span>
                   <span className="sr-only">发送</span>
@@ -562,7 +560,7 @@ function ConversationList({
           to={conversationHref(conversation.id, includeArchived)}
           className={`block rounded-lg px-3 py-2 text-sm transition ${
             currentConversation?.id === conversation.id
-              ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"
+              ? "bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
               : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
           }`}
         >
@@ -594,11 +592,11 @@ function MobileConversationSwitcher({
         <details>
           <summary
             aria-label="会话列表"
-            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             <span aria-hidden="true">☰</span>
           </summary>
-          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/30">
             <ConversationSearch
               conversationQuery={conversationQuery}
               includeArchived={includeArchived}
@@ -620,7 +618,7 @@ function MobileConversationSwitcher({
         <Link
           to="/ask"
           aria-label="新对话"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           <span aria-hidden="true">＋</span>
         </Link>
@@ -628,11 +626,11 @@ function MobileConversationSwitcher({
         <details>
           <summary
             aria-label="会话选项"
-            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             <span aria-hidden="true">⋯</span>
           </summary>
-          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/30">
             {currentConversation ? (
               <div className="space-y-3 pt-3">
                 <Form method="post" className="flex gap-2">
@@ -800,48 +798,73 @@ function ThreadMessage({
   onRegenerate: (message: AskMessageView) => void;
 }) {
   const isUser = message.role === "user";
-  return (
-    <div
-      className={
-        isUser
-          ? "mx-auto flex w-full max-w-4xl justify-end"
-          : "mx-auto flex w-full max-w-4xl justify-start"
-      }
-    >
-      <div
-        className={
-          isUser
-            ? "max-w-[92%] rounded-lg bg-gray-900 px-3 py-2.5 text-sm leading-6 text-white sm:max-w-[86%] sm:px-4 dark:bg-gray-100 dark:text-gray-950"
-            : "max-w-[96%] rounded-lg bg-gray-50 px-3 py-3 text-sm leading-6 sm:max-w-[92%] sm:px-4 dark:bg-gray-950"
-        }
-      >
-        {isUser ? (
+  if (isUser) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl justify-end">
+        <div className="max-w-[82%] rounded-2xl rounded-br-sm border border-gray-200 bg-white px-4 py-2.5 text-gray-800 text-sm leading-7 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
           <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : message.status === "running" && !message.content ? (
-          <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
-        ) : message.status === "error" ? (
-          <p className="text-red-600 dark:text-red-400">{message.content}</p>
-        ) : message.status === "running" ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <LazyMarkdown content={message.content} />
-        )}
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs">
+            {message.branch ? (
+              <BranchControls conversationId={conversationId} branch={message.branch} />
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onEdit(message)}
+              disabled={busy}
+              className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+            >
+              编辑
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        {!isUser && message.status === "interrupted" ? (
-          <p className="mt-2 text-amber-700 text-xs dark:text-amber-300">已中断，保留部分回答。</p>
+  return (
+    <div className="mx-auto flex w-full max-w-3xl gap-3">
+      <span className="mt-1 flex h-7 w-7 flex-none items-center justify-center rounded-full bg-celadon-50 text-celadon-600 dark:bg-celadon-900/40 dark:text-celadon-300">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4"
+        >
+          <path d="M12 4l1.7 5.2L19 11l-5.3 1.8L12 18l-1.7-5.2L5 11l5.3-1.8L12 4z" />
+        </svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="font-serif text-[15px] leading-8 text-gray-900 dark:text-gray-50">
+          {message.status === "running" && !message.content ? (
+            <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
+          ) : message.status === "error" ? (
+            <p className="text-red-600 dark:text-red-400">{message.content}</p>
+          ) : message.status === "running" ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <LazyMarkdown content={message.content} />
+          )}
+        </div>
+
+        {message.status === "interrupted" ? (
+          <p className="mt-2 text-clay-600 text-xs dark:text-clay-300">已中断，保留部分回答。</p>
         ) : null}
 
         {message.sources.length > 0 ? (
-          <details className="mt-2 border-gray-100 border-t pt-2 dark:border-gray-800">
-            <summary className="cursor-pointer text-gray-400 text-xs dark:text-gray-500">
-              引用来源 · {message.sources.length}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-gray-400 text-xs tracking-wide dark:text-gray-500">
+              引自你的记录 · {message.sources.length}
             </summary>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-col gap-1.5">
               {message.sources.map((source) => (
                 <Link
                   key={`${message.id}-${source.id}`}
                   to={source.href}
-                  className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  className="w-fit rounded-lg bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70"
                 >
                   {source.label}
                 </Link>
@@ -854,41 +877,28 @@ function ThreadMessage({
           {message.branch ? (
             <BranchControls conversationId={conversationId} branch={message.branch} />
           ) : null}
-          {isUser ? (
-            <button
-              type="button"
-              onClick={() => onEdit(message)}
-              disabled={busy}
-              className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
-            >
-              编辑
-            </button>
-          ) : (
-            <>
+          <button
+            type="button"
+            onClick={() => onRegenerate(message)}
+            disabled={busy || message.status === "running"}
+            className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+          >
+            重新生成
+          </button>
+          {message.status === "completed" || message.status === "interrupted" ? (
+            <Form method="post">
+              <input type="hidden" name="intent" value="saveAskDraft" />
+              <input type="hidden" name="conversationId" value={conversationId} />
+              <input type="hidden" name="messageId" value={message.id} />
               <button
-                type="button"
-                onClick={() => onRegenerate(message)}
-                disabled={busy || message.status === "running"}
-                className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+                type="submit"
+                className="text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
               >
-                重新生成
+                保存为草稿
               </button>
-              {message.status === "completed" || message.status === "interrupted" ? (
-                <Form method="post">
-                  <input type="hidden" name="intent" value="saveAskDraft" />
-                  <input type="hidden" name="conversationId" value={conversationId} />
-                  <input type="hidden" name="messageId" value={message.id} />
-                  <button
-                    type="submit"
-                    className="text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
-                  >
-                    保存为草稿
-                  </button>
-                </Form>
-              ) : null}
-            </>
-          )}
-          {!isUser && message.model ? (
+            </Form>
+          ) : null}
+          {message.model ? (
             <span className="text-gray-300 dark:text-gray-600">
               {message.model}
               {message.durationMs ? ` · ${(message.durationMs / 1000).toFixed(1)}s` : ""}
@@ -954,12 +964,18 @@ function SourceToggle({
   onChange: (type: AskSourceType) => void;
 }) {
   return (
-    <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-gray-700 text-xs transition hover:border-gray-300 hover:bg-gray-50 sm:gap-2 sm:px-3 sm:text-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900">
+    <label
+      className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition sm:gap-2 sm:px-3 sm:text-sm ${
+        checked
+          ? "border-celadon-600 bg-celadon-50 text-celadon-800 dark:border-celadon-400 dark:bg-celadon-900/40 dark:text-celadon-200"
+          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900"
+      }`}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={() => onChange(type)}
-        className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
+        className="h-4 w-4 rounded border-gray-300 accent-celadon-600 dark:border-gray-700"
       />
       {label}
     </label>

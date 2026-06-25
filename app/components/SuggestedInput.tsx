@@ -253,7 +253,7 @@ export function SuggestedInput({
           aria-expanded={open}
           aria-controls={listboxId}
           tabIndex={-1}
-          className="absolute top-6 right-2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100 dark:focus:ring-gray-100/20"
+          className="absolute top-6 right-2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-celadon-50 hover:text-celadon-700 focus:outline-none focus:ring-2 focus:ring-celadon-600/20 dark:text-gray-500 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200 dark:focus:ring-celadon-400/30"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
             setActiveIndex(0);
@@ -274,7 +274,7 @@ export function SuggestedInput({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute right-0 left-0 z-40 mt-1 max-h-52 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:shadow-black/30"
+          className="absolute right-0 left-0 z-40 mt-1 max-h-52 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30"
         >
           {filtered.length === 0 ? (
             <p className="px-3 py-2 text-gray-400 text-sm dark:text-gray-500">无匹配项</p>
@@ -291,7 +291,7 @@ export function SuggestedInput({
                   aria-selected={isActive}
                   className={`block w-full px-3 py-2 text-left text-sm transition focus:outline-none ${
                     isActive
-                      ? "bg-gray-100 text-gray-950 dark:bg-gray-800 dark:text-gray-50"
+                      ? "bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-950 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-gray-50"
                   }`}
                   onMouseDown={(event) => event.preventDefault()}

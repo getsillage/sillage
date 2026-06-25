@@ -59,8 +59,8 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-950">
-      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-50 p-1 text-sm dark:border-gray-800 dark:bg-gray-900">
+    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-950">
+      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-100/60 p-1 text-sm dark:border-gray-800 dark:bg-gray-900">
         <TabButton active={!preview} onClick={() => setPreview(false)}>
           编辑
         </TabButton>
@@ -74,7 +74,7 @@ export function MarkdownEditor({
             disabled={uploading}
             className={subtleButtonClass}
           >
-            {uploading ? "上传中…" : "🖼 图片"}
+            {uploading ? "上传中…" : "图片"}
           </button>
           <input
             ref={fileRef}
@@ -98,7 +98,7 @@ export function MarkdownEditor({
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
         rows={14}
-        className={`${textareaClass} rounded-t-none font-mono text-sm ${preview ? "hidden" : ""}`}
+        className={`${textareaClass} rounded-t-none font-serif text-[15px] leading-8 ${preview ? "hidden" : ""}`}
       />
       {preview ? (
         <div className="min-h-48 bg-white p-3 dark:bg-gray-950">
@@ -135,8 +135,8 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 transition ${
         active
-          ? "bg-white font-medium text-gray-950 shadow-sm dark:bg-gray-800 dark:text-gray-50"
-          : "text-gray-500 hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-100"
+          ? "bg-celadon-50 font-medium text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
+          : "text-gray-500 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
       }`}
     >
       {children}

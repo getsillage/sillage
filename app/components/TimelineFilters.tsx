@@ -17,7 +17,7 @@ const MOOD_OPTIONS = [
 ] as const;
 
 const filterSelectClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-gray-700 text-sm shadow-sm transition focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:focus:border-gray-200 dark:focus:ring-gray-100/20";
+  "w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-gray-700 text-sm transition focus:border-celadon-600 focus:outline-none focus:ring-2 focus:ring-celadon-600/20 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:focus:border-celadon-400 dark:focus:ring-celadon-400/30";
 
 export interface TimelineFacets {
   tags: string[];

@@ -1,13 +1,15 @@
 import { env } from "cloudflare:workers";
 import { Link, redirect } from "react-router";
+import { EntryCard } from "~/components/EntryCard";
 import { EntryForm, type EntryFormDefaults } from "~/components/EntryForm";
+import { TraceThread, TraceThreadItem } from "~/components/TraceThread";
 import {
   pageLeadClass,
   pageSectionClass,
-  pageShellClass,
   pageTitleClass,
   panelClass,
-  rowLinkClass,
+  readingShellClass,
+  serifTitleClass,
   subtlePanelClass,
 } from "~/components/ui";
 import { entryInsightRequestedByForm, scheduleEntryInsight } from "~/lib/ai/entry-insights";
@@ -137,7 +139,7 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-1">
       {entries.map((entry) => {
         const kind = normalizeEntryKind(entry.kind);
         const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
@@ -145,14 +147,14 @@ function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: st
           <li key={entry.id}>
             <Link
               to={`/entries/${entry.id}`}
-              className="block rounded-lg border border-gray-200 bg-white px-3 py-2 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-gray-700 dark:hover:bg-gray-900"
+              className="block rounded-lg px-2 py-2 transition hover:bg-gray-100 dark:hover:bg-gray-800/60"
             >
-              <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
+              <div className="flex flex-wrap items-center gap-2 text-gray-400 text-xs dark:text-gray-500">
                 <span>{entryKindLabel(kind)}</span>
                 {noteLabel ? <span>{noteLabel}</span> : null}
                 {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
               </div>
-              <p className="mt-1 line-clamp-2 text-gray-800 text-sm dark:text-gray-200">
+              <p className="mt-1 line-clamp-2 text-gray-700 text-sm dark:text-gray-300">
                 {entry.title || excerpt(entry.body, 56) || "未命名记录"}
               </p>
             </Link>
@@ -171,111 +173,81 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
     shouldGenerateEntryInsightForKind(loaderData.entryInsightAutoMode, kind);
 
   return (
-    <main className={pageShellClass}>
+    <main className={readingShellClass}>
       <section className={pageSectionClass}>
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-gray-500 text-sm dark:text-gray-400">{today}</p>
-            <h1 className={pageTitleClass}>今天留下些什么？</h1>
-          </div>
-          <p className={`${pageLeadClass} sm:text-right`}>What lingers today?</p>
+        <header>
+          <p className="text-gray-400 text-xs tracking-wide dark:text-gray-500">{today}</p>
+          <h1 className={`mt-1.5 ${pageTitleClass}`}>今天留下些什么？</h1>
+          <p className={`${pageLeadClass} italic [font-family:Palatino,'Iowan_Old_Style',serif]`}>
+            What lingers today?
+          </p>
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] 2xl:gap-8">
-          <section className={`${panelClass} p-5 sm:p-6 lg:p-8`}>
-            <EntryForm
-              error={actionData?.error}
-              defaults={actionData?.values ?? defaults}
-              suggestions={loaderData.suggestions}
-              submitLabel="保存"
-              showEntryInsightOption
-              defaultEntryInsightForKind={defaultEntryInsightForKind}
-            />
-          </section>
+        <section className={`${panelClass} rounded-xl p-4 sm:p-5`}>
+          <EntryForm
+            error={actionData?.error}
+            defaults={actionData?.values ?? defaults}
+            suggestions={loaderData.suggestions}
+            submitLabel="留下"
+            showEntryInsightOption
+            defaultEntryInsightForKind={defaultEntryInsightForKind}
+          />
+        </section>
 
-          <aside className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-            <section className={`${panelClass} p-4 sm:p-5`}>
-              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日片段</h2>
-              <div className="mt-3">
-                <EntryMiniList entries={fragments} empty="还没有留下片段。" />
+        <section className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">今日片段</h2>
+            <div className="mt-2">
+              <EntryMiniList entries={fragments} empty="还没有留下片段。" />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">今日笔记</h2>
+            <div className="mt-2">
+              <EntryMiniList entries={notes} empty="今天还没有被整理。" />
+            </div>
+          </div>
+
+          {drafts.length > 0 ? (
+            <div>
+              <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">草稿</h2>
+              <div className="mt-2">
+                <EntryMiniList entries={drafts} empty="" />
               </div>
-            </section>
+            </div>
+          ) : null}
 
-            <section className={`${panelClass} p-4 sm:p-5`}>
-              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日笔记</h2>
-              <div className="mt-3">
-                <EntryMiniList entries={notes} empty="今天还没有被整理。" />
-              </div>
-            </section>
-
-            {drafts.length > 0 ? (
-              <section className={`${panelClass} p-4 sm:p-5`}>
-                <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">草稿</h2>
-                <div className="mt-3">
-                  <EntryMiniList entries={drafts} empty="" />
-                </div>
-              </section>
-            ) : null}
-
-            <section className={`${panelClass} p-4 sm:p-5`}>
-              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日洞察</h2>
-              {todayInsights.length === 0 ? (
-                <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
-                  写下一些内容后，Sillage 会帮你看见它们之间的线索。
-                </p>
-              ) : (
-                <ul className="mt-3 space-y-2">
-                  {todayInsights.map((entry) => (
-                    <li
-                      key={entry.id}
-                      className="rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950"
+          <div>
+            <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">今日洞察</h2>
+            {todayInsights.length === 0 ? (
+              <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
+                写下一些内容后，Sillage 会帮你看见它们之间的线索。
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {todayInsights.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="rounded-lg bg-celadon-50 px-3 py-2 text-sm dark:bg-celadon-900/40"
+                  >
+                    <p className="text-celadon-800 dark:text-celadon-200">{entry.summary}</p>
+                    <Link
+                      to={`/entries/${entry.id}`}
+                      className="mt-1 inline-block text-celadon-700 text-xs hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
                     >
-                      <p className="text-gray-700 dark:text-gray-300">{entry.summary}</p>
-                      <Link
-                        to={`/entries/${entry.id}`}
-                        className="mt-1 inline-block text-gray-400 text-xs hover:text-gray-900 dark:hover:text-gray-100"
-                      >
-                        查看来源
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            {onThisDay.length > 0 ? (
-              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 sm:p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
-                <h2 className="font-medium text-amber-950 text-sm dark:text-amber-100">那年今日</h2>
-                <ul className="mt-3 space-y-2">
-                  {onThisDay.map((entry) => {
-                    const years = yearsBetween(entry.entryDate, today);
-                    return (
-                      <li key={entry.id}>
-                        <Link
-                          to={`/entries/${entry.id}`}
-                          className="block rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-amber-950 text-sm transition hover:border-amber-300 hover:bg-white dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:border-amber-800 dark:hover:bg-amber-950/50"
-                        >
-                          <span className="font-medium text-amber-800 dark:text-amber-200">
-                            {years}年前
-                          </span>
-                          <span className="text-amber-700 dark:text-amber-300">
-                            {" "}
-                            · {entry.entryDate}
-                          </span>
-                          <span> · {entry.title || excerpt(entry.body, 40) || "未命名记录"}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ) : null}
-          </aside>
-        </div>
+                      查看来源
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">最近记录</h2>
+            <h2 className={`text-sm tracking-[0.16em] ${serifTitleClass}`}>最近的痕迹</h2>
             <Link
               to="/timeline"
               className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
@@ -283,26 +255,32 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
               查看时间线
             </Link>
           </div>
-          {entries.length === 0 ? (
+          {entries.length === 0 && onThisDay.length === 0 ? (
             <div
               className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
             >
               还没有留下什么。可以从一个瞬间开始。
             </div>
           ) : (
-            <ul className="grid gap-3 xl:grid-cols-2">
-              {entries.map((entry) => {
-                const kind = normalizeEntryKind(entry.kind);
+            <TraceThread>
+              {entries.map((entry) => (
+                <TraceThreadItem key={entry.id}>
+                  <EntryCard entry={entry} openOnCardClick showEntryInsight />
+                </TraceThreadItem>
+              ))}
+              {onThisDay.map((entry) => {
+                const years = yearsBetween(entry.entryDate, today);
                 return (
-                  <li key={entry.id}>
-                    <Link to={`/entries/${entry.id}`} className={rowLinkClass}>
-                      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
-                        <time>{entry.entryDate}</time>
-                        <span>{entryKindLabel(kind)}</span>
-                        {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
+                  <TraceThreadItem key={`memory-${entry.id}`} memory>
+                    <Link
+                      to={`/entries/${entry.id}`}
+                      className="block rounded-lg px-3 py-3 transition hover:bg-clay-50 dark:hover:bg-clay-900/40"
+                    >
+                      <div className="text-clay-600 text-xs dark:text-clay-300">
+                        那年今日 · {years}年前 · {entry.entryDate}
                       </div>
-                      <h3 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
-                        {entry.title || "未命名记录"}
+                      <h3 className={`mt-1 text-base ${serifTitleClass}`}>
+                        {entry.title || excerpt(entry.body, 40) || "未命名记录"}
                       </h3>
                       {entry.body ? (
                         <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
@@ -310,10 +288,10 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
                         </p>
                       ) : null}
                     </Link>
-                  </li>
+                  </TraceThreadItem>
                 );
               })}
-            </ul>
+            </TraceThread>
           )}
         </section>
       </section>

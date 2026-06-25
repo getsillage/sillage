@@ -43,7 +43,7 @@ export function CalendarView({
 
   return (
     <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-lg border border-gray-200/80 bg-white p-3 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900/90">
+      <section className="rounded-lg border border-gray-200 bg-white p-3 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
         <div className="mb-4 grid grid-cols-2 items-center gap-3 sm:mb-5 sm:flex sm:justify-between">
           <Link
             to={monthHref(prev.year, prev.month)}
@@ -51,7 +51,7 @@ export function CalendarView({
           >
             ← {prev.year}年{prev.month}月
           </Link>
-          <h2 className="order-first col-span-2 text-center font-medium text-gray-950 sm:order-none sm:col-auto dark:text-gray-50">
+          <h2 className="order-first col-span-2 text-center font-serif text-gray-900 sm:order-none sm:col-auto dark:text-gray-50">
             {year}年{month}月
           </h2>
           <Link
@@ -90,7 +90,7 @@ export function CalendarView({
         </div>
       </section>
 
-      <aside className="rounded-lg border border-gray-200/80 bg-white p-3 shadow-sm sm:p-5 dark:border-gray-800 dark:bg-gray-900/90">
+      <aside className="rounded-lg border border-gray-200 bg-white p-3 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
         {selectedDate ? (
           <>
             <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
@@ -104,7 +104,7 @@ export function CalendarView({
                   <li key={entry.id}>
                     <Link
                       to={`/entries/${entry.id}`}
-                      className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
+                      className="block rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       {entry.title || "（无标题）"}
                     </Link>
@@ -135,20 +135,22 @@ function DayCell({ date, count, isToday, isSelected, year, month }: DayCellProps
   const base =
     "flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg border text-sm sm:min-h-12 sm:text-base";
   const state = isSelected
-    ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
+    ? "border-celadon-600 bg-celadon-600 text-white dark:border-celadon-400 dark:bg-celadon-400 dark:text-gray-950"
     : count > 0
-      ? "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800"
+      ? "border-gray-200 bg-white hover:bg-celadon-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-celadon-900/40"
       : "border-transparent text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-900";
 
   return (
     <Link to={monthHref(year, month, date)} className={`${base} ${state}`}>
-      <span className={isToday && !isSelected ? "font-bold text-gray-900 dark:text-gray-50" : ""}>
+      <span
+        className={isToday && !isSelected ? "font-bold text-celadon-700 dark:text-celadon-200" : ""}
+      >
         {day}
       </span>
       {count > 0 ? (
         <span
           className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
-            isSelected ? "bg-white dark:bg-gray-950" : "bg-gray-900 dark:bg-gray-100"
+            isSelected ? "bg-white dark:bg-gray-950" : "bg-celadon-600 dark:bg-celadon-300"
           }`}
         />
       ) : null}

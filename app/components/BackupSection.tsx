@@ -24,7 +24,7 @@ function formatSize(bytes: number): string {
 }
 
 const buttonClass =
-  "inline-flex w-full items-center justify-center rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:opacity-60 sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800";
+  "inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium text-gray-800 text-sm hover:bg-gray-100 disabled:opacity-60 sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800";
 const statusClass = (ok: boolean) =>
   `mt-3 rounded-lg border px-3 py-2 text-sm ${
     ok
@@ -42,7 +42,7 @@ export function BackupSection({ backups }: { backups: BackupItem[] }) {
   const exporting = fetcher.state !== "idle";
 
   return (
-    <section className="rounded-lg border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/90">
+    <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
       <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">数据与备份</h2>
       <p className="mt-1 text-gray-700 text-sm dark:text-gray-400">
         每天会自动备份一份到服务端；可在这里下载，或立即手动导出一份。
@@ -68,7 +68,7 @@ export function BackupSection({ backups }: { backups: BackupItem[] }) {
           {backups.map((item) => (
             <li
               key={item.base}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-100/60 px-4 py-3 dark:bg-gray-950"
             >
               <div>
                 <span className="font-medium text-gray-950 text-sm dark:text-gray-50">

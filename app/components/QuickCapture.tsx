@@ -18,8 +18,8 @@ const QUICK_MOODS: ReadonlyArray<{ value: number; label: string }> = [
 
 function moodChipClass(active: boolean): string {
   return active
-    ? "rounded-full border border-gray-900 bg-gray-900 px-2.5 py-1 text-white text-xs dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
-    : "rounded-full border border-gray-200 px-2.5 py-1 text-gray-600 text-xs transition hover:border-gray-300 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600";
+    ? "rounded-full border border-celadon-600 bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs dark:border-celadon-400 dark:bg-celadon-900/40 dark:text-celadon-200"
+    : "rounded-full border border-gray-200 px-2.5 py-1 text-gray-600 text-xs transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800";
 }
 
 /**
@@ -69,7 +69,7 @@ export function QuickCapture() {
         onClick={() => setOpen((value) => !value)}
         aria-label="速记"
         title="速记（⌘/Ctrl + J）"
-        className="fixed right-4 bottom-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-2xl text-white shadow-lg transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 sm:right-5 sm:bottom-5 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
+        className="fixed right-4 bottom-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-celadon-600 text-2xl text-white shadow-lg shadow-gray-900/15 transition hover:bg-celadon-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 sm:right-5 sm:bottom-5 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400 dark:focus-visible:ring-celadon-400/30"
       >
         <span className={open ? "rotate-45 transition" : "transition"}>+</span>
       </button>
@@ -80,9 +80,9 @@ export function QuickCapture() {
             type="button"
             aria-label="关闭速记"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 h-full w-full cursor-default bg-gray-950/5 dark:bg-gray-950/30"
+            className="absolute inset-0 h-full w-full cursor-default bg-gray-950/10 dark:bg-gray-950/50"
           />
-          <div className="absolute right-3 bottom-20 left-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900">
+          <div className="absolute right-3 bottom-20 left-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
             <fetcher.Form method="post" action="/capture" className="space-y-3">
               <input type="hidden" name="kind" value="fragment" />
               <input type="hidden" name="mood" value={mood ?? ""} />

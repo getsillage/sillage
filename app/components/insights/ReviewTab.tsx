@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { panelClass, subtlePanelClass } from "~/components/ui";
+import { subtlePanelClass } from "~/components/ui";
 import type { EntryFormSuggestions } from "~/lib/product/entry-suggestions";
 import { type LoadedSummary, SummaryCard } from "./SummaryCard";
 import { type PickerEntry, SummaryGenerator } from "./SummaryGenerator";
@@ -28,15 +28,15 @@ export function ReviewTab({
     <>
       <SummaryGenerator suggestions={suggestions} pickerEntries={pickerEntries} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className={`${panelClass} p-4 sm:p-5`}>
-          <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">总结回顾</h2>
+      <div className="space-y-6">
+        <section>
+          <h2 className="font-serif text-gray-900 text-lg dark:text-gray-50">总结回顾</h2>
           {summaries.length === 0 ? (
             <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
               还没有总结。在上面挑一个范围或主题，点「生成」试试。
             </p>
           ) : (
-            <div className="mt-3 grid gap-3 2xl:grid-cols-2">
+            <div className="mt-3 space-y-3">
               {summaries.map((summary) => (
                 <SummaryCard key={summary.id} summary={summary} />
               ))}
@@ -45,8 +45,8 @@ export function ReviewTab({
         </section>
 
         <aside className="space-y-4">
-          <section className={`${panelClass} p-4 sm:p-5`}>
-            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">萦绕主题</h2>
+          <section className="border-gray-200 border-t pt-5 dark:border-gray-800">
+            <h2 className="font-serif text-gray-900 text-lg dark:text-gray-50">萦绕主题</h2>
             {topThemes.length === 0 ? (
               <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
                 更多记录之后，这里会浮现反复出现的主题。
@@ -57,7 +57,7 @@ export function ReviewTab({
                   <Link
                     key={tag}
                     to={`/timeline?tag=${encodeURIComponent(tag)}`}
-                    className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-sm transition hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
+                    className="rounded-full bg-gray-100 px-3 py-1 text-gray-600 text-sm transition hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
                   >
                     #{tag} · {count}
                   </Link>

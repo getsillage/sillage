@@ -10,7 +10,7 @@ import {
   parseTextList,
 } from "~/lib/product/entry-fields";
 import { LocalDateTime } from "./LocalDateTime";
-import { rowLinkClass } from "./ui";
+import { rowLinkClass, serifTitleClass } from "./ui";
 
 const MOOD_LABEL: Record<number, string> = {
   1: "低落",
@@ -81,7 +81,7 @@ export function EntryCard({
       onClick={openOnCardClick ? handleCardClick : undefined}
       onKeyDown={openOnCardClick ? handleCardKeyDown : undefined}
     >
-      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
+      <div className="flex flex-wrap items-center gap-2 text-gray-400 text-xs dark:text-gray-500">
         <LocalDateTime value={entry.createdAt} />
         {showEntryDate ? <time>归属 {entry.entryDate}</time> : null}
         <span>{entryKindLabel(kind)}</span>
@@ -94,11 +94,13 @@ export function EntryCard({
           </span>
         ) : null}
       </div>
-      <h2 className="mt-1 font-medium text-gray-950 dark:text-gray-50">
+      <h2 className={`mt-1 text-base ${serifTitleClass}`}>
         {openOnCardClick ? (
-          <span className="group-hover:underline">{title}</span>
+          <span className="group-hover:text-celadon-700 dark:group-hover:text-celadon-200">
+            {title}
+          </span>
         ) : (
-          <Link to={detailPath} className="hover:underline">
+          <Link to={detailPath} className="hover:text-celadon-700 dark:hover:text-celadon-200">
             {title}
           </Link>
         )}
@@ -109,7 +111,7 @@ export function EntryCard({
         </p>
       ) : null}
       {showEntryInsight ? (
-        <section className="mt-2 rounded-md bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950">
+        <section className="mt-3 rounded-lg bg-celadon-50 px-3 py-2 text-sm text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200">
           <EntryInsightControl
             entry={entry}
             compact
@@ -117,7 +119,7 @@ export function EntryCard({
               openOnCardClick ? null : (
                 <Link
                   to={detailPath}
-                  className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  className="text-celadon-700 hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
                 >
                   查看详情
                 </Link>
@@ -131,7 +133,7 @@ export function EntryCard({
           {people.map((person) => (
             <span
               key={`person-${person}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               {person}
             </span>
@@ -139,7 +141,7 @@ export function EntryCard({
           {relationships.map((relationship) => (
             <span
               key={`relationship-${relationship}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               {relationship}
             </span>
@@ -147,7 +149,7 @@ export function EntryCard({
           {entry.tags.map((tag) => (
             <span
               key={`tag-${tag}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 text-xs dark:bg-gray-800 dark:text-gray-300"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
             >
               #{tag}
             </span>

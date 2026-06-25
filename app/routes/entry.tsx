@@ -4,7 +4,7 @@ import { EntryInsightControl } from "~/components/ai/EntryInsightControl";
 import { EntryForm } from "~/components/EntryForm";
 import { LazyMarkdown } from "~/components/LazyMarkdown";
 import { LocalDateTime } from "~/components/LocalDateTime";
-import { pageShellClass, panelClass, subtlePanelClass } from "~/components/ui";
+import { pageTitleClass, panelClass, readingShellClass, subtlePanelClass } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
@@ -22,12 +22,12 @@ import { formatReadingStats, readingStats } from "~/lib/product/reading-stats";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
 
-const MOOD_EMOJI: Record<number, string> = {
-  1: "😞",
-  2: "😕",
-  3: "😐",
-  4: "🙂",
-  5: "😄",
+const MOOD_LABEL: Record<number, string> = {
+  1: "低落",
+  2: "失落",
+  3: "平静",
+  4: "轻松",
+  5: "明亮",
 };
 
 export function meta(_: Route.MetaArgs) {
@@ -142,10 +142,10 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
 
   if (editing) {
     return (
-      <main className={pageShellClass}>
-        <section className="mx-auto max-w-5xl">
+      <main className={readingShellClass}>
+        <section>
           <div className="mb-6 flex items-center justify-between gap-3">
-            <h1 className="font-semibold text-2xl text-gray-950 dark:text-gray-50">编辑记录</h1>
+            <h1 className={pageTitleClass}>编辑记录</h1>
             <Link
               to={`/entries/${entry.id}`}
               className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
@@ -168,7 +168,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
   }
 
   return (
-    <main className={pageShellClass}>
+    <main className={readingShellClass}>
       <div className="mb-5 flex items-center justify-between gap-3 text-sm sm:mb-6">
         <Link
           to="/"
@@ -200,29 +200,29 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
-        <article className={`${panelClass} min-w-0 p-4 sm:p-8 lg:p-10`}>
-          <header className="border-gray-100 border-b pb-5 dark:border-gray-800">
+      <div className="space-y-6">
+        <article className="min-w-0">
+          <header className="border-gray-200 border-b pb-5 dark:border-gray-800">
             <div className="flex flex-wrap items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
               <time>{entry.entryDate}</time>
               <span>· {kindLabel}</span>
               {noteLabel ? <span>· {noteLabel}</span> : null}
               {entry.weather ? <span>· {entry.weather}</span> : null}
-              {entry.mood ? <span>· {MOOD_EMOJI[entry.mood]}</span> : null}
+              {entry.mood ? <span>· {MOOD_LABEL[entry.mood]}</span> : null}
             </div>
             {entry.title ? (
-              <h1 className="mt-2 max-w-3xl break-words font-semibold text-2xl text-gray-900 tracking-normal sm:text-3xl dark:text-gray-50">
+              <h1 className="mt-2 max-w-3xl break-words font-serif text-2xl text-gray-900 tracking-normal sm:text-3xl dark:text-gray-50">
                 {entry.title}
               </h1>
             ) : null}
           </header>
 
-          <div className="max-w-3xl py-6 sm:py-8">
+          <div className="py-6 sm:py-8">
             <LazyMarkdown content={entry.body} />
           </div>
         </article>
 
-        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+        <aside className="space-y-4">
           <section className={`${subtlePanelClass} p-4 text-sm sm:p-5`}>
             <h2 className="font-medium text-gray-900 text-xs dark:text-gray-100">记录信息</h2>
             <div className="mt-3 space-y-2 text-gray-600 dark:text-gray-300">

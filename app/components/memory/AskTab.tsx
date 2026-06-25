@@ -36,7 +36,7 @@ function FacetCloud({
             <Link
               key={value}
               to={`/ask?q=${encodeURIComponent(value)}`}
-              className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
+              className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
             >
               {value} · {count}
             </Link>

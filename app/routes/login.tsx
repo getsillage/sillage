@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { Form, redirect, useNavigation } from "react-router";
-import { inputClass, pageLeadClass, pageTitleClass, primaryButtonClass } from "~/components/ui";
+import { inputClass, pageLeadClass, primaryButtonClass } from "~/components/ui";
 import { verifyPassword } from "~/lib/auth/password";
 import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "~/lib/auth/rate-limit";
 import { safeRedirect } from "~/lib/auth/redirect";
@@ -51,12 +51,14 @@ export default function Login({ actionData }: Route.ComponentProps) {
     <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10 dark:bg-gray-950">
       <Form
         method="post"
-        className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-900/5 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/20"
       >
-        <h1 className={`${pageTitleClass} flex items-center gap-2`}>
-          <img src="/sillage-icon.svg" alt="" className="h-7 w-7 shrink-0" />
-          <span>Sillage</span>
+        <h1 className="text-2xl italic text-gray-900 dark:text-gray-50 [font-family:Palatino,'Iowan_Old_Style',serif]">
+          Sillage
         </h1>
+        <p className="mt-0.5 font-serif text-gray-400 text-xs tracking-widest dark:text-gray-500">
+          记忆的余迹
+        </p>
         <p className={pageLeadClass}>输入密码以继续。</p>
 
         <label className="mt-6 block font-medium text-gray-900 text-sm dark:text-gray-100">

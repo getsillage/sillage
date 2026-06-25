@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
-import { Form, Link, NavLink, Outlet } from "react-router";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router";
 import { QuickCapture } from "~/components/QuickCapture";
-import { ThemeToggle } from "~/components/ThemeToggle";
-import { subtleButtonClass } from "~/components/ui";
+import { Sidebar, Wordmark } from "~/components/Sidebar";
 import { requireSession } from "~/lib/auth/session";
 import type { Route } from "./+types/app-layout";
 
@@ -11,54 +11,69 @@ export async function loader({ request }: Route.LoaderArgs) {
   return null;
 }
 
-function navClass({ isActive }: { isActive: boolean }): string {
-  return isActive
-    ? "shrink-0 rounded-full bg-gray-950 px-3 py-1.5 font-medium text-white dark:bg-gray-100 dark:text-gray-950"
-    : "shrink-0 rounded-full px-3 py-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
-}
-
 export default function AppLayout() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+  const routeId = `${location.pathname}?${location.search}`;
+
+  useEffect(() => {
+    setDrawerOpen((open) => (open && routeId ? false : open));
+  }, [routeId]);
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setDrawerOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [drawerOpen]);
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-950 dark:bg-gray-950 dark:text-gray-50">
-      <header className="sticky top-0 z-30 border-gray-200/80 border-b bg-white/90 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90">
-        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 py-3 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <Link
-              to="/"
-              className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
-            >
-              <img src="/sillage-icon.svg" alt="" className="h-6 w-6 shrink-0" />
-              <span>Sillage</span>
-            </Link>
-            <div className="flex shrink-0 items-center gap-2">
-              <ThemeToggle />
-              <Form method="post" action="/logout">
-                <button type="submit" className={subtleButtonClass}>
-                  退出
-                </button>
-              </Form>
-            </div>
-          </div>
-          <nav className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1 pb-1 text-sm sm:flex-wrap sm:overflow-visible sm:pb-0">
-            <NavLink to="/" end className={navClass}>
-              此刻
-            </NavLink>
-            <NavLink to="/timeline" className={navClass}>
-              痕迹
-            </NavLink>
-            <NavLink to="/review" className={navClass}>
-              照见
-            </NavLink>
-            <NavLink to="/ask" className={navClass}>
-              探寻
-            </NavLink>
-            <NavLink to="/settings" className={navClass}>
-              设置
-            </NavLink>
-          </nav>
-        </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+      <Sidebar className="fixed inset-y-0 left-0 z-30 hidden w-56 lg:flex" />
+
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-gray-200 border-b bg-white/90 px-3 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90 lg:hidden">
+        <Wordmark />
+        <button
+          type="button"
+          aria-label="打开导航"
+          aria-expanded={drawerOpen}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30"
+          onClick={() => setDrawerOpen(true)}
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">
+            ☰
+          </span>
+        </button>
       </header>
-      <Outlet />
+
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="关闭导航"
+            className="absolute inset-0 h-full w-full bg-gray-950/20 dark:bg-gray-950/60"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="导航"
+            className="absolute inset-y-0 left-0 w-64 max-w-[85vw] shadow-xl shadow-gray-950/10"
+          >
+            <Sidebar className="h-full w-full" onNavigate={() => setDrawerOpen(false)} />
+          </div>
+        </div>
+      ) : null}
+
+      <main className="lg:pl-56">
+        <Outlet />
+      </main>
       <QuickCapture />
     </div>
   );

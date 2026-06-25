@@ -7,11 +7,45 @@
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-serif: "Songti SC", "STSong", "Source Han Serif SC", "Noto Serif SC", serif;
+
+  /* 中性 gray ramp 在 Sillage 中承载「纸—墨」语义,不是默认中性灰。 */
+  --color-gray-50: #f3f5f1;
+  --color-gray-100: #e9ece4;
+  --color-gray-200: #dce0d6;
+  --color-gray-300: #c7ccbe;
+  --color-gray-400: #a4aa9a;
+  --color-gray-500: #7c8276;
+  --color-gray-600: #646a5e;
+  --color-gray-700: #4b5046;
+  --color-gray-800: #343a30;
+  --color-gray-900: #262b22;
+  --color-gray-950: #181a15;
+
+  /* 青瓷绿:主点缀、选中态、焦点与 AI 引用软底。 */
+  --color-celadon-50: #e7efe9;
+  --color-celadon-100: #d3e2d8;
+  --color-celadon-200: #b3cdbc;
+  --color-celadon-300: #8fb39c;
+  --color-celadon-400: #6f9a7f;
+  --color-celadon-500: #5c8270;
+  --color-celadon-600: #4f7a66;
+  --color-celadon-700: #3d5e4c;
+  --color-celadon-800: #33533f;
+  --color-celadon-900: #24382c;
+
+  /* 暖陶土:仅用于「那年今日」等记忆回望。 */
+  --color-clay-50: #f2e9dd;
+  --color-clay-100: #e6d6c2;
+  --color-clay-300: #c29a6e;
+  --color-clay-400: #a8794f;
+  --color-clay-600: #6e4a28;
+  --color-clay-900: #2a241d;
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-gray-50 dark:bg-gray-950;
 }
 
 html {
@@ -45,11 +79,11 @@ textarea {
 }
 
 ::selection {
-  background: rgb(17 24 39 / 0.12);
+  background: rgb(92 130 112 / 0.18);
 }
 
 .dark ::selection {
-  background: rgb(243 244 246 / 0.18);
+  background: rgb(143 179 156 / 0.24);
 }
 
 ::-webkit-calendar-picker-indicator {

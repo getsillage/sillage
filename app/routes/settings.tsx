@@ -4,7 +4,7 @@ import { Form, useFetcher, useNavigation } from "react-router";
 import { BackupSection } from "~/components/BackupSection";
 import { SuggestedInput } from "~/components/SuggestedInput";
 import { ThemeToggle } from "~/components/ThemeToggle";
-import { pageLeadClass, pageShellClass, pageTitleClass } from "~/components/ui";
+import { pageLeadClass, pageTitleClass, primaryButtonClass, wideShellClass } from "~/components/ui";
 import {
   DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   ENTRY_INSIGHT_AUTO_MODES,
@@ -171,11 +171,11 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-gray-400 bg-white px-3 py-2 text-gray-950 text-sm placeholder:text-gray-500 focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-200 dark:focus:ring-gray-100/20 dark:disabled:bg-gray-900 dark:disabled:text-gray-500";
+  "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 text-sm placeholder:text-gray-400 focus:border-celadon-600 focus:outline-none focus:ring-2 focus:ring-celadon-600/20 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-celadon-400 dark:focus:ring-celadon-400/30 dark:disabled:bg-gray-900 dark:disabled:text-gray-500";
 const secondaryButtonClass =
-  "inline-flex items-center justify-center rounded-lg border border-gray-400 bg-white px-3 py-2 font-medium text-gray-900 text-sm hover:bg-gray-100 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:disabled:border-gray-800 dark:disabled:bg-gray-900 dark:disabled:text-gray-600";
+  "inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium text-gray-800 text-sm hover:bg-gray-100 disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:disabled:border-gray-800 dark:disabled:bg-gray-900 dark:disabled:text-gray-600";
 const subtleTextClass = "text-gray-700 dark:text-gray-400";
-const labelClass = "block text-gray-900 text-sm font-medium dark:text-gray-100";
+const labelClass = "block text-gray-700 text-sm font-medium dark:text-gray-300";
 const statusClass = (ok: boolean) =>
   `rounded-lg border px-3 py-2 text-sm ${
     ok
@@ -307,7 +307,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
   }
 
   return (
-    <main className={pageShellClass}>
+    <main className={wideShellClass}>
       <section className="space-y-8">
         <header>
           <h1 className={pageTitleClass}>设置</h1>
@@ -315,8 +315,8 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
         </header>
 
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-            <section className="rounded-lg border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/90">
+          <aside className="space-y-4 xl:sticky xl:top-10 xl:self-start">
+            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">外观</h2>
               <p className={`mt-1 text-sm ${subtleTextClass}`}>切换浅色 / 深色主题，或跟随系统。</p>
               <div className="mt-3">
@@ -324,7 +324,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
               </div>
             </section>
 
-            <section className="rounded-lg border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/90">
+            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 提供商</h2>
               <p className={`mt-1 text-sm ${subtleTextClass}`}>
                 配置用于手动总结与问答的 AI 提供商；所有 AI 配置都在这里管理。
@@ -338,7 +338,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
             <Form method="post" className="space-y-4">
               <input type="hidden" name="id" value={selectedProfileId} />
 
-              <section className="rounded-xl border border-gray-300 bg-white p-4 shadow-sm sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+              <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h3 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 功能</h3>
@@ -347,7 +347,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                     </p>
                   </div>
                   <label
-                    className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                    className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-gray-200 bg-gray-100/60 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
                     aria-label="启用 AI 功能"
                   >
                     <input
@@ -357,7 +357,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                       onChange={(event) => setEnabled(event.target.checked)}
                       className="peer sr-only"
                     />
-                    <span className="relative h-6 w-11 rounded-full bg-gray-300 transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-gray-900 peer-checked:after:translate-x-5 dark:bg-gray-700 dark:peer-checked:bg-gray-100 dark:peer-checked:after:bg-gray-950" />
+                    <span className="relative h-6 w-11 rounded-full bg-gray-300 transition-colors after:absolute after:top-1 after:left-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-celadon-600 peer-checked:after:translate-x-5 dark:bg-gray-700 dark:peer-checked:bg-celadon-400 dark:peer-checked:after:bg-gray-950" />
                     <span className="min-w-12 text-gray-900 dark:text-gray-100">
                       {enabled ? "已启用" : "已停用"}
                     </span>
@@ -388,7 +388,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                 </div>
               </section>
 
-              <section className="space-y-5 rounded-xl border border-gray-300 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+              <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
                 <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                   <label className={labelClass}>
                     已保存配置
@@ -481,7 +481,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                   />
                 </label>
 
-                <section className="rounded-lg border border-gray-300 bg-slate-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                <section className="rounded-lg bg-gray-100/60 p-4 dark:bg-gray-950/60">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <label htmlFor="model" className={labelClass}>
@@ -530,7 +530,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                     name="intent"
                     value="save"
                     disabled={busy}
-                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2 font-medium text-white text-sm hover:bg-gray-800 disabled:opacity-60 sm:w-auto dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
+                    className={`${primaryButtonClass} w-full sm:w-auto`}
                   >
                     保存并设为当前
                   </button>

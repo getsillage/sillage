@@ -47,11 +47,11 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
   return (
     <details
       id={`summary-${summary.id}`}
-      className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
+      className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer list-none">
-        <span className="block break-words font-medium text-gray-950 text-sm dark:text-gray-50">
+        <span className="block break-words font-serif text-gray-900 text-base dark:text-gray-50">
           {summary.title || "未命名总结"}
         </span>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -75,7 +75,7 @@ export function SummaryCard({ summary }: { summary: LoadedSummary }) {
                 <Link
                   key={id}
                   to={`/entries/${id}`}
-                  className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  className="rounded-lg bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs hover:bg-celadon-100 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70"
                 >
                   来源 {index + 1}
                 </Link>

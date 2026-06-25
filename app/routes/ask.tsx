@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { AskTab } from "~/components/memory/AskTab";
-import { pageLeadClass, pageShellClass, pageTitleClass } from "~/components/ui";
+import { pageLeadClass, pageTitleClass, readingShellClass } from "~/components/ui";
 import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
 import {
@@ -111,7 +111,7 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 
 export default function Ask({ loaderData }: Route.ComponentProps) {
   return (
-    <main className={pageShellClass}>
+    <main className={readingShellClass}>
       <section className="min-h-[calc(100svh-92px)] space-y-4 sm:space-y-8">
         <header className="hidden space-y-1 sm:block">
           <h1 className={pageTitleClass}>探寻</h1>

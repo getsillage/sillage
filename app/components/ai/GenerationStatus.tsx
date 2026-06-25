@@ -20,7 +20,7 @@ export function GenerationStatus({ state, phases }: GenerationStatusProps) {
   if (state.status === "running") {
     return (
       <div className="mt-2 flex items-center gap-2 text-gray-500 text-xs dark:text-gray-400">
-        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500" />
+        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-celadon-500 dark:bg-celadon-300" />
         <span>{phaseLabel(phases, state.elapsedMs)}</span>
         <span className="text-gray-400 tabular-nums dark:text-gray-500">
           已用 {formatDuration(state.elapsedMs)}
@@ -39,8 +39,8 @@ export function GenerationStatus({ state, phases }: GenerationStatusProps) {
   if (state.status === "done" && state.result?.ok) {
     const ms = state.result.durationMs ?? state.elapsedMs;
     return (
-      <p className="mt-2 text-green-700 text-xs dark:text-green-300">
-        ✓ 用时 {formatDuration(ms)}
+      <p className="mt-2 text-celadon-700 text-xs dark:text-celadon-200">
+        用时 {formatDuration(ms)}
         {state.result.model ? ` · ${state.result.model}` : ""}
       </p>
     );

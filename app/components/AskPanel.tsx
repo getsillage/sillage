@@ -13,14 +13,7 @@ import type {
 } from "~/lib/db/ask-conversations";
 import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
-import {
-  helperTextClass,
-  inputClass,
-  panelClass,
-  primaryButtonClass,
-  subtleButtonClass,
-  textareaClass,
-} from "./ui";
+import { helperTextClass, inputClass, primaryButtonClass, subtleButtonClass } from "./ui";
 
 interface AskActionData {
   intent?: string;
@@ -84,6 +77,10 @@ function messageWithBranch(current: AskMessageView[], message: AskMessageView): 
     return next;
   }
   return [...current, message];
+}
+
+function conversationHref(conversationId: string, includeArchived: boolean): string {
+  return `/ask?conversation=${conversationId}${includeArchived ? "&archived=1" : ""}`;
 }
 
 function useAskStream() {
@@ -384,70 +381,39 @@ export function AskPanel({
   }
 
   return (
-    <section className={`${panelClass} overflow-hidden`}>
+    <section className="-mx-3 overflow-hidden border-gray-200/80 border-y bg-white shadow-sm sm:mx-0 sm:rounded-lg sm:border dark:border-gray-800 dark:bg-gray-900/90">
       <div className="grid gap-0 lg:min-h-[calc(100svh-220px)] lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr]">
-        <aside className="border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:border-r lg:border-b-0">
+        <MobileConversationSwitcher
+          conversations={conversations}
+          currentConversation={currentConversation}
+          conversationQuery={conversationQuery}
+          includeArchived={includeArchived}
+        />
+
+        <aside className="hidden border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:block lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
             <Link to="/ask" className={subtleButtonClass}>
               新对话
             </Link>
           </div>
-          <Form method="get" className="mt-3 space-y-2">
-            {includeArchived ? <input type="hidden" name="archived" value="1" /> : null}
-            <input
-              type="search"
-              name="cq"
-              defaultValue={conversationQuery}
-              placeholder="搜索会话"
-              className={`${inputClass} mt-0`}
-            />
-            <div className="flex items-center justify-between">
-              <button type="submit" className={subtleButtonClass}>
-                搜索
-              </button>
-              <Link
-                to={includeArchived ? "/ask" : "/ask?archived=1"}
-                className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-              >
-                {includeArchived ? "隐藏归档" : "查看归档"}
-              </Link>
-            </div>
-          </Form>
-          <nav className="mt-3 flex max-h-44 gap-2 overflow-x-auto pb-1 lg:block lg:max-h-[calc(100svh-420px)] lg:space-y-1 lg:overflow-auto lg:pb-0">
-            {conversations.map((conversation) => (
-              <Link
-                key={conversation.id}
-                to={`/ask?conversation=${conversation.id}${includeArchived ? "&archived=1" : ""}`}
-                className={`block w-56 shrink-0 rounded-lg px-3 py-2 text-sm transition lg:w-auto ${
-                  currentConversation?.id === conversation.id
-                    ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"
-                    : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
-                }`}
-              >
-                <span className="flex items-center gap-1">
-                  {conversation.pinnedAt ? <span aria-hidden="true">★</span> : null}
-                  <span className="truncate font-medium">{conversation.title || "新的探寻"}</span>
-                </span>
-                <span className="mt-1 block truncate text-gray-400 text-xs dark:text-gray-500">
-                  {conversation.lastMessagePreview || "还没有消息"}
-                </span>
-              </Link>
-            ))}
-            {conversations.length === 0 ? (
-              <p className="w-full px-2 py-4 text-gray-400 text-sm dark:text-gray-500">
-                没有会话。
-              </p>
-            ) : null}
-          </nav>
+          <ConversationSearch
+            conversationQuery={conversationQuery}
+            includeArchived={includeArchived}
+          />
+          <ConversationList
+            conversations={conversations}
+            currentConversation={currentConversation}
+            includeArchived={includeArchived}
+          />
         </aside>
 
-        <div className="flex min-h-[70svh] flex-col lg:min-h-[calc(100svh-220px)]">
+        <div className="flex h-[calc(100svh-132px)] min-h-[430px] flex-col lg:h-auto lg:min-h-[calc(100svh-220px)]">
           <ThreadHeader conversation={currentConversation} />
 
-          <div className="flex-1 space-y-4 overflow-auto px-3 py-4 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
+          <div className="flex-1 space-y-4 overflow-auto overscroll-contain px-3 py-4 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
             {messages.length === 0 ? (
-              <div className="mx-auto flex min-h-56 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-5 text-center sm:min-h-72 sm:p-8 dark:border-gray-800">
+              <div className="mx-auto flex min-h-44 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-5 text-center sm:min-h-72 sm:p-8 dark:border-gray-800">
                 <p className="font-medium text-gray-950 text-base dark:text-gray-50">
                   问问你的记忆
                 </p>
@@ -469,8 +435,24 @@ export function AskPanel({
             )}
           </div>
 
-          <div className="border-gray-200 border-t bg-white/95 p-3 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-900/95">
-            <div className="mb-3 flex flex-wrap gap-2">
+          <div className="border-gray-200 border-t bg-white/95 p-2 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-900/95">
+            <details className="mb-2 sm:hidden">
+              <summary className="cursor-pointer list-none px-2 py-1 text-gray-500 text-xs dark:text-gray-400">
+                来源 · 已选 {sourceTypes.length} 项
+              </summary>
+              <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                {ASK_SOURCE_TYPES.map((type) => (
+                  <SourceToggle
+                    key={type}
+                    type={type}
+                    label={SOURCE_LABELS[type]}
+                    checked={sourceTypes.includes(type)}
+                    onChange={toggleSource}
+                  />
+                ))}
+              </div>
+            </details>
+            <div className="mb-3 hidden flex-wrap gap-2 sm:flex">
               {ASK_SOURCE_TYPES.map((type) => (
                 <SourceToggle
                   key={type}
@@ -489,7 +471,7 @@ export function AskPanel({
                 </button>
               </div>
             ) : null}
-            <div className="mx-auto flex max-w-4xl flex-col items-stretch gap-2 sm:flex-row sm:items-end">
+            <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-3xl border border-gray-200 bg-gray-50 p-2 shadow-sm dark:border-gray-800 dark:bg-gray-950">
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -501,24 +483,26 @@ export function AskPanel({
                 }}
                 rows={2}
                 placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
-                className={`${textareaClass} min-h-24 min-w-0 flex-1 sm:min-h-0`}
+                className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-gray-950 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
               />
               {busy ? (
                 <button
                   type="button"
                   onClick={stream.stop}
-                  className={`${primaryButtonClass} sm:w-auto`}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 font-medium text-white text-sm transition hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
                 >
-                  停止
+                  <span aria-hidden="true">■</span>
+                  <span className="sr-only">停止</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={submit}
                   disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                  className={`${primaryButtonClass} sm:w-auto`}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 font-medium text-white text-lg transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
                 >
-                  发送
+                  <span aria-hidden="true">↑</span>
+                  <span className="sr-only">发送</span>
                 </button>
               )}
             </div>
@@ -526,6 +510,175 @@ export function AskPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+function ConversationSearch({
+  conversationQuery,
+  includeArchived,
+}: {
+  conversationQuery: string;
+  includeArchived: boolean;
+}) {
+  return (
+    <Form method="get" className="mt-3 space-y-2">
+      {includeArchived ? <input type="hidden" name="archived" value="1" /> : null}
+      <input
+        type="search"
+        name="cq"
+        defaultValue={conversationQuery}
+        placeholder="搜索会话"
+        className={`${inputClass} mt-0`}
+      />
+      <div className="flex items-center justify-between">
+        <button type="submit" className={subtleButtonClass}>
+          搜索
+        </button>
+        <Link
+          to={includeArchived ? "/ask" : "/ask?archived=1"}
+          className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+        >
+          {includeArchived ? "隐藏归档" : "查看归档"}
+        </Link>
+      </div>
+    </Form>
+  );
+}
+
+function ConversationList({
+  conversations,
+  currentConversation,
+  includeArchived,
+}: {
+  conversations: AskConversationSummary[];
+  currentConversation: AskConversationView | null;
+  includeArchived: boolean;
+}) {
+  return (
+    <nav className="mt-3 max-h-72 space-y-1 overflow-auto lg:max-h-[calc(100svh-420px)]">
+      {conversations.map((conversation) => (
+        <Link
+          key={conversation.id}
+          to={conversationHref(conversation.id, includeArchived)}
+          className={`block rounded-lg px-3 py-2 text-sm transition ${
+            currentConversation?.id === conversation.id
+              ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"
+              : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
+          }`}
+        >
+          <span className="flex items-center gap-1">
+            {conversation.pinnedAt ? <span aria-hidden="true">★</span> : null}
+            <span className="truncate font-medium">{conversation.title || "新的探寻"}</span>
+          </span>
+          <span className="mt-1 block truncate text-gray-400 text-xs dark:text-gray-500">
+            {conversation.lastMessagePreview || "还没有消息"}
+          </span>
+        </Link>
+      ))}
+      {conversations.length === 0 ? (
+        <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">没有会话。</p>
+      ) : null}
+    </nav>
+  );
+}
+
+function MobileConversationSwitcher({
+  conversations,
+  currentConversation,
+  conversationQuery,
+  includeArchived,
+}: AskPanelProps) {
+  return (
+    <div className="relative border-gray-200 border-b bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 lg:hidden">
+      <div className="grid h-12 grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center px-2">
+        <details>
+          <summary
+            aria-label="会话列表"
+            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <span aria-hidden="true">☰</span>
+          </summary>
+          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+            <ConversationSearch
+              conversationQuery={conversationQuery}
+              includeArchived={includeArchived}
+            />
+            <ConversationList
+              conversations={conversations}
+              currentConversation={currentConversation}
+              includeArchived={includeArchived}
+            />
+          </div>
+        </details>
+
+        <div className="min-w-0 px-2 text-center">
+          <p className="truncate font-medium text-gray-950 text-sm dark:text-gray-50">
+            {currentConversation?.title || "新的探寻"}
+          </p>
+        </div>
+
+        <Link
+          to="/ask"
+          aria-label="新对话"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <span aria-hidden="true">＋</span>
+        </Link>
+
+        <details>
+          <summary
+            aria-label="会话选项"
+            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <span aria-hidden="true">⋯</span>
+          </summary>
+          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+            {currentConversation ? (
+              <div className="space-y-3 pt-3">
+                <Form method="post" className="flex gap-2">
+                  <input type="hidden" name="intent" value="renameAskConversation" />
+                  <input type="hidden" name="conversationId" value={currentConversation.id} />
+                  <input
+                    name="title"
+                    defaultValue={currentConversation.title}
+                    placeholder="会话标题"
+                    className={`${inputClass} mt-0 min-w-0 flex-1`}
+                  />
+                  <button type="submit" className={primaryButtonClass}>
+                    保存
+                  </button>
+                </Form>
+                <div className="flex flex-wrap gap-1">
+                  <ActionButton intent="toggleAskPinned" conversationId={currentConversation.id}>
+                    {currentConversation.pinnedAt ? "取消置顶" : "置顶"}
+                  </ActionButton>
+                  <ActionButton intent="toggleAskArchived" conversationId={currentConversation.id}>
+                    {currentConversation.archivedAt ? "恢复" : "归档"}
+                  </ActionButton>
+                  <Link
+                    to={`/download-ask-conversation?conversation=${currentConversation.id}`}
+                    className={subtleButtonClass}
+                  >
+                    导出
+                  </Link>
+                  <ActionButton
+                    intent="deleteAskConversation"
+                    conversationId={currentConversation.id}
+                    danger
+                  >
+                    删除
+                  </ActionButton>
+                </div>
+              </div>
+            ) : (
+              <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">
+                还没有选中的会话。
+              </p>
+            )}
+          </div>
+        </details>
+      </div>
+    </div>
   );
 }
 
@@ -542,14 +695,14 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
 
   if (!conversation) {
     return (
-      <header className="border-gray-200 border-b p-3 sm:p-4 dark:border-gray-800">
+      <header className="hidden border-gray-200 border-b p-3 sm:block sm:p-4 dark:border-gray-800">
         <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">新对话</h2>
       </header>
     );
   }
 
   return (
-    <header className="space-y-3 border-gray-200 border-b p-3 sm:p-4 dark:border-gray-800">
+    <header className="hidden space-y-3 border-gray-200 border-b p-3 sm:block sm:p-4 dark:border-gray-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {renaming ? (
           <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
@@ -575,7 +728,7 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
             </p>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="-mx-1 flex flex-nowrap items-center gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           <button
             type="button"
             className={subtleButtonClass}
@@ -801,7 +954,7 @@ function SourceToggle({
   onChange: (type: AskSourceType) => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-700 text-sm transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900">
+    <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-gray-700 text-xs transition hover:border-gray-300 hover:bg-gray-50 sm:gap-2 sm:px-3 sm:text-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-gray-700 dark:hover:bg-gray-900">
       <input
         type="checkbox"
         checked={checked}

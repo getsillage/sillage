@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { AskTab } from "~/components/memory/AskTab";
-import { pageLeadClass, pageSectionClass, pageShellClass, pageTitleClass } from "~/components/ui";
+import { pageLeadClass, pageShellClass, pageTitleClass } from "~/components/ui";
 import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
 import {
@@ -112,8 +112,8 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 export default function Ask({ loaderData }: Route.ComponentProps) {
   return (
     <main className={pageShellClass}>
-      <section className={`${pageSectionClass} min-h-[calc(100svh-92px)]`}>
-        <header>
+      <section className="min-h-[calc(100svh-92px)] space-y-4 sm:space-y-8">
+        <header className="hidden space-y-1 sm:block">
           <h1 className={pageTitleClass}>探寻</h1>
           <p className={pageLeadClass}>向自己的记录提问，搜索那些人物、关系和正在回响的线索。</p>
         </header>

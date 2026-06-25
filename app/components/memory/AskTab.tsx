@@ -67,42 +67,64 @@ export function AskTab({
         includeArchived={includeArchived}
       />
 
-      <Form method="get" className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="search"
-          name="q"
-          defaultValue={query}
-          placeholder="搜索一个词、地点、人物或关系…"
-          className={`${inputClass} mt-0 min-w-0 flex-1`}
-        />
-        <button type="submit" className={`${primaryButtonClass} sm:w-auto`}>
-          搜索
-        </button>
-      </Form>
+      <details className={`${subtlePanelClass} overflow-hidden`} open={Boolean(query)}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+          <span>
+            <span className="block font-medium text-gray-950 text-sm dark:text-gray-50">
+              辅助探索
+            </span>
+            <span className="block text-gray-500 text-xs dark:text-gray-400">
+              搜索记录，或从人物和关系继续追问
+            </span>
+          </span>
+          <span className="text-gray-400 text-xs dark:text-gray-500">
+            {query ? "已搜索" : "展开"}
+          </span>
+        </summary>
 
-      {query ? (
-        <section>
-          <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">搜索结果</h2>
-          {results.length === 0 ? (
-            <p className="text-gray-400 text-sm dark:text-gray-500">
-              没有找到相关记忆。换一个词，或者看看照见。
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {results.map((entry) => (
-                <li key={entry.id}>
-                  <EntryCard entry={entry} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
+        <div className="space-y-5 border-gray-200 border-t p-4 dark:border-gray-800">
+          <Form method="get" className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="搜索一个词、地点、人物或关系…"
+              className={`${inputClass} mt-0 min-w-0 flex-1`}
+            />
+            <button type="submit" className={`${primaryButtonClass} sm:w-auto`}>
+              搜索
+            </button>
+          </Form>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <FacetCloud title="人物" empty="记录人物后，这里会出现关系线索。" items={people} />
-        <FacetCloud title="关系" empty="记录关系后，这里会帮助你回看变化。" items={relationships} />
-      </section>
+          {query ? (
+            <section>
+              <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">搜索结果</h2>
+              {results.length === 0 ? (
+                <p className="text-gray-400 text-sm dark:text-gray-500">
+                  没有找到相关记忆。换一个词，或者看看照见。
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {results.map((entry) => (
+                    <li key={entry.id}>
+                      <EntryCard entry={entry} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          <section className="grid gap-4 sm:grid-cols-2">
+            <FacetCloud title="人物" empty="记录人物后，这里会出现关系线索。" items={people} />
+            <FacetCloud
+              title="关系"
+              empty="记录关系后，这里会帮助你回看变化。"
+              items={relationships}
+            />
+          </section>
+        </div>
+      </details>
     </>
   );
 }

@@ -116,10 +116,7 @@ export default function Ask({ loaderData }: Route.ComponentProps) {
         results={loaderData.results}
         people={loaderData.people}
         relationships={loaderData.relationships}
-        conversations={loaderData.conversations}
         currentConversation={loaderData.currentConversation}
-        conversationQuery={loaderData.conversationQuery}
-        includeArchived={loaderData.includeArchived}
       />
     </main>
   );

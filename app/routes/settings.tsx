@@ -316,7 +316,10 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
         <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-10 xl:self-start">
-            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <section
+              id="appearance"
+              className="scroll-mt-6 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+            >
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">外观</h2>
               <p className={`mt-1 text-sm ${subtleTextClass}`}>切换浅色 / 深色主题，或跟随系统。</p>
               <div className="mt-3">

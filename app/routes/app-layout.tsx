@@ -15,6 +15,7 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const routeId = `${location.pathname}?${location.search}`;
+  const showQuickCapture = location.pathname !== "/ask";
 
   useEffect(() => {
     setDrawerOpen((open) => (open && routeId ? false : open));
@@ -35,7 +36,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <Sidebar className="fixed inset-y-0 left-0 z-30 hidden w-56 lg:flex" />
+      <Sidebar className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:flex" />
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-gray-200 border-b bg-white/90 px-3 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90 lg:hidden">
         <Wordmark />
@@ -71,10 +72,10 @@ export default function AppLayout() {
         </div>
       ) : null}
 
-      <main className="lg:pl-56">
+      <main className="lg:pl-64">
         <Outlet />
       </main>
-      <QuickCapture />
+      {showQuickCapture ? <QuickCapture /> : null}
     </div>
   );
 }

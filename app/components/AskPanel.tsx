@@ -6,11 +6,7 @@ import {
   type AskSourceType,
   DEFAULT_ASK_SOURCE_TYPES,
 } from "~/lib/ai/ask-context";
-import type {
-  AskConversationSummary,
-  AskConversationView,
-  AskMessageView,
-} from "~/lib/db/ask-conversations";
+import type { AskConversationView, AskMessageView } from "~/lib/db/ask-conversations";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
@@ -27,10 +23,7 @@ interface AskPanelProps {
   results: EntryWithTags[];
   people: [string, number][];
   relationships: [string, number][];
-  conversations: AskConversationSummary[];
   currentConversation: AskConversationView | null;
-  conversationQuery: string;
-  includeArchived: boolean;
 }
 
 type AskRunMode = "send" | "edit" | "regenerate";
@@ -97,10 +90,6 @@ function messageWithBranch(current: AskMessageView[], message: AskMessageView): 
     return next;
   }
   return [...current, message];
-}
-
-function conversationHref(conversationId: string, includeArchived: boolean): string {
-  return `/ask?conversation=${conversationId}${includeArchived ? "&archived=1" : ""}`;
 }
 
 function useAskStream() {
@@ -336,10 +325,7 @@ export function AskPanel({
   results,
   people,
   relationships,
-  conversations,
   currentConversation,
-  conversationQuery,
-  includeArchived,
 }: AskPanelProps) {
   const stream = useAskStream();
   const [input, setInput] = useState("");
@@ -418,79 +404,50 @@ export function AskPanel({
   }
 
   return (
-    <section className="flex h-full min-h-0 overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <aside className="hidden h-full w-64 flex-none flex-col border-gray-200 border-r bg-white/70 p-3 dark:border-gray-800 dark:bg-gray-900/70 lg:flex">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div>
-            <h1 className="font-medium text-gray-900 text-sm dark:text-gray-50">探寻</h1>
-            <p className="text-gray-400 text-xs dark:text-gray-500">问问你的记忆</p>
-          </div>
-          <Link to="/ask" className={subtleButtonClass}>
-            新对话
-          </Link>
-        </div>
-        <ConversationSearch
-          conversationQuery={conversationQuery}
-          includeArchived={includeArchived}
-        />
-        <ConversationList
-          conversations={conversations}
-          currentConversation={currentConversation}
-          includeArchived={includeArchived}
-        />
-      </aside>
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+      <ThreadHeader conversation={currentConversation} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileConversationSwitcher
-          conversations={conversations}
-          currentConversation={currentConversation}
-          conversationQuery={conversationQuery}
-          includeArchived={includeArchived}
-        />
-        <ThreadHeader conversation={currentConversation} />
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div
-            className={`mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 sm:px-6 ${
-              messages.length === 0 ? "justify-center py-10" : "gap-6 py-6 sm:py-8"
-            }`}
-          >
-            {messages.length === 0 ? (
-              <EmptyState
-                query={query}
-                results={results}
-                people={people}
-                relationships={relationships}
-                onSuggestion={useSuggestion}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div
+          className={`mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 sm:px-6 ${
+            messages.length === 0 ? "justify-center py-10" : "gap-6 py-6 sm:py-8"
+          }`}
+        >
+          {messages.length === 0 ? (
+            <EmptyState
+              query={query}
+              results={results}
+              people={people}
+              relationships={relationships}
+              onSuggestion={useSuggestion}
+            />
+          ) : (
+            messages.map((message) => (
+              <ThreadMessage
+                key={message.id}
+                message={message}
+                conversationId={currentConversation?.id ?? ""}
+                busy={busy}
+                onEdit={startEdit}
+                onRegenerate={regenerate}
               />
-            ) : (
-              messages.map((message) => (
-                <ThreadMessage
-                  key={message.id}
-                  message={message}
-                  conversationId={currentConversation?.id ?? ""}
-                  busy={busy}
-                  onEdit={startEdit}
-                  onRegenerate={regenerate}
-                />
-              ))
-            )}
-          </div>
+            ))
+          )}
         </div>
-
-        <Composer
-          input={input}
-          setInput={setInput}
-          textareaRef={textareaRef}
-          editing={editing}
-          busy={busy}
-          sourceTypes={sourceTypes}
-          onSubmit={submit}
-          onStop={stream.stop}
-          onCancelEdit={() => setEditing(null)}
-          onToggleSource={toggleSource}
-        />
       </div>
+
+      <Composer
+        input={input}
+        setInput={setInput}
+        textareaRef={textareaRef}
+        editing={editing}
+        busy={busy}
+        sourceTypes={sourceTypes}
+        onSubmit={submit}
+        onStop={stream.stop}
+        onCancelEdit={() => setEditing(null)}
+        onToggleSource={toggleSource}
+      />
     </section>
   );
 }
@@ -749,180 +706,6 @@ function StopIcon() {
   );
 }
 
-function ConversationSearch({
-  conversationQuery,
-  includeArchived,
-}: {
-  conversationQuery: string;
-  includeArchived: boolean;
-}) {
-  return (
-    <Form method="get" className="mt-3 space-y-2">
-      {includeArchived ? <input type="hidden" name="archived" value="1" /> : null}
-      <input
-        type="search"
-        name="cq"
-        defaultValue={conversationQuery}
-        placeholder="搜索会话"
-        className={`${inputClass} mt-0`}
-      />
-      <div className="flex items-center justify-between">
-        <button type="submit" className={subtleButtonClass}>
-          搜索
-        </button>
-        <Link
-          to={includeArchived ? "/ask" : "/ask?archived=1"}
-          className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-        >
-          {includeArchived ? "隐藏归档" : "查看归档"}
-        </Link>
-      </div>
-    </Form>
-  );
-}
-
-function ConversationList({
-  conversations,
-  currentConversation,
-  includeArchived,
-}: {
-  conversations: AskConversationSummary[];
-  currentConversation: AskConversationView | null;
-  includeArchived: boolean;
-}) {
-  return (
-    <nav className="mt-3 min-h-0 flex-1 space-y-1 overflow-auto">
-      {conversations.map((conversation) => (
-        <Link
-          key={conversation.id}
-          to={conversationHref(conversation.id, includeArchived)}
-          className={`block rounded-lg px-3 py-2 text-sm transition ${
-            currentConversation?.id === conversation.id
-              ? "bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
-              : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
-          }`}
-        >
-          <span className="flex items-center gap-1">
-            {conversation.pinnedAt ? <span aria-hidden="true">★</span> : null}
-            <span className="truncate font-medium">{conversation.title || "新的探寻"}</span>
-          </span>
-          <span className="mt-1 block truncate text-gray-400 text-xs dark:text-gray-500">
-            {conversation.lastMessagePreview || "还没有消息"}
-          </span>
-        </Link>
-      ))}
-      {conversations.length === 0 ? (
-        <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">没有会话。</p>
-      ) : null}
-    </nav>
-  );
-}
-
-function MobileConversationSwitcher({
-  conversations,
-  currentConversation,
-  conversationQuery,
-  includeArchived,
-}: {
-  conversations: AskConversationSummary[];
-  currentConversation: AskConversationView | null;
-  conversationQuery: string;
-  includeArchived: boolean;
-}) {
-  return (
-    <div className="relative border-gray-200 border-b bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 lg:hidden">
-      <div className="grid h-12 grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center px-2">
-        <details>
-          <summary
-            aria-label="会话列表"
-            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            <span aria-hidden="true">☰</span>
-          </summary>
-          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/30">
-            <ConversationSearch
-              conversationQuery={conversationQuery}
-              includeArchived={includeArchived}
-            />
-            <ConversationList
-              conversations={conversations}
-              currentConversation={currentConversation}
-              includeArchived={includeArchived}
-            />
-          </div>
-        </details>
-
-        <div className="min-w-0 px-2 text-center">
-          <p className="truncate font-medium text-gray-950 text-sm dark:text-gray-50">
-            {currentConversation?.title || "新的探寻"}
-          </p>
-        </div>
-
-        <Link
-          to="/ask"
-          aria-label="新对话"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <span aria-hidden="true">＋</span>
-        </Link>
-
-        <details>
-          <summary
-            aria-label="会话选项"
-            className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-gray-600 text-xl hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            <span aria-hidden="true">⋯</span>
-          </summary>
-          <div className="absolute top-full right-0 left-0 z-20 border-gray-200 border-t bg-gray-50 px-3 pb-3 shadow-lg shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/30">
-            {currentConversation ? (
-              <div className="space-y-3 pt-3">
-                <Form method="post" className="flex gap-2">
-                  <input type="hidden" name="intent" value="renameAskConversation" />
-                  <input type="hidden" name="conversationId" value={currentConversation.id} />
-                  <input
-                    name="title"
-                    defaultValue={currentConversation.title}
-                    placeholder="会话标题"
-                    className={`${inputClass} mt-0 min-w-0 flex-1`}
-                  />
-                  <button type="submit" className={primaryButtonClass}>
-                    保存
-                  </button>
-                </Form>
-                <div className="flex flex-wrap gap-1">
-                  <ActionButton intent="toggleAskPinned" conversationId={currentConversation.id}>
-                    {currentConversation.pinnedAt ? "取消置顶" : "置顶"}
-                  </ActionButton>
-                  <ActionButton intent="toggleAskArchived" conversationId={currentConversation.id}>
-                    {currentConversation.archivedAt ? "恢复" : "归档"}
-                  </ActionButton>
-                  <Link
-                    to={`/download-ask-conversation?conversation=${currentConversation.id}`}
-                    className={subtleButtonClass}
-                  >
-                    导出
-                  </Link>
-                  <ActionButton
-                    intent="deleteAskConversation"
-                    conversationId={currentConversation.id}
-                    danger
-                  >
-                    删除
-                  </ActionButton>
-                </div>
-              </div>
-            ) : (
-              <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">
-                还没有选中的会话。
-              </p>
-            )}
-          </div>
-        </details>
-      </div>
-    </div>
-  );
-}
-
 function ThreadHeader({ conversation }: { conversation: AskConversationView | null }) {
   const fetcher = useFetcher<AskActionData>();
   const [renaming, setRenaming] = useState(false);
@@ -936,14 +719,14 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
 
   if (!conversation) {
     return (
-      <header className="hidden h-14 items-center border-gray-200 border-b bg-gray-50/80 px-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 lg:flex">
+      <header className="flex h-14 items-center border-gray-200 border-b bg-gray-50/80 px-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 sm:px-4">
         <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">新对话</h2>
       </header>
     );
   }
 
   return (
-    <header className="hidden min-h-14 border-gray-200 border-b bg-gray-50/80 px-4 py-2 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 lg:block">
+    <header className="min-h-14 border-gray-200 border-b bg-gray-50/80 px-3 py-2 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 sm:px-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {renaming ? (
           <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">

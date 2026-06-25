@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Form, Link, useFetcher, useNavigate, useRevalidator } from "react-router";
 import {
   ASK_SOURCE_TYPES,
@@ -11,9 +11,10 @@ import type {
   AskConversationView,
   AskMessageView,
 } from "~/lib/db/ask-conversations";
+import type { EntryWithTags } from "~/lib/db/entries";
 import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
-import { helperTextClass, inputClass, primaryButtonClass, subtleButtonClass } from "./ui";
+import { inputClass, primaryButtonClass, subtleButtonClass } from "./ui";
 
 interface AskActionData {
   intent?: string;
@@ -22,6 +23,10 @@ interface AskActionData {
 }
 
 interface AskPanelProps {
+  query: string;
+  results: EntryWithTags[];
+  people: [string, number][];
+  relationships: [string, number][];
   conversations: AskConversationSummary[];
   currentConversation: AskConversationView | null;
   conversationQuery: string;
@@ -50,7 +55,22 @@ const SOURCE_LABELS: Record<AskSourceType, string> = {
   summary: "AI 总结",
 };
 
+const STARTER_PROMPTS = [
+  "最近我反复提到什么？",
+  "这一周有哪些值得回看的瞬间？",
+  "我最近的状态有什么变化？",
+  "哪些小事后来反复出现了？",
+] as const;
+
 const STREAM_FLUSH_INTERVAL_MS = 80;
+
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) {
+    return;
+  }
+  textarea.style.height = "auto";
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 192)}px`;
+}
 
 function toFormData(fields: Record<string, string | string[] | null | undefined>): FormData {
   const form = new FormData();
@@ -312,6 +332,10 @@ function useAskStream() {
 }
 
 export function AskPanel({
+  query,
+  results,
+  people,
+  relationships,
   conversations,
   currentConversation,
   conversationQuery,
@@ -320,6 +344,7 @@ export function AskPanel({
   const stream = useAskStream();
   const [input, setInput] = useState("");
   const [editing, setEditing] = useState<AskMessageView | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(() =>
     currentConversation?.sourceTypes.length
       ? currentConversation.sourceTypes
@@ -372,6 +397,10 @@ export function AskPanel({
   function startEdit(message: AskMessageView) {
     setEditing(message);
     setInput(message.content);
+    requestAnimationFrame(() => {
+      resizeTextarea(textareaRef.current);
+      textareaRef.current?.focus();
+    });
   }
 
   function toggleSource(type: AskSourceType) {
@@ -380,45 +409,60 @@ export function AskPanel({
     );
   }
 
+  function useSuggestion(prompt: string) {
+    setInput(prompt);
+    requestAnimationFrame(() => {
+      resizeTextarea(textareaRef.current);
+      textareaRef.current?.focus();
+    });
+  }
+
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-      <div className="grid gap-0 lg:min-h-[calc(100svh-220px)] lg:grid-cols-[220px_1fr]">
+    <section className="flex h-full min-h-0 overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
+      <aside className="hidden h-full w-64 flex-none flex-col border-gray-200 border-r bg-white/70 p-3 dark:border-gray-800 dark:bg-gray-900/70 lg:flex">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div>
+            <h1 className="font-medium text-gray-900 text-sm dark:text-gray-50">探寻</h1>
+            <p className="text-gray-400 text-xs dark:text-gray-500">问问你的记忆</p>
+          </div>
+          <Link to="/ask" className={subtleButtonClass}>
+            新对话
+          </Link>
+        </div>
+        <ConversationSearch
+          conversationQuery={conversationQuery}
+          includeArchived={includeArchived}
+        />
+        <ConversationList
+          conversations={conversations}
+          currentConversation={currentConversation}
+          includeArchived={includeArchived}
+        />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
         <MobileConversationSwitcher
           conversations={conversations}
           currentConversation={currentConversation}
           conversationQuery={conversationQuery}
           includeArchived={includeArchived}
         />
+        <ThreadHeader conversation={currentConversation} />
 
-        <aside className="hidden border-gray-200 border-b bg-gray-100/50 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:block lg:border-r lg:border-b-0">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
-            <Link to="/ask" className={subtleButtonClass}>
-              新对话
-            </Link>
-          </div>
-          <ConversationSearch
-            conversationQuery={conversationQuery}
-            includeArchived={includeArchived}
-          />
-          <ConversationList
-            conversations={conversations}
-            currentConversation={currentConversation}
-            includeArchived={includeArchived}
-          />
-        </aside>
-
-        <div className="flex h-[calc(100svh-132px)] min-h-[430px] flex-col lg:h-auto lg:min-h-[calc(100svh-220px)]">
-          <ThreadHeader conversation={currentConversation} />
-
-          <div className="flex-1 space-y-4 overflow-auto overscroll-contain px-3 py-4 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div
+            className={`mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 sm:px-6 ${
+              messages.length === 0 ? "justify-center py-10" : "gap-6 py-6 sm:py-8"
+            }`}
+          >
             {messages.length === 0 ? (
-              <div className="mx-auto flex min-h-44 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-5 text-center sm:min-h-72 sm:p-8 dark:border-gray-800">
-                <p className="font-serif text-gray-900 text-xl dark:text-gray-50">问问你的记忆</p>
-                <p className={helperTextClass}>
-                  可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
-                </p>
-              </div>
+              <EmptyState
+                query={query}
+                results={results}
+                people={people}
+                relationships={relationships}
+                onSuggestion={useSuggestion}
+              />
             ) : (
               messages.map((message) => (
                 <ThreadMessage
@@ -432,82 +476,276 @@ export function AskPanel({
               ))
             )}
           </div>
-
-          <div className="border-gray-200 border-t bg-gray-50/95 p-2 backdrop-blur sm:p-4 dark:border-gray-800 dark:bg-gray-950/80">
-            <details className="mb-2 sm:hidden">
-              <summary className="cursor-pointer list-none px-2 py-1 text-gray-500 text-xs dark:text-gray-400">
-                来源 · 已选 {sourceTypes.length} 项
-              </summary>
-              <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                {ASK_SOURCE_TYPES.map((type) => (
-                  <SourceToggle
-                    key={type}
-                    type={type}
-                    label={SOURCE_LABELS[type]}
-                    checked={sourceTypes.includes(type)}
-                    onChange={toggleSource}
-                  />
-                ))}
-              </div>
-            </details>
-            <div className="mb-3 hidden flex-wrap gap-2 sm:flex">
-              {ASK_SOURCE_TYPES.map((type) => (
-                <SourceToggle
-                  key={type}
-                  type={type}
-                  label={SOURCE_LABELS[type]}
-                  checked={sourceTypes.includes(type)}
-                  onChange={toggleSource}
-                />
-              ))}
-            </div>
-            {editing ? (
-              <div className="mb-2 flex items-center justify-between rounded-lg bg-clay-50 px-3 py-2 text-clay-600 text-sm dark:bg-clay-900/50 dark:text-clay-300">
-                <span>正在编辑一条旧问题，会创建新的分支。</span>
-                <button type="button" className="font-medium" onClick={() => setEditing(null)}>
-                  取消
-                </button>
-              </div>
-            ) : null}
-            <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-xl border border-gray-200 bg-white p-2 pl-4 dark:border-gray-800 dark:bg-gray-900">
-              <textarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    submit();
-                  }
-                }}
-                rows={2}
-                placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
-                className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-0 py-2 text-gray-900 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
-              />
-              {busy ? (
-                <button
-                  type="button"
-                  onClick={stream.stop}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 font-medium text-white text-sm transition hover:bg-celadon-700 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
-                >
-                  <span aria-hidden="true">■</span>
-                  <span className="sr-only">停止</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 font-medium text-white text-lg transition hover:bg-celadon-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
-                >
-                  <span aria-hidden="true">↑</span>
-                  <span className="sr-only">发送</span>
-                </button>
-              )}
-            </div>
-          </div>
         </div>
+
+        <Composer
+          input={input}
+          setInput={setInput}
+          textareaRef={textareaRef}
+          editing={editing}
+          busy={busy}
+          sourceTypes={sourceTypes}
+          onSubmit={submit}
+          onStop={stream.stop}
+          onCancelEdit={() => setEditing(null)}
+          onToggleSource={toggleSource}
+        />
       </div>
     </section>
+  );
+}
+
+function EmptyState({
+  query,
+  results,
+  people,
+  relationships,
+  onSuggestion,
+}: {
+  query: string;
+  results: EntryWithTags[];
+  people: [string, number][];
+  relationships: [string, number][];
+  onSuggestion: (prompt: string) => void;
+}) {
+  const topPeople = people.slice(0, 4);
+  const topRelationships = relationships.slice(0, 4);
+
+  return (
+    <div className="mx-auto w-full max-w-2xl text-center">
+      <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">问问你的记忆</p>
+      <p className="mx-auto mt-2 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
+        像和 ChatGPT 对话一样追问你的记录。Sillage 会把回答锚回你留下过的片段、笔记和总结。
+      </p>
+
+      <div className="mt-6 grid gap-2 sm:grid-cols-2">
+        {STARTER_PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onSuggestion(prompt)}
+            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-gray-700 text-sm transition hover:bg-celadon-50 hover:text-celadon-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+
+      {query ? (
+        <section className="mt-6 rounded-xl border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-gray-900">
+          <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">搜索「{query}」</h2>
+          {results.length === 0 ? (
+            <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">
+              没有找到相关记忆。可以换一个词，或者直接把它作为问题问下去。
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {results.slice(0, 3).map((entry) => (
+                <Link
+                  key={entry.id}
+                  to={`/entries/${entry.id}`}
+                  className="block rounded-lg px-3 py-2 text-gray-600 text-sm transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  <span className="block text-gray-400 text-xs dark:text-gray-500">
+                    {entry.entryDate}
+                  </span>
+                  <span className="line-clamp-1">{entry.title || entry.body || "未命名记录"}</span>
+                </Link>
+              ))}
+              <button
+                type="button"
+                onClick={() => onSuggestion(`围绕“${query}”，帮我整理相关记录里的线索。`)}
+                className="mt-1 text-celadon-700 text-sm hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
+              >
+                用这个搜索词继续提问
+              </button>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {topPeople.length > 0 || topRelationships.length > 0 ? (
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {topPeople.map(([person, count]) => (
+            <button
+              key={`person-${person}`}
+              type="button"
+              onClick={() => onSuggestion(`我最近提到 ${person} 时，情绪有什么变化？`)}
+              className="rounded-full bg-gray-100 px-3 py-1.5 text-gray-600 text-xs transition hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
+            >
+              {person} · {count}
+            </button>
+          ))}
+          {topRelationships.map(([relationship, count]) => (
+            <button
+              key={`relationship-${relationship}`}
+              type="button"
+              onClick={() => onSuggestion(`关于 ${relationship}，最近有哪些反复出现的线索？`)}
+              className="rounded-full bg-gray-100 px-3 py-1.5 text-gray-600 text-xs transition hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
+            >
+              {relationship} · {count}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Composer({
+  input,
+  setInput,
+  textareaRef,
+  editing,
+  busy,
+  sourceTypes,
+  onSubmit,
+  onStop,
+  onCancelEdit,
+  onToggleSource,
+}: {
+  input: string;
+  setInput: (value: string) => void;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  editing: AskMessageView | null;
+  busy: boolean;
+  sourceTypes: AskSourceType[];
+  onSubmit: () => void;
+  onStop: () => void;
+  onCancelEdit: () => void;
+  onToggleSource: (type: AskSourceType) => void;
+}) {
+  return (
+    <div className="border-gray-200 border-t bg-gray-50/95 px-3 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
+      <div className="mx-auto w-full max-w-3xl">
+        {editing ? (
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl bg-clay-50 px-3 py-2 text-clay-600 text-sm dark:bg-clay-900/50 dark:text-clay-300">
+            <span className="min-w-0 truncate">正在编辑旧问题，会创建新的分支。</span>
+            <button type="button" className="font-medium" onClick={onCancelEdit}>
+              取消
+            </button>
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/5 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/20">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(event) => {
+              setInput(event.target.value);
+              resizeTextarea(event.currentTarget);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                onSubmit();
+              }
+            }}
+            rows={1}
+            placeholder="继续问……"
+            className="max-h-48 min-h-11 w-full resize-none bg-transparent px-2 py-2 text-gray-900 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
+          />
+
+          <div className="flex items-center justify-between gap-2">
+            <details className="group relative">
+              <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100">
+                <ToolIcon />
+                <span>来源</span>
+                <span className="text-gray-400 text-xs dark:text-gray-500">
+                  {sourceTypes.length}
+                </span>
+              </summary>
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
+                <p className="px-2 pb-2 text-gray-400 text-xs dark:text-gray-500">
+                  选择本轮回答可检索的记忆来源
+                </p>
+                <div className="grid gap-1">
+                  {ASK_SOURCE_TYPES.map((type) => (
+                    <SourceToggle
+                      key={type}
+                      type={type}
+                      label={SOURCE_LABELS[type]}
+                      checked={sourceTypes.includes(type)}
+                      onChange={onToggleSource}
+                    />
+                  ))}
+                </div>
+              </div>
+            </details>
+
+            {busy ? (
+              <button
+                type="button"
+                onClick={onStop}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 text-white transition hover:bg-celadon-700 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
+              >
+                <StopIcon />
+                <span className="sr-only">停止</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={input.trim().length === 0 || sourceTypes.length === 0}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 text-white transition hover:bg-celadon-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
+              >
+                <SendIcon />
+                <span className="sr-only">发送</span>
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-center text-gray-400 text-xs dark:text-gray-500">
+          Sillage 会基于你的记录回答，仍请以原文为准。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ToolIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M4 7h16" />
+      <path d="M7 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
+      <path d="M4 17h16" />
+      <path d="M13 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    </svg>
   );
 }
 
@@ -553,7 +791,7 @@ function ConversationList({
   includeArchived: boolean;
 }) {
   return (
-    <nav className="mt-3 max-h-72 space-y-1 overflow-auto lg:max-h-[calc(100svh-420px)]">
+    <nav className="mt-3 min-h-0 flex-1 space-y-1 overflow-auto">
       {conversations.map((conversation) => (
         <Link
           key={conversation.id}
@@ -585,7 +823,12 @@ function MobileConversationSwitcher({
   currentConversation,
   conversationQuery,
   includeArchived,
-}: AskPanelProps) {
+}: {
+  conversations: AskConversationSummary[];
+  currentConversation: AskConversationView | null;
+  conversationQuery: string;
+  includeArchived: boolean;
+}) {
   return (
     <div className="relative border-gray-200 border-b bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 lg:hidden">
       <div className="grid h-12 grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center px-2">
@@ -693,14 +936,14 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
 
   if (!conversation) {
     return (
-      <header className="hidden border-gray-200 border-b p-3 sm:block sm:p-4 dark:border-gray-800">
-        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">新对话</h2>
+      <header className="hidden h-14 items-center border-gray-200 border-b bg-gray-50/80 px-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 lg:flex">
+        <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">新对话</h2>
       </header>
     );
   }
 
   return (
-    <header className="hidden space-y-3 border-gray-200 border-b p-3 sm:block sm:p-4 dark:border-gray-800">
+    <header className="hidden min-h-14 border-gray-200 border-b bg-gray-50/80 px-4 py-2 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 lg:block">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {renaming ? (
           <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
@@ -718,7 +961,7 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
           </fetcher.Form>
         ) : (
           <div className="min-w-0">
-            <h2 className="truncate font-medium text-gray-950 text-sm dark:text-gray-50">
+            <h2 className="truncate font-medium text-gray-900 text-sm dark:text-gray-50">
               {conversation.title || "新的探寻"}
             </h2>
             <p className="text-gray-400 text-xs dark:text-gray-500">
@@ -800,10 +1043,12 @@ function ThreadMessage({
   const isUser = message.role === "user";
   if (isUser) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl justify-end">
-        <div className="max-w-[82%] rounded-2xl rounded-br-sm border border-gray-200 bg-white px-4 py-2.5 text-gray-800 text-sm leading-7 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
-          <p className="whitespace-pre-wrap">{message.content}</p>
-          <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs">
+      <div className="group/message flex w-full justify-end">
+        <div className="max-w-[82%]">
+          <div className="rounded-3xl rounded-br-md bg-white px-4 py-2.5 text-gray-800 text-sm leading-7 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800">
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             {message.branch ? (
               <BranchControls conversationId={conversationId} branch={message.branch} />
             ) : null}
@@ -811,7 +1056,7 @@ function ThreadMessage({
               type="button"
               onClick={() => onEdit(message)}
               disabled={busy}
-              className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+              className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
             >
               编辑
             </button>
@@ -822,23 +1067,9 @@ function ThreadMessage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl gap-3">
-      <span className="mt-1 flex h-7 w-7 flex-none items-center justify-center rounded-full bg-celadon-50 text-celadon-600 dark:bg-celadon-900/40 dark:text-celadon-300">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-4 w-4"
-        >
-          <path d="M12 4l1.7 5.2L19 11l-5.3 1.8L12 18l-1.7-5.2L5 11l5.3-1.8L12 4z" />
-        </svg>
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="font-serif text-[15px] leading-8 text-gray-900 dark:text-gray-50">
+    <div className="group/message w-full">
+      <div className="min-w-0 text-gray-900 dark:text-gray-50">
+        <div className="text-sm leading-7">
           {message.status === "running" && !message.content ? (
             <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
           ) : message.status === "error" ? (
@@ -846,7 +1077,7 @@ function ThreadMessage({
           ) : message.status === "running" ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <LazyMarkdown content={message.content} />
+            <LazyMarkdown content={message.content} variant="chat" />
           )}
         </div>
 
@@ -873,7 +1104,7 @@ function ThreadMessage({
           </details>
         ) : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
           {message.branch ? (
             <BranchControls conversationId={conversationId} branch={message.branch} />
           ) : null}
@@ -881,7 +1112,7 @@ function ThreadMessage({
             type="button"
             onClick={() => onRegenerate(message)}
             disabled={busy || message.status === "running"}
-            className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+            className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
           >
             重新生成
           </button>
@@ -892,7 +1123,7 @@ function ThreadMessage({
               <input type="hidden" name="messageId" value={message.id} />
               <button
                 type="submit"
-                className="text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
+                className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
               >
                 保存为草稿
               </button>

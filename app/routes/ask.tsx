@@ -1,6 +1,5 @@
 import { env } from "cloudflare:workers";
 import { AskTab } from "~/components/memory/AskTab";
-import { pageLeadClass, pageTitleClass, readingShellClass } from "~/components/ui";
 import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
 import {
@@ -111,24 +110,17 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 
 export default function Ask({ loaderData }: Route.ComponentProps) {
   return (
-    <main className={readingShellClass}>
-      <section className="min-h-[calc(100svh-92px)] space-y-4 sm:space-y-8">
-        <header className="hidden space-y-1 sm:block">
-          <h1 className={pageTitleClass}>探寻</h1>
-          <p className={pageLeadClass}>向自己的记录提问，搜索那些人物、关系和正在回响的线索。</p>
-        </header>
-
-        <AskTab
-          query={loaderData.query}
-          results={loaderData.results}
-          people={loaderData.people}
-          relationships={loaderData.relationships}
-          conversations={loaderData.conversations}
-          currentConversation={loaderData.currentConversation}
-          conversationQuery={loaderData.conversationQuery}
-          includeArchived={loaderData.includeArchived}
-        />
-      </section>
+    <main className="h-[calc(100svh-3.5rem)] bg-gray-50 dark:bg-gray-950 lg:h-screen">
+      <AskTab
+        query={loaderData.query}
+        results={loaderData.results}
+        people={loaderData.people}
+        relationships={loaderData.relationships}
+        conversations={loaderData.conversations}
+        currentConversation={loaderData.currentConversation}
+        conversationQuery={loaderData.conversationQuery}
+        includeArchived={loaderData.includeArchived}
+      />
     </main>
   );
 }

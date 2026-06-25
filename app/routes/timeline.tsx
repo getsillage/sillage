@@ -207,7 +207,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 <ul className="grid gap-3 2xl:grid-cols-2">
                   {loaderData.entries.map((entry) => (
                     <li key={entry.id}>
-                      <EntryCard entry={entry} showEntryInsight />
+                      <EntryCard entry={entry} showEntryInsight openOnCardClick />
                     </li>
                   ))}
                 </ul>

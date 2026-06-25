@@ -16,16 +16,23 @@ function ttlFromExpires(expires?: Date): number {
   return Math.max(KV_MIN_TTL_SECONDS, seconds);
 }
 
+function shouldUseSecureCookie(request?: Request): boolean {
+  if (!request) {
+    return true;
+  }
+  return new URL(request.url).protocol === "https:";
+}
+
 /**
  * KV-backed session storage: the signed cookie holds only an opaque session id,
  * while the session payload lives in the SESSIONS KV namespace with a TTL.
  */
-export function getSessionStorage(env: Env) {
+export function getSessionStorage(env: Env, request?: Request) {
   return createSessionStorage<SessionData>({
     cookie: {
       name: SESSION_COOKIE,
       httpOnly: true,
-      secure: true,
+      secure: shouldUseSecureCookie(request),
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
@@ -54,8 +61,12 @@ export function getSessionStorage(env: Env) {
 }
 
 /** Creates an authenticated session and returns a redirect with the cookie set. */
-export async function createUserSession(env: Env, redirectTo: string): Promise<Response> {
-  const storage = getSessionStorage(env);
+export async function createUserSession(
+  env: Env,
+  redirectTo: string,
+  request?: Request,
+): Promise<Response> {
+  const storage = getSessionStorage(env, request);
   const session = await storage.getSession();
   session.set("authenticated", true);
   return redirect(redirectTo, {
@@ -65,7 +76,7 @@ export async function createUserSession(env: Env, redirectTo: string): Promise<R
 
 /** Returns true when the request carries a valid authenticated session. */
 export async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
-  const storage = getSessionStorage(env);
+  const storage = getSessionStorage(env, request);
   const session = await storage.getSession(request.headers.get("Cookie"));
   return session.get("authenticated") === true;
 }
@@ -85,7 +96,7 @@ export async function requireSession(request: Request, env: Env): Promise<void> 
 
 /** Destroys the session and returns a redirect that clears the cookie. */
 export async function logout(request: Request, env: Env, redirectTo = "/login"): Promise<Response> {
-  const storage = getSessionStorage(env);
+  const storage = getSessionStorage(env, request);
   const session = await storage.getSession(request.headers.get("Cookie"));
   return redirect(redirectTo, {
     headers: { "Set-Cookie": await storage.destroySession(session) },

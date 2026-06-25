@@ -40,7 +40,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   await clearLoginAttempts(env, request);
-  return createUserSession(env, safeRedirect(parsed.data.redirectTo));
+  return createUserSession(env, safeRedirect(parsed.data.redirectTo), request);
 }
 
 export default function Login({ actionData }: Route.ComponentProps) {

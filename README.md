@@ -39,9 +39,16 @@ npm run db:migrate:local
 
 # 3) 启动开发服务器
 npm run dev                      # http://localhost:5173
+
+# 或允许同一局域网设备访问
+npm run dev:lan                  # http://<你的局域网 IP>:5173
 ```
 
 > 本地用 Miniflare 模拟 D1/R2/KV；搜索功能使用 D1 FTS5 关键词搜索。
+
+局域网调试时可用 `ipconfig getifaddr en0` 查看当前 Mac 的 Wi-Fi IP，例如
+`http://192.168.1.23:5173`。本地 HTTP 访问会使用非 Secure 会话 cookie，以便手机
+或其他设备完成登录；线上 HTTPS 访问仍会使用 Secure cookie。
 
 ## 配置
 

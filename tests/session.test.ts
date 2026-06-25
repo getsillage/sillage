@@ -31,6 +31,24 @@ describe("KV-backed sessions", () => {
     expect(await isAuthenticated(requestWithCookie(cookie), env)).toBe(true);
   });
 
+  it("uses secure cookies for HTTPS requests", async () => {
+    const response = await createUserSession(
+      env,
+      "/",
+      new Request("https://sillage.example/login"),
+    );
+    expect(response.headers.get("Set-Cookie")).toMatch(/;\s*Secure/i);
+  });
+
+  it("allows HTTP cookies for local network development", async () => {
+    const response = await createUserSession(
+      env,
+      "/",
+      new Request("http://192.168.1.23:5173/login"),
+    );
+    expect(response.headers.get("Set-Cookie")).not.toMatch(/;\s*Secure/i);
+  });
+
   it("treats requests without a session as unauthenticated", async () => {
     const request = new Request("https://example.com/protected");
     expect(await isAuthenticated(request, env)).toBe(false);

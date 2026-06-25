@@ -57,6 +57,13 @@
       "when": 1782364866063,
       "tag": "0007_curious_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1782367488391,
+      "tag": "0008_empty_justin_hammer",
+      "breakpoints": true
     }
   ]
 }

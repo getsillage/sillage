@@ -1,373 +1,737 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Form, Link, useFetcher, useNavigate, useRevalidator } from "react-router";
 import {
   ASK_SOURCE_TYPES,
+  type AskCitation,
   type AskSourceType,
   DEFAULT_ASK_SOURCE_TYPES,
 } from "~/lib/ai/ask-context";
+import type {
+  AskConversationSummary,
+  AskConversationView,
+  AskMessageView,
+} from "~/lib/db/ask-conversations";
+import { LocalDateTime } from "./LocalDateTime";
 import { Markdown } from "./Markdown";
 import {
   helperTextClass,
+  inputClass,
   panelClass,
   primaryButtonClass,
   subtleButtonClass,
   textareaClass,
 } from "./ui";
 
-interface AskSource {
-  id: string;
-  title: string;
-  label: string;
-  href: string;
-  kind: "entry" | "summary";
-}
-
 interface AskActionData {
   intent?: string;
   ok: boolean;
   message: string;
-  answer?: string;
-  sources?: AskSource[];
 }
 
-interface Turn {
-  id: string;
-  question: string;
-  answer: string | null;
-  sources?: AskSource[];
-  error?: boolean;
+interface AskPanelProps {
+  conversations: AskConversationSummary[];
+  currentConversation: AskConversationView | null;
+  conversationQuery: string;
+  includeArchived: boolean;
 }
 
-interface StoredAskPanelState {
-  turns: Turn[];
-  input: string;
-  sourceTypes: AskSourceType[];
+type AskRunMode = "send" | "edit" | "regenerate";
+
+type AskStreamEvent =
+  | {
+      type: "created";
+      conversationId: string;
+      userMessage: AskMessageView;
+      assistantMessage: AskMessageView;
+    }
+  | { type: "delta"; text: string }
+  | { type: "sources"; sources: AskCitation[] }
+  | { type: "done"; answer: string; model: string | null; durationMs: number }
+  | { type: "error"; message: string; durationMs?: number };
+
+const SOURCE_LABELS: Record<AskSourceType, string> = {
+  fragment: "片段",
+  note: "笔记",
+  draft: "草稿",
+  "entry-ai": "AI 洞察",
+  summary: "AI 总结",
+};
+
+function toFormData(fields: Record<string, string | string[] | null | undefined>): FormData {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        form.append(key, item);
+      }
+    } else {
+      form.set(key, value);
+    }
+  }
+  return form;
 }
 
-const STORAGE_KEY = "sillage.memory.ask-panel.v1";
-const ASK_FETCHER_KEY = "memory-ask-panel";
-const MAX_STORED_TURNS = 30;
-const INTERRUPTED_ANSWER = "上一次回答在页面切换时中断了，可以重新发送这个问题。";
-
-function isAskSourceType(value: unknown): value is AskSourceType {
-  return typeof value === "string" && ASK_SOURCE_TYPES.includes(value as AskSourceType);
+function messageWithBranch(current: AskMessageView[], message: AskMessageView): AskMessageView[] {
+  const existing = current.findIndex((item) => item.id === message.id);
+  if (existing >= 0) {
+    const next = [...current];
+    next[existing] = { ...next[existing], ...message };
+    return next;
+  }
+  return [...current, message];
 }
 
-function normalizeSourceTypes(value: unknown): AskSourceType[] {
-  if (!Array.isArray(value)) {
-    return [...DEFAULT_ASK_SOURCE_TYPES];
-  }
-  return [...new Set(value.filter(isAskSourceType))];
-}
+function useAskStream() {
+  const navigate = useNavigate();
+  const revalidator = useRevalidator();
+  const [runningMessageId, setRunningMessageId] = useState<string | null>(null);
+  const [draftMessages, setDraftMessages] = useState<AskMessageView[] | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const partialRef = useRef("");
+  const runningMessageIdRef = useRef<string | null>(null);
 
-function normalizeSource(value: unknown): AskSource | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  const source = value as AskSource;
-  if (
-    typeof source.id !== "string" ||
-    typeof source.title !== "string" ||
-    typeof source.label !== "string" ||
-    typeof source.href !== "string" ||
-    (source.kind !== "entry" && source.kind !== "summary")
-  ) {
-    return null;
-  }
-  return source;
-}
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort();
+    },
+    [],
+  );
 
-function normalizeTurn(value: unknown, fallbackId: string): Turn | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
+  async function stop() {
+    const messageId = runningMessageIdRef.current;
+    if (!messageId) {
+      return;
+    }
+    controllerRef.current?.abort();
+    await fetch("/api/ask-stop", {
+      method: "POST",
+      body: toFormData({ messageId, content: partialRef.current }),
+    });
+    setDraftMessages((current) =>
+      current
+        ? current.map((message) =>
+            message.id === messageId
+              ? { ...message, content: partialRef.current, status: "interrupted" }
+              : message,
+          )
+        : current,
+    );
+    setRunningMessageId(null);
+    runningMessageIdRef.current = null;
+    revalidator.revalidate();
   }
-  const turn = value as Turn;
-  if (typeof turn.question !== "string") {
-    return null;
+
+  async function run(fields: {
+    mode: AskRunMode;
+    conversationId?: string | null;
+    messageId?: string;
+    question?: string;
+    sourceTypes: AskSourceType[];
+    currentMessages: AskMessageView[];
+  }) {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    partialRef.current = "";
+
+    const response = await fetch("/api/ask-stream", {
+      method: "POST",
+      body: toFormData({
+        mode: fields.mode,
+        conversationId: fields.conversationId,
+        messageId: fields.messageId,
+        question: fields.question,
+        sources: fields.sourceTypes,
+      }),
+      signal: controller.signal,
+    });
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return;
+    }
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let conversationId = fields.conversationId ?? null;
+
+    async function handle(event: AskStreamEvent) {
+      const activeMessageId = runningMessageIdRef.current;
+      if (event.type === "created") {
+        conversationId = event.conversationId;
+        setRunningMessageId(event.assistantMessage.id);
+        runningMessageIdRef.current = event.assistantMessage.id;
+        setDraftMessages((current) =>
+          messageWithBranch(
+            messageWithBranch(current ?? fields.currentMessages, event.userMessage),
+            event.assistantMessage,
+          ),
+        );
+        navigate(`/memory?tab=ask&conversation=${event.conversationId}`, { replace: true });
+        return;
+      }
+      if (event.type === "sources") {
+        setDraftMessages((current) =>
+          current
+            ? current.map((message) =>
+                message.id === activeMessageId ? { ...message, sources: event.sources } : message,
+              )
+            : current,
+        );
+        return;
+      }
+      if (event.type === "delta") {
+        partialRef.current += event.text;
+        setDraftMessages((current) =>
+          current
+            ? current.map((message) =>
+                message.id === activeMessageId
+                  ? { ...message, content: partialRef.current, status: "running" }
+                  : message,
+              )
+            : current,
+        );
+        return;
+      }
+      if (event.type === "done") {
+        setDraftMessages((current) =>
+          current
+            ? current.map((message) =>
+                message.id === activeMessageId
+                  ? {
+                      ...message,
+                      content: event.answer,
+                      status: "completed",
+                      model: event.model,
+                      durationMs: event.durationMs,
+                    }
+                  : message,
+              )
+            : current,
+        );
+        setRunningMessageId(null);
+        runningMessageIdRef.current = null;
+        revalidator.revalidate();
+        return;
+      }
+      if (event.type === "error") {
+        setDraftMessages((current) =>
+          current
+            ? current.map((message) =>
+                message.id === activeMessageId
+                  ? {
+                      ...message,
+                      content: event.message,
+                      status: "error",
+                      durationMs: event.durationMs ?? message.durationMs,
+                    }
+                  : message,
+              )
+            : current,
+        );
+        setRunningMessageId(null);
+        runningMessageIdRef.current = null;
+        if (conversationId) {
+          revalidator.revalidate();
+        }
+      }
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (line.trim()) {
+            await handle(JSON.parse(line) as AskStreamEvent);
+          }
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        await handle(JSON.parse(buffer) as AskStreamEvent);
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setRunningMessageId(null);
+      }
+    }
   }
-  const answer =
-    typeof turn.answer === "string"
-      ? turn.answer
-      : turn.answer === null
-        ? INTERRUPTED_ANSWER
-        : null;
-  if (answer === null) {
-    return null;
-  }
-  const sources = Array.isArray(turn.sources)
-    ? turn.sources.map(normalizeSource).filter((source): source is AskSource => source !== null)
-    : undefined;
+
   return {
-    id: typeof turn.id === "string" && turn.id ? turn.id : fallbackId,
-    question: turn.question,
-    answer,
-    sources,
-    error: turn.answer === null || turn.error === true,
+    running: runningMessageId !== null,
+    runningMessageId,
+    draftMessages,
+    setDraftMessages,
+    run,
+    stop,
   };
 }
 
-function readStoredState(): StoredAskPanelState | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<StoredAskPanelState>;
-    return {
-      turns: Array.isArray(parsed.turns)
-        ? parsed.turns
-            .map((turn, index) => normalizeTurn(turn, `restored-${index + 1}`))
-            .filter((turn): turn is Turn => turn !== null)
-            .slice(-MAX_STORED_TURNS)
-        : [],
-      input: typeof parsed.input === "string" ? parsed.input : "",
-      sourceTypes: normalizeSourceTypes(parsed.sourceTypes),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function hasDefaultSourceTypes(sourceTypes: AskSourceType[]): boolean {
-  return (
-    sourceTypes.length === DEFAULT_ASK_SOURCE_TYPES.length &&
-    DEFAULT_ASK_SOURCE_TYPES.every((type) => sourceTypes.includes(type))
-  );
-}
-
-function writeStoredState(state: StoredAskPanelState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    const trimmedState = {
-      ...state,
-      turns: state.turns.slice(-MAX_STORED_TURNS),
-    };
-    if (
-      trimmedState.turns.length === 0 &&
-      trimmedState.input.trim() === "" &&
-      hasDefaultSourceTypes(trimmedState.sourceTypes)
-    ) {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmedState));
-  } catch {
-    // Storage can be unavailable in hardened browsers; the panel still works in memory.
-  }
-}
-
-function nextTurnSequence(turns: Turn[]): number {
-  return turns.reduce((max, turn) => {
-    const match = /^t(\d+)$/.exec(turn.id);
-    return match ? Math.max(max, Number(match[1])) : max;
-  }, turns.length);
-}
-
-export function AskPanel() {
-  const fetcher = useFetcher<AskActionData>({ key: ASK_FETCHER_KEY });
-  const [turns, setTurns] = useState<Turn[]>([]);
+export function AskPanel({
+  conversations,
+  currentConversation,
+  conversationQuery,
+  includeArchived,
+}: AskPanelProps) {
+  const stream = useAskStream();
   const [input, setInput] = useState("");
-  const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(() => [
-    ...DEFAULT_ASK_SOURCE_TYPES,
-  ]);
-  const [storageReady, setStorageReady] = useState(false);
-  const pendingRef = useRef(false);
-  const turnSeq = useRef(0);
-  const busy = fetcher.state !== "idle";
+  const [editing, setEditing] = useState<AskMessageView | null>(null);
+  const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(() =>
+    currentConversation?.sourceTypes.length
+      ? currentConversation.sourceTypes
+      : DEFAULT_ASK_SOURCE_TYPES,
+  );
+  const sourceTypesKey = (currentConversation?.sourceTypes ?? DEFAULT_ASK_SOURCE_TYPES).join(",");
+  const setDraftMessages = stream.setDraftMessages;
 
   useEffect(() => {
-    const stored = readStoredState();
-    if (stored) {
-      setTurns(stored.turns);
-      setInput(stored.input);
-      setSourceTypes(stored.sourceTypes);
-      turnSeq.current = nextTurnSequence(stored.turns);
-    }
-    setStorageReady(true);
-  }, []);
+    setDraftMessages(null);
+    setEditing(null);
+    setSourceTypes(
+      sourceTypesKey ? (sourceTypesKey.split(",") as AskSourceType[]) : DEFAULT_ASK_SOURCE_TYPES,
+    );
+  }, [setDraftMessages, sourceTypesKey]);
 
-  useEffect(() => {
-    if (!storageReady) {
-      return;
-    }
-    writeStoredState({ turns, input, sourceTypes });
-  }, [input, sourceTypes, storageReady, turns]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !pendingRef.current || fetcher.data?.intent !== "ask") {
-      return;
-    }
-    pendingRef.current = false;
-    const data = fetcher.data;
-    setTurns((prev) => {
-      const next = [...prev];
-      for (let i = next.length - 1; i >= 0; i--) {
-        if (next[i].answer === null) {
-          next[i] = {
-            ...next[i],
-            answer: data.ok ? (data.answer ?? "") : data.message,
-            sources: data.sources,
-            error: !data.ok,
-          };
-          break;
-        }
-      }
-      return next;
-    });
-  }, [fetcher.state, fetcher.data]);
-
-  function clearTurns() {
-    setTurns([]);
-    writeStoredState({ turns: [], input, sourceTypes });
-  }
+  const messages = stream.draftMessages ?? currentConversation?.messages ?? [];
+  const busy = stream.running;
 
   function submit() {
     const question = input.trim();
     if (!question || busy || sourceTypes.length === 0) {
       return;
     }
-    const history = turns
-      .filter((turn) => turn.answer !== null && !turn.error)
-      .slice(-4)
-      .map((turn) => ({ question: turn.question, answer: turn.answer }));
-    turnSeq.current += 1;
-    const optimisticTurn = { id: `t${turnSeq.current}`, question, answer: null };
-    const nextTurns = [...turns, optimisticTurn];
-    setTurns(nextTurns);
-    writeStoredState({ turns: nextTurns, input: "", sourceTypes });
+    stream.run({
+      mode: editing ? "edit" : "send",
+      conversationId: currentConversation?.id,
+      messageId: editing?.id,
+      question,
+      sourceTypes,
+      currentMessages: messages,
+    });
     setInput("");
-    pendingRef.current = true;
-    const formData = new FormData();
-    formData.set("intent", "ask");
-    formData.set("question", question);
-    formData.set("history", JSON.stringify(history));
-    for (const sourceType of sourceTypes) {
-      formData.append("sources", sourceType);
-    }
-    fetcher.submit(formData, { method: "post" });
+    setEditing(null);
   }
 
-  function toggleSource(type: AskSourceType) {
-    setSourceTypes((current) => {
-      if (current.includes(type)) {
-        return current.filter((value) => value !== type);
-      }
-      return [...current, type];
+  function regenerate(message: AskMessageView) {
+    if (!currentConversation || busy) {
+      return;
+    }
+    stream.run({
+      mode: "regenerate",
+      conversationId: currentConversation.id,
+      messageId: message.id,
+      sourceTypes: message.sourceTypes.length ? message.sourceTypes : sourceTypes,
+      currentMessages: messages,
     });
   }
 
+  function startEdit(message: AskMessageView) {
+    setEditing(message);
+    setInput(message.content);
+  }
+
+  function toggleSource(type: AskSourceType) {
+    setSourceTypes((current) =>
+      current.includes(type) ? current.filter((value) => value !== type) : [...current, type],
+    );
+  }
+
   return (
-    <section className={`${panelClass} p-4`}>
-      <div className="flex items-center justify-between">
-        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">记忆对话</h2>
-        {turns.length > 0 ? (
-          <button type="button" onClick={clearTurns} className={subtleButtonClass}>
-            清空对话
-          </button>
-        ) : null}
-      </div>
-      <p className={helperTextClass}>
-        可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
-      </p>
+    <section className={`${panelClass} overflow-hidden`}>
+      <div className="grid min-h-[520px] gap-0 lg:grid-cols-[260px_1fr]">
+        <aside className="border-gray-200 border-b bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-950/40 lg:border-r lg:border-b-0">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
+            <Link to="/memory?tab=ask" className={subtleButtonClass}>
+              新对话
+            </Link>
+          </div>
+          <Form method="get" className="mt-3 space-y-2">
+            <input type="hidden" name="tab" value="ask" />
+            {includeArchived ? <input type="hidden" name="archived" value="1" /> : null}
+            <input
+              type="search"
+              name="cq"
+              defaultValue={conversationQuery}
+              placeholder="搜索会话"
+              className={`${inputClass} mt-0`}
+            />
+            <div className="flex items-center justify-between">
+              <button type="submit" className={subtleButtonClass}>
+                搜索
+              </button>
+              <Link
+                to={includeArchived ? "/memory?tab=ask" : "/memory?tab=ask&archived=1"}
+                className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+              >
+                {includeArchived ? "隐藏归档" : "查看归档"}
+              </Link>
+            </div>
+          </Form>
+          <nav className="mt-3 max-h-[420px] space-y-1 overflow-auto">
+            {conversations.map((conversation) => (
+              <Link
+                key={conversation.id}
+                to={`/memory?tab=ask&conversation=${conversation.id}${includeArchived ? "&archived=1" : ""}`}
+                className={`block rounded-lg px-3 py-2 text-sm transition ${
+                  currentConversation?.id === conversation.id
+                    ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"
+                    : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-900"
+                }`}
+              >
+                <span className="flex items-center gap-1">
+                  {conversation.pinnedAt ? <span aria-hidden="true">★</span> : null}
+                  <span className="truncate font-medium">{conversation.title || "新的探寻"}</span>
+                </span>
+                <span className="mt-1 block truncate text-gray-400 text-xs dark:text-gray-500">
+                  {conversation.lastMessagePreview || "还没有消息"}
+                </span>
+              </Link>
+            ))}
+            {conversations.length === 0 ? (
+              <p className="px-2 py-4 text-gray-400 text-sm dark:text-gray-500">没有会话。</p>
+            ) : null}
+          </nav>
+        </aside>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <SourceToggle
-          type="fragment"
-          label="片段"
-          checked={sourceTypes.includes("fragment")}
-          onChange={toggleSource}
-        />
-        <SourceToggle
-          type="note"
-          label="笔记"
-          checked={sourceTypes.includes("note")}
-          onChange={toggleSource}
-        />
-        <SourceToggle
-          type="draft"
-          label="草稿"
-          checked={sourceTypes.includes("draft")}
-          onChange={toggleSource}
-        />
-        <SourceToggle
-          type="entry-ai"
-          label="AI 洞察"
-          checked={sourceTypes.includes("entry-ai")}
-          onChange={toggleSource}
-        />
-        <SourceToggle
-          type="summary"
-          label="AI 总结"
-          checked={sourceTypes.includes("summary")}
-          onChange={toggleSource}
-        />
-      </div>
+        <div className="flex min-h-[520px] flex-col">
+          <ThreadHeader conversation={currentConversation} />
 
-      {turns.length > 0 ? (
-        <div className="mt-4 space-y-4">
-          {turns.map((turn) => (
-            <div key={turn.id} className="space-y-2">
-              <div className="flex justify-end">
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-gray-900 px-3 py-2 text-sm text-white dark:bg-gray-100 dark:text-gray-950">
-                  {turn.question}
+          <div className="flex-1 space-y-5 overflow-auto p-4">
+            {messages.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center dark:border-gray-800">
+                <p className="font-medium text-gray-950 text-sm dark:text-gray-50">问问你的记忆</p>
+                <p className={helperTextClass}>
+                  可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
                 </p>
               </div>
-              <div className="max-w-[90%] rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950">
-                {turn.answer === null ? (
-                  <span className="text-gray-400 dark:text-gray-500">思考中…</span>
-                ) : turn.error ? (
-                  <span className="text-red-600 dark:text-red-400">{turn.answer}</span>
-                ) : (
-                  <Markdown content={turn.answer} />
-                )}
-                {turn.sources && turn.sources.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2 border-gray-100 border-t pt-2 dark:border-gray-800">
-                    {turn.sources.map((source) => (
-                      <Link
-                        key={source.id}
-                        to={source.href}
-                        className="text-gray-400 text-xs hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
-                      >
-                        {source.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
+            ) : (
+              messages.map((message) => (
+                <ThreadMessage
+                  key={message.id}
+                  message={message}
+                  conversationId={currentConversation?.id ?? ""}
+                  busy={busy}
+                  onEdit={startEdit}
+                  onRegenerate={regenerate}
+                />
+              ))
+            )}
+          </div>
 
-      <div className="mt-4 flex items-end gap-2">
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-          rows={2}
-          placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
-          className={`${textareaClass} min-w-0 flex-1`}
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={busy || input.trim().length === 0 || sourceTypes.length === 0}
-          className={primaryButtonClass}
-        >
-          {busy ? "思考中…" : "发送"}
-        </button>
+          <div className="border-gray-200 border-t p-4 dark:border-gray-800">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {ASK_SOURCE_TYPES.map((type) => (
+                <SourceToggle
+                  key={type}
+                  type={type}
+                  label={SOURCE_LABELS[type]}
+                  checked={sourceTypes.includes(type)}
+                  onChange={toggleSource}
+                />
+              ))}
+            </div>
+            {editing ? (
+              <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-amber-900 text-sm dark:bg-amber-950/40 dark:text-amber-100">
+                <span>正在编辑一条旧问题，会创建新的分支。</span>
+                <button type="button" className="font-medium" onClick={() => setEditing(null)}>
+                  取消
+                </button>
+              </div>
+            ) : null}
+            <div className="flex items-end gap-2">
+              <textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    submit();
+                  }
+                }}
+                rows={2}
+                placeholder="比如：我最近状态怎么样？有哪些调整值得尝试？"
+                className={`${textareaClass} min-w-0 flex-1`}
+              />
+              {busy ? (
+                <button type="button" onClick={stream.stop} className={primaryButtonClass}>
+                  停止
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={input.trim().length === 0 || sourceTypes.length === 0}
+                  className={primaryButtonClass}
+                >
+                  发送
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
+  );
+}
+
+function ThreadHeader({ conversation }: { conversation: AskConversationView | null }) {
+  const fetcher = useFetcher<AskActionData>();
+  const [renaming, setRenaming] = useState(false);
+  const [title, setTitle] = useState(conversation?.title ?? "");
+  const conversationTitle = conversation?.title ?? "";
+
+  useEffect(() => {
+    setTitle(conversationTitle);
+    setRenaming(false);
+  }, [conversationTitle]);
+
+  if (!conversation) {
+    return (
+      <header className="border-gray-200 border-b p-4 dark:border-gray-800">
+        <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">新对话</h2>
+      </header>
+    );
+  }
+
+  return (
+    <header className="space-y-3 border-gray-200 border-b p-4 dark:border-gray-800">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {renaming ? (
+          <fetcher.Form method="post" className="flex min-w-0 flex-1 gap-2">
+            <input type="hidden" name="intent" value="renameAskConversation" />
+            <input type="hidden" name="conversationId" value={conversation.id} />
+            <input
+              name="title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className={`${inputClass} mt-0`}
+            />
+            <button type="submit" className={primaryButtonClass}>
+              保存
+            </button>
+          </fetcher.Form>
+        ) : (
+          <div className="min-w-0">
+            <h2 className="truncate font-medium text-gray-950 text-sm dark:text-gray-50">
+              {conversation.title || "新的探寻"}
+            </h2>
+            <p className="text-gray-400 text-xs dark:text-gray-500">
+              更新于 <LocalDateTime value={conversation.updatedAt} />
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            className={subtleButtonClass}
+            onClick={() => setRenaming((v) => !v)}
+          >
+            重命名
+          </button>
+          <ActionButton intent="toggleAskPinned" conversationId={conversation.id}>
+            {conversation.pinnedAt ? "取消置顶" : "置顶"}
+          </ActionButton>
+          <ActionButton intent="toggleAskArchived" conversationId={conversation.id}>
+            {conversation.archivedAt ? "恢复" : "归档"}
+          </ActionButton>
+          <Link
+            to={`/download-ask-conversation?conversation=${conversation.id}`}
+            className={subtleButtonClass}
+          >
+            导出
+          </Link>
+          <ActionButton intent="deleteAskConversation" conversationId={conversation.id} danger>
+            删除
+          </ActionButton>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function ActionButton({
+  intent,
+  conversationId,
+  children,
+  danger,
+}: {
+  intent: string;
+  conversationId: string;
+  children: ReactNode;
+  danger?: boolean;
+}) {
+  return (
+    <Form method="post">
+      <input type="hidden" name="intent" value={intent} />
+      <input type="hidden" name="conversationId" value={conversationId} />
+      <button
+        type="submit"
+        className={
+          danger
+            ? "inline-flex items-center justify-center rounded-lg px-3 py-2 font-medium text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+            : subtleButtonClass
+        }
+      >
+        {children}
+      </button>
+    </Form>
+  );
+}
+
+function ThreadMessage({
+  message,
+  conversationId,
+  busy,
+  onEdit,
+  onRegenerate,
+}: {
+  message: AskMessageView;
+  conversationId: string;
+  busy: boolean;
+  onEdit: (message: AskMessageView) => void;
+  onRegenerate: (message: AskMessageView) => void;
+}) {
+  const isUser = message.role === "user";
+  return (
+    <div className={isUser ? "flex justify-end" : "flex justify-start"}>
+      <div
+        className={
+          isUser
+            ? "max-w-[86%] rounded-lg bg-gray-900 px-3 py-2 text-sm text-white dark:bg-gray-100 dark:text-gray-950"
+            : "max-w-[92%] rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950"
+        }
+      >
+        {isUser ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : message.status === "running" && !message.content ? (
+          <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
+        ) : message.status === "error" ? (
+          <p className="text-red-600 dark:text-red-400">{message.content}</p>
+        ) : (
+          <Markdown content={message.content} />
+        )}
+
+        {!isUser && message.status === "interrupted" ? (
+          <p className="mt-2 text-amber-700 text-xs dark:text-amber-300">已中断，保留部分回答。</p>
+        ) : null}
+
+        {message.sources.length > 0 ? (
+          <details className="mt-2 border-gray-100 border-t pt-2 dark:border-gray-800">
+            <summary className="cursor-pointer text-gray-400 text-xs dark:text-gray-500">
+              引用来源 · {message.sources.length}
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {message.sources.map((source) => (
+                <Link
+                  key={`${message.id}-${source.id}`}
+                  to={source.href}
+                  className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                >
+                  {source.label}
+                </Link>
+              ))}
+            </div>
+          </details>
+        ) : null}
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          {message.branch ? (
+            <BranchControls conversationId={conversationId} branch={message.branch} />
+          ) : null}
+          {isUser ? (
+            <button
+              type="button"
+              onClick={() => onEdit(message)}
+              disabled={busy}
+              className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+            >
+              编辑
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onRegenerate(message)}
+                disabled={busy || message.status === "running"}
+                className="text-gray-400 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-100"
+              >
+                重新生成
+              </button>
+              {message.status === "completed" || message.status === "interrupted" ? (
+                <Form method="post">
+                  <input type="hidden" name="intent" value="saveAskDraft" />
+                  <input type="hidden" name="conversationId" value={conversationId} />
+                  <input type="hidden" name="messageId" value={message.id} />
+                  <button
+                    type="submit"
+                    className="text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
+                  >
+                    保存为草稿
+                  </button>
+                </Form>
+              ) : null}
+            </>
+          )}
+          {!isUser && message.model ? (
+            <span className="text-gray-300 dark:text-gray-600">
+              {message.model}
+              {message.durationMs ? ` · ${(message.durationMs / 1000).toFixed(1)}s` : ""}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BranchControls({
+  conversationId,
+  branch,
+}: {
+  conversationId: string;
+  branch: NonNullable<AskMessageView["branch"]>;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
+      <BranchButton conversationId={conversationId} messageId={branch.previousId} label="‹" />
+      <span>
+        {branch.index + 1}/{branch.count}
+      </span>
+      <BranchButton conversationId={conversationId} messageId={branch.nextId} label="›" />
+    </span>
+  );
+}
+
+function BranchButton({
+  conversationId,
+  messageId,
+  label,
+}: {
+  conversationId: string;
+  messageId: string | null;
+  label: string;
+}) {
+  if (!messageId) {
+    return <span className="px-1 opacity-30">{label}</span>;
+  }
+  return (
+    <Form method="post" className="inline">
+      <input type="hidden" name="intent" value="selectAskBranch" />
+      <input type="hidden" name="conversationId" value={conversationId} />
+      <input type="hidden" name="messageId" value={messageId} />
+      <button type="submit" className="px-1 hover:text-gray-900 dark:hover:text-gray-100">
+        {label}
+      </button>
+    </Form>
   );
 }
 

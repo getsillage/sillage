@@ -1,15 +1,22 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUserSession } from "../app/lib/auth/session";
+import {
+  beginAskSend,
+  completeAskAssistantMessage,
+  getAskConversation,
+} from "../app/lib/db/ask-conversations";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { saveAiSettings } from "../app/lib/settings/ai-settings";
-import { action as memoryAction } from "../app/routes/memory";
+import { action as memoryAction, loader as memoryLoader } from "../app/routes/memory";
 
 const db = getDb(env.DB);
 
 async function resetDb() {
   await env.DB.prepare("DELETE FROM summaries").run();
+  await env.DB.prepare("DELETE FROM ask_messages").run();
+  await env.DB.prepare("DELETE FROM ask_conversations").run();
   await env.DB.prepare("DELETE FROM entry_revisions").run();
   await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entry_ai").run();
@@ -47,6 +54,17 @@ async function authenticatedRequest(form: Record<string, string | string[]>, url
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
   });
+  request.headers.set("Cookie", cookie.split(";")[0]);
+  return request;
+}
+
+async function authenticatedGet(url: string) {
+  const response = await createUserSession(env, "/");
+  const cookie = response.headers.get("Set-Cookie");
+  if (!cookie) {
+    throw new Error("missing session cookie");
+  }
+  const request = new Request(url);
   request.headers.set("Cookie", cookie.split(";")[0]);
   return request;
 }
@@ -103,5 +121,50 @@ describe("ask routes", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.messages[0].content).toContain("【对话历史】");
     expect(body.messages[0].content).toContain("和小明在咖啡馆聊了很久");
+  });
+
+  it("loads saved ask conversations and saves an answer as a draft", async () => {
+    const run = await beginAskSend(db, {
+      question: "这段要不要留下？",
+      sourceTypes: ["fragment"],
+    });
+    await completeAskAssistantMessage(db, {
+      messageId: run.assistantMessage.id,
+      content: "值得留下，之后可以整理成一条草稿。",
+      sources: [],
+      model: "test",
+      durationMs: 1,
+    });
+
+    const loaderData = await memoryLoader({
+      request: await authenticatedGet(
+        `https://sillage.example/memory?tab=ask&conversation=${run.conversation.id}`,
+      ),
+      context: undefined as never,
+      params: {},
+    } as never);
+    expect(loaderData.tab).toBe("ask");
+    if (loaderData.tab !== "ask") {
+      throw new Error("expected ask loader");
+    }
+    expect(loaderData.currentConversation?.messages).toHaveLength(2);
+    expect(loaderData.conversations[0]?.id).toBe(run.conversation.id);
+
+    const result = await memoryAction({
+      request: await authenticatedRequest(
+        {
+          intent: "saveAskDraft",
+          conversationId: run.conversation.id,
+          messageId: run.assistantMessage.id,
+        },
+        "https://sillage.example/memory",
+      ),
+      context: undefined as never,
+      params: {},
+    } as never);
+    expect(result).toMatchObject({ ok: true, message: "已保存为草稿" });
+
+    const conversation = await getAskConversation(db, run.conversation.id);
+    expect(conversation?.messages.at(-1)?.content).toContain("值得留下");
   });
 });

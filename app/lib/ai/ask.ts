@@ -1,6 +1,6 @@
 import { loadAiConfig } from "./config";
 import { activeModel } from "./pipeline";
-import { generateText } from "./text";
+import { generateText, streamText } from "./text";
 
 export interface AskTurn {
   question: string;
@@ -11,12 +11,18 @@ export interface AskRequest {
   question: string;
   evidence: string;
   history?: AskTurn[];
+  signal?: AbortSignal;
+}
+
+export interface AskStreamRequest extends AskRequest {
+  onDelta: (text: string) => void | Promise<void>;
 }
 
 export interface AskResult {
   ok: boolean;
   answer: string;
   model: string | null;
+  durationMs?: number;
   skippedReason?: string;
 }
 
@@ -39,6 +45,17 @@ function historyText(history: AskTurn[]): string {
     .join("\n\n");
 }
 
+function buildAskPrompt(request: AskRequest): string {
+  const history = request.history ? historyText(request.history) : "";
+  return [
+    history ? `【对话历史】\n${history}` : "",
+    `【记忆证据】\n${request.evidence.trim() || "（所选来源里没有找到相关证据）"}`,
+    `【问题】\n${request.question}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /**
  * Answers a free-form question grounded in the user's own records. Mirrors the
  * pipeline contract: provider/config problems come back as `skippedReason`
@@ -47,20 +64,13 @@ function historyText(history: AskTurn[]): string {
 export async function answerQuestion(env: Env, request: AskRequest): Promise<AskResult> {
   const config = await loadAiConfig(env);
   const model = activeModel(config);
-
-  const history = request.history ? historyText(request.history) : "";
-  const prompt = [
-    history ? `【对话历史】\n${history}` : "",
-    `【记忆证据】\n${request.evidence.trim() || "（所选来源里没有找到相关证据）"}`,
-    `【问题】\n${request.question}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const prompt = buildAskPrompt(request);
 
   let result = await generateText(config, {
     system: SYSTEM_PROMPT,
     prompt,
     maxTokens: ASK_MAX_TOKENS,
+    signal: request.signal,
   });
 
   if (!result.skipped && result.truncated) {
@@ -68,6 +78,7 @@ export async function answerQuestion(env: Env, request: AskRequest): Promise<Ask
       system: SYSTEM_PROMPT,
       prompt: `${prompt}\n\n【回答要求】\n请重新生成完整答案，直接给出完整的结论和条目，不要只写标题或开头。`,
       maxTokens: ASK_RETRY_MAX_TOKENS,
+      signal: request.signal,
     });
   }
 
@@ -86,4 +97,45 @@ export async function answerQuestion(env: Env, request: AskRequest): Promise<Ask
     };
   }
   return { ok: true, answer: result.text, model };
+}
+
+export async function streamQuestion(env: Env, request: AskStreamRequest): Promise<AskResult> {
+  const config = await loadAiConfig(env);
+  const model = activeModel(config);
+  const result = await streamText(config, {
+    system: SYSTEM_PROMPT,
+    prompt: buildAskPrompt(request),
+    maxTokens: ASK_MAX_TOKENS,
+    signal: request.signal,
+    onDelta: request.onDelta,
+  });
+
+  if (result.skipped) {
+    return {
+      ok: false,
+      answer: "",
+      model,
+      durationMs: result.durationMs,
+      skippedReason: result.reason ?? "AI 已跳过",
+    };
+  }
+  if (!result.text) {
+    return {
+      ok: false,
+      answer: "",
+      model,
+      durationMs: result.durationMs,
+      skippedReason: result.reason ?? "AI 未返回内容",
+    };
+  }
+  if (result.truncated) {
+    return {
+      ok: false,
+      answer: "",
+      model,
+      durationMs: result.durationMs,
+      skippedReason: `${result.reason ?? "AI 回答过长被截断了"}，请缩小问题范围后重试`,
+    };
+  }
+  return { ok: true, answer: result.text, model, durationMs: result.durationMs };
 }

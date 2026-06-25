@@ -10,6 +10,7 @@ export interface GenerateTextInput {
   system: string;
   prompt: string;
   maxTokens?: number;
+  signal?: AbortSignal;
 }
 
 export interface GenerateTextResult {
@@ -17,6 +18,14 @@ export interface GenerateTextResult {
   skipped: boolean;
   reason?: string;
   truncated?: boolean;
+}
+
+export interface StreamTextResult extends GenerateTextResult {
+  durationMs: number;
+}
+
+export interface StreamTextInput extends GenerateTextInput {
+  onDelta: (text: string) => void | Promise<void>;
 }
 
 interface AnthropicTextBlock {
@@ -212,6 +221,7 @@ async function generateWithAnthropic(
         system: input.system,
         messages: [{ role: "user", content: input.prompt }],
       }),
+      signal: input.signal,
     },
   );
 
@@ -280,6 +290,7 @@ async function generateWithOpenAi(
         max_completion_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
         ...(supportsReasoningEffort(config.openaiModel) ? { reasoning_effort: "low" } : {}),
       }),
+      signal: input.signal,
     },
   );
 
@@ -350,5 +361,251 @@ export async function generateText(
       });
     }
     return { text: null, skipped: true, reason };
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+async function readSse(
+  response: Response,
+  onEvent: (event: string, data: string) => void | Promise<void>,
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return;
+  }
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event = "message";
+  let data: string[] = [];
+
+  async function flush() {
+    if (data.length === 0) {
+      event = "message";
+      return;
+    }
+    await onEvent(event, data.join("\n"));
+    event = "message";
+    data = [];
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line === "") {
+        await flush();
+      } else if (line.startsWith("event:")) {
+        event = line.slice(6).trim() || "message";
+      } else if (line.startsWith("data:")) {
+        data.push(line.slice(5).trimStart());
+      }
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer) {
+    for (const line of buffer.split(/\r?\n/)) {
+      if (line === "") {
+        await flush();
+      } else if (line.startsWith("event:")) {
+        event = line.slice(6).trim() || "message";
+      } else if (line.startsWith("data:")) {
+        data.push(line.slice(5).trimStart());
+      }
+    }
+  }
+  await flush();
+}
+
+async function streamWithAnthropic(
+  config: AiConfig,
+  input: StreamTextInput,
+): Promise<GenerateTextResult> {
+  const apiKey = config.anthropicApiKey;
+  if (!apiKey) {
+    return { text: null, skipped: true, reason: "Anthropic API key not configured" };
+  }
+
+  const response = await fetchWithEndpointFallback(
+    anthropicEndpointCandidates(config.anthropicBaseUrl, "messages"),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: config.anthropicModel,
+        max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+        system: input.system,
+        messages: [{ role: "user", content: input.prompt }],
+        stream: true,
+      }),
+      signal: input.signal,
+    },
+  );
+
+  if (!response.ok) {
+    const detail = await responseErrorDetail(response);
+    const reason = `Anthropic API returned ${response.status}${detail}`;
+    logAiProviderWarning("Anthropic stream failed", {
+      provider: "Anthropic",
+      model: config.anthropicModel,
+      baseUrl: config.anthropicBaseUrl,
+      status: response.status,
+      reason,
+    });
+    return { text: null, skipped: true, reason };
+  }
+
+  let text = "";
+  let stopReason: string | null = null;
+  await readSse(response, async (_event, raw) => {
+    if (!raw || raw === "[DONE]") {
+      return;
+    }
+    const data = JSON.parse(raw) as {
+      type?: string;
+      delta?: { type?: string; text?: string; stop_reason?: string | null };
+      message?: { stop_reason?: string | null };
+    };
+    const delta = data.delta?.text ?? "";
+    if (data.type === "content_block_delta" && delta) {
+      text += delta;
+      await input.onDelta(delta);
+    }
+    stopReason = data.delta?.stop_reason ?? data.message?.stop_reason ?? stopReason;
+  });
+
+  const trimmed = text.trim();
+  const truncated = stopReason === "max_tokens";
+  return {
+    text: trimmed || null,
+    skipped: false,
+    reason: truncated
+      ? truncatedReason("Anthropic", stopReason)
+      : !trimmed
+        ? noTextReason("Anthropic", stopReason)
+        : undefined,
+    truncated: truncated || undefined,
+  };
+}
+
+async function streamWithOpenAi(
+  config: AiConfig,
+  input: StreamTextInput,
+): Promise<GenerateTextResult> {
+  const apiKey = config.openaiApiKey;
+  if (!apiKey) {
+    return { text: null, skipped: true, reason: "OpenAI API key not configured" };
+  }
+
+  const response = await fetchWithEndpointFallback(
+    openAiEndpointCandidates(config.openaiBaseUrl, "chat/completions"),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.openaiModel,
+        messages: [
+          { role: "system", content: input.system },
+          { role: "user", content: input.prompt },
+        ],
+        max_completion_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+        ...(supportsReasoningEffort(config.openaiModel) ? { reasoning_effort: "low" } : {}),
+        stream: true,
+      }),
+      signal: input.signal,
+    },
+  );
+
+  if (!response.ok) {
+    const detail = await responseErrorDetail(response);
+    const reason = `OpenAI API returned ${response.status}${detail}`;
+    logAiProviderWarning("OpenAI stream failed", {
+      provider: "OpenAI",
+      model: config.openaiModel,
+      baseUrl: config.openaiBaseUrl,
+      status: response.status,
+      reason,
+    });
+    return { text: null, skipped: true, reason };
+  }
+
+  let text = "";
+  let finishReason: string | null = null;
+  await readSse(response, async (_event, raw) => {
+    if (!raw || raw === "[DONE]") {
+      return;
+    }
+    const data = JSON.parse(raw) as {
+      choices?: Array<{ delta?: { content?: string | null }; finish_reason?: string | null }>;
+    };
+    for (const choice of data.choices ?? []) {
+      const delta = choice.delta?.content ?? "";
+      if (delta) {
+        text += delta;
+        await input.onDelta(delta);
+      }
+      finishReason = choice.finish_reason ?? finishReason;
+    }
+  });
+
+  const trimmed = text.trim();
+  const truncated = finishReason === "length" || finishReason === "max_tokens";
+  return {
+    text: trimmed || null,
+    skipped: false,
+    reason: truncated
+      ? truncatedReason("OpenAI", finishReason)
+      : !trimmed
+        ? noTextReason("OpenAI", finishReason)
+        : undefined,
+    truncated: truncated || undefined,
+  };
+}
+
+export async function streamText(
+  config: AiConfig,
+  input: StreamTextInput,
+): Promise<StreamTextResult> {
+  const startedAt = Date.now();
+  try {
+    let result: GenerateTextResult;
+    switch (config.textProvider) {
+      case "anthropic":
+        result = await streamWithAnthropic(config, input);
+        break;
+      case "openai":
+        result = await streamWithOpenAi(config, input);
+        break;
+      case "disabled":
+        result = { text: null, skipped: true, reason: "AI text generation disabled" };
+        break;
+    }
+    return { ...result, durationMs: Date.now() - startedAt };
+  } catch (error: unknown) {
+    const reason = isAbortError(error) ? "aborted" : getErrorMessage(error);
+    if (!isAbortError(error)) {
+      logAiProviderError("AI stream errored", {
+        provider: config.textProvider === "anthropic" ? "Anthropic" : "OpenAI",
+        model: config.textProvider === "anthropic" ? config.anthropicModel : config.openaiModel,
+        baseUrl:
+          config.textProvider === "anthropic" ? config.anthropicBaseUrl : config.openaiBaseUrl,
+        reason,
+      });
+    }
+    return { text: null, skipped: true, reason, durationMs: Date.now() - startedAt };
   }
 }

@@ -230,6 +230,70 @@ export const summaries = sqliteTable(
   ],
 );
 
+/**
+ * Persistent "探寻" conversations. The current visible branch is represented by
+ * `headMessageId`: loading the conversation walks that message's ancestors to
+ * render one linear path through the message tree. Older sibling branches remain
+ * stored and can be selected later.
+ */
+export const askConversations = sqliteTable(
+  "ask_conversations",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull().default(""),
+    // JSON array of AskSourceType values used by the last send in this thread.
+    sourceTypes: text("source_types").notNull().default("[]"),
+    headMessageId: text("head_message_id"),
+    pinnedAt: integer("pinned_at", { mode: "timestamp_ms" }),
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_ask_conversations_updated_at").on(table.updatedAt),
+    index("idx_ask_conversations_pinned_at").on(table.pinnedAt),
+    index("idx_ask_conversations_archived_at").on(table.archivedAt),
+  ],
+);
+
+/**
+ * Message tree for "探寻" conversations. `parentId` forms the visible branch
+ * chain; `forkOfId` records which sibling a regenerated/edited message branched
+ * from, so the UI can explain where a branch came from without mutating history.
+ */
+export const askMessages = sqliteTable(
+  "ask_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => askConversations.id, { onDelete: "cascade" }),
+    parentId: text("parent_id"),
+    forkOfId: text("fork_of_id"),
+    role: text("role").notNull(),
+    content: text("content").notNull().default(""),
+    status: text("status").notNull().default("completed"),
+    sources: text("sources"),
+    sourceTypes: text("source_types"),
+    model: text("model"),
+    durationMs: integer("duration_ms"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_ask_messages_conversation_parent").on(table.conversationId, table.parentId),
+    index("idx_ask_messages_conversation_created").on(table.conversationId, table.createdAt),
+  ],
+);
+
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type EntryAi = typeof entryAi.$inferSelect;
@@ -242,3 +306,7 @@ export type Attachment = typeof attachments.$inferSelect;
 export type NewAttachment = typeof attachments.$inferInsert;
 export type Summary = typeof summaries.$inferSelect;
 export type NewSummary = typeof summaries.$inferInsert;
+export type AskConversation = typeof askConversations.$inferSelect;
+export type NewAskConversation = typeof askConversations.$inferInsert;
+export type AskMessage = typeof askMessages.$inferSelect;
+export type NewAskMessage = typeof askMessages.$inferInsert;

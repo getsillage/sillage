@@ -5,6 +5,16 @@ import { AskTab } from "~/components/memory/AskTab";
 import { pageLeadClass, pageSectionClass, pageShellClass, pageTitleClass } from "~/components/ui";
 import { type AskActionData, runAskAction } from "~/lib/ai/ask-action";
 import { requireSession } from "~/lib/auth/session";
+import {
+  deleteAskConversation,
+  getAskConversation,
+  listAskConversations,
+  renameAskConversation,
+  saveAskMessageAsDraft,
+  selectAskBranch,
+  toggleAskConversationArchived,
+  toggleAskConversationPinned,
+} from "~/lib/db/ask-conversations";
 import { getDb } from "~/lib/db/client";
 import { listEntries } from "~/lib/db/entries";
 import { listSummaries } from "~/lib/db/summaries";
@@ -30,9 +40,14 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   if (tab === "ask") {
     const query = url.searchParams.get("q")?.trim() ?? "";
-    const [recentEntries, results] = await Promise.all([
+    const conversationId = url.searchParams.get("conversation")?.trim() ?? "";
+    const includeArchived = url.searchParams.get("archived") === "1";
+    const conversationQuery = url.searchParams.get("cq")?.trim() ?? "";
+    const [recentEntries, results, conversations, currentConversation] = await Promise.all([
       listEntries(db, 80),
       query ? searchEntriesByKeyword(db, query) : Promise.resolve([]),
+      listAskConversations(db, { includeArchived, query: conversationQuery }),
+      conversationId ? getAskConversation(db, conversationId) : Promise.resolve(null),
     ]);
 
     const people = new Map<string, number>();
@@ -49,6 +64,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     return {
       tab: "ask" as const,
       query,
+      conversationQuery,
+      includeArchived,
+      conversations,
+      currentConversation,
       results,
       people: [...people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
       relationships: [...relationships.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
@@ -99,6 +118,42 @@ export async function action({
   if (intent === "ask") {
     return runAskAction(db, form);
   }
+  if (intent === "renameAskConversation") {
+    await renameAskConversation(
+      db,
+      String(form.get("conversationId") ?? ""),
+      String(form.get("title") ?? ""),
+    );
+    return { intent: "ask", ok: true, message: "已重命名" };
+  }
+  if (intent === "toggleAskPinned") {
+    await toggleAskConversationPinned(db, String(form.get("conversationId") ?? ""));
+    return { intent: "ask", ok: true, message: "已更新置顶状态" };
+  }
+  if (intent === "toggleAskArchived") {
+    await toggleAskConversationArchived(db, String(form.get("conversationId") ?? ""));
+    return { intent: "ask", ok: true, message: "已更新归档状态" };
+  }
+  if (intent === "deleteAskConversation") {
+    await deleteAskConversation(db, String(form.get("conversationId") ?? ""));
+    return { intent: "ask", ok: true, message: "已删除会话" };
+  }
+  if (intent === "selectAskBranch") {
+    await selectAskBranch(
+      db,
+      String(form.get("conversationId") ?? ""),
+      String(form.get("messageId") ?? ""),
+    );
+    return { intent: "ask", ok: true, message: "已切换分支" };
+  }
+  if (intent === "saveAskDraft") {
+    const result = await saveAskMessageAsDraft(
+      db,
+      String(form.get("conversationId") ?? ""),
+      String(form.get("messageId") ?? ""),
+    );
+    return { intent: "ask", ok: result.ok, message: result.message };
+  }
   if (isSummaryIntent(intent)) {
     return runSummaryAction(db, form, intent);
   }
@@ -142,6 +197,10 @@ export default function Memory({ loaderData }: Route.ComponentProps) {
             results={loaderData.results}
             people={loaderData.people}
             relationships={loaderData.relationships}
+            conversations={loaderData.conversations}
+            currentConversation={loaderData.currentConversation}
+            conversationQuery={loaderData.conversationQuery}
+            includeArchived={loaderData.includeArchived}
           />
         )}
       </section>

@@ -1,6 +1,15 @@
 import { asc, eq, isNull } from "drizzle-orm";
+import { renderAskConversationMarkdown } from "~/lib/db/ask-conversations";
 import { getDb } from "~/lib/db/client";
-import { attachments, entries, entryAi, entryTags, tags } from "~/lib/db/schema";
+import {
+  askConversations,
+  askMessages,
+  attachments,
+  entries,
+  entryAi,
+  entryTags,
+  tags,
+} from "~/lib/db/schema";
 import { parseTextList } from "~/lib/product/entry-fields";
 
 export interface SillageBackupResult {
@@ -50,10 +59,48 @@ interface SillageBackupPayload {
     size: number;
     createdAt: string;
   }>;
+  askConversations: Array<{
+    id: string;
+    title: string;
+    sourceTypes: unknown[];
+    headMessageId: string | null;
+    pinnedAt: string | null;
+    archivedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    messages: Array<{
+      id: string;
+      parentId: string | null;
+      forkOfId: string | null;
+      role: string;
+      content: string;
+      status: string;
+      sources: unknown[];
+      sourceTypes: unknown[];
+      model: string | null;
+      durationMs: number | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  }>;
 }
 
-function iso(value: Date): string {
-  return value.toISOString();
+function iso(value: Date): string;
+function iso(value: Date | null): string | null;
+function iso(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
+}
+
+function parseJsonArray(raw: string | null): unknown[] {
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function backupTimestamp(date: Date): string {
@@ -93,26 +140,76 @@ function renderMarkdown(payload: SillageBackupPayload): string {
     const sentimentLine = entry.sentiment ? `\n情绪：${entry.sentiment}` : "";
     return `## ${entry.entryDate} ${title}\n类型：${entry.kind}${entry.noteType ? ` / ${entry.noteType}` : ""}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
   });
-  return [`# Sillage 备份`, ``, `导出时间：${payload.exportedAt}`, ``, ...sections].join("\n");
+  const askSections =
+    payload.askConversations.length > 0
+      ? [
+          "",
+          "# 探寻会话",
+          "",
+          ...payload.askConversations.map((conversation) =>
+            renderAskConversationMarkdown({
+              conversation: {
+                ...conversation,
+                sourceTypes: [],
+                pinnedAt: conversation.pinnedAt ? new Date(conversation.pinnedAt) : null,
+                archivedAt: conversation.archivedAt ? new Date(conversation.archivedAt) : null,
+                createdAt: new Date(conversation.createdAt),
+                updatedAt: new Date(conversation.updatedAt),
+                messages: [],
+              },
+              messages: conversation.messages.map((message) => ({
+                ...message,
+                conversationId: conversation.id,
+                role: message.role === "assistant" ? "assistant" : "user",
+                status:
+                  message.status === "running" ||
+                  message.status === "error" ||
+                  message.status === "interrupted"
+                    ? message.status
+                    : "completed",
+                sources: [],
+                sourceTypes: [],
+                branch: null,
+                createdAt: new Date(message.createdAt),
+                updatedAt: new Date(message.updatedAt),
+              })),
+            }),
+          ),
+        ]
+      : [];
+  return [
+    `# Sillage 备份`,
+    ``,
+    `导出时间：${payload.exportedAt}`,
+    ``,
+    ...sections,
+    ...askSections,
+  ].join("\n");
 }
 
 async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBackupPayload> {
   const db = getDb(env.DB);
-  const [entryRows, tagRowsRaw, linkRows, attachmentRows] = await Promise.all([
-    db
-      .select()
-      .from(entries)
-      .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
-      .where(isNull(entries.deletedAt))
-      .orderBy(asc(entries.entryDate), asc(entries.createdAt)),
-    db.select().from(tags).where(isNull(tags.deletedAt)).orderBy(asc(tags.name)),
-    db.select().from(entryTags),
-    db
-      .select()
-      .from(attachments)
-      .where(isNull(attachments.deletedAt))
-      .orderBy(asc(attachments.createdAt)),
-  ]);
+  const [entryRows, tagRowsRaw, linkRows, attachmentRows, conversationRows, messageRows] =
+    await Promise.all([
+      db
+        .select()
+        .from(entries)
+        .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+        .where(isNull(entries.deletedAt))
+        .orderBy(asc(entries.entryDate), asc(entries.createdAt)),
+      db.select().from(tags).where(isNull(tags.deletedAt)).orderBy(asc(tags.name)),
+      db.select().from(entryTags),
+      db
+        .select()
+        .from(attachments)
+        .where(isNull(attachments.deletedAt))
+        .orderBy(asc(attachments.createdAt)),
+      db.select().from(askConversations).orderBy(asc(askConversations.createdAt)),
+      db
+        .select()
+        .from(askMessages)
+        .orderBy(asc(askMessages.conversationId), asc(askMessages.createdAt)),
+    ]);
 
   const tagRows = tagRowsRaw.map((tag) => ({
     id: tag.id,
@@ -154,6 +251,32 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBa
       contentType: attachment.contentType,
       size: attachment.size,
       createdAt: iso(attachment.createdAt),
+    })),
+    askConversations: conversationRows.map((conversation) => ({
+      id: conversation.id,
+      title: conversation.title,
+      sourceTypes: parseJsonArray(conversation.sourceTypes),
+      headMessageId: conversation.headMessageId,
+      pinnedAt: iso(conversation.pinnedAt),
+      archivedAt: iso(conversation.archivedAt),
+      createdAt: iso(conversation.createdAt),
+      updatedAt: iso(conversation.updatedAt),
+      messages: messageRows
+        .filter((message) => message.conversationId === conversation.id)
+        .map((message) => ({
+          id: message.id,
+          parentId: message.parentId,
+          forkOfId: message.forkOfId,
+          role: message.role,
+          content: message.content,
+          status: message.status,
+          sources: parseJsonArray(message.sources),
+          sourceTypes: parseJsonArray(message.sourceTypes),
+          model: message.model,
+          durationMs: message.durationMs,
+          createdAt: iso(message.createdAt),
+          updatedAt: iso(message.updatedAt),
+        })),
     })),
   };
 }

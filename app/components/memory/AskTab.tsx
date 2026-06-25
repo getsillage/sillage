@@ -2,10 +2,15 @@ import { Form, Link } from "react-router";
 import { AskPanel } from "~/components/AskPanel";
 import { EntryCard } from "~/components/EntryCard";
 import { inputClass, primaryButtonClass, subtlePanelClass } from "~/components/ui";
+import type { AskConversationSummary, AskConversationView } from "~/lib/db/ask-conversations";
 import type { EntryWithTags } from "~/lib/db/entries";
 
 interface AskTabProps {
   query: string;
+  conversationQuery: string;
+  includeArchived: boolean;
+  conversations: AskConversationSummary[];
+  currentConversation: AskConversationView | null;
   results: EntryWithTags[];
   people: [string, number][];
   relationships: [string, number][];
@@ -43,10 +48,24 @@ function FacetCloud({
 }
 
 /** The 探寻 tab: conversation with your memory, keyword search, people & relationships. */
-export function AskTab({ query, results, people, relationships }: AskTabProps) {
+export function AskTab({
+  query,
+  conversationQuery,
+  includeArchived,
+  conversations,
+  currentConversation,
+  results,
+  people,
+  relationships,
+}: AskTabProps) {
   return (
     <>
-      <AskPanel />
+      <AskPanel
+        conversations={conversations}
+        currentConversation={currentConversation}
+        conversationQuery={conversationQuery}
+        includeArchived={includeArchived}
+      />
 
       <Form method="get" className="flex gap-2">
         <input type="hidden" name="tab" value="ask" />

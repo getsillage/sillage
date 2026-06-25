@@ -6,6 +6,8 @@ export default [
   route("api/sync", "routes/api.sync.tsx"),
   route("api/entry-insight", "routes/api.entry-insight.tsx"),
   route("api/summary", "routes/api.summary.tsx"),
+  route("api/ask-stream", "routes/api.ask-stream.tsx"),
+  route("api/ask-stop", "routes/api.ask-stop.tsx"),
   layout("routes/app-layout.tsx", [
     index("routes/home.tsx"),
     route("timeline", "routes/timeline.tsx"),
@@ -19,6 +21,7 @@ export default [
     route("upload", "routes/upload.tsx"),
     route("capture", "routes/capture.tsx"),
     route("download-backup", "routes/download-backup.tsx"),
+    route("download-ask-conversation", "routes/download-ask-conversation.tsx"),
     route("attachments/:id", "routes/attachment.tsx"),
   ]),
 ] satisfies RouteConfig;

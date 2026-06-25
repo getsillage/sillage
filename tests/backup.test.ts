@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportSillageBackup, runScheduledBackup } from "../app/lib/backup/export";
+import { beginAskSend, completeAskAssistantMessage } from "../app/lib/db/ask-conversations";
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { putAttachment } from "../app/lib/storage/attachments";
@@ -15,6 +16,8 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
 describe("Sillage backup export", () => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM attachments").run();
+    await env.DB.prepare("DELETE FROM ask_messages").run();
+    await env.DB.prepare("DELETE FROM ask_conversations").run();
     await env.DB.prepare("DELETE FROM entries").run();
     await env.DB.prepare("DELETE FROM tags").run();
   });
@@ -138,5 +141,31 @@ describe("Sillage backup export", () => {
     await expect(runScheduledBackup(failingEnv)).rejects.toThrow("r2 unavailable");
     expect(errorSpy).toHaveBeenCalledOnce();
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain("sillage-backup");
+  });
+
+  it("exports ask conversations in JSON and Markdown backups", async () => {
+    const run = await beginAskSend(db, {
+      question: "最近有什么线索？",
+      sourceTypes: ["fragment"],
+    });
+    await completeAskAssistantMessage(db, {
+      messageId: run.assistantMessage.id,
+      content: "你反复提到散步和早睡。",
+      sources: [],
+      model: "test-model",
+      durationMs: 8,
+    });
+
+    const result = await exportSillageBackup(env, new Date("2026-06-25T00:00:00.000Z"));
+    const jsonObject = await env.BLOBS.get(result.jsonKey);
+    const payload = await jsonObject?.json<{
+      askConversations: Array<{ title: string; messages: Array<{ content: string }> }>;
+    }>();
+    expect(payload?.askConversations[0]?.title).toContain("最近有什么线索");
+    expect(payload?.askConversations[0]?.messages.at(-1)?.content).toBe("你反复提到散步和早睡。");
+
+    const markdown = (await (await env.BLOBS.get(result.markdownKey))?.text()) ?? "";
+    expect(markdown).toContain("# 探寻会话");
+    expect(markdown).toContain("你反复提到散步和早睡。");
   });
 });

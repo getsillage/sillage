@@ -2,8 +2,8 @@ import { env } from "cloudflare:workers";
 import { Form, Link, redirect } from "react-router";
 import { EntryInsightControl } from "~/components/ai/EntryInsightControl";
 import { EntryForm } from "~/components/EntryForm";
+import { LazyMarkdown } from "~/components/LazyMarkdown";
 import { LocalDateTime } from "~/components/LocalDateTime";
-import { Markdown } from "~/components/Markdown";
 import { pageShellClass, panelClass, subtlePanelClass } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
@@ -218,7 +218,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
           </header>
 
           <div className="max-w-3xl py-8">
-            <Markdown content={entry.body} />
+            <LazyMarkdown content={entry.body} />
           </div>
         </article>
 
@@ -301,7 +301,7 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
                         </summary>
                         <div className="mt-2 border-gray-100 border-t pt-2 dark:border-gray-800">
                           {revision.body ? (
-                            <Markdown content={revision.body} />
+                            <LazyMarkdown content={revision.body} />
                           ) : (
                             <p className="text-gray-400 text-xs dark:text-gray-500">(无正文)</p>
                           )}

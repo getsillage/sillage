@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Form, Link, useFetcher, useNavigate, useRevalidator } from "react-router";
 import {
   ASK_SOURCE_TYPES,
@@ -11,8 +11,8 @@ import type {
   AskConversationView,
   AskMessageView,
 } from "~/lib/db/ask-conversations";
+import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
-import { Markdown } from "./Markdown";
 import {
   helperTextClass,
   inputClass,
@@ -57,6 +57,8 @@ const SOURCE_LABELS: Record<AskSourceType, string> = {
   summary: "AI 总结",
 };
 
+const STREAM_FLUSH_INTERVAL_MS = 80;
+
 function toFormData(fields: Record<string, string | string[] | null | undefined>): FormData {
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) {
@@ -92,12 +94,54 @@ function useAskStream() {
   const controllerRef = useRef<AbortController | null>(null);
   const partialRef = useRef("");
   const runningMessageIdRef = useRef<string | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearFlushTimer = useCallback(() => {
+    if (!flushTimerRef.current) {
+      return;
+    }
+    clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = null;
+  }, []);
+
+  const flushPartial = useCallback(
+    (messageId: string | null) => {
+      if (!messageId) {
+        return;
+      }
+      clearFlushTimer();
+      setDraftMessages((current) =>
+        current
+          ? current.map((message) =>
+              message.id === messageId
+                ? { ...message, content: partialRef.current, status: "running" }
+                : message,
+            )
+          : current,
+      );
+    },
+    [clearFlushTimer],
+  );
+
+  const schedulePartialFlush = useCallback(
+    (messageId: string | null) => {
+      if (!messageId || flushTimerRef.current) {
+        return;
+      }
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null;
+        flushPartial(messageId);
+      }, STREAM_FLUSH_INTERVAL_MS);
+    },
+    [flushPartial],
+  );
 
   useEffect(
     () => () => {
       controllerRef.current?.abort();
+      clearFlushTimer();
     },
-    [],
+    [clearFlushTimer],
   );
 
   async function stop() {
@@ -106,6 +150,7 @@ function useAskStream() {
       return;
     }
     controllerRef.current?.abort();
+    clearFlushTimer();
     await fetch("/api/ask-stop", {
       method: "POST",
       body: toFormData({ messageId, content: partialRef.current }),
@@ -184,18 +229,11 @@ function useAskStream() {
       }
       if (event.type === "delta") {
         partialRef.current += event.text;
-        setDraftMessages((current) =>
-          current
-            ? current.map((message) =>
-                message.id === activeMessageId
-                  ? { ...message, content: partialRef.current, status: "running" }
-                  : message,
-              )
-            : current,
-        );
+        schedulePartialFlush(activeMessageId);
         return;
       }
       if (event.type === "done") {
+        clearFlushTimer();
         setDraftMessages((current) =>
           current
             ? current.map((message) =>
@@ -217,6 +255,7 @@ function useAskStream() {
         return;
       }
       if (event.type === "error") {
+        clearFlushTimer();
         setDraftMessages((current) =>
           current
             ? current.map((message) =>
@@ -624,8 +663,10 @@ function ThreadMessage({
           <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
         ) : message.status === "error" ? (
           <p className="text-red-600 dark:text-red-400">{message.content}</p>
+        ) : message.status === "running" ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <Markdown content={message.content} />
+          <LazyMarkdown content={message.content} />
         )}
 
         {!isUser && message.status === "interrupted" ? (

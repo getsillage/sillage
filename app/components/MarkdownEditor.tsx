@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Markdown } from "./Markdown";
+import { LazyMarkdown } from "./LazyMarkdown";
 import { subtleButtonClass, textareaClass } from "./ui";
 
 interface MarkdownEditorProps {
@@ -103,7 +103,10 @@ export function MarkdownEditor({
       {preview ? (
         <div className="min-h-48 bg-white p-3 dark:bg-gray-950">
           {value.trim() ? (
-            <Markdown content={value} />
+            <LazyMarkdown
+              content={value}
+              fallback={<p className="text-gray-400 text-sm dark:text-gray-500">正在加载预览…</p>}
+            />
           ) : (
             <p className="text-gray-400 text-sm dark:text-gray-500">没有可预览的内容</p>
           )}

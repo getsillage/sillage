@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Form, Link, NavLink, useLocation, useMatches } from "react-router";
+import type { AppVersionBadge as AppVersionBadgeData } from "~/lib/app-channel";
 import type { AskConversationSummary, AskConversationView } from "~/lib/db/ask-conversations";
 import { inputClass } from "./ui";
 
@@ -151,11 +152,37 @@ function conversationHref(conversationId: string, includeArchived: boolean): str
   return `/ask?conversation=${conversationId}${includeArchived ? "&archived=1" : ""}`;
 }
 
-export function Wordmark({ onClick }: { onClick?: () => void }) {
+export function AppVersionBadge({ badge }: { badge: AppVersionBadgeData | null }) {
+  if (!badge) {
+    return null;
+  }
+  const toneClass =
+    badge.tone === "development"
+      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+      : "border-celadon-200 bg-celadon-50 text-celadon-800 dark:border-celadon-800/60 dark:bg-celadon-900/40 dark:text-celadon-200";
+  return (
+    <span
+      className={`inline-flex flex-none items-center rounded-md border px-1.5 py-0.5 font-medium text-[11px] leading-none ${toneClass}`}
+    >
+      {badge.label}
+    </span>
+  );
+}
+
+export function Wordmark({
+  onClick,
+  appBadge = null,
+}: {
+  onClick?: () => void;
+  appBadge?: AppVersionBadgeData | null;
+}) {
   return (
     <Link to="/" onClick={onClick} className="block px-2 pb-3 focus-visible:outline-none">
-      <span className="text-xl italic text-gray-900 dark:text-gray-50 [font-family:Palatino,'Iowan_Old_Style',serif]">
-        Sillage
+      <span className="flex items-center gap-2">
+        <span className="text-xl italic text-gray-900 dark:text-gray-50 [font-family:Palatino,'Iowan_Old_Style',serif]">
+          Sillage
+        </span>
+        <AppVersionBadge badge={appBadge} />
       </span>
       <span className="mt-0.5 block font-serif text-[11px] tracking-widest text-gray-400">
         记忆的余迹
@@ -167,9 +194,13 @@ export function Wordmark({ onClick }: { onClick?: () => void }) {
 export function Sidebar({
   className = "",
   onNavigate,
+  appBadge = null,
+  authBypassed = false,
 }: {
   className?: string;
   onNavigate?: () => void;
+  appBadge?: AppVersionBadgeData | null;
+  authBypassed?: boolean;
 }) {
   const location = useLocation();
   const matches = useMatches();
@@ -182,7 +213,7 @@ export function Sidebar({
     <aside
       className={`flex min-h-0 flex-col border-gray-200 border-r bg-white px-3 py-4 dark:border-gray-800 dark:bg-gray-900 ${className}`}
     >
-      <Wordmark onClick={onNavigate} />
+      <Wordmark onClick={onNavigate} appBadge={appBadge} />
 
       <Link
         to="/ask"
@@ -213,7 +244,7 @@ export function Sidebar({
 
       {askData ? <AskConversationSection data={askData} onNavigate={onNavigate} /> : null}
 
-      <UserMenu onNavigate={onNavigate} />
+      <UserMenu onNavigate={onNavigate} authBypassed={authBypassed} />
     </aside>
   );
 }
@@ -343,7 +374,13 @@ function ConversationList({
   );
 }
 
-function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
+function UserMenu({
+  onNavigate,
+  authBypassed,
+}: {
+  onNavigate?: () => void;
+  authBypassed: boolean;
+}) {
   return (
     <details className="group relative mt-auto border-gray-200 border-t pt-3 dark:border-gray-800">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:hover:bg-gray-800 dark:focus-visible:ring-celadon-400/30">
@@ -354,7 +391,9 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
           <span className="block truncate font-medium text-gray-900 text-sm dark:text-gray-50">
             Sillage
           </span>
-          <span className="block truncate text-gray-400 text-xs dark:text-gray-500">本地空间</span>
+          <span className="block truncate text-gray-400 text-xs dark:text-gray-500">
+            {authBypassed ? "开放测试" : "本地空间"}
+          </span>
         </span>
         <DotsIcon className="h-4 w-4 flex-none text-gray-400 dark:text-gray-500" />
       </summary>
@@ -374,15 +413,17 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
         >
           外观
         </Link>
-        <Form method="post" action="/logout">
-          <button
-            type="submit"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-          >
-            <LogOutIcon className="h-4 w-4" />
-            <span>退出登录</span>
-          </button>
-        </Form>
+        {authBypassed ? null : (
+          <Form method="post" action="/logout">
+            <button
+              type="submit"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+            >
+              <LogOutIcon className="h-4 w-4" />
+              <span>退出登录</span>
+            </button>
+          </Form>
+        )}
       </div>
     </details>
   );

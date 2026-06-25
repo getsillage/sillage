@@ -1,4 +1,5 @@
 import { createSessionStorage, redirect } from "react-router";
+import { shouldBypassAuth } from "~/lib/app-channel";
 
 const SESSION_COOKIE = "__sillage_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
@@ -76,6 +77,9 @@ export async function createUserSession(
 
 /** Returns true when the request carries a valid authenticated session. */
 export async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
+  if (shouldBypassAuth(env)) {
+    return true;
+  }
   const storage = getSessionStorage(env, request);
   const session = await storage.getSession(request.headers.get("Cookie"));
   return session.get("authenticated") === true;

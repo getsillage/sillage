@@ -1,11 +1,14 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { shouldBypassAuth } from "../app/lib/app-channel";
 import {
   createUserSession,
   isAuthenticated,
   logout,
   requireSession,
 } from "../app/lib/auth/session";
+
+type TestEnv = typeof env & { APP_RELEASE_CHANNEL?: "beta" | "production" };
 
 function cookieHeaderFrom(response: Response): string {
   const setCookie = response.headers.get("Set-Cookie");
@@ -72,6 +75,18 @@ describe("KV-backed sessions", () => {
       expect(location).toContain("/login");
       expect(location).toContain("redirectTo");
     }
+  });
+
+  it("keeps beta channel authenticated during local development", async () => {
+    const betaEnv = { ...env, APP_RELEASE_CHANNEL: "beta" } as TestEnv;
+    const request = new Request("https://example.com/protected");
+    expect(shouldBypassAuth(betaEnv, { isDevelopment: true })).toBe(false);
+    expect(await isAuthenticated(request, betaEnv)).toBe(false);
+  });
+
+  it("bypasses auth for beta deployments outside development", () => {
+    const betaEnv = { ...env, APP_RELEASE_CHANNEL: "beta" } as TestEnv;
+    expect(shouldBypassAuth(betaEnv, { isDevelopment: false })).toBe(true);
   });
 
   it("logout clears the session so the cookie no longer authenticates", async () => {

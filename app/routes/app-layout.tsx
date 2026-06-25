@@ -3,19 +3,24 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router";
 import { QuickCapture } from "~/components/QuickCapture";
 import { Sidebar, Wordmark } from "~/components/Sidebar";
+import { getAppVersionBadge, shouldBypassAuth } from "~/lib/app-channel";
 import { requireSession } from "~/lib/auth/session";
 import type { Route } from "./+types/app-layout";
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireSession(request, env);
-  return null;
+  return {
+    appBadge: getAppVersionBadge(env),
+    authBypassed: shouldBypassAuth(env),
+  };
 }
 
-export default function AppLayout() {
+export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const routeId = `${location.pathname}?${location.search}`;
   const showQuickCapture = location.pathname !== "/ask";
+  const { appBadge, authBypassed } = loaderData;
 
   useEffect(() => {
     setDrawerOpen((open) => (open && routeId ? false : open));
@@ -36,10 +41,14 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
-      <Sidebar className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:flex" />
+      <Sidebar
+        className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:flex"
+        appBadge={appBadge}
+        authBypassed={authBypassed}
+      />
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-gray-200 border-b bg-white/90 px-3 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90 lg:hidden">
-        <Wordmark />
+        <Wordmark appBadge={appBadge} />
         <button
           type="button"
           aria-label="打开导航"
@@ -67,7 +76,12 @@ export default function AppLayout() {
             aria-label="导航"
             className="absolute inset-y-0 left-0 w-64 max-w-[85vw] shadow-xl shadow-gray-950/10"
           >
-            <Sidebar className="h-full w-full" onNavigate={() => setDrawerOpen(false)} />
+            <Sidebar
+              className="h-full w-full"
+              onNavigate={() => setDrawerOpen(false)}
+              appBadge={appBadge}
+              authBypassed={authBypassed}
+            />
           </div>
         </div>
       ) : null}

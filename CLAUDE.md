@@ -109,7 +109,7 @@ npm run deploy           # build && wrangler deploy(需先准备真实资源 ID 
 
 该 schema 面向**同步 / 多端**设计:id 为可按时间排序的 **UUIDv7**(`id.ts`,可在客户端生成,也可当游标);每个聚合都带 `updatedAt`(有索引)+ 软删除墓碑 `deletedAt`;`entries` 另有乐观并发 `version`、`utcOffsetMinutes`,以及向前兼容的 JSON `metadata`。Sillage 产品字段是 entries 的一等列: `kind`(`fragment|note|draft`)、`noteType`、`moodText`、`location`、`people`、`relationships`。人物/关系以 JSON 字符串数组存储,在边界用 `app/lib/product/entry-fields.ts` 解析。`deleteEntry` 执行**软删除**(打墓碑,保留标签关联/附件以便撤销;`restoreEntry`/`purgeEntry` 完成生命周期);读取一律过滤 `deletedAt IS NULL`,FTS 触发器按墓碑增删行;`updateEntry` 以**“比较并交换(CAS)”**方式更新——`UPDATE` 以读到的 `version` 作为条件,影响 0 行即返回 `{status: conflict}`,从而杜绝并发丢更新,且绝不覆盖 input 未提供的 `metadata`/offset。每次成功的内容更新(及创建)都会向 `entry_revisions` 追加一份该 `version` 的快照(标题/正文/次要字段 JSON),供「查看改动」回看,随 entry 级联删除。**机器派生的 AI 输出存放在 `entry_ai` 侧表**(1:1),通过 `composeEntries`/`fts.ts`/备份里的左连接读回——因此重新生成洞察不会 bump `entries.updatedAt`,也不会扰动 FTS。`sync.ts`(`getChangesSince`)是同步 API 背后的增量读模型。
 
-**鉴权(`app/lib/auth/`)。** 单一密码守护一切:PBKDF2 哈希与 `APP_PASSWORD_HASH` 比对,会话经 RR `createSessionStorage` 存于 KV(cookie 仅存不透明 id;HttpOnly/Secure/SameSite)。`requireSession(request, env)` 守护 loader/action。登录 action 按客户端 IP 限流(`rate-limit.ts`,基于 KV,15 分钟内 10 次失败)。`safeRedirect` 阻止 `redirectTo` 上的开放重定向。
+**鉴权(`app/lib/auth/`)。** 单一密码守护正式版本:PBKDF2 哈希与 `APP_PASSWORD_HASH` 比对,会话经 RR `createSessionStorage` 存于 KV(cookie 仅存不透明 id;HttpOnly/Secure/SameSite)。`requireSession(request, env)` 守护 loader/action。当前测试版部署通过 `APP_RELEASE_CHANNEL=beta` 跳过登录守卫,并在界面标注「β版」;本地开发优先显示「开发版」标识但不跳过登录。登录 action 按客户端 IP 限流(`rate-limit.ts`,基于 KV,15 分钟内 10 次失败)。`safeRedirect` 阻止 `redirectTo` 上的开放重定向。
 
 **附件(`app/lib/storage/`)。** 字节在应用层用 `ATTACH_ENCRYPTION_KEY` 做 AES-256-GCM 加密后再写入 R2。读取路由(`routes/attachment.tsx`)受会话守护,解密并流式返回。上传在边界处校验类型/大小。
 
@@ -139,7 +139,7 @@ npm run deploy           # build && wrangler deploy(需先准备真实资源 ID 
 
 ## 部署说明
 
-`wrangler.jsonc` 的资源 ID(`database_id`、KV `id`)是**本地开发占位符**。真实部署需创建资源(`wrangler d1 create sillage-db` / `kv namespace create SESSIONS` / `r2 bucket create sillage-blobs`),替换这些 ID,并用 `wrangler secret put` 设置密钥:`SESSION_SECRET`、`APP_PASSWORD_HASH`、`ATTACH_ENCRYPTION_KEY`。AI provider/模型/API key 设置在 web `/settings` 页面管理。本地密钥放在 `.dev.vars`(已 gitignore);只有 `.dev.vars.example` 提交入库——它说明如何生成每个值。
+`wrangler.jsonc` 的资源 ID(`database_id`、KV `id`)是**本地开发占位符**。真实部署需创建资源(`wrangler d1 create sillage-db` / `kv namespace create SESSIONS` / `r2 bucket create sillage-blobs`),替换这些 ID,并用 `wrangler secret put` 设置密钥:`SESSION_SECRET`、`APP_PASSWORD_HASH`、`ATTACH_ENCRYPTION_KEY`。`APP_RELEASE_CHANNEL` 是非密钥发布通道变量:当前为 `beta`,部署后免登录并显示「β版」;正式私有部署要改为 `production` 或移除。AI provider/模型/API key 设置在 web `/settings` 页面管理。本地密钥放在 `.dev.vars`(已 gitignore);只有 `.dev.vars.example` 提交入库——它说明如何生成每个值。
 
 <!-- headroom:rtk-instructions -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

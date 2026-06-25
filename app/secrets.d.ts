@@ -9,6 +9,8 @@ declare global {
     APP_PASSWORD_HASH: string;
     /** Base64 AES-256 key for app-layer encryption of R2 attachments. */
     ATTACH_ENCRYPTION_KEY: string;
+    /** Release channel. Beta deployments are open-access. */
+    APP_RELEASE_CHANNEL?: "beta" | "production";
   }
 }
 

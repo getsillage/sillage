@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { Form, redirect, useNavigation } from "react-router";
+import { AppVersionBadge } from "~/components/Sidebar";
 import { inputClass, pageLeadClass, primaryButtonClass } from "~/components/ui";
+import { getAppVersionBadge } from "~/lib/app-channel";
 import { verifyPassword } from "~/lib/auth/password";
 import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "~/lib/auth/rate-limit";
 import { safeRedirect } from "~/lib/auth/redirect";
@@ -16,7 +18,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (await isAuthenticated(request, env)) {
     throw redirect("/");
   }
-  return null;
+  return { appBadge: getAppVersionBadge(env) };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -43,7 +45,7 @@ export async function action({ request }: Route.ActionArgs) {
   return createUserSession(env, safeRedirect(parsed.data.redirectTo), request);
 }
 
-export default function Login({ actionData }: Route.ComponentProps) {
+export default function Login({ actionData, loaderData }: Route.ComponentProps) {
   const navigation = useNavigation();
   const submitting = navigation.state === "submitting";
 
@@ -53,9 +55,12 @@ export default function Login({ actionData }: Route.ComponentProps) {
         method="post"
         className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-900/5 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/20"
       >
-        <h1 className="text-2xl italic text-gray-900 dark:text-gray-50 [font-family:Palatino,'Iowan_Old_Style',serif]">
-          Sillage
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl italic text-gray-900 dark:text-gray-50 [font-family:Palatino,'Iowan_Old_Style',serif]">
+            Sillage
+          </h1>
+          <AppVersionBadge badge={loaderData.appBadge} />
+        </div>
         <p className="mt-0.5 font-serif text-gray-400 text-xs tracking-widest dark:text-gray-500">
           记忆的余迹
         </p>

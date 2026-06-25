@@ -19,6 +19,9 @@
 	},
 	"upload_source_maps": true,
 	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"APP_RELEASE_CHANNEL": "beta"
+	},
 	"routes": [
 		{
 			"pattern": "sillage.miofelix.com",

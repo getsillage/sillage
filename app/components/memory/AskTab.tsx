@@ -35,7 +35,7 @@ function FacetCloud({
           {items.map(([value, count]) => (
             <Link
               key={value}
-              to={`/memory?tab=ask&q=${encodeURIComponent(value)}`}
+              to={`/ask?q=${encodeURIComponent(value)}`}
               className="rounded-full bg-white px-3 py-1 text-gray-600 text-sm hover:text-gray-950 dark:bg-gray-800 dark:text-gray-300 dark:hover:text-gray-50"
             >
               {value} · {count}
@@ -47,7 +47,7 @@ function FacetCloud({
   );
 }
 
-/** The 探寻 tab: conversation with your memory, keyword search, people & relationships. */
+/** The 探寻 page: conversation with your memory, keyword search, people & relationships. */
 export function AskTab({
   query,
   conversationQuery,
@@ -68,7 +68,6 @@ export function AskTab({
       />
 
       <Form method="get" className="flex gap-2">
-        <input type="hidden" name="tab" value="ask" />
         <input
           type="search"
           name="q"

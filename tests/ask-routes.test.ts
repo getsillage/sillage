@@ -9,7 +9,7 @@ import {
 import { getDb } from "../app/lib/db/client";
 import { createEntry } from "../app/lib/db/entries";
 import { saveAiSettings } from "../app/lib/settings/ai-settings";
-import { action as memoryAction, loader as memoryLoader } from "../app/routes/memory";
+import { action as askAction, loader as askLoader } from "../app/routes/ask";
 
 const db = getDb(env.DB);
 
@@ -73,7 +73,7 @@ describe("ask routes", () => {
   beforeEach(resetDb);
   afterEach(() => vi.unstubAllGlobals());
 
-  it("answers ask requests from /memory with selected sources and citations", async () => {
+  it("answers ask requests from /ask with selected sources and citations", async () => {
     await configureAnthropic();
     vi.stubGlobal(
       "fetch",
@@ -92,7 +92,7 @@ describe("ask routes", () => {
       tags: [],
     });
 
-    const result = await memoryAction({
+    const result = await askAction({
       request: await authenticatedRequest(
         {
           intent: "ask",
@@ -100,7 +100,7 @@ describe("ask routes", () => {
           history: JSON.stringify([{ question: "之前问了什么？", answer: "见面。" }]),
           sources: ["fragment", "note"],
         },
-        "https://sillage.example/memory",
+        "https://sillage.example/ask",
       ),
       context: undefined as never,
       params: {},
@@ -136,28 +136,24 @@ describe("ask routes", () => {
       durationMs: 1,
     });
 
-    const loaderData = await memoryLoader({
+    const loaderData = await askLoader({
       request: await authenticatedGet(
-        `https://sillage.example/memory?tab=ask&conversation=${run.conversation.id}`,
+        `https://sillage.example/ask?conversation=${run.conversation.id}`,
       ),
       context: undefined as never,
       params: {},
     } as never);
-    expect(loaderData.tab).toBe("ask");
-    if (loaderData.tab !== "ask") {
-      throw new Error("expected ask loader");
-    }
     expect(loaderData.currentConversation?.messages).toHaveLength(2);
     expect(loaderData.conversations[0]?.id).toBe(run.conversation.id);
 
-    const result = await memoryAction({
+    const result = await askAction({
       request: await authenticatedRequest(
         {
           intent: "saveAskDraft",
           conversationId: run.conversation.id,
           messageId: run.assistantMessage.id,
         },
-        "https://sillage.example/memory",
+        "https://sillage.example/ask",
       ),
       context: undefined as never,
       params: {},

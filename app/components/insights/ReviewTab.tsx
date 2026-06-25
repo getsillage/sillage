@@ -12,7 +12,7 @@ interface ReviewTabProps {
   summaries: LoadedSummary[];
 }
 
-/** The 照见 tab: AI's proactive output — generated reviews and recurring themes. */
+/** The 照见 page: AI's proactive output — generated reviews and recurring themes. */
 export function ReviewTab({
   themes,
   noteCount,
@@ -69,9 +69,12 @@ export function ReviewTab({
             </p>
           </section>
 
-          <div className={`${subtlePanelClass} px-4 py-3 text-gray-500 text-sm dark:text-gray-400`}>
-            想主动搜索或提问，去上方的「探寻」。这里聚焦 AI 主动照见的线索与浮现的主题。
-          </div>
+          <Link
+            to="/ask"
+            className={`${subtlePanelClass} block px-4 py-3 text-gray-500 text-sm transition hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-100`}
+          >
+            想主动搜索或提问，去「探寻」。这里聚焦 AI 主动照见的线索与浮现的主题。
+          </Link>
         </aside>
       </div>
     </>

@@ -90,7 +90,7 @@ describe("ask context", () => {
     expect(context.evidence).toContain("AI 总结中提到项目推进很顺利");
     expect(context.citations[0]).toMatchObject({
       id,
-      href: `/memory?tab=review#summary-${id}`,
+      href: `/review#summary-${id}`,
       kind: "summary",
     });
   });

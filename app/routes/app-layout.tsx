@@ -37,8 +37,11 @@ export default function AppLayout() {
               <NavLink to="/timeline" className={navClass}>
                 痕迹
               </NavLink>
-              <NavLink to="/memory" className={navClass}>
-                微光
+              <NavLink to="/review" className={navClass}>
+                照见
+              </NavLink>
+              <NavLink to="/ask" className={navClass}>
+                探寻
               </NavLink>
               <NavLink to="/settings" className={navClass}>
                 设置

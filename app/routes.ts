@@ -11,9 +11,9 @@ export default [
   layout("routes/app-layout.tsx", [
     index("routes/home.tsx"),
     route("timeline", "routes/timeline.tsx"),
+    route("review", "routes/review.tsx"),
+    route("ask", "routes/ask.tsx"),
     route("notes", "routes/notes.tsx"),
-    route("insights", "routes/insights.tsx"),
-    route("memory", "routes/memory.tsx"),
     route("new", "routes/new.tsx"),
     route("entries/:id", "routes/entry.tsx"),
     route("calendar", "routes/calendar.tsx"),

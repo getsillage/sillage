@@ -214,7 +214,7 @@ function useAskStream() {
             event.assistantMessage,
           ),
         );
-        navigate(`/memory?tab=ask&conversation=${event.conversationId}`, { replace: true });
+        navigate(`/ask?conversation=${event.conversationId}`, { replace: true });
         return;
       }
       if (event.type === "sources") {
@@ -389,12 +389,11 @@ export function AskPanel({
         <aside className="border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
-            <Link to="/memory?tab=ask" className={subtleButtonClass}>
+            <Link to="/ask" className={subtleButtonClass}>
               新对话
             </Link>
           </div>
           <Form method="get" className="mt-3 space-y-2">
-            <input type="hidden" name="tab" value="ask" />
             {includeArchived ? <input type="hidden" name="archived" value="1" /> : null}
             <input
               type="search"
@@ -408,7 +407,7 @@ export function AskPanel({
                 搜索
               </button>
               <Link
-                to={includeArchived ? "/memory?tab=ask" : "/memory?tab=ask&archived=1"}
+                to={includeArchived ? "/ask" : "/ask?archived=1"}
                 className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
               >
                 {includeArchived ? "隐藏归档" : "查看归档"}
@@ -419,7 +418,7 @@ export function AskPanel({
             {conversations.map((conversation) => (
               <Link
                 key={conversation.id}
-                to={`/memory?tab=ask&conversation=${conversation.id}${includeArchived ? "&archived=1" : ""}`}
+                to={`/ask?conversation=${conversation.id}${includeArchived ? "&archived=1" : ""}`}
                 className={`block rounded-lg px-3 py-2 text-sm transition ${
                   currentConversation?.id === conversation.id
                     ? "bg-white text-gray-950 shadow-sm dark:bg-gray-900 dark:text-gray-50"

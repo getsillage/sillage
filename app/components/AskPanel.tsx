@@ -346,8 +346,8 @@ export function AskPanel({
 
   return (
     <section className={`${panelClass} overflow-hidden`}>
-      <div className="grid min-h-[520px] gap-0 lg:grid-cols-[260px_1fr]">
-        <aside className="border-gray-200 border-b bg-gray-50/70 p-3 dark:border-gray-800 dark:bg-gray-950/40 lg:border-r lg:border-b-0">
+      <div className="grid min-h-[calc(100vh-220px)] gap-0 lg:grid-cols-[280px_1fr] 2xl:grid-cols-[320px_1fr]">
+        <aside className="border-gray-200 border-b bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-950/50 lg:border-r lg:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">探寻会话</h2>
             <Link to="/memory?tab=ask" className={subtleButtonClass}>
@@ -376,7 +376,7 @@ export function AskPanel({
               </Link>
             </div>
           </Form>
-          <nav className="mt-3 max-h-[420px] space-y-1 overflow-auto">
+          <nav className="mt-3 max-h-[42vh] space-y-1 overflow-auto lg:max-h-[calc(100vh-420px)]">
             {conversations.map((conversation) => (
               <Link
                 key={conversation.id}
@@ -402,13 +402,15 @@ export function AskPanel({
           </nav>
         </aside>
 
-        <div className="flex min-h-[520px] flex-col">
+        <div className="flex min-h-[calc(100vh-220px)] flex-col">
           <ThreadHeader conversation={currentConversation} />
 
-          <div className="flex-1 space-y-5 overflow-auto p-4">
+          <div className="flex-1 space-y-6 overflow-auto px-4 py-5 sm:px-6 lg:px-8">
             {messages.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center dark:border-gray-800">
-                <p className="font-medium text-gray-950 text-sm dark:text-gray-50">问问你的记忆</p>
+              <div className="mx-auto flex min-h-72 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-8 text-center dark:border-gray-800">
+                <p className="font-medium text-gray-950 text-base dark:text-gray-50">
+                  问问你的记忆
+                </p>
                 <p className={helperTextClass}>
                   可以检索、总结、复盘或讨论下一步；AI 会基于你勾选的记忆来源回答。
                 </p>
@@ -427,7 +429,7 @@ export function AskPanel({
             )}
           </div>
 
-          <div className="border-gray-200 border-t p-4 dark:border-gray-800">
+          <div className="border-gray-200 border-t bg-white/95 p-4 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
             <div className="mb-3 flex flex-wrap gap-2">
               {ASK_SOURCE_TYPES.map((type) => (
                 <SourceToggle
@@ -447,7 +449,7 @@ export function AskPanel({
                 </button>
               </div>
             ) : null}
-            <div className="flex items-end gap-2">
+            <div className="mx-auto flex max-w-4xl items-end gap-2">
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -602,12 +604,18 @@ function ThreadMessage({
 }) {
   const isUser = message.role === "user";
   return (
-    <div className={isUser ? "flex justify-end" : "flex justify-start"}>
+    <div
+      className={
+        isUser
+          ? "mx-auto flex w-full max-w-4xl justify-end"
+          : "mx-auto flex w-full max-w-4xl justify-start"
+      }
+    >
       <div
         className={
           isUser
-            ? "max-w-[86%] rounded-lg bg-gray-900 px-3 py-2 text-sm text-white dark:bg-gray-100 dark:text-gray-950"
-            : "max-w-[92%] rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-950"
+            ? "max-w-[86%] rounded-lg bg-gray-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-gray-100 dark:text-gray-950"
+            : "max-w-[92%] rounded-lg bg-gray-50 px-4 py-3 text-sm leading-6 dark:bg-gray-950"
         }
       >
         {isUser ? (

@@ -184,29 +184,36 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             dayEntries={loaderData.dayEntries}
           />
         ) : (
-          <>
-            <TimelineFilters facets={loaderData.facets} active={loaderData.active} />
+          <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
+            <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+              <section className={`${subtlePanelClass} p-4 sm:p-5`}>
+                <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">筛选</h2>
+                <TimelineFilters facets={loaderData.facets} active={loaderData.active} />
+              </section>
 
-            {loaderData.onThisDay.length > 0 ? (
-              <OnThisDay entries={loaderData.onThisDay} today={loaderData.today} />
-            ) : null}
+              {loaderData.onThisDay.length > 0 ? (
+                <OnThisDay entries={loaderData.onThisDay} today={loaderData.today} />
+              ) : null}
+            </aside>
 
-            {loaderData.entries.length === 0 ? (
-              <div
-                className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
-              >
-                没有符合条件的记录。换个筛选，或从一个瞬间开始。
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {loaderData.entries.map((entry) => (
-                  <li key={entry.id}>
-                    <EntryCard entry={entry} showEntryInsight />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+            <section className="min-w-0">
+              {loaderData.entries.length === 0 ? (
+                <div
+                  className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
+                >
+                  没有符合条件的记录。换个筛选，或从一个瞬间开始。
+                </div>
+              ) : (
+                <ul className="grid gap-3 2xl:grid-cols-2">
+                  {loaderData.entries.map((entry) => (
+                    <li key={entry.id}>
+                      <EntryCard entry={entry} showEntryInsight />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         )}
       </section>
     </main>

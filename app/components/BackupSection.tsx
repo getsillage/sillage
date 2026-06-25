@@ -42,7 +42,7 @@ export function BackupSection({ backups }: { backups: BackupItem[] }) {
   const exporting = fetcher.state !== "idle";
 
   return (
-    <section className="mt-8">
+    <section className="rounded-lg border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/90">
       <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">数据与备份</h2>
       <p className="mt-1 text-gray-700 text-sm dark:text-gray-400">
         每天会自动备份一份到服务端；可在这里下载，或立即手动导出一份。
@@ -68,7 +68,7 @@ export function BackupSection({ backups }: { backups: BackupItem[] }) {
           {backups.map((item) => (
             <li
               key={item.base}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
             >
               <div>
                 <span className="font-medium text-gray-950 text-sm dark:text-gray-50">

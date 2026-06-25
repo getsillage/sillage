@@ -42,75 +42,81 @@ export function CalendarView({
   const next = clampMonth(year, month + 1);
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-4 flex items-center justify-between">
-        <Link
-          to={monthHref(prev.year, prev.month)}
-          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-        >
-          ← {prev.year}年{prev.month}月
-        </Link>
-        <h2 className="font-medium text-gray-950 dark:text-gray-50">
-          {year}年{month}月
-        </h2>
-        <Link
-          to={monthHref(next.year, next.month)}
-          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-        >
-          {next.year}年{next.month}月 →
-        </Link>
-      </div>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="rounded-lg border border-gray-200/80 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900/90">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <Link
+            to={monthHref(prev.year, prev.month)}
+            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
+            ← {prev.year}年{prev.month}月
+          </Link>
+          <h2 className="font-medium text-gray-950 dark:text-gray-50">
+            {year}年{month}月
+          </h2>
+          <Link
+            to={monthHref(next.year, next.month)}
+            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
+            {next.year}年{next.month}月 →
+          </Link>
+        </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-gray-400 text-xs dark:text-gray-500">
-        {WEEKDAYS.map((day) => (
-          <div key={day} className="py-1">
-            {day}
-          </div>
-        ))}
-      </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-gray-400 text-xs dark:text-gray-500">
+          {WEEKDAYS.map((day) => (
+            <div key={day} className="py-1">
+              {day}
+            </div>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-7 gap-1">
-        {weeks.flat().map((date, index) =>
-          date === null ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: blank cells are stable by position
-            <div key={`blank-${index}`} />
-          ) : (
-            <DayCell
-              key={date}
-              date={date}
-              count={counts[date] ?? 0}
-              isToday={date === today}
-              isSelected={date === selectedDate}
-              year={year}
-              month={month}
-            />
-          ),
-        )}
-      </div>
-
-      {selectedDate ? (
-        <section className="mt-6">
-          <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
-            {selectedDate}
-          </h3>
-          {dayEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm dark:text-gray-500">这一天没有记录。</p>
-          ) : (
-            <ul className="space-y-2">
-              {dayEntries.map((entry) => (
-                <li key={entry.id}>
-                  <Link
-                    to={`/entries/${entry.id}`}
-                    className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
-                  >
-                    {entry.title || "（无标题）"}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+        <div className="grid grid-cols-7 gap-1">
+          {weeks.flat().map((date, index) =>
+            date === null ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: blank cells are stable by position
+              <div key={`blank-${index}`} />
+            ) : (
+              <DayCell
+                key={date}
+                date={date}
+                count={counts[date] ?? 0}
+                isToday={date === today}
+                isSelected={date === selectedDate}
+                year={year}
+                month={month}
+              />
+            ),
           )}
-        </section>
-      ) : null}
+        </div>
+      </section>
+
+      <aside className="rounded-lg border border-gray-200/80 bg-white p-4 shadow-sm sm:p-5 dark:border-gray-800 dark:bg-gray-900/90">
+        {selectedDate ? (
+          <>
+            <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
+              {selectedDate}
+            </h3>
+            {dayEntries.length === 0 ? (
+              <p className="text-gray-400 text-sm dark:text-gray-500">这一天没有记录。</p>
+            ) : (
+              <ul className="space-y-2">
+                {dayEntries.map((entry) => (
+                  <li key={entry.id}>
+                    <Link
+                      to={`/entries/${entry.id}`}
+                      className="block rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
+                    >
+                      {entry.title || "（无标题）"}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="text-gray-400 text-sm dark:text-gray-500">选择一天查看当天记录。</p>
+        )}
+      </aside>
     </div>
   );
 }
@@ -126,7 +132,8 @@ interface DayCellProps {
 
 function DayCell({ date, count, isToday, isSelected, year, month }: DayCellProps) {
   const day = Number(date.slice(8));
-  const base = "flex aspect-square flex-col items-center justify-center rounded-lg border text-sm";
+  const base =
+    "flex aspect-square min-h-12 flex-col items-center justify-center rounded-lg border text-sm sm:text-base";
   const state = isSelected
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
     : count > 0

@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { Form, Link, NavLink, Outlet } from "react-router";
 import { QuickCapture } from "~/components/QuickCapture";
 import { ThemeToggle } from "~/components/ThemeToggle";
-import { pageShellClass, subtleButtonClass } from "~/components/ui";
+import { subtleButtonClass } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import type { Route } from "./+types/app-layout";
 
@@ -13,26 +13,24 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return isActive
-    ? "font-medium text-gray-950 dark:text-gray-50"
-    : "text-gray-500 transition hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-100";
+    ? "rounded-full bg-gray-950 px-3 py-1.5 font-medium text-white dark:bg-gray-100 dark:text-gray-950"
+    : "rounded-full px-3 py-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
 }
 
 export default function AppLayout() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-950 dark:bg-gray-950 dark:text-gray-50">
-      <header className="border-b border-gray-200 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
-        <div
-          className={`${pageShellClass} flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between`}
-        >
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <header className="sticky top-0 z-30 border-gray-200/80 border-b bg-white/90 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
+              className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base dark:text-gray-50"
             >
               <img src="/sillage-icon.svg" alt="" className="h-6 w-6 shrink-0" />
               <span>Sillage</span>
             </Link>
-            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <nav className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
               <NavLink to="/" end className={navClass}>
                 此刻
               </NavLink>

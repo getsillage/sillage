@@ -59,11 +59,11 @@ export function SummaryGenerator({ suggestions, pickerEntries }: SummaryGenerato
   }
 
   return (
-    <section className={`${panelClass} p-4`}>
+    <section className={`${panelClass} p-4 sm:p-5 lg:p-6`}>
       <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">生成总结</h2>
       <p className={helperTextClass}>挑一个时间范围或一条主题线索，让 AI 把记录织成一篇回顾。</p>
 
-      <form method="post" onSubmit={handleSubmit} className="mt-4 space-y-4">
+      <form method="post" onSubmit={handleSubmit} className="mt-4 space-y-5">
         <input type="hidden" name="intent" value="generate" />
         <input type="hidden" name="scope" value={scope} />
         <input type="hidden" name="style" value={style} />

@@ -1,19 +1,20 @@
-export const pageShellClass = "mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:px-8";
+export const pageShellClass =
+  "mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12";
 
-export const pageSectionClass = "space-y-6";
+export const pageSectionClass = "space-y-8";
 
-export const pageTitleClass = "text-xl font-semibold text-gray-950 sm:text-2xl dark:text-gray-50";
+export const pageTitleClass = "text-2xl font-semibold text-gray-950 sm:text-3xl dark:text-gray-50";
 
 export const pageLeadClass = "mt-1 text-sm text-gray-500 dark:text-gray-400";
 
 export const panelClass =
-  "rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900";
+  "rounded-lg border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900/90";
 
 export const subtlePanelClass =
-  "rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/60";
+  "rounded-lg border border-gray-200/80 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/60";
 
 export const rowLinkClass =
-  "block rounded-lg border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-100/20";
+  "block rounded-lg border border-gray-200/80 bg-white px-4 py-4 transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/10 sm:px-5 dark:border-gray-800 dark:bg-gray-900/90 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-100/20";
 
 export const inputClass =
   "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm transition placeholder:text-gray-400 focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-200 dark:focus:ring-gray-100/20 dark:disabled:bg-gray-900 dark:disabled:text-gray-500";

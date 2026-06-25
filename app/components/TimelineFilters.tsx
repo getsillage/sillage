@@ -17,7 +17,7 @@ const MOOD_OPTIONS = [
 ] as const;
 
 const filterSelectClass =
-  "rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-gray-700 text-sm shadow-sm transition focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:focus:border-gray-200 dark:focus:ring-gray-100/20";
+  "w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-gray-700 text-sm shadow-sm transition focus:border-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:focus:border-gray-200 dark:focus:ring-gray-100/20";
 
 export interface TimelineFacets {
   tags: string[];
@@ -119,7 +119,7 @@ export function TimelineFilters({ facets, active }: TimelineFiltersProps) {
       key={`${active.kind}|${active.tag}|${active.person}|${active.relationship}|${active.mood}`}
       method="get"
       action="/timeline"
-      className="flex flex-wrap items-center gap-2"
+      className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1"
     >
       <PresetSelect name="kind" label="类型" value={active.kind} options={KIND_OPTIONS} />
       <FacetSelect
@@ -156,7 +156,7 @@ export function TimelineFilters({ facets, active }: TimelineFiltersProps) {
       {hasAny(active) ? (
         <Link
           to="/timeline"
-          className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          className="inline-flex items-center text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
         >
           清除
         </Link>

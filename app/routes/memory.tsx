@@ -169,7 +169,7 @@ function tabClass(active: boolean): string {
 export default function Memory({ loaderData }: Route.ComponentProps) {
   return (
     <main className={pageShellClass}>
-      <section className={pageSectionClass}>
+      <section className={`${pageSectionClass} min-h-[calc(100vh-92px)]`}>
         <header>
           <h1 className={pageTitleClass}>微光</h1>
           <p className={pageLeadClass}>记录之间亮起的一点光：照见来路，也照向前路。</p>

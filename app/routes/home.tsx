@@ -171,16 +171,18 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
     shouldGenerateEntryInsightForKind(loaderData.entryInsightAutoMode, kind);
 
   return (
-    <main className={`${pageShellClass} max-w-6xl`}>
+    <main className={pageShellClass}>
       <section className={pageSectionClass}>
-        <header>
-          <p className="text-gray-500 text-sm dark:text-gray-400">{today}</p>
-          <h1 className={pageTitleClass}>今天留下些什么？</h1>
-          <p className={pageLeadClass}>What lingers today?</p>
+        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-gray-500 text-sm dark:text-gray-400">{today}</p>
+            <h1 className={pageTitleClass}>今天留下些什么？</h1>
+          </div>
+          <p className={`${pageLeadClass} sm:text-right`}>What lingers today?</p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <section className={`${panelClass} p-5`}>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] 2xl:gap-8">
+          <section className={`${panelClass} p-5 sm:p-6 lg:p-8`}>
             <EntryForm
               error={actionData?.error}
               defaults={actionData?.values ?? defaults}
@@ -191,15 +193,15 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             />
           </section>
 
-          <aside className="space-y-4">
-            <section className={`${panelClass} p-4`}>
+          <aside className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <section className={`${panelClass} p-4 sm:p-5`}>
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日片段</h2>
               <div className="mt-3">
                 <EntryMiniList entries={fragments} empty="还没有留下片段。" />
               </div>
             </section>
 
-            <section className={`${panelClass} p-4`}>
+            <section className={`${panelClass} p-4 sm:p-5`}>
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日笔记</h2>
               <div className="mt-3">
                 <EntryMiniList entries={notes} empty="今天还没有被整理。" />
@@ -207,7 +209,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             </section>
 
             {drafts.length > 0 ? (
-              <section className={`${panelClass} p-4`}>
+              <section className={`${panelClass} p-4 sm:p-5`}>
                 <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">草稿</h2>
                 <div className="mt-3">
                   <EntryMiniList entries={drafts} empty="" />
@@ -215,7 +217,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
               </section>
             ) : null}
 
-            <section className={`${panelClass} p-4`}>
+            <section className={`${panelClass} p-4 sm:p-5`}>
               <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">今日洞察</h2>
               {todayInsights.length === 0 ? (
                 <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
@@ -242,7 +244,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             </section>
 
             {onThisDay.length > 0 ? (
-              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+              <section className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 sm:p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
                 <h2 className="font-medium text-amber-950 text-sm dark:text-amber-100">那年今日</h2>
                 <ul className="mt-3 space-y-2">
                   {onThisDay.map((entry) => {
@@ -288,7 +290,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
               还没有留下什么。可以从一个瞬间开始。
             </div>
           ) : (
-            <ul className="space-y-3">
+            <ul className="grid gap-3 xl:grid-cols-2">
               {entries.map((entry) => {
                 const kind = normalizeEntryKind(entry.kind);
                 return (

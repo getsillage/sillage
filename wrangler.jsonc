@@ -11,7 +11,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "t",
+	"name": "sillage-beta",
 	"compatibility_date": "2026-06-23",
 	"main": "./workers/app.ts",
 	"observability": {
@@ -19,30 +19,34 @@
 	},
 	"upload_source_maps": true,
 	"compatibility_flags": ["nodejs_compat"],
+	"routes": [
+		{
+			"pattern": "sillage.miofelix.com",
+			"zone_name": "miofelix.com",
+			"custom_domain": true
+		}
+	],
 
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "sillage-db",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "0a7fd82a-a1bc-445e-a787-b7349c18de74",
 			"migrations_dir": "drizzle/migrations"
 		}
 	],
-
 	"kv_namespaces": [
 		{
 			"binding": "SESSIONS",
-			"id": "sessions_local_placeholder"
+			"id": "f10d2542fa6847139dbff495b75b3a40"
 		}
 	],
-
 	"r2_buckets": [
 		{
 			"binding": "BLOBS",
 			"bucket_name": "sillage-blobs"
 		}
 	],
-
 	"triggers": {
 		"crons": ["0 19 * * *"]
 	}

@@ -2,7 +2,6 @@ import { env } from "cloudflare:workers";
 import { Link } from "react-router";
 import { CalendarView } from "~/components/CalendarView";
 import { EntryCard } from "~/components/EntryCard";
-import { TimelineFilters } from "~/components/TimelineFilters";
 import { TraceThread, TraceThreadItem } from "~/components/TraceThread";
 import {
   pageLeadClass,
@@ -16,45 +15,11 @@ import { requireSession } from "~/lib/auth/session";
 import { monthGrid, pad2, todayISO, yearsBetween } from "~/lib/date";
 import { getEntryDateCounts, getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
-import {
-  type EntryFilter,
-  type EntryWithTags,
-  listEntries,
-  listEntriesFiltered,
-} from "~/lib/db/entries";
-import { cleanTextList, normalizeEntryKind, parseTextList } from "~/lib/product/entry-fields";
+import { type EntryWithTags, listEntries } from "~/lib/db/entries";
 import type { Route } from "./+types/timeline";
 
 export function meta(_: Route.MetaArgs) {
   return [{ title: "痕迹 · Sillage" }];
-}
-
-function readFilter(params: URLSearchParams): EntryFilter {
-  const filter: EntryFilter = {};
-  const kind = params.get("kind");
-  if (kind) {
-    const normalized = normalizeEntryKind(kind);
-    if (normalized === kind) {
-      filter.kind = normalized;
-    }
-  }
-  const mood = Number(params.get("mood"));
-  if (Number.isInteger(mood) && mood >= 1 && mood <= 5) {
-    filter.mood = mood;
-  }
-  const tag = params.get("tag")?.trim();
-  if (tag) {
-    filter.tag = tag;
-  }
-  const person = params.get("person")?.trim();
-  if (person) {
-    filter.person = person;
-  }
-  const relationship = params.get("relationship")?.trim();
-  if (relationship) {
-    filter.relationship = relationship;
-  }
-  return filter;
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -85,33 +50,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     };
   }
 
-  const filter = readFilter(url.searchParams);
-  const filtersActive = Object.keys(filter).length > 0;
-  const [list, facetSource, onThisDay] = await Promise.all([
-    listEntriesFiltered(db, filter, 120),
-    listEntries(db, 200),
-    filtersActive ? Promise.resolve<EntryWithTags[]>([]) : getOnThisDay(db, today),
-  ]);
+  const [list, onThisDay] = await Promise.all([listEntries(db, 120), getOnThisDay(db, today)]);
 
   return {
     view: "list" as const,
     today,
     entries: list,
     onThisDay,
-    facets: {
-      tags: cleanTextList(facetSource.flatMap((entry) => entry.tags)),
-      people: cleanTextList(facetSource.flatMap((entry) => parseTextList(entry.people))),
-      relationships: cleanTextList(
-        facetSource.flatMap((entry) => parseTextList(entry.relationships)),
-      ),
-    },
-    active: {
-      kind: filter.kind ?? "",
-      tag: filter.tag ?? "",
-      person: filter.person ?? "",
-      relationship: filter.relationship ?? "",
-      mood: filter.mood ? String(filter.mood) : "",
-    },
   };
 }
 
@@ -152,7 +97,7 @@ function OnThisDay({ entries, today }: { entries: EntryWithTags[]; today: string
             >
               <span className="font-medium">{yearsBetween(entry.entryDate, today)}年前</span>
               <span> · {entry.entryDate}</span>
-              <span> · {entry.title || excerpt(entry.body) || "未命名记录"}</span>
+              <span> · {excerpt(entry.body) || "空白记录"}</span>
             </Link>
           </li>
         ))}
@@ -184,18 +129,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             dayEntries={loaderData.dayEntries}
           />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
-            <aside className="space-y-4 xl:sticky xl:top-10 xl:self-start">
-              <section className={`${subtlePanelClass} p-4 sm:p-5`}>
-                <h2 className="mb-3 font-medium text-gray-950 text-sm dark:text-gray-50">筛选</h2>
-                <TimelineFilters facets={loaderData.facets} active={loaderData.active} />
-              </section>
-
-              {loaderData.onThisDay.length > 0 ? (
-                <OnThisDay entries={loaderData.onThisDay} today={loaderData.today} />
-              ) : null}
-            </aside>
-
+          <div className="space-y-6">
+            {loaderData.onThisDay.length > 0 ? (
+              <OnThisDay entries={loaderData.onThisDay} today={loaderData.today} />
+            ) : null}
             <section className="min-w-0">
               {loaderData.entries.length === 0 ? (
                 <div
@@ -207,7 +144,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 <TraceThread>
                   {loaderData.entries.map((entry) => (
                     <TraceThreadItem key={entry.id}>
-                      <EntryCard entry={entry} showEntryInsight openOnCardClick />
+                      <EntryCard entry={entry} openOnCardClick />
                     </TraceThreadItem>
                   ))}
                 </TraceThread>

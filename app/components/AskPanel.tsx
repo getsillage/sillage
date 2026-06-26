@@ -1,5 +1,7 @@
 import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Form, Link, useFetcher, useNavigate, useRevalidator } from "react-router";
+import { type LoadedSummary, SummaryCard } from "~/components/insights/SummaryCard";
+import { SummaryGenerator } from "~/components/insights/SummaryGenerator";
 import {
   ASK_SOURCE_TYPES,
   type AskCitation,
@@ -21,8 +23,7 @@ interface AskActionData {
 interface AskPanelProps {
   query: string;
   results: EntryWithTags[];
-  people: [string, number][];
-  relationships: [string, number][];
+  summaries: LoadedSummary[];
   currentConversation: AskConversationView | null;
 }
 
@@ -320,13 +321,7 @@ function useAskStream() {
   };
 }
 
-export function AskPanel({
-  query,
-  results,
-  people,
-  relationships,
-  currentConversation,
-}: AskPanelProps) {
+export function AskPanel({ query, results, summaries, currentConversation }: AskPanelProps) {
   const stream = useAskStream();
   const [input, setInput] = useState("");
   const [editing, setEditing] = useState<AskMessageView | null>(null);
@@ -417,8 +412,7 @@ export function AskPanel({
             <EmptyState
               query={query}
               results={results}
-              people={people}
-              relationships={relationships}
+              summaries={summaries}
               onSuggestion={useSuggestion}
             />
           ) : (
@@ -455,19 +449,14 @@ export function AskPanel({
 function EmptyState({
   query,
   results,
-  people,
-  relationships,
+  summaries,
   onSuggestion,
 }: {
   query: string;
   results: EntryWithTags[];
-  people: [string, number][];
-  relationships: [string, number][];
+  summaries: LoadedSummary[];
   onSuggestion: (prompt: string) => void;
 }) {
-  const topPeople = people.slice(0, 4);
-  const topRelationships = relationships.slice(0, 4);
-
   return (
     <div className="mx-auto w-full max-w-2xl text-center">
       <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">问问你的记忆</p>
@@ -506,7 +495,7 @@ function EmptyState({
                   <span className="block text-gray-400 text-xs dark:text-gray-500">
                     {entry.entryDate}
                   </span>
-                  <span className="line-clamp-1">{entry.title || entry.body || "未命名记录"}</span>
+                  <span className="line-clamp-1">{entry.body || "空白记录"}</span>
                 </Link>
               ))}
               <button
@@ -521,30 +510,25 @@ function EmptyState({
         </section>
       ) : null}
 
-      {topPeople.length > 0 || topRelationships.length > 0 ? (
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {topPeople.map(([person, count]) => (
-            <button
-              key={`person-${person}`}
-              type="button"
-              onClick={() => onSuggestion(`我最近提到 ${person} 时，情绪有什么变化？`)}
-              className="rounded-full bg-gray-100 px-3 py-1.5 text-gray-600 text-xs transition hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
-            >
-              {person} · {count}
-            </button>
-          ))}
-          {topRelationships.map(([relationship, count]) => (
-            <button
-              key={`relationship-${relationship}`}
-              type="button"
-              onClick={() => onSuggestion(`关于 ${relationship}，最近有哪些反复出现的线索？`)}
-              className="rounded-full bg-gray-100 px-3 py-1.5 text-gray-600 text-xs transition hover:bg-celadon-50 hover:text-celadon-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
-            >
-              {relationship} · {count}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <section className="mt-6 text-left">
+        <details className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+          <summary className="cursor-pointer list-none font-medium text-gray-900 text-sm dark:text-gray-50">
+            整理记录
+          </summary>
+          <div className="mt-4">
+            <SummaryGenerator />
+          </div>
+        </details>
+
+        {summaries.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">最近总结</h2>
+            {summaries.map((summary) => (
+              <SummaryCard key={summary.id} summary={summary} />
+            ))}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

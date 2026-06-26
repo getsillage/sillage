@@ -80,11 +80,7 @@ function topicLabelFromFilter(filter: SummaryFilter): string {
 
 function topicFilterFromInput(input: SummaryGenerateInput): SummaryFilter {
   const filter: SummaryFilter = {};
-  if (input.filter.tags.length) filter.tags = input.filter.tags;
-  if (input.filter.people.length) filter.people = input.filter.people;
-  if (input.filter.relationships.length) filter.relationships = input.filter.relationships;
   if (input.filter.keyword) filter.keyword = input.filter.keyword;
-  if (input.filter.entryIds.length) filter.entryIds = input.filter.entryIds;
   return filter;
 }
 
@@ -116,7 +112,7 @@ function rangeFromEntries(
   return { startDate: entries[entries.length - 1].entryDate, endDate: entries[0].entryDate };
 }
 
-/** Runs the "照见" intents: generate / delete / regenerate a multi-entry summary. */
+/** Runs summary intents from 探寻: generate / delete / regenerate a multi-entry summary. */
 export async function runSummaryAction(
   db: Db,
   form: FormData,

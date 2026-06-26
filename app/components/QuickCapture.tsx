@@ -8,20 +8,6 @@ interface CaptureResult {
   error?: string;
 }
 
-const QUICK_MOODS: ReadonlyArray<{ value: number; label: string }> = [
-  { value: 1, label: "低落" },
-  { value: 2, label: "失落" },
-  { value: 3, label: "平静" },
-  { value: 4, label: "轻松" },
-  { value: 5, label: "明亮" },
-];
-
-function moodChipClass(active: boolean): string {
-  return active
-    ? "rounded-full border border-celadon-600 bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs dark:border-celadon-400 dark:bg-celadon-900/40 dark:text-celadon-200"
-    : "rounded-full border border-gray-200 px-2.5 py-1 text-gray-600 text-xs transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800";
-}
-
 /**
  * Global quick-capture: a floating button (and ⌘/Ctrl+J) that opens a compact
  * composer reachable from any page. Posts a fragment to the action-only `/capture`
@@ -31,7 +17,6 @@ function moodChipClass(active: boolean): string {
 export function QuickCapture() {
   const fetcher = useFetcher<CaptureResult>();
   const [open, setOpen] = useState(false);
-  const [mood, setMood] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const busy = fetcher.state !== "idle";
 
@@ -58,7 +43,6 @@ export function QuickCapture() {
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.ok) {
       setOpen(false);
-      setMood(null);
     }
   }, [fetcher.state, fetcher.data]);
 
@@ -85,7 +69,7 @@ export function QuickCapture() {
           <div className="absolute right-3 bottom-20 left-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
             <fetcher.Form method="post" action="/capture" className="space-y-3">
               <input type="hidden" name="kind" value="fragment" />
-              <input type="hidden" name="mood" value={mood ?? ""} />
+              <input type="hidden" name="mood" value="" />
               <textarea
                 ref={textareaRef}
                 name="body"
@@ -94,20 +78,6 @@ export function QuickCapture() {
                 placeholder="此刻留下些什么？"
                 className={textareaClass}
               />
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_MOODS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() =>
-                      setMood((current) => (current === option.value ? null : option.value))
-                    }
-                    className={moodChipClass(mood === option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
               {fetcher.data && !fetcher.data.ok ? (
                 <p className="text-red-600 text-xs dark:text-red-400">{fetcher.data.error}</p>
               ) : null}

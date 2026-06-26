@@ -13,8 +13,12 @@ import {
   toggleAskConversationPinned,
 } from "~/lib/db/ask-conversations";
 import { getDb } from "~/lib/db/client";
-import { listEntries } from "~/lib/db/entries";
-import { parseTextList } from "~/lib/product/entry-fields";
+import { listSummaries } from "~/lib/db/summaries";
+import {
+  isSummaryIntent,
+  runSummaryAction,
+  type SummaryActionData,
+} from "~/lib/product/summary-actions";
 import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Route } from "./+types/ask";
 
@@ -30,23 +34,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   const conversationId = url.searchParams.get("conversation")?.trim() ?? "";
   const includeArchived = url.searchParams.get("archived") === "1";
   const conversationQuery = url.searchParams.get("cq")?.trim() ?? "";
-  const [recentEntries, results, conversations, currentConversation] = await Promise.all([
-    listEntries(db, 80),
+  const [results, conversations, currentConversation, summaryRows] = await Promise.all([
     query ? searchEntriesByKeyword(db, query) : Promise.resolve([]),
     listAskConversations(db, { includeArchived, query: conversationQuery }),
     conversationId ? getAskConversation(db, conversationId) : Promise.resolve(null),
+    listSummaries(db, { limit: 12 }),
   ]);
-
-  const people = new Map<string, number>();
-  const relationships = new Map<string, number>();
-  for (const entry of recentEntries) {
-    for (const person of parseTextList(entry.people)) {
-      people.set(person, (people.get(person) ?? 0) + 1);
-    }
-    for (const relationship of parseTextList(entry.relationships)) {
-      relationships.set(relationship, (relationships.get(relationship) ?? 0) + 1);
-    }
-  }
 
   return {
     query,
@@ -55,12 +48,24 @@ export async function loader({ request }: Route.LoaderArgs) {
     conversations,
     currentConversation,
     results,
-    people: [...people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
-    relationships: [...relationships.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12),
+    summaries: summaryRows.map((row) => ({
+      id: row.id,
+      scope: row.scope,
+      periodType: row.periodType,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      style: row.style,
+      title: row.title,
+      content: row.content,
+      sourceEntryIds: row.sourceEntryIds,
+      generatedAt: row.generatedAt,
+    })),
   };
 }
 
-export async function action({ request }: Route.ActionArgs): Promise<AskActionData> {
+export async function action({
+  request,
+}: Route.ActionArgs): Promise<AskActionData | SummaryActionData> {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const form = await request.formData();
@@ -68,6 +73,9 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 
   if (intent === "ask") {
     return runAskAction(db, form);
+  }
+  if (isSummaryIntent(intent)) {
+    return runSummaryAction(db, form, intent);
   }
   if (intent === "renameAskConversation") {
     await renameAskConversation(
@@ -114,8 +122,7 @@ export default function Ask({ loaderData }: Route.ComponentProps) {
       <AskTab
         query={loaderData.query}
         results={loaderData.results}
-        people={loaderData.people}
-        relationships={loaderData.relationships}
+        summaries={loaderData.summaries}
         currentConversation={loaderData.currentConversation}
       />
     </main>

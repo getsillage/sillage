@@ -154,20 +154,20 @@ describe("summaryGenerate validation", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("requires a non-empty filter for topic scope", () => {
+  it("requires a non-empty keyword for topic scope", () => {
     const empty = summaryGenerateSchema.safeParse(
       summaryGenerateFromData(form({ scope: "topic", style: "narrative" })),
     );
     expect(empty.success).toBe(false);
 
-    const withTag = summaryGenerateSchema.safeParse(
-      summaryGenerateFromData(form({ scope: "topic", style: "narrative", tags: "工作, 生活" })),
+    const withKeyword = summaryGenerateSchema.safeParse(
+      summaryGenerateFromData(form({ scope: "topic", style: "narrative", keyword: "工作" })),
     );
-    expect(withTag.success).toBe(true);
-    if (withTag.success) {
-      expect(withTag.data.filter.tags).toEqual(["工作", "生活"]);
-      expect(withTag.data.usePeriod).toBe(false);
-      expect(withTag.data.useTopic).toBe(true);
+    expect(withKeyword.success).toBe(true);
+    if (withKeyword.success) {
+      expect(withKeyword.data.filter.keyword).toBe("工作");
+      expect(withKeyword.data.usePeriod).toBe(false);
+      expect(withKeyword.data.useTopic).toBe(true);
     }
   });
 
@@ -182,7 +182,6 @@ describe("summaryGenerate validation", () => {
           startDate: "2026-06-01",
           endDate: "2026-06-30",
           style: "structured",
-          people: "小明",
           keyword: "复盘",
         }),
       ),
@@ -194,7 +193,6 @@ describe("summaryGenerate validation", () => {
       expect(parsed.data.periodType).toBe("custom");
       expect(parsed.data.startDate).toBe("2026-06-01");
       expect(parsed.data.endDate).toBe("2026-06-30");
-      expect(parsed.data.filter.people).toEqual(["小明"]);
       expect(parsed.data.filter.keyword).toBe("复盘");
     }
   });
@@ -430,13 +428,13 @@ describe("runSummaryAction", () => {
       ),
     );
 
-    await seedEntry({ entryDate: "2026-05-30", title: "五月工作", tags: ["工作"] });
+    await seedEntry({ entryDate: "2026-05-30", title: "五月工作", body: "工作在五月" });
     const juneEntry = await seedEntry({
       entryDate: "2026-06-12",
       title: "六月工作",
-      tags: ["工作"],
+      body: "工作在六月",
     });
-    await seedEntry({ entryDate: "2026-07-01", title: "七月工作", tags: ["工作"] });
+    await seedEntry({ entryDate: "2026-07-01", title: "七月工作", body: "工作在七月" });
 
     const result = await runSummaryAction(
       db,
@@ -448,7 +446,7 @@ describe("runSummaryAction", () => {
         startDate: "2026-06-01",
         endDate: "2026-06-30",
         style: "brief",
-        tags: "工作",
+        keyword: "工作",
       }),
       "generate",
     );
@@ -459,7 +457,7 @@ describe("runSummaryAction", () => {
     expect(summary.periodType).toBe("custom");
     expect(summary.startDate).toBe("2026-06-01");
     expect(summary.endDate).toBe("2026-06-30");
-    expect(summary.filter).toEqual({ tags: ["工作"] });
+    expect(summary.filter).toEqual({ keyword: "工作" });
     expect(summary.sourceEntryIds).toEqual([juneEntry.id]);
   });
 
@@ -475,8 +473,16 @@ describe("runSummaryAction", () => {
       ),
     );
 
-    const older = await seedEntry({ entryDate: "2026-05-30", title: "五月工作", tags: ["工作"] });
-    const newer = await seedEntry({ entryDate: "2026-07-01", title: "七月工作", tags: ["工作"] });
+    const older = await seedEntry({
+      entryDate: "2026-05-30",
+      title: "五月工作",
+      body: "工作在五月",
+    });
+    const newer = await seedEntry({
+      entryDate: "2026-07-01",
+      title: "七月工作",
+      body: "工作在七月",
+    });
 
     const result = await runSummaryAction(
       db,
@@ -486,7 +492,7 @@ describe("runSummaryAction", () => {
         useTopic: "auto",
         periodType: "all",
         style: "brief",
-        tags: "工作",
+        keyword: "工作",
       }),
       "generate",
     );
@@ -497,7 +503,7 @@ describe("runSummaryAction", () => {
     expect(summary.periodType).toBe("all");
     expect(summary.startDate).toBe("2026-05-30");
     expect(summary.endDate).toBe("2026-07-01");
-    expect(summary.filter).toEqual({ tags: ["工作"] });
+    expect(summary.filter).toEqual({ keyword: "工作" });
     expect(summary.sourceEntryIds).toEqual([newer.id, older.id]);
   });
 });

@@ -1,24 +1,9 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import { EntryInsightControl } from "~/components/ai/EntryInsightControl";
 import type { EntryWithTags } from "~/lib/db/entries";
-import {
-  entryKindLabel,
-  normalizeEntryKind,
-  normalizeNoteType,
-  noteTypeLabel,
-  parseTextList,
-} from "~/lib/product/entry-fields";
+import { entryKindLabel, normalizeEntryKind } from "~/lib/product/entry-fields";
 import { LocalDateTime } from "./LocalDateTime";
 import { rowLinkClass, serifTitleClass } from "./ui";
-
-const MOOD_LABEL: Record<number, string> = {
-  1: "低落",
-  2: "失落",
-  3: "平静",
-  4: "轻松",
-  5: "明亮",
-};
 
 function excerpt(body: string, max = 120): string {
   const text = body.replace(/\s+/g, " ").trim();
@@ -34,7 +19,6 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 
 export function EntryCard({
   entry,
-  showEntryInsight = false,
   openOnCardClick = false,
 }: {
   entry: EntryWithTags;
@@ -43,13 +27,10 @@ export function EntryCard({
 }) {
   const navigate = useNavigate();
   const kind = normalizeEntryKind(entry.kind);
-  const noteLabel = noteTypeLabel(normalizeNoteType(entry.noteType, kind));
-  const people = parseTextList(entry.people);
-  const relationships = parseTextList(entry.relationships);
   const createdDate = entry.createdAt.toISOString().slice(0, 10);
   const showEntryDate = entry.entryDate !== createdDate;
   const detailPath = `/entries/${entry.id}`;
-  const title = entry.title || "未命名记录";
+  const title = excerpt(entry.body, 48) || "空白记录";
 
   function openDetail() {
     navigate(detailPath);
@@ -85,9 +66,6 @@ export function EntryCard({
         <LocalDateTime value={entry.createdAt} />
         {showEntryDate ? <time>归属 {entry.entryDate}</time> : null}
         <span>{entryKindLabel(kind)}</span>
-        {noteLabel ? <span>{noteLabel}</span> : null}
-        {entry.mood ? <span>{MOOD_LABEL[entry.mood]}</span> : null}
-        {entry.location ? <span>{entry.location}</span> : null}
         {entry.version > 1 ? (
           <span className="text-gray-400 dark:text-gray-500">
             · 改于 <LocalDateTime value={entry.updatedAt} />
@@ -109,52 +87,6 @@ export function EntryCard({
         <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
           {excerpt(entry.body)}
         </p>
-      ) : null}
-      {showEntryInsight ? (
-        <section className="mt-3 rounded-lg bg-celadon-50 px-3 py-2 text-sm text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200">
-          <EntryInsightControl
-            entry={entry}
-            compact
-            trailing={
-              openOnCardClick ? null : (
-                <Link
-                  to={detailPath}
-                  className="text-celadon-700 hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
-                >
-                  查看详情
-                </Link>
-              )
-            }
-          />
-        </section>
-      ) : null}
-      {people.length > 0 || relationships.length > 0 || entry.tags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {people.map((person) => (
-            <span
-              key={`person-${person}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
-            >
-              {person}
-            </span>
-          ))}
-          {relationships.map((relationship) => (
-            <span
-              key={`relationship-${relationship}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
-            >
-              {relationship}
-            </span>
-          ))}
-          {entry.tags.map((tag) => (
-            <span
-              key={`tag-${tag}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 text-xs dark:bg-gray-800 dark:text-gray-300"
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
       ) : null}
     </article>
   );

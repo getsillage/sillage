@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { requireSession } from "~/lib/auth/session";
+import { todayISO } from "~/lib/date";
 import { getDb } from "~/lib/db/client";
 import { createEntry } from "~/lib/db/entries";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
@@ -14,6 +15,9 @@ import type { Route } from "./+types/capture";
 export async function action({ request }: Route.ActionArgs) {
   await requireSession(request, env);
   const form = await request.formData();
+  if (!form.get("entryDate")) {
+    form.set("entryDate", todayISO());
+  }
   const parsed = entrySchema.safeParse(entryFormFromData(form));
   if (!parsed.success) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "输入有误" };

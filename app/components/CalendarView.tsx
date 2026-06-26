@@ -18,6 +18,11 @@ function monthHref(year: number, month: number, date?: string): string {
   return date ? `${base}&date=${date}` : base;
 }
 
+function excerpt(body: string, max = 40): string {
+  const text = body.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 export interface CalendarViewProps {
   year: number;
   month: number;
@@ -106,7 +111,7 @@ export function CalendarView({
                       to={`/entries/${entry.id}`}
                       className="block rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
-                      {entry.title || "（无标题）"}
+                      {excerpt(entry.body) || "空白记录"}
                     </Link>
                   </li>
                 ))}

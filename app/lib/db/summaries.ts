@@ -232,9 +232,9 @@ async function idsByJsonArray(
 }
 
 /**
- * Resolves a topic filter (tags / people / relationships / keyword / hand-picked
- * ids) into a de-duplicated, live entry set, optionally constrained to a date
- * window. Returns entries newest day first. Empty filter → empty result.
+ * Resolves a topic filter into a de-duplicated, live entry set, optionally
+ * constrained to a date window. Current UI submits keyword-only filters; the
+ * older tag/person/relationship/id filters stay readable for historical rows.
  */
 export async function collectEntriesForTopic(
   db: Db,

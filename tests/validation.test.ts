@@ -10,7 +10,7 @@ function formOf(fields: Record<string, string>): FormData {
 }
 
 describe("entry form parsing + validation", () => {
-  it("parses tags from comma/space separated input", () => {
+  it("keeps the entry form focused on date and body", () => {
     const values = entryFormFromData(
       formOf({
         entryDate: "2026-06-23",
@@ -27,31 +27,32 @@ describe("entry form parsing + validation", () => {
         tags: "旅行, 美食  摄影，旅行",
       }),
     );
-    expect(values.tags).toEqual(["旅行", "美食", "摄影", "旅行"]);
-    expect(values.mood).toBe(5);
-    expect(values.moodText).toBe("有点松了一口气");
-    expect(values.weather).toBe("晴");
-    expect(values.location).toBe("海边");
+    expect(values.body).toBe("正文");
     expect(values.kind).toBe("note");
     expect(values.noteType).toBe("daily");
-    expect(values.people).toEqual(["朋友", "家人"]);
-    expect(values.relationships).toEqual(["朋友"]);
-    expect(entrySchema.safeParse(values).success).toBe(true);
+    const parsed = entrySchema.safeParse(values);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success ? parsed.data : null).toMatchObject({
+      title: "",
+      mood: null,
+      moodText: null,
+      weather: null,
+      location: null,
+      people: [],
+      relationships: [],
+      tags: [],
+    });
   });
 
   it("treats empty optional fields as null/defaults", () => {
     const values = entryFormFromData(
       formOf({ entryDate: "2026-06-23", title: "t", body: "b", mood: "", weather: "  " }),
     );
-    expect(values.mood).toBeNull();
-    expect(values.weather).toBeNull();
-    expect(values.moodText).toBeNull();
-    expect(values.location).toBeNull();
     expect(values.kind).toBe("fragment");
     expect(values.noteType).toBeNull();
   });
 
-  it("rejects an entry with neither title nor body", () => {
+  it("rejects an entry with empty body", () => {
     const values = entryFormFromData(formOf({ entryDate: "2026-06-23", title: "", body: "" }));
     expect(entrySchema.safeParse(values).success).toBe(false);
   });

@@ -4,10 +4,12 @@ import {
   FileUp,
   History,
   LogIn,
+  LogOut,
   MessageSquareText,
   Pin,
   PinOff,
   Settings,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -19,6 +21,8 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { MarkdownContent } from "../components/MarkdownContent";
+import { SettingsWorkspace } from "../components/SettingsWorkspace";
 import {
   type Account,
   type AskContextScope,
@@ -28,6 +32,7 @@ import {
   createAskMessage,
   createMemo,
   deleteMemo,
+  generateMemoSummary,
   getBootstrap,
   getMe,
   initializeAccount,
@@ -35,13 +40,20 @@ import {
   listAskMessages,
   listMemos,
   type Memo,
+  type MemoAI,
   setMemoArchived,
   setMemoPinned,
   signIn,
+  signOut,
   updateMemo,
   uploadAttachment,
 } from "../lib/api";
-import { getAccessToken, saveAccessToken } from "../lib/auth";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+  subscribeAccessToken,
+} from "../lib/auth";
 
 type BootstrapState = "loading" | "needs-init" | "ready";
 
@@ -49,6 +61,17 @@ export function App() {
   const [bootstrap, setBootstrap] = useState<BootstrapState>("loading");
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState(() => getAccessToken());
+
+  useEffect(
+    () =>
+      subscribeAccessToken((next) => {
+        setToken(next);
+        if (!next) {
+          setAccount(null);
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -58,9 +81,12 @@ export function App() {
         return;
       }
       setBootstrap(state.initialized ? "ready" : "needs-init");
-      if (state.initialized && token) {
+      if (state.initialized) {
         try {
-          const me = await getMe(token);
+          // Try even without an in-memory token: a reopened tab has empty
+          // sessionStorage but may still hold a valid refresh cookie, and
+          // request() transparently refreshes and retries on 401.
+          const me = await getMe(token ?? "");
           if (!cancelled) {
             setAccount(me.account);
           }
@@ -89,8 +115,7 @@ export function App() {
           bootstrap === "needs-init" ? (
             <InitializePage
               onDone={(nextToken, nextAccount) => {
-                saveAccessToken(nextToken);
-                setToken(nextToken);
+                setAccessToken(nextToken);
                 setAccount(nextAccount);
                 setBootstrap("ready");
               }}
@@ -108,8 +133,7 @@ export function App() {
           ) : (
             <LoginPage
               onDone={(nextToken, nextAccount) => {
-                saveAccessToken(nextToken);
-                setToken(nextToken);
+                setAccessToken(nextToken);
                 setAccount(nextAccount);
               }}
             />
@@ -248,8 +272,14 @@ function Shell({ account, token }: { account: Account; token: string }) {
   const [editing, setEditing] = useState<Memo | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [view, setView] = useState<"records" | "history" | "ask">(
-    location.pathname === "/ask" ? "ask" : "records",
+  const [summaries, setSummaries] = useState<Record<string, MemoAI>>({});
+  const [summarizingId, setSummarizingId] = useState("");
+  const [view, setView] = useState<"records" | "history" | "ask" | "settings">(
+    location.pathname === "/ask"
+      ? "ask"
+      : location.pathname === "/settings"
+        ? "settings"
+        : "records",
   );
   const [askConversations, setAskConversations] = useState<AskConversation[]>(
     [],
@@ -272,6 +302,8 @@ function Shell({ account, token }: { account: Account; token: string }) {
   useEffect(() => {
     if (location.pathname === "/ask") {
       setView("ask");
+    } else if (location.pathname === "/settings") {
+      setView("settings");
     }
   }, [location.pathname]);
 
@@ -343,6 +375,19 @@ function Shell({ account, token }: { account: Account; token: string }) {
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "操作失败");
+    }
+  }
+
+  async function summarizeMemo(memo: Memo) {
+    setSummarizingId(memo.id);
+    setMessage("");
+    try {
+      const res = await generateMemoSummary(token, memo);
+      setSummaries((current) => ({ ...current, [memo.id]: res.ai }));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "生成照见失败");
+    } finally {
+      setSummarizingId("");
     }
   }
 
@@ -422,6 +467,16 @@ function Shell({ account, token }: { account: Account; token: string }) {
     }
   }
 
+  async function handleSignOut() {
+    try {
+      await signOut();
+    } catch {
+      // Even if the request fails, drop local credentials and return to login.
+    } finally {
+      clearAccessToken();
+    }
+  }
+
   const visibleMemos = memos.filter((memo) =>
     view === "history" ? true : !memo.archivedAt,
   );
@@ -467,10 +522,28 @@ function Shell({ account, token }: { account: Account; token: string }) {
             <MessageSquareText size={18} />
             问答
           </button>
+          <button
+            className={`nav-item ${view === "settings" ? "active" : ""}`}
+            type="button"
+            onClick={() => {
+              setView("settings");
+              navigate("/settings");
+            }}
+          >
+            <Settings size={18} />
+            设置
+          </button>
         </nav>
         <div className="account-card">
           <span>{account.displayName || account.username}</span>
-          <Settings size={16} />
+          <button
+            className="icon-button"
+            type="button"
+            title="退出登录"
+            onClick={handleSignOut}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
       <main className="workspace">
@@ -492,6 +565,8 @@ function Shell({ account, token }: { account: Account; token: string }) {
               setAskScope(conversation.contextScope);
             }}
           />
+        ) : view === "settings" ? (
+          <SettingsWorkspace token={token} />
         ) : (
           <>
             <section className="memo-composer">
@@ -564,8 +639,27 @@ function Shell({ account, token }: { account: Account; token: string }) {
                       <time>{memo.entryDate}</time>
                       {memo.archivedAt && <span>已归档</span>}
                     </div>
-                    <p>{memo.content}</p>
+                    <MarkdownContent content={memo.content} />
+                    {summaries[memo.id] && (
+                      <div className="memo-summary">
+                        <span className="memo-summary-label">照见</span>
+                        <MarkdownContent
+                          content={
+                            summaries[memo.id].summary || "（暂无总结内容）"
+                          }
+                        />
+                      </div>
+                    )}
                     <div className="memo-actions">
+                      <button
+                        className="text-button"
+                        type="button"
+                        disabled={summarizingId === memo.id}
+                        onClick={() => summarizeMemo(memo)}
+                      >
+                        <Sparkles size={15} />
+                        {summarizingId === memo.id ? "照见中" : "照见"}
+                      </button>
                       <button
                         className="icon-button"
                         type="button"
@@ -706,7 +800,7 @@ function AskWorkspace({
                 className={`ask-message ${message.role}`}
                 key={message.id}
               >
-                <p>{message.content}</p>
+                <MarkdownContent content={message.content} />
                 {message.sourceRefs.length > 0 && (
                   <div className="source-list">
                     {message.sourceRefs.map((source) => (

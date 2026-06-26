@@ -273,11 +273,93 @@ textarea {
   gap: 12px;
 }
 
-.memo-item p {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.markdown-content {
   line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content p {
+  margin: 0 0 10px;
+}
+
+.markdown-content a {
+  color: #23483a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 8px 0;
+  border: 1px solid #e4e8e1;
+  border-radius: 6px;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.markdown-content li {
+  margin: 2px 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin: 14px 0 8px;
+  line-height: 1.3;
+}
+
+.markdown-content h1 {
+  font-size: 19px;
+}
+
+.markdown-content h2 {
+  font-size: 17px;
+}
+
+.markdown-content h3 {
+  font-size: 15px;
+}
+
+.markdown-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: #eef1ec;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.markdown-content pre {
+  margin: 0 0 10px;
+  padding: 12px;
+  background: #eef1ec;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-content blockquote {
+  margin: 0 0 10px;
+  padding-left: 12px;
+  border-left: 3px solid #cbd3c8;
+  color: #66736a;
 }
 
 .memo-meta,
@@ -295,6 +377,21 @@ textarea {
 
 .memo-actions {
   justify-content: flex-end;
+}
+
+.memo-summary {
+  border-left: 3px solid #9fbea9;
+  background: #f3f6f1;
+  border-radius: 0 6px 6px 0;
+  padding: 8px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.memo-summary-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #2f6b4f;
 }
 
 .activity-strip {
@@ -329,6 +426,108 @@ textarea {
 .empty-list {
   max-width: 760px;
   color: #66736a;
+}
+
+.form-note {
+  margin: 0;
+  color: #2f6b4f;
+  font-size: 14px;
+}
+
+.settings-workspace {
+  max-width: 760px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.settings-header p {
+  margin: 6px 0 0;
+  color: #66736a;
+  font-size: 14px;
+}
+
+.settings-profiles {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-profile {
+  border: 1px solid #d9ded6;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.settings-field-wide {
+  grid-column: 1 / -1;
+}
+
+.settings-field span {
+  color: #66736a;
+  font-size: 13px;
+}
+
+.settings-field input,
+.settings-field select {
+  width: 100%;
+  border: 1px solid #cbd3c8;
+  border-radius: 6px;
+  padding: 9px 11px;
+  background: #fff;
+}
+
+.settings-toggles {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  color: #425047;
+  font-size: 14px;
+}
+
+.settings-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .settings-profile {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ask-workspace {
@@ -443,13 +642,6 @@ textarea {
 .ask-message.user {
   justify-self: end;
   background: #edf1eb;
-}
-
-.ask-message p {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.65;
 }
 
 .source-list {

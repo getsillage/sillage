@@ -62,6 +62,7 @@ Sillage 不应该变成：
 - **同步模型**：`/api/v1/sync` 从第一版开始支持双向同步、写入和冲突解决；同步范围包括当前账号资料与设置；删除语义使用 `deleted_at` tombstone。
 - **生成代码**：Go protobuf、gRPC、grpc-gateway、Connect 代码提交入库；TypeScript proto 生成物也提交入库。
 - **前端包管理器**：`web/` 使用 pnpm，参考 memos 的 web 工程组织。
+- **Android 预留**：未来 Android App 默认在同一仓库 `android/` 下开发，共用根目录 `proto/` 契约；首版迁移不创建 Android 工程，不拆独立仓库。
 - **首版前端功能**：引入附件库、日历/活动热力图、memo 置顶、memo 归档、Markdown 所见即所得编辑器。
 - **不引入标签**：Sillage 定位是个人记录 + AI 总结，不引入标签等会显著增加复杂度的组织功能。
 - **memo 日期模型**：同时保留 `created_at` 和 `entry_date`；`created_at` 是创建时间，`entry_date` 是记录归属的日历日期。
@@ -159,11 +160,65 @@ proto/
   api/v1/                     # REST/gRPC API 契约
   store/                      # 复杂设置 payload 的内部 proto，可选
 web/                          # React + TypeScript + Vite SPA
+android/                      # 未来 Android App；首版迁移不创建，预留同仓库位置
 scripts/
   Dockerfile
   entrypoint.sh
   compose.yaml
 ```
+
+未来 Android 工程推荐结构：
+
+```text
+android/
+  settings.gradle.kts
+  build.gradle.kts
+  gradle/
+  gradlew
+  gradlew.bat
+  app/
+    build.gradle.kts
+    src/main/java/.../sillage/
+      data/
+        api/
+        db/
+        sync/
+        attachments/
+        settings/
+      domain/
+        model/
+        repository/
+        usecase/
+      ui/
+        memo/
+        history/
+        ask/
+        settings/
+        common/
+      MainActivity.kt
+```
+
+未来 Android 技术栈：
+
+- Native Android，不使用 React Native、Flutter 或 WebView 套壳。
+- Kotlin。
+- Gradle Kotlin DSL。
+- Jetpack Compose。
+- Jetpack Navigation。
+- ViewModel + Coroutines + Flow。
+- Room，用于本地 memo、sync cursor、tombstone、附件 metadata 等离线数据。
+- DataStore，用于非敏感偏好设置。
+- WorkManager，用于后台同步、附件上传重试和网络恢复后的任务恢复。
+- Connect-Kotlin / OkHttp：sync、memo、ask、settings 优先走 proto 生成客户端；附件上传下载用 OkHttp 处理 multipart、streaming 和重试。
+- 敏感信息不要放普通 DataStore；token/API key 后续使用 Android Keystore 或加密存储方案。
+
+Android 预留原则：
+
+- Android 作为同仓库独立 Gradle 工程存在，和 Go 后端、Web 前端共享根目录 `proto/`，不要复制 proto 到 `android/`。
+- 第一版 Android 推荐单 `app` module，按 package 分层；不要一开始拆 `core/network`、`feature/memo` 等多 Gradle module。
+- 等 Android 复杂度上升、CI 时间或团队边界需要时，再拆分多模块。
+- Android 目录不提交 APK/AAB、keystore、`local.properties`、设备本地数据库、附件缓存或真实密钥。
+- 根目录 `.gitignore` 在引入 Android 时必须覆盖 Gradle、Android Studio 和构建产物。
 
 ## 运行时与数据目录
 
@@ -463,12 +518,14 @@ proto/api/v1/sync_service.proto
 - grpc-gateway REST handler。
 - OpenAPI YAML。
 - TypeScript protobuf 到 `web/src/types/proto`。
+- 未来 Android/Kotlin 客户端从根目录 `proto/` 生成代码；首版迁移不生成 Android 代码，但 proto package、字段命名和 HTTP annotations 需要适合移动端长期使用。
 
 生成物入库策略：
 
 - `proto/gen/**` 提交入库。
 - `web/src/types/proto/**` 提交入库。
 - `proto/gen/openapi.yaml` 提交入库。
+- 首版不提交 Android proto 生成物；等 `android/` 工程创建后，再由 Gradle 从 `../proto` 生成或按 Android 构建规范决定是否提交生成物。
 - CI 和 Docker build 不应依赖临时生成代码才能编译，但需要提供 `proto:generate` 命令用于更新契约。
 
 参考 `buf.gen.yaml`：
@@ -527,6 +584,13 @@ POST   /api/v1/sync:push
 ## 阶段 4.1：双向同步与冲突解决
 
 同步不是后续附加能力，而是首版 API 契约的一部分。未来 Android 客户端从一开始要能读写并处理离线冲突。
+
+Android 约束：
+
+- `/api/v1/sync` 和 `/api/v1/sync:push` 是未来 Android 的主契约，不能只按 Web 在线场景设计。
+- Android 本地库未来可使用 Room/SQLite，但服务端迁移阶段只需保证协议支持离线写入、冲突返回、tombstone 和幂等。
+- 服务端不要假设客户端永远在线，也不要假设所有写入都来自 Web 表单。
+- sync payload 字段命名和枚举值要稳定，避免未来 Android 首版发布前频繁破坏性改名。
 
 同步 API：
 
@@ -1174,6 +1238,8 @@ Go 测试：
 - README 更新 Docker compose、Cloudflare Tunnel、首次初始化、数据目录和备份说明。
 - `docs/product/sillage.md` 更新为新定位：单人私密、低压力短 memo、AI 总结/状态分析/基于记录建议。
 - `docs/api/sync.md` 更新为 `/api/v1/sync` 和 `/api/v1/sync:push` 的新 Protobuf 契约，不再描述旧 `/api/sync`。
+- `docs/api/sync.md` 必须说明该契约面向未来 Android 离线写入，包含 mutation id、冲突返回、tombstone 和附件 metadata 同步。
+- 开发文档必须说明未来 Android 放在同仓库 `android/`，共用根目录 `proto/`，首版迁移不创建 Android 工程。
 - 新增或更新开发文档，说明 Go、pnpm、buf、Docker 的本地开发命令。
 - 明确写入“不迁移 Cloudflare 旧数据”，避免后续执行阶段误做旧数据导入。
 
@@ -1262,5 +1328,6 @@ Go 测试：
 - `docker compose up -d sillage` 后可访问 `http://localhost:5231`。
 - 首次访问进入创建唯一账号页面。
 - 唯一账号初始化、登录、新建 memo、编辑 memo、附件上传下载、设置保存、AI 总结、问答工作台、`/api/v1/sync` 可用。
+- 迁移后的仓库结构为 Go/Web/proto/Docker 主体，并在文档中明确未来 Android 使用同仓库 `android/` + 根 `proto/` 的规范结构。
 - 旧备份页面和接口不可访问。
 - 代码中不再出现业务层直接依赖 Cloudflare D1/R2/KV/Workers 的路径。

@@ -117,7 +117,7 @@ npm run deploy           # build && wrangler deploy(需先准备真实资源 ID 
 
 配置解析:流水线调用 `loadAiConfig(env)`(异步),从 KV 读取 **web 管理的设置**(`app/lib/settings/ai-settings.ts`,支持**多套配置档案**并选定**当前活动档案**)。当活动档案存在且启用时,由它驱动 provider(协议 `anthropic|openai`、base URL、模型、key);跨端点差异由 `endpoints.ts` 回退处理。web 的 API key **静态加密存储**(KV,`ATTACH_ENCRYPTION_KEY`),且绝不发送到浏览器——loader 只返回 `hasApiKey` 视图。`/settings` 路由保存多套档案,并提供模型列出(`models.ts`)与实时“测试连接”(`test-connection.ts`)。
 
-**回顾总结(并入问答)。** `summaries` 表把**多条记录**聚合成时段或主题总结(`scope=period|topic`、`periodType=day|week|month|quarter|year|custom`、`style=brief|structured|narrative`);`sourceEntryIds` 以 JSON 记来源且不设 FK(删源记录不应级联删掉提及它的总结),`trigger` 区分手动与预留的定时(phase 2)。`summarize.ts` 生成,`app/lib/db/summaries.ts` 读写,`app/lib/product/summary-fields.ts`/`summary-actions.ts` 在边界处理字段与动作;入口在 `/ask` 的「整理记录」,`/review` 仅重定向到 `/ask`,JSON 端点仍为 `/api.summary`。沿用 entries 的同步约定(UUIDv7、`updatedAt`、软删除)。
+**回顾总结。** `summaries` 表把**多条记录**聚合成时段或主题总结(`scope=period|topic`、`periodType=day|week|month|quarter|year|custom`、`style=brief|structured|narrative`);`sourceEntryIds` 以 JSON 记来源且不设 FK(删源记录不应级联删掉提及它的总结),`trigger` 区分手动与预留的定时(phase 2)。`summarize.ts` 生成,`app/lib/db/summaries.ts` 读写,`app/lib/product/summary-fields.ts`/`summary-actions.ts` 在边界处理字段与动作;`/ask` 不再提供「整理记录」入口,JSON 端点仍为 `/api.summary`,供保留的总结能力和测试覆盖使用。沿用 entries 的同步约定(UUIDv7、`updatedAt`、软删除)。
 
 **问答 / 记录问答(`/ask`)。** 多轮**流式**对话持久化在 `ask_conversations` + `ask_messages`:消息树以 `parentId` 串起当前可见分支,`forkOfId` 记录重生成/编辑从哪个兄弟分叉,`headMessageId` 指向可见分支头(加载时回溯祖先,渲染成一条线性路径)。`ask*.ts`(`ask-context.ts` 组织检索上下文、`ask-stream.ts` 流式产出、`ask-action.ts` 处理动作)配合 `app/lib/db/ask-conversations.ts` 读写;路由 `/ask` + `/api.ask-stream`(SSE)+ `/api.ask-stop` + `/download-ask-conversation`(导出)。
 

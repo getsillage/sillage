@@ -13,12 +13,6 @@ import {
   toggleAskConversationPinned,
 } from "~/lib/db/ask-conversations";
 import { getDb } from "~/lib/db/client";
-import { listSummaries } from "~/lib/db/summaries";
-import {
-  isSummaryIntent,
-  runSummaryAction,
-  type SummaryActionData,
-} from "~/lib/product/summary-actions";
 import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Route } from "./+types/ask";
 
@@ -34,11 +28,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const conversationId = url.searchParams.get("conversation")?.trim() ?? "";
   const includeArchived = url.searchParams.get("archived") === "1";
   const conversationQuery = url.searchParams.get("cq")?.trim() ?? "";
-  const [results, conversations, currentConversation, summaryRows] = await Promise.all([
+  const [results, conversations, currentConversation] = await Promise.all([
     query ? searchEntriesByKeyword(db, query) : Promise.resolve([]),
     listAskConversations(db, { includeArchived, query: conversationQuery }),
     conversationId ? getAskConversation(db, conversationId) : Promise.resolve(null),
-    listSummaries(db, { limit: 12 }),
   ]);
 
   return {
@@ -48,24 +41,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     conversations,
     currentConversation,
     results,
-    summaries: summaryRows.map((row) => ({
-      id: row.id,
-      scope: row.scope,
-      periodType: row.periodType,
-      startDate: row.startDate,
-      endDate: row.endDate,
-      style: row.style,
-      title: row.title,
-      content: row.content,
-      sourceEntryIds: row.sourceEntryIds,
-      generatedAt: row.generatedAt,
-    })),
   };
 }
 
-export async function action({
-  request,
-}: Route.ActionArgs): Promise<AskActionData | SummaryActionData> {
+export async function action({ request }: Route.ActionArgs): Promise<AskActionData> {
   await requireSession(request, env);
   const db = getDb(env.DB);
   const form = await request.formData();
@@ -73,9 +52,6 @@ export async function action({
 
   if (intent === "ask") {
     return runAskAction(db, form);
-  }
-  if (isSummaryIntent(intent)) {
-    return runSummaryAction(db, form, intent);
   }
   if (intent === "renameAskConversation") {
     await renameAskConversation(
@@ -122,7 +98,6 @@ export default function Ask({ loaderData }: Route.ComponentProps) {
       <AskTab
         query={loaderData.query}
         results={loaderData.results}
-        summaries={loaderData.summaries}
         currentConversation={loaderData.currentConversation}
       />
     </main>

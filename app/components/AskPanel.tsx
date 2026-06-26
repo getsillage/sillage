@@ -1,7 +1,5 @@
 import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Form, Link, useFetcher, useNavigate, useRevalidator } from "react-router";
-import { type LoadedSummary, SummaryCard } from "~/components/insights/SummaryCard";
-import { SummaryGenerator } from "~/components/insights/SummaryGenerator";
 import {
   ASK_SOURCE_TYPES,
   type AskCitation,
@@ -23,7 +21,6 @@ interface AskActionData {
 interface AskPanelProps {
   query: string;
   results: EntryWithAi[];
-  summaries: LoadedSummary[];
   currentConversation: AskConversationView | null;
 }
 
@@ -55,6 +52,10 @@ const STARTER_PROMPTS = [
 ] as const;
 
 const STREAM_FLUSH_INTERVAL_MS = 80;
+const menuItemClass =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30";
+const dangerMenuItemClass =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/20 dark:text-red-400 dark:hover:bg-red-950/30";
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) {
@@ -319,11 +320,12 @@ function useAskStream() {
   };
 }
 
-export function AskPanel({ query, results, summaries, currentConversation }: AskPanelProps) {
+export function AskPanel({ query, results, currentConversation }: AskPanelProps) {
   const stream = useAskStream();
   const [input, setInput] = useState("");
   const [editing, setEditing] = useState<AskMessageView | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
   const [sourceTypes, setSourceTypes] = useState<AskSourceType[]>(() =>
     currentConversation?.sourceTypes.length
       ? currentConversation.sourceTypes
@@ -343,6 +345,10 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
   const messages = stream.draftMessages ?? currentConversation?.messages ?? [];
   const busy = stream.running;
 
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "end" });
+  });
+
   function submit() {
     const question = input.trim();
     if (!question || busy || sourceTypes.length === 0) {
@@ -358,6 +364,7 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
     });
     setInput("");
     setEditing(null);
+    requestAnimationFrame(() => resizeTextarea(textareaRef.current));
   }
 
   function regenerate(message: AskMessageView) {
@@ -396,6 +403,12 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
     });
   }
 
+  function cancelEdit() {
+    setEditing(null);
+    setInput("");
+    requestAnimationFrame(() => resizeTextarea(textareaRef.current));
+  }
+
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <ThreadHeader conversation={currentConversation} />
@@ -403,16 +416,11 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div
           className={`mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 sm:px-6 ${
-            messages.length === 0 ? "justify-center py-10" : "gap-6 py-6 sm:py-8"
+            messages.length === 0 ? "justify-center py-10" : "gap-7 py-6 sm:py-8"
           }`}
         >
           {messages.length === 0 ? (
-            <EmptyState
-              query={query}
-              results={results}
-              summaries={summaries}
-              onSuggestion={useSuggestion}
-            />
+            <EmptyState query={query} results={results} onSuggestion={useSuggestion} />
           ) : (
             messages.map((message) => (
               <ThreadMessage
@@ -425,6 +433,7 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
               />
             ))
           )}
+          <div ref={threadEndRef} />
         </div>
       </div>
 
@@ -437,7 +446,7 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
         sourceTypes={sourceTypes}
         onSubmit={submit}
         onStop={stream.stop}
-        onCancelEdit={() => setEditing(null)}
+        onCancelEdit={cancelEdit}
         onToggleSource={toggleSource}
       />
     </section>
@@ -447,28 +456,28 @@ export function AskPanel({ query, results, summaries, currentConversation }: Ask
 function EmptyState({
   query,
   results,
-  summaries,
   onSuggestion,
 }: {
   query: string;
   results: EntryWithAi[];
-  summaries: LoadedSummary[];
   onSuggestion: (prompt: string) => void;
 }) {
   return (
     <div className="mx-auto w-full max-w-2xl text-center">
-      <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">根据记录提问</p>
+      <p className="font-serif text-2xl text-gray-900 sm:text-3xl dark:text-gray-50">
+        今天想回看什么？
+      </p>
       <p className="mx-auto mt-2 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
-        像和 ChatGPT 对话一样提问。Sillage 会基于你的记录和总结回答。
+        直接提问、继续追问，Sillage 会基于你的记录和可选总结回答。
       </p>
 
-      <div className="mt-6 grid gap-2 sm:grid-cols-2">
+      <div className="mt-7 grid gap-2 sm:grid-cols-2">
         {STARTER_PROMPTS.map((prompt) => (
           <button
             key={prompt}
             type="button"
             onClick={() => onSuggestion(prompt)}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-gray-700 text-sm transition hover:bg-celadon-50 hover:text-celadon-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200"
+            className="min-h-16 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-gray-700 text-sm leading-6 transition hover:border-celadon-200 hover:bg-celadon-50 hover:text-celadon-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-celadon-800 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200 dark:focus-visible:ring-celadon-400/30"
           >
             {prompt}
           </button>
@@ -476,7 +485,7 @@ function EmptyState({
       </div>
 
       {query ? (
-        <section className="mt-6 rounded-xl border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-gray-900">
+        <section className="mt-7 rounded-lg border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-gray-900">
           <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">搜索「{query}」</h2>
           {results.length === 0 ? (
             <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">
@@ -507,26 +516,6 @@ function EmptyState({
           )}
         </section>
       ) : null}
-
-      <section className="mt-6 text-left">
-        <details className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-          <summary className="cursor-pointer list-none font-medium text-gray-900 text-sm dark:text-gray-50">
-            整理记录
-          </summary>
-          <div className="mt-4">
-            <SummaryGenerator />
-          </div>
-        </details>
-
-        {summaries.length > 0 ? (
-          <div className="mt-4 space-y-3">
-            <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">最近总结</h2>
-            {summaries.map((summary) => (
-              <SummaryCard key={summary.id} summary={summary} />
-            ))}
-          </div>
-        ) : null}
-      </section>
     </div>
   );
 }
@@ -555,18 +544,22 @@ function Composer({
   onToggleSource: (type: AskSourceType) => void;
 }) {
   return (
-    <div className="border-gray-200 border-t bg-gray-50/95 px-3 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
+    <div className="bg-gradient-to-t from-gray-50 via-gray-50/95 to-gray-50/40 px-3 pt-2 pb-3 backdrop-blur dark:from-gray-950 dark:via-gray-950/95 dark:to-gray-950/40">
       <div className="mx-auto w-full max-w-3xl">
         {editing ? (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-xl bg-clay-50 px-3 py-2 text-clay-600 text-sm dark:bg-clay-900/50 dark:text-clay-300">
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-clay-200 bg-clay-50 px-3 py-2 text-clay-700 text-sm dark:border-clay-900/70 dark:bg-clay-900/40 dark:text-clay-200">
             <span className="min-w-0 truncate">正在编辑旧问题，会创建新的分支。</span>
-            <button type="button" className="font-medium" onClick={onCancelEdit}>
+            <button
+              type="button"
+              className="rounded-md px-2 py-1 font-medium hover:bg-clay-100 dark:hover:bg-clay-900"
+              onClick={onCancelEdit}
+            >
               取消
             </button>
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/5 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/20">
+        <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/8 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/25">
           <textarea
             ref={textareaRef}
             value={input}
@@ -581,13 +574,13 @@ function Composer({
               }
             }}
             rows={1}
-            placeholder="继续问……"
-            className="max-h-48 min-h-11 w-full resize-none bg-transparent px-2 py-2 text-gray-900 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
+            placeholder="问问你的记录"
+            className="max-h-48 min-h-12 w-full resize-none bg-transparent px-3 py-2.5 text-gray-900 text-sm leading-6 outline-none placeholder:text-gray-400 dark:text-gray-50 dark:placeholder:text-gray-500"
           />
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 px-1">
             <details className="group relative">
-              <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100">
+              <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 dark:focus-visible:ring-celadon-400/30">
                 <ToolIcon />
                 <span>来源</span>
                 <span className="text-gray-400 text-xs dark:text-gray-500">
@@ -616,7 +609,7 @@ function Composer({
               <button
                 type="button"
                 onClick={onStop}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 text-white transition hover:bg-celadon-700 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus-visible:ring-celadon-400/30"
               >
                 <StopIcon />
                 <span className="sr-only">停止</span>
@@ -626,7 +619,7 @@ function Composer({
                 type="button"
                 onClick={onSubmit}
                 disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celadon-600 text-white transition hover:bg-celadon-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus-visible:ring-celadon-400/30"
               >
                 <SendIcon />
                 <span className="sr-only">发送</span>
@@ -635,7 +628,7 @@ function Composer({
           </div>
         </div>
         <p className="mt-2 text-center text-gray-400 text-xs dark:text-gray-500">
-          Sillage 会基于你的记录回答，仍请以原文为准。
+          Sillage 只根据可用记录回答，重要内容请回到原文确认。
         </p>
       </div>
     </div>
@@ -688,6 +681,25 @@ function StopIcon() {
   );
 }
 
+function MoreIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M7 12h.01" />
+      <path d="M12 12h.01" />
+      <path d="M17 12h.01" />
+    </svg>
+  );
+}
+
 function ThreadHeader({ conversation }: { conversation: AskConversationView | null }) {
   const fetcher = useFetcher<AskActionData>();
   const [renaming, setRenaming] = useState(false);
@@ -701,17 +713,17 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
 
   if (!conversation) {
     return (
-      <header className="flex h-14 items-center border-gray-200 border-b bg-gray-50/80 px-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 sm:px-4">
+      <header className="flex h-14 items-center bg-gray-50/85 px-3 backdrop-blur dark:bg-gray-950/75 sm:px-4">
         <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">新对话</h2>
       </header>
     );
   }
 
   return (
-    <header className="min-h-14 border-gray-200 border-b bg-gray-50/80 px-3 py-2 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70 sm:px-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <header className="min-h-14 bg-gray-50/85 px-3 py-2 backdrop-blur dark:bg-gray-950/75 sm:px-4">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
         {renaming ? (
-          <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+          <fetcher.Form method="post" className="flex min-w-0 flex-1 items-center gap-2">
             <input type="hidden" name="intent" value="renameAskConversation" />
             <input type="hidden" name="conversationId" value={conversation.id} />
             <input
@@ -722,6 +734,16 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
             />
             <button type="submit" className={primaryButtonClass}>
               保存
+            </button>
+            <button
+              type="button"
+              className={subtleButtonClass}
+              onClick={() => {
+                setTitle(conversationTitle);
+                setRenaming(false);
+              }}
+            >
+              取消
             </button>
           </fetcher.Form>
         ) : (
@@ -734,32 +756,54 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
             </p>
           </div>
         )}
-        <div className="-mx-1 flex flex-nowrap items-center gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
-          <button
-            type="button"
-            className={subtleButtonClass}
-            onClick={() => setRenaming((v) => !v)}
-          >
-            重命名
-          </button>
-          <ActionButton intent="toggleAskPinned" conversationId={conversation.id}>
-            {conversation.pinnedAt ? "取消置顶" : "置顶"}
-          </ActionButton>
-          <ActionButton intent="toggleAskArchived" conversationId={conversation.id}>
-            {conversation.archivedAt ? "恢复" : "归档"}
-          </ActionButton>
-          <Link
-            to={`/download-ask-conversation?conversation=${conversation.id}`}
-            className={subtleButtonClass}
-          >
-            导出
-          </Link>
-          <ActionButton intent="deleteAskConversation" conversationId={conversation.id} danger>
-            删除
-          </ActionButton>
-        </div>
+        {renaming ? null : (
+          <ConversationMenu
+            conversation={conversation}
+            onRename={() => {
+              setTitle(conversationTitle);
+              setRenaming(true);
+            }}
+          />
+        )}
       </div>
     </header>
+  );
+}
+
+function ConversationMenu({
+  conversation,
+  onRename,
+}: {
+  conversation: AskConversationView;
+  onRename: () => void;
+}) {
+  return (
+    <details className="relative shrink-0">
+      <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 dark:focus-visible:ring-celadon-400/30">
+        <MoreIcon />
+        <span className="sr-only">会话操作</span>
+      </summary>
+      <div className="absolute right-0 z-20 mt-2 w-40 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
+        <button type="button" className={menuItemClass} onClick={onRename}>
+          重命名
+        </button>
+        <ActionButton intent="toggleAskPinned" conversationId={conversation.id} menu>
+          {conversation.pinnedAt ? "取消置顶" : "置顶"}
+        </ActionButton>
+        <ActionButton intent="toggleAskArchived" conversationId={conversation.id} menu>
+          {conversation.archivedAt ? "恢复" : "归档"}
+        </ActionButton>
+        <Link
+          to={`/download-ask-conversation?conversation=${conversation.id}`}
+          className={menuItemClass}
+        >
+          导出
+        </Link>
+        <ActionButton intent="deleteAskConversation" conversationId={conversation.id} danger menu>
+          删除
+        </ActionButton>
+      </div>
+    </details>
   );
 }
 
@@ -768,11 +812,13 @@ function ActionButton({
   conversationId,
   children,
   danger,
+  menu,
 }: {
   intent: string;
   conversationId: string;
   children: ReactNode;
   danger?: boolean;
+  menu?: boolean;
 }) {
   return (
     <Form method="post">
@@ -781,9 +827,13 @@ function ActionButton({
       <button
         type="submit"
         className={
-          danger
-            ? "inline-flex items-center justify-center rounded-lg px-3 py-2 font-medium text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-            : subtleButtonClass
+          menu
+            ? danger
+              ? dangerMenuItemClass
+              : menuItemClass
+            : danger
+              ? "inline-flex items-center justify-center rounded-lg px-3 py-2 font-medium text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+              : subtleButtonClass
         }
       >
         {children}
@@ -809,11 +859,11 @@ function ThreadMessage({
   if (isUser) {
     return (
       <div className="group/message flex w-full justify-end">
-        <div className="max-w-[82%]">
-          <div className="rounded-3xl rounded-br-md bg-white px-4 py-2.5 text-gray-800 text-sm leading-7 shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800">
+        <div className="max-w-[88%] sm:max-w-[76%]">
+          <div className="rounded-3xl bg-gray-200/70 px-4 py-2.5 text-gray-900 text-sm leading-7 dark:bg-gray-800 dark:text-gray-100">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-1 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             {message.branch ? (
               <BranchControls conversationId={conversationId} branch={message.branch} />
             ) : null}
@@ -834,9 +884,12 @@ function ThreadMessage({
   return (
     <div className="group/message w-full">
       <div className="min-w-0 text-gray-900 dark:text-gray-50">
-        <div className="text-sm leading-7">
+        <div className="text-[15px] leading-7">
           {message.status === "running" && !message.content ? (
-            <span className="text-gray-400 dark:text-gray-500">正在生成…</span>
+            <span className="inline-flex items-center gap-2 text-gray-400 dark:text-gray-500">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500" />
+              正在生成
+            </span>
           ) : message.status === "error" ? (
             <p className="text-red-600 dark:text-red-400">{message.content}</p>
           ) : message.status === "running" ? (
@@ -851,25 +904,22 @@ function ThreadMessage({
         ) : null}
 
         {message.sources.length > 0 ? (
-          <details className="mt-3">
-            <summary className="cursor-pointer text-gray-400 text-xs tracking-wide dark:text-gray-500">
-              引自你的记录 · {message.sources.length}
-            </summary>
-            <div className="mt-2 flex flex-col gap-1.5">
-              {message.sources.map((source) => (
-                <Link
-                  key={`${message.id}-${source.id}`}
-                  to={source.href}
-                  className="w-fit rounded-lg bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70"
-                >
-                  {source.label}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-gray-400 text-xs dark:text-gray-500">来源</span>
+            {message.sources.map((source) => (
+              <Link
+                key={`${message.id}-${source.id}`}
+                to={source.href}
+                className="max-w-full truncate rounded-full bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70 dark:focus-visible:ring-celadon-400/30"
+                title={source.label}
+              >
+                {source.label}
+              </Link>
+            ))}
+          </div>
         ) : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
           {message.branch ? (
             <BranchControls conversationId={conversationId} branch={message.branch} />
           ) : null}

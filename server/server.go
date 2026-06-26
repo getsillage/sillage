@@ -59,6 +59,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 		return c.JSON(http.StatusOK, map[string]string{"status": "ready"})
 	})
 	server.registerAuthRoutes(e)
+	server.registerMemoRoutes(e)
 
 	return server, nil
 }

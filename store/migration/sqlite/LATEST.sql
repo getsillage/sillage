@@ -191,3 +191,15 @@ CREATE TABLE runtime_kv (
   PRIMARY KEY (namespace, key)
 );
 CREATE INDEX idx_runtime_kv_expires_at ON runtime_kv (expires_at);
+
+CREATE TABLE sync_mutation (
+  account_id TEXT NOT NULL,
+  mutation_id TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL DEFAULT '',
+  result TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (account_id, mutation_id),
+  FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_sync_mutation_created_at ON sync_mutation (created_at);

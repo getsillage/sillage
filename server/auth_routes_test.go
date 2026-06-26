@@ -149,7 +149,7 @@ func newTestServer(t *testing.T) *server.Server {
 	return srv
 }
 
-func doJSON(t *testing.T, srv *server.Server, method, path string, body any, headers map[string]string) *httptest.ResponseRecorder {
+func doJSON(t *testing.T, srv http.Handler, method, path string, body any, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	var payload []byte
 	if body != nil {

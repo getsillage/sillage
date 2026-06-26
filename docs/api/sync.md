@@ -1,123 +1,124 @@
 # 同步 API
 
-面向非 web 客户端(例如移动 app)的增量同步端点。它返回自某个游标以来的所有变更——**包括软删除的行**——因此客户端可以用一个可重复调用把本地的 Sillage 镜像保持最新。
-
-> 状态:目前**只读**。记录已带有用于乐观并发的 `version`(见 [写回(未来)](#写回未来)),但写入端点尚未纳入本 API。
+> 迁移中契约。新的自托管版本使用 `/api/v1/sync` 和 `/api/v1/sync:push`，不再保留旧
+> Cloudflare Workers 版本的 `/api/sync`。该契约面向未来 Android 离线客户端设计，支持
+> tombstone、mutation id 幂等、逐条冲突返回和附件 metadata 同步扩展。
 
 ## 鉴权
 
-与守护 web 应用相同的单密码会话也守护本端点。
+当前 Go 后端使用唯一账号初始化后返回的 access token：
 
-- 通过向 `/login` 发送 `POST` 密码进行鉴权;服务端会设置一个 **HttpOnly** 会话 cookie(不透明 id;密钥永不到达客户端)。
-- 每次请求 `/api/sync` 都要带上该 cookie。
-- 未鉴权的请求会被重定向(`302 → /login`)。把任何非 `200` 响应都当作“未鉴权 / 需要重新登录”,而不是同步数据。
-
-## 端点
-
-```
-GET /api/sync?cursor=<token>
+```http
+Authorization: Bearer <access_token>
 ```
 
-### `cursor` 令牌
+刷新登录状态走 `POST /api/v1/auth/refresh`，refresh token 保存在 HttpOnly cookie 中。
 
-| 形式 | 含义 |
-|------|------|
-| 省略 / 为空 | 全量快照(从头开始的全部数据) |
-| `?cursor=<token>` | 上一次响应返回的**不透明**令牌 |
+## 拉取
 
-游标是一个**不透明字符串**——原样回传上一次响应里的 `cursor`,并把其内容视为私有。(其内部是按流编码的 base64 keyset `(updatedAt, id)`;格式非法的令牌会被当作“从头开始”,触发一次全量重新同步,而不是报错。)
+```http
+GET /api/v1/sync?cursor=<opaque>&limit=200
+```
 
-相对于某个游标,投递是**每个变更恰好一次**:重发上一个游标不会重复投递你已有的行;而且——因为游标键是 `(updatedAt, id)` 而非仅 `updatedAt`——共享同一毫秒的行在翻页边界绝不会被跳过。
+- `cursor` 是不透明字符串，客户端必须原样回传。
+- 省略 `cursor` 表示从头拉取。
+- 响应按资源类型分组，当前阶段已实现 `memos`；后续里程碑会扩展 `attachments`、`summaries`、`ask_conversations`、`ask_messages` 和 memo AI 派生数据。
+- 每个 stream 使用 `(updated_at, id)` keyset 游标，避免同一毫秒的记录在分页边界被跳过。
+- 删除使用 `deletedAt` tombstone 返回，客户端据此删除本地镜像。
 
-## 响应
+示例响应：
 
-`200 OK`,`application/json`:
-
-```jsonc
+```json
 {
-  "entries": [ /* EntryDto,变更最早的在前 */ ],
-  "attachments": [ /* AttachmentDto */ ],
-  "cursor": "eyJlbnRyaWVzIjp...", // 不透明;下次作为 ?cursor= 回传
-  "hasMore": false                // true => 某一页已满;请立即再次拉取
+  "memos": [
+    {
+      "id": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
+      "content": "今天开始写新的 memo",
+      "entryDate": "2026-06-26",
+      "version": 1,
+      "pinnedAt": null,
+      "archivedAt": null,
+      "createdAt": "2026-06-26T11:15:07Z",
+      "updatedAt": "2026-06-26T11:15:07Z",
+      "deletedAt": null
+    }
+  ],
+  "cursor": "opaque",
+  "nextCursor": "opaque",
+  "hasMore": false
 }
 ```
 
-- `entries` 与 `attachments` 各自按 `(updatedAt, id)` 升序排列。
-- 每页最多返回 **200** 条 entries 和 **200** 条 attachments。当 `hasMore` 为 `true` 时,立即用返回的 `cursor` 再次请求,把积压排空后再进入空闲。
+## 推送
 
-### EntryDto
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | string | UUIDv7(可按时间排序);跨客户端稳定 |
-| `entryDate` | string | `YYYY-MM-DD`,该条目“所属”的日历日期 |
-| `body` | string | Markdown 明文 |
-| `version` | number | 乐观并发令牌;每次内容编辑递增 |
-| `ai` | object | `{ summary: string \| null, sentiment: string \| null }`(机器派生) |
-| `createdAt` | string | ISO 8601 |
-| `updatedAt` | string | ISO 8601;游标追踪的字段 |
-| `deletedAt` | string \| null | **非空 ⇒ 墓碑**:在本地删除该条目 |
-
-### AttachmentDto
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | string | UUIDv7 |
-| `entryId` | string \| null | 所属条目;若在其条目存在之前上传则为 null |
-| `url` | string | `"/attachments/<id>"`——受会话守护;解密并流式返回字节 |
-| `filename` | string | |
-| `contentType` | string | |
-| `size` | number | 字节数(明文) |
-| `sha256` | string \| null | 明文的十六进制摘要——用于完整性校验与去重 |
-| `width` / `height` | number \| null | 已知时为图片尺寸 |
-| `status` | string | `"stored"`(上传中为 `"pending"`) |
-| `createdAt` / `updatedAt` | string | ISO 8601 |
-| `deletedAt` | string \| null | 非空 ⇒ 墓碑(字节已回收) |
-
-内部的 R2 对象 key **永不**暴露;通过 `url` 获取字节。
-
-## 客户端同步算法
-
-```text
-cursor = load_saved_cursor()            // 首次运行为 null
-loop:
-  res = GET /api/sync?cursor=cursor       // cursor 为 null 时省略该参数
-  for entry in res.entries:
-    if entry.deletedAt != null: delete_local(entry.id)
-    else:                       upsert_local(entry)   // 含正文 + ai
-  for att in res.attachments:
-    if att.deletedAt != null: delete_local_attachment(att.id)
-    else:                     upsert_local_attachment(att)
-  cursor = res.cursor
-  save_cursor(cursor)
-  if not res.hasMore: break               // 已追平
+```http
+POST /api/v1/sync:push
 ```
 
-之后按你喜欢的节奏轮询(前台刷新、推送唤醒、定时器);每次调用只传送 `cursor` 之后变更的内容。
+请求按变更列表逐条处理；一条失败不会回滚整批。
 
-### 注意事项与保证
-
-- **墓碑,而非空缺。** 删除以带非空 `deletedAt` 的行返回,而不是悄无声息地消失,因此离线客户端可以镜像删除。(若服务端曾执行硬清除,则属例外。)
-- **AI 更新是安静的。** 重新生成总结只写 `entry_ai` 侧表,**不会** bump `entries.updatedAt`——所以总结刷新本身不会重新投递该条目。如需立刻拿到最新 `ai` 字段,请单独重新获取该条目。
-- **Keyset 游标。** 分页键是 `(updatedAt, id)`,因此共享同一毫秒的行会被正确翻页而非跳过。该游标仍是按流的高水位线,面向本单用户 Sillage 设计,而非并发多写者的扇出场景。
-
-## 示例
-
-```bash
-# 1. 登录,保存会话 cookie。
-curl -c jar.txt -X POST https://<host>/login \
-  --data-urlencode "password=$SILLAGE_PASSWORD"
-
-# 2. 全量快照。
-curl -b jar.txt "https://<host>/api/sync"
-
-# 3. 增量:回传上一次响应里的不透明 `cursor`。
-curl -b jar.txt "https://<host>/api/sync?cursor=eyJlbnRyaWVzIjp..."
+```json
+{
+  "changes": [
+    {
+      "mutationId": "client-generated-id",
+      "resourceType": "memo",
+      "resourceId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
+      "action": "update",
+      "baseVersion": 1,
+      "memo": {
+        "id": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
+        "content": "更新后的内容",
+        "entryDate": "2026-06-26",
+        "pinned": false,
+        "archived": false
+      }
+    }
+  ]
+}
 ```
 
-## 写回(未来)
+返回：
 
-目前还没有写入端点,但 schema 已为此准备就绪:
+```json
+{
+  "results": [
+    {
+      "mutationId": "client-generated-id",
+      "resourceType": "memo",
+      "resourceId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
+      "status": "applied",
+      "resource": {}
+    }
+  ]
+}
+```
 
-- 客户端可在本地生成 UUIDv7 `id`(离线创建,无需服务端往返)。
-- 回传你上次读到的 `version`;服务端的 `updateEntry` 会以**冲突**(当前版本 vs 期望版本)拒绝陈旧写入,而不是覆盖更新的副本。处理方式:重新获取后再次应用。
+`status` 取值：
+
+- `applied`：已写入，返回服务端规范化资源。
+- `conflict`：版本冲突，返回 `serverResource`、`clientVersion`、`serverVersion`。
+- `rejected`：字段非法、资源不存在、动作不支持等，返回稳定 `reason`。
+
+同一账号下重复提交相同 `mutationId` 会返回第一次处理结果，并带 `idempotent: true`。
+
+## Memo 语义
+
+- 后端/API/数据库使用 `memo` 命名；中文 UI 显示“记录”。
+- `entryDate` 是用户语义日期，格式为 `YYYY-MM-DD`。
+- `version` 是 CAS 字段。正文、日期、置顶、归档、删除都必须带客户端已知版本；过期版本返回 `conflict`。
+- `deletedAt != null` 表示 tombstone。首版不清理 tombstone。
+- 未来 Android 可离线预生成 memo UUIDv7，并通过 `sync:push` 创建。
+
+## 附件预留
+
+附件字节不进入 sync payload。未来 Android 同步流程是先上传附件字节，再在 sync payload 中同步附件 metadata 与 memo 引用。
+
+当前计划中的普通上传接口：
+
+```http
+POST /api/v1/attachments
+```
+
+它必须支持 `mutation_id` 或 `idempotency_key`，避免网络重试重复创建附件。未来断点续传预留
+`/api/v1/attachment-uploads` 命名空间。

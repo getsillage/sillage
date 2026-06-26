@@ -14,7 +14,6 @@ type AskSidebarData = {
 const navItems = [
   { to: "/", label: "记录", end: true, icon: HomeIcon },
   { to: "/timeline", label: "历史", icon: TraceIcon },
-  { to: "/ask", label: "问答", icon: MessageIcon },
 ] as const;
 
 function iconPath(children: ReactNode, className = "h-[18px] w-[18px]"): ReactNode {
@@ -52,17 +51,6 @@ function TraceIcon({ className }: IconProps) {
       <path d="M7 5a2 2 0 1 0 0 4" />
       <path d="M9 15a2 2 0 1 0 0 4" />
       <path d="M12 19h5" />
-    </>,
-    className,
-  );
-}
-
-function MessageIcon({ className }: IconProps) {
-  return iconPath(
-    <>
-      <path d="M5 6.5A7 7 0 0 1 12 4a7 7 0 0 1 7 6.5A6.6 6.6 0 0 1 12 17a8 8 0 0 1-2-.3L5 20l1.2-4A6.5 6.5 0 0 1 5 6.5z" />
-      <path d="M9 10h6" />
-      <path d="M9 13h4" />
     </>,
     className,
   );

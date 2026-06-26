@@ -5,7 +5,7 @@ export const NOTE_TYPES = ["daily", "weekly", "monthly", "topic", "freeform"] as
 export type NoteType = (typeof NOTE_TYPES)[number];
 
 const ENTRY_KIND_LABELS: Record<EntryKind, string> = {
-  fragment: "片段",
+  fragment: "短记录",
   note: "笔记",
   draft: "草稿",
 };

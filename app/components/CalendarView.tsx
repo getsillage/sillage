@@ -33,7 +33,7 @@ export interface CalendarViewProps {
   dayEntries: EntryWithTags[];
 }
 
-/** Month grid for 痕迹's calendar view: dotted day cells + the selected day's entries. */
+/** Month grid for 历史's calendar view: dotted day cells + the selected day's entries. */
 export function CalendarView({
   year,
   month,

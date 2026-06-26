@@ -11,11 +11,11 @@ const MAX_BODY_CHARS = 400;
 
 const SYSTEM_PROMPTS: Record<SummaryStyle, string> = {
   brief:
-    "你是 Sillage 的回顾层。请用中文为这段记录写一段克制、具体、可追溯的简短回顾，抓住真正重要的几件事与情绪基调，忠于记录、不诊断、不替用户下结论。第一行用「# 」开头给一个不超过 16 字的标题，随后用 2 至 4 句话写正文。",
+    "你是 Sillage 的记录总结功能。请用中文为这段记录写一段清楚、具体、可追溯的简短总结，抓住真正重要的几件事与状态变化，忠于记录、不诊断、不替用户下结论。第一行用「# 」开头给一个不超过 16 字的标题，随后用 2 至 4 句话写正文。",
   structured:
-    "你是 Sillage 的回顾层。请用中文写一份结构化回顾，使用 Markdown 小标题，按需包含：## 主要的事、## 情绪曲线、## 出现的人、## 未尽事宜、## 温柔的建议（某节无内容则省略该节）。克制、具体、可追溯，忠于记录、不诊断、不编造。第一行用「# 」开头给一个不超过 16 字的标题。",
+    "你是 Sillage 的记录总结功能。请用中文写一份结构化总结，使用 Markdown 小标题，按需包含：## 主要的事、## 状态变化、## 出现的人、## 未完成的事、## 建议（某节无内容则省略该节）。清楚、具体、可追溯，忠于记录、不诊断、不编造。第一行用「# 」开头给一个不超过 16 字的标题。",
   narrative:
-    "你是 Sillage 的回顾层。请用中文写一篇有温度的叙述式回顾，以第二人称「你」称呼记录者，把这些片段织成一篇连贯、有情绪、有细节的文章。忠于记录、不虚构事实、不说教。第一行用「# 」开头给一个不超过 16 字的标题，随后是文章正文。",
+    "你是 Sillage 的记录总结功能。请用中文写一篇叙述式总结，以第二人称「你」称呼记录者，把这些记录整理成一篇连贯、有细节的文章。忠于记录、不虚构事实、不说教。第一行用「# 」开头给一个不超过 16 字的标题，随后是文章正文。",
 };
 
 const MAX_TOKENS: Record<SummaryStyle, number> = {
@@ -131,7 +131,7 @@ export async function generateSummary(env: Env, request: SummaryRequest): Promis
   if (!result.skipped && result.truncated) {
     result = await generateText(config, {
       system: SYSTEM_PROMPTS[request.style],
-      prompt: `${prompt}\n\n【生成要求】\n上一次输出达到长度上限。请重新生成完整回顾，保留标题和正文，但更克制地压缩表达，确保有结尾。`,
+      prompt: `${prompt}\n\n【生成要求】\n上一次输出达到长度上限。请重新生成完整总结，保留标题和正文，但压缩表达，确保有结尾。`,
       maxTokens: RETRY_MAX_TOKENS[request.style],
     });
   }

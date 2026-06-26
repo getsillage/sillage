@@ -7,7 +7,7 @@ describe("phaseLabel", () => {
   });
 
   it("advances as time passes and saturates at the last phase", () => {
-    expect(phaseLabel(ENTRY_INSIGHT_PHASES, 3000)).toBe("正在提炼留下的东西…");
+    expect(phaseLabel(ENTRY_INSIGHT_PHASES, 3000)).toBe("正在整理重点…");
     expect(phaseLabel(ENTRY_INSIGHT_PHASES, 99999)).toBe("比平时慢一些，再等等…");
   });
 

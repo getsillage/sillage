@@ -346,7 +346,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                   <div>
                     <h3 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 功能</h3>
                     <p className={`mt-1 text-sm ${subtleTextClass}`}>
-                      保存并开启后，「探寻」问答和手动生成洞察会使用当前配置；关闭后保留配置但不调用模型。
+                      保存并开启后，问答功能和手动生成总结会使用当前配置；关闭后保留配置但不调用模型。
                     </p>
                   </div>
                   <label
@@ -369,7 +369,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
                 <div className="mt-5 border-gray-200 border-t pt-4 dark:border-gray-800">
                   <label className={labelClass}>
-                    单条 AI 洞察
+                    单条 AI 总结
                     <select
                       name="entryInsightAutoMode"
                       value={entryInsightAutoMode}
@@ -386,7 +386,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                     </select>
                   </label>
                   <p className={`mt-1 text-xs ${subtleTextClass}`}>
-                    默认只为笔记自动生成；片段和草稿仍可在「痕迹」或记录详情中手动生成。
+                    默认只为笔记自动生成；短记录和草稿仍可在「历史」或记录详情中手动生成。
                   </p>
                 </div>
               </section>

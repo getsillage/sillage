@@ -31,7 +31,7 @@
 
 | Token | Hex | 用途 |
 |---|---|---|
-| celadon-50 | `#E7EFE9` | 软底(导航选中、引用 chip、洞察条) |
+| celadon-50 | `#E7EFE9` | 软底(导航选中、引用 chip、总结条) |
 | celadon-100 | `#D3E2D8` | 软底加深 |
 | celadon-200 | `#B3CDBC` | 暗色文字 on 软底 |
 | celadon-300 | `#8FB39C` | 暗色主点缀 |
@@ -94,7 +94,7 @@ html, body { @apply bg-gray-50 dark:bg-gray-950; }
 | 角色 | 字体栈 | 用在哪 |
 |---|---|---|
 | sans(外壳) | 现有 `--font-sans`(system / PingFang) | 导航、标签、按钮、表单 label、元信息、用户输入气泡 |
-| **serif(内容)** | `--font-serif`(Songti 系) | 页面标题、entry 标题与正文、探寻**回答**正文、那年今日标题 |
+| **serif(内容)** | `--font-serif`(Songti 系) | 页面标题、entry 标题与正文、问答**回答**正文、那年今日标题 |
 | wordmark | `"Palatino","Iowan Old Style",serif` 斜体 | 仅左侧栏 "Sillage" 标志 |
 
 - 通过 `font-serif` 工具类施加;正文长文用 typography 的 `prose` 并叠加 `font-serif`(见 §5)。
@@ -124,7 +124,7 @@ export const wideShellClass =
 ```
 
 - 配合左侧栏(§ 见 implementation-plan)。主区再居中收窄,得到 Claude/ChatGPT 式的专注阅读列。
-- 各页选用:此刻 / entry / 探寻 / 照见正文 / 登录 → reading;痕迹列表 / 日历 / 设置 → wide。
+- 各页选用:记录 / entry / 问答 / 登录 → reading;历史列表 / 日历 / 设置 → wide。
 
 ## 5. 组件配方(重写 `ui.ts` 的目标形态)
 
@@ -152,13 +152,13 @@ export const wideShellClass =
 
 ### 5.2 标签 / chip
 
-人物 / 关系 / 标签:`rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300`;引用 / 洞察用 celadon 软底:`bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200`。
+人物 / 关系 / 标签:`rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300`;引用 / 总结用 celadon 软底:`bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200`。
 
-### 5.3 痕迹线(签名元素)的视觉规格
+### 5.3 历史线(签名元素)的视觉规格
 
 - 容器:`relative pl-6`。
 - 竖线:`absolute left-[5px] top-2 bottom-2 w-px bg-gray-200 dark:bg-gray-800`。
 - 普通节点:`absolute -left-[1px] top-[…] h-2.5 w-2.5 rounded-full bg-gray-50 ring-[1.5px] ring-celadon-500 dark:bg-gray-950`(空心点)。
 - 记忆回望节点(那年今日):同上但 `ring-clay-400`,略大(`h-3 w-3`)。
 - 行内:时间(sans, faint)→ 标题(宋体)→ 摘要(sans, muted)→ 标签;**行与行之间靠留白,不再各自包卡片**。
-- 详细结构见 [`implementation-plan.md` 附录 A](./implementation-plan.md#附录-a-参考结构片段)。
+- 详细结构见 [`implementation-plan.md` 附录 A](./implementation-plan.md#附录-a-参考结构短记录)。

@@ -26,20 +26,20 @@ export function phaseLabel(phases: readonly ProgressPhase[], elapsedMs: number):
   return label;
 }
 
-/** Single-entry "AI 洞察" generation. */
+/** Single-entry "AI 总结" generation. */
 export const ENTRY_INSIGHT_PHASES: readonly ProgressPhase[] = [
   { atMs: 0, label: "正在读这条记录…" },
-  { atMs: 2500, label: "正在提炼留下的东西…" },
-  { atMs: 6000, label: "正在斟酌措辞…" },
+  { atMs: 2500, label: "正在整理重点…" },
+  { atMs: 6000, label: "正在生成总结…" },
   { atMs: 12000, label: "快好了，正在收尾…" },
   { atMs: 22000, label: "比平时慢一些，再等等…" },
 ];
 
 /** Multi-entry "回顾 / 总结" generation. */
 export const SUMMARY_PHASES: readonly ProgressPhase[] = [
-  { atMs: 0, label: "正在翻阅这段时间…" },
-  { atMs: 3000, label: "正在把碎片织到一起…" },
-  { atMs: 8000, label: "正在落笔…" },
+  { atMs: 0, label: "正在读取这段时间的记录…" },
+  { atMs: 3000, label: "正在整理相关内容…" },
+  { atMs: 8000, label: "正在生成总结…" },
   { atMs: 16000, label: "快好了，正在收尾…" },
   { atMs: 28000, label: "内容有点多，再等一等…" },
 ];

@@ -109,7 +109,7 @@ describe("entry actions", () => {
       request: await authenticatedRequest(
         {
           entryDate: "2026-06-24",
-          body: "更新后也不应自动生成洞察。",
+          body: "更新后也不应自动生成总结。",
           kind: "fragment",
           noteType: "",
         },

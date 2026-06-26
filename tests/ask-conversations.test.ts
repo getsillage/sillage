@@ -126,7 +126,7 @@ describe("ask conversation branch model", () => {
     const run = await beginAskSend(db, { question: "保存什么？", sourceTypes: ["fragment"] });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
-      content: "这是一段可沉淀的回答。",
+      content: "这是一段可以保存的回答。",
       sources: [{ id: "e1", title: "来源", label: "来源", href: "/entries/e1", kind: "entry" }],
       model: null,
       durationMs: 1,

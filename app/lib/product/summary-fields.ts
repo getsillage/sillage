@@ -33,7 +33,7 @@ export const PERIOD_TYPE_LABELS: Record<SummaryPeriodType, string> = {
 
 export const STYLE_LABELS: Record<SummaryStyle, string> = {
   brief: "简短摘要",
-  structured: "结构化洞察",
+  structured: "结构化总结",
   narrative: "叙述长文",
 };
 

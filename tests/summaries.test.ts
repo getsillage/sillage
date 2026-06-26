@@ -422,7 +422,7 @@ describe("runSummaryAction", () => {
       "fetch",
       vi.fn(async () =>
         Response.json({
-          content: [{ type: "text", text: "# 六月工作\n\n六月里的工作线索被收束在一起。" }],
+          content: [{ type: "text", text: "# 六月工作\n\n六月里的工作重点被整理在一起。" }],
           stop_reason: "end_turn",
         }),
       ),
@@ -467,7 +467,7 @@ describe("runSummaryAction", () => {
       "fetch",
       vi.fn(async () =>
         Response.json({
-          content: [{ type: "text", text: "# 工作线索\n\n所有工作记录被收束在一起。" }],
+          content: [{ type: "text", text: "# 工作重点\n\n所有工作记录被整理在一起。" }],
           stop_reason: "end_turn",
         }),
       ),
@@ -651,13 +651,13 @@ describe("generateSummary", () => {
       .fn()
       .mockResolvedValueOnce(
         Response.json({
-          content: [{ type: "text", text: "# 六月回顾\n\n这一周刚开了个头" }],
+          content: [{ type: "text", text: "# 六月总结\n\n这一周刚开了个头" }],
           stop_reason: "max_tokens",
         }),
       )
       .mockResolvedValueOnce(
         Response.json({
-          content: [{ type: "text", text: "# 六月回顾\n\n这一周完整收束。" }],
+          content: [{ type: "text", text: "# 六月总结\n\n这一周完整收束。" }],
           stop_reason: "end_turn",
         }),
       );
@@ -680,7 +680,7 @@ describe("generateSummary", () => {
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(firstBody.max_tokens).toBe(1600);
     expect(secondBody.max_tokens).toBe(2600);
-    expect(secondBody.messages[0].content).toContain("请重新生成完整回顾");
+    expect(secondBody.messages[0].content).toContain("请重新生成完整总结");
   });
 
   it("reports a length-limit reason when the retry is still truncated", async () => {
@@ -689,7 +689,7 @@ describe("generateSummary", () => {
       "fetch",
       vi.fn(async () =>
         Response.json({
-          content: [{ type: "text", text: "# 六月回顾\n\n仍然不完整" }],
+          content: [{ type: "text", text: "# 六月总结\n\n仍然不完整" }],
           stop_reason: "max_tokens",
         }),
       ),

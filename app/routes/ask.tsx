@@ -23,7 +23,7 @@ import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Route } from "./+types/ask";
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "探寻 · Sillage" }];
+  return [{ title: "问答 · Sillage" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {

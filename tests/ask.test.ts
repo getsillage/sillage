@@ -76,7 +76,7 @@ describe("answerQuestion", () => {
     const prompt = body.messages[0].content as string;
     expect(prompt).toContain("最近我见了谁？");
     expect(prompt).toContain("小明");
-    expect(prompt).toContain("【记忆证据】");
+    expect(prompt).toContain("【记录内容】");
   });
 
   it("includes prior turns when history is provided", async () => {
@@ -110,8 +110,8 @@ describe("answerQuestion", () => {
 
     expect(result.ok).toBe(true);
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(body.system).toContain("总结、复盘、模式识别和温和建议");
-    expect(body.system).toContain("不要要求记忆里必须已经写过明确的「建议」");
+    expect(body.system).toContain("总结、复盘、模式识别和建议");
+    expect(body.system).toContain("不要要求记录里必须已经写过明确的「建议」");
     expect(body.system).not.toContain("不要总结、复盘、诊断或扩写");
     expect(body.max_tokens).toBe(3200);
   });
@@ -159,7 +159,7 @@ describe("answerQuestion", () => {
     const result = await answerQuestion(env, { question: "我去过南极吗？", evidence: "" });
     expect(result.ok).toBe(true);
     const prompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[0].content;
-    expect(prompt).toContain("所选来源里没有找到相关证据");
+    expect(prompt).toContain("所选内容里没有找到相关记录");
   });
 
   it("retries even when a truncated answer has no visible text", async () => {

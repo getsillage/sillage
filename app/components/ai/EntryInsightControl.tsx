@@ -14,7 +14,7 @@ interface EntryInsightControlProps {
 }
 
 /**
- * Single-entry "AI 洞察" generation, shared by the entry detail page and the card.
+ * Single-entry "AI 总结" generation, shared by the entry detail page and the card.
  * Owns the live/cancellable generation (timer + phase copy + classified failures)
  * and the provenance line (生成于 · 用时 · 模型 · 已生成 N 次). The summary text it
  * shows comes from the entry, which the hook refreshes via revalidation on success.
@@ -27,7 +27,7 @@ export function EntryInsightControl({
   const generation = useAiGeneration("/api/entry-insight");
   const running = generation.status === "running";
   const intent = entry.summary ? "regenerate-entry-insight" : "generate-entry-insight";
-  const buttonLabel = running ? "生成中…" : entry.summary ? "重新生成洞察" : "生成洞察";
+  const buttonLabel = running ? "生成中…" : entry.summary ? "重新生成总结" : "生成总结";
 
   const summaryClass = compact ? "text-current" : "text-gray-600 dark:text-gray-300";
 
@@ -36,14 +36,12 @@ export function EntryInsightControl({
       {entry.summary ? (
         <p className={summaryClass}>{entry.summary}</p>
       ) : (
-        <p className="text-gray-400 italic dark:text-gray-500">
-          微光未起，还没有为这条记录生成洞察。
-        </p>
+        <p className="text-gray-400 italic dark:text-gray-500">还没有为这条记录生成总结。</p>
       )}
 
       {entry.summary && entry.aiGeneratedAt ? (
         <p className="mt-1 text-gray-400 text-xs dark:text-gray-500">
-          洞察生成于 <RelativeTime value={entry.aiGeneratedAt} />
+          总结生成于 <RelativeTime value={entry.aiGeneratedAt} />
           {entry.aiDurationMs != null ? ` · 用时 ${formatDuration(entry.aiDurationMs)}` : ""}
           {entry.aiModel ? ` · ${entry.aiModel}` : ""}
           {entry.aiGenerationCount > 1 ? ` · 已生成 ${entry.aiGenerationCount} 次` : ""}

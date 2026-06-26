@@ -10,7 +10,7 @@ interface AskTabProps {
   summaries: LoadedSummary[];
 }
 
-/** The 探寻 page: conversation, keyword search, and generated memory reviews. */
+/** The 问答 page: conversation, keyword search, and generated memory reviews. */
 export function AskTab({ query, currentConversation, results, summaries }: AskTabProps) {
   return (
     <AskPanel

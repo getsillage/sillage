@@ -10,7 +10,7 @@ import type { Route } from "./+types/capture";
  * Action-only endpoint for the global QuickCapture overlay. Returns JSON (never a
  * redirect) so capturing from any page leaves the user where they are; React Router
  * revalidates the current route's loaders afterwards, so the new entry appears in
- * place (e.g. in 此刻's today list or 痕迹's stream).
+ * place (e.g. in 记录's today list or 历史's stream).
  */
 export async function action({ request }: Route.ActionArgs) {
   await requireSession(request, env);

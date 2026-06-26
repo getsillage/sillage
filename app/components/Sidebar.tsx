@@ -12,9 +12,9 @@ type AskSidebarData = {
 };
 
 const navItems = [
-  { to: "/", label: "此刻", end: true, icon: HomeIcon },
-  { to: "/timeline", label: "痕迹", icon: TraceIcon },
-  { to: "/ask", label: "探寻", icon: MessageIcon },
+  { to: "/", label: "记录", end: true, icon: HomeIcon },
+  { to: "/timeline", label: "历史", icon: TraceIcon },
+  { to: "/ask", label: "问答", icon: MessageIcon },
 ] as const;
 
 function iconPath(children: ReactNode, className = "h-[18px] w-[18px]"): ReactNode {
@@ -156,7 +156,7 @@ export function Wordmark({
         <AppVersionBadge badge={appBadge} />
       </span>
       <span className="mt-0.5 block font-serif text-[11px] tracking-widest text-gray-400">
-        记忆的余迹
+        个人记录
       </span>
     </Link>
   );
@@ -191,7 +191,7 @@ export function Sidebar({
         className="mb-3 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-700 text-sm transition hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30"
       >
         <PlusIcon />
-        <span>新探寻</span>
+        <span>新问答</span>
       </Link>
 
       <nav className="flex flex-col gap-0.5">
@@ -219,7 +219,7 @@ export function Sidebar({
             to="/ask"
             onClick={onNavigate}
             className="rounded-md p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30"
-            aria-label="新探寻"
+            aria-label="新问答"
           >
             <PlusIcon className="h-4 w-4" />
           </Link>
@@ -228,7 +228,7 @@ export function Sidebar({
         <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
           {conversations.map((conversation) => {
             const active = currentConversationId === conversation.id;
-            const label = conversation.title || conversation.lastMessagePreview || "新的探寻";
+            const label = conversation.title || conversation.lastMessagePreview || "新的问答";
             return (
               <Link
                 key={conversation.id}

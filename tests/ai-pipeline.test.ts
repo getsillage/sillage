@@ -183,7 +183,7 @@ describe("AI pipeline", () => {
     });
     const fetchMock = vi.fn(async () =>
       Response.json({
-        content: [{ type: "text", text: "一句洞察" }],
+        content: [{ type: "text", text: "一句总结" }],
         stop_reason: "end_turn",
       }),
     );

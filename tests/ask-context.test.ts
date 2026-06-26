@@ -22,7 +22,7 @@ describe("ask context", () => {
   it("defaults to fragments and notes and excludes drafts", async () => {
     await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "片段",
+      title: "短记录",
       body: "和小明在咖啡馆聊天。",
       kind: "fragment",
       tags: [],
@@ -45,7 +45,7 @@ describe("ask context", () => {
 
     const context = await collectAskContext(db, "小明");
 
-    expect(context.entries.map((entry) => entry.title)).toEqual(["笔记", "片段"]);
+    expect(context.entries.map((entry) => entry.title)).toEqual(["笔记", "短记录"]);
     expect(context.evidence).toContain("和小明在咖啡馆聊天");
     expect(context.evidence).not.toContain("草稿里也提到了小明");
   });
@@ -61,12 +61,12 @@ describe("ask context", () => {
     await env.DB.prepare(
       "INSERT INTO entry_ai (entry_id, summary, sentiment, model, generated_at) VALUES (?, ?, ?, ?, ?)",
     )
-      .bind(id, "AI 洞察里提到了海边散步。", "平静", "test", Date.now())
+      .bind(id, "AI 总结里提到了海边散步。", "平静", "test", Date.now())
       .run();
 
     const context = await collectAskContext(db, "海边散步", ["entry-ai"]);
 
-    expect(context.evidence).toContain("AI 洞察里提到了海边散步");
+    expect(context.evidence).toContain("AI 总结里提到了海边散步");
     expect(context.evidence).not.toContain("这段原文不应进入证据");
     expect(context.citations[0]?.href).toBe(`/entries/${id}`);
   });

@@ -18,7 +18,7 @@ describe("listEntriesFiltered", () => {
 
     await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "片段A",
+      title: "短记录A",
       body: "海边散步",
       kind: "fragment",
       mood: 4,
@@ -48,12 +48,12 @@ describe("listEntriesFiltered", () => {
   });
 
   it("returns everything newest-first with an empty filter", async () => {
-    expect(await titles({})).toEqual(["草稿C", "笔记B", "片段A"]);
+    expect(await titles({})).toEqual(["草稿C", "笔记B", "短记录A"]);
   });
 
   it("filters by kind", async () => {
     expect(await titles({ kind: "note" })).toEqual(["笔记B"]);
-    expect(await titles({ kind: "fragment" })).toEqual(["片段A"]);
+    expect(await titles({ kind: "fragment" })).toEqual(["短记录A"]);
   });
 
   it("filters by mood", async () => {
@@ -61,7 +61,7 @@ describe("listEntriesFiltered", () => {
   });
 
   it("filters by tag via the entry_tags join", async () => {
-    expect(await titles({ tag: "旅行" })).toEqual(["笔记B", "片段A"]);
+    expect(await titles({ tag: "旅行" })).toEqual(["笔记B", "短记录A"]);
     expect(await titles({ tag: "家庭" })).toEqual(["草稿C", "笔记B"]);
   });
 
@@ -71,7 +71,7 @@ describe("listEntriesFiltered", () => {
 
   it("filters by person and relationship against the JSON arrays", async () => {
     expect(await titles({ person: "妈妈" })).toEqual(["笔记B"]);
-    expect(await titles({ person: "小林" })).toEqual(["笔记B", "片段A"]);
+    expect(await titles({ person: "小林" })).toEqual(["笔记B", "短记录A"]);
     expect(await titles({ relationship: "家人" })).toEqual(["笔记B"]);
   });
 

@@ -44,7 +44,7 @@ export async function runEntryInsightAction(
   if (result.summaryUpdated) {
     return {
       ok: true,
-      message: intent === "regenerate-entry-insight" ? "已重新生成洞察" : "已生成洞察",
+      message: intent === "regenerate-entry-insight" ? "已重新生成总结" : "已生成总结",
       model: result.model,
       durationMs: result.durationMs,
     };

@@ -127,7 +127,7 @@ function compactText(text: string): string {
 export function titleFromQuestion(question: string): string {
   const compact = compactText(question);
   if (compact.length <= ASK_TITLE_LIMIT) {
-    return compact || "新的探寻";
+    return compact || "新的问答";
   }
   return `${compact.slice(0, ASK_TITLE_LIMIT - 1)}…`;
 }
@@ -390,7 +390,7 @@ export async function getAskConversationExport(
 export function renderAskConversationMarkdown(exported: AskConversationExport): string {
   const { conversation, messages } = exported;
   const lines = [
-    `# ${conversation.title || "探寻会话"}`,
+    `# ${conversation.title || "问答会话"}`,
     "",
     `会话 ID：${conversation.id}`,
     `创建时间：${conversation.createdAt.toISOString()}`,
@@ -401,7 +401,7 @@ export function renderAskConversationMarkdown(exported: AskConversationExport): 
   ].filter(Boolean);
 
   for (const message of messages) {
-    const role = message.role === "user" ? "用户" : "微光";
+    const role = message.role === "user" ? "用户" : "Sillage";
     const branch = message.forkOfId ? `（分支自 ${message.forkOfId}）` : "";
     lines.push(`## ${role} · ${message.createdAt.toISOString()}${branch}`);
     lines.push("");
@@ -704,7 +704,7 @@ export async function selectAskBranch(
 }
 
 export async function renameAskConversation(db: Db, id: string, title: string): Promise<void> {
-  const nextTitle = compactText(title).slice(0, 80) || "新的探寻";
+  const nextTitle = compactText(title).slice(0, 80) || "新的问答";
   await touchConversation(db, id, { title: nextTitle });
 }
 
@@ -755,15 +755,15 @@ export async function saveAskMessageAsDraft(
   }
   const parent = message.parentId ? await getMessageRow(db, message.parentId) : null;
   const sources = parseSources(message.sources);
-  const title = titleFromQuestion(parent?.content ?? "探寻回答");
+  const title = titleFromQuestion(parent?.content ?? "AI 回答");
   const entryId = await createEntry(db, {
     entryDate: todayISO(),
-    title: `探寻：${title}`,
-    body: [`> ${parent?.content ?? "探寻回答"}`, "", message.content, sourcesMarkdown(sources)]
+    title: `问答：${title}`,
+    body: [`> ${parent?.content ?? "AI 回答"}`, "", message.content, sourcesMarkdown(sources)]
       .filter(Boolean)
       .join("\n"),
     kind: "draft",
-    tags: ["探寻"],
+    tags: ["问答"],
     metadata: {
       source: "ask",
       conversationId,

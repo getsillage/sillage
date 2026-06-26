@@ -42,18 +42,18 @@ type AskStreamEvent =
   | { type: "error"; message: string; durationMs?: number };
 
 const SOURCE_LABELS: Record<AskSourceType, string> = {
-  fragment: "片段",
+  fragment: "短记录",
   note: "笔记",
   draft: "草稿",
-  "entry-ai": "AI 洞察",
+  "entry-ai": "AI 总结",
   summary: "AI 总结",
 };
 
 const STARTER_PROMPTS = [
   "最近我反复提到什么？",
-  "这一周有哪些值得回看的瞬间？",
+  "这一周有哪些重要内容？",
   "我最近的状态有什么变化？",
-  "哪些小事后来反复出现了？",
+  "哪些事情反复出现了？",
 ] as const;
 
 const STREAM_FLUSH_INTERVAL_MS = 80;
@@ -459,9 +459,9 @@ function EmptyState({
 }) {
   return (
     <div className="mx-auto w-full max-w-2xl text-center">
-      <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">问问你的记忆</p>
+      <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">根据记录提问</p>
       <p className="mx-auto mt-2 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
-        像和 ChatGPT 对话一样追问你的记录。Sillage 会把回答锚回你留下过的片段、笔记和总结。
+        像和 ChatGPT 对话一样提问。Sillage 会基于你的短记录、笔记和总结回答。
       </p>
 
       <div className="mt-6 grid gap-2 sm:grid-cols-2">
@@ -482,7 +482,7 @@ function EmptyState({
           <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">搜索「{query}」</h2>
           {results.length === 0 ? (
             <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">
-              没有找到相关记忆。可以换一个词，或者直接把它作为问题问下去。
+              没有找到相关记录。可以换一个词，或者直接把它作为问题问下去。
             </p>
           ) : (
             <div className="mt-3 space-y-2">
@@ -500,7 +500,7 @@ function EmptyState({
               ))}
               <button
                 type="button"
-                onClick={() => onSuggestion(`围绕“${query}”，帮我整理相关记录里的线索。`)}
+                onClick={() => onSuggestion(`围绕“${query}”，帮我整理相关记录里的重点。`)}
                 className="mt-1 text-celadon-700 text-sm hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
               >
                 用这个搜索词继续提问
@@ -598,7 +598,7 @@ function Composer({
               </summary>
               <div className="absolute bottom-full left-0 z-20 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
                 <p className="px-2 pb-2 text-gray-400 text-xs dark:text-gray-500">
-                  选择本轮回答可检索的记忆来源
+                  选择本轮回答可使用的内容
                 </p>
                 <div className="grid gap-1">
                   {ASK_SOURCE_TYPES.map((type) => (
@@ -729,7 +729,7 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
         ) : (
           <div className="min-w-0">
             <h2 className="truncate font-medium text-gray-900 text-sm dark:text-gray-50">
-              {conversation.title || "新的探寻"}
+              {conversation.title || "新的问答"}
             </h2>
             <p className="text-gray-400 text-xs dark:text-gray-500">
               更新于 <LocalDateTime value={conversation.updatedAt} />

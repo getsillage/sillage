@@ -144,7 +144,7 @@ function renderMarkdown(payload: SillageBackupPayload): string {
     payload.askConversations.length > 0
       ? [
           "",
-          "# 探寻会话",
+          "# 问答会话",
           "",
           ...payload.askConversations.map((conversation) =>
             renderAskConversationMarkdown({

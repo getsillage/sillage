@@ -210,7 +210,7 @@ function entryEvidenceBlock(entry: EntryWithTags, selected: Set<AskSourceType>):
       : "",
     includeRawEntry ? truncate(entry.body, MAX_BODY_CHARS) : "",
     includeAiSummary && entry.summary
-      ? `AI 洞察：${truncate(entry.summary, MAX_AI_SUMMARY_CHARS)}`
+      ? `AI 总结：${truncate(entry.summary, MAX_AI_SUMMARY_CHARS)}`
       : "",
   ]
     .filter(Boolean)

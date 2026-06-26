@@ -27,7 +27,7 @@
 
 ## 阶段 2 — 外壳(左侧栏)
 
-- [ ] 桌面:左侧栏常驻(`w-56`),主区 `lg:pl-56` 让位;五室齐全且命名顺序不变(此刻/痕迹/照见/探寻/设置)
+- [ ] 桌面:左侧栏常驻(`w-56`),主区 `lg:pl-56` 让位;主导航为记录/历史/问答,设置在用户菜单中
 - [ ] 侧栏含 wordmark + tagline、内联 SVG 图标(**未引入图标库**)、底部 `ThemeToggle` + 退出
 - [ ] 选中态为 celadon 软底;闲置态为 muted + hover
 - [ ] 移动端(`<lg`):顶部条 + 汉堡 → 抽屉可开;点遮罩 / 按 Esc / 路由跳转 均能关闭
@@ -40,17 +40,17 @@
 ## 阶段 3 — 签名 + 核心页
 
 - [ ] `TraceThread` 组件存在,竖线 + 节点对齐;记忆回望节点为 clay 环且略大
-- [ ] `EntryCard` 去盒子(hairline / 线索行),标题宋体;`openOnCardClick`、键盘打开、chip 等行为不回归
-- [ ] 此刻(home):窄栏;宋体大标题 + 安静捕获区;副字段用 `SuggestedInput` 轻量触发(无大 `<select>`/宽按钮);"最近记录"走 `TraceThread`
-- [ ] 痕迹(timeline):宽栏;列表用痕迹线 + `EntryCard`;筛选 / ViewToggle 为轻量 + celadon active;"那年今日"为 clay
+- [ ] `EntryCard` 去盒子(hairline / 重点行),标题宋体;`openOnCardClick`、键盘打开、chip 等行为不回归
+- [ ] 记录(home):窄栏;宋体大标题 + 安静捕获区;副字段用 `SuggestedInput` 轻量触发(无大 `<select>`/宽按钮);"最近记录"走 `TraceThread`
+- [ ] 历史(timeline):宽栏;列表用历史线 + `EntryCard`;筛选 / ViewToggle 为轻量 + celadon active;"那年今日"为 clay
 - [ ] 明 + 暗 × 桌面 + 移动 下两页均正确
 
 `npm run typecheck && npm run lint && npm test`
 
 ## 阶段 4 — 聊天 + 阅读
 
-- [ ] 探寻(ask):用户气泡 sans(右)、Sillage 回答正文宋体(左)、引用来源为 celadon chip 且可跳转、底部贴底输入 + celadon 发送
-- [ ] 探寻**逻辑零回归**:发送 / SSE 流式 / 重生成 / 停止 / 分支 切换均正常
+- [ ] 问答(ask):用户气泡 sans(右)、Sillage 回答正文宋体(左)、引用来源为 celadon chip 且可跳转、底部贴底输入 + celadon 发送
+- [ ] 问答**逻辑零回归**:发送 / SSE 流式 / 重生成 / 停止 / 分支 切换均正常
 - [ ] entry 详情:窄栏,宋体标题 + `prose font-serif` 正文;编辑态(`EntryForm`)正常,CAS / 修订 / 附件不受影响
 - [ ] `EntryForm` / `QuickCapture` / `SuggestedInput` 换新令牌且交互不变
 - [ ] `Markdown` 复用 typography `prose`(未手写排版),暗色 `dark:prose-invert` 正常
@@ -59,7 +59,7 @@
 
 ## 阶段 5 — 收尾 + 走查
 
-- [ ] 照见 / 设置 / 登录 / 日历 / capture / new / notes 全部套用新外壳与宽度
+- [ ] 设置 / 登录 / 日历 / capture / new / notes 全部套用新外壳与宽度
 - [ ] 设置页多面板收敛为安静分组;AI 档案 / 测试连接等**逻辑不变**
 - [ ] `CalendarView` / `TimelineFilters` / `BackupSection` / `ai/*` / `insights/*` / `memory/*` 均已换肤
 - [ ] 全站暗色走查:无残留纯白 / 纯黑硬编码
@@ -73,7 +73,7 @@
 
 ## 最终验收(交付前)
 
-- [ ] 五条锁定决策全部体现(青·纸感 / 宋体内容 + 无衬线外壳 / 左侧栏窄栏 / 痕迹线 / 探寻才是聊天)
+- [ ] 五条锁定决策全部体现(青·纸感 / 宋体内容 + 无衬线外壳 / 左侧栏窄栏 / 历史线 / 问答才是聊天)
 - [ ] 与两张效果图([`mockups/`](./mockups/))观感一致
 - [ ] 无 `console.log` / 调试代码;无硬编码密钥
 - [ ] 全部通用门槛 + 各阶段项已勾选

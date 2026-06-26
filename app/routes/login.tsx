@@ -62,7 +62,7 @@ export default function Login({ actionData, loaderData }: Route.ComponentProps) 
           <AppVersionBadge badge={loaderData.appBadge} />
         </div>
         <p className="mt-0.5 font-serif text-gray-400 text-xs tracking-widest dark:text-gray-500">
-          记忆的余迹
+          个人记录
         </p>
         <p className={pageLeadClass}>输入密码以继续。</p>
 

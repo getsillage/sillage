@@ -20,7 +20,7 @@ export const summaryGenerateSchema = z
     if (!value.usePeriod && !value.useTopic) {
       ctx.addIssue({
         code: "custom",
-        message: "请至少选择时间范围或主题线索",
+        message: "请至少选择时间范围或主题关键词",
         path: ["scope"],
       });
       return;

@@ -112,7 +112,7 @@ function rangeFromEntries(
   return { startDate: entries[entries.length - 1].entryDate, endDate: entries[0].entryDate };
 }
 
-/** Runs summary intents from 探寻: generate / delete / regenerate a multi-entry summary. */
+/** Runs summary intents from 问答: generate / delete / regenerate a multi-entry summary. */
 export async function runSummaryAction(
   db: Db,
   form: FormData,

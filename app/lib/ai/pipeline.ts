@@ -70,7 +70,7 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   const startedAt = Date.now();
   let summary = await generateText(config, {
     system:
-      "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
+      "你是 Sillage 的总结功能。请用中文写一句清楚、具体、可追溯的短摘要，直接概括这条记录的主要内容，不要诊断，不要替用户下结论。",
     prompt,
     maxTokens: SUMMARY_MAX_TOKENS,
   });
@@ -78,7 +78,7 @@ export async function runAiPipeline(env: Env, entry: EntryWithTags): Promise<AiP
   if (!summary.skipped && summary.truncated) {
     summary = await generateText(config, {
       system:
-        "你是 Sillage 的洞察层。请用中文写一句克制、具体、可追溯的短摘要，先说记录里留下了什么，不要诊断，不要替用户下结论。",
+        "你是 Sillage 的总结功能。请用中文写一句清楚、具体、可追溯的短摘要，直接概括这条记录的主要内容，不要诊断，不要替用户下结论。",
       prompt: `${prompt}\n\n【生成要求】\n上一次输出达到长度上限。请重新生成一句完整短摘要，确保句子结束。`,
       maxTokens: SUMMARY_RETRY_MAX_TOKENS,
     });

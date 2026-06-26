@@ -145,7 +145,7 @@ describe("Sillage backup export", () => {
 
   it("exports ask conversations in JSON and Markdown backups", async () => {
     const run = await beginAskSend(db, {
-      question: "最近有什么线索？",
+      question: "最近有什么重点？",
       sourceTypes: ["fragment"],
     });
     await completeAskAssistantMessage(db, {
@@ -161,11 +161,11 @@ describe("Sillage backup export", () => {
     const payload = await jsonObject?.json<{
       askConversations: Array<{ title: string; messages: Array<{ content: string }> }>;
     }>();
-    expect(payload?.askConversations[0]?.title).toContain("最近有什么线索");
+    expect(payload?.askConversations[0]?.title).toContain("最近有什么重点");
     expect(payload?.askConversations[0]?.messages.at(-1)?.content).toBe("你反复提到散步和早睡。");
 
     const markdown = (await (await env.BLOBS.get(result.markdownKey))?.text()) ?? "";
-    expect(markdown).toContain("# 探寻会话");
+    expect(markdown).toContain("# 问答会话");
     expect(markdown).toContain("你反复提到散步和早睡。");
   });
 });

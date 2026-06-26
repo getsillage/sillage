@@ -44,7 +44,7 @@ function friendlyReason(reason?: string): string {
   return `未能回答：${reason}`;
 }
 
-/** Runs the "探寻" intent: builds evidence from the user's own records and answers. */
+/** Runs the "问答" intent: builds evidence from the user's own records and answers. */
 export async function runAskAction(db: Db, form: FormData): Promise<AskActionData> {
   const question = String(form.get("question") ?? "").trim();
   if (!question) {

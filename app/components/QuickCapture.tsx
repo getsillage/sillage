@@ -11,7 +11,7 @@ interface CaptureResult {
 /**
  * Global quick-capture: a floating button (and ⌘/Ctrl+J) that opens a compact
  * composer reachable from any page. Posts a fragment to the action-only `/capture`
- * route via a fetcher, so it never navigates away; "写得更完整" jumps to 此刻 for the
+ * route via a fetcher, so it never navigates away; "写得更完整" jumps to 记录 for the
  * full editor.
  */
 export function QuickCapture() {
@@ -75,7 +75,7 @@ export function QuickCapture() {
                 name="body"
                 rows={4}
                 required
-                placeholder="此刻留下些什么？"
+                placeholder="想记录什么？"
                 className={textareaClass}
               />
               {fetcher.data && !fetcher.data.ok ? (
@@ -94,7 +94,7 @@ export function QuickCapture() {
                   disabled={busy}
                   className={`${primaryButtonClass} w-full sm:w-auto`}
                 >
-                  {busy ? "保存中…" : "留下"}
+                  {busy ? "保存中…" : "保存"}
                 </button>
               </div>
             </fetcher.Form>

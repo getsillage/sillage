@@ -19,7 +19,7 @@ import { type EntryWithTags, listEntries } from "~/lib/db/entries";
 import type { Route } from "./+types/timeline";
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "痕迹 · Sillage" }];
+  return [{ title: "历史 · Sillage" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -112,8 +112,8 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
       <section className={pageSectionClass}>
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className={pageTitleClass}>痕迹</h1>
-            <p className={pageLeadClass}>片段和笔记按时间混排，保留生活流本来的形状。</p>
+            <h1 className={pageTitleClass}>历史</h1>
+            <p className={pageLeadClass}>按时间查看短记录和笔记。</p>
           </div>
           <ViewToggle view={loaderData.view} />
         </header>

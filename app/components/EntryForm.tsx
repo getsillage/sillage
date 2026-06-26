@@ -42,7 +42,7 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
       <MarkdownEditor
         name="body"
         defaultValue={defaults?.body ?? ""}
-        placeholder="写下此刻想留下的内容…"
+        placeholder="写下想记录的内容…"
       />
 
       {error ? <p className="text-red-600 text-sm dark:text-red-400">{error}</p> : null}

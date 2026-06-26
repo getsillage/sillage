@@ -35,8 +35,8 @@
 **目标**:顶部导航 → 左侧栏;移动端降级为顶部条 + 抽屉。
 
 ### 2.1 新增 [`app/components/Sidebar.tsx`](../../app/components/Sidebar.tsx)
-- 从 [`app/routes/app-layout.tsx`](../../app/routes/app-layout.tsx) 抽出导航,做成纵向五室:此刻 `/` · 痕迹 `/timeline` · 照见 `/review` · 探寻 `/ask` · 设置 `/settings`(命名 / 顺序不变)。
-- 顶部 wordmark(Palatino 斜体 "Sillage" + 宋体 tagline「记忆的余迹」)。
+- 从 [`app/routes/app-layout.tsx`](../../app/routes/app-layout.tsx) 抽出导航,做成纵向三项主导航:记录 `/` · 历史 `/timeline` · 问答 `/ask`。设置保留在用户菜单中,旧路径 `/review` 仅重定向到 `/ask`。
+- 顶部 wordmark(Palatino 斜体 "Sillage" + 宋体 tagline「个人记录」)。
 - 每项配**小图标**:用内联 SVG(项目当前无图标库,**勿为此引依赖**);保持 16–18px、`currentColor`。
 - 选中态 / 闲置态见 [附录 A1](#a1-左侧栏外壳)。
 - 底部区:`ThemeToggle` + 退出 `Form`(沿用现有 `action="/logout"`)。
@@ -47,7 +47,7 @@
 - 保留 `loader` 的 `requireSession` 与底部 `<QuickCapture />` 挂载,**不动**。
 
 ### 2.3 [`app/components/ThemeToggle.tsx`](../../app/components/ThemeToggle.tsx)
-- **逻辑保持不变**(localStorage、`.dark`、system 跟随)。只重塑按钮外观以适配侧栏底部(更克制,hairline / celadon hover)。
+- **逻辑保持不变**(localStorage、`.dark`、system 跟随)。只重塑按钮外观以适配侧栏底部(更清楚,hairline / celadon hover)。
 
 > 验证:侧栏在桌面常驻、移动端抽屉可开合;键盘可达(Tab / Enter / Esc 关抽屉);明暗两色正常;`typecheck && lint && test`。
 
@@ -56,37 +56,37 @@
 ## 阶段 3 — 签名 + 核心页
 
 ### 3.1 新增 [`app/components/TraceThread.tsx`](../../app/components/TraceThread.tsx)
-- 通用"痕迹线"容器:竖线 + 节点插槽,支持普通节点与"记忆回望"节点(clay 环)。规格见 design-system §5.3 与 [附录 A2](#a2-痕迹线)。
-- 设计成接收 `children`(节点行)或一个 `entries` + 渲染函数,供 此刻 与 痕迹 复用。保持小而专。
+- 通用"历史线"容器:竖线 + 节点插槽,支持普通节点与"记忆回望"节点(clay 环)。规格见 design-system §5.3 与 [附录 A2](#a2-历史线)。
+- 设计成接收 `children`(节点行)或一个 `entries` + 渲染函数,供 记录 与 历史 复用。保持小而专。
 
 ### 3.2 [`app/components/EntryCard.tsx`](../../app/components/EntryCard.tsx)
-- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 线索节点行。标题改 `serifTitleClass`;元信息行(时间、kind、mood、location)保持 sans + faint。
-- 标签 / 人物 / 关系 chip 用 design-system §5.2;`EntryInsightControl` 洞察块改 celadon 软底。
+- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 重点节点行。标题改 `serifTitleClass`;元信息行(时间、kind、mood、location)保持 sans + faint。
+- 标签 / 人物 / 关系 chip 用 design-system §5.2;`EntryInsightControl` 总结块改 celadon 软底。
 - 保留交互逻辑(`openOnCardClick`、键盘处理、`navigate`)与 props 形态,仅换类名与结构层级。
 
-### 3.3 [`app/routes/home.tsx`](../../app/routes/home.tsx)(此刻)
+### 3.3 [`app/routes/home.tsx`](../../app/routes/home.tsx)(记录)
 - 改 `readingShellClass`。
-- 顶部:日期 eyebrow(sans/faint)+ 宋体大标题「今天留下些什么？」+ 斜体英文副题(沿用现有 What lingers today?)。
-- 捕获:把大表单收成**安静输入区**(参考 [附录 A4](#a4-此刻-捕获));副字段(心情 / 地点 / 人物)用既有 `SuggestedInput` 的轻量触发(CLAUDE.md 既定模式),**不要**大 `<select>` / 宽按钮。
-- 弱化右侧四面板:今日片段 / 笔记 / 草稿 / 洞察改为标题下的安静分组或合并;「最近记录」改用 `TraceThread` 渲染。
-- 「那年今日」用 clay 节点融入痕迹线或独立安静块。
+- 顶部:日期 eyebrow(sans/faint)+ 宋体大标题「今天想记录什么？」+ 简短说明「写下今天发生的事、想法或感受。」。
+- 捕获:把大表单收成**安静输入区**(参考 [附录 A4](#a4-记录-捕获));副字段(心情 / 地点 / 人物)用既有 `SuggestedInput` 的轻量触发(CLAUDE.md 既定模式),**不要**大 `<select>` / 宽按钮。
+- 弱化右侧四面板:今日短记录 / 笔记 / 草稿 / 总结改为标题下的安静分组或合并;「最近记录」改用 `TraceThread` 渲染。
+- 「那年今日」用 clay 节点融入历史线或独立安静块。
 - 保留 `loader`/`action`/`scheduleEntryInsight` 等逻辑不变。
 
-### 3.4 [`app/routes/timeline.tsx`](../../app/routes/timeline.tsx)(痕迹)
-- 改 `wideShellClass`。列表视图主体用 `TraceThread` + `EntryCard`(线索版)。
+### 3.4 [`app/routes/timeline.tsx`](../../app/routes/timeline.tsx)(历史)
+- 改 `wideShellClass`。列表视图主体用 `TraceThread` + `EntryCard`(重点版)。
 - 左侧筛选 `aside` 与 `TimelineFilters` 改轻量(hairline、celadon active)。`ViewToggle`(列表 / 日历)改 celadon active。
 - 「那年今日」`OnThisDay` 用 clay 令牌。日历视图见阶段 5。
 
-> 验证:此刻 / 痕迹 在明暗 + 桌面移动下,痕迹线对齐、节点 / 回望节点正确、宋体标题生效;`typecheck && lint && test`。
+> 验证:记录 / 历史 在明暗 + 桌面移动下,历史线对齐、节点 / 回望节点正确、宋体标题生效;`typecheck && lint && test`。
 
 ---
 
 ## 阶段 4 — 聊天 + 阅读
 
-### 4.1 [`app/routes/ask.tsx`](../../app/routes/ask.tsx) + [`app/components/AskPanel.tsx`](../../app/components/AskPanel.tsx)(探寻)
+### 4.1 [`app/routes/ask.tsx`](../../app/routes/ask.tsx) + [`app/components/AskPanel.tsx`](../../app/components/AskPanel.tsx)(问答)
 - AskPanel 较大(重设计时约 33K),**先 Read 通读**再改;只换外观,**不动** SSE 流式 / 分支 / 重生成 / 停止等逻辑。
-- 目标形态(见 [附录 A3](#a3-探寻-聊天)):用户消息 = sans 气泡(右,`bg-white` + hairline);**Sillage 回答正文 = 宋体**(左,头像用 celadon 软底圆点);**引用来源**渲染为 celadon 软底 chip(链接到对应 entry);底部贴底输入条(`bg-white` + hairline + celadon 发送按钮)。
-- 加分项(可选):把"最近对话"列表放进左侧栏的探寻区(类 ChatGPT 历史);非必须。
+- 目标形态(见 [附录 A3](#a3-问答-聊天)):用户消息 = sans 气泡(右,`bg-white` + hairline);**Sillage 回答正文 = 宋体**(左,头像用 celadon 软底圆点);**引用来源**渲染为 celadon 软底 chip(链接到对应 entry);底部贴底输入条(`bg-white` + hairline + celadon 发送按钮)。
+- 加分项(可选):把"最近对话"列表放进左侧栏的问答区(类 ChatGPT 历史);非必须。
 - 容器宽度 `readingShellClass`。
 
 ### 4.2 [`app/routes/entry.tsx`](../../app/routes/entry.tsx)(详情 / 编辑)
@@ -99,14 +99,14 @@
 - [`app/components/SuggestedInput.tsx`](../../app/components/SuggestedInput.tsx):输入框 celadon 焦点;建议浮层用 `bg-white` + hairline + 极轻阴影;选中项 celadon 软底。
 - [`app/components/Markdown.tsx`](../../app/components/Markdown.tsx)(及 `LazyMarkdown` / `MarkdownEditor`):复用 `prose prose-stone font-serif dark:prose-invert`(design-system §5.1),勿手写排版。
 
-> 验证:探寻完整走一轮(发送 / 流式 / 引用跳转 / 停止)外观正确且逻辑不回归;entry 阅读 / 编辑明暗正常;`typecheck && lint && test`。
+> 验证:问答完整走一轮(发送 / 流式 / 引用跳转 / 停止)外观正确且逻辑不回归;entry 阅读 / 编辑明暗正常;`typecheck && lint && test`。
 
 ---
 
 ## 阶段 5 — 收尾 + 走查
 
 ### 5.1 其余路由
-- [`app/routes/review.tsx`](../../app/routes/review.tsx)(照见):`readingShellClass`;总结卡去盒子化,宋体标题 + 安静分组。
+- [`app/routes/review.tsx`](../../app/routes/review.tsx):旧路径仅重定向到 `/ask`,不作为独立页面设计。
 - [`app/routes/settings.tsx`](../../app/routes/settings.tsx):较大(约 23K),**先 Read**;把众多面板收敛为**安静分组**(hairline 分隔,少边框);AI 档案 / 测试连接等交互**逻辑不变**,只换皮。`wideShellClass`。
 - [`app/routes/login.tsx`](../../app/routes/login.tsx):居中纸感卡片 + wordmark,celadon 主按钮;限流 / 安全逻辑不动。
 - [`app/routes/calendar.tsx`](../../app/routes/calendar.tsx) + [`app/components/CalendarView.tsx`](../../app/components/CalendarView.tsx):纸感网格,当日 celadon、有记录的日子用低对比标记;`wideShellClass`。
@@ -130,13 +130,13 @@
 - 全程引用 [`app/components/ui.ts`](../../app/components/ui.ts) 令牌,勿散落原始类 / hex。
 - 长正文用**已装的** `@tailwindcss/typography`(`prose`)。
 - 捕获 / 表单副字段用既有 [`SuggestedInput`](../../app/components/SuggestedInput.tsx)。
-- [`EntryCard`](../../app/components/EntryCard.tsx) 跨 此刻 / 痕迹 共用;痕迹线用单一 `TraceThread`。
+- [`EntryCard`](../../app/components/EntryCard.tsx) 跨 记录 / 历史 共用;历史线用单一 `TraceThread`。
 - 暗色沿用 `.dark` + `dark:` 变体;[`ThemeToggle`](../../app/components/ThemeToggle.tsx) 逻辑原样保留。
 - 侧栏图标用内联 SVG,**不引图标库**。
 
 ---
 
-## 附录 A — 参考结构片段
+## 附录 A — 参考结构短记录
 
 > 仅为结构与类名参考(Tailwind 类基于新令牌)。实施时按各组件真实 props / 数据适配;`navItem` 等为示意函数。
 
@@ -148,11 +148,11 @@
   <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-gray-200 bg-white px-3 py-5 lg:flex dark:border-gray-800 dark:bg-gray-900">
     <Link to="/" className="px-2 pb-5">
       <span className="text-xl italic" style={{ fontFamily: "Palatino, serif" }}>Sillage</span>
-      <span className="mt-0.5 block font-serif text-[11px] tracking-widest text-gray-400">记忆的余迹</span>
+      <span className="mt-0.5 block font-serif text-[11px] tracking-widest text-gray-400">个人记录</span>
     </Link>
     <nav className="flex flex-col gap-0.5 text-sm">
-      <NavLink to="/" end className={navItem}>{/* icon */}此刻</NavLink>
-      {/* 痕迹 /timeline · 照见 /review · 探寻 /ask · 设置 /settings */}
+      <NavLink to="/" end className={navItem}>{/* icon */}记录</NavLink>
+      {/* 历史 /timeline · 问答 /ask */}
     </nav>
     <div className="mt-auto flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-800">
       <ThemeToggle />
@@ -174,7 +174,7 @@ const navItem = ({ isActive }) =>
     : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100");
 ```
 
-### A2. 痕迹线
+### A2. 历史线
 
 ```tsx
 <ol className="relative pl-6">
@@ -193,7 +193,7 @@ const navItem = ({ isActive }) =>
 </ol>
 ```
 
-### A3. 探寻 聊天
+### A3. 问答 聊天
 
 ```tsx
 {/* 用户:sans 气泡(右) */}
@@ -222,20 +222,20 @@ const navItem = ({ isActive }) =>
 </div>
 ```
 
-### A4. 此刻 捕获
+### A4. 记录 捕获
 
 ```tsx
 <header className="mb-5">
   <p className="text-xs tracking-wide text-gray-400">{today}</p>
-  <h1 className="mt-1.5 font-serif text-2xl text-gray-900 sm:text-3xl dark:text-gray-50">今天留下些什么？</h1>
-  <p className="mt-0.5 text-sm italic text-gray-400" style={{ fontFamily: "Palatino, serif" }}>What lingers today?</p>
+  <h1 className="mt-1.5 font-serif text-2xl text-gray-900 sm:text-3xl dark:text-gray-50">今天想记录什么？</h1>
+  <p className="mt-0.5 text-sm text-gray-400">写下今天发生的事、想法或感受。</p>
 </header>
 
 <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-  <textarea className="block w-full resize-none bg-transparent font-serif text-[15px] outline-none placeholder:text-gray-400" placeholder="记下此刻……" />
+  <textarea className="block w-full resize-none bg-transparent font-serif text-[15px] outline-none placeholder:text-gray-400" placeholder="记下记录……" />
   <div className="mt-5 flex items-center gap-2">
     {/* 心情 / 地点 / 人物:SuggestedInput 轻量触发 */}
-    <button className={primaryButtonClass + " ml-auto"}>留下</button>
+    <button className={primaryButtonClass + " ml-auto"}>保存</button>
   </div>
 </div>
 ```

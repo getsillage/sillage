@@ -125,12 +125,12 @@ describe("ask routes", () => {
 
   it("loads saved ask conversations and saves an answer as a draft", async () => {
     const run = await beginAskSend(db, {
-      question: "这段要不要留下？",
+      question: "这段要不要保存？",
       sourceTypes: ["fragment"],
     });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
-      content: "值得留下，之后可以整理成一条草稿。",
+      content: "值得保存，之后可以整理成一条草稿。",
       sources: [],
       model: "test",
       durationMs: 1,
@@ -161,6 +161,6 @@ describe("ask routes", () => {
     expect(result).toMatchObject({ ok: true, message: "已保存为草稿" });
 
     const conversation = await getAskConversation(db, run.conversation.id);
-    expect(conversation?.messages.at(-1)?.content).toContain("值得留下");
+    expect(conversation?.messages.at(-1)?.content).toContain("值得保存");
   });
 });

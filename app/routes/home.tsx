@@ -108,17 +108,15 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
       <section className={pageSectionClass}>
         <header>
           <p className="text-gray-400 text-xs tracking-wide dark:text-gray-500">{today}</p>
-          <h1 className={`mt-1.5 ${pageTitleClass}`}>今天留下些什么？</h1>
-          <p className={`${pageLeadClass} italic [font-family:Palatino,'Iowan_Old_Style',serif]`}>
-            What lingers today?
-          </p>
+          <h1 className={`mt-1.5 ${pageTitleClass}`}>今天想记录什么？</h1>
+          <p className={pageLeadClass}>写下今天发生的事、想法或感受。</p>
         </header>
 
         <section className={`${panelClass} rounded-xl p-4 sm:p-5`}>
           <EntryForm
             error={actionData?.error}
             defaults={actionData?.values ?? defaults}
-            submitLabel="留下"
+            submitLabel="保存"
           />
         </section>
 
@@ -131,7 +129,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className={`text-sm tracking-[0.16em] ${serifTitleClass}`}>最近的痕迹</h2>
+            <h2 className={`text-sm tracking-[0.16em] ${serifTitleClass}`}>最近的历史</h2>
             <Link
               to="/timeline"
               className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
@@ -143,7 +141,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             <div
               className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
             >
-              还没有留下什么。可以从一个瞬间开始。
+              还没有记录。可以先写一条短记录。
             </div>
           ) : (
             <TraceThread>

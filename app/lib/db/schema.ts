@@ -231,7 +231,7 @@ export const summaries = sqliteTable(
 );
 
 /**
- * Persistent "探寻" conversations. The current visible branch is represented by
+ * Persistent "问答" conversations. The current visible branch is represented by
  * `headMessageId`: loading the conversation walks that message's ancestors to
  * render one linear path through the message tree. Older sibling branches remain
  * stored and can be selected later.
@@ -261,7 +261,7 @@ export const askConversations = sqliteTable(
 );
 
 /**
- * Message tree for "探寻" conversations. `parentId` forms the visible branch
+ * Message tree for "问答" conversations. `parentId` forms the visible branch
  * chain; `forkOfId` records which sibling a regenerated/edited message branched
  * from, so the UI can explain where a branch came from without mutating history.
  */

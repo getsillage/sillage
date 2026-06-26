@@ -2,7 +2,32 @@
   <img src="./public/sillage-icon.svg" alt="Sillage" width="96" height="96">
 </p>
 
-# Sillage · Cloudflare Workers
+# Sillage
+
+> 迁移中：仓库正在按 [`docs/migration/memos-style-self-hosted-plan.md`](docs/migration/memos-style-self-hosted-plan.md)
+> 从 Cloudflare Workers 架构迁移到 memos 风格的 Go 自托管单体。旧 Workers 运行路径暂时保留，新的 Go
+> 运行路径会按里程碑逐步替换它。
+
+## Go 自托管迁移开发
+
+当前已建立第一阶段 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz` 和
+`/readyz`。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定
+`SILLAGE_DATA`。
+
+```bash
+go test ./...
+go vet ./...
+go build ./cmd/sillage
+
+SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
+curl http://localhost:5231/healthz
+curl http://localhost:5231/readyz
+```
+
+生成的本地数据目录包含 `sillage.db`、`assets/attachments/`、`.thumbnail_cache/` 和 `runtime/`。
+本迁移不导入旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
+
+# Sillage · Cloudflare Workers（旧运行路径）
 
 Sillage 是一个完全运行在 Cloudflare 边缘平台上的**单用户个人记录空间**。它用于保存每天发生的事、想法和感受，也可以根据记录生成可追溯的总结。
 

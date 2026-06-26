@@ -288,9 +288,11 @@ func optionalTime(value sql.NullInt64) any {
 }
 
 type syncCursor struct {
-	Memo       store.SyncCursorPosition `json:"memo"`
-	Attachment store.SyncCursorPosition `json:"attachment"`
-	MemoAI     store.SyncCursorPosition `json:"memoAi"`
+	Memo            store.SyncCursorPosition `json:"memo"`
+	Attachment      store.SyncCursorPosition `json:"attachment"`
+	MemoAI          store.SyncCursorPosition `json:"memoAi"`
+	AskConversation store.SyncCursorPosition `json:"askConversation"`
+	AskMessage      store.SyncCursorPosition `json:"askMessage"`
 }
 
 func decodeSyncCursor(raw string) syncCursor {

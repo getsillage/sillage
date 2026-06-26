@@ -67,6 +67,24 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "同步读取失败")
 	}
+	askConversations, err := s.Store.ListAskConversationsForSync(c.Request().Context(), &store.ListAskSyncOptions{
+		AccountID:      account.ID,
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.AskConversation.UpdatedAt,
+		UpdatedAfterID: cursor.AskConversation.ID,
+	})
+	if err != nil {
+		return apiError(c, http.StatusInternalServerError, "internal", "同步读取失败")
+	}
+	askMessages, err := s.Store.ListAskMessagesForSync(c.Request().Context(), &store.ListAskSyncOptions{
+		AccountID:      account.ID,
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.AskMessage.UpdatedAt,
+		UpdatedAfterID: cursor.AskMessage.ID,
+	})
+	if err != nil {
+		return apiError(c, http.StatusInternalServerError, "internal", "同步读取失败")
+	}
 	memoHasMore := len(memos) > limit
 	if memoHasMore {
 		memos = memos[:limit]
@@ -78,6 +96,14 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 	memoAIHasMore := len(memoAI) > limit
 	if memoAIHasMore {
 		memoAI = memoAI[:limit]
+	}
+	askConversationHasMore := len(askConversations) > limit
+	if askConversationHasMore {
+		askConversations = askConversations[:limit]
+	}
+	askMessageHasMore := len(askMessages) > limit
+	if askMessageHasMore {
+		askMessages = askMessages[:limit]
 	}
 	if len(memos) > 0 {
 		last := memos[len(memos)-1]
@@ -91,13 +117,23 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 		last := memoAI[len(memoAI)-1]
 		cursor.MemoAI = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.MemoID}
 	}
+	if len(askConversations) > 0 {
+		last := askConversations[len(askConversations)-1]
+		cursor.AskConversation = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	if len(askMessages) > 0 {
+		last := askMessages[len(askMessages)-1]
+		cursor.AskMessage = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
 	return c.JSON(http.StatusOK, map[string]any{
-		"memos":       memoDTOs(memos),
-		"attachments": attachmentDTOs(attachments),
-		"memoAi":      memoAIDTOs(memoAI),
-		"cursor":      encodeSyncCursor(cursor),
-		"nextCursor":  encodeSyncCursor(cursor),
-		"hasMore":     memoHasMore || attachmentHasMore || memoAIHasMore,
+		"memos":            memoDTOs(memos),
+		"attachments":      attachmentDTOs(attachments),
+		"memoAi":           memoAIDTOs(memoAI),
+		"askConversations": askConversationDTOs(askConversations),
+		"askMessages":      askMessageDTOs(askMessages),
+		"cursor":           encodeSyncCursor(cursor),
+		"nextCursor":       encodeSyncCursor(cursor),
+		"hasMore":          memoHasMore || attachmentHasMore || memoAIHasMore || askConversationHasMore || askMessageHasMore,
 	})
 }
 

@@ -151,6 +151,35 @@ WHERE creator_id = ?`
 	return memos, nil
 }
 
+func (s *Store) ListRecentMemos(ctx context.Context, accountID string, limit int) ([]*Memo, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.driver.GetDB().QueryContext(ctx, `
+SELECT id, creator_id, content, entry_date, version, pinned_at, archived_at, created_at, updated_at, deleted_at
+FROM memo
+WHERE creator_id = ? AND deleted_at IS NULL
+ORDER BY entry_date DESC, created_at DESC, id DESC
+LIMIT ?`, accountID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent memos: %w", err)
+	}
+	defer rows.Close()
+
+	var memos []*Memo
+	for rows.Next() {
+		memo, err := scanMemo(rows)
+		if err != nil {
+			return nil, err
+		}
+		memos = append(memos, memo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent memos: %w", err)
+	}
+	return memos, nil
+}
+
 func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, error) {
 	current, err := s.GetMemo(ctx, update.CreatorID, update.ID, true)
 	if err != nil {

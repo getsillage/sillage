@@ -11,8 +11,10 @@
 ## Go 自托管迁移开发
 
 当前已建立 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz`、`/readyz`
-以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、附件上传下载、`/api/v1/sync` 和 `/api/v1/sync:push`
-的基础 REST 端点。AI 设置已支持 profile 保存和 API key envelope 加密，单条 memo 可生成本地占位总结并进入 sync。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档和附件上传插入 Markdown 链接。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
+以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、附件上传下载、Ask 会话 / 消息、`/api/v1/sync`
+和 `/api/v1/sync:push` 的基础 REST 端点。AI 设置已支持 profile 保存和 API key envelope 加密，单条 memo
+可生成本地占位总结并进入 sync；Ask 当前可基于最近 7 天、最近 30 天或全部记录生成带来源引用的本地占位回答，并同步
+`askConversations` / `askMessages`。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档、附件上传插入 Markdown 链接和基础问答工作台。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
 
 ```bash
 go test ./...

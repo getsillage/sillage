@@ -33,6 +33,43 @@ export type Attachment = {
   sha256: string | null;
 };
 
+export type AskContextScope = "recent_7_days" | "recent_30_days" | "all";
+
+export type AskConversation = {
+  id: string;
+  title: string;
+  status: string;
+  contextScope: AskContextScope;
+  headMessageId: string | null;
+  pinnedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type AskSourceRef = {
+  memoId: string;
+  entryDate: string;
+  excerpt: string;
+  rank: number;
+};
+
+export type AskMessage = {
+  id: string;
+  conversationId: string;
+  role: "user" | "assistant";
+  content: string;
+  parentId: string | null;
+  forkOfId: string | null;
+  status: string;
+  sourceRefs: AskSourceRef[];
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
 export async function getBootstrap(): Promise<{ initialized: boolean }> {
   return request("/api/v1/auth/bootstrap");
 }
@@ -149,6 +186,46 @@ export async function uploadAttachment(
     method: "POST",
     headers: authHeaders(accessToken),
     body,
+  });
+}
+
+export async function listAskConversations(
+  accessToken: string,
+): Promise<{ conversations: AskConversation[] }> {
+  return request("/api/v1/ask/conversations?limit=50", {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function createAskConversation(
+  accessToken: string,
+  input: { title?: string; contextScope: AskContextScope },
+): Promise<{ conversation: AskConversation }> {
+  return request("/api/v1/ask/conversations", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listAskMessages(
+  accessToken: string,
+  conversationId: string,
+): Promise<{ messages: AskMessage[] }> {
+  return request(`/api/v1/ask/conversations/${conversationId}/messages`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function createAskMessage(
+  accessToken: string,
+  conversationId: string,
+  input: { content: string; contextScope: AskContextScope },
+): Promise<{ messages: AskMessage[] }> {
+  return request(`/api/v1/ask/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
   });
 }
 

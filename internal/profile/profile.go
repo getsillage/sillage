@@ -23,6 +23,7 @@ type Profile struct {
 	Data        string
 	Driver      string
 	DSN         string
+	MaxUploadMB int
 	InstanceURL string
 	LogFormat   string
 	LogLevel    string
@@ -38,6 +39,9 @@ func (p *Profile) Validate() error {
 	}
 	if p.Driver != DriverSQLite {
 		return fmt.Errorf("unsupported database driver %q", p.Driver)
+	}
+	if p.MaxUploadMB <= 0 {
+		p.MaxUploadMB = 30
 	}
 
 	dataDir, err := chooseDataDir(p.Data)

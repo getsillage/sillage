@@ -37,6 +37,40 @@ curl http://localhost:5231/api/v1/auth/bootstrap
 `runtime/secrets.json`。
 本迁移不导入旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
 
+## Docker 自托管
+
+Docker 是新自托管版本的主部署方式。镜像内只提供 HTTP 服务，默认监听 `5231`，所有持久数据放在
+`/var/opt/sillage`：
+
+```bash
+docker build -t sillage:latest -f scripts/Dockerfile .
+docker run --rm -p 5231:5231 -v "$HOME/.sillage:/var/opt/sillage" sillage:latest
+```
+
+也可以使用 compose：
+
+```bash
+docker compose -f scripts/compose.yaml up -d --build sillage
+docker compose -f scripts/compose.yaml logs -f sillage
+```
+
+首次访问 `http://localhost:5231` 会进入创建唯一账号页面。`SESSION_SECRET` 和 `ENCRYPTION_SECRET`
+可以省略；首次启动会生成到 `/var/opt/sillage/runtime/secrets.json`。如需用 Docker secrets 或文件注入，可设置
+`SILLAGE_DSN_FILE`、`SESSION_SECRET_FILE` 或 `ENCRYPTION_SECRET_FILE`。
+
+Cloudflare Tunnel 可使用 compose profile：
+
+```bash
+CLOUDFLARED_TOKEN=... docker compose -f scripts/compose.yaml --profile tunnel up -d
+```
+
+Tunnel 的服务地址指向 `http://sillage:5231`。如果使用 Nginx、Caddy 或其他反向代理，由外层负责 TLS，并转发
+`X-Forwarded-Proto`、`X-Forwarded-Host` 和 `X-Forwarded-For`；需要固定外部地址时设置
+`SILLAGE_INSTANCE_URL`。
+
+当前迁移版不提供内置备份、备份 UI、定时备份或导出 CLI。备份时请停止容器后复制整个数据目录，不要只复制
+`sillage.db`，因为同一目录还包含 SQLite WAL/SHM、附件、缩略图缓存和运行时 secret。
+
 # Sillage · Cloudflare Workers（旧运行路径）
 
 Sillage 是一个完全运行在 Cloudflare 边缘平台上的**单用户个人记录空间**。它用于保存每天发生的事、想法和感受，也可以根据记录生成可追溯的总结。

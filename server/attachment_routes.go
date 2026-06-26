@@ -214,6 +214,9 @@ func (s *Server) safeStoragePath(storageRef string) (string, error) {
 }
 
 func (s *Server) maxUploadBytes() int64 {
+	if s.Profile != nil && s.Profile.MaxUploadMB > 0 {
+		return int64(s.Profile.MaxUploadMB) << 20
+	}
 	return defaultMaxUploadBytes
 }
 

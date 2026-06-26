@@ -1,0 +1,28 @@
+services:
+  sillage:
+    image: sillage:latest
+    build:
+      context: ..
+      dockerfile: scripts/Dockerfile
+    container_name: sillage
+    restart: unless-stopped
+    ports:
+      - "${SILLAGE_HOST_PORT:-5231}:5231"
+    volumes:
+      - ~/.sillage:/var/opt/sillage
+    environment:
+      SILLAGE_ADDR: "0.0.0.0"
+      SILLAGE_PORT: "5231"
+      SILLAGE_DATA: "/var/opt/sillage"
+      SILLAGE_MAX_UPLOAD_MB: "30"
+      SILLAGE_LOG_FORMAT: "json"
+      SILLAGE_LOG_LEVEL: "info"
+      # SESSION_SECRET and ENCRYPTION_SECRET are optional.
+      # When omitted, Sillage generates and persists them on first start.
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-}
+    depends_on:
+      - sillage

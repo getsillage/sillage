@@ -23,6 +23,9 @@ func TestValidateCreatesExplicitDataLayout(t *testing.T) {
 	if p.DSN != filepath.Join(data, DefaultSQLiteFile) {
 		t.Fatalf("DSN = %q, want default database inside data dir", p.DSN)
 	}
+	if p.MaxUploadMB != 30 {
+		t.Fatalf("MaxUploadMB = %d, want 30", p.MaxUploadMB)
+	}
 
 	for _, rel := range []string{"assets/attachments", ".thumbnail_cache", "runtime"} {
 		if info, err := os.Stat(filepath.Join(data, rel)); err != nil || !info.IsDir() {

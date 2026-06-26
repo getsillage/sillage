@@ -42,6 +42,7 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentFlags().String("data", "", "data directory")
 	cmd.PersistentFlags().String("dsn", "", "SQLite database path")
 	cmd.PersistentFlags().String("driver", profile.DriverSQLite, "database driver")
+	cmd.PersistentFlags().Int("max-upload-mb", 30, "maximum upload size in MiB")
 	cmd.PersistentFlags().String("instance-url", "", "external instance URL")
 	cmd.PersistentFlags().String("log-format", "json", "log format: json or text")
 	cmd.PersistentFlags().String("log-level", "info", "log level: debug, info, warn, or error")
@@ -51,6 +52,7 @@ func newRootCommand() *cobra.Command {
 	mustBindFlag(cmd, "data")
 	mustBindFlag(cmd, "dsn")
 	mustBindFlag(cmd, "driver")
+	mustBindFlag(cmd, "max-upload-mb")
 	mustBindFlag(cmd, "instance-url")
 	mustBindFlag(cmd, "log-format")
 	mustBindFlag(cmd, "log-level")
@@ -69,12 +71,20 @@ func mustBindFlag(cmd *cobra.Command, name string) {
 }
 
 func run() error {
+	if err := expandFileEnv(
+		"SILLAGE_DSN",
+		"SESSION_SECRET",
+		"ENCRYPTION_SECRET",
+	); err != nil {
+		return err
+	}
 	instanceProfile := &profile.Profile{
 		Addr:        viper.GetString("addr"),
 		Port:        viper.GetInt("port"),
 		Data:        viper.GetString("data"),
 		Driver:      viper.GetString("driver"),
 		DSN:         viper.GetString("dsn"),
+		MaxUploadMB: viper.GetInt("max-upload-mb"),
 		InstanceURL: viper.GetString("instance-url"),
 		LogFormat:   viper.GetString("log-format"),
 		LogLevel:    viper.GetString("log-level"),
@@ -120,6 +130,30 @@ func run() error {
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("shutdown server: %w", err)
+	}
+	return nil
+}
+
+func expandFileEnv(names ...string) error {
+	for _, name := range names {
+		value := os.Getenv(name)
+		fileValue := os.Getenv(name + "_FILE")
+		if value != "" && fileValue != "" {
+			return fmt.Errorf("%s and %s_FILE are mutually exclusive", name, name)
+		}
+		if value != "" || fileValue == "" {
+			continue
+		}
+		b, err := os.ReadFile(fileValue)
+		if err != nil {
+			return fmt.Errorf("read %s_FILE: %w", name, err)
+		}
+		if err := os.Setenv(name, strings.TrimSpace(string(b))); err != nil {
+			return fmt.Errorf("set %s from file: %w", name, err)
+		}
+		if err := os.Unsetenv(name + "_FILE"); err != nil {
+			return fmt.Errorf("unset %s_FILE: %w", name, err)
+		}
 	}
 	return nil
 }

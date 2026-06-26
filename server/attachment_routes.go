@@ -160,7 +160,7 @@ func (s *Server) handleDeleteAttachment(c *echo.Context) error {
 }
 
 func (s *Server) handleServeAttachment(c *echo.Context) error {
-	account, err := s.accountFromBearer(c)
+	account, err := s.accountFromRequest(c)
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}

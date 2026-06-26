@@ -58,6 +58,7 @@ func (s *Server) handleAuthInitialize(c *echo.Context) error {
 		}
 	}
 	auth.SetRefreshCookie(c.Response(), c.Request(), tokens.RefreshToken)
+	auth.SetAccessCookie(c.Response(), c.Request(), tokens.AccessToken)
 	return c.JSON(http.StatusOK, authResponse(account, tokens))
 }
 
@@ -81,6 +82,7 @@ func (s *Server) handleAuthSignIn(c *echo.Context) error {
 		}
 	}
 	auth.SetRefreshCookie(c.Response(), c.Request(), tokens.RefreshToken)
+	auth.SetAccessCookie(c.Response(), c.Request(), tokens.AccessToken)
 	return c.JSON(http.StatusOK, authResponse(account, tokens))
 }
 
@@ -95,6 +97,7 @@ func (s *Server) handleAuthRefresh(c *echo.Context) error {
 		return apiError(c, http.StatusInternalServerError, "internal", "刷新登录状态失败")
 	}
 	auth.SetRefreshCookie(c.Response(), c.Request(), tokens.RefreshToken)
+	auth.SetAccessCookie(c.Response(), c.Request(), tokens.AccessToken)
 	return c.JSON(http.StatusOK, authResponse(account, tokens))
 }
 
@@ -103,6 +106,7 @@ func (s *Server) handleAuthSignOut(c *echo.Context) error {
 		return apiError(c, http.StatusInternalServerError, "internal", "退出失败")
 	}
 	auth.ClearRefreshCookie(c.Response(), c.Request())
+	auth.ClearAccessCookie(c.Response(), c.Request())
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -120,6 +124,25 @@ func (s *Server) accountFromBearer(c *echo.Context) (*store.Account, error) {
 	if !ok || token == "" {
 		return nil, auth.ErrUnauthenticated
 	}
+	return s.accountFromAccessToken(c, token)
+}
+
+// accountFromRequest authenticates browser-native requests that cannot send an
+// Authorization header (img tags, download links). It prefers the bearer header
+// and falls back to the HttpOnly access cookie. Use it only for safe GET reads;
+// mutating endpoints stay bearer-only so the cookie is never a CSRF write path.
+func (s *Server) accountFromRequest(c *echo.Context) (*store.Account, error) {
+	if account, err := s.accountFromBearer(c); err == nil {
+		return account, nil
+	}
+	token := auth.AccessTokenFromCookie(c.Request())
+	if token == "" {
+		return nil, auth.ErrUnauthenticated
+	}
+	return s.accountFromAccessToken(c, token)
+}
+
+func (s *Server) accountFromAccessToken(c *echo.Context, token string) (*store.Account, error) {
 	claims, err := s.auth.VerifyAccessToken(token)
 	if err != nil {
 		return nil, err

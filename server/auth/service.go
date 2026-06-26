@@ -24,6 +24,7 @@ import (
 const (
 	PasswordAlgorithmName = passwordAlgorithm
 	refreshCookieName     = "sillage_refresh"
+	accessCookieName      = "sillage_access"
 	accessTokenTTL        = 15 * time.Minute
 	refreshTokenTTL       = 30 * 24 * time.Hour
 	loginFailureWindow    = 15 * time.Minute
@@ -299,6 +300,44 @@ func ClearRefreshCookie(w http.ResponseWriter, r *http.Request) {
 
 func RefreshTokenFromCookie(r *http.Request) string {
 	cookie, err := r.Cookie(refreshCookieName)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+// SetAccessCookie mirrors the access token into an HttpOnly cookie so that
+// browser-native requests (img tags, download links) that cannot send an
+// Authorization header can still be authenticated. It shares the access
+// token's lifetime and is refreshed alongside it.
+func SetAccessCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     accessCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   shouldUseSecureCookie(r),
+		Expires:  time.Now().Add(accessTokenTTL),
+		MaxAge:   int(accessTokenTTL.Seconds()),
+	})
+}
+
+func ClearAccessCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     accessCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   shouldUseSecureCookie(r),
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+	})
+}
+
+func AccessTokenFromCookie(r *http.Request) string {
+	cookie, err := r.Cookie(accessCookieName)
 	if err != nil {
 		return ""
 	}

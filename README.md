@@ -19,6 +19,11 @@ go test ./...
 go vet ./...
 go build ./cmd/sillage
 
+pnpm --dir web install
+pnpm --dir web typecheck
+pnpm --dir web lint
+pnpm --dir web build
+
 SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
 curl http://localhost:5231/healthz
 curl http://localhost:5231/readyz

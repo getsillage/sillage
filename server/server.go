@@ -16,6 +16,7 @@ import (
 
 	"github.com/miofelix/sillage/internal/profile"
 	"github.com/miofelix/sillage/internal/secret"
+	"github.com/miofelix/sillage/server/router/frontend"
 	"github.com/miofelix/sillage/server/auth"
 	"github.com/miofelix/sillage/store"
 )
@@ -61,6 +62,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	server.registerAuthRoutes(e)
 	server.registerMemoRoutes(e)
 	server.registerAttachmentRoutes(e)
+	frontend.Register(e)
 
 	return server, nil
 }

@@ -18,7 +18,9 @@
     "format": "biome format --write .",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply sillage-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply sillage-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply sillage-db --remote",
+    "db:seed:local": "node scripts/seed-dev-data.mjs --local",
+    "db:seed:remote": "node scripts/seed-dev-data.mjs --remote"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

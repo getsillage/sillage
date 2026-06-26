@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 import type { Route } from "./+types/new";
 
-/** Retired: writing now lives on 记录. Forwards any ?kind=/?date= to the composer. */
+/** Retired: writing now lives on 记录. Forwards supported query params to the composer. */
 export function loader({ request }: Route.LoaderArgs) {
   return redirect(`/${new URL(request.url).search}`);
 }

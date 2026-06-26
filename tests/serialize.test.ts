@@ -9,8 +9,6 @@ function makeEntry(overrides: Partial<EntryWithTags> = {}): EntryWithTags {
     entryDate: "2026-06-24",
     title: "标题",
     body: "正文",
-    kind: "note",
-    noteType: "daily",
     mood: 4,
     moodText: "轻松但想念",
     weather: "晴",
@@ -78,8 +76,6 @@ describe("toEntryDto", () => {
     expect(dto.updatedAt).toBe("2026-06-24T02:00:00.000Z");
     expect(dto.deletedAt).toBeNull();
     expect(dto.metadata).toEqual({ client: "ios" });
-    expect(dto.kind).toBe("note");
-    expect(dto.noteType).toBe("daily");
     expect(dto.moodText).toBe("轻松但想念");
     expect(dto.location).toBe("海边");
     expect(dto.people).toEqual(["朋友"]);

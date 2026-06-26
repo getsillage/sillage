@@ -53,8 +53,6 @@ GET /api/sync?cursor=<token>
 | `entryDate` | string | `YYYY-MM-DD`,该条目“所属”的日历日期 |
 | `title` | string | |
 | `body` | string | Markdown 明文 |
-| `kind` | string | `fragment` / `note` / `draft` |
-| `noteType` | string \| null | `daily` / `weekly` / `monthly` / `topic` / `freeform`;非笔记通常为 null |
 | `mood` | number \| null | 1–5 |
 | `moodText` | string \| null | 自由文本细腻感受 |
 | `weather` | string \| null | |

@@ -1,7 +1,6 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import type { EntryWithTags } from "~/lib/db/entries";
-import { entryKindLabel, normalizeEntryKind } from "~/lib/product/entry-fields";
 import { LocalDateTime } from "./LocalDateTime";
 import { rowLinkClass, serifTitleClass } from "./ui";
 
@@ -26,7 +25,6 @@ export function EntryCard({
   openOnCardClick?: boolean;
 }) {
   const navigate = useNavigate();
-  const kind = normalizeEntryKind(entry.kind);
   const createdDate = entry.createdAt.toISOString().slice(0, 10);
   const showEntryDate = entry.entryDate !== createdDate;
   const detailPath = `/entries/${entry.id}`;
@@ -65,7 +63,6 @@ export function EntryCard({
       <div className="flex flex-wrap items-center gap-2 text-gray-400 text-xs dark:text-gray-500">
         <LocalDateTime value={entry.createdAt} />
         {showEntryDate ? <time>归属 {entry.entryDate}</time> : null}
-        <span>{entryKindLabel(kind)}</span>
         {entry.version > 1 ? (
           <span className="text-gray-400 dark:text-gray-500">
             · 改于 <LocalDateTime value={entry.updatedAt} />

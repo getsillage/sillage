@@ -9,7 +9,6 @@ import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { deleteEntry, getEntry, updateEntry } from "~/lib/db/entries";
 import { type EntryRevisionView, listEntryRevisions } from "~/lib/db/revisions";
-import { normalizeEntryKind, normalizeNoteType } from "~/lib/product/entry-fields";
 import { formatReadingStats, readingStats } from "~/lib/product/reading-stats";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
@@ -27,12 +26,9 @@ function revisionFieldSummary(fields: EntryRevisionView["fields"]): string {
 }
 
 function formDefaults(entry: EntryWithTags) {
-  const kind = normalizeEntryKind(entry.kind);
   return {
     entryDate: entry.entryDate,
     body: entry.body,
-    kind,
-    noteType: normalizeNoteType(entry.noteType, kind),
   };
 }
 

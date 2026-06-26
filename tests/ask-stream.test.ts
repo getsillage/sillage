@@ -78,7 +78,6 @@ describe("ask stream route", () => {
       entryDate: "2026-06-20",
       title: "散步",
       body: "傍晚散步后状态变好了。",
-      kind: "fragment",
       tags: [],
     });
     vi.stubGlobal(
@@ -98,7 +97,7 @@ describe("ask stream route", () => {
 
     const response = await askStreamAction({
       request: await authedRequest(
-        form({ mode: "send", question: "我该怎么调整？", sources: ["fragment"] }),
+        form({ mode: "send", question: "我该怎么调整？", sources: ["entry"] }),
       ),
       context: undefined as never,
       params: {},

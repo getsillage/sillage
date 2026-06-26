@@ -113,7 +113,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className={pageTitleClass}>历史</h1>
-            <p className={pageLeadClass}>按时间查看短记录和笔记。</p>
+            <p className={pageLeadClass}>按时间查看所有记录。</p>
           </div>
           <ViewToggle view={loaderData.view} />
         </header>
@@ -138,7 +138,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 <div
                   className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
                 >
-                  没有符合条件的记录。换个筛选，或从一个瞬间开始。
+                  没有符合条件的记录。可以先写一条记录。
                 </div>
               ) : (
                 <TraceThread>

@@ -515,8 +515,6 @@ describe("buildEntriesDigest", () => {
       entryDate: "2026-06-01",
       title: "标题",
       body: "正文",
-      kind: "fragment",
-      noteType: null,
       mood: null,
       moodText: "平静",
       weather: null,

@@ -1,11 +1,5 @@
 import { and, desc, eq, inArray, isNull, like, type SQL } from "drizzle-orm";
-import {
-  type EntryKind,
-  type NoteType,
-  normalizeEntryKind,
-  normalizeNoteType,
-  serializeTextList,
-} from "~/lib/product/entry-fields";
+import { serializeTextList } from "~/lib/product/entry-fields";
 import type { Db } from "./client";
 import { uuidv7 } from "./id";
 import { type RevisionSnapshot, recordEntryRevision } from "./revisions";
@@ -16,8 +10,6 @@ export interface EntryInput {
   entryDate: string;
   title: string;
   body: string;
-  kind?: EntryKind;
-  noteType?: NoteType | null;
   mood?: number | null;
   moodText?: string | null;
   weather?: string | null;
@@ -73,17 +65,11 @@ function serializeMetadata(metadata: Record<string, unknown> | null | undefined)
   return metadata ? JSON.stringify(metadata) : null;
 }
 
-function entryKind(input: EntryInput): EntryKind {
-  return normalizeEntryKind(input.kind);
-}
-
-function revisionSnapshot(input: EntryInput, kind: EntryKind): RevisionSnapshot {
+function revisionSnapshot(input: EntryInput): RevisionSnapshot {
   return {
     entryDate: input.entryDate,
     title: input.title,
     body: input.body,
-    kind,
-    noteType: normalizeNoteType(input.noteType, kind),
     mood: input.mood ?? null,
     moodText: input.moodText ?? null,
     weather: input.weather ?? null,
@@ -98,14 +84,11 @@ function revisionSnapshot(input: EntryInput, kind: EntryKind): RevisionSnapshot 
 export async function createEntry(db: Db, input: EntryInput): Promise<string> {
   const id = uuidv7();
   const now = new Date();
-  const kind = entryKind(input);
   await db.insert(entries).values({
     id,
     entryDate: input.entryDate,
     title: input.title,
     body: input.body,
-    kind,
-    noteType: normalizeNoteType(input.noteType, kind),
     mood: input.mood ?? null,
     moodText: input.moodText ?? null,
     weather: input.weather ?? null,
@@ -119,7 +102,7 @@ export async function createEntry(db: Db, input: EntryInput): Promise<string> {
     updatedAt: now,
   });
   await setEntryTags(db, id, input.tags);
-  await recordEntryRevision(db, id, 1, revisionSnapshot(input, kind), now);
+  await recordEntryRevision(db, id, 1, revisionSnapshot(input), now);
   return id;
 }
 
@@ -147,14 +130,11 @@ export async function updateEntry(
   }
 
   const nextVersion = existing.version + 1;
-  const kind = entryKind(input);
   const now = new Date();
   const patch: Partial<typeof entries.$inferInsert> = {
     entryDate: input.entryDate,
     title: input.title,
     body: input.body,
-    kind,
-    noteType: normalizeNoteType(input.noteType, kind),
     mood: input.mood ?? null,
     moodText: input.moodText ?? null,
     weather: input.weather ?? null,
@@ -192,7 +172,7 @@ export async function updateEntry(
   }
 
   await setEntryTags(db, id, input.tags);
-  await recordEntryRevision(db, id, nextVersion, revisionSnapshot(input, kind), now);
+  await recordEntryRevision(db, id, nextVersion, revisionSnapshot(input), now);
   return { status: "updated", version: nextVersion };
 }
 
@@ -248,7 +228,6 @@ export async function listEntries(db: Db, limit = 50): Promise<EntryWithTags[]> 
 }
 
 export interface EntryFilter {
-  kind?: EntryKind;
   tag?: string;
   person?: string;
   relationship?: string;
@@ -266,7 +245,7 @@ async function entryIdsForTag(db: Db, name: string): Promise<string[]> {
 }
 
 /**
- * Lists live entries matching an optional facet filter (kind / tag / person /
+ * Lists live entries matching an optional facet filter (tag / person /
  * relationship / mood), newest day first. People & relationships match against the
  * stored JSON string arrays (same `"value"` matcher as the topic collector); tags
  * resolve through the entry_tags join. An unknown tag yields an empty result rather
@@ -278,9 +257,6 @@ export async function listEntriesFiltered(
   limit = 120,
 ): Promise<EntryWithTags[]> {
   const conditions: SQL[] = [isNull(entries.deletedAt)];
-  if (filter.kind) {
-    conditions.push(eq(entries.kind, filter.kind));
-  }
   if (typeof filter.mood === "number") {
     conditions.push(eq(entries.mood, filter.mood));
   }

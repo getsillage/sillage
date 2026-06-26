@@ -17,7 +17,6 @@ import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
 import { createEntry, type EntryWithTags, listEntries } from "~/lib/db/entries";
-import { normalizeEntryKind } from "~/lib/product/entry-fields";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
 
@@ -31,8 +30,6 @@ function newDefaults(today: string): EntryFormDefaults {
   return {
     entryDate: today,
     body: "",
-    kind: "fragment",
-    noteType: "daily",
   };
 }
 
@@ -46,7 +43,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   const db = getDb(env.DB);
   const today = todayISO();
   const url = new URL(request.url);
-  const kind = normalizeEntryKind(url.searchParams.get("kind"));
   const dateParam = url.searchParams.get("date");
   const entryDate = dateParam && DATE_RE.test(dateParam) ? dateParam : today;
   const [recentEntries, todayEntries, onThisDay] = await Promise.all([
@@ -59,7 +55,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     todayEntries,
     onThisDay,
     today,
-    defaults: { ...newDefaults(entryDate), kind },
+    defaults: newDefaults(entryDate),
   };
 }
 
@@ -141,7 +137,7 @@ export default function Home({ loaderData, actionData }: Route.ComponentProps) {
             <div
               className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
             >
-              还没有记录。可以先写一条短记录。
+              还没有记录。可以先写一条记录。
             </div>
           ) : (
             <TraceThread>

@@ -52,8 +52,6 @@ describe("entry actions", () => {
         {
           entryDate: "2026-06-24",
           body: "只保存，不触发 AI。",
-          kind: "fragment",
-          noteType: "",
         },
         "https://sillage.example/",
       ),
@@ -65,7 +63,7 @@ describe("entry actions", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("does not invoke AI when quick-capturing a fragment", async () => {
+  it("does not invoke AI when quick-capturing a record", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -73,8 +71,6 @@ describe("entry actions", () => {
       request: await authenticatedRequest(
         {
           body: "速记一条，不触发 AI。",
-          kind: "fragment",
-          noteType: "",
         },
         "https://sillage.example/capture",
       ),
@@ -94,8 +90,6 @@ describe("entry actions", () => {
       entryDate: "2026-06-24",
       title: "待更新",
       body: "先建一条记录。",
-      kind: "fragment",
-      noteType: null,
       mood: null,
       moodText: null,
       weather: null,
@@ -110,8 +104,6 @@ describe("entry actions", () => {
         {
           entryDate: "2026-06-24",
           body: "更新后也不应自动生成总结。",
-          kind: "fragment",
-          noteType: "",
         },
         `https://sillage.example/entries/${entryId}`,
       ),

@@ -88,7 +88,6 @@ describe("ask routes", () => {
       entryDate: "2026-06-20",
       title: "见面",
       body: "和小明在咖啡馆聊了很久。",
-      kind: "fragment",
       tags: [],
     });
 
@@ -98,7 +97,7 @@ describe("ask routes", () => {
           intent: "ask",
           question: "最近我见了谁？",
           history: JSON.stringify([{ question: "之前问了什么？", answer: "见面。" }]),
-          sources: ["fragment", "note"],
+          sources: ["entry"],
         },
         "https://sillage.example/ask",
       ),
@@ -123,14 +122,14 @@ describe("ask routes", () => {
     expect(body.messages[0].content).toContain("和小明在咖啡馆聊了很久");
   });
 
-  it("loads saved ask conversations and saves an answer as a draft", async () => {
+  it("loads saved ask conversations and saves an answer as a record", async () => {
     const run = await beginAskSend(db, {
       question: "这段要不要保存？",
-      sourceTypes: ["fragment"],
+      sourceTypes: ["entry"],
     });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
-      content: "值得保存，之后可以整理成一条草稿。",
+      content: "值得保存，之后可以整理成一条记录。",
       sources: [],
       model: "test",
       durationMs: 1,
@@ -149,7 +148,7 @@ describe("ask routes", () => {
     const result = await askAction({
       request: await authenticatedRequest(
         {
-          intent: "saveAskDraft",
+          intent: "saveAskEntry",
           conversationId: run.conversation.id,
           messageId: run.assistantMessage.id,
         },
@@ -158,7 +157,7 @@ describe("ask routes", () => {
       context: undefined as never,
       params: {},
     } as never);
-    expect(result).toMatchObject({ ok: true, message: "已保存为草稿" });
+    expect(result).toMatchObject({ ok: true, message: "已保存为记录" });
 
     const conversation = await getAskConversation(db, run.conversation.id);
     expect(conversation?.messages.at(-1)?.content).toContain("值得保存");

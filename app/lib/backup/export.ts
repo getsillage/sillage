@@ -28,8 +28,6 @@ interface BackupEntry {
   entryDate: string;
   title: string;
   body: string;
-  kind: string;
-  noteType: string | null;
   mood: number | null;
   moodText: string | null;
   weather: string | null;
@@ -138,7 +136,7 @@ function renderMarkdown(payload: SillageBackupPayload): string {
       entry.relationships.length > 0 ? `\n关系：${entry.relationships.join("、")}` : "";
     const summaryLine = entry.summary ? `\n摘要：${entry.summary}` : "";
     const sentimentLine = entry.sentiment ? `\n情绪：${entry.sentiment}` : "";
-    return `## ${entry.entryDate} ${title}\n类型：${entry.kind}${entry.noteType ? ` / ${entry.noteType}` : ""}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
+    return `## ${entry.entryDate} ${title}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
   });
   const askSections =
     payload.askConversations.length > 0
@@ -226,8 +224,6 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBa
       entryDate: entry.entryDate,
       title: entry.title,
       body: entry.body,
-      kind: entry.kind,
-      noteType: entry.noteType,
       mood: entry.mood,
       moodText: entry.moodText,
       weather: entry.weather,

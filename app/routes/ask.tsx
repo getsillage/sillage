@@ -7,7 +7,7 @@ import {
   getAskConversation,
   listAskConversations,
   renameAskConversation,
-  saveAskMessageAsDraft,
+  saveAskMessageAsEntry,
   selectAskBranch,
   toggleAskConversationArchived,
   toggleAskConversationPinned,
@@ -105,8 +105,8 @@ export async function action({
     );
     return { intent: "ask", ok: true, message: "已切换分支" };
   }
-  if (intent === "saveAskDraft") {
-    const result = await saveAskMessageAsDraft(
+  if (intent === "saveAskEntry") {
+    const result = await saveAskMessageAsEntry(
       db,
       String(form.get("conversationId") ?? ""),
       String(form.get("messageId") ?? ""),

@@ -34,8 +34,6 @@ describe("entries repository", () => {
       entryDate: "2026-06-23",
       title: "标题",
       body: "正文内容",
-      kind: "note",
-      noteType: "daily",
       mood: 4,
       moodText: "轻松但有一点想念",
       weather: "晴",
@@ -47,8 +45,6 @@ describe("entries repository", () => {
 
     const entry = await getEntry(db, id);
     expect(entry?.title).toBe("标题");
-    expect(entry?.kind).toBe("note");
-    expect(entry?.noteType).toBe("daily");
     expect(entry?.mood).toBe(4);
     expect(entry?.moodText).toBe("轻松但有一点想念");
     expect(entry?.location).toBe("海边");
@@ -69,7 +65,6 @@ describe("entries repository", () => {
       entryDate: "2026-06-24",
       title: "新标题",
       body: "新内容",
-      kind: "fragment",
       mood: null,
       weather: null,
       people: ["新朋友"],
@@ -81,7 +76,6 @@ describe("entries repository", () => {
     const entry = await getEntry(db, id);
     expect(entry?.title).toBe("新标题");
     expect(entry?.entryDate).toBe("2026-06-24");
-    expect(entry?.kind).toBe("fragment");
     expect(parseTextList(entry?.people)).toEqual(["新朋友"]);
     expect(parseTextList(entry?.relationships)).toEqual(["同事"]);
     expect(entry?.tags).toEqual(["b", "c"]);

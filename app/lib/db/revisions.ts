@@ -1,5 +1,4 @@
 import { desc, eq } from "drizzle-orm";
-import type { EntryKind, NoteType } from "~/lib/product/entry-fields";
 import type { Db } from "./client";
 import { uuidv7 } from "./id";
 import { type EntryRevision, entryRevisions } from "./schema";
@@ -9,8 +8,6 @@ export interface RevisionSnapshot {
   entryDate: string;
   title: string;
   body: string;
-  kind: EntryKind;
-  noteType: NoteType | null;
   mood: number | null;
   moodText: string | null;
   weather: string | null;
@@ -23,8 +20,6 @@ export interface RevisionSnapshot {
 /** The secondary fields stored as JSON alongside the title/body columns. */
 interface RevisionFields {
   entryDate: string;
-  kind: EntryKind;
-  noteType: NoteType | null;
   mood: number | null;
   moodText: string | null;
   weather: string | null;
@@ -45,8 +40,6 @@ export interface EntryRevisionView {
 
 const EMPTY_FIELDS: RevisionFields = {
   entryDate: "",
-  kind: "fragment",
-  noteType: null,
   mood: null,
   moodText: null,
   weather: null,
@@ -89,8 +82,6 @@ export async function recordEntryRevision(
 ): Promise<void> {
   const fields: RevisionFields = {
     entryDate: snapshot.entryDate,
-    kind: snapshot.kind,
-    noteType: snapshot.noteType,
     mood: snapshot.mood,
     moodText: snapshot.moodText,
     weather: snapshot.weather,

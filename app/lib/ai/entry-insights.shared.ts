@@ -1,5 +1,3 @@
-import { type EntryKind, normalizeEntryKind } from "~/lib/product/entry-fields";
-
 export const ENTRY_INSIGHT_FORM_FIELD = "generateEntryInsight";
 export const ENTRY_INSIGHT_INTENTS = [
   "generate-entry-insight",
@@ -7,9 +5,9 @@ export const ENTRY_INSIGHT_INTENTS = [
 ] as const;
 export type EntryInsightIntent = (typeof ENTRY_INSIGHT_INTENTS)[number];
 
-export const ENTRY_INSIGHT_AUTO_MODES = ["off", "notes", "all"] as const;
+export const ENTRY_INSIGHT_AUTO_MODES = ["off", "all"] as const;
 export type EntryInsightAutoMode = (typeof ENTRY_INSIGHT_AUTO_MODES)[number];
-export const DEFAULT_ENTRY_INSIGHT_AUTO_MODE: EntryInsightAutoMode = "notes";
+export const DEFAULT_ENTRY_INSIGHT_AUTO_MODE: EntryInsightAutoMode = "off";
 
 export function isEntryInsightIntent(value: string): value is EntryInsightIntent {
   return (ENTRY_INSIGHT_INTENTS as readonly string[]).includes(value);
@@ -17,14 +15,7 @@ export function isEntryInsightIntent(value: string): value is EntryInsightIntent
 
 export function shouldGenerateEntryInsightForKind(
   mode: EntryInsightAutoMode,
-  kind: EntryKind | string | null | undefined,
+  _kind?: unknown,
 ): boolean {
-  const normalized = normalizeEntryKind(kind);
-  if (mode === "all") {
-    return true;
-  }
-  if (mode === "notes") {
-    return normalized === "note";
-  }
-  return false;
+  return mode === "all";
 }

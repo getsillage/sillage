@@ -7,7 +7,7 @@ import {
   completeAskAssistantMessage,
   getAskConversation,
   listAskConversationTree,
-  saveAskMessageAsDraft,
+  saveAskMessageAsEntry,
   selectAskBranch,
   toggleAskConversationArchived,
   toggleAskConversationPinned,
@@ -31,7 +31,7 @@ describe("ask conversation branch model", () => {
   it("creates a thread and stores a completed assistant answer", async () => {
     const run = await beginAskSend(db, {
       question: "最近状态怎么样？",
-      sourceTypes: ["fragment", "note"],
+      sourceTypes: ["entry"],
     });
 
     expect(run.conversation.title).toContain("最近状态");
@@ -58,7 +58,7 @@ describe("ask conversation branch model", () => {
   it("regenerates assistant messages as sibling branches", async () => {
     const run = await beginAskSend(db, {
       question: "我该怎么调整？",
-      sourceTypes: ["fragment"],
+      sourceTypes: ["entry"],
     });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
@@ -89,7 +89,7 @@ describe("ask conversation branch model", () => {
   it("edits user messages as sibling branches and can switch back", async () => {
     const run = await beginAskSend(db, {
       question: "原问题",
-      sourceTypes: ["note"],
+      sourceTypes: ["entry"],
     });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
@@ -103,7 +103,7 @@ describe("ask conversation branch model", () => {
       conversationId: run.conversation.id,
       messageId: run.userMessage.id,
       question: "编辑后的问题",
-      sourceTypes: ["note"],
+      sourceTypes: ["entry"],
     });
     expect(edited.status).toBe("created");
     if (edited.status !== "created") {
@@ -122,8 +122,8 @@ describe("ask conversation branch model", () => {
     expect(conversation?.messages.at(-1)?.content).toBe("原回答");
   });
 
-  it("toggles organization flags and saves an answer as draft", async () => {
-    const run = await beginAskSend(db, { question: "保存什么？", sourceTypes: ["fragment"] });
+  it("toggles organization flags and saves an answer as a record", async () => {
+    const run = await beginAskSend(db, { question: "保存什么？", sourceTypes: ["entry"] });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,
       content: "这是一段可以保存的回答。",
@@ -138,8 +138,8 @@ describe("ask conversation branch model", () => {
     expect(conversation?.pinnedAt).toBeInstanceOf(Date);
     expect(conversation?.archivedAt).toBeInstanceOf(Date);
 
-    const draft = await saveAskMessageAsDraft(db, run.conversation.id, run.assistantMessage.id);
-    expect(draft).toMatchObject({ ok: true });
+    const saved = await saveAskMessageAsEntry(db, run.conversation.id, run.assistantMessage.id);
+    expect(saved).toMatchObject({ ok: true, message: "已保存为记录" });
     const tree = await listAskConversationTree(db, run.conversation.id);
     expect(tree).toHaveLength(2);
   });

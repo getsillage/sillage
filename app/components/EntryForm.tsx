@@ -1,14 +1,11 @@
 import { Form, useNavigation } from "react-router";
 import { todayISO } from "~/lib/date";
-import type { EntryKind, NoteType } from "~/lib/product/entry-fields";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { inputClass, primaryButtonClass } from "./ui";
 
 export interface EntryFormDefaults {
   entryDate: string;
   body: string;
-  kind: EntryKind;
-  noteType: NoteType | null;
 }
 
 interface EntryFormProps {
@@ -25,8 +22,6 @@ export function EntryForm({ defaults, error, submitLabel = "保存", intent }: E
   return (
     <Form method="post" className="space-y-4">
       {intent ? <input type="hidden" name="intent" value={intent} /> : null}
-      <input type="hidden" name="kind" value={defaults?.kind ?? "fragment"} />
-      <input type="hidden" name="noteType" value={defaults?.noteType ?? ""} />
 
       <label className="block text-sm text-gray-500 dark:text-gray-400">
         日期

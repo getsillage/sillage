@@ -19,35 +19,31 @@ async function resetDb() {
 describe("ask context", () => {
   beforeEach(resetDb);
 
-  it("defaults to fragments and notes and excludes drafts", async () => {
+  it("defaults to all records", async () => {
     await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "短记录",
+      title: "记录A",
       body: "和小明在咖啡馆聊天。",
-      kind: "fragment",
       tags: [],
     });
     await createEntry(db, {
       entryDate: "2026-06-21",
-      title: "笔记",
+      title: "记录B",
       body: "认真写下和小明的谈话。",
-      kind: "note",
-      noteType: "daily",
       tags: [],
     });
     await createEntry(db, {
       entryDate: "2026-06-22",
-      title: "草稿",
-      body: "草稿里也提到了小明。",
-      kind: "draft",
+      title: "记录C",
+      body: "又一次提到了小明。",
       tags: [],
     });
 
     const context = await collectAskContext(db, "小明");
 
-    expect(context.entries.map((entry) => entry.title)).toEqual(["笔记", "短记录"]);
+    expect(context.entries.map((entry) => entry.title)).toEqual(["记录C", "记录B", "记录A"]);
     expect(context.evidence).toContain("和小明在咖啡馆聊天");
-    expect(context.evidence).not.toContain("草稿里也提到了小明");
+    expect(context.evidence).toContain("又一次提到了小明");
   });
 
   it("can use AI generated entry insights without exposing the raw entry body", async () => {
@@ -55,7 +51,6 @@ describe("ask context", () => {
       entryDate: "2026-06-20",
       title: "原文",
       body: "这段原文不应进入证据。",
-      kind: "fragment",
       tags: [],
     });
     await env.DB.prepare(
@@ -100,7 +95,6 @@ describe("ask context", () => {
       entryDate: "2026-06-23",
       title: "今天的时间",
       body: "系统里的今天是 2026-06-24。",
-      kind: "note",
       tags: [],
     });
 
@@ -114,7 +108,7 @@ describe("ask context", () => {
 
   it("parses source selections from form data and falls back to defaults", () => {
     const empty = new FormData();
-    expect(askSourceTypesFromForm(empty)).toEqual(["fragment", "note"]);
+    expect(askSourceTypesFromForm(empty)).toEqual(["entry"]);
 
     const form = new FormData();
     form.append("sources", "summary");

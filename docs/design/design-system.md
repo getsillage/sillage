@@ -161,4 +161,4 @@ export const wideShellClass =
 - 普通节点:`absolute -left-[1px] top-[…] h-2.5 w-2.5 rounded-full bg-gray-50 ring-[1.5px] ring-celadon-500 dark:bg-gray-950`(空心点)。
 - 记忆回望节点(那年今日):同上但 `ring-clay-400`,略大(`h-3 w-3`)。
 - 行内:时间(sans, faint)→ 标题(宋体)→ 摘要(sans, muted)→ 标签;**行与行之间靠留白,不再各自包卡片**。
-- 详细结构见 [`implementation-plan.md` 附录 A](./implementation-plan.md#附录-a-参考结构短记录)。
+- 详细结构见 [`implementation-plan.md` 附录 A](./implementation-plan.md#附录-a-参考结构记录)。

@@ -36,9 +36,8 @@ const PROTOCOL_DEFAULTS: Record<AiProtocol, { baseUrl: string; model: string }> 
 const LEGACY_DEFAULT_MODELS = new Set(["claude-opus-4-8", "gpt-5.1-mini"]);
 
 const ENTRY_INSIGHT_AUTO_MODE_LABELS: Record<EntryInsightAutoMode, string> = {
-  notes: "仅笔记自动生成",
-  all: "所有记录自动生成",
-  off: "不自动生成",
+  all: "保存后自动生成",
+  off: "手动生成",
 };
 
 type SettingsActionData = {
@@ -369,7 +368,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
 
                 <div className="mt-5 border-gray-200 border-t pt-4 dark:border-gray-800">
                   <label className={labelClass}>
-                    单条 AI 总结
+                    单条总结
                     <select
                       name="entryInsightAutoMode"
                       value={entryInsightAutoMode}
@@ -386,7 +385,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
                     </select>
                   </label>
                   <p className={`mt-1 text-xs ${subtleTextClass}`}>
-                    默认只为笔记自动生成；短记录和草稿仍可在「历史」或记录详情中手动生成。
+                    关闭自动生成后，仍可在「历史」或记录详情中手动生成。
                   </p>
                 </div>
               </section>

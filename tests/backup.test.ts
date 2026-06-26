@@ -31,8 +31,6 @@ describe("Sillage backup export", () => {
       entryDate: "2026-06-23",
       title: "海边散步",
       body: "今天看到了漂亮夕阳。",
-      kind: "note",
-      noteType: "daily",
       mood: 5,
       moodText: "很明亮，也有一点想念",
       weather: "晴",
@@ -68,8 +66,6 @@ describe("Sillage backup export", () => {
       entries: Array<{
         id: string;
         title: string;
-        kind: string;
-        noteType: string | null;
         moodText: string | null;
         location: string | null;
         people: string[];
@@ -82,8 +78,6 @@ describe("Sillage backup export", () => {
     expect(payload?.entries[0]).toMatchObject({
       id: entryId,
       title: "海边散步",
-      kind: "note",
-      noteType: "daily",
       moodText: "很明亮，也有一点想念",
       location: "海边",
       people: ["朋友"],
@@ -146,7 +140,7 @@ describe("Sillage backup export", () => {
   it("exports ask conversations in JSON and Markdown backups", async () => {
     const run = await beginAskSend(db, {
       question: "最近有什么重点？",
-      sourceTypes: ["fragment"],
+      sourceTypes: ["entry"],
     });
     await completeAskAssistantMessage(db, {
       messageId: run.assistantMessage.id,

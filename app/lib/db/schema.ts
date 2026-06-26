@@ -23,10 +23,6 @@ export const entries = sqliteTable(
     entryDate: text("entry_date").notNull(),
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
-    // Product shape: fragments capture the moment, notes are deliberate
-    // daily/weekly/monthly/topic writing, and drafts are undecided writing.
-    kind: text("kind").notNull().default("fragment"),
-    noteType: text("note_type"),
     // Mood on a 1-5 scale; null when not set.
     mood: integer("mood"),
     // Free-form mood nuance, alongside the preset numeric mood.
@@ -57,7 +53,6 @@ export const entries = sqliteTable(
   },
   (table) => [
     index("idx_entries_entry_date").on(table.entryDate),
-    index("idx_entries_kind").on(table.kind),
     index("idx_entries_updated_at").on(table.updatedAt),
   ],
 );

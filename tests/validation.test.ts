@@ -20,16 +20,12 @@ describe("entry form parsing + validation", () => {
         moodText: "有点松了一口气",
         weather: "晴",
         location: "海边",
-        kind: "note",
-        noteType: "daily",
         people: "朋友, 家人",
         relationships: "朋友",
         tags: "旅行, 美食  摄影，旅行",
       }),
     );
     expect(values.body).toBe("正文");
-    expect(values.kind).toBe("note");
-    expect(values.noteType).toBe("daily");
     const parsed = entrySchema.safeParse(values);
     expect(parsed.success).toBe(true);
     expect(parsed.success ? parsed.data : null).toMatchObject({
@@ -48,8 +44,7 @@ describe("entry form parsing + validation", () => {
     const values = entryFormFromData(
       formOf({ entryDate: "2026-06-23", title: "t", body: "b", mood: "", weather: "  " }),
     );
-    expect(values.kind).toBe("fragment");
-    expect(values.noteType).toBeNull();
+    expect(values).toEqual({ entryDate: "2026-06-23", body: "b" });
   });
 
   it("rejects an entry with empty body", () => {

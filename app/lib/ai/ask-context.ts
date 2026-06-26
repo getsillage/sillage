@@ -1,9 +1,9 @@
-import { and, desc, eq, inArray, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
 import type { Db } from "~/lib/db/client";
 import { composeEntries, type EntryWithTags } from "~/lib/db/entries";
 import { entries, entryAi, summaries } from "~/lib/db/schema";
 import { listSummaries, type SummaryView, toSummaryView } from "~/lib/db/summaries";
-import { entryKindLabel, normalizeEntryKind, parseTextList } from "~/lib/product/entry-fields";
+import { parseTextList } from "~/lib/product/entry-fields";
 import {
   isSummaryPeriodType,
   isSummaryStyle,
@@ -12,11 +12,11 @@ import {
 } from "~/lib/product/summary-fields";
 import { extractSearchTerms, searchEntriesByKeyword } from "~/lib/search/fts";
 
-export const ASK_SOURCE_TYPES = ["fragment", "note", "draft", "entry-ai", "summary"] as const;
+export const ASK_SOURCE_TYPES = ["entry", "entry-ai", "summary"] as const;
 
 export type AskSourceType = (typeof ASK_SOURCE_TYPES)[number];
 
-export const DEFAULT_ASK_SOURCE_TYPES: AskSourceType[] = ["fragment", "note"];
+export const DEFAULT_ASK_SOURCE_TYPES: AskSourceType[] = ["entry"];
 
 export interface AskCitation {
   id: string;
@@ -60,20 +60,8 @@ function truncate(text: string | null | undefined, limit: number): string {
   return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed;
 }
 
-function entryMatchesSelectedKind(entry: EntryWithTags, selected: Set<AskSourceType>): boolean {
-  const kind = normalizeEntryKind(entry.kind);
-  return (
-    (kind === "fragment" && selected.has("fragment")) ||
-    (kind === "note" && selected.has("note")) ||
-    (kind === "draft" && selected.has("draft"))
-  );
-}
-
 function entryCanContributeEvidence(entry: EntryWithTags, selected: Set<AskSourceType>): boolean {
-  return (
-    entryMatchesSelectedKind(entry, selected) ||
-    (selected.has("entry-ai") && Boolean(entry.summary))
-  );
+  return selected.has("entry") || (selected.has("entry-ai") && Boolean(entry.summary));
 }
 
 function dedupeEvidenceEntries(rows: EntryWithTags[], selected: Set<AskSourceType>, limit: number) {
@@ -92,20 +80,12 @@ function dedupeEvidenceEntries(rows: EntryWithTags[], selected: Set<AskSourceTyp
   return result;
 }
 
-async function listRecentEntriesByKinds(
-  db: Db,
-  selected: Set<AskSourceType>,
-  limit: number,
-): Promise<EntryWithTags[]> {
-  const kinds = (["fragment", "note", "draft"] as const).filter((kind) => selected.has(kind));
-  if (kinds.length === 0) {
-    return [];
-  }
+async function listRecentEntries(db: Db, limit: number): Promise<EntryWithTags[]> {
   const rows = await db
     .select()
     .from(entries)
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
-    .where(and(isNull(entries.deletedAt), inArray(entries.kind, kinds)))
+    .where(isNull(entries.deletedAt))
     .orderBy(desc(entries.entryDate), desc(entries.createdAt))
     .limit(limit);
   return composeEntries(db, rows);
@@ -194,13 +174,12 @@ function entryTitle(entry: EntryWithTags): string {
 }
 
 function entryEvidenceBlock(entry: EntryWithTags, selected: Set<AskSourceType>): string {
-  const includeRawEntry = entryMatchesSelectedKind(entry, selected);
+  const includeRawEntry = selected.has("entry");
   const includeAiSummary = selected.has("entry-ai");
-  const selectedKind = normalizeEntryKind(entry.kind);
   const people = parseTextList(entry.people);
   const relationships = parseTextList(entry.relationships);
   return [
-    `【${entry.entryDate} · ${entryKindLabel(selectedKind)}】${entryTitle(entry)}`,
+    `【${entry.entryDate} · 记录】${entryTitle(entry)}`,
     includeRawEntry && entry.moodText ? `心情：${entry.moodText}` : "",
     includeRawEntry && entry.location ? `地点：${entry.location}` : "",
     includeRawEntry && people.length > 0 ? `人物：${people.join("、")}` : "",
@@ -301,7 +280,7 @@ export async function collectAskContext(
   sourceTypes: AskSourceType[] = DEFAULT_ASK_SOURCE_TYPES,
 ): Promise<AskContext> {
   const selected = new Set(uniqueSourceTypes(sourceTypes));
-  const includeEntries = selected.has("fragment") || selected.has("note") || selected.has("draft");
+  const includeEntries = selected.has("entry");
   const includeAiEntrySummaries = selected.has("entry-ai");
   const includeSummaries = selected.has("summary");
 
@@ -314,7 +293,7 @@ export async function collectAskContext(
     recentSummaries,
   ] = await Promise.all([
     includeEntries ? searchEntriesByKeyword(db, question, SEARCH_LIMIT) : Promise.resolve([]),
-    includeEntries ? listRecentEntriesByKinds(db, selected, RECENT_LIMIT) : Promise.resolve([]),
+    includeEntries ? listRecentEntries(db, RECENT_LIMIT) : Promise.resolve([]),
     includeAiEntrySummaries
       ? searchEntriesWithAiSummaries(db, question, SEARCH_LIMIT)
       : Promise.resolve([]),

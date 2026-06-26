@@ -31,7 +31,7 @@ describe("AI settings storage", () => {
     expect(await loadAiSettingsView(env)).toEqual({
       activeProfileId: null,
       profiles: [],
-      entryInsightAutoMode: "notes",
+      entryInsightAutoMode: "off",
     });
   });
 
@@ -128,12 +128,12 @@ describe("AI settings storage", () => {
     expect(await loadAiSettingsView(env)).toEqual({
       activeProfileId: null,
       profiles: [],
-      entryInsightAutoMode: "notes",
+      entryInsightAutoMode: "off",
     });
   });
 
   it("stores the entry insight auto-generation preference", async () => {
-    expect(await loadEntryInsightAutoMode(env)).toBe("notes");
+    expect(await loadEntryInsightAutoMode(env)).toBe("off");
 
     await saveEntryInsightAutoMode(env, "all");
     expect(await loadEntryInsightAutoMode(env)).toBe("all");

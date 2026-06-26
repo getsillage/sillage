@@ -42,11 +42,9 @@ type AskStreamEvent =
   | { type: "error"; message: string; durationMs?: number };
 
 const SOURCE_LABELS: Record<AskSourceType, string> = {
-  fragment: "短记录",
-  note: "笔记",
-  draft: "草稿",
-  "entry-ai": "AI 总结",
-  summary: "AI 总结",
+  entry: "记录",
+  "entry-ai": "单条总结",
+  summary: "总结",
 };
 
 const STARTER_PROMPTS = [
@@ -461,7 +459,7 @@ function EmptyState({
     <div className="mx-auto w-full max-w-2xl text-center">
       <p className="font-serif text-2xl text-gray-900 dark:text-gray-50">根据记录提问</p>
       <p className="mx-auto mt-2 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
-        像和 ChatGPT 对话一样提问。Sillage 会基于你的短记录、笔记和总结回答。
+        像和 ChatGPT 对话一样提问。Sillage 会基于你的记录和总结回答。
       </p>
 
       <div className="mt-6 grid gap-2 sm:grid-cols-2">
@@ -885,14 +883,14 @@ function ThreadMessage({
           </button>
           {message.status === "completed" || message.status === "interrupted" ? (
             <Form method="post">
-              <input type="hidden" name="intent" value="saveAskDraft" />
+              <input type="hidden" name="intent" value="saveAskEntry" />
               <input type="hidden" name="conversationId" value={conversationId} />
               <input type="hidden" name="messageId" value={message.id} />
               <button
                 type="submit"
                 className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
               >
-                保存为草稿
+                保存为记录
               </button>
             </Form>
           ) : null}

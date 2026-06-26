@@ -104,8 +104,6 @@ describe("entry revisions", () => {
       entryDate: "2026-06-24",
       title: "手动快照",
       body: "手动",
-      kind: "fragment",
-      noteType: null,
       mood: null,
       moodText: null,
       weather: null,

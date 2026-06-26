@@ -60,7 +60,7 @@
 - 设计成接收 `children`(节点行)或一个 `entries` + 渲染函数,供 记录 与 历史 复用。保持小而专。
 
 ### 3.2 [`app/components/EntryCard.tsx`](../../app/components/EntryCard.tsx)
-- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 重点节点行。标题改 `serifTitleClass`;元信息行(时间、kind、mood、location)保持 sans + faint。
+- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 重点节点行。标题改 `serifTitleClass`;元信息行(时间、mood、location)保持 sans + faint。
 - 标签 / 人物 / 关系 chip 用 design-system §5.2;`EntryInsightControl` 总结块改 celadon 软底。
 - 保留交互逻辑(`openOnCardClick`、键盘处理、`navigate`)与 props 形态,仅换类名与结构层级。
 
@@ -68,7 +68,7 @@
 - 改 `readingShellClass`。
 - 顶部:日期 eyebrow(sans/faint)+ 宋体大标题「今天想记录什么？」+ 简短说明「写下今天发生的事、想法或感受。」。
 - 捕获:把大表单收成**安静输入区**(参考 [附录 A4](#a4-记录-捕获));副字段(心情 / 地点 / 人物)用既有 `SuggestedInput` 的轻量触发(CLAUDE.md 既定模式),**不要**大 `<select>` / 宽按钮。
-- 弱化右侧四面板:今日短记录 / 笔记 / 草稿 / 总结改为标题下的安静分组或合并;「最近记录」改用 `TraceThread` 渲染。
+- 弱化右侧分组:今日记录与最近记录改为标题下的安静分组;「最近记录」改用 `TraceThread` 渲染。
 - 「那年今日」用 clay 节点融入历史线或独立安静块。
 - 保留 `loader`/`action`/`scheduleEntryInsight` 等逻辑不变。
 
@@ -136,7 +136,7 @@
 
 ---
 
-## 附录 A — 参考结构短记录
+## 附录 A — 参考结构记录
 
 > 仅为结构与类名参考(Tailwind 类基于新令牌)。实施时按各组件真实 props / 数据适配;`navItem` 等为示意函数。
 

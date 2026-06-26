@@ -2,13 +2,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "~/lib/db/client";
 import type { EntryWithTags } from "~/lib/db/entries";
 import { entryAi } from "~/lib/db/schema";
-import {
-  entryKindLabel,
-  normalizeEntryKind,
-  normalizeNoteType,
-  noteTypeLabel,
-  parseTextList,
-} from "~/lib/product/entry-fields";
+import { parseTextList } from "~/lib/product/entry-fields";
 import { type AiConfig, loadAiConfig } from "./config";
 import { generateText } from "./text";
 
@@ -37,10 +31,7 @@ export function activeModel(config: AiConfig): string | null {
 }
 
 function entryText(entry: EntryWithTags): string {
-  const kind = normalizeEntryKind(entry.kind);
-  const noteType = normalizeNoteType(entry.noteType, kind);
   const labels = [
-    `类型：${entryKindLabel(kind)}${noteType ? ` / ${noteTypeLabel(noteType)}` : ""}`,
     entry.moodText ? `细腻感受：${entry.moodText}` : "",
     entry.location ? `地点：${entry.location}` : "",
     parseTextList(entry.people).length > 0 ? `人物：${parseTextList(entry.people).join("、")}` : "",

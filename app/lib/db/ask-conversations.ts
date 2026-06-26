@@ -737,7 +737,7 @@ function sourcesMarkdown(sources: AskCitation[]): string {
   );
 }
 
-export async function saveAskMessageAsDraft(
+export async function saveAskMessageAsEntry(
   db: Db,
   conversationId: string,
   messageId: string,
@@ -747,11 +747,11 @@ export async function saveAskMessageAsDraft(
     return { ok: false, message: "未找到这条回答" };
   }
   if (normalizeRole(message.role) !== "assistant") {
-    return { ok: false, message: "只能把回答保存为草稿" };
+    return { ok: false, message: "只能把回答保存为记录" };
   }
   const status = normalizeStatus(message.status);
   if (status !== "completed" && status !== "interrupted") {
-    return { ok: false, message: "这条回答还不能保存为草稿" };
+    return { ok: false, message: "这条回答还不能保存为记录" };
   }
   const parent = message.parentId ? await getMessageRow(db, message.parentId) : null;
   const sources = parseSources(message.sources);
@@ -762,7 +762,6 @@ export async function saveAskMessageAsDraft(
     body: [`> ${parent?.content ?? "AI 回答"}`, "", message.content, sourcesMarkdown(sources)]
       .filter(Boolean)
       .join("\n"),
-    kind: "draft",
     tags: ["问答"],
     metadata: {
       source: "ask",
@@ -772,5 +771,5 @@ export async function saveAskMessageAsDraft(
       citations: sources,
     },
   });
-  return { ok: true, message: "已保存为草稿", entryId };
+  return { ok: true, message: "已保存为记录", entryId };
 }

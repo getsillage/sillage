@@ -10,7 +10,7 @@ interface CaptureResult {
 
 /**
  * Global quick-capture: a floating button (and ⌘/Ctrl+J) that opens a compact
- * composer reachable from any page. Posts a fragment to the action-only `/capture`
+ * composer reachable from any page. Posts a record to the action-only `/capture`
  * route via a fetcher, so it never navigates away; "写得更完整" jumps to 记录 for the
  * full editor.
  */
@@ -68,7 +68,6 @@ export function QuickCapture() {
           />
           <div className="absolute right-3 bottom-20 left-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
             <fetcher.Form method="post" action="/capture" className="space-y-3">
-              <input type="hidden" name="kind" value="fragment" />
               <input type="hidden" name="mood" value="" />
               <textarea
                 ref={textareaRef}

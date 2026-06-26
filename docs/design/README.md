@@ -5,6 +5,8 @@
 > 配套:[`checklist.md`](./checklist.md)(逐阶段验收清单)· [`mockups/`](./mockups/)(可直接用浏览器打开的两张效果图:[记录](./mockups/home-now.html) / [问答](./mockups/ask-chat.html))。
 > 产品语义以 [`../product/sillage.md`](../product/sillage.md) 为准;本方案只改"外观与外壳",不改数据模型与产品功能。
 
+> 状态说明:本设计方案写于旧 React Router / Workers 前端阶段。当前主前端已迁移到 `web/` Vite SPA，旧 `app/`、`public/` 和根 npm 入口已移除。本目录仅作为视觉方向与历史决策参考；重新实施时需要先把路径映射到 `web/src/`，并按当前 Go/Web 验证命令执行。
+
 ## 背景与动机(Context)
 
 用户对现有 UI 不满,核心评价是「像后台管理系统 / CRM,而不是私人记忆空间」。逐条诊断:
@@ -26,7 +28,7 @@
 4. **签名元素 —— 历史线**:一条竖向细线,最近的记录作为节点挂在线上,往下滚像沿着自己保存的记录走。呼应 Sillage(记录)与「历史」。这是全套设计里**唯一**一处"小心机",其余都保持安静。
 5. **聊天的边界**:**问答(Ask)是真聊天**,完美契合参照;**记录 / 历史 / 设置 借的是外壳气质,不做成聊天气泡**。
 
-## 技术基线(实施前必须知道的现状)
+## 历史技术基线(已过期)
 
 - **Tailwind v4**(无 `tailwind.config`)。主题集中在 [`app/app.css`](../../app/app.css):`@import "tailwindcss"` + `@plugin "@tailwindcss/typography"` + `@custom-variant dark (&:where(.dark, .dark *))` + `@theme { --font-sans: … }`。**配色与字体的总开关就在这里。**
 - **暗色模式**:class 策略(`.dark`)。[`public/theme-init.js`](../../public/theme-init.js) 在首屏前应用,localStorage key 为 `sillage-theme`,支持 `light/dark/system`;[`app/components/ThemeToggle.tsx`](../../app/components/ThemeToggle.tsx) 负责切换。**每个新令牌都必须给暗色值。**
@@ -64,9 +66,9 @@
 - 不做端到端的信息架构重排;只做视觉与外壳。
 - 问答的"最近对话"侧栏列表可作为加分项(标注为可选),不是必须。
 
-## 验证基线(每阶段都要过)
+## 当前验证基线(每阶段都要过)
 
-- `npm run typecheck` 且 `npm run lint`(Biome,非 ESLint/Prettier)。
-- `npm test` 保持绿(现有套件;纯样式不新增逻辑测试,若改了交互逻辑如抽屉开合 / active 态判断,补轻量测试)。
-- `npm run dev` 后人工 / 截图核对:**明 + 暗 × 桌面 + 移动**,覆盖 记录 / 历史 / 问答 / 设置 / entry 详情 / 登录。
+- `pnpm --dir web typecheck` 且 `pnpm --dir web lint`(Biome,非 ESLint/Prettier)。
+- `go test ./...` 保持绿；纯样式不新增逻辑测试，若改了交互逻辑如抽屉开合 / active 态判断，补轻量测试。
+- `pnpm --dir web dev` 配合本地 Go 服务后人工 / 截图核对:**明 + 暗 × 桌面 + 移动**，覆盖 记录 / 历史 / 问答 / 设置 / 初始化 / 登录。
 - 文档同步(CLAUDE.md 要求):涉及产品形态 / 导航 / 命名的改动,对照并按需更新 [`../product/sillage.md`](../product/sillage.md)。

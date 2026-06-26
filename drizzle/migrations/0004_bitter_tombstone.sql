@@ -1,1 +1,0 @@
-ALTER TABLE `entries` RENAME COLUMN "reflection_type" TO "note_type";

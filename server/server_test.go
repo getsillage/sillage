@@ -61,3 +61,16 @@ func TestHealthzAndReadyz(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacyBackupRoutesReturn404(t *testing.T) {
+	srv := newTestServer(t)
+
+	for _, path := range []string{"/download-backup", "/api/backup", "/api/backups"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("GET %s status = %d, want 404; body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+}

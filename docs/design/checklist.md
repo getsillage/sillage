@@ -5,9 +5,9 @@
 
 ## 通用门槛(每阶段都必须过)
 
-- [ ] `npm run typecheck` 通过
-- [ ] `npm run lint` 通过(Biome)
-- [ ] `npm test` 全绿(未因样式改动引入逻辑回归)
+- [ ] `pnpm --dir web typecheck` 通过
+- [ ] `pnpm --dir web lint` 通过(Biome)
+- [ ] `go test ./...` 全绿(未因样式改动引入逻辑回归)
 - [ ] 改动的每一行都能追溯到本方案(无顺手"改进"无关代码)
 - [ ] 新增的每个颜色 / 表面都同时给了 `dark:` 值
 
@@ -23,7 +23,7 @@
 - [ ] `app/root.tsx` 的 `theme-color` 明色为纸色(可选暗色 media)
 - [ ] 目测:全站变为纸墨配色、标题转宋体、暗色为"墨夜"(布局此时未变属正常)
 
-`npm run typecheck && npm run lint && npm test`
+`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`
 
 ## 阶段 2 — 外壳(左侧栏)
 
@@ -35,7 +35,7 @@
 - [ ] `ThemeToggle` 切换逻辑未变(localStorage / system 跟随仍生效)
 - [ ] `QuickCapture`(⌘/Ctrl+J)仍挂载可用
 
-`npm run typecheck && npm run lint && npm test`
+`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`
 
 ## 阶段 3 — 签名 + 核心页
 
@@ -45,7 +45,7 @@
 - [ ] 历史(timeline):宽栏;列表用历史线 + `EntryCard`;筛选 / ViewToggle 为轻量 + celadon active;"那年今日"为 clay
 - [ ] 明 + 暗 × 桌面 + 移动 下两页均正确
 
-`npm run typecheck && npm run lint && npm test`
+`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`
 
 ## 阶段 4 — 聊天 + 阅读
 
@@ -55,7 +55,7 @@
 - [ ] `EntryForm` / `QuickCapture` 换新令牌且交互不变
 - [ ] `Markdown` 复用 typography `prose`(未手写排版),暗色 `dark:prose-invert` 正常
 
-`npm run typecheck && npm run lint && npm test`
+`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`
 
 ## 阶段 5 — 收尾 + 走查
 
@@ -67,7 +67,7 @@
 - [ ] 响应式:窄屏不溢出,触控目标 ≥ 40px
 - [ ] 按 CLAUDE.md 同步 `docs/product/sillage.md`(若动到产品形态 / 导航 / 命名)
 
-`npm run typecheck && npm run lint && npm test` + `npm run dev` 全路由明暗 × 桌面移动截图核对
+`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...` + `pnpm --dir web dev` 配合本地 Go 服务全路由明暗 × 桌面移动截图核对
 
 ---
 

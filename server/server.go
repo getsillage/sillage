@@ -67,6 +67,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	server.registerAIRoutes(e)
 	server.registerAskRoutes(e)
 	server.registerConnectRoutes(e)
+	registerLegacyRemovedRoutes(e)
 	frontend.Register(e)
 
 	return server, nil

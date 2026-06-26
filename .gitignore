@@ -1,23 +1,18 @@
 .DS_Store
 .env
+.env.*
+!.env.example
+
 /node_modules/
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
 *.tsbuildinfo
-
-# React Router
-/.react-router/
-/build/
-
-# Test coverage
 /coverage/
 
-# Go
 /sillage
-
-# Cloudflare
-.mf
-.wrangler
-.dev.vars*
-worker-configuration.d.ts
-
-!.dev.vars.example
-!.env.example
+*.db
+*.db-shm
+*.db-wal
+.sillage/
+tmp/

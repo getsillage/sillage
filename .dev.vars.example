@@ -1,7 +1,0 @@
-# Copy to `.dev.vars` for local development (gitignored).
-# Generate APP_PASSWORD_HASH with: node scripts/hash-password.mjs <your-password>
-# Generate random keys with: node -e "console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64'))"
-# Local development shows the "开发版" badge regardless of APP_RELEASE_CHANNEL.
-SESSION_SECRET="<random-base64-32-bytes>"
-APP_PASSWORD_HASH="pbkdf2$100000$<salt-base64>$<hash-base64>"
-ATTACH_ENCRYPTION_KEY="<random-base64-32-bytes>"

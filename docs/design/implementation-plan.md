@@ -3,6 +3,8 @@
 > 配合 [`README.md`](./README.md)(决策与约束)与 [`design-system.md`](./design-system.md)(令牌)使用。
 > 实施前先读这三份;每个组件改动前先 `Read` 该文件确认现状(下文路径与现状描述基于重设计启动时的快照,可能已演进)。
 > 约束复述:**只改外观与外壳,不改数据 / 路由 / AI / 同步逻辑**;一律引用 `ui.ts` 令牌;每个新样式都给暗色值;沿用 Tailwind v4 + Biome。
+>
+> 状态说明:本计划基于旧 React Router / Workers 前端的 `app/` 路径编写。当前主前端已迁移到 `web/` Vite SPA，本文件只作为视觉迁移参考，不是可直接执行的当前文件清单。
 
 ---
 
@@ -26,7 +28,7 @@
 - `<meta name="theme-color">` 由 `#111827` 改为明色 `#F3F5F1`;可加一条 `media="(prefers-color-scheme: dark)"` 的 `#181A15`。
 - 确认 `font-serif` 变量在 SSR 首屏可用(无需额外网络字体,Songti 为本地字体)。
 
-> 验证:`npm run typecheck && npm run lint && npm test`;`npm run dev` 目测各页变为纸墨配色、标题转宋体、内容尚未收窄属正常(收窄在阶段 2/3 随页推进)。
+> 验证:`pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`;`pnpm --dir web dev` 配合本地 Go 服务目测各页变为纸墨配色、标题转宋体、内容尚未收窄属正常(收窄在阶段 2/3 随页推进)。
 
 ---
 
@@ -120,7 +122,7 @@
 - **暗色**:逐页核对"墨夜"模式,无残留纯白 / 纯黑硬编码。
 - **无障碍**:celadon 焦点环全程可见;`gray-400` 不承载正文;对比 ≥ AA(design-system §1.5);抽屉 / 浮层可 Esc 关闭、焦点可达。
 
-> 验证:全量 `typecheck && lint && test`;`npm run dev` 截图核对明暗 × 桌面移动覆盖全部主路由;按 CLAUDE.md 同步 [`../product/sillage.md`](../product/sillage.md)。
+> 验证:全量 `pnpm --dir web typecheck && pnpm --dir web lint && go test ./...`;`pnpm --dir web dev` 配合本地 Go 服务截图核对明暗 × 桌面移动覆盖全部主路由;按 CLAUDE.md 同步 [`../product/sillage.md`](../product/sillage.md)。
 
 ---
 

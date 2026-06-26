@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+
+service SettingsService {
+  rpc GetAISettings(GetAISettingsRequest) returns (AISettingsResponse) {
+    option (google.api.http) = {get: "/api/v1/settings/ai"};
+  }
+
+  rpc PatchAISettings(PatchAISettingsRequest) returns (AISettingsResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/settings/ai"
+      body: "*"
+    };
+  }
+}
+
+message GetAISettingsRequest {}
+
+message PatchAISettingsRequest {
+  repeated AIProfileInput profiles = 1;
+}
+
+message AIProfileInput {
+  string id = 1;
+  string name = 2;
+  string provider = 3;
+  string base_url = 4;
+  string model = 5;
+  double temperature = 6;
+  int64 max_tokens = 7;
+  bool enabled = 8;
+  bool active = 9;
+  optional string api_key = 10;
+}
+
+message AISettingsResponse {
+  repeated AIProfile profiles = 1;
+}

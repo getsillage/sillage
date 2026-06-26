@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message Account {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  google.protobuf.Timestamp created_time = 4;
+  google.protobuf.Timestamp updated_time = 5;
+}
+
+message Memo {
+  string id = 1;
+  string content = 2;
+  string entry_date = 3;
+  int64 version = 4;
+  google.protobuf.Timestamp pinned_time = 5;
+  google.protobuf.Timestamp archived_time = 6;
+  google.protobuf.Timestamp created_time = 7;
+  google.protobuf.Timestamp updated_time = 8;
+  google.protobuf.Timestamp deleted_time = 9;
+}
+
+message Attachment {
+  string id = 1;
+  string uid = 2;
+  string memo_id = 3;
+  string url = 4;
+  string filename = 5;
+  string content_type = 6;
+  int64 size = 7;
+  string sha256 = 8;
+  int64 width = 9;
+  int64 height = 10;
+  string status = 11;
+  google.protobuf.Timestamp created_time = 12;
+  google.protobuf.Timestamp updated_time = 13;
+  google.protobuf.Timestamp deleted_time = 14;
+}
+
+message MemoAI {
+  string memo_id = 1;
+  string summary = 2;
+  string sentiment = 3;
+  string provider = 4;
+  string model = 5;
+  string profile_id = 6;
+  string prompt_version = 7;
+  string source_memo_ids = 8;
+  string status = 9;
+  string error_code = 10;
+  google.protobuf.Timestamp started_time = 11;
+  google.protobuf.Timestamp finished_time = 12;
+  google.protobuf.Timestamp created_time = 13;
+  google.protobuf.Timestamp updated_time = 14;
+}
+
+message AIProfile {
+  string id = 1;
+  string name = 2;
+  string provider = 3;
+  string base_url = 4;
+  string model = 5;
+  double temperature = 6;
+  int64 max_tokens = 7;
+  bool enabled = 8;
+  bool active = 9;
+  bool has_api_key = 10;
+  bool key_unavailable = 11;
+  google.protobuf.Timestamp created_time = 12;
+  google.protobuf.Timestamp updated_time = 13;
+}
+
+message AskConversation {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string context_scope = 4;
+  string head_message_id = 5;
+  google.protobuf.Timestamp pinned_time = 6;
+  google.protobuf.Timestamp archived_time = 7;
+  google.protobuf.Timestamp created_time = 8;
+  google.protobuf.Timestamp updated_time = 9;
+  google.protobuf.Timestamp deleted_time = 10;
+}
+
+message AskSourceRef {
+  string memo_id = 1;
+  string entry_date = 2;
+  string excerpt = 3;
+  int32 rank = 4;
+}
+
+message AskMessage {
+  string id = 1;
+  string conversation_id = 2;
+  string role = 3;
+  string content = 4;
+  string parent_id = 5;
+  string fork_of_id = 6;
+  string status = 7;
+  repeated AskSourceRef source_refs = 8;
+  string model = 9;
+  google.protobuf.Timestamp created_time = 10;
+  google.protobuf.Timestamp updated_time = 11;
+  google.protobuf.Timestamp deleted_time = 12;
+}

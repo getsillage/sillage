@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+
+service SyncService {
+  rpc PullSync(PullSyncRequest) returns (PullSyncResponse) {
+    option (google.api.http) = {get: "/api/v1/sync"};
+  }
+
+  rpc PushSync(PushSyncRequest) returns (PushSyncResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/sync:push"
+      body: "*"
+    };
+  }
+}
+
+message PullSyncRequest {
+  string cursor = 1;
+  int32 limit = 2;
+}
+
+message PullSyncResponse {
+  repeated Memo memos = 1;
+  repeated Attachment attachments = 2;
+  repeated MemoAI memo_ai = 3;
+  repeated AskConversation ask_conversations = 4;
+  repeated AskMessage ask_messages = 5;
+  string cursor = 6;
+  string next_cursor = 7;
+  bool has_more = 8;
+}
+
+message PushSyncRequest {
+  repeated SyncChange changes = 1;
+}
+
+message SyncChange {
+  string mutation_id = 1;
+  string resource_type = 2;
+  string resource_id = 3;
+  string action = 4;
+  int64 base_version = 5;
+  string local_changed_at = 6;
+  SyncMemoPayload memo = 7;
+}
+
+message SyncMemoPayload {
+  string id = 1;
+  string content = 2;
+  string entry_date = 3;
+  optional bool pinned = 4;
+  optional bool archived = 5;
+}
+
+message PushSyncResponse {
+  repeated SyncResult results = 1;
+}
+
+message SyncResult {
+  string mutation_id = 1;
+  string resource_type = 2;
+  string resource_id = 3;
+  string status = 4;
+  string reason = 5;
+  string message = 6;
+  bool idempotent = 7;
+  Memo resource = 8;
+  Memo server_resource = 9;
+  int64 client_version = 10;
+  int64 server_version = 11;
+}

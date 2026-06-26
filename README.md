@@ -26,6 +26,9 @@ pnpm --dir web typecheck
 pnpm --dir web lint
 pnpm --dir web build
 
+buf lint
+buf generate
+
 SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
 curl http://localhost:5231/healthz
 curl http://localhost:5231/readyz
@@ -36,6 +39,12 @@ curl http://localhost:5231/api/v1/auth/bootstrap
 未显式配置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 时，Sillage 会自动生成并持久化到
 `runtime/secrets.json`。
 本迁移不导入旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
+
+API 契约源位于根目录 [`proto/`](proto/)，未来 Android 工程会在同仓库 `android/` 下直接复用该目录，不复制
+proto。`buf generate` 会更新 Go protobuf / gRPC / Connect / grpc-gateway 生成物、OpenAPI
+[`proto/gen/openapi/openapi.yaml`](proto/gen/openapi/openapi.yaml) 和 Web TypeScript 类型
+[`web/src/types/proto/`](web/src/types/proto/)。当前 Connect v1 已注册 MemoService，路径形如
+`/sillage.api.v1.MemoService/ListMemos`；REST v1 仍保留现有 `/api/v1/*` 路由。
 
 ## Docker 自托管
 

@@ -1,0 +1,1110 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: ""
+    version: 0.0.1
+paths:
+    /api/v1/ask/conversations:
+        get:
+            tags:
+                - AskService
+            operationId: AskService_ListAskConversations
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListAskConversationsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - AskService
+            operationId: AskService_CreateAskConversation
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateAskConversationRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AskConversationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/ask/conversations/{conversationId}/messages:
+        get:
+            tags:
+                - AskService
+            operationId: AskService_ListAskMessages
+            parameters:
+                - name: conversationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListAskMessagesResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - AskService
+            operationId: AskService_CreateAskMessage
+            parameters:
+                - name: conversationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateAskMessageRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateAskMessageResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/attachments/{uid}:
+        get:
+            tags:
+                - AttachmentService
+            operationId: AttachmentService_GetAttachment
+            parameters:
+                - name: uid
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AttachmentResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/bootstrap:
+        get:
+            tags:
+                - AuthService
+            operationId: AuthService_Bootstrap
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BootstrapResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/initialize:
+        post:
+            tags:
+                - AuthService
+            operationId: AuthService_Initialize
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/InitializeRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuthResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/me:
+        get:
+            tags:
+                - AuthService
+            operationId: AuthService_Me
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MeResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/refresh:
+        post:
+            tags:
+                - AuthService
+            operationId: AuthService_Refresh
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RefreshRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuthResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/signin:
+        post:
+            tags:
+                - AuthService
+            operationId: AuthService_SignIn
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SignInRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuthResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/auth/signout:
+        post:
+            tags:
+                - AuthService
+            operationId: AuthService_SignOut
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SignOutRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos:
+        get:
+            tags:
+                - MemoService
+            operationId: MemoService_ListMemos
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListMemosResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_CreateMemo
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:
+        get:
+            tags:
+                - MemoService
+            operationId: MemoService_GetMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - MemoService
+            operationId: MemoService_DeleteMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: expectedVersion
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        patch:
+            tags:
+                - MemoService
+            operationId: MemoService_UpdateMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:generate-summary:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_GenerateMemoSummary
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/GenerateMemoSummaryRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GenerateMemoSummaryResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:setArchived:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_SetMemoArchived
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SetMemoArchivedRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:setPinned:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_SetMemoPinned
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SetMemoPinnedRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/settings/ai:
+        get:
+            tags:
+                - SettingsService
+            operationId: SettingsService_GetAISettings
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AISettingsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        patch:
+            tags:
+                - SettingsService
+            operationId: SettingsService_PatchAISettings
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PatchAISettingsRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AISettingsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/sync:
+        get:
+            tags:
+                - SyncService
+            operationId: SyncService_PullSync
+            parameters:
+                - name: cursor
+                  in: query
+                  schema:
+                    type: string
+                - name: limit
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PullSyncResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/sync:push:
+        post:
+            tags:
+                - SyncService
+            operationId: SyncService_PushSync
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PushSyncRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PushSyncResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+components:
+    schemas:
+        AIProfile:
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                provider:
+                    type: string
+                baseUrl:
+                    type: string
+                model:
+                    type: string
+                temperature:
+                    type: number
+                    format: double
+                maxTokens:
+                    type: string
+                enabled:
+                    type: boolean
+                active:
+                    type: boolean
+                hasApiKey:
+                    type: boolean
+                keyUnavailable:
+                    type: boolean
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+        AIProfileInput:
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                provider:
+                    type: string
+                baseUrl:
+                    type: string
+                model:
+                    type: string
+                temperature:
+                    type: number
+                    format: double
+                maxTokens:
+                    type: string
+                enabled:
+                    type: boolean
+                active:
+                    type: boolean
+                apiKey:
+                    type: string
+        AISettingsResponse:
+            type: object
+            properties:
+                profiles:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AIProfile'
+        Account:
+            type: object
+            properties:
+                id:
+                    type: string
+                username:
+                    type: string
+                displayName:
+                    type: string
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+        AskConversation:
+            type: object
+            properties:
+                id:
+                    type: string
+                title:
+                    type: string
+                status:
+                    type: string
+                contextScope:
+                    type: string
+                headMessageId:
+                    type: string
+                pinnedTime:
+                    type: string
+                    format: date-time
+                archivedTime:
+                    type: string
+                    format: date-time
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+                deletedTime:
+                    type: string
+                    format: date-time
+        AskConversationResponse:
+            type: object
+            properties:
+                conversation:
+                    $ref: '#/components/schemas/AskConversation'
+        AskMessage:
+            type: object
+            properties:
+                id:
+                    type: string
+                conversationId:
+                    type: string
+                role:
+                    type: string
+                content:
+                    type: string
+                parentId:
+                    type: string
+                forkOfId:
+                    type: string
+                status:
+                    type: string
+                sourceRefs:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskSourceRef'
+                model:
+                    type: string
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+                deletedTime:
+                    type: string
+                    format: date-time
+        AskSourceRef:
+            type: object
+            properties:
+                memoId:
+                    type: string
+                entryDate:
+                    type: string
+                excerpt:
+                    type: string
+                rank:
+                    type: integer
+                    format: int32
+        Attachment:
+            type: object
+            properties:
+                id:
+                    type: string
+                uid:
+                    type: string
+                memoId:
+                    type: string
+                url:
+                    type: string
+                filename:
+                    type: string
+                contentType:
+                    type: string
+                size:
+                    type: string
+                sha256:
+                    type: string
+                width:
+                    type: string
+                height:
+                    type: string
+                status:
+                    type: string
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+                deletedTime:
+                    type: string
+                    format: date-time
+        AttachmentResponse:
+            type: object
+            properties:
+                attachment:
+                    $ref: '#/components/schemas/Attachment'
+        AuthResponse:
+            type: object
+            properties:
+                account:
+                    $ref: '#/components/schemas/Account'
+                accessToken:
+                    type: string
+                expiresAt:
+                    type: string
+        BootstrapResponse:
+            type: object
+            properties:
+                initialized:
+                    type: boolean
+        CreateAskConversationRequest:
+            type: object
+            properties:
+                title:
+                    type: string
+                contextScope:
+                    type: string
+        CreateAskMessageRequest:
+            type: object
+            properties:
+                conversationId:
+                    type: string
+                content:
+                    type: string
+                contextScope:
+                    type: string
+                parentId:
+                    type: string
+                forkOfId:
+                    type: string
+        CreateAskMessageResponse:
+            type: object
+            properties:
+                messages:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskMessage'
+        CreateMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                content:
+                    type: string
+                entryDate:
+                    type: string
+        GenerateMemoSummaryRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+        GenerateMemoSummaryResponse:
+            type: object
+            properties:
+                ai:
+                    $ref: '#/components/schemas/MemoAI'
+        GoogleProtobufAny:
+            type: object
+            properties:
+                '@type':
+                    type: string
+                    description: The type of the serialized message.
+            additionalProperties: true
+            description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message.
+        InitializeRequest:
+            type: object
+            properties:
+                username:
+                    type: string
+                displayName:
+                    type: string
+                password:
+                    type: string
+        ListAskConversationsResponse:
+            type: object
+            properties:
+                conversations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskConversation'
+        ListAskMessagesResponse:
+            type: object
+            properties:
+                messages:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskMessage'
+        ListMemosResponse:
+            type: object
+            properties:
+                memos:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Memo'
+        MeResponse:
+            type: object
+            properties:
+                account:
+                    $ref: '#/components/schemas/Account'
+        Memo:
+            type: object
+            properties:
+                id:
+                    type: string
+                content:
+                    type: string
+                entryDate:
+                    type: string
+                version:
+                    type: string
+                pinnedTime:
+                    type: string
+                    format: date-time
+                archivedTime:
+                    type: string
+                    format: date-time
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+                deletedTime:
+                    type: string
+                    format: date-time
+        MemoAI:
+            type: object
+            properties:
+                memoId:
+                    type: string
+                summary:
+                    type: string
+                sentiment:
+                    type: string
+                provider:
+                    type: string
+                model:
+                    type: string
+                profileId:
+                    type: string
+                promptVersion:
+                    type: string
+                sourceMemoIds:
+                    type: string
+                status:
+                    type: string
+                errorCode:
+                    type: string
+                startedTime:
+                    type: string
+                    format: date-time
+                finishedTime:
+                    type: string
+                    format: date-time
+                createdTime:
+                    type: string
+                    format: date-time
+                updatedTime:
+                    type: string
+                    format: date-time
+        MemoResponse:
+            type: object
+            properties:
+                memo:
+                    $ref: '#/components/schemas/Memo'
+        PatchAISettingsRequest:
+            type: object
+            properties:
+                profiles:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AIProfileInput'
+        PullSyncResponse:
+            type: object
+            properties:
+                memos:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Memo'
+                attachments:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Attachment'
+                memoAi:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/MemoAI'
+                askConversations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskConversation'
+                askMessages:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AskMessage'
+                cursor:
+                    type: string
+                nextCursor:
+                    type: string
+                hasMore:
+                    type: boolean
+        PushSyncRequest:
+            type: object
+            properties:
+                changes:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/SyncChange'
+        PushSyncResponse:
+            type: object
+            properties:
+                results:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/SyncResult'
+        RefreshRequest:
+            type: object
+            properties: {}
+        SetMemoArchivedRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
+                archived:
+                    type: boolean
+        SetMemoPinnedRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
+                pinned:
+                    type: boolean
+        SignInRequest:
+            type: object
+            properties:
+                username:
+                    type: string
+                password:
+                    type: string
+        SignOutRequest:
+            type: object
+            properties: {}
+        Status:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+                    format: int32
+                message:
+                    type: string
+                    description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+                details:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/GoogleProtobufAny'
+                    description: A list of messages that carry the error details.  There is a common set of message types for APIs to use.
+            description: 'The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).'
+        SyncChange:
+            type: object
+            properties:
+                mutationId:
+                    type: string
+                resourceType:
+                    type: string
+                resourceId:
+                    type: string
+                action:
+                    type: string
+                baseVersion:
+                    type: string
+                localChangedAt:
+                    type: string
+                memo:
+                    $ref: '#/components/schemas/SyncMemoPayload'
+        SyncMemoPayload:
+            type: object
+            properties:
+                id:
+                    type: string
+                content:
+                    type: string
+                entryDate:
+                    type: string
+                pinned:
+                    type: boolean
+                archived:
+                    type: boolean
+        SyncResult:
+            type: object
+            properties:
+                mutationId:
+                    type: string
+                resourceType:
+                    type: string
+                resourceId:
+                    type: string
+                status:
+                    type: string
+                reason:
+                    type: string
+                message:
+                    type: string
+                idempotent:
+                    type: boolean
+                resource:
+                    $ref: '#/components/schemas/Memo'
+                serverResource:
+                    $ref: '#/components/schemas/Memo'
+                clientVersion:
+                    type: string
+                serverVersion:
+                    type: string
+        UpdateMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
+                content:
+                    type: string
+                entryDate:
+                    type: string
+                pinned:
+                    type: boolean
+                archived:
+                    type: boolean
+tags:
+    - name: AskService
+    - name: AttachmentService
+    - name: AuthService
+    - name: MemoService
+    - name: SettingsService
+    - name: SyncService

@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+
+service MemoService {
+  rpc ListMemos(ListMemosRequest) returns (ListMemosResponse) {
+    option (google.api.http) = {get: "/api/v1/memos"};
+  }
+
+  rpc CreateMemo(CreateMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos"
+      body: "*"
+    };
+  }
+
+  rpc GetMemo(GetMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {get: "/api/v1/memos/{id}"};
+  }
+
+  rpc UpdateMemo(UpdateMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/memos/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteMemo(DeleteMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {delete: "/api/v1/memos/{id}"};
+  }
+
+  rpc SetMemoPinned(SetMemoPinnedRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/{id}:setPinned"
+      body: "*"
+    };
+  }
+
+  rpc SetMemoArchived(SetMemoArchivedRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/{id}:setArchived"
+      body: "*"
+    };
+  }
+
+  rpc GenerateMemoSummary(GenerateMemoSummaryRequest) returns (GenerateMemoSummaryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/{id}:generate-summary"
+      body: "*"
+    };
+  }
+}
+
+message ListMemosRequest {
+  int32 limit = 1;
+}
+
+message ListMemosResponse {
+  repeated Memo memos = 1;
+}
+
+message CreateMemoRequest {
+  string id = 1;
+  string content = 2;
+  string entry_date = 3;
+}
+
+message GetMemoRequest {
+  string id = 1;
+}
+
+message UpdateMemoRequest {
+  string id = 1;
+  int64 expected_version = 2;
+  optional string content = 3;
+  optional string entry_date = 4;
+  optional bool pinned = 5;
+  optional bool archived = 6;
+}
+
+message DeleteMemoRequest {
+  string id = 1;
+  int64 expected_version = 2;
+}
+
+message SetMemoPinnedRequest {
+  string id = 1;
+  int64 expected_version = 2;
+  bool pinned = 3;
+}
+
+message SetMemoArchivedRequest {
+  string id = 1;
+  int64 expected_version = 2;
+  bool archived = 3;
+}
+
+message GenerateMemoSummaryRequest {
+  string id = 1;
+}
+
+message GenerateMemoSummaryResponse {
+  MemoAI ai = 1;
+}
+
+message MemoResponse {
+  Memo memo = 1;
+}

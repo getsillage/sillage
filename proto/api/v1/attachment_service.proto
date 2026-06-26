@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+
+service AttachmentService {
+  rpc GetAttachment(GetAttachmentRequest) returns (AttachmentResponse) {
+    option (google.api.http) = {get: "/api/v1/attachments/{uid}"};
+  }
+}
+
+message GetAttachmentRequest {
+  string uid = 1;
+}
+
+message AttachmentResponse {
+  Attachment attachment = 1;
+}

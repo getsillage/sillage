@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+service AuthService {
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse) {
+    option (google.api.http) = {get: "/api/v1/auth/bootstrap"};
+  }
+
+  rpc Initialize(InitializeRequest) returns (AuthResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/initialize"
+      body: "*"
+    };
+  }
+
+  rpc SignIn(SignInRequest) returns (AuthResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/signin"
+      body: "*"
+    };
+  }
+
+  rpc Refresh(RefreshRequest) returns (AuthResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/refresh"
+      body: "*"
+    };
+  }
+
+  rpc SignOut(SignOutRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/signout"
+      body: "*"
+    };
+  }
+
+  rpc Me(MeRequest) returns (MeResponse) {
+    option (google.api.http) = {get: "/api/v1/auth/me"};
+  }
+}
+
+message BootstrapRequest {}
+
+message BootstrapResponse {
+  bool initialized = 1;
+}
+
+message InitializeRequest {
+  string username = 1;
+  string display_name = 2;
+  string password = 3;
+}
+
+message SignInRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RefreshRequest {}
+
+message SignOutRequest {}
+
+message MeRequest {}
+
+message MeResponse {
+  Account account = 1;
+}
+
+message AuthResponse {
+  Account account = 1;
+  string access_token = 2;
+  string expires_at = 3;
+}

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package sillage.api.v1;
+
+import "api/v1/common.proto";
+import "google/api/annotations.proto";
+
+service AskService {
+  rpc ListAskConversations(ListAskConversationsRequest) returns (ListAskConversationsResponse) {
+    option (google.api.http) = {get: "/api/v1/ask/conversations"};
+  }
+
+  rpc CreateAskConversation(CreateAskConversationRequest) returns (AskConversationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/ask/conversations"
+      body: "*"
+    };
+  }
+
+  rpc ListAskMessages(ListAskMessagesRequest) returns (ListAskMessagesResponse) {
+    option (google.api.http) = {get: "/api/v1/ask/conversations/{conversation_id}/messages"};
+  }
+
+  rpc CreateAskMessage(CreateAskMessageRequest) returns (CreateAskMessageResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/ask/conversations/{conversation_id}/messages"
+      body: "*"
+    };
+  }
+}
+
+message ListAskConversationsRequest {
+  int32 limit = 1;
+}
+
+message ListAskConversationsResponse {
+  repeated AskConversation conversations = 1;
+}
+
+message CreateAskConversationRequest {
+  string title = 1;
+  string context_scope = 2;
+}
+
+message AskConversationResponse {
+  AskConversation conversation = 1;
+}
+
+message ListAskMessagesRequest {
+  string conversation_id = 1;
+}
+
+message ListAskMessagesResponse {
+  repeated AskMessage messages = 1;
+}
+
+message CreateAskMessageRequest {
+  string conversation_id = 1;
+  string content = 2;
+  string context_scope = 3;
+  string parent_id = 4;
+  string fork_of_id = 5;
+}
+
+message CreateAskMessageResponse {
+  repeated AskMessage messages = 1;
+}

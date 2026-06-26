@@ -10,7 +10,6 @@ import type { AskConversationView, AskMessageView } from "~/lib/db/ask-conversat
 import type { EntryWithAi } from "~/lib/db/entries";
 import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
-import { inputClass, primaryButtonClass, subtleButtonClass } from "./ui";
 
 interface AskActionData {
   intent?: string;
@@ -23,6 +22,10 @@ interface AskPanelProps {
   results: EntryWithAi[];
   currentConversation: AskConversationView | null;
 }
+
+type IconProps = {
+  className?: string;
+};
 
 type AskRunMode = "send" | "edit" | "regenerate";
 
@@ -52,10 +55,13 @@ const STARTER_PROMPTS = [
 ] as const;
 
 const STREAM_FLUSH_INTERVAL_MS = 80;
-const menuItemClass =
-  "block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30";
+
+const focusRingClass =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:focus-visible:ring-celadon-400/30";
+const iconButtonClass = `inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 ${focusRingClass}`;
+const menuItemClass = `block w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 ${focusRingClass}`;
 const dangerMenuItemClass =
-  "block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/20 dark:text-red-400 dark:hover:bg-red-950/30";
+  "block w-full rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/20 dark:text-red-400 dark:hover:bg-red-950/30";
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) {
@@ -92,10 +98,42 @@ function messageWithBranch(current: AskMessageView[], message: AskMessageView): 
   return [...current, message];
 }
 
+function sourceSummary(sourceTypes: AskSourceType[]): string {
+  if (sourceTypes.length === 0) {
+    return "未选择来源";
+  }
+  if (sourceTypes.length === ASK_SOURCE_TYPES.length) {
+    return "全部来源";
+  }
+  return sourceTypes.map((type) => SOURCE_LABELS[type]).join("、");
+}
+
+function modelMeta(message: AskMessageView): string | null {
+  if (!message.model && !message.durationMs) {
+    return null;
+  }
+  return [message.model, message.durationMs ? `${(message.durationMs / 1000).toFixed(1)}s` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+async function copyText(text: string): Promise<boolean> {
+  if (!navigator.clipboard) {
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function useAskStream() {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const [runningMessageId, setRunningMessageId] = useState<string | null>(null);
+  const [draftConversationId, setDraftConversationId] = useState<string | null>(null);
   const [draftMessages, setDraftMessages] = useState<AskMessageView[] | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const partialRef = useRef("");
@@ -187,6 +225,7 @@ function useAskStream() {
     const controller = new AbortController();
     controllerRef.current = controller;
     partialRef.current = "";
+    setDraftConversationId(fields.conversationId ?? null);
 
     const response = await fetch("/api/ask-stream", {
       method: "POST",
@@ -212,6 +251,7 @@ function useAskStream() {
       const activeMessageId = runningMessageIdRef.current;
       if (event.type === "created") {
         conversationId = event.conversationId;
+        setDraftConversationId(event.conversationId);
         setRunningMessageId(event.assistantMessage.id);
         runningMessageIdRef.current = event.assistantMessage.id;
         setDraftMessages((current) =>
@@ -313,7 +353,9 @@ function useAskStream() {
   return {
     running: runningMessageId !== null,
     runningMessageId,
+    draftConversationId,
     draftMessages,
+    setDraftConversationId,
     setDraftMessages,
     run,
     stop,
@@ -332,17 +374,36 @@ export function AskPanel({ query, results, currentConversation }: AskPanelProps)
       : DEFAULT_ASK_SOURCE_TYPES,
   );
   const sourceTypesKey = (currentConversation?.sourceTypes ?? DEFAULT_ASK_SOURCE_TYPES).join(",");
+  const routeConversationId = currentConversation?.id ?? "";
   const setDraftMessages = stream.setDraftMessages;
+  const setDraftConversationId = stream.setDraftConversationId;
 
   useEffect(() => {
-    setDraftMessages(null);
+    if (
+      !stream.running &&
+      stream.draftConversationId &&
+      stream.draftConversationId !== routeConversationId
+    ) {
+      setDraftMessages(null);
+      setDraftConversationId(null);
+    }
+  }, [
+    routeConversationId,
+    setDraftConversationId,
+    setDraftMessages,
+    stream.draftConversationId,
+    stream.running,
+  ]);
+
+  useEffect(() => {
     setEditing(null);
     setSourceTypes(
       sourceTypesKey ? (sourceTypesKey.split(",") as AskSourceType[]) : DEFAULT_ASK_SOURCE_TYPES,
     );
-  }, [setDraftMessages, sourceTypesKey]);
+  }, [sourceTypesKey]);
 
   const messages = stream.draftMessages ?? currentConversation?.messages ?? [];
+  const activeConversationId = currentConversation?.id ?? stream.draftConversationId ?? "";
   const busy = stream.running;
 
   useEffect(() => {
@@ -356,7 +417,7 @@ export function AskPanel({ query, results, currentConversation }: AskPanelProps)
     }
     stream.run({
       mode: editing ? "edit" : "send",
-      conversationId: currentConversation?.id,
+      conversationId: currentConversation?.id ?? stream.draftConversationId,
       messageId: editing?.id,
       question,
       sourceTypes,
@@ -368,12 +429,12 @@ export function AskPanel({ query, results, currentConversation }: AskPanelProps)
   }
 
   function regenerate(message: AskMessageView) {
-    if (!currentConversation || busy) {
+    if (!activeConversationId || busy) {
       return;
     }
     stream.run({
       mode: "regenerate",
-      conversationId: currentConversation.id,
+      conversationId: activeConversationId,
       messageId: message.id,
       sourceTypes: message.sourceTypes.length ? message.sourceTypes : sourceTypes,
       currentMessages: messages,
@@ -416,7 +477,7 @@ export function AskPanel({ query, results, currentConversation }: AskPanelProps)
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div
           className={`mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 sm:px-6 ${
-            messages.length === 0 ? "justify-center py-10" : "gap-7 py-6 sm:py-8"
+            messages.length === 0 ? "justify-center py-8 sm:py-12" : "gap-7 py-6 sm:py-10"
           }`}
         >
           {messages.length === 0 ? (
@@ -426,7 +487,7 @@ export function AskPanel({ query, results, currentConversation }: AskPanelProps)
               <ThreadMessage
                 key={message.id}
                 message={message}
-                conversationId={currentConversation?.id ?? ""}
+                conversationId={activeConversationId}
                 busy={busy}
                 onEdit={startEdit}
                 onRegenerate={regenerate}
@@ -463,21 +524,26 @@ function EmptyState({
   onSuggestion: (prompt: string) => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-2xl text-center">
-      <p className="font-serif text-2xl text-gray-900 sm:text-3xl dark:text-gray-50">
-        今天想回看什么？
-      </p>
-      <p className="mx-auto mt-2 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
-        直接提问、继续追问，Sillage 会基于你的记录和可选总结回答。
-      </p>
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="text-center">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-celadon-50 text-celadon-700 dark:bg-celadon-900/40 dark:text-celadon-200">
+          <SillageMarkIcon className="h-5 w-5" />
+        </div>
+        <h1 className="mt-5 font-serif text-3xl text-gray-950 sm:text-4xl dark:text-gray-50">
+          根据记录提问
+        </h1>
+        <p className="mx-auto mt-3 max-w-lg text-gray-500 text-sm leading-6 dark:text-gray-400">
+          搜索、提问或继续追问，回答会尽量回到你的原始记录和总结。
+        </p>
+      </div>
 
-      <div className="mt-7 grid gap-2 sm:grid-cols-2">
+      <div className="mt-8 grid gap-2 sm:grid-cols-2">
         {STARTER_PROMPTS.map((prompt) => (
           <button
             key={prompt}
             type="button"
             onClick={() => onSuggestion(prompt)}
-            className="min-h-16 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-gray-700 text-sm leading-6 transition hover:border-celadon-200 hover:bg-celadon-50 hover:text-celadon-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-celadon-800 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200 dark:focus-visible:ring-celadon-400/30"
+            className={`min-h-16 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-gray-700 text-sm leading-6 transition hover:border-celadon-200 hover:bg-celadon-50 hover:text-celadon-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-celadon-800 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-200 ${focusRingClass}`}
           >
             {prompt}
           </button>
@@ -485,19 +551,24 @@ function EmptyState({
       </div>
 
       {query ? (
-        <section className="mt-7 rounded-lg border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-gray-900">
-          <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">搜索「{query}」</h2>
+        <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 text-left dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">搜索「{query}」</h2>
+            <span className="text-gray-400 text-xs dark:text-gray-500">
+              {results.length} 条结果
+            </span>
+          </div>
           {results.length === 0 ? (
-            <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">
+            <p className="mt-3 text-gray-400 text-sm dark:text-gray-500">
               没有找到相关记录。可以换一个词，或者直接把它作为问题问下去。
             </p>
           ) : (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-1.5">
               {results.slice(0, 3).map((entry) => (
                 <Link
                   key={entry.id}
                   to={`/entries/${entry.id}`}
-                  className="block rounded-lg px-3 py-2 text-gray-600 text-sm transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className={`block rounded-xl px-3 py-2 text-gray-600 text-sm transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 ${focusRingClass}`}
                 >
                   <span className="block text-gray-400 text-xs dark:text-gray-500">
                     {entry.entryDate}
@@ -508,7 +579,7 @@ function EmptyState({
               <button
                 type="button"
                 onClick={() => onSuggestion(`围绕“${query}”，帮我整理相关记录里的重点。`)}
-                className="mt-1 text-celadon-700 text-sm hover:text-celadon-900 dark:text-celadon-200 dark:hover:text-celadon-100"
+                className={`mt-2 rounded-xl px-3 py-2 text-celadon-700 text-sm transition hover:bg-celadon-50 hover:text-celadon-900 dark:text-celadon-200 dark:hover:bg-celadon-900/40 dark:hover:text-celadon-100 ${focusRingClass}`}
               >
                 用这个搜索词继续提问
               </button>
@@ -544,14 +615,14 @@ function Composer({
   onToggleSource: (type: AskSourceType) => void;
 }) {
   return (
-    <div className="bg-gradient-to-t from-gray-50 via-gray-50/95 to-gray-50/40 px-3 pt-2 pb-3 backdrop-blur dark:from-gray-950 dark:via-gray-950/95 dark:to-gray-950/40">
+    <div className="bg-gradient-to-t from-gray-50 via-gray-50/95 to-gray-50/30 px-3 pt-2 pb-3 backdrop-blur dark:from-gray-950 dark:via-gray-950/95 dark:to-gray-950/30">
       <div className="mx-auto w-full max-w-3xl">
         {editing ? (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-clay-200 bg-clay-50 px-3 py-2 text-clay-700 text-sm dark:border-clay-900/70 dark:bg-clay-900/40 dark:text-clay-200">
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-clay-200 bg-clay-50 px-3 py-2 text-clay-700 text-sm dark:border-clay-900/70 dark:bg-clay-900/40 dark:text-clay-200">
             <span className="min-w-0 truncate">正在编辑旧问题，会创建新的分支。</span>
             <button
               type="button"
-              className="rounded-md px-2 py-1 font-medium hover:bg-clay-100 dark:hover:bg-clay-900"
+              className={`shrink-0 rounded-xl px-2 py-1 font-medium transition hover:bg-clay-100 dark:hover:bg-clay-900 ${focusRingClass}`}
               onClick={onCancelEdit}
             >
               取消
@@ -559,7 +630,7 @@ function Composer({
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/8 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/25">
+        <div className="rounded-[1.4rem] border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/8 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/25">
           <textarea
             ref={textareaRef}
             value={input}
@@ -580,14 +651,14 @@ function Composer({
 
           <div className="flex items-center justify-between gap-2 px-1">
             <details className="group relative">
-              <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 dark:focus-visible:ring-celadon-400/30">
-                <ToolIcon />
-                <span>来源</span>
-                <span className="text-gray-400 text-xs dark:text-gray-500">
-                  {sourceTypes.length}
-                </span>
+              <summary
+                className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 ${focusRingClass}`}
+              >
+                <SourceIcon className="h-4 w-4" />
+                <span className="max-w-[9rem] truncate">{sourceSummary(sourceTypes)}</span>
+                <ChevronIcon className="h-3.5 w-3.5" />
               </summary>
-              <div className="absolute bottom-full left-0 z-20 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
                 <p className="px-2 pb-2 text-gray-400 text-xs dark:text-gray-500">
                   选择本轮回答可使用的内容
                 </p>
@@ -609,7 +680,7 @@ function Composer({
               <button
                 type="button"
                 onClick={onStop}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus-visible:ring-celadon-400/30"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white transition hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white ${focusRingClass}`}
               >
                 <StopIcon />
                 <span className="sr-only">停止</span>
@@ -619,7 +690,7 @@ function Composer({
                 type="button"
                 onClick={onSubmit}
                 disabled={input.trim().length === 0 || sourceTypes.length === 0}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white dark:focus-visible:ring-celadon-400/30"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white ${focusRingClass}`}
               >
                 <SendIcon />
                 <span className="sr-only">发送</span>
@@ -635,71 +706,6 @@ function Composer({
   );
 }
 
-function ToolIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M4 7h16" />
-      <path d="M7 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
-      <path d="M4 17h16" />
-      <path d="M13 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M12 19V5" />
-      <path d="m6 11 6-6 6 6" />
-    </svg>
-  );
-}
-
-function StopIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
-      <rect x="7" y="7" width="10" height="10" rx="1.5" />
-    </svg>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M7 12h.01" />
-      <path d="M12 12h.01" />
-      <path d="M17 12h.01" />
-    </svg>
-  );
-}
-
 function ThreadHeader({ conversation }: { conversation: AskConversationView | null }) {
   const fetcher = useFetcher<AskActionData>();
   const [renaming, setRenaming] = useState(false);
@@ -711,33 +717,32 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
     setRenaming(false);
   }, [conversationTitle]);
 
-  if (!conversation) {
-    return (
-      <header className="flex h-14 items-center bg-gray-50/85 px-3 backdrop-blur dark:bg-gray-950/75 sm:px-4">
-        <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">新对话</h2>
-      </header>
-    );
-  }
-
   return (
-    <header className="min-h-14 bg-gray-50/85 px-3 py-2 backdrop-blur dark:bg-gray-950/75 sm:px-4">
+    <header className="min-h-14 border-gray-200 border-b bg-gray-50/85 px-3 py-2 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/75 sm:px-4">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        {renaming ? (
-          <fetcher.Form method="post" className="flex min-w-0 flex-1 items-center gap-2">
+        {renaming && conversation ? (
+          <fetcher.Form
+            method="post"
+            className="flex min-w-0 flex-1 items-center gap-2"
+            onSubmit={() => setRenaming(false)}
+          >
             <input type="hidden" name="intent" value="renameAskConversation" />
             <input type="hidden" name="conversationId" value={conversation.id} />
             <input
               name="title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className={`${inputClass} mt-0`}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-celadon-300 focus:ring-2 focus:ring-celadon-600/15 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-50 dark:focus:border-celadon-700 dark:focus:ring-celadon-400/20"
             />
-            <button type="submit" className={primaryButtonClass}>
+            <button
+              type="submit"
+              className={`inline-flex h-10 items-center justify-center rounded-xl bg-gray-950 px-3 font-medium text-sm text-white transition hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white ${focusRingClass}`}
+            >
               保存
             </button>
             <button
               type="button"
-              className={subtleButtonClass}
+              className={`inline-flex h-10 items-center justify-center rounded-xl px-3 text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 ${focusRingClass}`}
               onClick={() => {
                 setTitle(conversationTitle);
                 setRenaming(false);
@@ -747,16 +752,27 @@ function ThreadHeader({ conversation }: { conversation: AskConversationView | nu
             </button>
           </fetcher.Form>
         ) : (
-          <div className="min-w-0">
-            <h2 className="truncate font-medium text-gray-900 text-sm dark:text-gray-50">
-              {conversation.title || "新的问答"}
-            </h2>
-            <p className="text-gray-400 text-xs dark:text-gray-500">
-              更新于 <LocalDateTime value={conversation.updatedAt} />
-            </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-celadon-50 text-celadon-700 dark:bg-celadon-900/40 dark:text-celadon-200">
+              <SillageMarkIcon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate font-medium text-gray-900 text-sm dark:text-gray-50">
+                {conversation?.title || "新的问答"}
+              </h2>
+              <p className="truncate text-gray-400 text-xs dark:text-gray-500">
+                {conversation ? (
+                  <>
+                    更新于 <LocalDateTime value={conversation.updatedAt} />
+                  </>
+                ) : (
+                  "根据记录提问"
+                )}
+              </p>
+            </div>
           </div>
         )}
-        {renaming ? null : (
+        {renaming || !conversation ? null : (
           <ConversationMenu
             conversation={conversation}
             onRename={() => {
@@ -779,11 +795,11 @@ function ConversationMenu({
 }) {
   return (
     <details className="relative shrink-0">
-      <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 dark:focus-visible:ring-celadon-400/30">
+      <summary className={`${iconButtonClass} cursor-pointer list-none`}>
         <MoreIcon />
         <span className="sr-only">会话操作</span>
       </summary>
-      <div className="absolute right-0 z-20 mt-2 w-40 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
+      <div className="absolute right-0 z-20 mt-2 w-44 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-900/10 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
         <button type="button" className={menuItemClass} onClick={onRename}>
           重命名
         </button>
@@ -832,8 +848,8 @@ function ActionButton({
               ? dangerMenuItemClass
               : menuItemClass
             : danger
-              ? "inline-flex items-center justify-center rounded-lg px-3 py-2 font-medium text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-              : subtleButtonClass
+              ? "inline-flex items-center justify-center rounded-xl px-3 py-2 font-medium text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+              : `inline-flex items-center justify-center rounded-xl px-3 py-2 font-medium text-gray-500 text-sm transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 ${focusRingClass}`
         }
       >
         {children}
@@ -856,44 +872,51 @@ function ThreadMessage({
   onRegenerate: (message: AskMessageView) => void;
 }) {
   const isUser = message.role === "user";
+
   if (isUser) {
     return (
-      <div className="group/message flex w-full justify-end">
+      <article className="group/message flex w-full justify-end">
         <div className="max-w-[88%] sm:max-w-[76%]">
-          <div className="rounded-3xl bg-gray-200/70 px-4 py-2.5 text-gray-900 text-sm leading-7 dark:bg-gray-800 dark:text-gray-100">
+          <div className="rounded-3xl rounded-br-lg bg-white px-4 py-2.5 text-gray-900 text-sm leading-7 shadow-sm shadow-gray-900/5 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-1 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
+          <MessageActions align="right">
             {message.branch ? (
               <BranchControls conversationId={conversationId} branch={message.branch} />
             ) : null}
+            <CopyButton text={message.content} />
             <button
               type="button"
               onClick={() => onEdit(message)}
               disabled={busy}
-              className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+              className="rounded-lg px-2 py-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
             >
               编辑
             </button>
-          </div>
+          </MessageActions>
         </div>
-      </div>
+      </article>
     );
   }
 
+  const meta = modelMeta(message);
+
   return (
-    <div className="group/message w-full">
-      <div className="min-w-0 text-gray-900 dark:text-gray-50">
-        <div className="text-[15px] leading-7">
+    <article className="group/message flex w-full gap-3">
+      <div className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full bg-celadon-50 text-celadon-700 dark:bg-celadon-900/40 dark:text-celadon-200">
+        <SillageMarkIcon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1 text-gray-900 dark:text-gray-50">
+        <div className="text-[15px] leading-8">
           {message.status === "running" && !message.content ? (
             <span className="inline-flex items-center gap-2 text-gray-400 dark:text-gray-500">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500" />
+              <span className="h-2 w-2 animate-pulse rounded-full bg-celadon-500 dark:bg-celadon-300" />
               正在生成
             </span>
           ) : message.status === "error" ? (
             <p className="text-red-600 dark:text-red-400">{message.content}</p>
           ) : message.status === "running" ? (
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            <p className="whitespace-pre-wrap font-serif">{message.content}</p>
           ) : (
             <LazyMarkdown content={message.content} variant="chat" />
           )}
@@ -904,55 +927,94 @@ function ThreadMessage({
         ) : null}
 
         {message.sources.length > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-gray-400 text-xs dark:text-gray-500">来源</span>
-            {message.sources.map((source) => (
-              <Link
-                key={`${message.id}-${source.id}`}
-                to={source.href}
-                className="max-w-full truncate rounded-full bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70 dark:focus-visible:ring-celadon-400/30"
-                title={source.label}
-              >
-                {source.label}
-              </Link>
-            ))}
+          <div className="mt-4">
+            <div className="mb-2 text-gray-400 text-xs dark:text-gray-500">来源</div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {message.sources.map((source) => (
+                <Link
+                  key={`${message.id}-${source.id}`}
+                  to={source.href}
+                  className={`max-w-full truncate rounded-full bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900/70 ${focusRingClass}`}
+                  title={source.label}
+                >
+                  {source.label}
+                </Link>
+              ))}
+            </div>
           </div>
         ) : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs opacity-0 transition group-hover/message:opacity-100 group-focus-within/message:opacity-100">
+        <MessageActions>
           {message.branch ? (
             <BranchControls conversationId={conversationId} branch={message.branch} />
           ) : null}
+          <CopyButton text={message.content} disabled={!message.content} />
           <button
             type="button"
             onClick={() => onRegenerate(message)}
-            disabled={busy || message.status === "running"}
-            className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+            disabled={busy || message.status === "running" || !conversationId}
+            className="rounded-lg px-2 py-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
           >
             重新生成
           </button>
-          {message.status === "completed" || message.status === "interrupted" ? (
+          {(message.status === "completed" || message.status === "interrupted") &&
+          conversationId ? (
             <Form method="post">
               <input type="hidden" name="intent" value="saveAskEntry" />
               <input type="hidden" name="conversationId" value={conversationId} />
               <input type="hidden" name="messageId" value={message.id} />
               <button
                 type="submit"
-                className="rounded-md px-2 py-1 text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                className="rounded-lg px-2 py-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
               >
                 保存为记录
               </button>
             </Form>
           ) : null}
-          {message.model ? (
-            <span className="text-gray-300 dark:text-gray-600">
-              {message.model}
-              {message.durationMs ? ` · ${(message.durationMs / 1000).toFixed(1)}s` : ""}
-            </span>
-          ) : null}
-        </div>
+          {meta ? <span className="text-gray-300 dark:text-gray-600">{meta}</span> : null}
+        </MessageActions>
       </div>
+    </article>
+  );
+}
+
+function MessageActions({
+  children,
+  align = "left",
+}: {
+  children: ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <div
+      className={`mt-2 flex flex-wrap items-center gap-1 text-xs opacity-100 transition sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100 ${
+        align === "right" ? "justify-end" : ""
+      }`}
+    >
+      {children}
     </div>
+  );
+}
+
+function CopyButton({ text, disabled = false }: { text: string; disabled?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={async () => {
+        const ok = await copyText(text);
+        if (!ok) {
+          return;
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      }}
+      className="rounded-lg px-2 py-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+    >
+      {copied ? "已复制" : "复制"}
+    </button>
   );
 }
 
@@ -963,8 +1025,11 @@ function BranchControls({
   conversationId: string;
   branch: NonNullable<AskMessageView["branch"]>;
 }) {
+  if (!conversationId) {
+    return null;
+  }
   return (
-    <span className="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
+    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-400 dark:bg-gray-900 dark:text-gray-500">
       <BranchButton conversationId={conversationId} messageId={branch.previousId} label="‹" />
       <span>
         {branch.index + 1}/{branch.count}
@@ -991,7 +1056,10 @@ function BranchButton({
       <input type="hidden" name="intent" value="selectAskBranch" />
       <input type="hidden" name="conversationId" value={conversationId} />
       <input type="hidden" name="messageId" value={messageId} />
-      <button type="submit" className="px-1 hover:text-gray-900 dark:hover:text-gray-100">
+      <button
+        type="submit"
+        className="px-1 transition hover:text-gray-900 dark:hover:text-gray-100"
+      >
         {label}
       </button>
     </Form>
@@ -1011,10 +1079,10 @@ function SourceToggle({
 }) {
   return (
     <label
-      className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition sm:gap-2 sm:px-3 sm:text-sm ${
+      className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-2.5 text-sm transition ${
         checked
-          ? "border-celadon-600 bg-celadon-50 text-celadon-800 dark:border-celadon-400 dark:bg-celadon-900/40 dark:text-celadon-200"
-          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900"
+          ? "bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200"
+          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
       }`}
     >
       <input
@@ -1023,7 +1091,107 @@ function SourceToggle({
         onChange={() => onChange(type)}
         className="h-4 w-4 rounded border-gray-300 accent-celadon-600 dark:border-gray-700"
       />
-      {label}
+      <span>{label}</span>
     </label>
+  );
+}
+
+function SillageMarkIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M7 7.5c1.2-1.6 3-2.5 5.1-2.5 2.5 0 4.4 1.1 5.4 2.9" />
+      <path d="M17.8 15.5c-1.1 2.2-3.1 3.5-5.9 3.5-3.2 0-5.2-1.4-5.9-3.5" />
+      <path d="M8.2 12h7.6" />
+    </svg>
+  );
+}
+
+function SourceIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 7h16" />
+      <path d="M7 12h10" />
+      <path d="M10 17h4" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <path d="M7 12h.01" />
+      <path d="M12 12h.01" />
+      <path d="M17 12h.01" />
+    </svg>
   );
 }

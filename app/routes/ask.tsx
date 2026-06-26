@@ -94,12 +94,12 @@ export async function action({ request }: Route.ActionArgs): Promise<AskActionDa
 
 export default function Ask({ loaderData }: Route.ComponentProps) {
   return (
-    <main className="h-[calc(100svh-3.5rem)] bg-gray-50 dark:bg-gray-950 lg:h-screen">
+    <section className="h-[calc(100svh-3.5rem)] bg-gray-50 dark:bg-gray-950 lg:h-screen">
       <AskTab
         query={loaderData.query}
         results={loaderData.results}
         currentConversation={loaderData.currentConversation}
       />
-    </main>
+    </section>
   );
 }

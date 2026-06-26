@@ -47,7 +47,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <Sidebar
-        className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:flex"
+        className="fixed inset-y-0 left-0 z-30 hidden w-72 lg:flex"
         appBadge={appBadge}
         authBypassed={authBypassed}
         conversations={askConversations}
@@ -59,12 +59,13 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           type="button"
           aria-label="打开导航"
           aria-expanded={drawerOpen}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-celadon-400/30"
           onClick={() => setDrawerOpen(true)}
         >
-          <span aria-hidden="true" className="text-2xl leading-none">
-            ☰
-          </span>
+          <span
+            aria-hidden="true"
+            className="h-4 w-5 border-gray-600 border-y dark:border-gray-300"
+          />
         </button>
       </header>
 
@@ -80,7 +81,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             role="dialog"
             aria-modal="true"
             aria-label="导航"
-            className="absolute inset-y-0 left-0 w-64 max-w-[85vw] shadow-xl shadow-gray-950/10"
+            className="absolute inset-y-0 left-0 w-72 max-w-[88vw] shadow-xl shadow-gray-950/10"
           >
             <Sidebar
               className="h-full w-full"
@@ -93,7 +94,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         </div>
       ) : null}
 
-      <main className="lg:pl-64">
+      <main className="lg:pl-72">
         <Outlet />
       </main>
       {showQuickCapture ? <QuickCapture /> : null}

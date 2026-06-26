@@ -1,23 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseMetadata, toAttachmentDto, toEntryDto } from "../app/lib/api/serialize";
-import type { EntryWithTags } from "../app/lib/db/entries";
+import { toAttachmentDto, toEntryDto } from "../app/lib/api/serialize";
+import type { EntryWithAi } from "../app/lib/db/entries";
 import type { Attachment } from "../app/lib/db/schema";
 
-function makeEntry(overrides: Partial<EntryWithTags> = {}): EntryWithTags {
+function makeEntry(overrides: Partial<EntryWithAi> = {}): EntryWithAi {
   return {
     id: "01890000-0000-7000-8000-000000000000",
     entryDate: "2026-06-24",
-    title: "标题",
     body: "正文",
-    mood: 4,
-    moodText: "轻松但想念",
-    weather: "晴",
-    location: "海边",
-    people: JSON.stringify(["朋友"]),
-    relationships: JSON.stringify(["朋友"]),
-    isPinned: false,
-    utcOffsetMinutes: 480,
-    metadata: null,
     version: 3,
     createdAt: new Date("2026-06-24T01:00:00.000Z"),
     updatedAt: new Date("2026-06-24T02:00:00.000Z"),
@@ -28,7 +18,6 @@ function makeEntry(overrides: Partial<EntryWithTags> = {}): EntryWithTags {
     aiDurationMs: null,
     aiGeneratedAt: null,
     aiGenerationCount: 0,
-    tags: ["旅行", "生活"],
     ...overrides,
   };
 }
@@ -52,37 +41,19 @@ function makeAttachment(overrides: Partial<Attachment> = {}): Attachment {
   };
 }
 
-describe("parseMetadata", () => {
-  it("returns null for empty/null input", () => {
-    expect(parseMetadata(null)).toBeNull();
-    expect(parseMetadata("")).toBeNull();
-  });
-
-  it("parses a JSON object", () => {
-    expect(parseMetadata('{"client":"ios","draft":true}')).toEqual({ client: "ios", draft: true });
-  });
-
-  it("rejects non-object JSON (arrays, scalars) and malformed input", () => {
-    expect(parseMetadata("[1,2,3]")).toBeNull();
-    expect(parseMetadata('"just a string"')).toBeNull();
-    expect(parseMetadata("not json")).toBeNull();
-  });
-});
-
 describe("toEntryDto", () => {
-  it("emits ISO timestamps, parsed metadata, and a nested ai object", () => {
-    const dto = toEntryDto(makeEntry({ metadata: '{"client":"ios"}' }));
-    expect(dto.createdAt).toBe("2026-06-24T01:00:00.000Z");
-    expect(dto.updatedAt).toBe("2026-06-24T02:00:00.000Z");
-    expect(dto.deletedAt).toBeNull();
-    expect(dto.metadata).toEqual({ client: "ios" });
-    expect(dto.moodText).toBe("轻松但想念");
-    expect(dto.location).toBe("海边");
-    expect(dto.people).toEqual(["朋友"]);
-    expect(dto.relationships).toEqual(["朋友"]);
-    expect(dto.version).toBe(3);
-    expect(dto.ai).toEqual({ summary: "一句摘要", sentiment: "积极" });
-    expect(dto.tags).toEqual(["旅行", "生活"]);
+  it("emits the clean entry sync shape", () => {
+    const dto = toEntryDto(makeEntry());
+    expect(dto).toEqual({
+      id: "01890000-0000-7000-8000-000000000000",
+      entryDate: "2026-06-24",
+      body: "正文",
+      version: 3,
+      ai: { summary: "一句摘要", sentiment: "积极" },
+      createdAt: "2026-06-24T01:00:00.000Z",
+      updatedAt: "2026-06-24T02:00:00.000Z",
+      deletedAt: null,
+    });
   });
 
   it("serializes a soft-delete tombstone as ISO", () => {

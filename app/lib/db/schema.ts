@@ -1,4 +1,4 @@
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
  * Sillage entries — the user-authored record. `body` is Markdown plaintext (relying
@@ -21,25 +21,7 @@ export const entries = sqliteTable(
     id: text("id").primaryKey(),
     // The date the entry is "for", as YYYY-MM-DD (local calendar date).
     entryDate: text("entry_date").notNull(),
-    title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
-    // Mood on a 1-5 scale; null when not set.
-    mood: integer("mood"),
-    // Free-form mood nuance, alongside the preset numeric mood.
-    moodText: text("mood_text"),
-    weather: text("weather"),
-    location: text("location"),
-    // JSON-encoded string arrays. They are first-class product fields, stored as
-    // text to keep D1 reads/writes simple and explicit.
-    people: text("people").notNull().default("[]"),
-    relationships: text("relationships").notNull().default("[]"),
-    isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
-    // Writer's UTC offset in minutes when the entry was saved; resolves the local
-    // meaning of `entryDate` across devices in different time zones. Null = unknown.
-    utcOffsetMinutes: integer("utc_offset_minutes"),
-    // Forward-compatible JSON bag for client-specific / experimental fields, so new
-    // clients can extend an entry without a schema migration. Null when unused.
-    metadata: text("metadata"),
     // Optimistic-concurrency token; starts at 1, +1 on each content update.
     version: integer("version").notNull().default(1),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
@@ -96,44 +78,13 @@ export const entryRevisions = sqliteTable(
       .references(() => entries.id, { onDelete: "cascade" }),
     // The entry `version` this snapshot represents (1 = creation).
     version: integer("version").notNull(),
-    title: text("title").notNull().default(""),
+    entryDate: text("entry_date").notNull(),
     body: text("body").notNull().default(""),
-    // JSON snapshot of the secondary fields (mood, location, people, tags, …).
-    fields: text("fields"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
   (table) => [index("idx_entry_revisions_entry_id").on(table.entryId)],
-);
-
-export const tags = sqliteTable(
-  "tags",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").notNull().unique(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-      .notNull()
-      .$defaultFn(() => new Date()),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .notNull()
-      .$defaultFn(() => new Date()),
-    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
-  },
-  (table) => [index("idx_tags_updated_at").on(table.updatedAt)],
-);
-
-export const entryTags = sqliteTable(
-  "entry_tags",
-  {
-    entryId: text("entry_id")
-      .notNull()
-      .references(() => entries.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
-      .notNull()
-      .references(() => tags.id, { onDelete: "cascade" }),
-  },
-  (table) => [primaryKey({ columns: [table.entryId, table.tagId] })],
 );
 
 export const attachments = sqliteTable(
@@ -188,7 +139,7 @@ export const summaries = sqliteTable(
   "summaries",
   {
     id: text("id").primaryKey(),
-    // "period" = a time window; "topic" = a thread filtered by tags/people/keyword.
+    // "period" = a time window; "topic" = a thread filtered by keyword.
     scope: text("scope").notNull(),
     // day|week|month|quarter|year|custom. Null when a topic review has no period filter.
     periodType: text("period_type"),
@@ -198,7 +149,7 @@ export const summaries = sqliteTable(
     endDate: text("end_date").notNull(),
     // Output depth/voice: brief | structured | narrative (narrative = long-form).
     style: text("style").notNull().default("brief"),
-    // JSON of the topic filter ({ tags?, people?, relationships?, keyword?, entryIds? }).
+    // JSON of the topic filter ({ keyword }).
     // Null for a pure period summary.
     filter: text("filter"),
     title: text("title").notNull().default(""),
@@ -295,8 +246,6 @@ export type EntryAi = typeof entryAi.$inferSelect;
 export type NewEntryAi = typeof entryAi.$inferInsert;
 export type EntryRevision = typeof entryRevisions.$inferSelect;
 export type NewEntryRevision = typeof entryRevisions.$inferInsert;
-export type Tag = typeof tags.$inferSelect;
-export type NewTag = typeof tags.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;
 export type NewAttachment = typeof attachments.$inferInsert;
 export type Summary = typeof summaries.$inferSelect;

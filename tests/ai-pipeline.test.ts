@@ -11,7 +11,6 @@ describe("AI pipeline", () => {
   beforeEach(async () => {
     await env.DB.prepare("DELETE FROM entry_ai").run();
     await env.DB.prepare("DELETE FROM entries").run();
-    await env.DB.prepare("DELETE FROM tags").run();
     await env.SESSIONS.delete("ai-settings");
   });
 
@@ -22,9 +21,7 @@ describe("AI pipeline", () => {
   it("degrades safely when AI providers are disabled", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "普通一天",
       body: "今天散步，天气很好。",
-      tags: ["生活"],
     });
     const entry = await getEntry(db, id);
     if (!entry) {
@@ -43,9 +40,7 @@ describe("AI pipeline", () => {
   it("writes summary when a web AI profile is configured", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "海边散步",
       body: "今天看到了漂亮夕阳。",
-      tags: ["旅行"],
     });
     const entry = await getEntry(db, id);
     if (!entry) {
@@ -86,9 +81,7 @@ describe("AI pipeline", () => {
   it("writes summary via an OpenAI profile and records the model", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "山里徒步",
       body: "走了很久的山路。",
-      tags: [],
     });
     const entry = await getEntry(db, id);
     if (!entry) {
@@ -124,9 +117,7 @@ describe("AI pipeline", () => {
   it("retries truncated entry summaries and does not store a still-truncated result", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "长记录",
       body: "很多细节。",
-      tags: [],
     });
     const entry = await getEntry(db, id);
     if (!entry) {
@@ -164,9 +155,7 @@ describe("AI pipeline", () => {
   it("increments the generation count and records duration across regenerations", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "重复生成",
       body: "再来一次。",
-      tags: [],
     });
     const entry = await getEntry(db, id);
     if (!entry) {

@@ -60,14 +60,14 @@
 - 设计成接收 `children`(节点行)或一个 `entries` + 渲染函数,供 记录 与 历史 复用。保持小而专。
 
 ### 3.2 [`app/components/EntryCard.tsx`](../../app/components/EntryCard.tsx)
-- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 重点节点行。标题改 `serifTitleClass`;元信息行(时间、mood、location)保持 sans + faint。
-- 标签 / 人物 / 关系 chip 用 design-system §5.2;`EntryInsightControl` 总结块改 celadon 软底。
+- **去盒子**:由 `rowLinkClass` 重边框卡 → hairline 分隔 / 重点节点行。正文摘要用宋体;元信息行(时间、归属日期、修改时间)保持 sans + faint。
+- `EntryInsightControl` 总结块改 celadon 软底。
 - 保留交互逻辑(`openOnCardClick`、键盘处理、`navigate`)与 props 形态,仅换类名与结构层级。
 
 ### 3.3 [`app/routes/home.tsx`](../../app/routes/home.tsx)(记录)
 - 改 `readingShellClass`。
 - 顶部:日期 eyebrow(sans/faint)+ 宋体大标题「今天想记录什么？」+ 简短说明「写下今天发生的事、想法或感受。」。
-- 捕获:把大表单收成**安静输入区**(参考 [附录 A4](#a4-记录-捕获));副字段(心情 / 地点 / 人物)用既有 `SuggestedInput` 的轻量触发(CLAUDE.md 既定模式),**不要**大 `<select>` / 宽按钮。
+- 捕获:把大表单收成**安静输入区**(参考 [附录 A4](#a4-记录-捕获));只保留日期与正文。
 - 弱化右侧分组:今日记录与最近记录改为标题下的安静分组;「最近记录」改用 `TraceThread` 渲染。
 - 「那年今日」用 clay 节点融入历史线或独立安静块。
 - 保留 `loader`/`action`/`scheduleEntryInsight` 等逻辑不变。
@@ -90,13 +90,12 @@
 - 容器宽度 `readingShellClass`。
 
 ### 4.2 [`app/routes/entry.tsx`](../../app/routes/entry.tsx)(详情 / 编辑)
-- `readingShellClass`。阅读态:宋体标题 + `prose font-serif`(typography 插件)正文;元信息 sans;改动历史 / 版本块用 hairline 安静呈现。
+- `readingShellClass`。阅读态:`prose font-serif`(typography 插件)正文;元信息 sans;改动历史 / 版本块用 hairline 安静呈现。
 - 编辑态沿用 `EntryForm`;保留 CAS 并发、`entry_revisions`、附件等逻辑。
 
 ### 4.3 表单族
-- [`app/components/EntryForm.tsx`](../../app/components/EntryForm.tsx):去多余边框,celadon 焦点 / 保存按钮;副字段用 `SuggestedInput`。
+- [`app/components/EntryForm.tsx`](../../app/components/EntryForm.tsx):去多余边框,celadon 焦点 / 保存按钮;只保留日期与正文。
 - [`app/components/QuickCapture.tsx`](../../app/components/QuickCapture.tsx):浮层(⌘/Ctrl+J)换新令牌,保留极轻阴影;逻辑不变。
-- [`app/components/SuggestedInput.tsx`](../../app/components/SuggestedInput.tsx):输入框 celadon 焦点;建议浮层用 `bg-white` + hairline + 极轻阴影;选中项 celadon 软底。
 - [`app/components/Markdown.tsx`](../../app/components/Markdown.tsx)(及 `LazyMarkdown` / `MarkdownEditor`):复用 `prose prose-stone font-serif dark:prose-invert`(design-system §5.1),勿手写排版。
 
 > 验证:问答完整走一轮(发送 / 流式 / 引用跳转 / 停止)外观正确且逻辑不回归;entry 阅读 / 编辑明暗正常;`typecheck && lint && test`。
@@ -129,7 +128,7 @@
 
 - 全程引用 [`app/components/ui.ts`](../../app/components/ui.ts) 令牌,勿散落原始类 / hex。
 - 长正文用**已装的** `@tailwindcss/typography`(`prose`)。
-- 捕获 / 表单副字段用既有 [`SuggestedInput`](../../app/components/SuggestedInput.tsx)。
+- 捕获 / 表单只保留日期与正文。
 - [`EntryCard`](../../app/components/EntryCard.tsx) 跨 记录 / 历史 共用;历史线用单一 `TraceThread`。
 - 暗色沿用 `.dark` + `dark:` 变体;[`ThemeToggle`](../../app/components/ThemeToggle.tsx) 逻辑原样保留。
 - 侧栏图标用内联 SVG,**不引图标库**。
@@ -234,7 +233,7 @@ const navItem = ({ isActive }) =>
 <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
   <textarea className="block w-full resize-none bg-transparent font-serif text-[15px] outline-none placeholder:text-gray-400" placeholder="记下记录……" />
   <div className="mt-5 flex items-center gap-2">
-    {/* 心情 / 地点 / 人物:SuggestedInput 轻量触发 */}
+    {/* 只保留日期与正文 */}
     <button className={primaryButtonClass + " ml-auto"}>保存</button>
   </div>
 </div>

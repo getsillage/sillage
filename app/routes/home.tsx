@@ -16,7 +16,7 @@ import { requireSession } from "~/lib/auth/session";
 import { todayISO, yearsBetween } from "~/lib/date";
 import { getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
-import { createEntry, type EntryWithTags, listEntries } from "~/lib/db/entries";
+import { createEntry, type EntryWithAi, listEntries } from "~/lib/db/entries";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/home";
 
@@ -73,7 +73,7 @@ export async function action({ request }: Route.ActionArgs) {
   return redirect("/");
 }
 
-function EntryMiniList({ entries, empty }: { entries: EntryWithTags[]; empty: string }) {
+function EntryMiniList({ entries, empty }: { entries: EntryWithAi[]; empty: string }) {
   if (entries.length === 0) {
     return <p className="text-gray-400 text-sm dark:text-gray-500">{empty}</p>;
   }

@@ -68,7 +68,6 @@ export function QuickCapture() {
           />
           <div className="absolute right-3 bottom-20 left-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
             <fetcher.Form method="post" action="/capture" className="space-y-3">
-              <input type="hidden" name="mood" value="" />
               <textarea
                 ref={textareaRef}
                 name="body"

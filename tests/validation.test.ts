@@ -14,12 +14,7 @@ describe("entry form parsing + validation", () => {
     const values = entryFormFromData(
       formOf({
         entryDate: "2026-06-23",
-        title: "标题",
         body: "正文",
-        mood: "5",
-        moodText: "有点松了一口气",
-        weather: "晴",
-        location: "海边",
         people: "朋友, 家人",
         relationships: "朋友",
         tags: "旅行, 美食  摄影，旅行",
@@ -28,15 +23,9 @@ describe("entry form parsing + validation", () => {
     expect(values.body).toBe("正文");
     const parsed = entrySchema.safeParse(values);
     expect(parsed.success).toBe(true);
-    expect(parsed.success ? parsed.data : null).toMatchObject({
-      title: "",
-      mood: null,
-      moodText: null,
-      weather: null,
-      location: null,
-      people: [],
-      relationships: [],
-      tags: [],
+    expect(parsed.success ? parsed.data : null).toEqual({
+      entryDate: "2026-06-23",
+      body: "正文",
     });
   });
 

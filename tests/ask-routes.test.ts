@@ -18,10 +18,8 @@ async function resetDb() {
   await env.DB.prepare("DELETE FROM ask_messages").run();
   await env.DB.prepare("DELETE FROM ask_conversations").run();
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entry_ai").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
   await env.SESSIONS.delete("ai-settings");
 }
 
@@ -86,9 +84,7 @@ describe("ask routes", () => {
     );
     const id = await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "见面",
       body: "和小明在咖啡馆聊了很久。",
-      tags: [],
     });
 
     const result = await askAction({

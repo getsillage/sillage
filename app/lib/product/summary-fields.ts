@@ -1,7 +1,6 @@
 /**
- * Vocabulary for AI reviews (the `summaries` table). Kept here, mirroring
- * `entry-fields.ts`, so the schema, validation, AI prompts, and UI all share one
- * source of truth for scopes / period types / styles and their Chinese labels.
+ * Vocabulary for AI reviews (the `summaries` table): one source of truth for
+ * scopes / period types / styles and their Chinese labels.
  */
 
 export const SUMMARY_SCOPES = ["period", "topic"] as const;
@@ -37,13 +36,9 @@ export const STYLE_LABELS: Record<SummaryStyle, string> = {
   narrative: "叙述长文",
 };
 
-/** The set of records a topic review is woven from. All fields optional. */
+/** The set of records a topic review is woven from. */
 export interface SummaryFilter {
-  tags?: string[];
-  people?: string[];
-  relationships?: string[];
   keyword?: string;
-  entryIds?: string[];
 }
 
 export function isSummaryScope(value: string): value is SummaryScope {

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, like, lte, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, type SQL } from "drizzle-orm";
 import type {
   SummaryFilter,
   SummaryPeriodType,
@@ -7,9 +7,9 @@ import type {
 } from "~/lib/product/summary-fields";
 import { searchEntriesByKeyword } from "~/lib/search/fts";
 import type { Db } from "./client";
-import { composeEntries, type EntryWithTags } from "./entries";
+import { composeEntries, type EntryWithAi } from "./entries";
 import { uuidv7 } from "./id";
-import { entries, entryAi, entryTags, type Summary, summaries, tags } from "./schema";
+import { entries, entryAi, type Summary, summaries } from "./schema";
 
 export interface SummaryInput {
   scope: SummaryScope;
@@ -194,72 +194,22 @@ export async function deleteSummary(db: Db, id: string): Promise<void> {
     .where(and(eq(summaries.id, id), isNull(summaries.deletedAt)));
 }
 
-function cleanValues(values: readonly string[] | undefined): string[] {
-  return (values ?? []).map((value) => value.trim()).filter(Boolean);
-}
-
-/** Live entry ids that carry any of the given tag names. */
-async function idsByTags(db: Db, names: readonly string[]): Promise<string[]> {
-  const values = cleanValues(names);
-  if (values.length === 0) {
-    return [];
-  }
-  const rows = await db
-    .select({ id: entryTags.entryId })
-    .from(entryTags)
-    .innerJoin(tags, eq(entryTags.tagId, tags.id))
-    .innerJoin(entries, eq(entries.id, entryTags.entryId))
-    .where(and(inArray(tags.name, values), isNull(entries.deletedAt)));
-  return rows.map((row) => row.id);
-}
-
-/** Live entry ids whose JSON string-array column contains any of the values. */
-async function idsByJsonArray(
-  db: Db,
-  column: typeof entries.people | typeof entries.relationships,
-  values: readonly string[],
-): Promise<string[]> {
-  const cleaned = cleanValues(values);
-  if (cleaned.length === 0) {
-    return [];
-  }
-  const matchers = cleaned.map((value) => like(column, `%"${value}"%`));
-  const rows = await db
-    .select({ id: entries.id })
-    .from(entries)
-    .where(and(isNull(entries.deletedAt), or(...matchers)));
-  return rows.map((row) => row.id);
-}
-
 /**
  * Resolves a topic filter into a de-duplicated, live entry set, optionally
- * constrained to a date window. Current UI submits keyword-only filters; the
- * older tag/person/relationship/id filters stay readable for historical rows.
+ * constrained to a date window.
  */
 export async function collectEntriesForTopic(
   db: Db,
   filter: SummaryFilter,
   window?: { startDate: string; endDate: string },
-): Promise<EntryWithTags[]> {
+): Promise<EntryWithAi[]> {
   const idSet = new Set<string>();
 
-  for (const id of await idsByTags(db, filter.tags ?? [])) {
-    idSet.add(id);
-  }
-  for (const id of await idsByJsonArray(db, entries.people, filter.people ?? [])) {
-    idSet.add(id);
-  }
-  for (const id of await idsByJsonArray(db, entries.relationships, filter.relationships ?? [])) {
-    idSet.add(id);
-  }
   const keyword = filter.keyword?.trim();
   if (keyword) {
     for (const result of await searchEntriesByKeyword(db, keyword, 100)) {
       idSet.add(result.id);
     }
-  }
-  for (const id of cleanValues(filter.entryIds)) {
-    idSet.add(id);
   }
 
   const ids = [...idSet];
@@ -278,5 +228,5 @@ export async function collectEntriesForTopic(
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
     .where(and(...conditions))
     .orderBy(desc(entries.entryDate), desc(entries.createdAt));
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }

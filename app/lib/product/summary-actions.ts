@@ -59,23 +59,7 @@ function friendlyReason(reason?: string): string {
 }
 
 function topicLabelFromFilter(filter: SummaryFilter): string {
-  const parts: string[] = [];
-  if (filter.tags?.length) {
-    parts.push(filter.tags.map((tag) => `#${tag}`).join(" "));
-  }
-  if (filter.people?.length) {
-    parts.push(`人物：${filter.people.join("、")}`);
-  }
-  if (filter.relationships?.length) {
-    parts.push(`关系：${filter.relationships.join("、")}`);
-  }
-  if (filter.keyword) {
-    parts.push(`关键词「${filter.keyword}」`);
-  }
-  if (filter.entryIds?.length) {
-    parts.push(`手选 ${filter.entryIds.length} 条`);
-  }
-  return parts.join(" · ");
+  return filter.keyword ? `关键词「${filter.keyword}」` : "";
 }
 
 function topicFilterFromInput(input: SummaryGenerateInput): SummaryFilter {

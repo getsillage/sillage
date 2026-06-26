@@ -51,19 +51,8 @@ GET /api/sync?cursor=<token>
 |------|------|------|
 | `id` | string | UUIDv7(可按时间排序);跨客户端稳定 |
 | `entryDate` | string | `YYYY-MM-DD`,该条目“所属”的日历日期 |
-| `title` | string | |
 | `body` | string | Markdown 明文 |
-| `mood` | number \| null | 1–5 |
-| `moodText` | string \| null | 自由文本细腻感受 |
-| `weather` | string \| null | |
-| `location` | string \| null | 地点 |
-| `people` | string[] | 人物 |
-| `relationships` | string[] | 关系 |
-| `isPinned` | boolean | |
-| `utcOffsetMinutes` | number \| null | 保存时写入者的 UTC 偏移;用于解析 `entryDate` 的本地含义 |
-| `metadata` | object \| null | 向前兼容的客户端附加字段;由存储的 JSON 解析而来 |
 | `version` | number | 乐观并发令牌;每次内容编辑递增 |
-| `tags` | string[] | 已排序、去重的标签名 |
 | `ai` | object | `{ summary: string \| null, sentiment: string \| null }`(机器派生) |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601;游标追踪的字段 |
@@ -95,7 +84,7 @@ loop:
   res = GET /api/sync?cursor=cursor       // cursor 为 null 时省略该参数
   for entry in res.entries:
     if entry.deletedAt != null: delete_local(entry.id)
-    else:                       upsert_local(entry)   // 含其 tags + ai
+    else:                       upsert_local(entry)   // 含正文 + ai
   for att in res.attachments:
     if att.deletedAt != null: delete_local_attachment(att.id)
     else:                     upsert_local_attachment(att)
@@ -132,4 +121,3 @@ curl -b jar.txt "https://<host>/api/sync?cursor=eyJlbnRyaWVzIjp..."
 
 - 客户端可在本地生成 UUIDv7 `id`(离线创建,无需服务端往返)。
 - 回传你上次读到的 `version`;服务端的 `updateEntry` 会以**冲突**(当前版本 vs 期望版本)拒绝陈旧写入,而不是覆盖更新的副本。处理方式:重新获取后再次应用。
-- 当某个写入者省略 `metadata` / `utcOffsetMinutes` 时,它们会被保留,因此来自某个客户端的部分更新不会抹掉另一个客户端的字段。

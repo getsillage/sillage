@@ -19,7 +19,6 @@ describe("Sillage backup export", () => {
     await env.DB.prepare("DELETE FROM ask_messages").run();
     await env.DB.prepare("DELETE FROM ask_conversations").run();
     await env.DB.prepare("DELETE FROM entries").run();
-    await env.DB.prepare("DELETE FROM tags").run();
   });
 
   afterEach(() => {
@@ -29,15 +28,7 @@ describe("Sillage backup export", () => {
   it("writes JSON and Markdown backups to R2", async () => {
     const entryId = await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "海边散步",
       body: "今天看到了漂亮夕阳。",
-      mood: 5,
-      moodText: "很明亮，也有一点想念",
-      weather: "晴",
-      location: "海边",
-      people: ["朋友"],
-      relationships: ["朋友"],
-      tags: ["旅行", "生活"],
     });
     await putAttachment(db, env.BLOBS, KEY, {
       entryId,
@@ -65,35 +56,27 @@ describe("Sillage backup export", () => {
       exportedAt: string;
       entries: Array<{
         id: string;
-        title: string;
-        moodText: string | null;
-        location: string | null;
-        people: string[];
-        relationships: string[];
-        tags: string[];
+        entryDate: string;
+        body: string;
       }>;
       attachments: Array<{ filename: string; r2Key: string }>;
     }>();
     expect(payload?.exportedAt).toBe("2026-06-24T03:04:05.000Z");
     expect(payload?.entries[0]).toMatchObject({
       id: entryId,
-      title: "海边散步",
-      moodText: "很明亮，也有一点想念",
-      location: "海边",
-      people: ["朋友"],
-      relationships: ["朋友"],
-      tags: ["旅行", "生活"],
+      entryDate: "2026-06-23",
+      body: "今天看到了漂亮夕阳。",
     });
+    expect(payload?.entries[0]).not.toHaveProperty("title");
+    expect(payload?.entries[0]).not.toHaveProperty("tags");
     expect(payload?.attachments[0]?.filename).toBe("photo.png");
-    expect(await markdownObject?.text()).toContain("## 2026-06-23 海边散步");
+    expect(await markdownObject?.text()).toContain("## 2026-06-23");
   });
 
-  it("renders summary/sentiment lines and falls back to the date for untitled entries", async () => {
+  it("renders summary/sentiment lines", async () => {
     const entryId = await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "",
       body: "无标题正文",
-      tags: [],
     });
     await env.DB.prepare("INSERT INTO entry_ai (entry_id, summary, sentiment) VALUES (?, ?, ?)")
       .bind(entryId, "一段摘要", "积极")
@@ -102,18 +85,16 @@ describe("Sillage backup export", () => {
     const { markdownKey } = await exportSillageBackup(env, new Date("2026-06-21T00:00:00.000Z"));
     const markdown = (await (await env.BLOBS.get(markdownKey))?.text()) ?? "";
 
-    // Untitled entry → heading falls back to the entry date.
-    expect(markdown).toContain("## 2026-06-20 2026-06-20");
+    expect(markdown).toContain("## 2026-06-20");
     expect(markdown).toContain("摘要：一段摘要");
     expect(markdown).toContain("情绪：积极");
-    // No tags/mood/weather were set, so those lines are omitted.
     expect(markdown).not.toContain("标签：");
     expect(markdown).not.toContain("心情：");
     expect(markdown).not.toContain("天气：");
   });
 
   it("runScheduledBackup writes a backup on success", async () => {
-    await createEntry(db, { entryDate: "2026-06-19", title: "T", body: "B", tags: [] });
+    await createEntry(db, { entryDate: "2026-06-19", body: "B" });
 
     await expect(runScheduledBackup(env)).resolves.toBeUndefined();
 

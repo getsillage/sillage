@@ -1,5 +1,4 @@
-import type { EntryWithTags } from "~/lib/db/entries";
-import { parseTextList } from "~/lib/product/entry-fields";
+import type { EntryWithAi } from "~/lib/db/entries";
 import type { SummaryPeriodType, SummaryScope, SummaryStyle } from "~/lib/product/summary-fields";
 import { loadAiConfig } from "./config";
 import { activeModel } from "./pipeline";
@@ -36,7 +35,7 @@ export interface SummaryRequest {
   startDate: string;
   endDate: string;
   style: SummaryStyle;
-  entries: EntryWithTags[];
+  entries: EntryWithAi[];
   /** Human-readable description of the topic filter, for the prompt + fallback title. */
   topicLabel?: string;
 }
@@ -54,23 +53,12 @@ function truncateBody(body: string): string {
   return trimmed.length > MAX_BODY_CHARS ? `${trimmed.slice(0, MAX_BODY_CHARS)}…` : trimmed;
 }
 
-function entryBlock(entry: EntryWithTags): string {
-  const people = parseTextList(entry.people);
-  const relationships = parseTextList(entry.relationships);
-  return [
-    entry.title ? `【${entry.entryDate}】${entry.title}` : `【${entry.entryDate}】`,
-    entry.moodText ? `心情：${entry.moodText}` : "",
-    people.length > 0 ? `人物：${people.join("、")}` : "",
-    relationships.length > 0 ? `关系：${relationships.join("、")}` : "",
-    truncateBody(entry.body),
-    entry.tags.length > 0 ? entry.tags.map((tag) => `#${tag}`).join(" ") : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+function entryBlock(entry: EntryWithAi): string {
+  return [`【${entry.entryDate}】`, truncateBody(entry.body)].filter(Boolean).join("\n");
 }
 
 /** Serializes many entries into a compact, bounded prompt input. */
-export function buildEntriesDigest(entries: EntryWithTags[]): string {
+export function buildEntriesDigest(entries: EntryWithAi[]): string {
   const slice = entries.slice(0, MAX_ENTRIES);
   const blocks = slice.map(entryBlock).join("\n\n---\n\n");
   const omitted = entries.length - slice.length;

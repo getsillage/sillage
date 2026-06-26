@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { RelativeTime } from "~/components/RelativeTime";
 import { ENTRY_INSIGHT_PHASES, formatDuration } from "~/lib/ai/progress";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 import { GenerationStatus } from "./GenerationStatus";
 import { useAiGeneration } from "./useAiGeneration";
 
 interface EntryInsightControlProps {
-  entry: EntryWithTags;
+  entry: EntryWithAi;
   /** Tighter type scale for the in-card variant. */
   compact?: boolean;
   /** Extra control rendered next to the generate button (e.g. a 查看详情 link). */

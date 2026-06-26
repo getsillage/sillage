@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import type { Db } from "./client";
-import { composeEntries, type EntryWithTags } from "./entries";
+import { composeEntries, type EntryWithAi } from "./entries";
 import { entries, entryAi } from "./schema";
 
 /** Counts live entries per day within [startDate, endDate] (inclusive). */
@@ -24,14 +24,14 @@ export async function getEntryDateCounts(
 }
 
 /** Lists live entries for a single calendar day, newest-created first. */
-export async function listEntriesByDate(db: Db, date: string): Promise<EntryWithTags[]> {
+export async function listEntriesByDate(db: Db, date: string): Promise<EntryWithAi[]> {
   const rows = await db
     .select()
     .from(entries)
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
     .where(and(eq(entries.entryDate, date), isNull(entries.deletedAt)))
     .orderBy(desc(entries.createdAt));
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
 /** Lists live entries within [startDate, endDate] (inclusive), newest day first. */
@@ -39,7 +39,7 @@ export async function listEntriesByDateRange(
   db: Db,
   startDate: string,
   endDate: string,
-): Promise<EntryWithTags[]> {
+): Promise<EntryWithAi[]> {
   const rows = await db
     .select()
     .from(entries)
@@ -52,25 +52,25 @@ export async function listEntriesByDateRange(
       ),
     )
     .orderBy(desc(entries.entryDate), desc(entries.createdAt));
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
 /** Lists all live entries, newest day first. */
-export async function listAllEntriesByDate(db: Db): Promise<EntryWithTags[]> {
+export async function listAllEntriesByDate(db: Db): Promise<EntryWithAi[]> {
   const rows = await db
     .select()
     .from(entries)
     .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
     .where(isNull(entries.deletedAt))
     .orderBy(desc(entries.entryDate), desc(entries.createdAt));
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
 /**
  * "On this day": live entries from the same month/day (MM-DD) in other years.
  * `today` is a full YYYY-MM-DD string.
  */
-export async function getOnThisDay(db: Db, today: string): Promise<EntryWithTags[]> {
+export async function getOnThisDay(db: Db, today: string): Promise<EntryWithAi[]> {
   const monthDay = today.slice(5); // MM-DD
   const rows = await db
     .select()
@@ -84,5 +84,5 @@ export async function getOnThisDay(db: Db, today: string): Promise<EntryWithTags
       ),
     )
     .orderBy(desc(entries.entryDate));
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }

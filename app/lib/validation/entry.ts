@@ -14,15 +14,7 @@ const baseEntrySchema = z
 
 export const entrySchema = baseEntrySchema.transform((value) => ({
   entryDate: value.entryDate,
-  title: "",
   body: value.body,
-  mood: null,
-  moodText: null,
-  weather: null,
-  location: null,
-  people: [],
-  relationships: [],
-  tags: [],
 }));
 
 export type EntryFormValues = z.input<typeof entrySchema>;

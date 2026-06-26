@@ -15,7 +15,7 @@ import { requireSession } from "~/lib/auth/session";
 import { monthGrid, pad2, todayISO, yearsBetween } from "~/lib/date";
 import { getEntryDateCounts, getOnThisDay, listEntriesByDate } from "~/lib/db/calendar";
 import { getDb } from "~/lib/db/client";
-import { type EntryWithTags, listEntries } from "~/lib/db/entries";
+import { type EntryWithAi, listEntries } from "~/lib/db/entries";
 import type { Route } from "./+types/timeline";
 
 export function meta(_: Route.MetaArgs) {
@@ -84,7 +84,7 @@ function excerpt(body: string, max = 40): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-function OnThisDay({ entries, today }: { entries: EntryWithTags[]; today: string }) {
+function OnThisDay({ entries, today }: { entries: EntryWithAi[]; today: string }) {
   return (
     <section className="rounded-lg bg-clay-50 p-4 dark:bg-clay-900/50">
       <h2 className={`text-sm ${serifTitleClass}`}>那年今日</h2>

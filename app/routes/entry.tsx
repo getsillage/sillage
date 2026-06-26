@@ -6,9 +6,9 @@ import { LocalDateTime } from "~/components/LocalDateTime";
 import { pageTitleClass, panelClass, readingShellClass } from "~/components/ui";
 import { requireSession } from "~/lib/auth/session";
 import { getDb } from "~/lib/db/client";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 import { deleteEntry, getEntry, updateEntry } from "~/lib/db/entries";
-import { type EntryRevisionView, listEntryRevisions } from "~/lib/db/revisions";
+import { listEntryRevisions } from "~/lib/db/revisions";
 import { formatReadingStats, readingStats } from "~/lib/product/reading-stats";
 import { entryFormFromData, entrySchema } from "~/lib/validation/entry";
 import type { Route } from "./+types/entry";
@@ -17,15 +17,7 @@ export function meta(_: Route.MetaArgs) {
   return [{ title: "记录 · Sillage" }];
 }
 
-function revisionFieldSummary(fields: EntryRevisionView["fields"]): string {
-  const parts: string[] = [];
-  if (fields.entryDate) {
-    parts.push(fields.entryDate);
-  }
-  return parts.join(" · ");
-}
-
-function formDefaults(entry: EntryWithTags) {
+function formDefaults(entry: EntryWithAi) {
   return {
     entryDate: entry.entryDate,
     body: entry.body,
@@ -170,7 +162,6 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
               <h2 className="font-medium text-gray-900 text-sm dark:text-gray-100">修改记录</h2>
               <ol className="mt-3 space-y-2">
                 {revisions.map((revision, index) => {
-                  const summary = revisionFieldSummary(revision.fields);
                   return (
                     <li key={revision.id}>
                       <details className="rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-800">
@@ -189,9 +180,9 @@ export default function EntryDetail({ loaderData, actionData }: Route.ComponentP
                           ) : (
                             <p className="text-gray-400 text-xs dark:text-gray-500">(无正文)</p>
                           )}
-                          {summary ? (
+                          {revision.entryDate ? (
                             <p className="mt-2 text-gray-400 text-xs dark:text-gray-500">
-                              {summary}
+                              {revision.entryDate}
                             </p>
                           ) : null}
                         </div>

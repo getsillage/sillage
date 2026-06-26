@@ -24,15 +24,12 @@ describe("entries schema + FTS5 triggers", () => {
     await db.insert(entries).values({
       id,
       entryDate: "2026-06-23",
-      title: "美好的一天",
       body: "今天天气很好，我很开心。",
-      mood: 5,
     });
 
     const [row] = await db.select().from(entries).where(eq(entries.id, id));
-    expect(row.title).toBe("美好的一天");
-    expect(row.mood).toBe(5);
-    expect(row.isPinned).toBe(false);
+    expect(row.entryDate).toBe("2026-06-23");
+    expect(row.body).toBe("今天天气很好，我很开心。");
     expect(row.createdAt).toBeInstanceOf(Date);
   });
 
@@ -42,7 +39,6 @@ describe("entries schema + FTS5 triggers", () => {
     await db.insert(entries).values({
       id,
       entryDate: "2026-06-23",
-      title: "美好的一天",
       body: "今天天气很好，我很开心。",
     });
 
@@ -56,7 +52,6 @@ describe("entries schema + FTS5 triggers", () => {
     await db.insert(entries).values({
       id,
       entryDate: "2026-06-23",
-      title: "原始标题",
       body: "第一段内容关于跑步。",
     });
     expect(await ftsMatch("关于跑步")).toContain(id);

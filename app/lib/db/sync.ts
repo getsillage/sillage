@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, or, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client";
-import { composeEntries, type EntryWithTags } from "./entries";
+import { composeEntries, type EntryWithAi } from "./entries";
 import { type Attachment, attachments, entries, entryAi } from "./schema";
 
 /**
@@ -24,7 +24,7 @@ export interface SyncCursor {
 }
 
 export interface SyncChanges {
-  entries: EntryWithTags[];
+  entries: EntryWithAi[];
   attachments: Attachment[];
   cursor: SyncCursor;
   hasMore: boolean;
@@ -76,7 +76,7 @@ export async function getChangesSince(
     .orderBy(asc(attachments.updatedAt), asc(attachments.id))
     .limit(limit);
 
-  const changedEntries = await composeEntries(db, entryRows);
+  const changedEntries = composeEntries(entryRows);
 
   return {
     entries: changedEntries,

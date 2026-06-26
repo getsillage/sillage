@@ -10,10 +10,8 @@ const db = getDb(env.DB);
 async function resetDb() {
   await env.DB.prepare("DELETE FROM summaries").run();
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entry_ai").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
 }
 
 describe("ask context", () => {
@@ -22,26 +20,24 @@ describe("ask context", () => {
   it("defaults to all records", async () => {
     await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "记录A",
       body: "和小明在咖啡馆聊天。",
-      tags: [],
     });
     await createEntry(db, {
       entryDate: "2026-06-21",
-      title: "记录B",
       body: "认真写下和小明的谈话。",
-      tags: [],
     });
     await createEntry(db, {
       entryDate: "2026-06-22",
-      title: "记录C",
       body: "又一次提到了小明。",
-      tags: [],
     });
 
     const context = await collectAskContext(db, "小明");
 
-    expect(context.entries.map((entry) => entry.title)).toEqual(["记录C", "记录B", "记录A"]);
+    expect(context.entries.map((entry) => entry.body)).toEqual([
+      "又一次提到了小明。",
+      "认真写下和小明的谈话。",
+      "和小明在咖啡馆聊天。",
+    ]);
     expect(context.evidence).toContain("和小明在咖啡馆聊天");
     expect(context.evidence).toContain("又一次提到了小明");
   });
@@ -49,9 +45,7 @@ describe("ask context", () => {
   it("can use AI generated entry insights without exposing the raw entry body", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "原文",
       body: "这段原文不应进入证据。",
-      tags: [],
     });
     await env.DB.prepare(
       "INSERT INTO entry_ai (entry_id, summary, sentiment, model, generated_at) VALUES (?, ?, ?, ?, ?)",
@@ -74,7 +68,6 @@ describe("ask context", () => {
       endDate: "2026-06-30",
       style: "brief",
       filter: { keyword: "项目" },
-      title: "六月项目",
       content: "AI 总结中提到项目推进很顺利。",
       model: "test",
       sourceEntryIds: [],
@@ -93,9 +86,7 @@ describe("ask context", () => {
   it("handles long natural-language Chinese questions without complex LIKE patterns", async () => {
     await createEntry(db, {
       entryDate: "2026-06-23",
-      title: "今天的时间",
       body: "系统里的今天是 2026-06-24。",
-      tags: [],
     });
 
     const context = await collectAskContext(
@@ -103,7 +94,7 @@ describe("ask context", () => {
       "不要根据记录，我问的是你系统里指定的今天是什么时间",
     );
 
-    expect(context.entries.map((entry) => entry.title)).toContain("今天的时间");
+    expect(context.entries.map((entry) => entry.body)).toContain("系统里的今天是 2026-06-24。");
   });
 
   it("parses source selections from form data and falls back to defaults", () => {

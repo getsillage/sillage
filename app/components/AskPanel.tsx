@@ -9,7 +9,7 @@ import {
   DEFAULT_ASK_SOURCE_TYPES,
 } from "~/lib/ai/ask-context";
 import type { AskConversationView, AskMessageView } from "~/lib/db/ask-conversations";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 import { LazyMarkdown } from "./LazyMarkdown";
 import { LocalDateTime } from "./LocalDateTime";
 import { inputClass, primaryButtonClass, subtleButtonClass } from "./ui";
@@ -22,7 +22,7 @@ interface AskActionData {
 
 interface AskPanelProps {
   query: string;
-  results: EntryWithTags[];
+  results: EntryWithAi[];
   summaries: LoadedSummary[];
   currentConversation: AskConversationView | null;
 }
@@ -451,7 +451,7 @@ function EmptyState({
   onSuggestion,
 }: {
   query: string;
-  results: EntryWithTags[];
+  results: EntryWithAi[];
   summaries: LoadedSummary[];
   onSuggestion: (prompt: string) => void;
 }) {

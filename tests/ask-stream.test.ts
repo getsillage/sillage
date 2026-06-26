@@ -13,10 +13,8 @@ async function resetDb() {
   await env.DB.prepare("DELETE FROM ask_messages").run();
   await env.DB.prepare("DELETE FROM ask_conversations").run();
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entry_ai").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
   await env.SESSIONS.delete("ai-settings");
 }
 
@@ -76,9 +74,7 @@ describe("ask stream route", () => {
     await configureOpenAi();
     await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "散步",
       body: "傍晚散步后状态变好了。",
-      tags: [],
     });
     vi.stubGlobal(
       "fetch",

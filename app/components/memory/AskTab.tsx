@@ -1,12 +1,12 @@
 import { AskPanel } from "~/components/AskPanel";
 import type { LoadedSummary } from "~/components/insights/SummaryCard";
 import type { AskConversationView } from "~/lib/db/ask-conversations";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 
 interface AskTabProps {
   query: string;
   currentConversation: AskConversationView | null;
-  results: EntryWithTags[];
+  results: EntryWithAi[];
   summaries: LoadedSummary[];
 }
 

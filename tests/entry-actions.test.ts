@@ -11,9 +11,7 @@ const db = getDb(env.DB);
 
 async function resetState() {
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
   await env.SESSIONS.delete("ai-settings");
 }
 
@@ -88,15 +86,7 @@ describe("entry actions", () => {
 
     const entryId = await createEntry(db, {
       entryDate: "2026-06-24",
-      title: "待更新",
       body: "先建一条记录。",
-      mood: null,
-      moodText: null,
-      weather: null,
-      location: null,
-      people: [],
-      relationships: [],
-      tags: [],
     });
 
     const updateResponse = await entryAction({

@@ -40,8 +40,8 @@
 ## 阶段 3 — 签名 + 核心页
 
 - [ ] `TraceThread` 组件存在,竖线 + 节点对齐;记忆回望节点为 clay 环且略大
-- [ ] `EntryCard` 去盒子(hairline / 重点行),标题宋体;`openOnCardClick`、键盘打开、chip 等行为不回归
-- [ ] 记录(home):窄栏;宋体大标题 + 安静捕获区;副字段用 `SuggestedInput` 轻量触发(无大 `<select>`/宽按钮);"最近记录"走 `TraceThread`
+- [ ] `EntryCard` 去盒子(hairline / 重点行),正文摘要宋体;`openOnCardClick`、键盘打开等行为不回归
+- [ ] 记录(home):窄栏;宋体大标题 + 安静捕获区;"最近记录"走 `TraceThread`
 - [ ] 历史(timeline):宽栏;列表用历史线 + `EntryCard`;筛选 / ViewToggle 为轻量 + celadon active;"那年今日"为 clay
 - [ ] 明 + 暗 × 桌面 + 移动 下两页均正确
 
@@ -52,7 +52,7 @@
 - [ ] 问答(ask):用户气泡 sans(右)、Sillage 回答正文宋体(左)、引用来源为 celadon chip 且可跳转、底部贴底输入 + celadon 发送
 - [ ] 问答**逻辑零回归**:发送 / SSE 流式 / 重生成 / 停止 / 分支 切换均正常
 - [ ] entry 详情:窄栏,宋体标题 + `prose font-serif` 正文;编辑态(`EntryForm`)正常,CAS / 修订 / 附件不受影响
-- [ ] `EntryForm` / `QuickCapture` / `SuggestedInput` 换新令牌且交互不变
+- [ ] `EntryForm` / `QuickCapture` 换新令牌且交互不变
 - [ ] `Markdown` 复用 typography `prose`(未手写排版),暗色 `dark:prose-invert` 正常
 
 `npm run typecheck && npm run lint && npm test`

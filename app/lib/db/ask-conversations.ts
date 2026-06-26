@@ -755,21 +755,11 @@ export async function saveAskMessageAsEntry(
   }
   const parent = message.parentId ? await getMessageRow(db, message.parentId) : null;
   const sources = parseSources(message.sources);
-  const title = titleFromQuestion(parent?.content ?? "AI 回答");
   const entryId = await createEntry(db, {
     entryDate: todayISO(),
-    title: `问答：${title}`,
     body: [`> ${parent?.content ?? "AI 回答"}`, "", message.content, sourcesMarkdown(sources)]
       .filter(Boolean)
       .join("\n"),
-    tags: ["问答"],
-    metadata: {
-      source: "ask",
-      conversationId,
-      messageId,
-      parentMessageId: parent?.id ?? null,
-      citations: sources,
-    },
   });
   return { ok: true, message: "已保存为记录", entryId };
 }

@@ -1,8 +1,8 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 import { LocalDateTime } from "./LocalDateTime";
-import { rowLinkClass, serifTitleClass } from "./ui";
+import { rowLinkClass } from "./ui";
 
 function excerpt(body: string, max = 120): string {
   const text = body.replace(/\s+/g, " ").trim();
@@ -20,7 +20,7 @@ export function EntryCard({
   entry,
   openOnCardClick = false,
 }: {
-  entry: EntryWithTags;
+  entry: EntryWithAi;
   showEntryInsight?: boolean;
   openOnCardClick?: boolean;
 }) {
@@ -28,7 +28,7 @@ export function EntryCard({
   const createdDate = entry.createdAt.toISOString().slice(0, 10);
   const showEntryDate = entry.entryDate !== createdDate;
   const detailPath = `/entries/${entry.id}`;
-  const title = excerpt(entry.body, 48) || "空白记录";
+  const preview = excerpt(entry.body) || "空白记录";
 
   function openDetail() {
     navigate(detailPath);
@@ -56,7 +56,7 @@ export function EntryCard({
       className={`${rowLinkClass}${openOnCardClick ? " group cursor-pointer" : ""}`}
       role={openOnCardClick ? "link" : undefined}
       tabIndex={openOnCardClick ? 0 : undefined}
-      aria-label={openOnCardClick ? `查看${title}详情` : undefined}
+      aria-label={openOnCardClick ? `查看${preview}详情` : undefined}
       onClick={openOnCardClick ? handleCardClick : undefined}
       onKeyDown={openOnCardClick ? handleCardKeyDown : undefined}
     >
@@ -69,22 +69,17 @@ export function EntryCard({
           </span>
         ) : null}
       </div>
-      <h2 className={`mt-1 text-base ${serifTitleClass}`}>
+      <h2 className="mt-1 font-serif text-base text-gray-900 leading-7 dark:text-gray-50">
         {openOnCardClick ? (
           <span className="group-hover:text-celadon-700 dark:group-hover:text-celadon-200">
-            {title}
+            {preview}
           </span>
         ) : (
           <Link to={detailPath} className="hover:text-celadon-700 dark:hover:text-celadon-200">
-            {title}
+            {preview}
           </Link>
         )}
       </h2>
-      {entry.body ? (
-        <p className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400">
-          {excerpt(entry.body)}
-        </p>
-      ) : null}
     </article>
   );
 }

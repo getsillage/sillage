@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -30,7 +30,7 @@ export interface CalendarViewProps {
   selectedDate: string | null;
   weeks: (string | null)[][];
   counts: Record<string, number>;
-  dayEntries: EntryWithTags[];
+  dayEntries: EntryWithAi[];
 }
 
 /** Month grid for 历史's calendar view: dotted day cells + the selected day's entries. */

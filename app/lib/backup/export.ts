@@ -1,16 +1,7 @@
 import { asc, eq, isNull } from "drizzle-orm";
 import { renderAskConversationMarkdown } from "~/lib/db/ask-conversations";
 import { getDb } from "~/lib/db/client";
-import {
-  askConversations,
-  askMessages,
-  attachments,
-  entries,
-  entryAi,
-  entryTags,
-  tags,
-} from "~/lib/db/schema";
-import { parseTextList } from "~/lib/product/entry-fields";
+import { askConversations, askMessages, attachments, entries, entryAi } from "~/lib/db/schema";
 
 export interface SillageBackupResult {
   jsonKey: string;
@@ -18,36 +9,20 @@ export interface SillageBackupResult {
   entryCount: number;
 }
 
-interface BackupTagLink {
-  entryId: string;
-  tagId: string;
-}
-
 interface BackupEntry {
   id: string;
   entryDate: string;
-  title: string;
   body: string;
-  mood: number | null;
-  moodText: string | null;
-  weather: string | null;
-  location: string | null;
-  people: string[];
-  relationships: string[];
-  isPinned: boolean;
   summary: string | null;
   sentiment: string | null;
   createdAt: string;
   updatedAt: string;
-  tags: string[];
 }
 
 interface SillageBackupPayload {
   version: 1;
   exportedAt: string;
   entries: BackupEntry[];
-  tags: Array<{ id: string; name: string; createdAt: string }>;
-  entryTags: BackupTagLink[];
   attachments: Array<{
     id: string;
     entryId: string | null;
@@ -105,38 +80,11 @@ function backupTimestamp(date: Date): string {
   return date.toISOString().replaceAll(":", "-").replaceAll(".", "-");
 }
 
-function tagsByEntry(
-  links: BackupTagLink[],
-  tagRows: SillageBackupPayload["tags"],
-): Map<string, string[]> {
-  const namesById = new Map(tagRows.map((tag) => [tag.id, tag.name]));
-  const result = new Map<string, string[]>();
-  for (const link of links) {
-    const name = namesById.get(link.tagId);
-    if (!name) {
-      continue;
-    }
-    const existing = result.get(link.entryId);
-    result.set(link.entryId, existing ? [...existing, name] : [name]);
-  }
-  return result;
-}
-
 function renderMarkdown(payload: SillageBackupPayload): string {
   const sections = payload.entries.map((entry) => {
-    const title = entry.title || entry.entryDate;
-    const tagLine =
-      entry.tags.length > 0 ? `\n标签：${entry.tags.map((tag) => `#${tag}`).join(" ")}` : "";
-    const moodLine = entry.mood ? `\n心情：${entry.mood}/5` : "";
-    const moodTextLine = entry.moodText ? `\n细腻感受：${entry.moodText}` : "";
-    const weatherLine = entry.weather ? `\n天气：${entry.weather}` : "";
-    const locationLine = entry.location ? `\n地点：${entry.location}` : "";
-    const peopleLine = entry.people.length > 0 ? `\n人物：${entry.people.join("、")}` : "";
-    const relationshipLine =
-      entry.relationships.length > 0 ? `\n关系：${entry.relationships.join("、")}` : "";
     const summaryLine = entry.summary ? `\n摘要：${entry.summary}` : "";
     const sentimentLine = entry.sentiment ? `\n情绪：${entry.sentiment}` : "";
-    return `## ${entry.entryDate} ${title}${tagLine}${moodLine}${moodTextLine}${weatherLine}${locationLine}${peopleLine}${relationshipLine}${summaryLine}${sentimentLine}\n\n${entry.body}`;
+    return `## ${entry.entryDate}${summaryLine}${sentimentLine}\n\n${entry.body}`;
   });
   const askSections =
     payload.askConversations.length > 0
@@ -187,34 +135,24 @@ function renderMarkdown(payload: SillageBackupPayload): string {
 
 async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBackupPayload> {
   const db = getDb(env.DB);
-  const [entryRows, tagRowsRaw, linkRows, attachmentRows, conversationRows, messageRows] =
-    await Promise.all([
-      db
-        .select()
-        .from(entries)
-        .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
-        .where(isNull(entries.deletedAt))
-        .orderBy(asc(entries.entryDate), asc(entries.createdAt)),
-      db.select().from(tags).where(isNull(tags.deletedAt)).orderBy(asc(tags.name)),
-      db.select().from(entryTags),
-      db
-        .select()
-        .from(attachments)
-        .where(isNull(attachments.deletedAt))
-        .orderBy(asc(attachments.createdAt)),
-      db.select().from(askConversations).orderBy(asc(askConversations.createdAt)),
-      db
-        .select()
-        .from(askMessages)
-        .orderBy(asc(askMessages.conversationId), asc(askMessages.createdAt)),
-    ]);
-
-  const tagRows = tagRowsRaw.map((tag) => ({
-    id: tag.id,
-    name: tag.name,
-    createdAt: iso(tag.createdAt),
-  }));
-  const tagMap = tagsByEntry(linkRows, tagRows);
+  const [entryRows, attachmentRows, conversationRows, messageRows] = await Promise.all([
+    db
+      .select()
+      .from(entries)
+      .leftJoin(entryAi, eq(entryAi.entryId, entries.id))
+      .where(isNull(entries.deletedAt))
+      .orderBy(asc(entries.entryDate), asc(entries.createdAt)),
+    db
+      .select()
+      .from(attachments)
+      .where(isNull(attachments.deletedAt))
+      .orderBy(asc(attachments.createdAt)),
+    db.select().from(askConversations).orderBy(asc(askConversations.createdAt)),
+    db
+      .select()
+      .from(askMessages)
+      .orderBy(asc(askMessages.conversationId), asc(askMessages.createdAt)),
+  ]);
 
   return {
     version: 1,
@@ -222,23 +160,12 @@ async function buildBackupPayload(env: Env, exportedAt: Date): Promise<SillageBa
     entries: entryRows.map(({ entries: entry, entry_ai: ai }) => ({
       id: entry.id,
       entryDate: entry.entryDate,
-      title: entry.title,
       body: entry.body,
-      mood: entry.mood,
-      moodText: entry.moodText,
-      weather: entry.weather,
-      location: entry.location,
-      people: parseTextList(entry.people),
-      relationships: parseTextList(entry.relationships),
-      isPinned: entry.isPinned,
       summary: ai?.summary ?? null,
       sentiment: ai?.sentiment ?? null,
       createdAt: iso(entry.createdAt),
       updatedAt: iso(entry.updatedAt),
-      tags: tagMap.get(entry.id) ?? [],
     })),
-    tags: tagRows,
-    entryTags: linkRows,
     attachments: attachmentRows.map((attachment) => ({
       id: attachment.id,
       entryId: attachment.entryId,

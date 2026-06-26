@@ -17,12 +17,11 @@ describe("delta sync", () => {
     await env.DB.prepare("DELETE FROM attachments").run();
     await env.DB.prepare("DELETE FROM entry_ai").run();
     await env.DB.prepare("DELETE FROM entries").run();
-    await env.DB.prepare("DELETE FROM tags").run();
   });
 
   it("returns changes after the cursor, ordered by the (updatedAt, id) keyset", async () => {
-    const a = await createEntry(db, { entryDate: "2026-06-20", title: "A", body: "x", tags: [] });
-    const b = await createEntry(db, { entryDate: "2026-06-21", title: "B", body: "y", tags: [] });
+    const a = await createEntry(db, { entryDate: "2026-06-20", body: "x" });
+    const b = await createEntry(db, { entryDate: "2026-06-21", body: "y" });
     await setUpdatedAt(a, 1000);
     await setUpdatedAt(b, 2000);
 
@@ -40,9 +39,9 @@ describe("delta sync", () => {
     // Three entries with the *same* updatedAt; a bare `updatedAt > cursor` cursor
     // would drop the third one once the first page ends on that millisecond.
     const ids = [
-      await createEntry(db, { entryDate: "2026-06-20", title: "1", body: "x", tags: [] }),
-      await createEntry(db, { entryDate: "2026-06-20", title: "2", body: "x", tags: [] }),
-      await createEntry(db, { entryDate: "2026-06-20", title: "3", body: "x", tags: [] }),
+      await createEntry(db, { entryDate: "2026-06-20", body: "x" }),
+      await createEntry(db, { entryDate: "2026-06-20", body: "x" }),
+      await createEntry(db, { entryDate: "2026-06-20", body: "x" }),
     ];
     for (const id of ids) {
       await setUpdatedAt(id, 1000);
@@ -64,9 +63,7 @@ describe("delta sync", () => {
   it("includes soft-deleted entries so clients can mirror removals", async () => {
     const id = await createEntry(db, {
       entryDate: "2026-06-20",
-      title: "待删除",
       body: "x",
-      tags: [],
     });
     await deleteEntry(db, id);
 
@@ -88,8 +85,8 @@ describe("delta sync", () => {
   });
 
   it("flags hasMore when a page is full", async () => {
-    const a = await createEntry(db, { entryDate: "2026-06-20", title: "A", body: "x", tags: [] });
-    const b = await createEntry(db, { entryDate: "2026-06-21", title: "B", body: "y", tags: [] });
+    const a = await createEntry(db, { entryDate: "2026-06-20", body: "x" });
+    const b = await createEntry(db, { entryDate: "2026-06-21", body: "y" });
     await setUpdatedAt(a, 1000);
     await setUpdatedAt(b, 2000);
 

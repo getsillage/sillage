@@ -93,8 +93,8 @@ html, body { @apply bg-gray-50 dark:bg-gray-950; }
 
 | 角色 | 字体栈 | 用在哪 |
 |---|---|---|
-| sans(外壳) | 现有 `--font-sans`(system / PingFang) | 导航、标签、按钮、表单 label、元信息、用户输入气泡 |
-| **serif(内容)** | `--font-serif`(Songti 系) | 页面标题、entry 标题与正文、问答**回答**正文、那年今日标题 |
+| sans(外壳) | 现有 `--font-sans`(system / PingFang) | 导航、按钮、表单 label、元信息、用户输入气泡 |
+| **serif(内容)** | `--font-serif`(Songti 系) | 页面标题、entry 正文摘要与正文、问答**回答**正文、那年今日标题 |
 | wordmark | `"Palatino","Iowan Old Style",serif` 斜体 | 仅左侧栏 "Sillage" 标志 |
 
 - 通过 `font-serif` 工具类施加;正文长文用 typography 的 `prose` 并叠加 `font-serif`(见 §5)。
@@ -150,9 +150,9 @@ export const wideShellClass =
 
 复用已装的 `@tailwindcss/typography`:容器加 `prose prose-stone max-w-none font-serif dark:prose-invert`,并按需把 `prose` 的标题 / 引用调到 celadon。**不要**手写正文排版。落点:[`app/components/Markdown.tsx`](../../app/components/Markdown.tsx) 及其消费方。
 
-### 5.2 标签 / chip
+### 5.2 引用 / chip
 
-人物 / 关系 / 标签:`rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300`;引用 / 总结用 celadon 软底:`bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200`。
+引用 / 总结用 celadon 软底:`bg-celadon-50 text-celadon-800 dark:bg-celadon-900/40 dark:text-celadon-200`。
 
 ### 5.3 历史线(签名元素)的视觉规格
 
@@ -160,5 +160,5 @@ export const wideShellClass =
 - 竖线:`absolute left-[5px] top-2 bottom-2 w-px bg-gray-200 dark:bg-gray-800`。
 - 普通节点:`absolute -left-[1px] top-[…] h-2.5 w-2.5 rounded-full bg-gray-50 ring-[1.5px] ring-celadon-500 dark:bg-gray-950`(空心点)。
 - 记忆回望节点(那年今日):同上但 `ring-clay-400`,略大(`h-3 w-3`)。
-- 行内:时间(sans, faint)→ 标题(宋体)→ 摘要(sans, muted)→ 标签;**行与行之间靠留白,不再各自包卡片**。
+- 行内:时间(sans, faint)→ 正文摘要(宋体);**行与行之间靠留白,不再各自包卡片**。
 - 详细结构见 [`implementation-plan.md` 附录 A](./implementation-plan.md#附录-a-参考结构记录)。

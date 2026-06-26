@@ -1,9 +1,8 @@
 import { and, desc, eq, isNotNull, isNull, like, or, type SQL } from "drizzle-orm";
 import type { Db } from "~/lib/db/client";
-import { composeEntries, type EntryWithTags } from "~/lib/db/entries";
+import { composeEntries, type EntryWithAi } from "~/lib/db/entries";
 import { entries, entryAi, summaries } from "~/lib/db/schema";
 import { listSummaries, type SummaryView, toSummaryView } from "~/lib/db/summaries";
-import { parseTextList } from "~/lib/product/entry-fields";
 import {
   isSummaryPeriodType,
   isSummaryStyle,
@@ -27,7 +26,7 @@ export interface AskCitation {
 }
 
 export interface AskContext {
-  entries: EntryWithTags[];
+  entries: EntryWithAi[];
   summaries: SummaryView[];
   evidence: string;
   citations: AskCitation[];
@@ -60,13 +59,13 @@ function truncate(text: string | null | undefined, limit: number): string {
   return trimmed.length > limit ? `${trimmed.slice(0, limit)}...` : trimmed;
 }
 
-function entryCanContributeEvidence(entry: EntryWithTags, selected: Set<AskSourceType>): boolean {
+function entryCanContributeEvidence(entry: EntryWithAi, selected: Set<AskSourceType>): boolean {
   return selected.has("entry") || (selected.has("entry-ai") && Boolean(entry.summary));
 }
 
-function dedupeEvidenceEntries(rows: EntryWithTags[], selected: Set<AskSourceType>, limit: number) {
+function dedupeEvidenceEntries(rows: EntryWithAi[], selected: Set<AskSourceType>, limit: number) {
   const seen = new Set<string>();
-  const result: EntryWithTags[] = [];
+  const result: EntryWithAi[] = [];
   for (const entry of rows) {
     if (seen.has(entry.id) || !entryCanContributeEvidence(entry, selected)) {
       continue;
@@ -80,7 +79,7 @@ function dedupeEvidenceEntries(rows: EntryWithTags[], selected: Set<AskSourceTyp
   return result;
 }
 
-async function listRecentEntries(db: Db, limit: number): Promise<EntryWithTags[]> {
+async function listRecentEntries(db: Db, limit: number): Promise<EntryWithAi[]> {
   const rows = await db
     .select()
     .from(entries)
@@ -88,14 +87,14 @@ async function listRecentEntries(db: Db, limit: number): Promise<EntryWithTags[]
     .where(isNull(entries.deletedAt))
     .orderBy(desc(entries.entryDate), desc(entries.createdAt))
     .limit(limit);
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
 async function searchEntriesWithAiSummaries(
   db: Db,
   question: string,
   limit: number,
-): Promise<EntryWithTags[]> {
+): Promise<EntryWithAi[]> {
   const terms = extractSearchTerms(question);
   if (terms.length === 0) {
     return [];
@@ -113,10 +112,10 @@ async function searchEntriesWithAiSummaries(
     )
     .orderBy(desc(entryAi.generatedAt), desc(entries.entryDate), desc(entries.createdAt))
     .limit(limit);
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
-async function listEntriesWithAiSummaries(db: Db, limit: number): Promise<EntryWithTags[]> {
+async function listEntriesWithAiSummaries(db: Db, limit: number): Promise<EntryWithAi[]> {
   const rows = await db
     .select()
     .from(entries)
@@ -124,7 +123,7 @@ async function listEntriesWithAiSummaries(db: Db, limit: number): Promise<EntryW
     .where(and(isNull(entries.deletedAt), isNotNull(entryAi.summary)))
     .orderBy(desc(entryAi.generatedAt), desc(entries.entryDate), desc(entries.createdAt))
     .limit(limit);
-  return composeEntries(db, rows);
+  return composeEntries(rows);
 }
 
 function likeConditions(
@@ -169,24 +168,15 @@ function dedupeSummaries(rows: SummaryView[], limit: number): SummaryView[] {
   return result;
 }
 
-function entryTitle(entry: EntryWithTags): string {
-  return entry.title.trim() || "(无标题)";
+function entryTitle(entry: EntryWithAi): string {
+  return truncate(entry.body, 36) || "空白记录";
 }
 
-function entryEvidenceBlock(entry: EntryWithTags, selected: Set<AskSourceType>): string {
+function entryEvidenceBlock(entry: EntryWithAi, selected: Set<AskSourceType>): string {
   const includeRawEntry = selected.has("entry");
   const includeAiSummary = selected.has("entry-ai");
-  const people = parseTextList(entry.people);
-  const relationships = parseTextList(entry.relationships);
   return [
-    `【${entry.entryDate} · 记录】${entryTitle(entry)}`,
-    includeRawEntry && entry.moodText ? `心情：${entry.moodText}` : "",
-    includeRawEntry && entry.location ? `地点：${entry.location}` : "",
-    includeRawEntry && people.length > 0 ? `人物：${people.join("、")}` : "",
-    includeRawEntry && relationships.length > 0 ? `关系：${relationships.join("、")}` : "",
-    includeRawEntry && entry.tags.length > 0
-      ? `标签：${entry.tags.map((tag) => `#${tag}`).join(" ")}`
-      : "",
+    `【${entry.entryDate} · 记录】`,
     includeRawEntry ? truncate(entry.body, MAX_BODY_CHARS) : "",
     includeAiSummary && entry.summary
       ? `AI 总结：${truncate(entry.summary, MAX_AI_SUMMARY_CHARS)}`
@@ -223,7 +213,7 @@ function summaryEvidenceBlock(summary: SummaryView): string {
 }
 
 function buildEvidence(
-  entriesForEvidence: EntryWithTags[],
+  entriesForEvidence: EntryWithAi[],
   summariesForEvidence: SummaryView[],
   selected: Set<AskSourceType>,
 ): string {
@@ -234,7 +224,7 @@ function buildEvidence(
   return blocks.join("\n\n---\n\n");
 }
 
-function entryCitation(entry: EntryWithTags): AskCitation {
+function entryCitation(entry: EntryWithAi): AskCitation {
   return {
     id: entry.id,
     title: entryTitle(entry),
@@ -245,12 +235,12 @@ function entryCitation(entry: EntryWithTags): AskCitation {
 }
 
 function dedupeCitationEntries(
-  rows: EntryWithTags[],
+  rows: EntryWithAi[],
   selected: Set<AskSourceType>,
   limit: number,
-): EntryWithTags[] {
+): EntryWithAi[] {
   const seen = new Set<string>();
-  const result: EntryWithTags[] = [];
+  const result: EntryWithAi[] = [];
   for (const entry of rows) {
     if (seen.has(entry.id) || !entryCanContributeEvidence(entry, selected)) {
       continue;

@@ -1,10 +1,9 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "~/lib/db/client";
-import type { EntryWithTags } from "~/lib/db/entries";
+import type { EntryWithAi } from "~/lib/db/entries";
 import { entries, entryAi } from "~/lib/db/schema";
-import { getTagsForEntries } from "~/lib/db/tags";
 
-export interface SearchResult extends EntryWithTags {
+export interface SearchResult extends EntryWithAi {
   score: number;
   source: "keyword";
 }
@@ -100,7 +99,7 @@ function getD1Database(db: Db): D1Database {
 async function loadEntriesByIds(
   db: Db,
   ids: string[],
-): Promise<Array<{ entry: EntryWithTags; score: number }>> {
+): Promise<Array<{ entry: EntryWithAi; score: number }>> {
   if (ids.length === 0) {
     return [];
   }
@@ -112,7 +111,6 @@ async function loadEntriesByIds(
     .where(inArray(entries.id, ids));
 
   const rowMap = new Map(rows.map((row) => [row.entries.id, row]));
-  const tagMap = await getTagsForEntries(db, ids);
 
   return ids.flatMap((id) => {
     const row = rowMap.get(id);
@@ -129,7 +127,6 @@ async function loadEntriesByIds(
           aiDurationMs: row.entry_ai?.durationMs ?? null,
           aiGeneratedAt: row.entry_ai?.generatedAt ?? null,
           aiGenerationCount: row.entry_ai?.generationCount ?? 0,
-          tags: tagMap.get(row.entries.id) ?? [],
         },
         score: 0,
       },
@@ -169,13 +166,8 @@ export async function searchEntriesByKeyword(
   if (terms.length === 0) {
     return [];
   }
-  const patternArgs = terms.flatMap((term) => Array(6).fill(`%${term}%`));
-  const conditions = terms
-    .map(
-      () =>
-        `(title LIKE ? OR body LIKE ? OR mood_text LIKE ? OR location LIKE ? OR people LIKE ? OR relationships LIKE ?)`,
-    )
-    .join(" OR ");
+  const patternArgs = terms.map((term) => `%${term}%`);
+  const conditions = terms.map(() => "body LIKE ?").join(" OR ");
   const fieldQuery = `
     SELECT id
     FROM entries

@@ -4,7 +4,7 @@ import { buildEntriesDigest, generateSummary } from "../app/lib/ai/summarize";
 import { rangeForPeriod } from "../app/lib/date";
 import { listEntriesByDateRange } from "../app/lib/db/calendar";
 import { getDb } from "../app/lib/db/client";
-import { createEntry, type EntryWithTags, getEntry } from "../app/lib/db/entries";
+import { createEntry, type EntryWithAi, getEntry } from "../app/lib/db/entries";
 import {
   collectEntriesForTopic,
   createSummary,
@@ -27,28 +27,15 @@ const db = getDb(env.DB);
 
 async function resetDb() {
   await env.DB.prepare("DELETE FROM summaries").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entry_ai").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
   await env.SESSIONS.delete("ai-settings");
 }
 
-async function seedEntry(overrides: {
-  entryDate: string;
-  title?: string;
-  body?: string;
-  people?: string[];
-  relationships?: string[];
-  tags?: string[];
-}): Promise<EntryWithTags> {
+async function seedEntry(overrides: { entryDate: string; body?: string }): Promise<EntryWithAi> {
   const id = await createEntry(db, {
     entryDate: overrides.entryDate,
-    title: overrides.title ?? "",
     body: overrides.body ?? "记录正文",
-    people: overrides.people ?? [],
-    relationships: overrides.relationships ?? [],
-    tags: overrides.tags ?? [],
   });
   const entry = await getEntry(db, id);
   if (!entry) {
@@ -222,12 +209,12 @@ describe("listEntriesByDateRange", () => {
   beforeEach(resetDb);
 
   it("returns live entries within an inclusive window, newest day first", async () => {
-    await seedEntry({ entryDate: "2026-06-01", title: "早" });
-    await seedEntry({ entryDate: "2026-06-15", title: "中" });
-    await seedEntry({ entryDate: "2026-07-01", title: "晚" });
+    await seedEntry({ entryDate: "2026-06-01", body: "早" });
+    await seedEntry({ entryDate: "2026-06-15", body: "中" });
+    await seedEntry({ entryDate: "2026-07-01", body: "晚" });
 
     const rows = await listEntriesByDateRange(db, "2026-06-01", "2026-06-30");
-    expect(rows.map((row) => row.title)).toEqual(["中", "早"]);
+    expect(rows.map((row) => row.body)).toEqual(["中", "早"]);
   });
 });
 
@@ -241,7 +228,7 @@ describe("summaries repository", () => {
       startDate: "2026-06-01",
       endDate: "2026-06-30",
       style: "structured",
-      filter: { tags: ["工作"], keyword: "项目" },
+      filter: { keyword: "项目" },
       title: "工作回顾",
       content: "正文",
       model: "test-model",
@@ -250,7 +237,7 @@ describe("summaries repository", () => {
     });
 
     const view = await getSummary(db, id);
-    expect(view?.filter).toEqual({ tags: ["工作"], keyword: "项目" });
+    expect(view?.filter).toEqual({ keyword: "项目" });
     expect(view?.sourceEntryIds).toEqual(["a", "b"]);
 
     const all = await listSummaries(db);
@@ -331,47 +318,27 @@ describe("collectEntriesForTopic", () => {
   beforeEach(resetDb);
 
   it("returns an empty set for an empty filter", async () => {
-    await seedEntry({ entryDate: "2026-06-01", title: "孤立" });
+    await seedEntry({ entryDate: "2026-06-01", body: "孤立" });
     expect(await collectEntriesForTopic(db, {})).toEqual([]);
   });
 
-  it("matches by tag, people, relationships, keyword, and explicit ids, de-duplicated", async () => {
-    const tagged = await seedEntry({ entryDate: "2026-06-01", title: "标签", tags: ["工作"] });
-    const personed = await seedEntry({ entryDate: "2026-06-02", title: "人物", people: ["小明"] });
-    const related = await seedEntry({
-      entryDate: "2026-06-03",
-      title: "关系",
-      relationships: ["同事"],
-    });
+  it("matches by keyword and respects an optional window", async () => {
+    await seedEntry({ entryDate: "2026-06-01", body: "工作在六月初" });
     const keyworded = await seedEntry({
       entryDate: "2026-06-04",
-      title: "关键词",
       body: "今天去爬山看日出",
     });
-    const picked = await seedEntry({ entryDate: "2026-06-05", title: "手选" });
-
-    const byTag = await collectEntriesForTopic(db, { tags: ["工作"] });
-    expect(byTag.map((row) => row.id)).toEqual([tagged.id]);
-
-    const byPeople = await collectEntriesForTopic(db, { people: ["小明"] });
-    expect(byPeople.map((row) => row.id)).toEqual([personed.id]);
-
-    const byRelationship = await collectEntriesForTopic(db, { relationships: ["同事"] });
-    expect(byRelationship.map((row) => row.id)).toEqual([related.id]);
+    await seedEntry({ entryDate: "2026-07-01", body: "七月也看到日出" });
 
     const byKeyword = await collectEntriesForTopic(db, { keyword: "日出" });
     expect(byKeyword.map((row) => row.id)).toContain(keyworded.id);
 
-    const byIds = await collectEntriesForTopic(db, { entryIds: [picked.id] });
-    expect(byIds.map((row) => row.id)).toEqual([picked.id]);
-
-    // Combined filter de-duplicates and respects an optional window.
-    const combined = await collectEntriesForTopic(
+    const windowed = await collectEntriesForTopic(
       db,
-      { tags: ["工作"], people: ["小明"], entryIds: [tagged.id] },
-      { startDate: "2026-06-01", endDate: "2026-06-01" },
+      { keyword: "日出" },
+      { startDate: "2026-06-01", endDate: "2026-06-30" },
     );
-    expect(combined.map((row) => row.id)).toEqual([tagged.id]);
+    expect(windowed.map((row) => row.id)).toEqual([keyworded.id]);
   });
 });
 
@@ -391,8 +358,8 @@ describe("runSummaryAction", () => {
       ),
     );
 
-    const older = await seedEntry({ entryDate: "2026-05-01", title: "早" });
-    const newer = await seedEntry({ entryDate: "2026-07-01", title: "晚" });
+    const older = await seedEntry({ entryDate: "2026-05-01", body: "早" });
+    const newer = await seedEntry({ entryDate: "2026-07-01", body: "晚" });
 
     const result = await runSummaryAction(
       db,
@@ -428,13 +395,12 @@ describe("runSummaryAction", () => {
       ),
     );
 
-    await seedEntry({ entryDate: "2026-05-30", title: "五月工作", body: "工作在五月" });
+    await seedEntry({ entryDate: "2026-05-30", body: "工作在五月" });
     const juneEntry = await seedEntry({
       entryDate: "2026-06-12",
-      title: "六月工作",
       body: "工作在六月",
     });
-    await seedEntry({ entryDate: "2026-07-01", title: "七月工作", body: "工作在七月" });
+    await seedEntry({ entryDate: "2026-07-01", body: "工作在七月" });
 
     const result = await runSummaryAction(
       db,
@@ -475,12 +441,10 @@ describe("runSummaryAction", () => {
 
     const older = await seedEntry({
       entryDate: "2026-05-30",
-      title: "五月工作",
       body: "工作在五月",
     });
     const newer = await seedEntry({
       entryDate: "2026-07-01",
-      title: "七月工作",
       body: "工作在七月",
     });
 
@@ -510,20 +474,10 @@ describe("runSummaryAction", () => {
 
 describe("buildEntriesDigest", () => {
   it("truncates long bodies and notes omitted entries beyond the cap", () => {
-    const base: EntryWithTags = {
+    const base: EntryWithAi = {
       id: "x",
       entryDate: "2026-06-01",
-      title: "标题",
       body: "正文",
-      mood: null,
-      moodText: "平静",
-      weather: null,
-      location: null,
-      people: JSON.stringify(["小红"]),
-      relationships: JSON.stringify(["朋友"]),
-      isPinned: false,
-      utcOffsetMinutes: null,
-      metadata: null,
       version: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -534,7 +488,6 @@ describe("buildEntriesDigest", () => {
       aiDurationMs: null,
       aiGeneratedAt: null,
       aiGenerationCount: 0,
-      tags: ["生活"],
     };
     const many = Array.from({ length: 65 }, (_, index) => ({
       ...base,
@@ -544,8 +497,7 @@ describe("buildEntriesDigest", () => {
     const digest = buildEntriesDigest(many);
     expect(digest).toContain("另有 5 条更早的记录未纳入");
     expect(digest).toContain("…"); // body was truncated
-    expect(digest).toContain("人物：小红");
-    expect(digest).toContain("#生活");
+    expect(digest).toContain("【2026-06-01】");
   });
 });
 
@@ -567,7 +519,7 @@ describe("generateSummary", () => {
   });
 
   it("skips when the provider is disabled", async () => {
-    const entry = await seedEntry({ entryDate: "2026-06-01", title: "一天" });
+    const entry = await seedEntry({ entryDate: "2026-06-01", body: "一天" });
     const draft = await generateSummary(env, {
       scope: "period",
       periodType: "day",
@@ -591,7 +543,7 @@ describe("generateSummary", () => {
         }),
       ),
     );
-    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const entry = await seedEntry({ entryDate: "2026-06-22", body: "周中" });
     const draft = await generateSummary(env, {
       scope: "period",
       periodType: "week",
@@ -617,7 +569,7 @@ describe("generateSummary", () => {
         }),
       ),
     );
-    const entry = await seedEntry({ entryDate: "2026-06-01", title: "孤立", tags: ["工作"] });
+    const entry = await seedEntry({ entryDate: "2026-06-01", body: "孤立" });
 
     const topic = await generateSummary(env, {
       scope: "topic",
@@ -626,10 +578,10 @@ describe("generateSummary", () => {
       endDate: "2026-06-01",
       style: "narrative",
       entries: [entry],
-      topicLabel: "#工作",
+      topicLabel: "关键词「工作」",
     });
     expect(topic.ok).toBe(true);
-    expect(topic.title).toBe("#工作回顾");
+    expect(topic.title).toBe("关键词「工作」回顾");
     expect(topic.content).toBe("没有标题行的正文。");
 
     const day = await generateSummary(env, {
@@ -661,7 +613,7 @@ describe("generateSummary", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const entry = await seedEntry({ entryDate: "2026-06-22", body: "周中" });
     const draft = await generateSummary(env, {
       scope: "period",
       periodType: "week",
@@ -693,7 +645,7 @@ describe("generateSummary", () => {
       ),
     );
 
-    const entry = await seedEntry({ entryDate: "2026-06-22", title: "周中" });
+    const entry = await seedEntry({ entryDate: "2026-06-22", body: "周中" });
     const draft = await generateSummary(env, {
       scope: "period",
       periodType: "week",

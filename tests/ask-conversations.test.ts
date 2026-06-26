@@ -20,9 +20,7 @@ async function resetDb() {
   await env.DB.prepare("DELETE FROM ask_messages").run();
   await env.DB.prepare("DELETE FROM ask_conversations").run();
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
 }
 
 describe("ask conversation branch model", () => {

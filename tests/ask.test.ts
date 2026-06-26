@@ -2,26 +2,21 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerQuestion } from "../app/lib/ai/ask";
 import { getDb } from "../app/lib/db/client";
-import { createEntry, type EntryWithTags, getEntry } from "../app/lib/db/entries";
+import { createEntry, type EntryWithAi, getEntry } from "../app/lib/db/entries";
 import { saveAiSettings } from "../app/lib/settings/ai-settings";
 
 const db = getDb(env.DB);
 
 async function resetDb() {
   await env.DB.prepare("DELETE FROM entry_revisions").run();
-  await env.DB.prepare("DELETE FROM entry_tags").run();
   await env.DB.prepare("DELETE FROM entries").run();
-  await env.DB.prepare("DELETE FROM tags").run();
   await env.SESSIONS.delete("ai-settings");
 }
 
-async function seedEntry(): Promise<EntryWithTags> {
+async function seedEntry(): Promise<EntryWithAi> {
   const id = await createEntry(db, {
     entryDate: "2026-06-20",
-    title: "见面",
     body: "和小明在咖啡馆聊了很久。",
-    people: ["小明"],
-    tags: ["朋友"],
   });
   const entry = await getEntry(db, id);
   if (!entry) {

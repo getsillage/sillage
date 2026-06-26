@@ -12,6 +12,27 @@ export type AuthResponse = {
   expiresAt: string;
 };
 
+export type Memo = {
+  id: string;
+  content: string;
+  entryDate: string;
+  version: number;
+  pinnedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type Attachment = {
+  uid: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  sha256: string | null;
+};
+
 export async function getBootstrap(): Promise<{ initialized: boolean }> {
   return request("/api/v1/auth/bootstrap");
 }
@@ -45,9 +66,103 @@ export async function getMe(
   });
 }
 
+export async function listMemos(
+  accessToken: string,
+): Promise<{ memos: Memo[] }> {
+  return request("/api/v1/memos?limit=100", {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function createMemo(
+  accessToken: string,
+  input: { content: string; entryDate: string },
+): Promise<{ memo: Memo }> {
+  return request("/api/v1/memos", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateMemo(
+  accessToken: string,
+  memo: Memo,
+  input: Partial<Pick<Memo, "content" | "entryDate">>,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({
+      ...input,
+      expectedVersion: memo.version,
+    }),
+  });
+}
+
+export async function setMemoPinned(
+  accessToken: string,
+  memo: Memo,
+  pinned: boolean,
+): Promise<{ memo: Memo }> {
+  return request(
+    `/api/v1/memos/${memo.id}:${pinned ? "pin" : "unpin"}?expectedVersion=${memo.version}`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+}
+
+export async function setMemoArchived(
+  accessToken: string,
+  memo: Memo,
+  archived: boolean,
+): Promise<{ memo: Memo }> {
+  return request(
+    `/api/v1/memos/${memo.id}:${archived ? "archive" : "unarchive"}?expectedVersion=${memo.version}`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+}
+
+export async function deleteMemo(
+  accessToken: string,
+  memo: Memo,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}?expectedVersion=${memo.version}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function uploadAttachment(
+  accessToken: string,
+  file: File,
+): Promise<{ attachment: Attachment }> {
+  const body = new FormData();
+  body.set("file", file);
+  body.set("mutation_id", crypto.randomUUID());
+  return request("/api/v1/attachments", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body,
+  });
+}
+
+function authHeaders(accessToken: string) {
+  return { Authorization: `Bearer ${accessToken}` };
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) {
+  if (
+    init.body &&
+    !(init.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
   const res = await fetch(path, {

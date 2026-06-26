@@ -126,10 +126,15 @@ textarea {
   align-items: center;
   gap: 10px;
   min-height: 38px;
+  width: 100%;
+  border: 0;
   color: #425047;
   text-decoration: none;
+  text-align: left;
   border-radius: 6px;
   padding: 0 10px;
+  background: transparent;
+  cursor: pointer;
 }
 
 .nav-item.active {
@@ -161,10 +166,26 @@ textarea {
   gap: 12px;
 }
 
-.date-label {
-  margin: 0;
+.composer-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.date-field {
+  display: grid;
+  gap: 5px;
   color: #66736a;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.date-field input {
+  border: 1px solid #cbd3c8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fff;
 }
 
 .memo-composer textarea {
@@ -180,7 +201,129 @@ textarea {
 
 .composer-actions {
   display: flex;
+  align-items: center;
+  gap: 10px;
   justify-content: flex-end;
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.secondary-button:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.icon-button,
+.text-button,
+.danger-button {
+  min-height: 34px;
+  border: 1px solid #cbd3c8;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #fff;
+  color: #425047;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.icon-button {
+  aspect-ratio: 1;
+  justify-content: center;
+  padding: 0;
+  width: 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.icon-button input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.text-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.danger-button {
+  color: #8d2c20;
+  border-color: #e4c4bd;
+}
+
+.memo-list {
+  max-width: 760px;
+  display: grid;
+  gap: 12px;
+}
+
+.memo-item {
+  border: 1px solid #d9ded6;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.memo-item p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+
+.memo-meta,
+.memo-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.memo-meta {
+  color: #66736a;
+  font-size: 13px;
+}
+
+.memo-actions {
+  justify-content: flex-end;
+}
+
+.activity-strip {
+  max-width: 760px;
+  display: grid;
+  grid-template-columns: repeat(35, minmax(8px, 1fr));
+  gap: 4px;
+}
+
+.activity-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: #e5e9e2;
+}
+
+.activity-cell.level-1 {
+  background: #cbd9cf;
+}
+
+.activity-cell.level-2 {
+  background: #9fbea9;
+}
+
+.activity-cell.level-3 {
+  background: #6f9b7f;
+}
+
+.activity-cell.level-4 {
+  background: #406c51;
 }
 
 .empty-list {

@@ -511,6 +511,11 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 			EntryDate: payload.EntryDate,
 		})
 	case "update":
+		if change.BaseVersion <= 0 {
+			result := syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+			s.persistSyncResult(ctx, accountID, change, result)
+			return result
+		}
 		if validateErr := validateMemoFields(payload.Content, payload.EntryDate); validateErr != nil {
 			result := syncRejected(change, "invalid_field", validateErr.Error())
 			s.persistSyncResult(ctx, accountID, change, result)
@@ -525,6 +530,11 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 			Archived:        payload.Archived,
 		})
 	case "delete":
+		if change.BaseVersion <= 0 {
+			result := syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+			s.persistSyncResult(ctx, accountID, change, result)
+			return result
+		}
 		memo, err = s.deleteMemo(ctx, accountID, payload.ID, change.BaseVersion)
 	default:
 		result := syncRejected(change, "unsupported_action", "暂不支持该同步动作")

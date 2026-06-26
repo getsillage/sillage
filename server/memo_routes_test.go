@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -35,17 +36,43 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 	if int64(updated["version"].(float64)) != version+1 {
 		t.Fatalf("updated version = %v, want %d", updated["version"], version+1)
 	}
+	version = int64(updated["version"].(float64))
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":pin?expectedVersion=2", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("pin memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	pinned := decodeMemoResponse(t, res.Body.Bytes())
+	if pinned["pinnedAt"] == nil {
+		t.Fatal("pinned memo must include pinnedAt")
+	}
+	version = int64(pinned["version"].(float64))
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":archive?expectedVersion=3", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("archive memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	archived := decodeMemoResponse(t, res.Body.Bytes())
+	if archived["archivedAt"] == nil {
+		t.Fatal("archived memo must include archivedAt")
+	}
+	version = int64(archived["version"].(float64))
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":generate-summary", nil, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"complete"`) {
+		t.Fatalf("generate summary action status/body = %d %s", res.Code, res.Body.String())
+	}
 
 	res = doJSON(t, srv, http.MethodPatch, "/api/v1/memos/"+memoID, map[string]any{
 		"content":         "过期写入",
 		"entryDate":       "2026-06-26",
-		"expectedVersion": version,
+		"expectedVersion": 2,
 	}, bearer(token))
 	if res.Code != http.StatusConflict || !strings.Contains(res.Body.String(), "version_conflict") {
 		t.Fatalf("stale update status/body = %d %s", res.Code, res.Body.String())
 	}
 
-	res = doJSON(t, srv, http.MethodDelete, "/api/v1/memos/"+memoID+"?expectedVersion=2", nil, bearer(token))
+	res = doJSON(t, srv, http.MethodDelete, "/api/v1/memos/"+memoID+"?expectedVersion="+strconv.FormatInt(version, 10), nil, bearer(token))
 	if res.Code != http.StatusOK {
 		t.Fatalf("delete memo status = %d body=%s", res.Code, res.Body.String())
 	}
@@ -138,6 +165,24 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushConflict, bearer(token))
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"conflict"`) {
 		t.Fatalf("sync conflict status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	pushMissingBaseVersion := map[string]any{
+		"changes": []map[string]any{{
+			"mutationId":   "m-update-missing-base",
+			"resourceType": "memo",
+			"resourceId":   "01800000-0000-7000-8000-000000000001",
+			"action":       "update",
+			"memo": map[string]any{
+				"id":        "01800000-0000-7000-8000-000000000001",
+				"content":   "缺少版本的同步更新",
+				"entryDate": "2026-06-26",
+			},
+		}},
+	}
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushMissingBaseVersion, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"reason":"missing_base_version"`) {
+		t.Fatalf("sync missing base version status/body = %d %s", res.Code, res.Body.String())
 	}
 }
 

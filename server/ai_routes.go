@@ -30,7 +30,6 @@ type aiProfileRequest struct {
 func (s *Server) registerAIRoutes(e *echo.Echo) {
 	e.GET("/api/v1/settings/ai", s.handleGetAISettings)
 	e.PATCH("/api/v1/settings/ai", s.handlePatchAISettings)
-	e.POST("/api/v1/memos/:memo:generate-summary", s.handleGenerateMemoSummary)
 }
 
 func (s *Server) handleGetAISettings(c *echo.Context) error {
@@ -77,19 +76,6 @@ func (s *Server) handlePatchAISettings(c *echo.Context) error {
 		return apiError(c, http.StatusInternalServerError, "internal", "保存 AI 设置失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"profiles": aiProfileDTOs(profiles)})
-}
-
-func (s *Server) handleGenerateMemoSummary(c *echo.Context) error {
-	account, err := s.accountFromBearer(c)
-	if err != nil {
-		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
-	}
-	ai, err := s.generateMemoSummary(c.Request().Context(), account.ID, memoParam(c))
-	if err != nil {
-		status, code, message := memoHTTPStatus(err)
-		return apiError(c, status, code, message)
-	}
-	return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})
 }
 
 func aiProfileDTOs(profiles []*store.AIProfile) []map[string]any {

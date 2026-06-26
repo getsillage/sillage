@@ -28,10 +28,7 @@ func (s *Server) registerMemoRoutes(e *echo.Echo) {
 	e.GET("/api/v1/memos/:memo", s.handleGetMemo)
 	e.PATCH("/api/v1/memos/:memo", s.handleUpdateMemo)
 	e.DELETE("/api/v1/memos/:memo", s.handleDeleteMemo)
-	e.POST("/api/v1/memos/:memo:archive", s.handleArchiveMemo)
-	e.POST("/api/v1/memos/:memo:unarchive", s.handleUnarchiveMemo)
-	e.POST("/api/v1/memos/:memo:pin", s.handlePinMemo)
-	e.POST("/api/v1/memos/:memo:unpin", s.handleUnpinMemo)
+	e.POST("/api/v1/memos/:memo", s.handleMemoAction)
 	e.GET("/api/v1/sync", s.handleSyncPull)
 	e.POST("/api/v1/sync:push", s.handleSyncPush)
 }
@@ -127,36 +124,45 @@ func (s *Server) handleDeleteMemo(c *echo.Context) error {
 	return s.writeMemoMutationResult(c, memo, err)
 }
 
-func (s *Server) handleArchiveMemo(c *echo.Context) error {
-	return s.handleMemoBoolPatch(c, "archived", true)
-}
-
-func (s *Server) handleUnarchiveMemo(c *echo.Context) error {
-	return s.handleMemoBoolPatch(c, "archived", false)
-}
-
-func (s *Server) handlePinMemo(c *echo.Context) error {
-	return s.handleMemoBoolPatch(c, "pinned", true)
-}
-
-func (s *Server) handleUnpinMemo(c *echo.Context) error {
-	return s.handleMemoBoolPatch(c, "pinned", false)
-}
-
-func (s *Server) handleMemoBoolPatch(c *echo.Context, field string, value bool) error {
+func (s *Server) handleMemoAction(c *echo.Context) error {
 	account, err := s.accountFromBearer(c)
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
+	memoID, action, ok := memoActionParam(c)
+	if !ok {
+		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
+	}
+
+	if action == "generate-summary" {
+		ai, err := s.generateMemoSummary(c.Request().Context(), account.ID, memoID)
+		if err != nil {
+			status, code, message := memoHTTPStatus(err)
+			return apiError(c, status, code, message)
+		}
+		return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})
+	}
+
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 	update := memoUpdateInput{
-		ID:              memoParam(c),
+		ID:              memoID,
 		ExpectedVersion: expectedVersion,
 	}
-	if field == "archived" {
+	switch action {
+	case "archive", "setArchived":
+		value := true
 		update.Archived = &value
-	} else {
+	case "unarchive":
+		value := false
+		update.Archived = &value
+	case "pin", "setPinned":
+		value := true
 		update.Pinned = &value
+	case "unpin":
+		value := false
+		update.Pinned = &value
+	default:
+		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
 	}
 	memo, err := s.updateMemo(c.Request().Context(), account.ID, update)
 	return s.writeMemoMutationResult(c, memo, err)
@@ -213,6 +219,23 @@ func memoParam(c *echo.Context) string {
 		return before
 	}
 	return value
+}
+
+func memoActionParam(c *echo.Context) (string, string, bool) {
+	value := c.Param("memo")
+	if value == "" {
+		path := c.Request().URL.Path
+		prefix := "/api/v1/memos/"
+		if !strings.HasPrefix(path, prefix) {
+			return "", "", false
+		}
+		value = strings.TrimPrefix(path, prefix)
+	}
+	memoID, action, ok := strings.Cut(value, ":")
+	if !ok || memoID == "" || action == "" {
+		return "", "", false
+	}
+	return memoID, action, true
 }
 
 func parseLimit(raw string, fallback int) int {

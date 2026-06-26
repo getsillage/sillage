@@ -183,6 +183,58 @@ CREATE TABLE memo_ai (
 CREATE INDEX idx_memo_ai_updated_id ON memo_ai (updated_at, memo_id);
 CREATE INDEX idx_memo_ai_deleted_at ON memo_ai (deleted_at);
 
+CREATE VIRTUAL TABLE memo_fts USING fts5(
+  memo_id UNINDEXED,
+  content,
+  summary,
+  tokenize = 'unicode61'
+);
+
+CREATE TRIGGER memo_fts_memo_insert AFTER INSERT ON memo BEGIN
+  INSERT INTO memo_fts (memo_id, content, summary)
+  SELECT NEW.id, NEW.content, COALESCE((
+    SELECT summary FROM memo_ai WHERE memo_id = NEW.id AND deleted_at IS NULL
+  ), '')
+  WHERE NEW.deleted_at IS NULL;
+END;
+
+CREATE TRIGGER memo_fts_memo_update AFTER UPDATE ON memo BEGIN
+  DELETE FROM memo_fts WHERE memo_id = OLD.id;
+  INSERT INTO memo_fts (memo_id, content, summary)
+  SELECT NEW.id, NEW.content, COALESCE((
+    SELECT summary FROM memo_ai WHERE memo_id = NEW.id AND deleted_at IS NULL
+  ), '')
+  WHERE NEW.deleted_at IS NULL;
+END;
+
+CREATE TRIGGER memo_fts_memo_delete AFTER DELETE ON memo BEGIN
+  DELETE FROM memo_fts WHERE memo_id = OLD.id;
+END;
+
+CREATE TRIGGER memo_fts_ai_insert AFTER INSERT ON memo_ai BEGIN
+  DELETE FROM memo_fts WHERE memo_id = NEW.memo_id;
+  INSERT INTO memo_fts (memo_id, content, summary)
+  SELECT memo.id, memo.content, COALESCE(NEW.summary, '')
+  FROM memo
+  WHERE memo.id = NEW.memo_id AND memo.deleted_at IS NULL AND NEW.deleted_at IS NULL;
+END;
+
+CREATE TRIGGER memo_fts_ai_update AFTER UPDATE ON memo_ai BEGIN
+  DELETE FROM memo_fts WHERE memo_id = OLD.memo_id;
+  INSERT INTO memo_fts (memo_id, content, summary)
+  SELECT memo.id, memo.content, COALESCE(NEW.summary, '')
+  FROM memo
+  WHERE memo.id = NEW.memo_id AND memo.deleted_at IS NULL AND NEW.deleted_at IS NULL;
+END;
+
+CREATE TRIGGER memo_fts_ai_delete AFTER DELETE ON memo_ai BEGIN
+  DELETE FROM memo_fts WHERE memo_id = OLD.memo_id;
+  INSERT INTO memo_fts (memo_id, content, summary)
+  SELECT memo.id, memo.content, ''
+  FROM memo
+  WHERE memo.id = OLD.memo_id AND memo.deleted_at IS NULL;
+END;
+
 CREATE TABLE ai_profile (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL,

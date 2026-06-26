@@ -44,6 +44,7 @@ func TestMigrateFreshInstall(t *testing.T) {
 		"summaries",
 		"ask_conversations",
 		"ask_messages",
+		"memo_fts",
 		"runtime_kv",
 	} {
 		if !tableExists(t, s, table) {

@@ -42,7 +42,12 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	limit := parseLimit(c.QueryParam("limit"), 50)
-	memos, err := s.listMemos(c.Request().Context(), account.ID, limit)
+	var memos []*store.Memo
+	if query := c.QueryParam("q"); query != "" {
+		memos, err = s.searchMemos(c.Request().Context(), account.ID, query, limit)
+	} else {
+		memos, err = s.listMemos(c.Request().Context(), account.ID, limit)
+	}
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}

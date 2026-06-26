@@ -193,6 +193,16 @@ POST /api/v1/sync:push
 - `deletedAt != null` 表示 tombstone。首版不清理 tombstone。
 - 未来 Android 可离线预生成 memo UUIDv7，并通过 `sync:push` 创建。
 
+## Memo 搜索
+
+```http
+GET /api/v1/memos?q=<keyword>&limit=50
+```
+
+搜索首选 SQLite FTS5，范围包括 memo Markdown 正文和 memo AI summary。中文短语、长自然语言查询或 FTS
+不可用时会降级到 `LIKE` fallback；删除 tombstone 不会出现在搜索结果中。搜索索引是本地派生数据，不进入
+sync payload，也不会修改 `memo.updatedAt` 或 `version`。
+
 ## 附件预留
 
 附件字节不进入 sync payload。未来 Android 同步流程是先上传附件字节，再在 sync payload 中同步附件 metadata 与 memo 引用。

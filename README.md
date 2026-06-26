@@ -14,7 +14,8 @@
 以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、附件上传下载、Ask 会话 / 消息、`/api/v1/sync`
 和 `/api/v1/sync:push` 的基础 REST 端点。AI 设置已支持 profile 保存和 API key envelope 加密，单条 memo
 可生成本地占位总结并进入 sync；Ask 当前可基于最近 7 天、最近 30 天或全部记录生成带来源引用的本地占位回答，并同步
-`askConversations` / `askMessages`。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档、附件上传插入 Markdown 链接和基础问答工作台。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
+`askConversations` / `askMessages`。memo 搜索使用 SQLite FTS5，并对中文短语和长查询提供 `LIKE` fallback，
+覆盖 memo 正文和 memo AI summary，可通过 `/api/v1/memos?q=关键词` 调用。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档、附件上传插入 Markdown 链接和基础问答工作台。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
 
 ```bash
 go test ./...

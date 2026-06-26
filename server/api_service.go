@@ -225,6 +225,14 @@ func (s *Server) listMemos(ctx context.Context, accountID string, limit int) ([]
 	})
 }
 
+func (s *Server) searchMemos(ctx context.Context, accountID, query string, limit int) ([]*store.Memo, error) {
+	return s.Store.SearchMemos(ctx, &store.SearchMemoOptions{
+		AccountID: accountID,
+		Query:     query,
+		Limit:     normalizeLimit(limit, 50),
+	})
+}
+
 func (s *Server) createMemo(ctx context.Context, accountID string, input memoCreateInput) (*store.Memo, error) {
 	if err := validateMemoFields(input.Content, input.EntryDate); err != nil {
 		return nil, validationError{message: err.Error()}

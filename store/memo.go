@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,6 +112,12 @@ type ListMemoOptions struct {
 	UpdatedAfterID string
 }
 
+type SearchMemoOptions struct {
+	AccountID string
+	Query     string
+	Limit     int
+}
+
 func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, error) {
 	limit := opts.Limit
 	if limit <= 0 || limit > 200 {
@@ -178,6 +185,63 @@ LIMIT ?`, accountID, limit)
 		return nil, fmt.Errorf("iterate recent memos: %w", err)
 	}
 	return memos, nil
+}
+
+func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Memo, error) {
+	query := strings.TrimSpace(opts.Query)
+	if query == "" {
+		return nil, nil
+	}
+	limit := opts.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, limit)
+	if err == nil && len(memos) > 0 {
+		return memos, nil
+	}
+	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, limit)
+	if fallbackErr != nil {
+		if err != nil {
+			return nil, err
+		}
+		return nil, fallbackErr
+	}
+	return fallback, nil
+}
+
+func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, limit int) ([]*Memo, error) {
+	rows, err := s.driver.GetDB().QueryContext(ctx, `
+SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
+  memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
+FROM memo_fts
+JOIN memo ON memo.id = memo_fts.memo_id
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL AND memo_fts MATCH ?
+ORDER BY rank, memo.entry_date DESC, memo.created_at DESC, memo.id DESC
+LIMIT ?`, accountID, ftsQuery(query), limit)
+	if err != nil {
+		return nil, fmt.Errorf("search memos fts: %w", err)
+	}
+	defer rows.Close()
+	return scanMemos(rows)
+}
+
+func (s *Store) searchMemosLike(ctx context.Context, accountID, query string, limit int) ([]*Memo, error) {
+	like := "%" + escapeLike(query) + "%"
+	rows, err := s.driver.GetDB().QueryContext(ctx, `
+SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
+  memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
+FROM memo
+LEFT JOIN memo_ai ON memo_ai.memo_id = memo.id AND memo_ai.deleted_at IS NULL
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL
+  AND (memo.content LIKE ? ESCAPE '\' OR memo_ai.summary LIKE ? ESCAPE '\')
+ORDER BY memo.entry_date DESC, memo.created_at DESC, memo.id DESC
+LIMIT ?`, accountID, like, like, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search memos like: %w", err)
+	}
+	defer rows.Close()
+	return scanMemos(rows)
 }
 
 func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, error) {
@@ -268,6 +332,39 @@ func scanMemo(row interface {
 		return nil, fmt.Errorf("scan memo: %w", err)
 	}
 	return &memo, nil
+}
+
+func scanMemos(rows *sql.Rows) ([]*Memo, error) {
+	var memos []*Memo
+	for rows.Next() {
+		memo, err := scanMemo(rows)
+		if err != nil {
+			return nil, err
+		}
+		memos = append(memos, memo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate memos: %w", err)
+	}
+	return memos, nil
+}
+
+func ftsQuery(query string) string {
+	fields := strings.Fields(query)
+	if len(fields) == 0 {
+		return query
+	}
+	for i, field := range fields {
+		fields[i] = `"` + strings.ReplaceAll(field, `"`, `""`) + `"`
+	}
+	return strings.Join(fields, " ")
+}
+
+func escapeLike(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return value
 }
 
 func nullString(value string) any {

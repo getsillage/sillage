@@ -3,6 +3,7 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -140,6 +141,59 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 	}
 }
 
+func TestMemoSearchChineseSummaryAndTombstone(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
+		"content":   "今天和朋友散步，聊到睡眠变好了。",
+		"entryDate": "2026-06-26",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	sleepMemo := decodeMemoResponse(t, res.Body.Bytes())
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
+		"content":   "午饭后整理了屋子。",
+		"entryDate": "2026-06-25",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create second memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	summaryMemo := decodeMemoResponse(t, res.Body.Bytes())
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+summaryMemo["id"].(string)+":generate-summary", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("generate summary status = %d body=%s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/memos?q="+urlQueryEscape("睡眠变好"), nil, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), sleepMemo["id"].(string)) {
+		t.Fatalf("search Chinese phrase status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/memos?q="+urlQueryEscape("整理了屋子"), nil, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), summaryMemo["id"].(string)) {
+		t.Fatalf("search summary/content status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodDelete, "/api/v1/memos/"+sleepMemo["id"].(string)+"?expectedVersion=1", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("delete memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/memos?q="+urlQueryEscape("睡眠变好"), nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("search after delete status = %d body=%s", res.Code, res.Body.String())
+	}
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode search response: %v", err)
+	}
+	if len(payload["memos"]) != 0 {
+		t.Fatalf("deleted memo should not be searchable: %#v", payload["memos"])
+	}
+}
+
 func initializeAndToken(t *testing.T, srv interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }) string {
@@ -177,4 +231,8 @@ func decodeMemoResponse(t *testing.T, body []byte) map[string]any {
 		t.Fatalf("response missing memo: %#v", payload)
 	}
 	return memo
+}
+
+func urlQueryEscape(value string) string {
+	return url.QueryEscape(value)
 }

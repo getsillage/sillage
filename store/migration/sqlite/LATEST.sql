@@ -35,6 +35,23 @@ CREATE TABLE account_setting (
 CREATE INDEX idx_account_setting_updated_id ON account_setting (updated_at, account_id, key);
 CREATE INDEX idx_account_setting_deleted_at ON account_setting (deleted_at);
 
+CREATE TABLE session (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  refresh_token_hash TEXT NOT NULL UNIQUE,
+  user_agent TEXT NOT NULL DEFAULT '',
+  client_ip TEXT NOT NULL DEFAULT '',
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_session_account_id ON session (account_id);
+CREATE INDEX idx_session_refresh_hash ON session (refresh_token_hash);
+CREATE INDEX idx_session_expires_at ON session (expires_at);
+CREATE INDEX idx_session_deleted_at ON session (deleted_at);
+
 CREATE TABLE memo (
   id TEXT PRIMARY KEY,
   creator_id TEXT,

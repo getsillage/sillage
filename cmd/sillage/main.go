@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/miofelix/sillage/internal/profile"
+	"github.com/miofelix/sillage/internal/secret"
 	"github.com/miofelix/sillage/server"
 	"github.com/miofelix/sillage/store"
 	"github.com/miofelix/sillage/store/db"
@@ -96,8 +97,13 @@ func run() error {
 		_ = storeInstance.Close()
 		return fmt.Errorf("migrate database: %w", err)
 	}
+	secrets, err := secret.Load(instanceProfile.Data)
+	if err != nil {
+		_ = storeInstance.Close()
+		return fmt.Errorf("load runtime secrets: %w", err)
+	}
 
-	srv, err := server.New(ctx, instanceProfile, storeInstance)
+	srv, err := server.New(ctx, instanceProfile, storeInstance, secrets)
 	if err != nil {
 		_ = storeInstance.Close()
 		return fmt.Errorf("create server: %w", err)

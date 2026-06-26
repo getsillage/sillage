@@ -10,9 +10,8 @@
 
 ## Go 自托管迁移开发
 
-当前已建立第一阶段 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz` 和
-`/readyz`。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定
-`SILLAGE_DATA`。
+当前已建立 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz`、`/readyz`
+以及唯一账号初始化 / 登录 / refresh / 退出的基础 REST 端点。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
 
 ```bash
 go test ./...
@@ -22,9 +21,12 @@ go build ./cmd/sillage
 SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
 curl http://localhost:5231/healthz
 curl http://localhost:5231/readyz
+curl http://localhost:5231/api/v1/auth/bootstrap
 ```
 
 生成的本地数据目录包含 `sillage.db`、`assets/attachments/`、`.thumbnail_cache/` 和 `runtime/`。
+未显式配置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 时，Sillage 会自动生成并持久化到
+`runtime/secrets.json`。
 本迁移不导入旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
 
 # Sillage · Cloudflare Workers（旧运行路径）

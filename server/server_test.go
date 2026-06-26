@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/miofelix/sillage/internal/profile"
+	"github.com/miofelix/sillage/internal/secret"
 	"github.com/miofelix/sillage/server"
 	"github.com/miofelix/sillage/store"
 	"github.com/miofelix/sillage/store/db"
@@ -28,7 +29,11 @@ func TestHealthzAndReadyz(t *testing.T) {
 	if err := storeInstance.Migrate(ctx); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
-	srv, err := server.New(ctx, p, storeInstance)
+	secrets, err := secret.Load(p.Data)
+	if err != nil {
+		t.Fatalf("secret.Load() error = %v", err)
+	}
+	srv, err := server.New(ctx, p, storeInstance, secrets)
 	if err != nil {
 		t.Fatalf("server.New() error = %v", err)
 	}

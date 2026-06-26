@@ -15,6 +15,8 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 
 	"github.com/miofelix/sillage/internal/profile"
+	"github.com/miofelix/sillage/internal/secret"
+	"github.com/miofelix/sillage/server/auth"
 	"github.com/miofelix/sillage/store"
 )
 
@@ -26,9 +28,10 @@ type Server struct {
 
 	echoServer *echo.Echo
 	httpServer *http.Server
+	auth       *auth.Service
 }
 
-func New(_ context.Context, p *profile.Profile, s *store.Store) (*Server, error) {
+func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(securityHeadersMiddleware())
@@ -38,6 +41,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store) (*Server, error)
 		Profile:    p,
 		Store:      s,
 		echoServer: e,
+		auth:       auth.NewService(s, secrets.SessionSecret),
 	}
 
 	e.GET("/healthz", func(c *echo.Context) error {
@@ -54,6 +58,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store) (*Server, error)
 		}
 		return c.JSON(http.StatusOK, map[string]string{"status": "ready"})
 	})
+	server.registerAuthRoutes(e)
 
 	return server, nil
 }

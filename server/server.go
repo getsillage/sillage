@@ -60,6 +60,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	})
 	server.registerAuthRoutes(e)
 	server.registerMemoRoutes(e)
+	server.registerAttachmentRoutes(e)
 
 	return server, nil
 }

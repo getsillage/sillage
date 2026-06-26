@@ -22,7 +22,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
 
 - `cursor` 是不透明字符串，客户端必须原样回传。
 - 省略 `cursor` 表示从头拉取。
-- 响应按资源类型分组，当前阶段已实现 `memos`；后续里程碑会扩展 `attachments`、`summaries`、`ask_conversations`、`ask_messages` 和 memo AI 派生数据。
+- 响应按资源类型分组，当前阶段已实现 `memos` 和 `attachments` metadata；后续里程碑会扩展 `summaries`、`ask_conversations`、`ask_messages` 和 memo AI 派生数据。
 - 每个 stream 使用 `(updated_at, id)` keyset 游标，避免同一毫秒的记录在分页边界被跳过。
 - 删除使用 `deletedAt` tombstone 返回，客户端据此删除本地镜像。
 
@@ -38,6 +38,24 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
       "version": 1,
       "pinnedAt": null,
       "archivedAt": null,
+      "createdAt": "2026-06-26T11:15:07Z",
+      "updatedAt": "2026-06-26T11:15:07Z",
+      "deletedAt": null
+    }
+  ],
+  "attachments": [
+    {
+      "id": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c8",
+      "uid": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c9",
+      "memoId": null,
+      "url": "/file/attachments/019f03a4-0121-7aaf-8b0a-7af8dc1bf0c9/photo.jpg",
+      "filename": "photo.jpg",
+      "contentType": "image/jpeg",
+      "size": 12345,
+      "sha256": "hex",
+      "width": null,
+      "height": null,
+      "status": "stored",
       "createdAt": "2026-06-26T11:15:07Z",
       "updatedAt": "2026-06-26T11:15:07Z",
       "deletedAt": null
@@ -114,11 +132,23 @@ POST /api/v1/sync:push
 
 附件字节不进入 sync payload。未来 Android 同步流程是先上传附件字节，再在 sync payload 中同步附件 metadata 与 memo 引用。
 
-当前计划中的普通上传接口：
+当前普通上传接口：
 
 ```http
 POST /api/v1/attachments
 ```
 
-它必须支持 `mutation_id` 或 `idempotency_key`，避免网络重试重复创建附件。未来断点续传预留
-`/api/v1/attachment-uploads` 命名空间。
+它支持 multipart 表单字段：
+
+- `file`：文件内容。
+- `memo_id`：可选，关联 memo。
+- `mutation_id`：可选，幂等键。
+- `idempotency_key`：可选，幂等键。
+
+下载路径为：
+
+```http
+GET /file/attachments/{uid}/{filename}
+```
+
+附件下载受 Bearer token 鉴权保护。未来断点续传预留 `/api/v1/attachment-uploads` 命名空间。

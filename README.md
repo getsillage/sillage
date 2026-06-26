@@ -11,7 +11,7 @@
 ## Go 自托管迁移开发
 
 当前已建立 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz`、`/readyz`
-以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、`/api/v1/sync` 和 `/api/v1/sync:push`
+以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、附件上传下载、`/api/v1/sync` 和 `/api/v1/sync:push`
 的基础 REST 端点。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
 
 ```bash

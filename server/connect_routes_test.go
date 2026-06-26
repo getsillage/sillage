@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -209,5 +210,83 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	}
 	if pullRes.Msg.GetCursor() == "" || pullRes.Msg.GetHasMore() {
 		t.Fatalf("unexpected PullSync cursor/hasMore: cursor=%q hasMore=%v", pullRes.Msg.GetCursor(), pullRes.Msg.GetHasMore())
+	}
+}
+
+func TestConnectAskServiceGroundedMessages(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	createMemoForAsk(t, srv, token, "今天散步后睡眠更稳定。", "2026-06-26")
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	client := apiv1connect.NewAskServiceClient(httpServer.Client(), httpServer.URL)
+	createReq := connect.NewRequest(&apiv1.CreateAskConversationRequest{ContextScope: "all"})
+	createReq.Header().Set("Authorization", "Bearer "+token)
+	createRes, err := client.CreateAskConversation(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("CreateAskConversation() error = %v", err)
+	}
+	conversationID := createRes.Msg.GetConversation().GetId()
+	if conversationID == "" || createRes.Msg.GetConversation().GetContextScope() != "all" {
+		t.Fatalf("unexpected conversation: %#v", createRes.Msg.GetConversation())
+	}
+
+	messageReq := connect.NewRequest(&apiv1.CreateAskMessageRequest{
+		ConversationId: conversationID,
+		Content:        "最近状态有什么变化？",
+	})
+	messageReq.Header().Set("Authorization", "Bearer "+token)
+	messageRes, err := client.CreateAskMessage(context.Background(), messageReq)
+	if err != nil {
+		t.Fatalf("CreateAskMessage() error = %v", err)
+	}
+	messages := messageRes.Msg.GetMessages()
+	if len(messages) != 2 || messages[0].GetRole() != "user" || messages[1].GetRole() != "assistant" {
+		t.Fatalf("unexpected ask messages: %#v", messages)
+	}
+	if len(messages[1].GetSourceRefs()) == 0 || !strings.Contains(messages[1].GetContent(), "根据当前范围内的记录") {
+		t.Fatalf("assistant answer is not grounded: %#v", messages[1])
+	}
+
+	listReq := connect.NewRequest(&apiv1.ListAskMessagesRequest{ConversationId: conversationID})
+	listReq.Header().Set("Authorization", "Bearer "+token)
+	listRes, err := client.ListAskMessages(context.Background(), listReq)
+	if err != nil {
+		t.Fatalf("ListAskMessages() error = %v", err)
+	}
+	if len(listRes.Msg.GetMessages()) != 2 {
+		t.Fatalf("ListAskMessages len = %d, want 2", len(listRes.Msg.GetMessages()))
+	}
+}
+
+func TestConnectAttachmentServiceGet(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	body, contentType := multipartBody(t, "hello.txt", "hello attachment", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments", body)
+	req.Host = "localhost:5231"
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	uploaded := decodeAttachmentResponse(t, rec.Body.Bytes())
+	uid := uploaded["uid"].(string)
+
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+	client := apiv1connect.NewAttachmentServiceClient(httpServer.Client(), httpServer.URL)
+	getReq := connect.NewRequest(&apiv1.GetAttachmentRequest{Uid: uid})
+	getReq.Header().Set("Authorization", "Bearer "+token)
+	getRes, err := client.GetAttachment(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("GetAttachment() error = %v", err)
+	}
+	if getRes.Msg.GetAttachment().GetUid() != uid || getRes.Msg.GetAttachment().GetFilename() != "hello.txt" {
+		t.Fatalf("unexpected attachment: %#v", getRes.Msg.GetAttachment())
 	}
 }

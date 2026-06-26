@@ -85,6 +85,77 @@ type aiProfileInput struct {
 	APIKey      *string
 }
 
+type askConversationInput struct {
+	Title        string
+	ContextScope string
+}
+
+type askMessageInput struct {
+	ConversationID string
+	Content        string
+	ContextScope   string
+	ParentID       string
+	ForkOfID       string
+}
+
+type askCreateMessageResult struct {
+	Messages []*store.AskMessage
+}
+
+func (s *Server) listAskConversations(ctx context.Context, accountID string, limit int) ([]*store.AskConversation, error) {
+	return s.Store.ListAskConversations(ctx, accountID, normalizeLimit(limit, 50))
+}
+
+func (s *Server) createAskConversation(ctx context.Context, accountID string, input askConversationInput) (*store.AskConversation, error) {
+	return s.Store.CreateAskConversation(ctx, accountID, input.Title, input.ContextScope)
+}
+
+func (s *Server) listAskMessages(ctx context.Context, accountID, conversationID string) ([]*store.AskMessage, error) {
+	conversation, err := s.Store.GetAskConversation(ctx, accountID, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	return s.Store.ListAskMessages(ctx, conversation.ID)
+}
+
+func (s *Server) createAskMessage(ctx context.Context, accountID string, input askMessageInput) (*askCreateMessageResult, error) {
+	conversation, err := s.Store.GetAskConversation(ctx, accountID, input.ConversationID)
+	if err != nil {
+		return nil, err
+	}
+	input.Content = strings.TrimSpace(input.Content)
+	if input.Content == "" {
+		return nil, validationError{message: "问题不能为空"}
+	}
+	userMessage, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{
+		ConversationID: conversation.ID,
+		Role:           "user",
+		Content:        input.Content,
+		ParentID:       sql.NullString{String: input.ParentID, Valid: input.ParentID != ""},
+		ForkOfID:       sql.NullString{String: input.ForkOfID, Valid: input.ForkOfID != ""},
+		Status:         "complete",
+		SourceRefs:     "[]",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sources, answer := s.answerFromMemos(ctx, accountID, input.Content, firstNonEmpty(input.ContextScope, conversation.ContextScope))
+	assistantMessage, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{
+		ConversationID: conversation.ID,
+		Role:           "assistant",
+		Content:        answer,
+		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
+		Status:         "complete",
+		SourceRefs:     encodeAskSourceRefs(sources),
+		Model:          "local-grounded-answer",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &askCreateMessageResult{Messages: []*store.AskMessage{userMessage, assistantMessage}}, nil
+}
+
 func (s *Server) getAISettings(ctx context.Context, accountID string) ([]*store.AIProfile, error) {
 	return s.Store.ListAIProfiles(ctx, accountID)
 }
@@ -131,6 +202,10 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 		profiles = append(profiles, profile)
 	}
 	return profiles, nil
+}
+
+func (s *Server) getAttachment(ctx context.Context, accountID, uid string) (*store.Attachment, error) {
+	return s.Store.GetAttachmentByUID(ctx, accountID, uid, false)
 }
 
 type memoUpdateInput struct {

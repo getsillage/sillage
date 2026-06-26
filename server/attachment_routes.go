@@ -131,7 +131,7 @@ func (s *Server) handleGetAttachment(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	attachment, err := s.Store.GetAttachmentByUID(c.Request().Context(), account.ID, c.Param("attachment"), false)
+	attachment, err := s.getAttachment(c.Request().Context(), account.ID, c.Param("attachment"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "附件不存在")
@@ -164,7 +164,7 @@ func (s *Server) handleServeAttachment(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	attachment, err := s.Store.GetAttachmentByUID(c.Request().Context(), account.ID, c.Param("uid"), false)
+	attachment, err := s.getAttachment(c.Request().Context(), account.ID, c.Param("uid"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "附件不存在")

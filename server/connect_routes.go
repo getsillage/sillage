@@ -6,6 +6,10 @@ import (
 )
 
 func (s *Server) registerConnectRoutes(e *echo.Echo) {
+	askPath, askHandler := apiv1connect.NewAskServiceHandler(&askService{server: s})
+	e.Any(askPath+"*", echo.WrapHandler(askHandler))
+	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(&attachmentService{server: s})
+	e.Any(attachmentPath+"*", echo.WrapHandler(attachmentHandler))
 	authPath, authHandler := apiv1connect.NewAuthServiceHandler(&authService{server: s})
 	e.Any(authPath+"*", echo.WrapHandler(authHandler))
 	memoPath, memoHandler := apiv1connect.NewMemoServiceHandler(&memoService{server: s})

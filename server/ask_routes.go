@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -44,7 +45,7 @@ func (s *Server) handleListAskConversations(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	conversations, err := s.Store.ListAskConversations(c.Request().Context(), account.ID, parseLimit(c.QueryParam("limit"), 50))
+	conversations, err := s.listAskConversations(c.Request().Context(), account.ID, parseLimit(c.QueryParam("limit"), 50))
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取问答会话失败")
 	}
@@ -60,7 +61,10 @@ func (s *Server) handleCreateAskConversation(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	conversation, err := s.Store.CreateAskConversation(c.Request().Context(), account.ID, req.Title, req.ContextScope)
+	conversation, err := s.createAskConversation(c.Request().Context(), account.ID, askConversationInput{
+		Title:        req.Title,
+		ContextScope: req.ContextScope,
+	})
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "创建问答会话失败")
 	}
@@ -72,15 +76,11 @@ func (s *Server) handleListAskMessages(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	conversation, err := s.Store.GetAskConversation(c.Request().Context(), account.ID, c.Param("conversation"))
+	messages, err := s.listAskMessages(c.Request().Context(), account.ID, c.Param("conversation"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
 		}
-		return apiError(c, http.StatusInternalServerError, "internal", "读取会话失败")
-	}
-	messages, err := s.Store.ListAskMessages(c.Request().Context(), conversation.ID)
-	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取消息失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"messages": askMessageDTOs(messages)})
@@ -91,54 +91,31 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	conversation, err := s.Store.GetAskConversation(c.Request().Context(), account.ID, c.Param("conversation"))
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
-		}
-		return apiError(c, http.StatusInternalServerError, "internal", "读取会话失败")
-	}
 	var req askMessageRequest
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	req.Content = strings.TrimSpace(req.Content)
-	if req.Content == "" {
-		return apiError(c, http.StatusBadRequest, "invalid_field", "问题不能为空")
-	}
-	userMessage, err := s.Store.CreateAskMessage(c.Request().Context(), &store.AskMessage{
-		ConversationID: conversation.ID,
-		Role:           "user",
+	result, err := s.createAskMessage(c.Request().Context(), account.ID, askMessageInput{
+		ConversationID: c.Param("conversation"),
 		Content:        req.Content,
-		ParentID:       sql.NullString{String: req.ParentID, Valid: req.ParentID != ""},
-		ForkOfID:       sql.NullString{String: req.ForkOfID, Valid: req.ForkOfID != ""},
-		Status:         "complete",
-		SourceRefs:     "[]",
+		ContextScope:   req.ContextScope,
+		ParentID:       req.ParentID,
+		ForkOfID:       req.ForkOfID,
 	})
 	if err != nil {
-		return apiError(c, http.StatusInternalServerError, "internal", "保存问题失败")
-	}
-
-	sources, answer := s.answerFromMemos(c, account.ID, req.Content, firstNonEmpty(req.ContextScope, conversation.ContextScope))
-	assistantMessage, err := s.Store.CreateAskMessage(c.Request().Context(), &store.AskMessage{
-		ConversationID: conversation.ID,
-		Role:           "assistant",
-		Content:        answer,
-		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
-		Status:         "complete",
-		SourceRefs:     encodeAskSourceRefs(sources),
-		Model:          "local-grounded-answer",
-	})
-	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "生成回答失败")
 	}
-	return c.JSON(http.StatusOK, map[string]any{
-		"messages": []map[string]any{askMessageDTO(userMessage), askMessageDTO(assistantMessage)},
-	})
+	return c.JSON(http.StatusOK, map[string]any{"messages": askMessageDTOs(result.Messages)})
 }
 
-func (s *Server) answerFromMemos(c *echo.Context, accountID, question, scope string) ([]askSourceRef, string) {
-	memos, err := s.Store.ListRecentMemos(c.Request().Context(), accountID, 30)
+func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope string) ([]askSourceRef, string) {
+	memos, err := s.Store.ListRecentMemos(ctx, accountID, 30)
 	if err != nil || len(memos) == 0 {
 		return nil, "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。"
 	}

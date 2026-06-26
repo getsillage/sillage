@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Route,
@@ -272,6 +272,8 @@ function Shell({ account, token }: { account: Account; token: string }) {
   const [editing, setEditing] = useState<Memo | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const [summaries, setSummaries] = useState<Record<string, MemoAI>>({});
   const [summarizingId, setSummarizingId] = useState("");
   const [view, setView] = useState<"records" | "history" | "ask" | "settings">(
@@ -279,7 +281,9 @@ function Shell({ account, token }: { account: Account; token: string }) {
       ? "ask"
       : location.pathname === "/settings"
         ? "settings"
-        : "records",
+        : location.pathname === "/history"
+          ? "history"
+          : "records",
   );
   const [askConversations, setAskConversations] = useState<AskConversation[]>(
     [],
@@ -304,6 +308,10 @@ function Shell({ account, token }: { account: Account; token: string }) {
       setView("ask");
     } else if (location.pathname === "/settings") {
       setView("settings");
+    } else if (location.pathname === "/history") {
+      setView("history");
+    } else {
+      setView("records");
     }
   }, [location.pathname]);
 
@@ -333,6 +341,11 @@ function Shell({ account, token }: { account: Account; token: string }) {
       );
   }, [token, activeConversationId]);
 
+  function flashNotice(text: string) {
+    setNotice(text);
+    window.setTimeout(() => setNotice(""), 2500);
+  }
+
   async function saveMemo() {
     if (!content.trim()) {
       setMessage("先写下要保存的内容");
@@ -345,6 +358,7 @@ function Shell({ account, token }: { account: Account; token: string }) {
         ? await updateMemo(token, editing, { content, entryDate })
         : await createMemo(token, { content, entryDate });
       setMemos((current) => sortMemos(upsertMemo(current, res.memo)));
+      flashNotice(editing ? "已更新" : "已保存");
       setContent("");
       setEntryDate(today());
       setEditing(null);
@@ -372,6 +386,17 @@ function Shell({ account, token }: { account: Account; token: string }) {
             ? current.filter((item) => item.id !== memo.id)
             : upsertMemo(current, res.memo),
         ),
+      );
+      flashNotice(
+        action === "pin"
+          ? memo.pinnedAt
+            ? "已取消置顶"
+            : "已置顶"
+          : action === "archive"
+            ? memo.archivedAt
+              ? "已取消归档"
+              : "已归档"
+            : "已删除",
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "操作失败");
@@ -505,7 +530,7 @@ function Shell({ account, token }: { account: Account; token: string }) {
             type="button"
             onClick={() => {
               setView("history");
-              navigate("/");
+              navigate("/history");
             }}
           >
             <History size={18} />
@@ -564,6 +589,17 @@ function Shell({ account, token }: { account: Account; token: string }) {
               setActiveConversationId(conversation.id);
               setAskScope(conversation.contextScope);
             }}
+            onSelectSource={(memoId) => {
+              const target = memos.find((item) => item.id === memoId);
+              const archived = Boolean(target?.archivedAt);
+              setView(archived ? "history" : "records");
+              navigate(archived ? "/history" : "/");
+              window.setTimeout(() => {
+                document
+                  .getElementById(`memo-${memoId}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 60);
+            }}
           />
         ) : view === "settings" ? (
           <SettingsWorkspace token={token} />
@@ -594,6 +630,7 @@ function Shell({ account, token }: { account: Account; token: string }) {
                 )}
               </div>
               <textarea
+                ref={composerRef}
                 value={content}
                 placeholder="写下想记录的内容…"
                 onChange={(event) => setContent(event.target.value)}
@@ -623,6 +660,7 @@ function Shell({ account, token }: { account: Account; token: string }) {
                 </button>
               </div>
               {message && <p className="form-error">{message}</p>}
+              {notice && <p className="form-note">{notice}</p>}
             </section>
             {view === "history" && <ActivityStrip memos={memos} />}
             <section className="memo-list">
@@ -637,6 +675,12 @@ function Shell({ account, token }: { account: Account; token: string }) {
                   >
                     <div className="memo-meta">
                       <time>{memo.entryDate}</time>
+                      {memo.pinnedAt && (
+                        <span className="memo-pinned">
+                          <Pin size={12} />
+                          已置顶
+                        </span>
+                      )}
                       {memo.archivedAt && <span>已归档</span>}
                     </div>
                     <MarkdownContent content={memo.content} />
@@ -686,6 +730,11 @@ function Shell({ account, token }: { account: Account; token: string }) {
                           setEditing(memo);
                           setContent(memo.content);
                           setEntryDate(memo.entryDate);
+                          composerRef.current?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
+                          composerRef.current?.focus();
                         }}
                       >
                         编辑
@@ -723,6 +772,7 @@ function AskWorkspace({
   onSend,
   onNew,
   onSelect,
+  onSelectSource,
 }: {
   conversations: AskConversation[];
   activeConversation?: AskConversation;
@@ -736,6 +786,7 @@ function AskWorkspace({
   onSend: () => void;
   onNew: () => void;
   onSelect: (conversation: AskConversation) => void;
+  onSelectSource: (memoId: string) => void;
 }) {
   return (
     <section className="ask-workspace">
@@ -804,13 +855,14 @@ function AskWorkspace({
                 {message.sourceRefs.length > 0 && (
                   <div className="source-list">
                     {message.sourceRefs.map((source) => (
-                      <a
-                        href={`/#memo-${source.memoId}`}
+                      <button
+                        type="button"
+                        onClick={() => onSelectSource(source.memoId)}
                         key={`${message.id}-${source.memoId}-${source.rank}`}
                       >
                         <span>{source.entryDate}</span>
                         <small>{source.excerpt}</small>
-                      </a>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -881,7 +933,12 @@ function sortMemos(memos: Memo[]) {
     if (!a.pinnedAt && b.pinnedAt) {
       return 1;
     }
-    return b.updatedAt.localeCompare(a.updatedAt);
+    // Match the server ordering (entry_date DESC, created_at DESC) so editing
+    // an old record does not jump it to the top of the list.
+    if (a.entryDate !== b.entryDate) {
+      return b.entryDate.localeCompare(a.entryDate);
+    }
+    return b.createdAt.localeCompare(a.createdAt);
   });
 }
 

@@ -375,6 +375,13 @@ textarea {
   font-size: 13px;
 }
 
+.memo-pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #2f6b4f;
+}
+
 .memo-actions {
   justify-content: flex-end;
 }
@@ -649,15 +656,17 @@ textarea {
   gap: 8px;
 }
 
-.source-list a {
+.source-list button {
   display: grid;
   gap: 3px;
+  width: 100%;
   border: 1px solid #d9ded6;
   border-radius: 6px;
   padding: 8px;
   color: #17201b;
-  text-decoration: none;
+  text-align: left;
   background: #f8faf7;
+  cursor: pointer;
 }
 
 .source-list span {

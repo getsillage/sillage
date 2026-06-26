@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strings"
 
 	"github.com/miofelix/sillage/internal/secret"
+	"github.com/miofelix/sillage/server/auth"
 	"github.com/miofelix/sillage/store"
 )
 
@@ -19,6 +22,36 @@ var (
 
 type validationError struct {
 	message string
+}
+
+type authInput struct {
+	Username    string
+	DisplayName string
+	Password    string
+}
+
+func (s *Server) authBootstrap(ctx context.Context) (bool, error) {
+	return s.auth.HasAccount(ctx)
+}
+
+func (s *Server) initializeAccount(ctx context.Context, input authInput, r *http.Request) (*store.Account, *auth.TokenPair, error) {
+	input.Username = strings.TrimSpace(input.Username)
+	if input.Username == "" || input.Password == "" {
+		return nil, nil, validationError{message: "账号和密码不能为空"}
+	}
+	return s.auth.Initialize(ctx, input.Username, input.DisplayName, input.Password, r)
+}
+
+func (s *Server) signIn(ctx context.Context, input authInput, r *http.Request) (*store.Account, *auth.TokenPair, error) {
+	return s.auth.SignIn(ctx, input.Username, input.Password, r)
+}
+
+func (s *Server) refreshAuth(ctx context.Context, refreshToken string, r *http.Request) (*store.Account, *auth.TokenPair, error) {
+	return s.auth.Refresh(ctx, refreshToken, r)
+}
+
+func (s *Server) signOut(ctx context.Context, refreshToken string) error {
+	return s.auth.SignOut(ctx, refreshToken)
 }
 
 func (e validationError) Error() string {
@@ -33,6 +66,71 @@ type memoCreateInput struct {
 	ID        string
 	Content   string
 	EntryDate string
+}
+
+type aiSettingsInput struct {
+	Profiles []aiProfileInput
+}
+
+type aiProfileInput struct {
+	ID          string
+	Name        string
+	Provider    string
+	BaseURL     string
+	Model       string
+	Temperature float64
+	MaxTokens   int64
+	Enabled     bool
+	Active      bool
+	APIKey      *string
+}
+
+func (s *Server) getAISettings(ctx context.Context, accountID string) ([]*store.AIProfile, error) {
+	return s.Store.ListAIProfiles(ctx, accountID)
+}
+
+func (s *Server) patchAISettings(ctx context.Context, accountID string, input aiSettingsInput) ([]*store.AIProfile, error) {
+	profiles := make([]*store.AIProfile, 0, len(input.Profiles))
+	for _, profileReq := range input.Profiles {
+		if profileReq.Name == "" || profileReq.Provider == "" {
+			return nil, validationError{message: "AI 档案名称和 provider 不能为空"}
+		}
+		var envelope *string
+		if profileReq.APIKey != nil {
+			raw, err := secret.EncryptEnvelope(s.Secrets.EncryptionSecret, *profileReq.APIKey)
+			if err != nil {
+				return nil, err
+			}
+			envelope = &raw
+		}
+		maxTokens := profileReq.MaxTokens
+		if maxTokens <= 0 {
+			maxTokens = 1000
+		}
+		temperature := profileReq.Temperature
+		if temperature == 0 {
+			temperature = 0.3
+		}
+		profile, err := s.Store.UpsertAIProfile(ctx, &store.UpsertAIProfile{
+			ID:             profileReq.ID,
+			AccountID:      accountID,
+			Name:           profileReq.Name,
+			Provider:       profileReq.Provider,
+			BaseURL:        profileReq.BaseURL,
+			Model:          profileReq.Model,
+			Temperature:    temperature,
+			MaxTokens:      maxTokens,
+			Enabled:        profileReq.Enabled,
+			Active:         profileReq.Active,
+			APIKeyEnvelope: envelope,
+			KeyUnavailable: false,
+		})
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles, nil
 }
 
 type memoUpdateInput struct {

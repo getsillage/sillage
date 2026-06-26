@@ -29,7 +29,7 @@ func (s *Server) registerAuthRoutes(e *echo.Echo) {
 }
 
 func (s *Server) handleAuthBootstrap(c *echo.Context) error {
-	initialized, err := s.auth.HasAccount(c.Request().Context())
+	initialized, err := s.authBootstrap(c.Request().Context())
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "无法读取初始化状态")
 	}
@@ -41,17 +41,21 @@ func (s *Server) handleAuthInitialize(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || req.Password == "" {
-		return apiError(c, http.StatusBadRequest, "invalid_field", "账号和密码不能为空")
-	}
 
-	account, tokens, err := s.auth.Initialize(c.Request().Context(), req.Username, req.DisplayName, req.Password, c.Request())
+	account, tokens, err := s.initializeAccount(c.Request().Context(), authInput{
+		Username:    req.Username,
+		DisplayName: req.DisplayName,
+		Password:    req.Password,
+	}, c.Request())
 	if err != nil {
-		if errors.Is(err, store.ErrAccountExists) {
+		switch {
+		case errors.Is(err, errValidation):
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		case errors.Is(err, store.ErrAccountExists):
 			return apiError(c, http.StatusForbidden, "already_initialized", "这个实例已经初始化")
+		default:
+			return apiError(c, http.StatusInternalServerError, "internal", "初始化失败")
 		}
-		return apiError(c, http.StatusInternalServerError, "internal", "初始化失败")
 	}
 	auth.SetRefreshCookie(c.Response(), c.Request(), tokens.RefreshToken)
 	return c.JSON(http.StatusOK, authResponse(account, tokens))
@@ -62,7 +66,10 @@ func (s *Server) handleAuthSignIn(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	account, tokens, err := s.auth.SignIn(c.Request().Context(), req.Username, req.Password, c.Request())
+	account, tokens, err := s.signIn(c.Request().Context(), authInput{
+		Username: req.Username,
+		Password: req.Password,
+	}, c.Request())
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInvalidCredentials):
@@ -79,7 +86,7 @@ func (s *Server) handleAuthSignIn(c *echo.Context) error {
 
 func (s *Server) handleAuthRefresh(c *echo.Context) error {
 	refreshToken := auth.RefreshTokenFromCookie(c.Request())
-	account, tokens, err := s.auth.Refresh(c.Request().Context(), refreshToken, c.Request())
+	account, tokens, err := s.refreshAuth(c.Request().Context(), refreshToken, c.Request())
 	if err != nil {
 		if errors.Is(err, auth.ErrUnauthenticated) || errors.Is(err, sql.ErrNoRows) {
 			auth.ClearRefreshCookie(c.Response(), c.Request())
@@ -92,7 +99,7 @@ func (s *Server) handleAuthRefresh(c *echo.Context) error {
 }
 
 func (s *Server) handleAuthSignOut(c *echo.Context) error {
-	if err := s.auth.SignOut(c.Request().Context(), auth.RefreshTokenFromCookie(c.Request())); err != nil {
+	if err := s.signOut(c.Request().Context(), auth.RefreshTokenFromCookie(c.Request())); err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "退出失败")
 	}
 	auth.ClearRefreshCookie(c.Response(), c.Request())

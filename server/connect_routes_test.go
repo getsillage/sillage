@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -56,6 +57,105 @@ func TestConnectMemoServiceRequiresAuth(t *testing.T) {
 	connectErr := new(connect.Error)
 	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeUnauthenticated {
 		t.Fatalf("ListMemos() error = %v, want unauthenticated", err)
+	}
+}
+
+func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
+	srv := newTestServer(t)
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	authClient := apiv1connect.NewAuthServiceClient(httpServer.Client(), httpServer.URL)
+	bootstrapRes, err := authClient.Bootstrap(context.Background(), connect.NewRequest(&apiv1.BootstrapRequest{}))
+	if err != nil {
+		t.Fatalf("Bootstrap() error = %v", err)
+	}
+	if bootstrapRes.Msg.GetInitialized() {
+		t.Fatal("Bootstrap initialized = true before initialization")
+	}
+
+	initRes, err := authClient.Initialize(context.Background(), connect.NewRequest(&apiv1.InitializeRequest{
+		Username:    "Felix",
+		DisplayName: "Felix",
+		Password:    "passw0rd!",
+	}))
+	if err != nil {
+		t.Fatalf("Initialize() error = %v", err)
+	}
+	token := initRes.Msg.GetAccessToken()
+	if token == "" || initRes.Msg.GetAccount().GetUsername() != "felix" {
+		t.Fatalf("unexpected initialize response: %#v", initRes.Msg)
+	}
+	if initRes.Header().Get("Set-Cookie") == "" {
+		t.Fatal("Initialize() did not set refresh cookie")
+	}
+
+	meReq := connect.NewRequest(&apiv1.MeRequest{})
+	meReq.Header().Set("Authorization", "Bearer "+token)
+	meRes, err := authClient.Me(context.Background(), meReq)
+	if err != nil {
+		t.Fatalf("Me() error = %v", err)
+	}
+	if meRes.Msg.GetAccount().GetId() != initRes.Msg.GetAccount().GetId() {
+		t.Fatalf("Me account id = %q, want %q", meRes.Msg.GetAccount().GetId(), initRes.Msg.GetAccount().GetId())
+	}
+
+	settingsClient := apiv1connect.NewSettingsServiceClient(httpServer.Client(), httpServer.URL)
+	apiKey := "sk-test"
+	patchReq := connect.NewRequest(&apiv1.PatchAISettingsRequest{
+		Profiles: []*apiv1.AIProfileInput{{
+			Name:        "本地测试",
+			Provider:    "openai",
+			BaseUrl:     "https://api.openai.com/v1",
+			Model:       "gpt-test",
+			Enabled:     true,
+			Active:      true,
+			Temperature: 0.2,
+			MaxTokens:   1000,
+			ApiKey:      &apiKey,
+		}},
+	})
+	patchReq.Header().Set("Authorization", "Bearer "+token)
+	patchRes, err := settingsClient.PatchAISettings(context.Background(), patchReq)
+	if err != nil {
+		t.Fatalf("PatchAISettings() error = %v", err)
+	}
+	profiles := patchRes.Msg.GetProfiles()
+	if len(profiles) != 1 || !profiles[0].GetHasApiKey() || profiles[0].GetKeyUnavailable() {
+		t.Fatalf("unexpected profiles after patch: %#v", profiles)
+	}
+	if strings.Contains(profiles[0].String(), apiKey) {
+		t.Fatal("PatchAISettings response leaked API key")
+	}
+
+	getReq := connect.NewRequest(&apiv1.GetAISettingsRequest{})
+	getReq.Header().Set("Authorization", "Bearer "+token)
+	getRes, err := settingsClient.GetAISettings(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("GetAISettings() error = %v", err)
+	}
+	if len(getRes.Msg.GetProfiles()) != 1 || !getRes.Msg.GetProfiles()[0].GetHasApiKey() {
+		t.Fatalf("unexpected profiles from get: %#v", getRes.Msg.GetProfiles())
+	}
+
+	refreshReq := connect.NewRequest(&apiv1.RefreshRequest{})
+	refreshReq.Header().Set("Cookie", initRes.Header().Get("Set-Cookie"))
+	refreshRes, err := authClient.Refresh(context.Background(), refreshReq)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if refreshRes.Msg.GetAccessToken() == "" || refreshRes.Header().Get("Set-Cookie") == "" {
+		t.Fatalf("Refresh response missing token or cookie")
+	}
+
+	signOutReq := connect.NewRequest(&apiv1.SignOutRequest{})
+	signOutReq.Header().Set("Cookie", refreshRes.Header().Get("Set-Cookie"))
+	signOutRes, err := authClient.SignOut(context.Background(), signOutReq)
+	if err != nil {
+		t.Fatalf("SignOut() error = %v", err)
+	}
+	if cookie := signOutRes.Header().Get("Set-Cookie"); !strings.Contains(cookie, "Max-Age=0") {
+		t.Fatalf("SignOut cookie = %q, want cleared cookie", cookie)
 	}
 }
 

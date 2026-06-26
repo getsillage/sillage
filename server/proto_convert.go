@@ -26,6 +26,48 @@ func memoPB(memo *store.Memo) *apiv1.Memo {
 	}
 }
 
+func accountPB(account *store.Account) *apiv1.Account {
+	if account == nil {
+		return nil
+	}
+	return &apiv1.Account{
+		Id:          account.ID,
+		Username:    account.Username,
+		DisplayName: account.DisplayName,
+		CreatedTime: timestamppb.New(unixMilliTime(account.CreatedAt)),
+		UpdatedTime: timestamppb.New(unixMilliTime(account.UpdatedAt)),
+	}
+}
+
+func aiProfilePB(profile *store.AIProfile) *apiv1.AIProfile {
+	if profile == nil {
+		return nil
+	}
+	return &apiv1.AIProfile{
+		Id:             profile.ID,
+		Name:           profile.Name,
+		Provider:       profile.Provider,
+		BaseUrl:        profile.BaseURL,
+		Model:          profile.Model,
+		Temperature:    profile.Temperature,
+		MaxTokens:      profile.MaxTokens,
+		Enabled:        profile.Enabled,
+		Active:         profile.Active,
+		HasApiKey:      profile.APIKeyEnvelope.Valid,
+		KeyUnavailable: profile.KeyUnavailable,
+		CreatedTime:    timestamppb.New(unixMilliTime(profile.CreatedAt)),
+		UpdatedTime:    timestamppb.New(unixMilliTime(profile.UpdatedAt)),
+	}
+}
+
+func aiSettingsResponsePB(profiles []*store.AIProfile) *apiv1.AISettingsResponse {
+	res := &apiv1.AISettingsResponse{Profiles: make([]*apiv1.AIProfile, 0, len(profiles))}
+	for _, profile := range profiles {
+		res.Profiles = append(res.Profiles, aiProfilePB(profile))
+	}
+	return res
+}
+
 func memoAIPB(ai *store.MemoAI) *apiv1.MemoAI {
 	if ai == nil {
 		return nil

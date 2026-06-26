@@ -1,12 +1,12 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/miofelix/sillage/internal/secret"
 	"github.com/miofelix/sillage/store"
 )
 
@@ -38,7 +38,7 @@ func (s *Server) handleGetAISettings(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	profiles, err := s.Store.ListAIProfiles(c.Request().Context(), account.ID)
+	profiles, err := s.getAISettings(c.Request().Context(), account.ID)
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取 AI 设置失败")
 	}
@@ -54,45 +54,27 @@ func (s *Server) handlePatchAISettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	var profiles []*store.AIProfile
+	input := aiSettingsInput{Profiles: make([]aiProfileInput, 0, len(req.Profiles))}
 	for _, profileReq := range req.Profiles {
-		if profileReq.Name == "" || profileReq.Provider == "" {
-			return apiError(c, http.StatusBadRequest, "invalid_field", "AI 档案名称和 provider 不能为空")
-		}
-		var envelope *string
-		if profileReq.APIKey != nil {
-			raw, err := secret.EncryptEnvelope(s.Secrets.EncryptionSecret, *profileReq.APIKey)
-			if err != nil {
-				return apiError(c, http.StatusInternalServerError, "internal", "加密 API Key 失败")
-			}
-			envelope = &raw
-		}
-		maxTokens := profileReq.MaxTokens
-		if maxTokens <= 0 {
-			maxTokens = 1000
-		}
-		temperature := profileReq.Temperature
-		if temperature == 0 {
-			temperature = 0.3
-		}
-		profile, err := s.Store.UpsertAIProfile(c.Request().Context(), &store.UpsertAIProfile{
-			ID:             profileReq.ID,
-			AccountID:      account.ID,
-			Name:           profileReq.Name,
-			Provider:       profileReq.Provider,
-			BaseURL:        profileReq.BaseURL,
-			Model:          profileReq.Model,
-			Temperature:    temperature,
-			MaxTokens:      maxTokens,
-			Enabled:        profileReq.Enabled,
-			Active:         profileReq.Active,
-			APIKeyEnvelope: envelope,
-			KeyUnavailable: false,
+		input.Profiles = append(input.Profiles, aiProfileInput{
+			ID:          profileReq.ID,
+			Name:        profileReq.Name,
+			Provider:    profileReq.Provider,
+			BaseURL:     profileReq.BaseURL,
+			Model:       profileReq.Model,
+			Temperature: profileReq.Temperature,
+			MaxTokens:   profileReq.MaxTokens,
+			Enabled:     profileReq.Enabled,
+			Active:      profileReq.Active,
+			APIKey:      profileReq.APIKey,
 		})
-		if err != nil {
-			return apiError(c, http.StatusInternalServerError, "internal", "保存 AI 设置失败")
+	}
+	profiles, err := s.patchAISettings(c.Request().Context(), account.ID, input)
+	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 		}
-		profiles = append(profiles, profile)
+		return apiError(c, http.StatusInternalServerError, "internal", "保存 AI 设置失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"profiles": aiProfileDTOs(profiles)})
 }

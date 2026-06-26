@@ -22,7 +22,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
 
 - `cursor` 是不透明字符串，客户端必须原样回传。
 - 省略 `cursor` 表示从头拉取。
-- 响应按资源类型分组，当前阶段已实现 `memos` 和 `attachments` metadata；后续里程碑会扩展 `summaries`、`ask_conversations`、`ask_messages` 和 memo AI 派生数据。
+- 响应按资源类型分组，当前阶段已实现 `memos`、`attachments` metadata 和 `memoAi` 派生数据；后续里程碑会扩展 `summaries`、`ask_conversations` 和 `ask_messages`。
 - 每个 stream 使用 `(updated_at, id)` keyset 游标，避免同一毫秒的记录在分页边界被跳过。
 - 删除使用 `deletedAt` tombstone 返回，客户端据此删除本地镜像。
 
@@ -59,6 +59,24 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
       "createdAt": "2026-06-26T11:15:07Z",
       "updatedAt": "2026-06-26T11:15:07Z",
       "deletedAt": null
+    }
+  ],
+  "memoAi": [
+    {
+      "memoId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
+      "summary": "本地生成的记录总结",
+      "sentiment": null,
+      "provider": "local",
+      "model": "local-summary",
+      "profileId": "",
+      "promptVersion": "memo-summary-v1",
+      "sourceMemoIds": "[\"019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7\"]",
+      "status": "complete",
+      "errorCode": null,
+      "startedAt": "2026-06-26T11:15:07Z",
+      "finishedAt": "2026-06-26T11:15:07Z",
+      "createdAt": "2026-06-26T11:15:07Z",
+      "updatedAt": "2026-06-26T11:15:07Z"
     }
   ],
   "cursor": "opaque",
@@ -152,3 +170,12 @@ GET /file/attachments/{uid}/{filename}
 ```
 
 附件下载受 Bearer token 鉴权保护。未来断点续传预留 `/api/v1/attachment-uploads` 命名空间。
+
+## AI 设置与同步
+
+AI profile 通过 `GET /api/v1/settings/ai` 和 `PATCH /api/v1/settings/ai` 管理。API key 使用
+`ENCRYPTION_SECRET` 经 HKDF 派生 AES-256-GCM key 后以 envelope 保存；浏览器和 sync 只看到
+`hasApiKey` / `keyUnavailable`，不会收到明文 key。
+
+如果更换 `ENCRYPTION_SECRET` 导致旧 key 解不开，服务不会崩溃；相关 profile 会标记为
+`keyUnavailable: true`，用户需要重新输入 API key。

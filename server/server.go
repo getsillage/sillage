@@ -16,8 +16,8 @@ import (
 
 	"github.com/miofelix/sillage/internal/profile"
 	"github.com/miofelix/sillage/internal/secret"
-	"github.com/miofelix/sillage/server/router/frontend"
 	"github.com/miofelix/sillage/server/auth"
+	"github.com/miofelix/sillage/server/router/frontend"
 	"github.com/miofelix/sillage/store"
 )
 
@@ -26,6 +26,7 @@ const shutdownTimeout = 10 * time.Second
 type Server struct {
 	Profile *profile.Profile
 	Store   *store.Store
+	Secrets *secret.Secrets
 
 	echoServer *echo.Echo
 	httpServer *http.Server
@@ -41,6 +42,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	server := &Server{
 		Profile:    p,
 		Store:      s,
+		Secrets:    secrets,
 		echoServer: e,
 		auth:       auth.NewService(s, secrets.SessionSecret),
 	}
@@ -62,6 +64,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	server.registerAuthRoutes(e)
 	server.registerMemoRoutes(e)
 	server.registerAttachmentRoutes(e)
+	server.registerAIRoutes(e)
 	frontend.Register(e)
 
 	return server, nil

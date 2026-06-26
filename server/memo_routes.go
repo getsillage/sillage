@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -122,7 +123,7 @@ func (s *Server) handleUpdateMemo(c *echo.Context) error {
 		}
 	}
 	memo, err := s.Store.UpdateMemo(c.Request().Context(), &store.UpdateMemo{
-		ID:              c.Param("memo"),
+		ID:              memoParam(c),
 		CreatorID:       account.ID,
 		ExpectedVersion: req.ExpectedVersion,
 		Content:         req.Content,
@@ -141,7 +142,7 @@ func (s *Server) handleDeleteMemo(c *echo.Context) error {
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 	deleted := true
 	memo, err := s.Store.UpdateMemo(c.Request().Context(), &store.UpdateMemo{
-		ID:              c.Param("memo"),
+		ID:              memoParam(c),
 		CreatorID:       account.ID,
 		ExpectedVersion: expectedVersion,
 		Deleted:         &deleted,
@@ -172,7 +173,7 @@ func (s *Server) handleMemoBoolPatch(c *echo.Context, field string, value bool) 
 	}
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 	update := &store.UpdateMemo{
-		ID:              c.Param("memo"),
+		ID:              memoParam(c),
 		CreatorID:       account.ID,
 		ExpectedVersion: expectedVersion,
 	}
@@ -215,6 +216,25 @@ func validateMemoFields(content, entryDate string) error {
 		return errors.New("记录日期必须是 YYYY-MM-DD")
 	}
 	return nil
+}
+
+func memoParam(c *echo.Context) string {
+	if value := c.Param("memo"); value != "" {
+		return value
+	}
+	path := c.Request().URL.Path
+	prefix := "/api/v1/memos/"
+	if !strings.HasPrefix(path, prefix) {
+		return ""
+	}
+	value := strings.TrimPrefix(path, prefix)
+	if before, _, ok := strings.Cut(value, ":"); ok {
+		return before
+	}
+	if before, _, ok := strings.Cut(value, "/"); ok {
+		return before
+	}
+	return value
 }
 
 func parseLimit(raw string, fallback int) int {
@@ -270,6 +290,7 @@ func optionalTime(value sql.NullInt64) any {
 type syncCursor struct {
 	Memo       store.SyncCursorPosition `json:"memo"`
 	Attachment store.SyncCursorPosition `json:"attachment"`
+	MemoAI     store.SyncCursorPosition `json:"memoAi"`
 }
 
 func decodeSyncCursor(raw string) syncCursor {

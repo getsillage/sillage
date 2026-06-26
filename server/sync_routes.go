@@ -59,6 +59,14 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "同步读取失败")
 	}
+	memoAI, err := s.Store.ListMemoAI(c.Request().Context(), &store.ListMemoAIOptions{
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.MemoAI.UpdatedAt,
+		UpdatedAfterID: cursor.MemoAI.ID,
+	})
+	if err != nil {
+		return apiError(c, http.StatusInternalServerError, "internal", "同步读取失败")
+	}
 	memoHasMore := len(memos) > limit
 	if memoHasMore {
 		memos = memos[:limit]
@@ -66,6 +74,10 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 	attachmentHasMore := len(attachments) > limit
 	if attachmentHasMore {
 		attachments = attachments[:limit]
+	}
+	memoAIHasMore := len(memoAI) > limit
+	if memoAIHasMore {
+		memoAI = memoAI[:limit]
 	}
 	if len(memos) > 0 {
 		last := memos[len(memos)-1]
@@ -75,12 +87,17 @@ func (s *Server) handleSyncPull(c *echo.Context) error {
 		last := attachments[len(attachments)-1]
 		cursor.Attachment = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
 	}
+	if len(memoAI) > 0 {
+		last := memoAI[len(memoAI)-1]
+		cursor.MemoAI = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.MemoID}
+	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"memos":       memoDTOs(memos),
 		"attachments": attachmentDTOs(attachments),
+		"memoAi":      memoAIDTOs(memoAI),
 		"cursor":      encodeSyncCursor(cursor),
 		"nextCursor":  encodeSyncCursor(cursor),
-		"hasMore":     memoHasMore || attachmentHasMore,
+		"hasMore":     memoHasMore || attachmentHasMore || memoAIHasMore,
 	})
 }
 

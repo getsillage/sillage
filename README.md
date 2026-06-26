@@ -12,7 +12,7 @@
 
 当前已建立 Go 单体骨架：`cmd/sillage`、SQLite store/migration、Echo server、`/healthz`、`/readyz`
 以及唯一账号初始化 / 登录 / refresh / 退出、memo CRUD、附件上传下载、`/api/v1/sync` 和 `/api/v1/sync:push`
-的基础 REST 端点。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档和附件上传插入 Markdown 链接。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
+的基础 REST 端点。AI 设置已支持 profile 保存和 API key envelope 加密，单条 memo 可生成本地占位总结并进入 sync。Web 端已接入初始化、登录、记录列表、创建/编辑/删除、置顶/归档和附件上传插入 Markdown 链接。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式指定 `SILLAGE_DATA`。
 
 ```bash
 go test ./...

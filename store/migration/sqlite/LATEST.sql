@@ -183,6 +183,28 @@ CREATE TABLE memo_ai (
 CREATE INDEX idx_memo_ai_updated_id ON memo_ai (updated_at, memo_id);
 CREATE INDEX idx_memo_ai_deleted_at ON memo_ai (deleted_at);
 
+CREATE TABLE ai_profile (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  base_url TEXT NOT NULL DEFAULT '',
+  model TEXT NOT NULL DEFAULT '',
+  temperature REAL NOT NULL DEFAULT 0.3,
+  max_tokens INTEGER NOT NULL DEFAULT 1000,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 0,
+  api_key_envelope TEXT,
+  key_unavailable INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_ai_profile_account_id ON ai_profile (account_id);
+CREATE INDEX idx_ai_profile_updated_id ON ai_profile (updated_at, id);
+CREATE INDEX idx_ai_profile_deleted_at ON ai_profile (deleted_at);
+
 CREATE TABLE runtime_kv (
   namespace TEXT NOT NULL,
   key TEXT NOT NULL,

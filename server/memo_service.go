@@ -23,10 +23,7 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	if err != nil {
 		return nil, err
 	}
-	memos, err := s.server.Store.ListMemos(ctx, &store.ListMemoOptions{
-		AccountID: account.ID,
-		Limit:     int(req.Msg.GetLimit()),
-	})
+	memos, err := s.server.listMemos(ctx, account.ID, int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -42,12 +39,8 @@ func (s *memoService) CreateMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	if err := validateMemoFields(req.Msg.GetContent(), req.Msg.GetEntryDate()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	memo, err := s.server.Store.CreateMemo(ctx, &store.CreateMemo{
+	memo, err := s.server.createMemo(ctx, account.ID, memoCreateInput{
 		ID:        req.Msg.GetId(),
-		CreatorID: account.ID,
 		Content:   req.Msg.GetContent(),
 		EntryDate: req.Msg.GetEntryDate(),
 	})
@@ -62,7 +55,7 @@ func (s *memoService) GetMemo(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.Store.GetMemo(ctx, account.ID, req.Msg.GetId(), false)
+	memo, err := s.server.getMemo(ctx, account.ID, req.Msg.GetId())
 	if err != nil {
 		return nil, memoConnectError(err)
 	}
@@ -74,22 +67,11 @@ func (s *memoService) UpdateMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	content := req.Msg.Content
-	entryDate := req.Msg.EntryDate
-	if content != nil && *content == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("记录内容不能为空"))
-	}
-	if entryDate != nil {
-		if err := validateMemoFields("placeholder", *entryDate); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("记录日期必须是 YYYY-MM-DD"))
-		}
-	}
-	memo, err := s.server.Store.UpdateMemo(ctx, &store.UpdateMemo{
+	memo, err := s.server.updateMemo(ctx, account.ID, memoUpdateInput{
 		ID:              req.Msg.GetId(),
-		CreatorID:       account.ID,
 		ExpectedVersion: req.Msg.GetExpectedVersion(),
-		Content:         content,
-		EntryDate:       entryDate,
+		Content:         req.Msg.Content,
+		EntryDate:       req.Msg.EntryDate,
 		Pinned:          req.Msg.Pinned,
 		Archived:        req.Msg.Archived,
 	})
@@ -104,13 +86,7 @@ func (s *memoService) DeleteMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	deleted := true
-	memo, err := s.server.Store.UpdateMemo(ctx, &store.UpdateMemo{
-		ID:              req.Msg.GetId(),
-		CreatorID:       account.ID,
-		ExpectedVersion: req.Msg.GetExpectedVersion(),
-		Deleted:         &deleted,
-	})
+	memo, err := s.server.deleteMemo(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
 	if err != nil {
 		return nil, memoConnectError(err)
 	}
@@ -130,21 +106,9 @@ func (s *memoService) GenerateMemoSummary(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.Store.GetMemo(ctx, account.ID, req.Msg.GetId(), false)
+	ai, err := s.server.generateMemoSummary(ctx, account.ID, req.Msg.GetId())
 	if err != nil {
 		return nil, memoConnectError(err)
-	}
-	ai, err := s.server.Store.UpsertMemoAI(ctx, &store.UpsertMemoAI{
-		MemoID:        memo.ID,
-		Summary:       summarizeMemoLocally(memo.Content),
-		Provider:      "local",
-		Model:         "local-summary",
-		PromptVersion: "memo-summary-v1",
-		SourceMemoIDs: `["` + memo.ID + `"]`,
-		Status:        "complete",
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&apiv1.GenerateMemoSummaryResponse{Ai: memoAIPB(ai)}), nil
 }
@@ -161,9 +125,8 @@ func (s *memoService) updateMemoBool(
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.Store.UpdateMemo(ctx, &store.UpdateMemo{
+	memo, err := s.server.updateMemo(ctx, account.ID, memoUpdateInput{
 		ID:              id,
-		CreatorID:       account.ID,
 		ExpectedVersion: expectedVersion,
 		Pinned:          pinned,
 		Archived:        archived,
@@ -193,10 +156,14 @@ func (s *Server) accountFromConnect(ctx context.Context, header http.Header) (*s
 func memoConnectError(err error) error {
 	var conflict *store.MemoConflictError
 	switch {
+	case errors.Is(err, errValidation):
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.As(err, &conflict):
 		return connect.NewError(connect.CodeAborted, err)
 	case errors.Is(err, sql.ErrNoRows):
 		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, errAIKeyUnavailable):
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}

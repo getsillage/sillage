@@ -2,8 +2,6 @@ package server
 
 import (
 	"database/sql"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -44,10 +42,7 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	limit := parseLimit(c.QueryParam("limit"), 50)
-	memos, err := s.Store.ListMemos(c.Request().Context(), &store.ListMemoOptions{
-		AccountID: account.ID,
-		Limit:     limit,
-	})
+	memos, err := s.listMemos(c.Request().Context(), account.ID, limit)
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
@@ -68,13 +63,15 @@ func (s *Server) handleCreateMemo(c *echo.Context) error {
 	if err := validateMemoFields(content, entryDate); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	}
-	memo, err := s.Store.CreateMemo(c.Request().Context(), &store.CreateMemo{
+	memo, err := s.createMemo(c.Request().Context(), account.ID, memoCreateInput{
 		ID:        req.ID,
-		CreatorID: account.ID,
 		Content:   content,
 		EntryDate: entryDate,
 	})
 	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "保存记录失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"memo": memoDTO(memo)})
@@ -85,7 +82,7 @@ func (s *Server) handleGetMemo(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	memo, err := s.Store.GetMemo(c.Request().Context(), account.ID, c.Param("memo"), false)
+	memo, err := s.getMemo(c.Request().Context(), account.ID, c.Param("memo"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
@@ -104,27 +101,8 @@ func (s *Server) handleUpdateMemo(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	if req.Content != nil || req.EntryDate != nil {
-		content := ""
-		if req.Content != nil {
-			content = *req.Content
-		}
-		entryDate := ""
-		if req.EntryDate != nil {
-			entryDate = *req.EntryDate
-		}
-		if req.Content != nil && content == "" {
-			return apiError(c, http.StatusBadRequest, "invalid_field", "记录内容不能为空")
-		}
-		if req.EntryDate != nil {
-			if _, err := time.Parse("2006-01-02", entryDate); err != nil {
-				return apiError(c, http.StatusBadRequest, "invalid_field", "记录日期必须是 YYYY-MM-DD")
-			}
-		}
-	}
-	memo, err := s.Store.UpdateMemo(c.Request().Context(), &store.UpdateMemo{
+	memo, err := s.updateMemo(c.Request().Context(), account.ID, memoUpdateInput{
 		ID:              memoParam(c),
-		CreatorID:       account.ID,
 		ExpectedVersion: req.ExpectedVersion,
 		Content:         req.Content,
 		EntryDate:       req.EntryDate,
@@ -140,13 +118,7 @@ func (s *Server) handleDeleteMemo(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-	deleted := true
-	memo, err := s.Store.UpdateMemo(c.Request().Context(), &store.UpdateMemo{
-		ID:              memoParam(c),
-		CreatorID:       account.ID,
-		ExpectedVersion: expectedVersion,
-		Deleted:         &deleted,
-	})
+	memo, err := s.deleteMemo(c.Request().Context(), account.ID, memoParam(c), expectedVersion)
 	return s.writeMemoMutationResult(c, memo, err)
 }
 
@@ -172,9 +144,8 @@ func (s *Server) handleMemoBoolPatch(c *echo.Context, field string, value bool) 
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-	update := &store.UpdateMemo{
+	update := memoUpdateInput{
 		ID:              memoParam(c),
-		CreatorID:       account.ID,
 		ExpectedVersion: expectedVersion,
 	}
 	if field == "archived" {
@@ -182,7 +153,7 @@ func (s *Server) handleMemoBoolPatch(c *echo.Context, field string, value bool) 
 	} else {
 		update.Pinned = &value
 	}
-	memo, err := s.Store.UpdateMemo(c.Request().Context(), update)
+	memo, err := s.updateMemo(c.Request().Context(), account.ID, update)
 	return s.writeMemoMutationResult(c, memo, err)
 }
 
@@ -203,6 +174,8 @@ func (s *Server) writeMemoMutationResult(c *echo.Context, memo *store.Memo, err 
 		})
 	case errors.Is(err, sql.ErrNoRows):
 		return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
+	case errors.Is(err, errValidation):
+		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	default:
 		return apiError(c, http.StatusInternalServerError, "internal", "保存记录失败")
 	}
@@ -242,10 +215,7 @@ func parseLimit(raw string, fallback int) int {
 	if err != nil || limit <= 0 {
 		return fallback
 	}
-	if limit > 200 {
-		return 200
-	}
-	return limit
+	return normalizeLimit(limit, fallback)
 }
 
 func stringValue(value *string) string {
@@ -285,35 +255,4 @@ func optionalTime(value sql.NullInt64) any {
 		return nil
 	}
 	return time.UnixMilli(value.Int64).UTC().Format(time.RFC3339)
-}
-
-type syncCursor struct {
-	Memo            store.SyncCursorPosition `json:"memo"`
-	Attachment      store.SyncCursorPosition `json:"attachment"`
-	MemoAI          store.SyncCursorPosition `json:"memoAi"`
-	AskConversation store.SyncCursorPosition `json:"askConversation"`
-	AskMessage      store.SyncCursorPosition `json:"askMessage"`
-}
-
-func decodeSyncCursor(raw string) syncCursor {
-	if raw == "" {
-		return syncCursor{}
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil {
-		return syncCursor{}
-	}
-	var cursor syncCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil {
-		return syncCursor{}
-	}
-	return cursor
-}
-
-func encodeSyncCursor(cursor syncCursor) string {
-	payload, err := json.Marshal(cursor)
-	if err != nil {
-		return ""
-	}
-	return base64.RawURLEncoding.EncodeToString(payload)
 }

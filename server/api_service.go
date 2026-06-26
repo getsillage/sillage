@@ -1,0 +1,506 @@
+package server
+
+import (
+	"context"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+
+	"github.com/miofelix/sillage/internal/secret"
+	"github.com/miofelix/sillage/store"
+)
+
+var (
+	errAIKeyUnavailable = errors.New("ai key unavailable")
+	errTooManyChanges   = errors.New("too many sync changes")
+	errValidation       = errors.New("validation error")
+)
+
+type validationError struct {
+	message string
+}
+
+func (e validationError) Error() string {
+	return e.message
+}
+
+func (e validationError) Unwrap() error {
+	return errValidation
+}
+
+type memoCreateInput struct {
+	ID        string
+	Content   string
+	EntryDate string
+}
+
+type memoUpdateInput struct {
+	ID              string
+	ExpectedVersion int64
+	Content         *string
+	EntryDate       *string
+	Pinned          *bool
+	Archived        *bool
+	Deleted         *bool
+}
+
+func (s *Server) listMemos(ctx context.Context, accountID string, limit int) ([]*store.Memo, error) {
+	return s.Store.ListMemos(ctx, &store.ListMemoOptions{
+		AccountID: accountID,
+		Limit:     normalizeLimit(limit, 50),
+	})
+}
+
+func (s *Server) createMemo(ctx context.Context, accountID string, input memoCreateInput) (*store.Memo, error) {
+	if err := validateMemoFields(input.Content, input.EntryDate); err != nil {
+		return nil, validationError{message: err.Error()}
+	}
+	return s.Store.CreateMemo(ctx, &store.CreateMemo{
+		ID:        input.ID,
+		CreatorID: accountID,
+		Content:   input.Content,
+		EntryDate: input.EntryDate,
+	})
+}
+
+func (s *Server) getMemo(ctx context.Context, accountID, id string) (*store.Memo, error) {
+	return s.Store.GetMemo(ctx, accountID, id, false)
+}
+
+func (s *Server) updateMemo(ctx context.Context, accountID string, input memoUpdateInput) (*store.Memo, error) {
+	if input.Content != nil && *input.Content == "" {
+		return nil, validationError{message: "记录内容不能为空"}
+	}
+	if input.EntryDate != nil {
+		if err := validateMemoFields("placeholder", *input.EntryDate); err != nil {
+			return nil, validationError{message: "记录日期必须是 YYYY-MM-DD"}
+		}
+	}
+	return s.Store.UpdateMemo(ctx, &store.UpdateMemo{
+		ID:              input.ID,
+		CreatorID:       accountID,
+		ExpectedVersion: input.ExpectedVersion,
+		Content:         input.Content,
+		EntryDate:       input.EntryDate,
+		Pinned:          input.Pinned,
+		Archived:        input.Archived,
+		Deleted:         input.Deleted,
+	})
+}
+
+func (s *Server) deleteMemo(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
+	deleted := true
+	return s.updateMemo(ctx, accountID, memoUpdateInput{
+		ID:              id,
+		ExpectedVersion: expectedVersion,
+		Deleted:         &deleted,
+	})
+}
+
+func (s *Server) generateMemoSummary(ctx context.Context, accountID, id string) (*store.MemoAI, error) {
+	memo, err := s.Store.GetMemo(ctx, accountID, id, false)
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := s.Store.ListAIProfiles(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	for _, profile := range profiles {
+		if profile.Active && profile.APIKeyEnvelope.Valid {
+			if _, err := secret.DecryptEnvelope(s.Secrets.EncryptionSecret, profile.APIKeyEnvelope.String); err != nil {
+				_ = s.Store.MarkAIProfileKeyUnavailable(ctx, accountID, profile.ID)
+				return nil, errAIKeyUnavailable
+			}
+			break
+		}
+	}
+	return s.Store.UpsertMemoAI(ctx, &store.UpsertMemoAI{
+		MemoID:        memo.ID,
+		Summary:       summarizeMemoLocally(memo.Content),
+		Sentiment:     "",
+		Provider:      "local",
+		Model:         "local-summary",
+		ProfileID:     "",
+		PromptVersion: "memo-summary-v1",
+		SourceMemoIDs: `["` + memo.ID + `"]`,
+		Status:        "complete",
+	})
+}
+
+type syncPushRequest struct {
+	Changes []syncChange `json:"changes"`
+}
+
+type syncChange struct {
+	MutationID     string           `json:"mutationId"`
+	ResourceType   string           `json:"resourceType"`
+	ResourceID     string           `json:"resourceId"`
+	Action         string           `json:"action"`
+	BaseVersion    int64            `json:"baseVersion"`
+	LocalChangedAt string           `json:"localChangedAt"`
+	Memo           *syncMemoPayload `json:"memo,omitempty"`
+}
+
+type syncMemoPayload struct {
+	ID        string `json:"id"`
+	Content   string `json:"content"`
+	EntryDate string `json:"entryDate"`
+	Pinned    *bool  `json:"pinned"`
+	Archived  *bool  `json:"archived"`
+}
+
+type syncPullResult struct {
+	Memos            []*store.Memo
+	Attachments      []*store.Attachment
+	MemoAI           []*store.MemoAI
+	AskConversations []*store.AskConversation
+	AskMessages      []*store.AskMessage
+	Cursor           string
+	NextCursor       string
+	HasMore          bool
+}
+
+type syncResult struct {
+	MutationID     string      `json:"mutationId"`
+	ResourceType   string      `json:"resourceType"`
+	ResourceID     string      `json:"resourceId"`
+	Status         string      `json:"status"`
+	Reason         string      `json:"reason,omitempty"`
+	Message        string      `json:"message,omitempty"`
+	Idempotent     bool        `json:"idempotent,omitempty"`
+	Resource       *store.Memo `json:"-"`
+	ServerResource *store.Memo `json:"-"`
+	ClientVersion  int64       `json:"clientVersion,omitempty"`
+	ServerVersion  int64       `json:"serverVersion,omitempty"`
+}
+
+func (s *Server) pullSync(ctx context.Context, accountID, rawCursor string, limit int) (*syncPullResult, error) {
+	cursor := decodeSyncCursor(rawCursor)
+	limit = normalizeLimit(limit, 200)
+
+	memos, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
+		AccountID:      accountID,
+		Limit:          limit + 1,
+		IncludeDeleted: true,
+		UpdatedAfter:   cursor.Memo.UpdatedAt,
+		UpdatedAfterID: cursor.Memo.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	attachments, err := s.Store.ListAttachments(ctx, &store.ListAttachmentOptions{
+		AccountID:      accountID,
+		Limit:          limit + 1,
+		IncludeDeleted: true,
+		UpdatedAfter:   cursor.Attachment.UpdatedAt,
+		UpdatedAfterID: cursor.Attachment.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	memoAI, err := s.Store.ListMemoAI(ctx, &store.ListMemoAIOptions{
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.MemoAI.UpdatedAt,
+		UpdatedAfterID: cursor.MemoAI.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	askConversations, err := s.Store.ListAskConversationsForSync(ctx, &store.ListAskSyncOptions{
+		AccountID:      accountID,
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.AskConversation.UpdatedAt,
+		UpdatedAfterID: cursor.AskConversation.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	askMessages, err := s.Store.ListAskMessagesForSync(ctx, &store.ListAskSyncOptions{
+		AccountID:      accountID,
+		Limit:          limit + 1,
+		UpdatedAfter:   cursor.AskMessage.UpdatedAt,
+		UpdatedAfterID: cursor.AskMessage.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	memoHasMore := len(memos) > limit
+	if memoHasMore {
+		memos = memos[:limit]
+	}
+	attachmentHasMore := len(attachments) > limit
+	if attachmentHasMore {
+		attachments = attachments[:limit]
+	}
+	memoAIHasMore := len(memoAI) > limit
+	if memoAIHasMore {
+		memoAI = memoAI[:limit]
+	}
+	askConversationHasMore := len(askConversations) > limit
+	if askConversationHasMore {
+		askConversations = askConversations[:limit]
+	}
+	askMessageHasMore := len(askMessages) > limit
+	if askMessageHasMore {
+		askMessages = askMessages[:limit]
+	}
+
+	if len(memos) > 0 {
+		last := memos[len(memos)-1]
+		cursor.Memo = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	if len(attachments) > 0 {
+		last := attachments[len(attachments)-1]
+		cursor.Attachment = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	if len(memoAI) > 0 {
+		last := memoAI[len(memoAI)-1]
+		cursor.MemoAI = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.MemoID}
+	}
+	if len(askConversations) > 0 {
+		last := askConversations[len(askConversations)-1]
+		cursor.AskConversation = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	if len(askMessages) > 0 {
+		last := askMessages[len(askMessages)-1]
+		cursor.AskMessage = store.SyncCursorPosition{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+
+	encodedCursor := encodeSyncCursor(cursor)
+	return &syncPullResult{
+		Memos:            memos,
+		Attachments:      attachments,
+		MemoAI:           memoAI,
+		AskConversations: askConversations,
+		AskMessages:      askMessages,
+		Cursor:           encodedCursor,
+		NextCursor:       encodedCursor,
+		HasMore:          memoHasMore || attachmentHasMore || memoAIHasMore || askConversationHasMore || askMessageHasMore,
+	}, nil
+}
+
+func (s *Server) pushSync(ctx context.Context, accountID string, changes []syncChange) ([]syncResult, error) {
+	if len(changes) > 200 {
+		return nil, errTooManyChanges
+	}
+	results := make([]syncResult, 0, len(changes))
+	for _, change := range changes {
+		results = append(results, s.applySyncChange(ctx, accountID, change))
+	}
+	return results, nil
+}
+
+func (s *Server) applySyncChange(ctx context.Context, accountID string, change syncChange) syncResult {
+	if change.MutationID == "" {
+		return syncRejected(change, "missing_mutation_id", "mutationId 不能为空")
+	}
+	if previous, ok, err := s.Store.GetSyncMutation(ctx, accountID, change.MutationID); err == nil && ok {
+		result, err := s.storedSyncResult(ctx, accountID, previous)
+		if err == nil {
+			return result
+		}
+		return syncRejected(change, "internal", "读取幂等状态失败")
+	} else if err != nil {
+		return syncRejected(change, "internal", "读取幂等状态失败")
+	}
+	if change.ResourceType != "memo" {
+		result := syncRejected(change, "unsupported_resource", "暂不支持该资源类型")
+		s.persistSyncResult(ctx, accountID, change, result)
+		return result
+	}
+
+	payload := syncMemoPayload{}
+	if change.Memo != nil {
+		payload = *change.Memo
+	}
+	if payload.ID == "" {
+		payload.ID = change.ResourceID
+	}
+
+	var memo *store.Memo
+	var err error
+	switch change.Action {
+	case "create":
+		memo, err = s.createMemo(ctx, accountID, memoCreateInput{
+			ID:        payload.ID,
+			Content:   payload.Content,
+			EntryDate: payload.EntryDate,
+		})
+	case "update":
+		if validateErr := validateMemoFields(payload.Content, payload.EntryDate); validateErr != nil {
+			result := syncRejected(change, "invalid_field", validateErr.Error())
+			s.persistSyncResult(ctx, accountID, change, result)
+			return result
+		}
+		memo, err = s.updateMemo(ctx, accountID, memoUpdateInput{
+			ID:              payload.ID,
+			ExpectedVersion: change.BaseVersion,
+			Content:         &payload.Content,
+			EntryDate:       &payload.EntryDate,
+			Pinned:          payload.Pinned,
+			Archived:        payload.Archived,
+		})
+	case "delete":
+		memo, err = s.deleteMemo(ctx, accountID, payload.ID, change.BaseVersion)
+	default:
+		result := syncRejected(change, "unsupported_action", "暂不支持该同步动作")
+		s.persistSyncResult(ctx, accountID, change, result)
+		return result
+	}
+
+	var conflict *store.MemoConflictError
+	var result syncResult
+	switch {
+	case errors.As(err, &conflict):
+		result = syncConflict(change, conflict.ServerMemo)
+	case errors.Is(err, errValidation):
+		result = syncRejected(change, "invalid_field", err.Error())
+	case err != nil:
+		result = syncRejected(change, "rejected", err.Error())
+	default:
+		result = syncApplied(change, memo)
+	}
+	s.persistSyncResult(ctx, accountID, change, result)
+	return result
+}
+
+func (s *Server) storedSyncResult(ctx context.Context, accountID string, mutation *store.SyncMutation) (syncResult, error) {
+	var result syncResult
+	if err := json.Unmarshal([]byte(mutation.Result), &result); err != nil {
+		return syncResult{}, err
+	}
+	result.Idempotent = true
+	if result.ResourceType == "memo" && result.ResourceID != "" {
+		switch result.Status {
+		case "applied":
+			memo, err := s.Store.GetMemo(ctx, accountID, result.ResourceID, true)
+			if err == nil {
+				result.Resource = memo
+			}
+		case "conflict":
+			memo, err := s.Store.GetMemo(ctx, accountID, result.ResourceID, true)
+			if err == nil {
+				result.ServerResource = memo
+			}
+		}
+	}
+	return result, nil
+}
+
+func (s *Server) persistSyncResult(ctx context.Context, accountID string, change syncChange, result syncResult) {
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+	_ = s.Store.PutSyncMutation(ctx, &store.SyncMutation{
+		AccountID:    accountID,
+		MutationID:   change.MutationID,
+		ResourceType: change.ResourceType,
+		ResourceID:   result.ResourceID,
+		Result:       string(payload),
+	})
+}
+
+func syncApplied(change syncChange, memo *store.Memo) syncResult {
+	resourceID := change.ResourceID
+	if memo != nil {
+		resourceID = memo.ID
+	}
+	return syncResult{
+		MutationID:   change.MutationID,
+		ResourceType: change.ResourceType,
+		ResourceID:   resourceID,
+		Status:       "applied",
+		Resource:     memo,
+	}
+}
+
+func syncConflict(change syncChange, memo *store.Memo) syncResult {
+	serverVersion := int64(0)
+	resourceID := change.ResourceID
+	if memo != nil {
+		serverVersion = memo.Version
+		resourceID = memo.ID
+	}
+	return syncResult{
+		MutationID:     change.MutationID,
+		ResourceType:   change.ResourceType,
+		ResourceID:     resourceID,
+		Status:         "conflict",
+		Reason:         "version_conflict",
+		ClientVersion:  change.BaseVersion,
+		ServerVersion:  serverVersion,
+		ServerResource: memo,
+	}
+}
+
+func syncRejected(change syncChange, reason, message string) syncResult {
+	return syncResult{
+		MutationID:   change.MutationID,
+		ResourceType: change.ResourceType,
+		ResourceID:   change.ResourceID,
+		Status:       "rejected",
+		Reason:       reason,
+		Message:      message,
+	}
+}
+
+type syncCursor struct {
+	Memo            store.SyncCursorPosition `json:"memo"`
+	Attachment      store.SyncCursorPosition `json:"attachment"`
+	MemoAI          store.SyncCursorPosition `json:"memoAi"`
+	AskConversation store.SyncCursorPosition `json:"askConversation"`
+	AskMessage      store.SyncCursorPosition `json:"askMessage"`
+}
+
+func decodeSyncCursor(raw string) syncCursor {
+	if raw == "" {
+		return syncCursor{}
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		return syncCursor{}
+	}
+	var cursor syncCursor
+	if err := json.Unmarshal(payload, &cursor); err != nil {
+		return syncCursor{}
+	}
+	return cursor
+}
+
+func encodeSyncCursor(cursor syncCursor) string {
+	payload, err := json.Marshal(cursor)
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(payload)
+}
+
+func normalizeLimit(limit, fallback int) int {
+	if limit <= 0 {
+		return fallback
+	}
+	if limit > 200 {
+		return 200
+	}
+	return limit
+}
+
+func memoHTTPStatus(err error) (int, string, string) {
+	var conflict *store.MemoConflictError
+	switch {
+	case errors.Is(err, errValidation):
+		return 400, "invalid_field", err.Error()
+	case errors.As(err, &conflict):
+		return 409, "version_conflict", "记录已被其他修改更新"
+	case errors.Is(err, sql.ErrNoRows):
+		return 404, "not_found", "记录不存在"
+	case errors.Is(err, errAIKeyUnavailable):
+		return 400, "key_unavailable", "当前 AI API Key 无法解密，请重新保存"
+	default:
+		return 500, "internal", "保存记录失败"
+	}
+}

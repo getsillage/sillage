@@ -6,6 +6,8 @@ import (
 )
 
 func (s *Server) registerConnectRoutes(e *echo.Echo) {
-	path, handler := apiv1connect.NewMemoServiceHandler(&memoService{server: s})
-	e.Any(path+"*", echo.WrapHandler(handler))
+	memoPath, memoHandler := apiv1connect.NewMemoServiceHandler(&memoService{server: s})
+	e.Any(memoPath+"*", echo.WrapHandler(memoHandler))
+	syncPath, syncHandler := apiv1connect.NewSyncServiceHandler(&syncService{server: s})
+	e.Any(syncPath+"*", echo.WrapHandler(syncHandler))
 }

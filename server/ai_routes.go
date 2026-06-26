@@ -1,8 +1,6 @@
 package server
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
 	"time"
 
@@ -104,40 +102,10 @@ func (s *Server) handleGenerateMemoSummary(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	memo, err := s.Store.GetMemo(c.Request().Context(), account.ID, memoParam(c), false)
+	ai, err := s.generateMemoSummary(c.Request().Context(), account.ID, memoParam(c))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
-		}
-		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
-	}
-	profiles, err := s.Store.ListAIProfiles(c.Request().Context(), account.ID)
-	if err != nil {
-		return apiError(c, http.StatusInternalServerError, "internal", "读取 AI 设置失败")
-	}
-	for _, profile := range profiles {
-		if profile.Active && profile.APIKeyEnvelope.Valid {
-			if _, err := secret.DecryptEnvelope(s.Secrets.EncryptionSecret, profile.APIKeyEnvelope.String); err != nil {
-				_ = s.Store.MarkAIProfileKeyUnavailable(c.Request().Context(), account.ID, profile.ID)
-				return apiError(c, http.StatusBadRequest, "key_unavailable", "当前 AI API Key 无法解密，请重新保存")
-			}
-			break
-		}
-	}
-	summary := summarizeMemoLocally(memo.Content)
-	ai, err := s.Store.UpsertMemoAI(c.Request().Context(), &store.UpsertMemoAI{
-		MemoID:        memo.ID,
-		Summary:       summary,
-		Sentiment:     "",
-		Provider:      "local",
-		Model:         "local-summary",
-		ProfileID:     "",
-		PromptVersion: "memo-summary-v1",
-		SourceMemoIDs: `["` + memo.ID + `"]`,
-		Status:        "complete",
-	})
-	if err != nil {
-		return apiError(c, http.StatusInternalServerError, "internal", "生成总结失败")
+		status, code, message := memoHTTPStatus(err)
+		return apiError(c, status, code, message)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})
 }

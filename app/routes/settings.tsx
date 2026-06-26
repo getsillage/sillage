@@ -41,7 +41,7 @@ const ENTRY_INSIGHT_AUTO_MODE_LABELS: Record<EntryInsightAutoMode, string> = {
 };
 
 type SettingsActionData = {
-  intent: "save" | "test" | "models" | "delete" | "activate" | "export";
+  intent: "save" | "test" | "models" | "delete" | "activate" | "preferences" | "export";
   ok: boolean;
   message: string;
   models?: string[];
@@ -59,9 +59,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 function parseSettingsForm(form: FormData) {
-  const entryInsightAutoMode = String(
-    form.get("entryInsightAutoMode") ?? DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
-  );
   return {
     id: String(form.get("id") ?? ""),
     name: String(form.get("name") ?? ""),
@@ -70,12 +67,14 @@ function parseSettingsForm(form: FormData) {
     baseUrl: String(form.get("baseUrl") ?? ""),
     model: String(form.get("model") ?? ""),
     apiKey: String(form.get("apiKey") ?? ""),
-    entryInsightAutoMode: ENTRY_INSIGHT_AUTO_MODES.includes(
-      entryInsightAutoMode as EntryInsightAutoMode,
-    )
-      ? (entryInsightAutoMode as EntryInsightAutoMode)
-      : DEFAULT_ENTRY_INSIGHT_AUTO_MODE,
   };
+}
+
+function parseEntryInsightAutoMode(form: FormData): EntryInsightAutoMode {
+  const value = String(form.get("entryInsightAutoMode") ?? DEFAULT_ENTRY_INSIGHT_AUTO_MODE);
+  return ENTRY_INSIGHT_AUTO_MODES.includes(value as EntryInsightAutoMode)
+    ? (value as EntryInsightAutoMode)
+    : DEFAULT_ENTRY_INSIGHT_AUTO_MODE;
 }
 
 function parseCredentialsForm(form: FormData) {
@@ -113,8 +112,15 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const intent = (
-    ["save", "test", "models", "delete", "activate"].includes(rawIntent) ? rawIntent : "save"
+    ["save", "test", "models", "delete", "activate", "preferences"].includes(rawIntent)
+      ? rawIntent
+      : "save"
   ) as SettingsActionData["intent"];
+
+  if (intent === "preferences") {
+    await saveEntryInsightAutoMode(env, parseEntryInsightAutoMode(form));
+    return { intent, ok: true, message: "已保存生成偏好" };
+  }
 
   if (intent === "delete" || intent === "activate") {
     const id = String(form.get("id") ?? "").trim();
@@ -165,7 +171,6 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const profileId = await saveAiSettings(env, parsed.data);
-  await saveEntryInsightAutoMode(env, rawSettings.entryInsightAutoMode);
   return { intent, ok: true, message: "已保存并设为当前配置", profileId };
 }
 
@@ -181,6 +186,27 @@ const statusClass = (ok: boolean) =>
       ? "border-green-300 bg-green-50 text-green-800 dark:border-green-900/70 dark:bg-green-950/50 dark:text-green-200"
       : "border-red-300 bg-red-50 text-red-800 dark:border-red-900/70 dark:bg-red-950/50 dark:text-red-200"
   }`;
+
+type SettingsTab = "ai" | "preferences" | "backups" | "appearance";
+
+const settingsTabs: Array<{
+  id: SettingsTab;
+  label: string;
+  description: string;
+}> = [
+  { id: "ai", label: "AI 档案", description: "提供商、模型和密钥" },
+  { id: "preferences", label: "生成偏好", description: "自动总结等行为" },
+  { id: "backups", label: "数据备份", description: "导出与下载" },
+  { id: "appearance", label: "外观", description: "主题显示" },
+];
+
+function tabButtonClass(active: boolean): string {
+  const base =
+    "flex min-w-0 flex-1 flex-col rounded-lg px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/20 dark:focus-visible:ring-celadon-400/30 sm:flex-none sm:px-4";
+  return active
+    ? `${base} bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-950`
+    : `${base} bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-950 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-800 dark:hover:bg-gray-800 dark:hover:text-gray-50`;
+}
 
 function defaultProfile(protocol: AiProtocol = "anthropic") {
   return {
@@ -198,6 +224,7 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
   const { settings, backups } = loaderData;
   const navigation = useNavigation();
   const modelFetcher = useFetcher<SettingsActionData>();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const busy = navigation.state === "submitting";
   const fetchingModels = modelFetcher.state !== "idle";
   const profiles = settings.profiles;
@@ -310,262 +337,336 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
       <section className="space-y-8">
         <header>
           <h1 className={pageTitleClass}>设置</h1>
-          <p className={pageLeadClass}>管理外观、AI 提供商、数据备份和本地运行偏好。</p>
+          <p className={pageLeadClass}>按类型管理 AI、生成行为、备份和外观。</p>
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="space-y-4 xl:sticky xl:top-10 xl:self-start">
-            <section
-              id="appearance"
-              className="scroll-mt-6 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+        <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="设置分类">
+          {settingsTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`settings-panel-${tab.id}`}
+              className={tabButtonClass(activeTab === tab.id)}
+              onClick={() => setActiveTab(tab.id)}
             >
-              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">外观</h2>
-              <p className={`mt-1 text-sm ${subtleTextClass}`}>切换浅色 / 深色主题，或跟随系统。</p>
-              <div className="mt-3">
-                <ThemeToggle />
-              </div>
-            </section>
+              <span className="truncate font-medium text-sm">{tab.label}</span>
+              <span
+                className={`mt-0.5 truncate text-xs ${
+                  activeTab === tab.id
+                    ? "text-white/70 dark:text-gray-700"
+                    : "text-gray-400 dark:text-gray-500"
+                }`}
+              >
+                {tab.description}
+              </span>
+            </button>
+          ))}
+        </div>
 
-            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 提供商</h2>
-              <p className={`mt-1 text-sm ${subtleTextClass}`}>
-                配置用于手动总结与问答的 AI 提供商；所有 AI 配置都在这里管理。
-              </p>
-            </section>
-
-            <BackupSection backups={backups} />
-          </aside>
-
-          <section className="min-w-0">
-            <Form method="post" className="space-y-4">
-              <input type="hidden" name="id" value={selectedProfileId} />
-
-              <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+        <section className="min-w-0">
+          {activeTab === "ai" ? (
+            <div id="settings-panel-ai" role="tabpanel" className="space-y-4">
+              <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 功能</h3>
+                    <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">AI 档案</h2>
                     <p className={`mt-1 text-sm ${subtleTextClass}`}>
-                      保存并开启后，问答功能和手动生成总结会使用当前配置；关闭后保留配置但不调用模型。
+                      配置问答和手动生成总结使用的提供商、模型和密钥。可以保存多套档案并切换当前档案。
                     </p>
                   </div>
-                  <label
-                    className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-gray-200 bg-gray-100/60 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
-                    aria-label="启用 AI 功能"
-                  >
-                    <input
-                      type="checkbox"
-                      name="enabled"
-                      checked={enabled}
-                      onChange={(event) => setEnabled(event.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <span className="relative h-6 w-11 rounded-full bg-gray-300 transition-colors after:absolute after:top-1 after:left-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-celadon-600 peer-checked:after:translate-x-5 dark:bg-gray-700 dark:peer-checked:bg-celadon-400 dark:peer-checked:after:bg-gray-950" />
-                    <span className="min-w-12 text-gray-900 dark:text-gray-100">
-                      {enabled ? "已启用" : "已停用"}
-                    </span>
-                  </label>
-                </div>
-
-                <div className="mt-5 border-gray-200 border-t pt-4 dark:border-gray-800">
-                  <label className={labelClass}>
-                    单条总结
-                    <select
-                      name="entryInsightAutoMode"
-                      value={entryInsightAutoMode}
-                      onChange={(event) =>
-                        setEntryInsightAutoMode(event.target.value as EntryInsightAutoMode)
-                      }
-                      className={inputClass}
-                    >
-                      {ENTRY_INSIGHT_AUTO_MODES.map((mode) => (
-                        <option key={mode} value={mode}>
-                          {ENTRY_INSIGHT_AUTO_MODE_LABELS[mode]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <p className={`mt-1 text-xs ${subtleTextClass}`}>
-                    关闭自动生成后，仍可在「历史」或记录详情中手动生成。
-                  </p>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-500 text-xs dark:bg-gray-950 dark:text-gray-400">
+                    {profiles.length} 个配置
+                  </span>
                 </div>
               </section>
 
-              <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
-                <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+              <Form method="post" className="space-y-4">
+                <input type="hidden" name="id" value={selectedProfileId} />
+
+                <section className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-medium text-gray-950 text-sm dark:text-gray-50">
+                        调用状态
+                      </h3>
+                      <p className={`mt-1 text-sm ${subtleTextClass}`}>
+                        关闭后会保留这套档案，但问答和总结不会调用模型。
+                      </p>
+                    </div>
+                    <label
+                      className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-gray-200 bg-gray-100/60 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                      aria-label="启用 AI 功能"
+                    >
+                      <input
+                        type="checkbox"
+                        name="enabled"
+                        checked={enabled}
+                        onChange={(event) => setEnabled(event.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <span className="relative h-6 w-11 rounded-full bg-gray-300 transition-colors after:absolute after:top-1 after:left-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-celadon-600 peer-checked:after:translate-x-5 dark:bg-gray-700 dark:peer-checked:bg-celadon-400 dark:peer-checked:after:bg-gray-950" />
+                      <span className="min-w-12 text-gray-900 dark:text-gray-100">
+                        {enabled ? "已启用" : "已停用"}
+                      </span>
+                    </label>
+                  </div>
+                </section>
+
+                <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                    <label className={labelClass}>
+                      已保存配置
+                      <select
+                        value={selectedProfileId}
+                        onChange={(event) => onProfileSelect(event.target.value)}
+                        disabled={profiles.length === 0}
+                        className={inputClass}
+                      >
+                        {profiles.length === 0 ? <option value="">暂无配置</option> : null}
+                        {profiles.map((profile) => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.name}
+                            {profile.id === settings.activeProfileId ? "（当前）" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <button
+                        type="button"
+                        onClick={onNewProfile}
+                        className={`${secondaryButtonClass} w-full sm:w-auto`}
+                      >
+                        新建配置
+                      </button>
+                      <button
+                        type="submit"
+                        name="intent"
+                        value="delete"
+                        disabled={busy || !selectedProfileId}
+                        onClick={(event) => {
+                          if (!confirm("确定删除这个 AI 配置吗？")) {
+                            event.preventDefault();
+                          }
+                        }}
+                        className={`${secondaryButtonClass} w-full sm:w-auto`}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+
                   <label className={labelClass}>
-                    已保存配置
+                    配置名称
+                    <input
+                      type="text"
+                      name="name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      className={inputClass}
+                    />
+                  </label>
+
+                  <label className={labelClass}>
+                    协议
                     <select
-                      value={selectedProfileId}
-                      onChange={(event) => onProfileSelect(event.target.value)}
-                      disabled={profiles.length === 0}
+                      name="protocol"
+                      value={protocol}
+                      onChange={(event) => onProtocolChange(event.target.value as AiProtocol)}
                       className={inputClass}
                     >
-                      {profiles.length === 0 ? <option value="">暂无配置</option> : null}
-                      {profiles.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.name}
-                          {profile.id === settings.activeProfileId ? "（当前）" : ""}
-                        </option>
-                      ))}
+                      <option value="anthropic">Anthropic（Claude Messages API）</option>
+                      <option value="openai">OpenAI（兼容 Chat Completions）</option>
                     </select>
                   </label>
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <label className={labelClass}>
+                    API 地址（Base URL）
+                    <input
+                      type="url"
+                      name="baseUrl"
+                      value={baseUrl}
+                      onChange={(event) => setBaseUrl(event.target.value)}
+                      className={inputClass}
+                    />
+                  </label>
+
+                  <label className={labelClass}>
+                    API Key
+                    <input
+                      type="password"
+                      name="apiKey"
+                      value={apiKey}
+                      onChange={(event) => setApiKey(event.target.value)}
+                      autoComplete="off"
+                      placeholder={hasStoredApiKey ? "已配置（留空保持不变）" : "sk-..."}
+                      className={inputClass}
+                    />
+                  </label>
+
+                  <section className="rounded-lg bg-gray-100/60 p-4 dark:bg-gray-950/60">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <label htmlFor="model" className={labelClass}>
+                          模型
+                        </label>
+                        <p className={`mt-1 text-xs ${subtleTextClass}`}>
+                          可先获取模型列表下拉选择；如果网关不支持列模型，也可以直接手动输入模型名称。
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onFetchModels}
+                        disabled={
+                          fetchingModels || !baseUrl.trim() || (!apiKey && !hasStoredApiKey)
+                        }
+                        className={`${secondaryButtonClass} w-full sm:w-auto`}
+                      >
+                        {fetchingModels ? "获取中..." : "获取模型列表"}
+                      </button>
+                    </div>
+
+                    <SuggestedInput
+                      id="model"
+                      name="model"
+                      optionLabel="选择已获取的模型"
+                      options={visibleModelOptions}
+                      placeholder="输入模型名称"
+                      value={model}
+                      onValueChange={setModel}
+                      inputClassName={inputClass}
+                    />
+
+                    {modelData?.intent === "models" ? (
+                      <p className={`mt-3 ${statusClass(modelData.ok)}`}>{modelData.message}</p>
+                    ) : null}
+                  </section>
+
+                  {actionData &&
+                  actionData.intent !== "preferences" &&
+                  actionData.intent !== "export" ? (
+                    <p className={statusClass(actionData.ok)}>
+                      {actionData.intent === "test" ? "测试：" : ""}
+                      {actionData.message}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                     <button
-                      type="button"
-                      onClick={onNewProfile}
-                      className={`${secondaryButtonClass} w-full sm:w-auto`}
+                      type="submit"
+                      name="intent"
+                      value="save"
+                      disabled={busy}
+                      className={`${primaryButtonClass} w-full sm:w-auto`}
                     >
-                      新建配置
+                      保存并设为当前
                     </button>
                     <button
                       type="submit"
                       name="intent"
-                      value="delete"
-                      disabled={busy || !selectedProfileId}
-                      onClick={(event) => {
-                        if (!confirm("确定删除这个 AI 配置吗？")) {
-                          event.preventDefault();
-                        }
-                      }}
+                      value="test"
+                      disabled={busy}
                       className={`${secondaryButtonClass} w-full sm:w-auto`}
                     >
-                      删除
+                      测试连接
+                    </button>
+                    <button
+                      type="submit"
+                      name="intent"
+                      value="activate"
+                      disabled={
+                        busy || !selectedProfileId || selectedProfileId === settings.activeProfileId
+                      }
+                      className={`${secondaryButtonClass} w-full sm:w-auto`}
+                    >
+                      设为当前
                     </button>
                   </div>
-                </div>
+                </section>
+              </Form>
 
-                <label className={labelClass}>
-                  配置名称
-                  <input
-                    type="text"
-                    name="name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    className={inputClass}
-                  />
-                </label>
+              <p className={`text-xs ${subtleTextClass}`}>
+                API Key 只会加密保存到服务端
+                KV；浏览器再次打开页面时只能看到“已配置”的状态，不会拿到明文 key。
+              </p>
+            </div>
+          ) : null}
 
+          {activeTab === "preferences" ? (
+            <section
+              id="settings-panel-preferences"
+              role="tabpanel"
+              className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900"
+            >
+              <div>
+                <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">生成偏好</h2>
+                <p className={`mt-1 text-sm ${subtleTextClass}`}>
+                  这类设置只影响生成行为，不会修改 AI 提供商档案。
+                </p>
+              </div>
+
+              <Form method="post" className="mt-5 space-y-5">
                 <label className={labelClass}>
-                  协议
+                  单条总结
                   <select
-                    name="protocol"
-                    value={protocol}
-                    onChange={(event) => onProtocolChange(event.target.value as AiProtocol)}
+                    name="entryInsightAutoMode"
+                    value={entryInsightAutoMode}
+                    onChange={(event) =>
+                      setEntryInsightAutoMode(event.target.value as EntryInsightAutoMode)
+                    }
                     className={inputClass}
                   >
-                    <option value="anthropic">Anthropic（Claude Messages API）</option>
-                    <option value="openai">OpenAI（兼容 Chat Completions）</option>
+                    {ENTRY_INSIGHT_AUTO_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {ENTRY_INSIGHT_AUTO_MODE_LABELS[mode]}
+                      </option>
+                    ))}
                   </select>
                 </label>
+                <p className={`text-xs ${subtleTextClass}`}>
+                  选择“保存后自动生成”会在保存记录后后台生成单条总结；选择“手动生成”时仍可在历史或记录详情中手动生成。
+                </p>
 
-                <label className={labelClass}>
-                  API 地址（Base URL）
-                  <input
-                    type="url"
-                    name="baseUrl"
-                    value={baseUrl}
-                    onChange={(event) => setBaseUrl(event.target.value)}
-                    className={inputClass}
-                  />
-                </label>
-
-                <label className={labelClass}>
-                  API Key
-                  <input
-                    type="password"
-                    name="apiKey"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    autoComplete="off"
-                    placeholder={hasStoredApiKey ? "已配置（留空保持不变）" : "sk-..."}
-                    className={inputClass}
-                  />
-                </label>
-
-                <section className="rounded-lg bg-gray-100/60 p-4 dark:bg-gray-950/60">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <label htmlFor="model" className={labelClass}>
-                        模型
-                      </label>
-                      <p className={`mt-1 text-xs ${subtleTextClass}`}>
-                        可先获取模型列表下拉选择；如果网关不支持列模型，也可以直接手动输入模型名称。
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onFetchModels}
-                      disabled={fetchingModels || !baseUrl.trim() || (!apiKey && !hasStoredApiKey)}
-                      className={`${secondaryButtonClass} w-full sm:w-auto`}
-                    >
-                      {fetchingModels ? "获取中..." : "获取模型列表"}
-                    </button>
-                  </div>
-
-                  <SuggestedInput
-                    id="model"
-                    name="model"
-                    optionLabel="选择已获取的模型"
-                    options={visibleModelOptions}
-                    placeholder="输入模型名称"
-                    value={model}
-                    onValueChange={setModel}
-                    inputClassName={inputClass}
-                  />
-
-                  {modelData?.intent === "models" ? (
-                    <p className={`mt-3 ${statusClass(modelData.ok)}`}>{modelData.message}</p>
-                  ) : null}
-                </section>
-
-                {actionData ? (
-                  <p className={statusClass(actionData.ok)}>
-                    {actionData.intent === "test" ? "测试：" : ""}
-                    {actionData.message}
-                  </p>
+                {actionData?.intent === "preferences" ? (
+                  <p className={statusClass(actionData.ok)}>{actionData.message}</p>
                 ) : null}
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <button
-                    type="submit"
-                    name="intent"
-                    value="save"
-                    disabled={busy}
-                    className={`${primaryButtonClass} w-full sm:w-auto`}
-                  >
-                    保存并设为当前
-                  </button>
-                  <button
-                    type="submit"
-                    name="intent"
-                    value="test"
-                    disabled={busy}
-                    className={`${secondaryButtonClass} w-full sm:w-auto`}
-                  >
-                    测试连接
-                  </button>
-                  <button
-                    type="submit"
-                    name="intent"
-                    value="activate"
-                    disabled={
-                      busy || !selectedProfileId || selectedProfileId === settings.activeProfileId
-                    }
-                    className={`${secondaryButtonClass} w-full sm:w-auto`}
-                  >
-                    设为当前
-                  </button>
-                </div>
-              </section>
-            </Form>
+                <button
+                  type="submit"
+                  name="intent"
+                  value="preferences"
+                  disabled={busy}
+                  className={`${primaryButtonClass} w-full sm:w-auto`}
+                >
+                  保存生成偏好
+                </button>
+              </Form>
+            </section>
+          ) : null}
 
-            <p className={`mt-4 text-xs ${subtleTextClass}`}>
-              API Key 只会加密保存到服务端
-              KV；浏览器再次打开页面时只能看到“已配置”的状态，不会拿到明文 key。
-            </p>
-          </section>
-        </div>
+          {activeTab === "backups" ? (
+            <div id="settings-panel-backups" role="tabpanel">
+              <BackupSection backups={backups} />
+            </div>
+          ) : null}
+
+          {activeTab === "appearance" ? (
+            <section
+              id="settings-panel-appearance"
+              role="tabpanel"
+              className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900"
+            >
+              <h2 className="font-medium text-gray-950 text-sm dark:text-gray-50">外观</h2>
+              <p className={`mt-1 text-sm ${subtleTextClass}`}>切换浅色、深色主题，或跟随系统。</p>
+              <div className="mt-4">
+                <ThemeToggle />
+              </div>
+            </section>
+          ) : null}
+        </section>
       </section>
     </main>
   );

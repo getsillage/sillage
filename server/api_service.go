@@ -250,6 +250,7 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 	if err := s.Store.EnsureCompatSchema(ctx); err != nil {
 		return nil, err
 	}
+	input.Profiles = normalizeAIProfileInputs(input.Profiles)
 	profiles := make([]*store.AIProfile, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		if profileReq.Name == "" || profileReq.Provider == "" {
@@ -315,6 +316,28 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 		return nil, err
 	}
 	return &aiSettingsResult{Profiles: profiles, AutoSummary: autoSummary}, nil
+}
+
+func normalizeAIProfileInputs(profiles []aiProfileInput) []aiProfileInput {
+	if len(profiles) == 0 {
+		return profiles
+	}
+	activeIndex := -1
+	for i, profile := range profiles {
+		if profile.Active && activeIndex < 0 {
+			activeIndex = i
+		}
+	}
+	if activeIndex < 0 {
+		activeIndex = 0
+	}
+	normalized := make([]aiProfileInput, len(profiles))
+	for i, profile := range profiles {
+		profile.Enabled = true
+		profile.Active = i == activeIndex
+		normalized[i] = profile
+	}
+	return normalized
 }
 
 const aiAutoSummarySettingKey = "ai.auto_summary"
@@ -1019,7 +1042,7 @@ func memoHTTPStatus(err error) (int, string, string) {
 	case errors.Is(err, errValidation):
 		return 400, "invalid_field", err.Error()
 	case errors.Is(err, errAINotConfigured):
-		return 400, "ai_not_configured", "请先配置并启用一个 AI 档案"
+		return 400, "ai_not_configured", "请先配置一个默认 AI 档案"
 	case errors.Is(err, errAIOverloaded):
 		return 429, "rate_limited", "当前生成任务较多，请稍后再试"
 	case errors.As(err, &conflict):

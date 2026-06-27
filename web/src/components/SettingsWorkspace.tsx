@@ -55,6 +55,21 @@ function blankProfile(): EditableProfile {
   };
 }
 
+function normalizeProfilesForSave(
+  profiles: EditableProfile[],
+): EditableProfile[] {
+  if (profiles.length === 0) {
+    return profiles;
+  }
+  const activeIndex = profiles.findIndex((profile) => profile.active);
+  const defaultIndex = activeIndex >= 0 ? activeIndex : 0;
+  return profiles.map((profile, index) => ({
+    ...profile,
+    enabled: true,
+    active: index === defaultIndex,
+  }));
+}
+
 type TestState = { status: "ok" | "error"; message: string };
 type ModelState = {
   loading: boolean;
@@ -155,11 +170,31 @@ export function SettingsWorkspace({ token }: { token: string }) {
     );
   }
 
+  function setDefaultProfile(index: number) {
+    const nextProfiles = profiles.map((profile, i) => ({
+      ...profile,
+      enabled: true,
+      active: i === index,
+    }));
+    setConfirmDeleteKey(null);
+    setProfiles(nextProfiles);
+    setSaving(true);
+    setNotice("");
+    setError("");
+    saveProfiles(nextProfiles, "已设为默认")
+      .catch((err) => {
+        setProfiles(profiles);
+        setError(err instanceof Error ? err.message : "设置默认档案失败");
+      })
+      .finally(() => setSaving(false));
+  }
+
   async function saveProfiles(
     nextProfiles: EditableProfile[],
     successNotice: string,
   ) {
-    const payload: AIProfileInput[] = nextProfiles.map((profile) => ({
+    const normalizedProfiles = normalizeProfilesForSave(nextProfiles);
+    const payload: AIProfileInput[] = normalizedProfiles.map((profile) => ({
       id: profile.id || undefined,
       name: profile.name,
       provider: profile.provider,
@@ -167,7 +202,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       model: profile.model,
       temperature: profile.temperature,
       maxTokens: profile.maxTokens,
-      enabled: profile.enabled,
+      enabled: true,
       active: profile.active,
       apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
     }));
@@ -194,7 +229,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
       return;
     }
     if (!profile.id) {
-      setProfiles((current) => current.filter((_, i) => i !== index));
+      setProfiles((current) =>
+        normalizeProfilesForSave(current.filter((_, i) => i !== index)),
+      );
       setConfirmDeleteKey(null);
       if (selectedProfileKey === key) {
         setSelectedProfileKey(null);
@@ -369,7 +406,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
               type="button"
               onClick={() => {
                 setSelectedProfileKey(`new-${profiles.length}`);
-                setProfiles((current) => [...current, blankProfile()]);
+                setProfiles((current) => [
+                  ...current,
+                  { ...blankProfile(), active: current.length === 0 },
+                ]);
               }}
               className={secondaryButtonClass}
             >
@@ -400,16 +440,13 @@ export function SettingsWorkspace({ token }: { token: string }) {
                   const key = profileKey(profile, index);
                   const isSelected = key === selectedProfileKey;
                   return (
-                    <button
+                    <article
                       key={key}
-                      type="button"
-                      onClick={() => setSelectedProfileKey(key)}
                       className={`${panelClass} min-h-32 w-full p-4 text-left transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:hover:border-gray-700 dark:hover:bg-gray-900 ${
                         isSelected
                           ? "border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-900"
                           : ""
                       }`}
-                      aria-pressed={isSelected}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -430,15 +467,6 @@ export function SettingsWorkspace({ token }: { token: string }) {
                         {profile.model || "未设置模型"}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] ${
-                            profile.enabled
-                              ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                              : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
-                          }`}
-                        >
-                          {profile.enabled ? "已启用" : "已停用"}
-                        </span>
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                           {profile.hasApiKey || profile.apiKeyInput
                             ? "有密钥"
@@ -450,7 +478,24 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           </span>
                         ) : null}
                       </div>
-                    </button>
+                      <div className="mt-4 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProfileKey(key)}
+                          className={subtleButtonClass}
+                        >
+                          配置
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDefaultProfile(index)}
+                          disabled={profile.active || saving}
+                          className={secondaryButtonClass}
+                        >
+                          {profile.active ? "当前默认" : "设为默认"}
+                        </button>
+                      </div>
+                    </article>
                   );
                 })}
               </div>
@@ -647,34 +692,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-200/70 border-t pt-3 dark:border-gray-800">
-                        <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm dark:text-gray-300">
-                          <label className="inline-flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              className="accent-gray-900 dark:accent-gray-100"
-                              checked={profile.enabled}
-                              onChange={(event) =>
-                                updateProfile(index, {
-                                  enabled: event.target.checked,
-                                })
-                              }
-                            />
-                            启用
-                          </label>
-                          <label className="inline-flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              className="accent-gray-900 dark:accent-gray-100"
-                              checked={profile.active}
-                              onChange={(event) =>
-                                updateProfile(index, {
-                                  active: event.target.checked,
-                                })
-                              }
-                            />
-                            设为默认
-                          </label>
-                        </div>
+                        <p className={helperTextClass}>
+                          {profile.active
+                            ? "当前默认档案会用于 AI 总结和 Ask。"
+                            : "可在上方档案卡片中设为默认。"}
+                        </p>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"

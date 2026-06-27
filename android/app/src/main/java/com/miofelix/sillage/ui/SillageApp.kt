@@ -1978,7 +1978,9 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                                     profile = profile,
                                     testResult = state.aiTestResults[profile.id],
                                     selected = selectedIndex == index,
-                                    onClick = { selectedAIProfileIndex = index },
+                                    saving = state.aiSettingsSaving,
+                                    onConfigure = { selectedAIProfileIndex = index },
+                                    onSetDefault = { viewModel.setAIProfileDefault(index) },
                                 )
                                 if (selectedIndex == index) {
                                     AIProfileDetailCard(
@@ -2115,12 +2117,12 @@ private fun AIProfileSummaryCard(
     profile: AIProfileDraft,
     testResult: String?,
     selected: Boolean,
-    onClick: () -> Unit,
+    saving: Boolean,
+    onConfigure: () -> Unit,
+    onSetDefault: () -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
@@ -2155,7 +2157,7 @@ private fun AIProfileSummaryCard(
                     )
                 }
                 if (profile.active) {
-                    AssistChip(onClick = onClick, label = { Text("默认") })
+                    AssistChip(onClick = onConfigure, label = { Text("默认") })
                 }
             }
             Text(
@@ -2169,11 +2171,6 @@ private fun AIProfileSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    if (profile.enabled) "已启用" else "已停用",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                )
                 Text(
                     if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) "有密钥" else "无密钥",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2195,6 +2192,17 @@ private fun AIProfileSummaryCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onConfigure) {
+                    Text("配置")
+                }
+                TextButton(
+                    onClick = onSetDefault,
+                    enabled = !profile.active && !saving,
+                ) {
+                    Text(if (profile.active) "当前默认" else "设为默认")
+                }
             }
         }
     }
@@ -2299,8 +2307,6 @@ private fun AIProfileDetailCard(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
-            AISettingSwitch("启用", profile.enabled) { viewModel.toggleAIProfileEnabled(index) }
-            AISettingSwitch("设为默认", profile.active) { viewModel.toggleAIProfileActive(index) }
             AISettingSwitch("新建记录后自动总结", profile.autoSummary) {
                 viewModel.toggleAIProfileAutoSummary(index)
             }

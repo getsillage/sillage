@@ -718,7 +718,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             viewModelScope.launch {
                 _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
                 runCatching {
-                    val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置启用的 AI 档案")
+                    val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置一个默认 AI 档案")
                     localAiClient.summarizeMemo(profile, memo).also(localDataStore::saveMemoAI)
                 }
                     .onSuccess { ai ->
@@ -802,7 +802,9 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun addAIProfile() {
-        _state.update { it.copy(aiProfiles = it.aiProfiles + AIProfileDraft()) }
+        _state.update {
+            it.copy(aiProfiles = it.aiProfiles + AIProfileDraft(active = it.aiProfiles.isEmpty()))
+        }
     }
 
     fun removeAIProfile(index: Int) {
@@ -871,12 +873,44 @@ class SillageViewModel(context: Context) : ViewModel() {
         updateAIProfile(index) { it.copy(apiKeyInput = value) }
     }
 
-    fun toggleAIProfileEnabled(index: Int) {
-        updateAIProfile(index) { it.copy(enabled = !it.enabled) }
-    }
-
-    fun toggleAIProfileActive(index: Int) {
-        updateAIProfile(index) { it.copy(active = !it.active) }
+    fun setAIProfileDefault(index: Int) {
+        val currentProfiles = state.value.aiProfiles
+        if (index !in currentProfiles.indices) {
+            return
+        }
+        val nextProfiles = currentProfiles.mapIndexed { i, profile ->
+            profile.copy(enabled = true, active = i == index)
+        }
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    aiProfiles = nextProfiles,
+                    aiSettingsSaving = true,
+                    error = null,
+                    notice = null,
+                )
+            }
+            runCatching { persistAIProfiles(nextProfiles) }
+                .onSuccess { saved ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = saved,
+                            aiSettingsSaving = false,
+                            aiTestResults = emptyMap(),
+                            notice = "已设为默认",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = currentProfiles,
+                            aiSettingsSaving = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
     }
 
     fun toggleAIProfileAutoSummary(index: Int) {
@@ -915,7 +949,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun saveAISettings() {
-        val profiles = state.value.aiProfiles
+        val profiles = normalizedAIProfiles(state.value.aiProfiles)
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
             runCatching { persistAIProfiles(profiles) }
@@ -941,10 +975,21 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private suspend fun persistAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+        val normalized = normalizedAIProfiles(profiles)
         return if (isOfflineMode()) {
-            localDataStore.saveAIProfiles(profiles)
+            localDataStore.saveAIProfiles(normalized)
         } else {
-            api.patchAISettings(profiles.map { it.toInput() }).map { it.toDraft() }
+            api.patchAISettings(normalized.map { it.toInput() }).map { it.toDraft() }
+        }
+    }
+
+    private fun normalizedAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+        if (profiles.isEmpty()) {
+            return profiles
+        }
+        val activeIndex = profiles.indexOfFirst { it.active }.takeIf { it >= 0 } ?: 0
+        return profiles.mapIndexed { index, profile ->
+            profile.copy(enabled = true, active = index == activeIndex)
         }
     }
 
@@ -1497,7 +1542,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 if (question.isBlank()) {
                     throw IllegalArgumentException("找不到要重新生成的问题")
                 }
-                val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置启用的 AI 档案")
+                val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置一个默认 AI 档案")
                 val history = buildAskActivePath(messages, parentId).map { it.message }
                 val answer = localAiClient.answerQuestion(
                     profile = profile,

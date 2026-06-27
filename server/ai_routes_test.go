@@ -280,6 +280,90 @@ func TestAISettingsPatchDeletesOmittedProfiles(t *testing.T) {
 	}
 }
 
+func TestAISettingsPatchKeepsOneEnabledDefaultProfile(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{
+			{
+				"name":      "First",
+				"provider":  "openai",
+				"model":     "gpt-first",
+				"enabled":   false,
+				"active":    true,
+				"maxTokens": 1000,
+			},
+			{
+				"name":      "Second",
+				"provider":  "openai",
+				"model":     "gpt-second",
+				"enabled":   false,
+				"active":    true,
+				"maxTokens": 1000,
+			},
+		},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("patch ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode ai settings: %v", err)
+	}
+	profiles, ok := payload["profiles"].([]any)
+	if !ok || len(profiles) != 2 {
+		t.Fatalf("profiles = %#v, want 2 profiles", payload["profiles"])
+	}
+	activeCount := 0
+	for _, item := range profiles {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected profile shape: %#v", item)
+		}
+		if profile["enabled"] != true {
+			t.Fatalf("profile should be enabled: %#v", profile)
+		}
+		if profile["active"] == true {
+			activeCount++
+			if profile["name"] != "First" {
+				t.Fatalf("first active profile should remain default, got %#v", profile)
+			}
+		}
+	}
+	if activeCount != 1 {
+		t.Fatalf("active profile count = %d, want 1", activeCount)
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/settings/ai", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("get ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode persisted ai settings: %v", err)
+	}
+	profiles, ok = payload["profiles"].([]any)
+	if !ok || len(profiles) != 2 {
+		t.Fatalf("persisted profiles = %#v, want 2 profiles", payload["profiles"])
+	}
+	activeCount = 0
+	for _, item := range profiles {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			t.Fatalf("unexpected persisted profile shape: %#v", item)
+		}
+		if profile["enabled"] != true {
+			t.Fatalf("persisted profile should be enabled: %#v", profile)
+		}
+		if profile["active"] == true {
+			activeCount++
+		}
+	}
+	if activeCount != 1 {
+		t.Fatalf("persisted active profile count = %d, want 1", activeCount)
+	}
+}
+
 func TestMemoSummaryAndKeyUnavailable(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

@@ -32,7 +32,7 @@ func connectError(err error) error {
 	case errors.Is(err, sql.ErrNoRows):
 		return connect.NewError(connect.CodeNotFound, errors.New("资源不存在"))
 	case errors.Is(err, errAINotConfigured):
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("请先配置并启用一个 AI 档案"))
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("请先配置一个默认 AI 档案"))
 	case errors.Is(err, errAIKeyUnavailable):
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("当前 AI API Key 无法解密，请重新保存"))
 	case errors.Is(err, errAIOverloaded):

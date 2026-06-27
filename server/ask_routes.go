@@ -151,7 +151,7 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
 		}
 		if errors.Is(err, errAINotConfigured) {
-			return apiError(c, http.StatusBadRequest, "ai_not_configured", "请先配置并启用一个 AI 档案")
+			return apiError(c, http.StatusBadRequest, "ai_not_configured", "请先配置一个默认 AI 档案")
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "生成回答失败")
 	}

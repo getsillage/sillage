@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIProfile } from "../lib/api";
@@ -63,7 +63,7 @@ beforeEach(() => {
 
 describe("SettingsWorkspace", () => {
   async function openDefaultProfile(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByRole("button", { name: /默认/ }));
+    await user.click(await screen.findByRole("button", { name: "配置" }));
   }
 
   it("loads profiles and saves edits", async () => {
@@ -86,7 +86,7 @@ describe("SettingsWorkspace", () => {
   it("saves auto-summary as a global setting", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByRole("button", { name: /默认/ });
+    await screen.findByRole("button", { name: "配置" });
 
     const checkbox = screen.getByRole("checkbox", {
       name: "新建记录后自动总结",
@@ -99,6 +99,40 @@ describe("SettingsWorkspace", () => {
     expect(
       vi.mocked(patchAISettings).mock.calls[0][1].profiles[0],
     ).not.toHaveProperty("autoSummary");
+  });
+
+  it("sets a collapsed profile card as the only default", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [
+        profile({ id: "p1", name: "工作", active: true }),
+        profile({ id: "p2", name: "生活", active: false, enabled: true }),
+      ],
+      autoSummary: false,
+    });
+    vi.mocked(patchAISettings).mockResolvedValue({
+      profiles: [
+        profile({ id: "p2", name: "生活", active: true }),
+        profile({ id: "p1", name: "工作", active: false }),
+      ],
+      autoSummary: false,
+    });
+    render(<SettingsWorkspace token="t" />);
+
+    const lifeCard = (await screen.findByText("生活")).closest("article");
+    expect(lifeCard).not.toBeNull();
+    await user.click(
+      within(lifeCard as HTMLElement).getByRole("button", { name: "设为默认" }),
+    );
+
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(patchAISettings).mock.calls[0][1].profiles;
+    expect(payload).toMatchObject([
+      { id: "p1", active: false, enabled: true },
+      { id: "p2", active: true, enabled: true },
+    ]);
+    expect(payload.filter((item) => item.active)).toHaveLength(1);
+    expect(await screen.findByText("已设为默认")).toBeInTheDocument();
   });
 
   it("requires confirmation before deleting a saved profile", async () => {
@@ -210,7 +244,7 @@ describe("SettingsWorkspace", () => {
   it("shows the theme switcher under the appearance tab", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByRole("button", { name: /默认/ });
+    await screen.findByRole("button", { name: "配置" });
 
     await user.click(screen.getByRole("button", { name: "外观" }));
     expect(screen.getByText("主题色")).toBeInTheDocument();

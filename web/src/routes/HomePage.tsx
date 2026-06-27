@@ -12,8 +12,8 @@ function MemorySection({ entries, today }: { entries: Memo[]; today: string }) {
   }
 
   return (
-    <section className="rounded-lg bg-clay-50 px-4 py-4 dark:bg-clay-900">
-      <h2 className="font-serif text-clay-600 text-sm dark:text-clay-300">
+    <section className="rounded-lg bg-gray-100/60 px-4 py-4 dark:bg-gray-900/50">
+      <h2 className="font-medium text-gray-500 text-sm dark:text-gray-400">
         那年今日
       </h2>
       <ul className="mt-2 space-y-1">
@@ -21,9 +21,9 @@ function MemorySection({ entries, today }: { entries: Memo[]; today: string }) {
           <li key={memo.id}>
             <Link
               to={`/entries/${memo.id}`}
-              className="block rounded-md px-2 py-1.5 text-gray-700 text-sm transition hover:bg-clay-100 dark:text-gray-200 dark:hover:bg-gray-800"
+              className="block rounded-md px-2 py-1.5 text-gray-700 text-sm transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
             >
-              <span className="text-clay-600 dark:text-clay-300">
+              <span className="text-gray-500 dark:text-gray-400">
                 {yearsBetween(memo.entryDate, today)}年前
               </span>
               <span className="mx-1.5 text-gray-400">·</span>
@@ -56,7 +56,7 @@ function EntrySection({
         {showAllLink ? (
           <Link
             to="/timeline"
-            className="text-gray-500 text-xs hover:text-celadon-700 dark:text-gray-400 dark:hover:text-celadon-200"
+            className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           >
             查看全部
           </Link>
@@ -100,7 +100,7 @@ export function HomePage() {
       <div className="space-y-8">
         <header>
           <p className="text-gray-500 text-xs dark:text-gray-400">{today}</p>
-          <h1 className="mt-1 font-serif text-2xl text-gray-900 sm:text-3xl dark:text-gray-50">
+          <h1 className="mt-1 font-semibold text-2xl text-gray-900 tracking-tight sm:text-3xl dark:text-gray-50">
             今天想记录什么？
           </h1>
         </header>

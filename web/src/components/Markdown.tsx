@@ -19,7 +19,7 @@ function ExternalLink({ href, children }: ComponentPropsWithoutRef<"a">) {
 }
 
 const proseBase =
-  "prose prose-neutral max-w-none font-serif dark:prose-invert prose-headings:font-medium prose-a:text-celadon-700 prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 prose-pre:text-gray-900 prose-hr:border-gray-200 dark:prose-a:text-celadon-200 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-950 dark:prose-pre:text-gray-100 dark:prose-hr:border-gray-700";
+  "prose prose-neutral max-w-none dark:prose-invert prose-headings:font-semibold prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 prose-pre:text-gray-900 prose-hr:border-gray-200 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-950 dark:prose-pre:text-gray-100 dark:prose-hr:border-gray-700";
 
 const markdownClass = {
   reading: `${proseBase} leading-7`,

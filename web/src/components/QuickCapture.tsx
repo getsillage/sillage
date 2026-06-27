@@ -62,7 +62,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
         onClick={() => setOpen((value) => !value)}
         aria-label="速记"
         title="速记（⌘/Ctrl + J）"
-        className="fixed right-4 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-celadon-600 text-2xl text-white shadow-lg shadow-gray-900/15 transition hover:bg-celadon-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-celadon-600/30 sm:right-5 sm:bottom-5 dark:bg-celadon-500 dark:text-gray-950 dark:hover:bg-celadon-400 dark:focus-visible:ring-celadon-400/30"
+        className="fixed right-4 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-2xl text-white shadow-lg shadow-gray-900/15 transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 sm:right-5 sm:bottom-5 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:ring-gray-500/40"
       >
         <span className={open ? "rotate-45 transition" : "transition"}>+</span>
       </button>

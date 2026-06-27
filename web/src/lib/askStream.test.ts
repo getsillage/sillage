@@ -25,10 +25,7 @@ describe("streamAskMessage", () => {
       'event: delta\ndata: {"text":"你好"}\n\n' +
       'event: delta\ndata: {"text":"，世界"}\n\n' +
       'event: done\ndata: {"message":{"id":"a1","content":"你好，世界"}}\n\n';
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(sseResponse(sse)),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sseResponse(sse)));
 
     const deltas: string[] = [];
     let started: unknown;

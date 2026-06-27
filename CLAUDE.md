@@ -103,6 +103,7 @@ go build ./cmd/sillage
 pnpm --dir web install
 pnpm --dir web typecheck
 pnpm --dir web lint
+pnpm --dir web test
 pnpm --dir web build
 
 buf lint
@@ -226,8 +227,12 @@ buf lint
 buf generate
 pnpm --dir web lint
 pnpm --dir web typecheck
+pnpm --dir web test
 pnpm --dir web build
 ```
+
+前端测试用 Vitest + @testing-library（jsdom）；E2E 用 Playwright（`pnpm --dir web test:e2e`，需先
+`pnpm --dir web exec playwright install` 安装浏览器，并有可访问的运行实例）。
 
 影响部署时还要验证 Docker 镜像可构建，必要时使用 compose 启动后访问 `http://localhost:5231`。
 

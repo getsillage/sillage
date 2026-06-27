@@ -49,6 +49,21 @@ data class MemoAI(
     val updatedAt: String,
 )
 
+data class Attachment(
+    val uid: String,
+    val url: String,
+    val filename: String,
+    val contentType: String,
+    val size: Long,
+    val sha256: String?,
+)
+
+data class AttachmentUpload(
+    val filename: String,
+    val contentType: String,
+    val bytes: ByteArray,
+)
+
 class ApiException(message: String) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
@@ -63,4 +78,12 @@ fun sortMemos(memos: List<Memo>): List<Memo> {
 
 fun activeMemos(memos: List<Memo>): List<Memo> {
     return sortMemos(memos.filter { it.isActive() })
+}
+
+fun attachmentMarkdown(attachment: Attachment): String {
+    return if (attachment.contentType.startsWith("image/")) {
+        "\n![${attachment.filename}](${attachment.url})\n"
+    } else {
+        "\n[${attachment.filename}](${attachment.url})\n"
+    }
 }

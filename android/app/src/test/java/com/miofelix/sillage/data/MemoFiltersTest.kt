@@ -26,6 +26,20 @@ class MemoFiltersTest {
         assertEquals(listOf("active"), filtered.map { it.id })
     }
 
+    @Test
+    fun attachmentMarkdownUsesImageSyntaxForImages() {
+        val attachment = attachment(filename = "photo.jpg", contentType = "image/jpeg")
+
+        assertEquals("\n![photo.jpg](/file/attachments/a/photo.jpg)\n", attachmentMarkdown(attachment))
+    }
+
+    @Test
+    fun attachmentMarkdownUsesLinkSyntaxForOtherFiles() {
+        val attachment = attachment(filename = "note.pdf", contentType = "application/pdf")
+
+        assertEquals("\n[note.pdf](/file/attachments/a/note.pdf)\n", attachmentMarkdown(attachment))
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",
@@ -43,6 +57,17 @@ class MemoFiltersTest {
             pinnedAt = pinnedAt,
             archivedAt = archivedAt,
             deletedAt = deletedAt,
+        )
+    }
+
+    private fun attachment(filename: String, contentType: String): Attachment {
+        return Attachment(
+            uid = "a",
+            url = "/file/attachments/a/$filename",
+            filename = filename,
+            contentType = contentType,
+            size = 10,
+            sha256 = null,
         )
     }
 }

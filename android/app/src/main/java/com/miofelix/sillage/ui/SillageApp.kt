@@ -1,5 +1,7 @@
 package com.miofelix.sillage.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -366,6 +368,9 @@ private fun MemoRow(memo: Memo, onClick: () -> Unit) {
 @Composable
 private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        viewModel.uploadAttachments(uris)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -441,6 +446,14 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     .weight(1f),
                 label = { Text("内容") },
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { attachmentLauncher.launch("*/*") },
+                    enabled = !state.uploadingAttachment,
+                ) {
+                    Text(if (state.uploadingAttachment) "上传中" else "附件")
+                }
+            }
             if (state.selectedMemo != null) {
                 MemoSummarySection(
                     summary = state.selectedSummary,

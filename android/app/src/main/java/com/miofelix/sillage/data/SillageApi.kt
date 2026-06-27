@@ -1,12 +1,15 @@
 package com.miofelix.sillage.data
 
 import java.net.URLEncoder
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -152,6 +155,23 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseMemoAI(execute(request).getJSONObject("ai"))
     }
 
+    suspend fun uploadAttachment(input: AttachmentUpload): Attachment {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("mutation_id", UUID.randomUUID().toString())
+            .addFormDataPart(
+                "file",
+                input.filename,
+                input.bytes.toRequestBody(input.contentType.toMediaTypeOrNull()),
+            )
+            .build()
+        val request = Request.Builder()
+            .url(url("/api/v1/attachments"))
+            .post(body)
+            .build()
+        return parseAttachment(execute(request).getJSONObject("attachment"))
+    }
+
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {
         val request = Request.Builder()
             .url(url(path))
@@ -250,6 +270,17 @@ class SillageApi(private val sessionStore: SessionStore) {
             totalTokens = body.optLong("totalTokens"),
             createdAt = body.optString("createdAt"),
             updatedAt = body.optString("updatedAt"),
+        )
+    }
+
+    private fun parseAttachment(body: JSONObject): Attachment {
+        return Attachment(
+            uid = body.getString("uid"),
+            url = body.getString("url"),
+            filename = body.getString("filename"),
+            contentType = body.optString("contentType"),
+            size = body.optLong("size"),
+            sha256 = body.nullableString("sha256"),
         )
     }
 

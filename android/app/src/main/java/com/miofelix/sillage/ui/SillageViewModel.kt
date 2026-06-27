@@ -1,24 +1,31 @@
 package com.miofelix.sillage.ui
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miofelix.sillage.data.Account
+import com.miofelix.sillage.data.AttachmentUpload
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
+import com.miofelix.sillage.data.attachmentMarkdown
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SillageViewModel(context: Context) : ViewModel() {
-    private val sessionStore = SessionStore(context.applicationContext)
+    private val appContext = context.applicationContext
+    private val sessionStore = SessionStore(appContext)
     private val api = SillageApi(sessionStore)
     private val _state = MutableStateFlow(
         SillageUiState(
@@ -47,6 +54,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 memos = emptyList(),
                 selectedSummary = null,
                 summaryLoading = false,
+                uploadingAttachment = false,
                 searchQuery = "",
                 searchResults = null,
                 searching = false,
@@ -132,6 +140,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     selectedMemo = null,
                     selectedSummary = null,
                     summaryLoading = false,
+                    uploadingAttachment = false,
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -167,6 +176,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
+                uploadingAttachment = false,
                 draftContent = "",
                 draftEntryDate = LocalDate.now().toString(),
                 error = null,
@@ -264,6 +274,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     selectedMemo = null,
                     selectedSummary = null,
                     summaryLoading = false,
+                    uploadingAttachment = false,
                     draftContent = "",
                     searchQuery = "",
                     searchResults = null,
@@ -284,6 +295,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     selectedMemo = null,
                     selectedSummary = null,
                     summaryLoading = false,
+                    uploadingAttachment = false,
                     draftContent = "",
                     searchQuery = "",
                     searchResults = null,
@@ -350,6 +362,41 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun uploadAttachments(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(uploadingAttachment = true, error = null, notice = null) }
+            runCatching {
+                buildString {
+                    for (uri in uris) {
+                        val upload = readAttachmentUpload(uri)
+                        val attachment = api.uploadAttachment(upload)
+                        append(attachmentMarkdown(attachment))
+                    }
+                }
+            }
+                .onSuccess { snippets ->
+                    _state.update {
+                        it.copy(
+                            draftContent = it.draftContent + snippets,
+                            uploadingAttachment = false,
+                            notice = "附件已插入",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            uploadingAttachment = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
     fun closeEditor() {
         _state.update {
             it.copy(
@@ -357,10 +404,37 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
+                uploadingAttachment = false,
                 draftContent = "",
                 error = null,
             )
         }
+    }
+
+    private suspend fun readAttachmentUpload(uri: Uri): AttachmentUpload = withContext(Dispatchers.IO) {
+        val resolver = appContext.contentResolver
+        val filename = displayName(uri).ifBlank { uri.lastPathSegment ?: "attachment" }
+        val contentType = resolver.getType(uri) ?: "application/octet-stream"
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw IllegalArgumentException("无法读取附件")
+        AttachmentUpload(
+            filename = filename,
+            contentType = contentType,
+            bytes = bytes,
+        )
+    }
+
+    private fun displayName(uri: Uri): String {
+        val resolver = appContext.contentResolver
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) {
+                    return cursor.getString(index).orEmpty()
+                }
+            }
+        }
+        return ""
     }
 
     private fun fetchSelectedMemoDetail(memoId: String) {
@@ -445,6 +519,7 @@ data class SillageUiState(
     val selectedMemo: Memo? = null,
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,
+    val uploadingAttachment: Boolean = false,
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",

@@ -10,7 +10,8 @@ import {
   selectClass,
   textareaClass,
 } from "../components/ui";
-import type { AskContextScope, AskMessage, AskSourceKind } from "../lib/api";
+import type { AskContextScope, AskSourceKind } from "../lib/api";
+import type { ActiveEntry } from "../lib/askTree";
 import { todayISO } from "../lib/date";
 import { useAsk } from "../state/AskContext";
 import { useMemos } from "../state/MemosContext";
@@ -32,7 +33,10 @@ export function AskPage() {
   const {
     activeConversation,
     activeId,
-    messages,
+    entries,
+    liveUser,
+    liveAnswer,
+    regeneratingId,
     scope,
     sourceKind,
     busy,
@@ -42,9 +46,14 @@ export function AskPage() {
     setSourceKind,
     selectConversation,
     send,
+    regenerate,
+    selectVariant,
     stop,
   } = useAsk();
   const [question, setQuestion] = useState("");
+  const lastAssistantId = [...entries]
+    .reverse()
+    .find((entry) => entry.message.role === "assistant")?.message.id;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: react only to the URL param
   useEffect(() => {
@@ -110,15 +119,46 @@ export function AskPage() {
       </header>
 
       <div className="flex-1 space-y-6 py-6">
-        {messages.length === 0 ? (
+        {entries.length === 0 && !liveUser ? (
           <div className="rounded-lg bg-gray-100/60 px-4 py-12 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
             可以根据记录提问，例如「我最近在反复想些什么？」
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+          entries.map((entry) => (
+            <MessageBubble
+              key={entry.message.id}
+              entry={entry}
+              streamingText={
+                regeneratingId === entry.message.id ? liveAnswer : undefined
+              }
+              canRegenerate={
+                entry.message.role === "assistant" &&
+                entry.message.id === lastAssistantId &&
+                !busy
+              }
+              onRegenerate={() => regenerate(entry.message.id)}
+              onSelectVariant={selectVariant}
+            />
           ))
         )}
+        {liveUser ? (
+          <>
+            <div className="ml-auto max-w-[85%] rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+              <p className="whitespace-pre-wrap text-[15px] leading-7">
+                {liveUser.content}
+              </p>
+            </div>
+            <div className="max-w-[92%]">
+              {liveAnswer ? (
+                <Markdown content={liveAnswer} variant="chat" />
+              ) : (
+                <p className="text-gray-400 text-sm dark:text-gray-500">
+                  正在思考…
+                </p>
+              )}
+            </div>
+          </>
+        ) : null}
         {busy && !streaming ? (
           <p className="text-gray-400 text-sm dark:text-gray-500">正在思考…</p>
         ) : null}
@@ -165,11 +205,26 @@ export function AskPage() {
   );
 }
 
-function MessageBubble({ message }: { message: AskMessage }) {
+interface MessageBubbleProps {
+  entry: ActiveEntry;
+  streamingText?: string;
+  canRegenerate: boolean;
+  onRegenerate: () => void;
+  onSelectVariant: (messageId: string) => void;
+}
+
+function MessageBubble({
+  entry,
+  streamingText,
+  canRegenerate,
+  onRegenerate,
+  onSelectVariant,
+}: MessageBubbleProps) {
   const { create } = useMemos();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { message, variants, index } = entry;
 
   if (message.role === "user") {
     return (
@@ -198,9 +253,12 @@ function MessageBubble({ message }: { message: AskMessage }) {
     }
   }
 
+  const content = streamingText ?? message.content;
+  const hasVariants = variants.length > 1;
+
   return (
     <div className="max-w-[92%]">
-      <Markdown content={message.content} variant="chat" />
+      <Markdown content={content} variant="chat" />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {message.sourceRefs.map((source) => (
           <Link
@@ -212,6 +270,40 @@ function MessageBubble({ message }: { message: AskMessage }) {
             <span>{source.entryDate}</span>
           </Link>
         ))}
+        {hasVariants ? (
+          <span className="inline-flex items-center gap-1 text-gray-500 text-xs dark:text-gray-400">
+            <button
+              type="button"
+              aria-label="上一个回答"
+              disabled={index <= 0}
+              onClick={() => onSelectVariant(variants[index - 1].id)}
+              className={`${ghostLinkClass} px-1`}
+            >
+              ‹
+            </button>
+            <span>
+              {index + 1}/{variants.length}
+            </span>
+            <button
+              type="button"
+              aria-label="下一个回答"
+              disabled={index >= variants.length - 1}
+              onClick={() => onSelectVariant(variants[index + 1].id)}
+              className={`${ghostLinkClass} px-1`}
+            >
+              ›
+            </button>
+          </span>
+        ) : null}
+        {canRegenerate ? (
+          <button
+            type="button"
+            onClick={onRegenerate}
+            className={`${ghostLinkClass} text-xs`}
+          >
+            重新生成
+          </button>
+        ) : null}
         {message.content.trim() ? (
           <button
             type="button"

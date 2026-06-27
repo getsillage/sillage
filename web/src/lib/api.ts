@@ -328,10 +328,25 @@ export interface AskStreamHandlers {
   onStart?: (data: {
     userMessage: AskMessage;
     sources: AskSourceRef[];
+    regenerate?: boolean;
   }) => void;
   onDelta?: (text: string) => void;
   onDone?: (message: AskMessage) => void;
   onError?: (message: string) => void;
+}
+
+// Switches the conversation's active branch leaf (used after picking a
+// regenerated answer variant) so follow-ups attach to it.
+export async function setAskHead(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+): Promise<void> {
+  await request(`/api/v1/ask/conversations/${conversationId}/head`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ messageId }),
+  });
 }
 
 export interface AskMessageInput {
@@ -433,7 +448,11 @@ function dispatchAskEvent(block: string, handlers: AskStreamHandlers): void {
   switch (event) {
     case "start":
       handlers.onStart?.(
-        parsed as { userMessage: AskMessage; sources: AskSourceRef[] },
+        parsed as {
+          userMessage: AskMessage;
+          sources: AskSourceRef[];
+          regenerate?: boolean;
+        },
       );
       break;
     case "delta":

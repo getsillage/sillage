@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -61,17 +62,29 @@ export function MemosProvider({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [summaries, setSummaries] = useState<Record<string, MemoAI>>({});
+  // Monotonic id so a slow earlier refresh can't overwrite a newer one
+  // (e.g. StrictMode's double-invoke, or a manual refresh racing the mount).
+  const refreshSeq = useRef(0);
 
   const refresh = useCallback(async () => {
+    const seq = ++refreshSeq.current;
     setLoading(true);
     try {
       const res = await listMemos(token);
+      if (seq !== refreshSeq.current) {
+        return;
+      }
       setMemos(sortMemos(res.memos));
       setError("");
     } catch (err) {
+      if (seq !== refreshSeq.current) {
+        return;
+      }
       setError(err instanceof Error ? err.message : "读取记录失败");
     } finally {
-      setLoading(false);
+      if (seq === refreshSeq.current) {
+        setLoading(false);
+      }
     }
   }, [token]);
 

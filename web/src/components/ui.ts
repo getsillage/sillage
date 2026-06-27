@@ -4,8 +4,6 @@ export const readingShellClass =
 export const wideShellClass =
   "mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-10";
 
-export const pageShellClass = wideShellClass;
-
 export const pageSectionClass = "space-y-8 sm:space-y-10";
 
 export const pageTitleClass =
@@ -13,14 +11,21 @@ export const pageTitleClass =
 
 export const pageLeadClass = "mt-1 text-sm text-gray-500 dark:text-gray-400";
 
-export const serifTitleClass = "font-semibold text-gray-900 dark:text-gray-50";
+/** Secondary / explanatory text (timestamps, captions, meta). */
+export const mutedTextClass = "text-gray-500 dark:text-gray-400";
+
+/** Inline ghost link/button: no chrome, hover darkens, visible focus ring. */
+export const ghostLinkClass =
+  "rounded text-gray-600 transition hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:text-gray-300 dark:hover:text-gray-100 dark:focus-visible:ring-gray-500/40";
+
+/** Quiet empty-state panel: subtle surface, centered muted message. */
+export const emptyStateClass =
+  "rounded-lg bg-gray-100/60 px-4 py-10 text-center text-sm text-gray-500 dark:bg-gray-900/50 dark:text-gray-400";
 
 export const panelClass =
   "rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900";
 
 export const subtlePanelClass = "rounded-lg bg-gray-100/60 dark:bg-gray-900/50";
-
-export const bareRowClass = "block py-3";
 
 export const rowLinkClass =
   "block rounded-lg px-3 py-3 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:hover:bg-gray-800/60 dark:focus-visible:ring-gray-500/50";
@@ -49,3 +54,7 @@ export const subtleButtonClass =
 
 export const dangerButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/30";
+
+/** Inline destructive ghost action (no chrome), with a visible focus ring. */
+export const dangerLinkClass =
+  "rounded text-red-600 transition hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300";

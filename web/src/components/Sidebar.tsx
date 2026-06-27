@@ -7,6 +7,7 @@ import {
   Plus,
   Settings,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import type { Account } from "../lib/api";
 import { useAsk } from "../state/AskContext";
@@ -58,6 +59,34 @@ export function Sidebar({
   const location = useLocation();
   const { conversations, activeId, startNew } = useAsk();
   const onAskPage = location.pathname === "/ask";
+  const accountMenuRef = useRef<HTMLDetailsElement>(null);
+
+  // Close the native <details> account menu on outside click or Escape, which
+  // it does not do on its own.
+  useEffect(() => {
+    function close() {
+      if (accountMenuRef.current) {
+        accountMenuRef.current.open = false;
+      }
+    }
+    function onPointerDown(event: PointerEvent) {
+      const menu = accountMenuRef.current;
+      if (menu?.open && !menu.contains(event.target as Node)) {
+        close();
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        close();
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
 
   return (
     <aside
@@ -141,7 +170,7 @@ export function Sidebar({
       </section>
 
       <div className="mt-3 flex items-center justify-between gap-2 border-gray-200 border-t pt-3 dark:border-gray-800">
-        <details className="group relative min-w-0">
+        <details ref={accountMenuRef} className="group relative min-w-0">
           <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-gray-900 font-medium text-white text-xs dark:bg-gray-100 dark:text-gray-900">
               {(account.displayName || account.username || "S")
@@ -156,7 +185,12 @@ export function Sidebar({
           <div className="absolute right-0 bottom-full z-20 mb-2 w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-800 dark:shadow-black/30">
             <Link
               to="/settings"
-              onClick={onNavigate}
+              onClick={() => {
+                if (accountMenuRef.current) {
+                  accountMenuRef.current.open = false;
+                }
+                onNavigate?.();
+              }}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-700 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-50"
             >
               <Settings className="h-4 w-4" />

@@ -2,20 +2,20 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarView } from "../components/CalendarView";
 import { EntryCard } from "../components/EntryCard";
+import { OnThisDay } from "../components/OnThisDay";
 import {
+  emptyStateClass,
   inputClass,
   pageLeadClass,
   pageSectionClass,
   pageTitleClass,
-  subtlePanelClass,
   wideShellClass,
 } from "../components/ui";
 import type { Memo } from "../lib/api";
-import { monthGrid, todayISO, yearsBetween } from "../lib/date";
+import { monthGrid, todayISO } from "../lib/date";
 import {
   entriesByDate,
   entryDateCounts,
-  excerpt,
   isActive,
   onThisDay,
 } from "../lib/memos";
@@ -37,32 +37,6 @@ function ViewToggle({ calendar }: { calendar: boolean }) {
         日历
       </Link>
     </div>
-  );
-}
-
-function OnThisDay({ entries, today }: { entries: Memo[]; today: string }) {
-  return (
-    <section className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700/70 dark:bg-gray-800/60">
-      <h2 className="font-medium text-gray-500 text-xs dark:text-gray-400">
-        那年今日
-      </h2>
-      <ul className="mt-2 space-y-1">
-        {entries.map((memo) => (
-          <li key={memo.id}>
-            <Link
-              to={`/entries/${memo.id}`}
-              className="block rounded-lg px-2 py-1.5 text-gray-600 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              <span className="text-gray-400">
-                {yearsBetween(memo.entryDate, today)}年前
-              </span>
-              <span className="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
-              {excerpt(memo.content, 48) || "空白记录"}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -135,9 +109,7 @@ function ListView({
       ) : null}
       <section className="min-w-0">
         {filtered.length === 0 ? (
-          <div
-            className={`${subtlePanelClass} px-4 py-10 text-center text-gray-500 text-sm dark:text-gray-400`}
-          >
+          <div className={emptyStateClass}>
             {trimmed ? "没有匹配的记录。" : "还没有记录。可以先写一条记录。"}
           </div>
         ) : (

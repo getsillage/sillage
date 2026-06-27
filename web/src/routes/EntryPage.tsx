@@ -5,6 +5,9 @@ import { EntryComposer } from "../components/EntryComposer";
 import { LocalDateTime } from "../components/LocalDateTime";
 import { Markdown } from "../components/Markdown";
 import {
+  dangerLinkClass,
+  ghostLinkClass,
+  mutedTextClass,
   pageTitleClass,
   panelClass,
   readingShellClass,
@@ -38,12 +41,10 @@ export function EntryPage() {
   if (missing) {
     return (
       <main className={readingShellClass}>
-        <p className="text-gray-500 dark:text-gray-400">
-          这条记录不存在或已被删除。
-        </p>
+        <p className={mutedTextClass}>这条记录不存在或已被删除。</p>
         <Link
           to="/timeline"
-          className="mt-3 inline-block text-gray-600 text-sm hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+          className={`${ghostLinkClass} mt-3 inline-block text-sm`}
         >
           ← 回到历史
         </Link>
@@ -67,7 +68,7 @@ export function EntryPage() {
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className={`${ghostLinkClass} text-sm`}
           >
             取消
           </button>
@@ -133,10 +134,7 @@ export function EntryPage() {
   return (
     <main className={readingShellClass}>
       <div className="mb-5 flex items-center justify-between gap-3 text-sm sm:mb-6">
-        <Link
-          to="/"
-          className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-        >
+        <Link to="/" className={ghostLinkClass}>
           ← 返回
         </Link>
         <div className="flex shrink-0 items-center gap-3">
@@ -144,7 +142,7 @@ export function EntryPage() {
             type="button"
             onClick={() => runAction("pin")}
             disabled={busy === "pin"}
-            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className={ghostLinkClass}
           >
             {memo.pinnedAt ? "取消置顶" : "置顶"}
           </button>
@@ -152,14 +150,14 @@ export function EntryPage() {
             type="button"
             onClick={() => runAction("archive")}
             disabled={busy === "archive"}
-            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className={ghostLinkClass}
           >
             {memo.archivedAt ? "取消归档" : "归档"}
           </button>
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className={ghostLinkClass}
           >
             编辑
           </button>
@@ -167,7 +165,7 @@ export function EntryPage() {
             type="button"
             onClick={() => runAction("delete")}
             disabled={busy === "delete"}
-            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            className={dangerLinkClass}
           >
             删除
           </button>

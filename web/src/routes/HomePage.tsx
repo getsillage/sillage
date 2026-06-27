@@ -1,40 +1,17 @@
 import { Link } from "react-router-dom";
 import { EntryCard } from "../components/EntryCard";
 import { EntryComposer } from "../components/EntryComposer";
+import { OnThisDay } from "../components/OnThisDay";
+import {
+  emptyStateClass,
+  ghostLinkClass,
+  panelClass,
+  readingShellClass,
+} from "../components/ui";
 import type { Memo } from "../lib/api";
-import { todayISO, yearsBetween } from "../lib/date";
-import { excerpt, isActive, onThisDay } from "../lib/memos";
+import { todayISO } from "../lib/date";
+import { isActive, onThisDay } from "../lib/memos";
 import { useMemos } from "../state/MemosContext";
-
-function MemorySection({ entries, today }: { entries: Memo[]; today: string }) {
-  if (entries.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="rounded-lg bg-gray-100/60 px-4 py-4 dark:bg-gray-900/50">
-      <h2 className="font-medium text-gray-500 text-sm dark:text-gray-400">
-        那年今日
-      </h2>
-      <ul className="mt-2 space-y-1">
-        {entries.map((memo) => (
-          <li key={memo.id}>
-            <Link
-              to={`/entries/${memo.id}`}
-              className="block rounded-md px-2 py-1.5 text-gray-700 text-sm transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
-            >
-              <span className="text-gray-500 dark:text-gray-400">
-                {yearsBetween(memo.entryDate, today)}年前
-              </span>
-              <span className="mx-1.5 text-gray-400">·</span>
-              {excerpt(memo.content, 56) || "空白记录"}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 function EntrySection({
   title,
@@ -54,18 +31,13 @@ function EntrySection({
           {title}
         </h2>
         {showAllLink ? (
-          <Link
-            to="/timeline"
-            className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-          >
+          <Link to="/timeline" className={`${ghostLinkClass} text-xs`}>
             查看全部
           </Link>
         ) : null}
       </div>
       {entries.length === 0 ? (
-        <div className="rounded-lg bg-gray-100/60 px-4 py-8 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
-          {empty}
-        </div>
+        <div className={emptyStateClass}>{empty}</div>
       ) : (
         <ul className="divide-y divide-gray-200 dark:divide-gray-800">
           {entries.map((memo) => (
@@ -96,7 +68,7 @@ export function HomePage() {
   const memories = onThisDay(memos, today);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-32 sm:px-6 sm:py-10">
+    <main className={`${readingShellClass} pb-32`}>
       <div className="space-y-8">
         <header>
           <p className="text-gray-500 text-xs dark:text-gray-400">{today}</p>
@@ -105,7 +77,7 @@ export function HomePage() {
           </h1>
         </header>
 
-        <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <section className={`${panelClass} p-4 sm:p-5`}>
           <EntryComposer
             submitLabel="保存"
             onSubmit={async (input) => {
@@ -115,7 +87,7 @@ export function HomePage() {
           />
         </section>
 
-        <MemorySection entries={memories} today={today} />
+        <OnThisDay entries={memories} today={today} />
 
         {loading ? (
           <p className="text-gray-400 text-sm dark:text-gray-500">

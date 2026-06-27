@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { primaryButtonClass, textareaClass } from "./ui";
+import { ghostLinkClass, primaryButtonClass, textareaClass } from "./ui";
 
 interface QuickCaptureProps {
   onCapture: (body: string) => Promise<void>;
@@ -17,6 +17,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -36,6 +37,28 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
       textareaRef.current?.focus();
     }
   }, [open]);
+
+  // Keep Tab focus inside the open dialog (simple two-end wrap trap).
+  function onDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Tab" || !dialogRef.current) {
+      return;
+    }
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length === 0) {
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   async function submit() {
     if (!body.trim()) {
@@ -75,7 +98,14 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
             onClick={() => setOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-gray-950/10 dark:bg-gray-950/50"
           />
-          <div className="absolute right-3 bottom-20 left-3 rounded-lg border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="速记"
+            onKeyDown={onDialogKeyDown}
+            className="absolute right-3 bottom-20 left-3 rounded-lg border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30"
+          >
             <div className="space-y-3">
               <textarea
                 ref={textareaRef}
@@ -103,7 +133,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
                 <Link
                   to="/"
                   onClick={() => setOpen(false)}
-                  className="text-gray-500 text-xs hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                  className={`${ghostLinkClass} text-xs`}
                 >
                   写得更完整 →
                 </Link>

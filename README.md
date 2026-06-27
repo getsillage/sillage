@@ -2,7 +2,7 @@
 
 Sillage 是一个单人私密记录空间，用来保存日常片段、查看历史，并基于记录做 AI 总结与问答。
 
-当前仓库已迁移为 memos 风格的 Go 自托管单体：Go 后端、SQLite 文件数据库、本地附件存储、React + TypeScript + Vite 前端、REST API v1 与 Connect/gRPC API v1。旧 Cloudflare Workers 运行路径、内置备份功能、备份 UI、定时任务和备份下载接口已移除。
+当前仓库已迁移为 memos 风格的 Go 自托管单体：Go 后端、SQLite 文件数据库、本地附件存储、React + TypeScript + Vite 前端、原生 Android 初版、REST API v1 与 Connect/gRPC API v1。旧 Cloudflare Workers 运行路径、内置备份功能、备份 UI、定时任务和备份下载接口已移除。
 
 产品指导文件见 [docs/product/sillage.md](docs/product/sillage.md)，同步契约见 [docs/api/sync.md](docs/api/sync.md)。
 
@@ -16,6 +16,7 @@ Sillage 是一个单人私密记录空间，用来保存日常片段、查看历
 - 单条 memo 总结与 Ask 回答由配置的 AI 档案基于记录生成，并进入 sync。
 - `/api/v1/sync` 与 `/api/v1/sync:push` 支持 tombstone、mutation id 幂等和 memo 冲突返回。
 - Connect v1 注册 `AuthService`、`MemoService`、`AttachmentService`、`SettingsService`、`AskService` 与 `SyncService`。
+- Android 初版位于 `android/`，使用 Kotlin + Jetpack Compose + OkHttp，支持服务器地址配置、初始化/登录、记录列表、新建/编辑/删除。
 
 后端、数据库、proto 和 API 使用 `memo` 命名；中文界面使用“记录”。首版不引入多用户、公开分享、标签、reaction、relation、RSS、任务系统或知识库能力。
 
@@ -51,6 +52,22 @@ runtime/
 
 未显式配置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 时，Sillage 会自动生成并持久化到 `runtime/secrets.json`。
 
+## Android
+
+Android 工程位于 [android/](android/)，是独立 Gradle 工程；详细说明见 [android/README.md](android/README.md)。初版范围保持在线优先：
+
+- 配置 Sillage 后端地址。
+- 初始化唯一账号或登录已有账号。
+- 查看记录列表。
+- 新建、编辑、删除记录。
+
+默认服务器地址为 `http://10.0.2.2:5231`，适用于 Android 模拟器访问宿主机本地服务。真机需要填写局域网或公网可访问的 Sillage 地址。当前 Android 初版 `minSdk` 为 26，允许 HTTP 明文连接以便本地自托管调试；生产部署建议使用 HTTPS。
+
+```bash
+cd android
+./gradlew :app:assembleDebug
+```
+
 ## 配置
 
 常用环境变量：
@@ -72,7 +89,7 @@ runtime/
 
 ## API 契约
 
-Protobuf 契约源位于 [proto/](proto/)。未来 Android 工程会放在同仓库 `android/` 下，并直接复用根目录 `proto/`，不复制契约文件。
+Protobuf 契约源位于 [proto/](proto/)。Android 工程放在同仓库 `android/` 下，后续离线同步阶段直接复用根目录 `proto/`，不复制契约文件。当前 Android 初版先使用 REST v1 实现在线基础功能。
 
 ```bash
 buf lint
@@ -83,9 +100,8 @@ buf generate
 
 - Go protobuf / gRPC / Connect / grpc-gateway：`proto/gen/api/v1/`
 - OpenAPI：`proto/gen/openapi/openapi.yaml`
-- Web TypeScript proto：`web/src/types/proto/`
 
-REST v1 入口使用 `/api/v1/*`，Connect v1 入口形如 `/sillage.api.v1.MemoService/ListMemos`。REST 与 Connect 共用同一 service 逻辑。
+Web 前端和 Android 初版都走 REST v1 包装层，不提交 TypeScript 或 Android proto 生成物。REST v1 入口使用 `/api/v1/*`，Connect v1 入口形如 `/sillage.api.v1.MemoService/ListMemos`。REST 与 Connect 共用同一 service 逻辑。
 
 ## Docker 自托管
 

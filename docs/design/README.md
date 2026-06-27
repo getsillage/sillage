@@ -4,6 +4,7 @@
 > 阅读顺序：本文（方向 / 决策 / 约束）→ [`design-system.md`](./design-system.md)（令牌：配色 / 字体 / 宽度 / 组件）→ [`implementation-plan.md`](./implementation-plan.md)（外壳与令牌现状 + 维护约定）。
 > 配套：[`checklist.md`](./checklist.md)（验收清单）。
 > 产品语义以 [`../product/sillage.md`](../product/sillage.md) 为准；本文只描述「外观与外壳」，不改数据模型与产品功能。
+> 本目录只覆盖 Web 客户端；其中“移动端”指 Web 响应式布局。原生 Android 初版见 [`../../android/README.md`](../../android/README.md)。
 > 事实来源是代码：`web/src/styles/app.css` 与 `web/src/components/ui.ts`。文档与代码冲突以代码为准。
 
 ## 背景与动机

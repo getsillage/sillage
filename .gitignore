@@ -17,3 +17,14 @@ web/tsconfig.tsbuildinfo
 .sillage/
 .data-dev/
 tmp/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+*.keystore
+*.jks

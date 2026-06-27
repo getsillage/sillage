@@ -60,9 +60,9 @@ Sillage 不应该变成：
 - **前端结构**：保留 Sillage 当前“记录 / 历史 / 问答 / 设置”的产品结构，底层按 memos 重写。
 - **附件存储**：改为 memos 风格本地明文文件，不再对附件做应用层 AES-GCM 加密。
 - **同步模型**：`/api/v1/sync` 从第一版开始支持双向同步、写入和冲突解决；同步范围包括当前账号资料与设置；删除语义使用 `deleted_at` tombstone。
-- **生成代码**：Go protobuf、gRPC、grpc-gateway、Connect 代码提交入库；TypeScript proto 生成物也提交入库。
+- **生成代码**：Go protobuf、gRPC、grpc-gateway、Connect 代码提交入库；Web 和 Android 客户端当前维护手写 REST 包装层，不提交前端或 Android proto 生成物。
 - **前端包管理器**：`web/` 使用 pnpm，参考 memos 的 web 工程组织。
-- **Android 预留**：未来 Android App 默认在同一仓库 `android/` 下开发，共用根目录 `proto/` 契约；首版迁移不创建 Android 工程，不拆独立仓库。
+- **Android 工程**：Android App 默认在同一仓库 `android/` 下开发，共用根目录 `proto/` 契约；迁移首版曾仅预留目录，当前已新增原生 Android 初版，不拆独立仓库。
 - **首版前端功能**：引入附件库、日历/活动热力图、memo 置顶、memo 归档、Markdown 所见即所得编辑器。
 - **不引入标签**：Sillage 定位是个人记录 + AI 总结，不引入标签等会显著增加复杂度的组织功能。
 - **memo 日期模型**：同时保留 `created_at` 和 `entry_date`；`created_at` 是创建时间，`entry_date` 是记录归属的日历日期。
@@ -160,14 +160,14 @@ proto/
   api/v1/                     # REST/gRPC API 契约
   store/                      # 复杂设置 payload 的内部 proto，可选
 web/                          # React + TypeScript + Vite SPA
-android/                      # 未来 Android App；首版迁移不创建，预留同仓库位置
+android/                      # 原生 Android 初版；同仓库独立 Gradle 工程
 scripts/
   Dockerfile
   entrypoint.sh
   compose.yaml
 ```
 
-未来 Android 工程推荐结构：
+Android 工程结构：
 
 ```text
 android/
@@ -198,24 +198,21 @@ android/
       MainActivity.kt
 ```
 
-未来 Android 技术栈：
+Android 技术栈：
 
 - Native Android，不使用 React Native、Flutter 或 WebView 套壳。
 - Kotlin。
 - Gradle Kotlin DSL。
 - Jetpack Compose。
-- Jetpack Navigation。
 - ViewModel + Coroutines + Flow。
-- Room，用于本地 memo、sync cursor、tombstone、附件 metadata 等离线数据。
-- DataStore，用于非敏感偏好设置。
-- WorkManager，用于后台同步、附件上传重试和网络恢复后的任务恢复。
-- Connect-Kotlin / OkHttp：sync、memo、ask、settings 优先走 proto 生成客户端；附件上传下载用 OkHttp 处理 multipart、streaming 和重试。
+- OkHttp 调用 REST v1。
+- 后续离线同步阶段再引入 Room、WorkManager、Connect-Kotlin 或从根目录 `proto/` 生成 Android 客户端。
 - 敏感信息不要放普通 DataStore；token/API key 后续使用 Android Keystore 或加密存储方案。
 
-Android 预留原则：
+Android 工程原则：
 
 - Android 作为同仓库独立 Gradle 工程存在，和 Go 后端、Web 前端共享根目录 `proto/`，不要复制 proto 到 `android/`。
-- 第一版 Android 推荐单 `app` module，按 package 分层；不要一开始拆 `core/network`、`feature/memo` 等多 Gradle module。
+- 第一版 Android 使用单 `app` module，按 package 分层；不要一开始拆 `core/network`、`feature/memo` 等多 Gradle module。
 - 等 Android 复杂度上升、CI 时间或团队边界需要时，再拆分多模块。
 - Android 目录不提交 APK/AAB、keystore、`local.properties`、设备本地数据库、附件缓存或真实密钥。
 - 根目录 `.gitignore` 在引入 Android 时必须覆盖 Gradle、Android Studio 和构建产物。
@@ -517,15 +514,14 @@ proto/api/v1/sync_service.proto
 - Go Connect handler。
 - grpc-gateway REST handler。
 - OpenAPI YAML。
-- TypeScript protobuf 到 `web/src/types/proto`。
-- 未来 Android/Kotlin 客户端从根目录 `proto/` 生成代码；首版迁移不生成 Android 代码，但 proto package、字段命名和 HTTP annotations 需要适合移动端长期使用。
+- Web 和 Android 当前维护手写客户端类型 / JSON 解析，不生成前端或 Android proto 客户端。
+- 后续 Android/Kotlin 客户端可从根目录 `proto/` 生成代码；当前 Android 初版先通过 REST v1 包装层实现在线基础功能。
 
 生成物入库策略：
 
 - `proto/gen/**` 提交入库。
-- `web/src/types/proto/**` 提交入库。
 - `proto/gen/openapi.yaml` 提交入库。
-- 首版不提交 Android proto 生成物；等 `android/` 工程创建后，再由 Gradle 从 `../proto` 生成或按 Android 构建规范决定是否提交生成物。
+- 当前不提交 Android proto 生成物；后续离线同步阶段再由 Gradle 从 `../proto` 生成，或按 Android 构建规范决定是否提交生成物。
 - CI 和 Docker build 不应依赖临时生成代码才能编译，但需要提供 `proto:generate` 命令用于更新契约。
 
 参考 `buf.gen.yaml`：
@@ -569,7 +565,7 @@ POST   /api/v1/sync:push
 兼容要求：
 
 - 不要求兼容旧 Web 路径、旧 `/attachments/:id`、旧 `/api/sync`。
-- 新客户端和未来 Android 客户端直接使用 `/api/v1/sync` 与 `/api/v1/sync:push`。
+- 后续离线客户端直接使用 `/api/v1/sync` 与 `/api/v1/sync:push`；当前 Android 初版只使用普通 REST v1 CRUD。
 - 不提供公开 REST 读取、公开分享、RSS、sitemap 等公开内容接口。
 - 旧备份 URL 返回 404。
 
@@ -583,14 +579,14 @@ POST   /api/v1/sync:push
 
 ## 阶段 4.1：双向同步与冲突解决
 
-同步不是后续附加能力，而是首版 API 契约的一部分。未来 Android 客户端从一开始要能读写并处理离线冲突。
+同步不是后续附加能力，而是服务端首版 API 契约的一部分。Android 后续离线同步阶段必须能读写并处理离线冲突；当前 Android 初版暂不接入该接口。
 
 Android 约束：
 
-- `/api/v1/sync` 和 `/api/v1/sync:push` 是未来 Android 的主契约，不能只按 Web 在线场景设计。
-- Android 本地库未来可使用 Room/SQLite，但服务端迁移阶段只需保证协议支持离线写入、冲突返回、tombstone 和幂等。
+- `/api/v1/sync` 和 `/api/v1/sync:push` 是 Android 后续离线同步阶段的主契约，不能只按 Web 在线场景设计。
+- Android 本地库后续可使用 Room/SQLite，但服务端迁移阶段只需保证协议支持离线写入、冲突返回、tombstone 和幂等。
 - 服务端不要假设客户端永远在线，也不要假设所有写入都来自 Web 表单。
-- sync payload 字段命名和枚举值要稳定，避免未来 Android 首版发布前频繁破坏性改名。
+- sync payload 字段命名和枚举值要稳定，避免 Android 离线同步实现前频繁破坏性改名。
 
 同步 API：
 
@@ -604,7 +600,7 @@ POST /api/v1/sync:push
 - cursor 必须是不透明字符串，客户端不能依赖内部格式。
 - cursor 内部至少包含每个 stream 的 `(updated_at, id)` 位置，避免某一类资源过多时阻塞其他资源同步。
 - 服务端返回 `next_cursor` 和 `has_more`；客户端在 `has_more=true` 时继续拉取。
-- 首版同步 response 应按聚合类型分组返回，便于未来 Android 客户端逐类应用。
+- 同步 response 应按聚合类型分组返回，便于 Android 后续离线客户端逐类应用。
 - sync 拉取必须包含 tombstone；删除资源也要返回最小必要字段：id、deleted_at、updated_at、version。
 - sync 查询必须稳定排序，建议 `(updated_at ASC, id ASC)`。
 
@@ -656,7 +652,7 @@ POST /api/v1/sync:push
 离线创建与附件同步：
 
 - memo 离线创建时客户端可预生成 memo id；服务器接受该 id 后返回规范化资源。
-- 附件字节不放入 sync payload；未来移动端必须先上传附件字节得到 attachment uid，再在 sync push 中关联 memo。
+- 附件字节不放入 sync payload；后续移动端必须先上传附件字节得到 attachment uid，再在 sync push 中关联 memo。
 - Web 首版使用普通附件上传接口 `POST /api/v1/attachments`，不实现完整断点续传。
 - `POST /api/v1/attachments` 必须支持 `mutation_id` 或 `idempotency_key`，避免网络超时重试后重复创建附件。
 - 上传成功后返回 `attachment.uid`、规范附件 URL、size、sha256 和 content type；memo 正文只引用 attachment uid 或规范 URL。
@@ -664,7 +660,7 @@ POST /api/v1/sync:push
 - 如果采用 `rejected`，reason code 建议为 `pending_attachment` 或 `missing_attachment`。
 - 附件删除用 tombstone 同步元数据；文件字节可延迟清理，但 fileserver 对 tombstone 必须返回 404。
 
-未来 Android 断点续传预留：
+Android 后续断点续传预留：
 
 - 首版不实现以下接口，但 proto/API 命名应避免与未来上传会话冲突：
   - `POST /api/v1/attachment-uploads`
@@ -713,7 +709,7 @@ API key 与同步：
 - 初始化完成后进入登录/应用首页。
 - 初始化完成后不允许注册第二个账号。
 - 不提供成员管理、角色管理、邀请、公开注册或匿名自助注册入口。
-- 个人访问令牌可作为未来 Android/API 客户端认证能力评估，但不应引入多用户或公开内容权限模型。
+- 个人访问令牌可作为后续 Android/API 客户端认证能力评估，但不应引入多用户或公开内容权限模型。
 - 登录成功返回 access token，并设置 HttpOnly refresh cookie。
 - refresh token/session 存 SQLite。
 - access token 用 `SESSION_SECRET` 签名。
@@ -788,7 +784,7 @@ assets/attachments/{timestamp}_{uuid}_{filename}
 
 - 上传时先写入同目录临时文件，fsync/close 成功后再原子 rename 到最终路径。
 - 数据库 metadata 与文件落盘需要有补偿逻辑：DB 写入失败时删除临时/最终文件；文件写入失败时不创建 metadata。
-- 计算 `sha256` 后再提交 metadata，用于去重、校验和未来移动端断点策略。
+- 计算 `sha256` 后再提交 metadata，用于去重、校验和后续移动端断点策略。
 - 不要求首版做内容去重；即使 sha256 相同也可保留多条附件记录。
 - memo Markdown 中的附件引用必须引用 attachment uid 或规范 URL，不能引用本地 storage path。
 - 删除 memo 不应立即硬删除附件字节；如果附件仍被其他 memo 引用，必须保留。首版可以用引用计数或通过 memo Markdown 解析反查。
@@ -869,13 +865,12 @@ Vite dev proxy：
 
 前端 API 客户端：
 
-- 使用生成的 TS proto。
-- 使用 Connect Web。
+- 使用 `web/src/lib/api.ts` 中的 REST 包装层和手写 TypeScript 类型。
 - baseUrl 为 `window.location.origin`。
 - fetch 带 `credentials: "include"`。
 - auth interceptor 自动带 Bearer token，401 时 refresh。
 - 对 mutation 请求统一处理 409 冲突、429 限流、401 refresh 失败和 request id 展示。
-- 前端状态管理以服务器数据为准；离线写入能力主要留给未来 Android 客户端，Web 首版不实现复杂离线编辑队列。
+- 前端状态管理以服务器数据为准；离线写入能力主要留给 Android 后续离线同步阶段，Web 首版不实现复杂离线编辑队列。
 
 首版页面结构：
 
@@ -1063,7 +1058,7 @@ http://sillage:5231
 - `/ask` 是核心功能，应实现为尽可能接近 ChatGPT Web 的对话工作台。
 - AI 的默认角色是总结、状态分析和基于记录的建议；不能输出医学/心理诊断式结论，不能脱离来源 memo 编造事实。
 - 问答流使用 SSE 或 Connect streaming；前端需要稳定支持流式渲染、停止生成和错误恢复。
-- AI 输出需要纳入 `/api/v1/sync`，供未来 Android 客户端同步；AI 派生数据由服务端生成，客户端不直接覆盖。
+- AI 输出需要纳入 `/api/v1/sync`，供 Android 后续离线同步阶段同步；AI 派生数据由服务端生成，客户端不直接覆盖。
 - AI 请求必须限制并发，至少区分：
   - 单条 memo 后台总结并发。
   - `/ask` 流式回答并发。
@@ -1238,8 +1233,8 @@ Go 测试：
 - README 更新 Docker compose、Cloudflare Tunnel、首次初始化、数据目录和备份说明。
 - `docs/product/sillage.md` 更新为新定位：单人私密、低压力短 memo、AI 总结/状态分析/基于记录建议。
 - `docs/api/sync.md` 更新为 `/api/v1/sync` 和 `/api/v1/sync:push` 的新 Protobuf 契约，不再描述旧 `/api/sync`。
-- `docs/api/sync.md` 必须说明该契约面向未来 Android 离线写入，包含 mutation id、冲突返回、tombstone 和附件 metadata 同步。
-- 开发文档必须说明未来 Android 放在同仓库 `android/`，共用根目录 `proto/`，首版迁移不创建 Android 工程。
+- `docs/api/sync.md` 必须说明该契约面向 Android 后续离线写入，包含 mutation id、冲突返回、tombstone 和附件 metadata 同步。
+- 开发文档必须说明 Android 放在同仓库 `android/`，共用根目录 `proto/`；当前初版先走 REST v1，后续离线同步阶段再接入 proto 生成客户端。
 - 新增或更新开发文档，说明 Go、pnpm、buf、Docker 的本地开发命令。
 - 明确写入“不迁移 Cloudflare 旧数据”，避免后续执行阶段误做旧数据导入。
 
@@ -1275,7 +1270,7 @@ Go 测试：
    - 验收：上传/重复上传幂等/下载/缩略图/删除/路径攻击测试通过。
 
 5. **Vite SPA 基础壳**
-   - 建立 `web/`、pnpm、Vite、Tailwind、React Router、Connect Web client。
+   - 建立 `web/`、pnpm、Vite、Tailwind、React Router 和 REST API client。
    - Go embed 前端 dist，SPA fallback。
    - 实现初始化、登录、基础布局和路由守卫。
    - 验收：`pnpm --dir web build`，Go server 能提供前端。
@@ -1328,6 +1323,6 @@ Go 测试：
 - `docker compose up -d sillage` 后可访问 `http://localhost:5231`。
 - 首次访问进入创建唯一账号页面。
 - 唯一账号初始化、登录、新建 memo、编辑 memo、附件上传下载、设置保存、AI 总结、问答工作台、`/api/v1/sync` 可用。
-- 迁移后的仓库结构为 Go/Web/proto/Docker 主体，并在文档中明确未来 Android 使用同仓库 `android/` + 根 `proto/` 的规范结构。
+- 迁移后的仓库结构为 Go/Web/proto/Docker 主体，并在文档中明确 Android 使用同仓库 `android/` + 根 `proto/` 的规范结构。
 - 旧备份页面和接口不可访问。
 - 代码中不再出现业务层直接依赖 Cloudflare D1/R2/KV/Workers 的路径。

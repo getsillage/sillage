@@ -5,6 +5,16 @@ import {
   getAISettings,
   patchAISettings,
 } from "../lib/api";
+import {
+  dangerButtonClass,
+  helperTextClass,
+  inputClass,
+  labelClass,
+  panelClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  selectClass,
+} from "./ui";
 
 const PROVIDER_OPTIONS = [
   { value: "anthropic", label: "Anthropic Claude" },
@@ -74,6 +84,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
     );
   }
 
+  function removeProfile(index: number) {
+    setProfiles((current) => current.filter((_, i) => i !== index));
+  }
+
   async function save() {
     setSaving(true);
     setNotice("");
@@ -103,174 +117,200 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <section className="settings-workspace">
-        <p className="empty-list">正在读取设置…</p>
-      </section>
+      <p className="text-gray-400 text-sm dark:text-gray-500">正在读取设置…</p>
     );
   }
 
   return (
-    <section className="settings-workspace">
-      <header className="settings-header">
-        <div>
-          <h1>AI 设置</h1>
-          <p>
-            配置用于总结与照见的模型档案。密钥加密保存在本地服务端，不会回显。
-          </p>
-        </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className={helperTextClass}>密钥加密保存在本地服务端，不会回显。</p>
         <button
-          className="secondary-button"
           type="button"
           onClick={() => setProfiles((current) => [...current, blankProfile()])}
+          className={secondaryButtonClass}
         >
           新增档案
         </button>
-      </header>
+      </div>
 
       {profiles.length === 0 ? (
-        <p className="empty-list">还没有 AI 档案。点击「新增档案」添加一个。</p>
+        <div className="rounded-lg bg-gray-100/60 px-4 py-10 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
+          还没有 AI 档案。点击「新增档案」添加一个。
+        </div>
       ) : (
-        <div className="settings-profiles">
+        <div className="space-y-4">
           {profiles.map((profile, index) => (
             <article
-              className="settings-profile"
               key={profile.id || `new-${index}`}
+              className={`${panelClass} p-4 sm:p-5`}
             >
-              <label className="settings-field">
-                <span>名称</span>
-                <input
-                  value={profile.name}
-                  onChange={(event) =>
-                    updateProfile(index, { name: event.target.value })
-                  }
-                />
-              </label>
-              <label className="settings-field">
-                <span>Provider</span>
-                <select
-                  value={profile.provider}
-                  onChange={(event) =>
-                    updateProfile(index, { provider: event.target.value })
-                  }
-                >
-                  {PROVIDER_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                  {!PROVIDER_OPTIONS.some(
-                    (option) => option.value === profile.provider,
-                  ) && (
-                    <option value={profile.provider}>{profile.provider}</option>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className={labelClass}>名称</span>
+                  <input
+                    className={inputClass}
+                    value={profile.name}
+                    onChange={(event) =>
+                      updateProfile(index, { name: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Provider</span>
+                  <select
+                    className={selectClass}
+                    value={profile.provider}
+                    onChange={(event) =>
+                      updateProfile(index, { provider: event.target.value })
+                    }
+                  >
+                    {PROVIDER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                    {!PROVIDER_OPTIONS.some(
+                      (option) => option.value === profile.provider,
+                    ) && (
+                      <option value={profile.provider}>
+                        {profile.provider}
+                      </option>
+                    )}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Base URL</span>
+                  <input
+                    className={inputClass}
+                    value={profile.baseUrl}
+                    placeholder="https://api.anthropic.com"
+                    onChange={(event) =>
+                      updateProfile(index, { baseUrl: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>模型</span>
+                  <input
+                    className={inputClass}
+                    value={profile.model}
+                    placeholder="claude-opus-4-8"
+                    onChange={(event) =>
+                      updateProfile(index, { model: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>温度</span>
+                  <input
+                    className={inputClass}
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="2"
+                    value={profile.temperature}
+                    onChange={(event) =>
+                      updateProfile(index, {
+                        temperature: Number.parseFloat(event.target.value) || 0,
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>最大 Tokens</span>
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min="1"
+                    value={profile.maxTokens}
+                    onChange={(event) =>
+                      updateProfile(index, {
+                        maxTokens: Number.parseInt(event.target.value, 10) || 0,
+                      })
+                    }
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className={labelClass}>API 密钥</span>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    autoComplete="off"
+                    value={profile.apiKeyInput}
+                    placeholder={
+                      profile.hasApiKey ? "已配置，留空保持不变" : "未配置"
+                    }
+                    onChange={(event) =>
+                      updateProfile(index, { apiKeyInput: event.target.value })
+                    }
+                  />
+                  {profile.keyUnavailable && (
+                    <span className="mt-1 block text-red-600 text-xs dark:text-red-400">
+                      当前密钥无法解密，请重新填写。
+                    </span>
                   )}
-                </select>
-              </label>
-              <label className="settings-field">
-                <span>Base URL</span>
-                <input
-                  value={profile.baseUrl}
-                  placeholder="https://api.anthropic.com"
-                  onChange={(event) =>
-                    updateProfile(index, { baseUrl: event.target.value })
-                  }
-                />
-              </label>
-              <label className="settings-field">
-                <span>模型</span>
-                <input
-                  value={profile.model}
-                  placeholder="claude-opus-4-8"
-                  onChange={(event) =>
-                    updateProfile(index, { model: event.target.value })
-                  }
-                />
-              </label>
-              <label className="settings-field">
-                <span>温度</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="2"
-                  value={profile.temperature}
-                  onChange={(event) =>
-                    updateProfile(index, {
-                      temperature: Number.parseFloat(event.target.value) || 0,
-                    })
-                  }
-                />
-              </label>
-              <label className="settings-field">
-                <span>最大 Tokens</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={profile.maxTokens}
-                  onChange={(event) =>
-                    updateProfile(index, {
-                      maxTokens: Number.parseInt(event.target.value, 10) || 0,
-                    })
-                  }
-                />
-              </label>
-              <label className="settings-field settings-field-wide">
-                <span>API 密钥</span>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={profile.apiKeyInput}
-                  placeholder={
-                    profile.hasApiKey ? "已配置，留空保持不变" : "未配置"
-                  }
-                  onChange={(event) =>
-                    updateProfile(index, { apiKeyInput: event.target.value })
-                  }
-                />
-                {profile.keyUnavailable && (
-                  <small className="form-error">
-                    当前密钥无法解密，请重新填写。
-                  </small>
-                )}
-              </label>
-              <div className="settings-toggles">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={profile.enabled}
-                    onChange={(event) =>
-                      updateProfile(index, { enabled: event.target.checked })
-                    }
-                  />
-                  启用
                 </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={profile.active}
-                    onChange={(event) =>
-                      updateProfile(index, { active: event.target.checked })
-                    }
-                  />
-                  设为默认
-                </label>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-100 border-t pt-3 dark:border-gray-800">
+                <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm dark:text-gray-300">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-gray-900 dark:accent-gray-100"
+                      checked={profile.enabled}
+                      onChange={(event) =>
+                        updateProfile(index, { enabled: event.target.checked })
+                      }
+                    />
+                    启用
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-gray-900 dark:accent-gray-100"
+                      checked={profile.active}
+                      onChange={(event) =>
+                        updateProfile(index, { active: event.target.checked })
+                      }
+                    />
+                    设为默认
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeProfile(index)}
+                  className={dangerButtonClass}
+                >
+                  删除
+                </button>
               </div>
             </article>
           ))}
         </div>
       )}
 
-      <div className="settings-actions">
-        {error && <p className="form-error">{error}</p>}
-        {notice && <p className="form-note">{notice}</p>}
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {error ? (
+          <p className="mr-auto text-red-600 text-sm dark:text-red-400">
+            {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p className="mr-auto text-gray-500 text-sm dark:text-gray-400">
+            {notice}
+          </p>
+        ) : null}
         <button
-          className="secondary-button"
           type="button"
           disabled={saving}
           onClick={save}
+          className={primaryButtonClass}
         >
-          {saving ? "保存中" : "保存设置"}
+          {saving ? "保存中…" : "保存设置"}
         </button>
       </div>
-    </section>
+    </div>
   );
 }

@@ -161,8 +161,18 @@ export async function getMe(
 
 export async function listMemos(
   accessToken: string,
+  limit = 300,
 ): Promise<{ memos: Memo[] }> {
-  return request("/api/v1/memos?limit=100", {
+  return request(`/api/v1/memos?limit=${limit}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function getMemo(
+  accessToken: string,
+  id: string,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${id}`, {
     headers: authHeaders(accessToken),
   });
 }

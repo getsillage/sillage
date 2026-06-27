@@ -8,6 +8,7 @@ import com.miofelix.sillage.data.Account
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
+import com.miofelix.sillage.data.activeMemos
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
                 memos = emptyList(),
+                searchQuery = "",
+                searchResults = null,
+                searching = false,
                 error = null,
                 notice = null,
             )
@@ -123,6 +127,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                     account = null,
                     memos = emptyList(),
                     selectedMemo = null,
+                    searchQuery = "",
+                    searchResults = null,
+                    searching = false,
                     screen = Screen.Login,
                     notice = "已退出登录",
                     error = null,
@@ -137,7 +144,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 .onSuccess { memos ->
                     _state.update {
                         it.copy(
-                            memos = memos.filter { memo -> memo.deletedAt == null },
+                            memos = activeMemos(memos),
                             error = null,
                         )
                     }
@@ -178,6 +185,57 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun updateDraftEntryDate(value: String) = _state.update { it.copy(draftEntryDate = value) }
 
+    fun updateSearchQuery(value: String) {
+        _state.update {
+            it.copy(
+                searchQuery = value,
+                searchResults = if (value.isBlank()) null else it.searchResults,
+                searching = if (value.isBlank()) false else it.searching,
+            )
+        }
+    }
+
+    fun searchMemos() {
+        val query = state.value.searchQuery.trim()
+        if (query.isBlank()) {
+            clearSearch()
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(searching = true, error = null, notice = null) }
+            runCatching { api.searchMemos(query) }
+                .onSuccess { memos ->
+                    _state.update {
+                        it.copy(
+                            searchResults = activeMemos(memos),
+                            searching = false,
+                            error = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            searchResults = emptyList(),
+                            searching = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearSearch() {
+        _state.update {
+            it.copy(
+                searchQuery = "",
+                searchResults = null,
+                searching = false,
+                error = null,
+            )
+        }
+    }
+
     fun saveMemo() {
         val current = state.value
         if (current.draftContent.isBlank()) {
@@ -195,6 +253,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screen = Screen.Memos,
                     selectedMemo = null,
                     draftContent = "",
+                    searchQuery = "",
+                    searchResults = null,
                     notice = "已保存",
                 )
             }
@@ -211,10 +271,34 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screen = Screen.Memos,
                     selectedMemo = null,
                     draftContent = "",
+                    searchQuery = "",
+                    searchResults = null,
                     notice = "已删除",
                 )
             }
             refreshMemos()
+        }
+    }
+
+    fun toggleSelectedMemoPinned() {
+        val memo = state.value.selectedMemo ?: return
+        launchBusy {
+            val updated = api.setMemoPinned(memo, memo.pinnedAt == null)
+            applyMemo(updated)
+            _state.update {
+                it.copy(notice = if (updated.pinnedAt == null) "已取消置顶" else "已置顶")
+            }
+        }
+    }
+
+    fun toggleSelectedMemoArchived() {
+        val memo = state.value.selectedMemo ?: return
+        launchBusy {
+            val updated = api.setMemoArchived(memo, memo.archivedAt == null)
+            applyMemo(updated)
+            _state.update {
+                it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
+            }
         }
     }
 
@@ -245,6 +329,20 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private fun applyMemo(memo: Memo) {
+        _state.update { current ->
+            val cached = activeMemos(current.memos.filter { it.id != memo.id } + memo)
+            val searched = current.searchResults?.let { results ->
+                activeMemos(results.filter { it.id != memo.id } + memo)
+            }
+            current.copy(
+                memos = cached,
+                searchResults = searched,
+                selectedMemo = if (current.selectedMemo?.id == memo.id) memo else current.selectedMemo,
+            )
+        }
+    }
+
     private fun Throwable.readableMessage(): String {
         return message?.takeIf { it.isNotBlank() } ?: "操作失败"
     }
@@ -266,6 +364,9 @@ data class SillageUiState(
     val selectedMemo: Memo? = null,
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
+    val searchQuery: String = "",
+    val searchResults: List<Memo>? = null,
+    val searching: Boolean = false,
     val username: String = "",
     val displayName: String = "",
     val password: String = "",

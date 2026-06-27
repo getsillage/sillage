@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
@@ -31,9 +34,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -210,6 +217,8 @@ private fun AuthScaffold(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    val visibleMemos = state.searchResults ?: state.memos
+    val showingSearchResults = state.searchResults != null
     Scaffold(
         topBar = {
             TopAppBar(
@@ -254,19 +263,31 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 notice = state.notice,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
+            SearchBlock(state = state, viewModel = viewModel)
             if (state.loading && state.memos.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (state.memos.isEmpty()) {
-                EmptyState()
+            } else if (state.searching && visibleMemos.isEmpty()) {
+                EmptyState("正在搜索…")
+            } else if (visibleMemos.isEmpty()) {
+                EmptyState(if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(state.memos, key = { it.id }) { memo ->
+                    if (showingSearchResults) {
+                        item {
+                            Text(
+                                "搜索结果",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                    items(visibleMemos, key = { it.id }) { memo ->
                         MemoRow(memo = memo, onClick = { viewModel.editMemo(memo) })
                     }
                 }
@@ -276,9 +297,41 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
 }
 
 @Composable
-private fun EmptyState() {
+private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedTextField(
+            value = state.searchQuery,
+            onValueChange = viewModel::updateSearchQuery,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("搜索记录") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { viewModel.searchMemos() }),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = viewModel::searchMemos,
+                enabled = !state.searching && state.searchQuery.isNotBlank(),
+            ) {
+                Text(if (state.searching) "搜索中" else "搜索")
+            }
+            TextButton(
+                onClick = viewModel::clearSearch,
+                enabled = state.searchQuery.isNotBlank() || state.searchResults != null,
+            ) {
+                Text("清除")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(text: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("还没有记录。点右下角加号写第一条。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -300,7 +353,7 @@ private fun MemoRow(memo: Memo, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                memo.entryDate,
+                if (memo.pinnedAt == null) memo.entryDate else "置顶 · ${memo.entryDate}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -311,6 +364,7 @@ private fun MemoRow(memo: Memo, onClick: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -321,9 +375,38 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     }
                 },
                 actions = {
-                    if (state.selectedMemo != null) {
-                        TextButton(onClick = viewModel::deleteSelectedMemo, enabled = !state.loading) {
-                            Text("删除")
+                    val selected = state.selectedMemo
+                    if (selected != null) {
+                        Box {
+                            TextButton(onClick = { menuExpanded = true }, enabled = !state.loading) {
+                                Text("更多")
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (selected.pinnedAt == null) "置顶" else "取消置顶") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.toggleSelectedMemoPinned()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (selected.archivedAt == null) "归档" else "取消归档") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.toggleSelectedMemoArchived()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("删除") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.deleteSelectedMemo()
+                                    },
+                                )
+                            }
                         }
                     }
                     TextButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
@@ -341,6 +424,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MessageBlock(state.error, state.notice)
+            MemoStatusLine(state.selectedMemo)
             OutlinedTextField(
                 value = state.draftEntryDate,
                 onValueChange = viewModel::updateDraftEntryDate,
@@ -358,6 +442,22 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             )
         }
     }
+}
+
+@Composable
+private fun MemoStatusLine(memo: Memo?) {
+    val flags = listOfNotNull(
+        if (memo?.pinnedAt != null) "置顶" else null,
+        if (memo?.archivedAt != null) "已归档" else null,
+    )
+    if (flags.isEmpty()) {
+        return
+    }
+    Text(
+        flags.joinToString(" · "),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.labelMedium,
+    )
 }
 
 @Composable

@@ -74,6 +74,15 @@ class SillageApi(private val sessionStore: SessionStore) {
         return memos.toMemoList()
     }
 
+    suspend fun searchMemos(query: String, limit: Int = 100): List<Memo> {
+        val request = Request.Builder()
+            .url(url("/api/v1/memos?query=${query.queryParam()}&limit=$limit"))
+            .get()
+            .build()
+        val memos = execute(request).getJSONArray("memos")
+        return memos.toMemoList()
+    }
+
     suspend fun createMemo(content: String, entryDate: String): Memo {
         val payload = JSONObject()
             .put("content", content)
@@ -101,6 +110,24 @@ class SillageApi(private val sessionStore: SessionStore) {
         val request = Request.Builder()
             .url(url("/api/v1/memos/${memo.id.pathSegment()}?expectedVersion=${memo.version}"))
             .delete()
+            .build()
+        return parseMemo(execute(request).getJSONObject("memo"))
+    }
+
+    suspend fun setMemoPinned(memo: Memo, pinned: Boolean): Memo {
+        val action = if (pinned) "pin" else "unpin"
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:$action?expectedVersion=${memo.version}"))
+            .post(EMPTY_BODY)
+            .build()
+        return parseMemo(execute(request).getJSONObject("memo"))
+    }
+
+    suspend fun setMemoArchived(memo: Memo, archived: Boolean): Memo {
+        val action = if (archived) "archive" else "unarchive"
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:$action?expectedVersion=${memo.version}"))
+            .post(EMPTY_BODY)
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
     }
@@ -178,6 +205,8 @@ class SillageApi(private val sessionStore: SessionStore) {
             version = body.getLong("version"),
             createdAt = body.getString("createdAt"),
             updatedAt = body.getString("updatedAt"),
+            pinnedAt = body.nullableString("pinnedAt"),
+            archivedAt = body.nullableString("archivedAt"),
             deletedAt = body.nullableString("deletedAt"),
         )
     }
@@ -194,6 +223,8 @@ class SillageApi(private val sessionStore: SessionStore) {
     private fun String.jsonBody() = toRequestBody(JSON)
 
     private fun String.pathSegment(): String = URLEncoder.encode(this, "UTF-8").replace("+", "%20")
+
+    private fun String.queryParam(): String = URLEncoder.encode(this, "UTF-8")
 
     private fun JSONObject.nullableString(name: String): String? {
         return if (isNull(name)) null else optString(name)

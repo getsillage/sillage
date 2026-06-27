@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { SendHorizontal, Square } from "lucide-react";
 import { Markdown } from "../components/Markdown";
 import {
   ghostLinkClass,
@@ -165,41 +166,45 @@ export function AskPage() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 space-y-2 border-gray-200 border-t bg-gray-50/90 py-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
-        <textarea
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-              event.preventDefault();
-              void submit();
-            }
-          }}
-          rows={3}
-          placeholder="根据记录提问…（⌘/Ctrl + Enter 发送）"
-          className={textareaClass}
-        />
-        {error ? (
-          <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
-        ) : null}
-        <div className="flex justify-end gap-2">
-          {streaming ? (
+      <div className="sticky bottom-0 z-10 border-gray-200 border-t bg-white/95 py-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+            rows={2}
+            placeholder="根据记录提问…（⌘/Ctrl + Enter 发送）"
+            className={`${textareaClass} min-h-28 bg-white dark:bg-gray-900`}
+          />
+          {error ? (
+            <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+            {streaming ? (
+              <button
+                type="button"
+                onClick={stop}
+                className={`${secondaryButtonClass} h-10 w-full sm:w-auto`}
+              >
+                <Square className="h-4 w-4" />
+                停止
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={stop}
-              className={`${secondaryButtonClass} w-full sm:w-auto`}
+              onClick={submit}
+              disabled={busy}
+              className={`${primaryButtonClass} h-10 w-full sm:w-auto`}
             >
-              停止
+              <SendHorizontal className="h-4 w-4" />
+              {busy ? "生成中…" : "发送"}
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={submit}
-            disabled={busy}
-            className={`${primaryButtonClass} w-full sm:w-auto`}
-          >
-            {busy ? "生成中…" : "发送"}
-          </button>
+          </div>
         </div>
       </div>
     </main>

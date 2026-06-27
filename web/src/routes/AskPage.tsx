@@ -128,7 +128,7 @@ export function AskPage() {
 function MessageBubble({ message }: { message: AskMessage }) {
   if (message.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] rounded-2xl bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+      <div className="ml-auto max-w-[85%] rounded-lg bg-celadon-50 px-4 py-2.5 text-gray-900 dark:bg-celadon-900/40 dark:text-gray-50">
         <p className="whitespace-pre-wrap text-[15px] leading-7">
           {message.content}
         </p>
@@ -145,7 +145,7 @@ function MessageBubble({ message }: { message: AskMessage }) {
               key={`${message.id}-${source.memoId}-${source.rank}`}
               to={`/entries/${source.memoId}`}
               title={source.excerpt}
-              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="inline-flex items-center gap-1 rounded-lg bg-celadon-50 px-2.5 py-1 text-celadon-800 text-xs transition hover:bg-celadon-100 dark:bg-celadon-900/40 dark:text-celadon-200 dark:hover:bg-celadon-900"
             >
               <span>{source.entryDate}</span>
             </Link>

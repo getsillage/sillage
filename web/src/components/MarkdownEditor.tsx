@@ -33,12 +33,15 @@ export function MarkdownEditor({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
 
   function insertAtCursor(snippet: string) {
     const textarea = textareaRef.current;
-    const start = textarea?.selectionStart ?? value.length;
-    const end = textarea?.selectionEnd ?? value.length;
-    onChange(value.slice(0, start) + snippet + value.slice(end));
+    const current = latestValueRef.current;
+    const start = textarea?.selectionStart ?? current.length;
+    const end = textarea?.selectionEnd ?? current.length;
+    onChange(current.slice(0, start) + snippet + current.slice(end));
   }
 
   async function uploadFiles(files: FileList | File[]) {
@@ -49,9 +52,17 @@ export function MarkdownEditor({
     setUploading(true);
     setError(null);
     try {
+      let appended = "";
       for (const file of list) {
         const uploaded = await onUpload(file);
-        insertAtCursor(attachmentMarkdown(uploaded));
+        if (list.length === 1) {
+          insertAtCursor(attachmentMarkdown(uploaded));
+        } else {
+          appended += attachmentMarkdown(uploaded);
+        }
+      }
+      if (appended) {
+        insertAtCursor(appended);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "上传失败");
@@ -147,7 +158,7 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 transition ${
         active
-          ? "bg-gray-200 font-medium text-gray-900 dark:bg-gray-700 dark:text-gray-50"
+          ? "bg-celadon-50 font-medium text-celadon-800 dark:bg-celadon-900 dark:text-celadon-200"
           : "text-gray-500 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
       }`}
     >

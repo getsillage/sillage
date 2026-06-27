@@ -7,25 +7,42 @@
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, "PingFang SC", "Microsoft YaHei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-serif: "Songti SC", "STSong", "Source Han Serif SC", "Noto Serif SC", serif;
 
-  /* Neutral grayscale, ChatGPT-web flavored. No chromatic accent: emphasis is
-     near-black (light) / near-white (dark). */
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f4f4f4;
-  --color-gray-200: #e6e6e6;
-  --color-gray-300: #d4d4d4;
-  --color-gray-400: #a3a3a3;
-  --color-gray-500: #737373;
-  --color-gray-600: #525252;
-  --color-gray-700: #404040;
-  --color-gray-800: #2a2a2a;
-  --color-gray-900: #1f1f1f;
-  --color-gray-950: #131313;
+  --color-gray-50: #f3f5f1;
+  --color-gray-100: #e9ece4;
+  --color-gray-200: #dce0d6;
+  --color-gray-300: #c7ccbe;
+  --color-gray-400: #a4aa9a;
+  --color-gray-500: #7c8276;
+  --color-gray-600: #646a5e;
+  --color-gray-700: #4b5046;
+  --color-gray-800: #343a30;
+  --color-gray-900: #262b22;
+  --color-gray-950: #181a15;
+
+  --color-celadon-50: #e7efe9;
+  --color-celadon-100: #d3e2d8;
+  --color-celadon-200: #b3cdbc;
+  --color-celadon-300: #8fb39c;
+  --color-celadon-400: #6f9a7f;
+  --color-celadon-500: #5c8270;
+  --color-celadon-600: #4f7a66;
+  --color-celadon-700: #3d5e4c;
+  --color-celadon-800: #33533f;
+  --color-celadon-900: #24382c;
+
+  --color-clay-50: #f2e9dd;
+  --color-clay-100: #e6d6c2;
+  --color-clay-300: #c29a6e;
+  --color-clay-400: #a8794f;
+  --color-clay-600: #6e4a28;
+  --color-clay-900: #2a241d;
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-900;
+  @apply bg-gray-50 dark:bg-gray-950;
 }
 
 html {
@@ -64,11 +81,11 @@ textarea {
 }
 
 ::selection {
-  background: rgb(0 0 0 / 0.08);
+  background: rgb(92 130 112 / 0.18);
 }
 
 .dark ::selection {
-  background: rgb(255 255 255 / 0.16);
+  background: rgb(111 154 127 / 0.28);
 }
 
 ::-webkit-calendar-picker-indicator {

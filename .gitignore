@@ -15,4 +15,5 @@ web/tsconfig.tsbuildinfo
 *.db-shm
 *.db-wal
 .sillage/
+.data-dev/
 tmp/

@@ -281,7 +281,7 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::startNewMemo) {
+            FloatingActionButton(onClick = viewModel::openQuickCapture) {
                 Text("+", style = MaterialTheme.typography.headlineSmall)
             }
         },
@@ -315,6 +315,78 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     today = today,
                     onMemoClick = viewModel::editMemo,
                 )
+            }
+            if (state.quickCaptureOpen) {
+                QuickCaptureSheet(state, viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickCaptureSheet(state: SillageUiState, viewModel: SillageViewModel) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = viewModel::closeQuickCapture),
+            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.18f),
+        ) {
+            Spacer(modifier = Modifier.fillMaxSize())
+        }
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "速记",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    TextButton(onClick = viewModel::closeQuickCapture, enabled = !state.quickCaptureSaving) {
+                        Text("关闭")
+                    }
+                }
+                OutlinedTextField(
+                    value = state.quickCaptureBody,
+                    onValueChange = viewModel::updateQuickCaptureBody,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    maxLines = 6,
+                    placeholder = { Text("想记录什么？") },
+                )
+                if (state.quickCaptureError != null) {
+                    Text(
+                        state.quickCaptureError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = viewModel::expandQuickCaptureToEditor,
+                        enabled = !state.quickCaptureSaving,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("写得更完整")
+                    }
+                    Button(
+                        onClick = viewModel::saveQuickCapture,
+                        enabled = !state.quickCaptureSaving,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(if (state.quickCaptureSaving) "保存中" else "保存")
+                    }
+                }
             }
         }
     }

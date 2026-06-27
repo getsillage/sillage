@@ -19,6 +19,7 @@ import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.SillageExportCodec
+import com.miofelix.sillage.data.SyncPushSummary
 import com.miofelix.sillage.data.activeMemos
 import com.miofelix.sillage.data.askAnswerMemoContent
 import com.miofelix.sillage.data.askBranchLeafId
@@ -466,7 +467,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             _state.update { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 if (!isOfflineMode()) {
-                    localDataStore.mergeWith(exportOnlineData())
+                    localDataStore.mergeFromServer(exportOnlineData())
                 }
                 val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
                 val json = SillageExportCodec.toJson(data)
@@ -539,10 +540,51 @@ class SillageViewModel(context: Context) : ViewModel() {
             _state.update { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 val data = exportOnlineData()
-                localDataStore.mergeWith(data)
+                localDataStore.mergeFromServer(data)
             }
                 .onSuccess {
                     _state.update { it.copy(notice = "已同步到本地") }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
+        }
+    }
+
+    fun syncToServer() {
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching { pushLocalMemosToServer() }
+                .onSuccess { summary ->
+                    _state.update { it.copy(notice = syncPushNotice(summary)) }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
+        }
+    }
+
+    fun syncBothWays() {
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching {
+                val push = pushLocalMemosToServer()
+                localDataStore.mergeFromServer(exportOnlineData())
+                push
+            }
+                .onSuccess { summary ->
+                    _state.update { it.copy(notice = "双向同步完成。${syncPushNotice(summary)}") }
+                    refreshMemos()
                 }
                 .onFailure { error ->
                     _state.update { it.copy(error = error.readableMessage()) }
@@ -1266,6 +1308,26 @@ class SillageViewModel(context: Context) : ViewModel() {
             themeMode = state.value.themeMode,
             memoViewMode = state.value.memoViewMode.name,
         )
+    }
+
+    private suspend fun pushLocalMemosToServer(): SyncPushSummary {
+        val pending = localDataStore.pendingCloudMemos()
+        if (pending.isEmpty()) {
+            return SyncPushSummary(applied = 0, conflict = 0, rejected = 0)
+        }
+        val summary = api.pushMemos(pending)
+        if (summary.applied > 0) {
+            localDataStore.markCloudSynced(pending.filter { it.memo.id in summary.appliedIds }.map { it.memo })
+        }
+        return summary
+    }
+
+    private fun syncPushNotice(summary: SyncPushSummary): String {
+        return if (summary.applied == 0 && summary.conflict == 0 && summary.rejected == 0) {
+            "没有需要同步到云端的记录"
+        } else {
+            "同步到云端：成功 ${summary.applied}，冲突 ${summary.conflict}，失败 ${summary.rejected}"
+        }
     }
 
     private fun startAskStream(content: String, forkOfId: String?) {

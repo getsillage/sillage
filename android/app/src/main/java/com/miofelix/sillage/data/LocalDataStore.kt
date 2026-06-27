@@ -12,6 +12,28 @@ class LocalDataStore(context: Context) {
 
     fun listMemos(): List<Memo> = loadData().memos
 
+    fun pendingCloudMemos(): List<PendingMemoSync> {
+        val cloudVersions = cloudMemoVersions()
+        return loadData().memos.mapNotNull { memo ->
+            val cloudVersion = cloudVersions[memo.id]
+            when {
+                cloudVersion == null && memo.deletedAt != null -> null
+                cloudVersion == null -> PendingMemoSync(memo = memo, baseVersion = null)
+                memo.version > cloudVersion -> PendingMemoSync(memo = memo, baseVersion = cloudVersion)
+                else -> null
+            }
+        }
+    }
+
+    fun markCloudSynced(memos: List<Memo>) {
+        if (memos.isEmpty()) {
+            return
+        }
+        val versions = cloudMemoVersions().toMutableMap()
+        memos.forEach { memo -> versions[memo.id] = memo.version }
+        saveCloudMemoVersions(versions)
+    }
+
     fun searchMemos(query: String): List<Memo> {
         val normalized = query.trim()
         if (normalized.isBlank()) {
@@ -241,6 +263,12 @@ class LocalDataStore(context: Context) {
         saveData(mergeData(loadData(), data.normalizedForLocalStorage()))
     }
 
+    fun mergeFromServer(data: SillageExportData) {
+        val normalized = data.normalizedForLocalStorage()
+        saveData(mergeData(loadData(), normalized))
+        markCloudSynced(normalized.memos)
+    }
+
     private fun replaceMemo(memo: Memo) {
         updateData { data ->
             data.copy(memos = data.memos.map { if (it.id == memo.id) memo else it })
@@ -312,8 +340,30 @@ class LocalDataStore(context: Context) {
 
     companion object {
         private const val KEY_DATA = "data"
+        private const val KEY_CLOUD_MEMO_VERSIONS = "cloud_memo_versions"
+    }
+
+    private fun cloudMemoVersions(): Map<String, Long> {
+        val raw = prefs.getString(KEY_CLOUD_MEMO_VERSIONS, "{}") ?: "{}"
+        val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
+        return buildMap {
+            body.keys().forEach { id ->
+                put(id, body.optLong(id))
+            }
+        }
+    }
+
+    private fun saveCloudMemoVersions(versions: Map<String, Long>) {
+        val body = JSONObject()
+        versions.forEach { (id, version) -> body.put(id, version) }
+        prefs.edit().putString(KEY_CLOUD_MEMO_VERSIONS, body.toString()).apply()
     }
 }
+
+data class PendingMemoSync(
+    val memo: Memo,
+    val baseVersion: Long?,
+)
 
 data class SillageExportData(
     val formatVersion: Int,

@@ -305,7 +305,9 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         state = state,
                         onExport = { exportLauncher.launch("sillage-data.json") },
                         onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                        onSync = viewModel::syncFromServer,
+                        onSyncToLocal = viewModel::syncFromServer,
+                        onSyncToServer = viewModel::syncToServer,
+                        onSyncBothWays = viewModel::syncBothWays,
                         onOnline = viewModel::useOnlineMode,
                         onOffline = viewModel::useOfflineMode,
                     )
@@ -377,7 +379,9 @@ private fun DataMenu(
     state: SillageUiState,
     onExport: () -> Unit,
     onImport: () -> Unit,
-    onSync: () -> Unit,
+    onSyncToLocal: () -> Unit,
+    onSyncToServer: () -> Unit,
+    onSyncBothWays: () -> Unit,
     onOnline: () -> Unit,
     onOffline: () -> Unit,
 ) {
@@ -407,7 +411,23 @@ private fun DataMenu(
                 text = { Text("同步到本地") },
                 onClick = {
                     expanded = false
-                    onSync()
+                    onSyncToLocal()
+                },
+                enabled = state.appMode == SessionStore.MODE_ONLINE,
+            )
+            DropdownMenuItem(
+                text = { Text("同步到云端") },
+                onClick = {
+                    expanded = false
+                    onSyncToServer()
+                },
+                enabled = state.appMode == SessionStore.MODE_ONLINE,
+            )
+            DropdownMenuItem(
+                text = { Text("双向同步") },
+                onClick = {
+                    expanded = false
+                    onSyncBothWays()
                 },
                 enabled = state.appMode == SessionStore.MODE_ONLINE,
             )

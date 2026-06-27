@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarView } from "../components/CalendarView";
 import { EntryCard } from "../components/EntryCard";
@@ -43,7 +43,6 @@ function ViewToggle({ calendar }: { calendar: boolean }) {
 export function TimelinePage() {
   const [searchParams] = useSearchParams();
   const { memos } = useMemos();
-  const [query, setQuery] = useState("");
   const today = todayISO();
   const calendar = searchParams.get("view") === "calendar";
 
@@ -65,56 +64,86 @@ export function TimelinePage() {
             today={today}
           />
         ) : (
-          <ListView
-            memos={memos}
-            today={today}
-            query={query}
-            onQuery={setQuery}
-          />
+          <ListView memos={memos} today={today} />
         )}
       </section>
     </main>
   );
 }
 
-function ListView({
-  memos,
-  today,
-  query,
-  onQuery,
-}: {
-  memos: Memo[];
-  today: string;
-  query: string;
-  onQuery: (value: string) => void;
-}) {
-  const trimmed = query.trim().toLowerCase();
+function ListView({ memos, today }: { memos: Memo[]; today: string }) {
+  const { search } = useMemos();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Memo[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const trimmed = query.trim();
   const active = memos.filter(isActive);
-  const filtered = trimmed
-    ? active.filter((memo) => memo.content.toLowerCase().includes(trimmed))
-    : active.slice(0, 120);
   const memories = onThisDay(memos, today);
+
+  // Debounced server-side FTS search; empty query falls back to the recent list.
+  useEffect(() => {
+    if (!trimmed) {
+      setResults(null);
+      setSearchError("");
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const handle = setTimeout(() => {
+      search(trimmed)
+        .then((found) => {
+          if (!cancelled) {
+            setResults(found.filter(isActive));
+            setSearchError("");
+          }
+        })
+        .catch((cause) => {
+          if (!cancelled) {
+            setResults([]);
+            setSearchError(cause instanceof Error ? cause.message : "搜索失败");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setSearching(false);
+          }
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [trimmed, search]);
+
+  const list = trimmed ? (results ?? []) : active.slice(0, 120);
 
   return (
     <div className="space-y-6">
       <input
         type="search"
         value={query}
-        onChange={(event) => onQuery(event.target.value)}
+        onChange={(event) => setQuery(event.target.value)}
         placeholder="搜索记录…"
         className={`${inputClass} mt-0`}
       />
       {!trimmed && memories.length > 0 ? (
         <OnThisDay entries={memories} today={today} />
       ) : null}
+      {searchError ? (
+        <p className="text-red-600 text-sm dark:text-red-400">{searchError}</p>
+      ) : null}
       <section className="min-w-0">
-        {filtered.length === 0 ? (
+        {searching && list.length === 0 ? (
+          <div className={emptyStateClass}>正在搜索…</div>
+        ) : list.length === 0 ? (
           <div className={emptyStateClass}>
             {trimmed ? "没有匹配的记录。" : "还没有记录。可以先写一条记录。"}
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-800">
-            {filtered.map((memo) => (
+            {list.map((memo) => (
               <li key={memo.id}>
                 <EntryCard memo={memo} openOnCardClick />
               </li>

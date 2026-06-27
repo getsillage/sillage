@@ -155,6 +155,8 @@ export function App() {
           <Route path="timeline" element={<TimelinePage />} />
           <Route path="entries/:id" element={<EntryPage />} />
           <Route path="ask" element={<AskPage />} />
+          {/* Legacy path: 照见/回顾 became 问答. */}
+          <Route path="review" element={<Navigate to="/ask" replace />} />
           <Route path="settings" element={<SettingsPage token={token} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

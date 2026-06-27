@@ -4,6 +4,7 @@ import {
   type AIProfileInput,
   getAISettings,
   patchAISettings,
+  testAIConnection,
 } from "../lib/api";
 import {
   dangerButtonClass,
@@ -14,6 +15,7 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
   selectClass,
+  subtleButtonClass,
 } from "./ui";
 
 const PROVIDER_OPTIONS = [
@@ -43,11 +45,14 @@ function blankProfile(): EditableProfile {
     active: false,
     hasApiKey: false,
     keyUnavailable: false,
+    autoSummary: false,
     createdAt: "",
     updatedAt: "",
     apiKeyInput: "",
   };
 }
+
+type TestState = { status: "ok" | "error"; message: string };
 
 export function SettingsWorkspace({ token }: { token: string }) {
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
@@ -55,6 +60,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [testingId, setTestingId] = useState("");
+  const [testResults, setTestResults] = useState<Record<string, TestState>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +110,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
         maxTokens: profile.maxTokens,
         enabled: profile.enabled,
         active: profile.active,
+        autoSummary: profile.autoSummary,
         apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
       }));
       const res = await patchAISettings(token, payload);
@@ -112,6 +120,36 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setError(err instanceof Error ? err.message : "保存失败");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Tests a saved profile. Requires a stored id, so it nudges the user to save
+  // first when testing a brand-new, unsaved profile.
+  async function testConnection(profile: EditableProfile) {
+    if (!profile.id) {
+      setTestResults((current) => ({
+        ...current,
+        "": { status: "error", message: "请先保存后再测试连接。" },
+      }));
+      return;
+    }
+    setTestingId(profile.id);
+    try {
+      const res = await testAIConnection(token, profile.id);
+      setTestResults((current) => ({
+        ...current,
+        [profile.id]: { status: "ok", message: `连接成功（${res.model}）` },
+      }));
+    } catch (cause) {
+      setTestResults((current) => ({
+        ...current,
+        [profile.id]: {
+          status: "error",
+          message: cause instanceof Error ? cause.message : "连接失败",
+        },
+      }));
+    } finally {
+      setTestingId("");
     }
   }
 
@@ -277,15 +315,49 @@ export function SettingsWorkspace({ token }: { token: string }) {
                     />
                     设为默认
                   </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="accent-gray-900 dark:accent-gray-100"
+                      checked={profile.autoSummary}
+                      onChange={(event) =>
+                        updateProfile(index, {
+                          autoSummary: event.target.checked,
+                        })
+                      }
+                    />
+                    新建记录后自动总结
+                  </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeProfile(index)}
-                  className={dangerButtonClass}
-                >
-                  删除
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => testConnection(profile)}
+                    disabled={testingId === profile.id}
+                    className={subtleButtonClass}
+                  >
+                    {testingId === profile.id ? "测试中…" : "测试连接"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeProfile(index)}
+                    className={dangerButtonClass}
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
+              {testResults[profile.id] ? (
+                <p
+                  className={`mt-2 text-xs ${
+                    testResults[profile.id].status === "ok"
+                      ? "text-gray-500 dark:text-gray-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {testResults[profile.id].message}
+                </p>
+              ) : null}
             </article>
           ))}
         </div>

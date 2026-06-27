@@ -104,6 +104,7 @@ export type AIProfile = {
   active: boolean;
   hasApiKey: boolean;
   keyUnavailable: boolean;
+  autoSummary: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -119,6 +120,7 @@ export type AIProfileInput = {
   maxTokens: number;
   enabled: boolean;
   active: boolean;
+  autoSummary: boolean;
   apiKey?: string | null;
 };
 
@@ -168,10 +170,21 @@ export async function listMemos(
   });
 }
 
+export async function searchMemos(
+  accessToken: string,
+  query: string,
+  limit = 100,
+): Promise<{ memos: Memo[] }> {
+  return request(
+    `/api/v1/memos?query=${encodeURIComponent(query)}&limit=${limit}`,
+    { headers: authHeaders(accessToken) },
+  );
+}
+
 export async function getMemo(
   accessToken: string,
   id: string,
-): Promise<{ memo: Memo }> {
+): Promise<{ memo: Memo; ai?: MemoAI | null }> {
   return request(`/api/v1/memos/${id}`, {
     headers: authHeaders(accessToken),
   });
@@ -321,6 +334,19 @@ export async function patchAISettings(
     method: "PATCH",
     headers: authHeaders(accessToken),
     body: JSON.stringify({ profiles }),
+  });
+}
+
+// Tests a saved profile's connection by id. Throws with a readable message on
+// failure (the server maps provider errors to a user-facing string).
+export async function testAIConnection(
+  accessToken: string,
+  id: string,
+): Promise<{ ok: boolean; model: string }> {
+  return request("/api/v1/settings/ai:test", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ id }),
   });
 }
 

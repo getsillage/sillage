@@ -13,30 +13,48 @@ import {
   readingShellClass,
   subtleButtonClass,
 } from "../components/ui";
+import type { MemoAI } from "../lib/api";
 import { useMemos } from "../state/MemosContext";
+
+/** Number of source memos a summary was grounded in (>=1). */
+function summarySourceCount(ai: MemoAI): number {
+  try {
+    const ids = JSON.parse(ai.sourceMemoIds);
+    return Array.isArray(ids) && ids.length > 0 ? ids.length : 1;
+  } catch {
+    return 1;
+  }
+}
 
 export function EntryPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const memos = useMemos();
+  const { fetchMemo } = memos;
   const memo = memos.getById(id);
   const summary = memos.summaries[id];
   const [editing, setEditing] = useState(false);
   const [missing, setMissing] = useState(false);
-  const [fetching, setFetching] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
+  // Load fresh memo + stored summary once per id. fetchMemo is stable, so this
+  // runs only on navigation, not on every memo-list change.
   useEffect(() => {
-    if (!id || memo || fetching || missing) {
+    if (!id) {
       return;
     }
-    setFetching(true);
-    memos
-      .fetchMemo(id)
-      .catch(() => setMissing(true))
-      .finally(() => setFetching(false));
-  }, [id, memo, fetching, missing, memos]);
+    let cancelled = false;
+    setMissing(false);
+    fetchMemo(id).catch(() => {
+      if (!cancelled) {
+        setMissing(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, fetchMemo]);
 
   if (missing) {
     return (
@@ -213,6 +231,10 @@ export function EntryPage() {
               content={summary.summary || "（暂无总结内容）"}
               variant="chat"
             />
+            <p className={`mt-3 text-xs ${mutedTextClass}`}>
+              基于 {summarySourceCount(summary)} 条记录生成
+              {summary.model ? ` · ${summary.model}` : ""}
+            </p>
           </div>
         ) : (
           <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">

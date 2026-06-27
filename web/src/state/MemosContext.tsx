@@ -12,6 +12,7 @@ import {
   createMemo as apiCreate,
   deleteMemo as apiDelete,
   getMemo as apiGetMemo,
+  searchMemos as apiSearch,
   setMemoArchived as apiSetArchived,
   setMemoPinned as apiSetPinned,
   generateMemoSummary as apiSummary,
@@ -46,6 +47,7 @@ interface MemosContextValue {
   setArchived: (memo: Memo, archived: boolean) => Promise<Memo>;
   remove: (memo: Memo) => Promise<void>;
   summarize: (memo: Memo) => Promise<MemoAI>;
+  search: (query: string) => Promise<Memo[]>;
   upload: (file: File) => Promise<UploadedAttachment>;
 }
 
@@ -104,14 +106,16 @@ export function MemosProvider({
 
   const fetchMemo = useCallback(
     async (id: string) => {
-      const cached = memos.find((memo) => memo.id === id);
-      if (cached) {
-        return cached;
-      }
+      // Always hit the detail endpoint: it returns the freshest memo plus any
+      // stored summary, which the list payload omits. Cache both.
       const res = await apiGetMemo(token, id);
+      if (res.ai) {
+        const ai = res.ai;
+        setSummaries((current) => ({ ...current, [id]: ai }));
+      }
       return apply(res.memo);
     },
-    [memos, token, apply],
+    [token, apply],
   );
 
   const create = useCallback(
@@ -163,6 +167,16 @@ export function MemosProvider({
     [token],
   );
 
+  // Server-side FTS search. Results are returned to the caller, not merged into
+  // the main list, so a search view never disturbs the cached timeline.
+  const search = useCallback(
+    async (query: string) => {
+      const res = await apiSearch(token, query);
+      return sortMemos(res.memos);
+    },
+    [token],
+  );
+
   const upload = useCallback(
     async (file: File): Promise<UploadedAttachment> => {
       const res = await uploadAttachment(token, file);
@@ -190,6 +204,7 @@ export function MemosProvider({
       setArchived,
       remove,
       summarize,
+      search,
       upload,
     }),
     [
@@ -206,6 +221,7 @@ export function MemosProvider({
       setArchived,
       remove,
       summarize,
+      search,
       upload,
     ],
   );

@@ -6,6 +6,7 @@ import {
   pageTitleClass,
   primaryButtonClass,
   readingShellClass,
+  secondaryButtonClass,
   selectClass,
   textareaClass,
 } from "../components/ui";
@@ -35,11 +36,13 @@ export function AskPage() {
     scope,
     sourceKind,
     busy,
+    streaming,
     error,
     setScope,
     setSourceKind,
     selectConversation,
     send,
+    stop,
   } = useAsk();
   const [question, setQuestion] = useState("");
 
@@ -116,7 +119,7 @@ export function AskPage() {
             <MessageBubble key={message.id} message={message} />
           ))
         )}
-        {busy ? (
+        {busy && !streaming ? (
           <p className="text-gray-400 text-sm dark:text-gray-500">正在思考…</p>
         ) : null}
       </div>
@@ -138,7 +141,16 @@ export function AskPage() {
         {error ? (
           <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
         ) : null}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {streaming ? (
+            <button
+              type="button"
+              onClick={stop}
+              className={`${secondaryButtonClass} w-full sm:w-auto`}
+            >
+              停止
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={submit}

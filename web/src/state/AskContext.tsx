@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -13,9 +14,9 @@ import {
   type AskMessage,
   type AskSourceKind,
   createAskConversation,
-  createAskMessage,
   listAskConversations,
   listAskMessages,
+  streamAskMessage,
 } from "../lib/api";
 
 interface AskContextValue {
@@ -26,12 +27,36 @@ interface AskContextValue {
   scope: AskContextScope;
   sourceKind: AskSourceKind;
   busy: boolean;
+  streaming: boolean;
   error: string;
   setScope: (scope: AskContextScope) => void;
   setSourceKind: (kind: AskSourceKind) => void;
   selectConversation: (id: string) => void;
   startNew: () => void;
   send: (question: string) => Promise<void>;
+  stop: () => void;
+}
+
+// A live, not-yet-persisted assistant turn while tokens stream in.
+function streamingPlaceholder(
+  tempId: string,
+  user: AskMessage,
+  sources: AskMessage["sourceRefs"],
+): AskMessage {
+  return {
+    id: tempId,
+    conversationId: user.conversationId,
+    role: "assistant",
+    content: "",
+    parentId: user.id,
+    forkOfId: null,
+    status: "streaming",
+    sourceRefs: sources,
+    model: "",
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    deletedAt: null,
+  };
 }
 
 const AskContext = createContext<AskContextValue | null>(null);
@@ -49,7 +74,9 @@ export function AskProvider({
   const [scope, setScope] = useState<AskContextScope>("recent_30_days");
   const [sourceKind, setSourceKind] = useState<AskSourceKind>("records");
   const [busy, setBusy] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     listAskConversations(token)
@@ -109,8 +136,11 @@ export function AskProvider({
       }
       setBusy(true);
       setError("");
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const tempId = `streaming-${Date.now()}`;
+      let conversationId = activeId;
       try {
-        let conversationId = activeId;
         let createdNew = false;
         if (!conversationId) {
           const created = await createAskConversation(token, {
@@ -121,24 +151,66 @@ export function AskProvider({
           setConversations((current) => [created.conversation, ...current]);
           setActiveId(conversationId);
         }
-        const res = await createAskMessage(token, conversationId, {
-          content: trimmed,
-          contextScope: scope,
-          sourceKind,
-        });
-        setMessages((current) =>
-          createdNew ? res.messages : [...current, ...res.messages],
+        await streamAskMessage(
+          token,
+          conversationId,
+          { content: trimmed, contextScope: scope, sourceKind },
+          {
+            onStart: ({ userMessage, sources }) => {
+              setStreaming(true);
+              const placeholder = streamingPlaceholder(
+                tempId,
+                userMessage,
+                sources,
+              );
+              setMessages((current) => [
+                ...(createdNew ? [] : current),
+                userMessage,
+                placeholder,
+              ]);
+            },
+            onDelta: (text) => {
+              setMessages((current) =>
+                current.map((m) =>
+                  m.id === tempId ? { ...m, content: m.content + text } : m,
+                ),
+              );
+            },
+            onDone: (message) => {
+              setMessages((current) =>
+                current.map((m) => (m.id === tempId ? message : m)),
+              );
+            },
+            onError: (message) => {
+              setError(message);
+              setMessages((current) => current.filter((m) => m.id !== tempId));
+            },
+          },
+          controller.signal,
         );
+        // A stop leaves a temp placeholder; reload canonical messages so the
+        // persisted partial answer replaces it.
+        if (controller.signal.aborted && conversationId) {
+          const reloaded = await listAskMessages(token, conversationId);
+          setMessages(reloaded.messages);
+        }
         const refreshed = await listAskConversations(token);
         setConversations(refreshed.conversations);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "生成回答失败");
+        setMessages((current) => current.filter((m) => m.id !== tempId));
       } finally {
         setBusy(false);
+        setStreaming(false);
+        abortRef.current = null;
       }
     },
     [token, activeId, scope, sourceKind],
   );
+
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeId),
@@ -154,12 +226,14 @@ export function AskProvider({
       scope,
       sourceKind,
       busy,
+      streaming,
       error,
       setScope,
       setSourceKind,
       selectConversation,
       startNew,
       send,
+      stop,
     }),
     [
       conversations,
@@ -169,10 +243,12 @@ export function AskProvider({
       scope,
       sourceKind,
       busy,
+      streaming,
       error,
       selectConversation,
       startNew,
       send,
+      stop,
     ],
   );
 

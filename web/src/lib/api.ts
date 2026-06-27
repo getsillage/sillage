@@ -324,6 +324,130 @@ export async function createAskMessage(
   });
 }
 
+export interface AskStreamHandlers {
+  onStart?: (data: {
+    userMessage: AskMessage;
+    sources: AskSourceRef[];
+  }) => void;
+  onDelta?: (text: string) => void;
+  onDone?: (message: AskMessage) => void;
+  onError?: (message: string) => void;
+}
+
+export interface AskMessageInput {
+  content: string;
+  contextScope: AskContextScope;
+  sourceKind?: AskSourceKind;
+  parentId?: string;
+  forkOfId?: string;
+}
+
+// Streams an answer over SSE, dispatching start/delta/done/error to handlers as
+// they arrive. The AbortSignal lets callers stop generation mid-answer; an abort
+// resolves normally (the server persists the partial answer).
+export async function streamAskMessage(
+  accessToken: string,
+  conversationId: string,
+  input: AskMessageInput,
+  handlers: AskStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const path = `/api/v1/ask/conversations/${conversationId}/messages:stream`;
+  const body = JSON.stringify(input);
+  const send = (token: string) =>
+    fetch(path, {
+      method: "POST",
+      headers: {
+        ...authHeaders(token),
+        "Content-Type": "application/json",
+      },
+      body,
+      credentials: "include",
+      signal,
+    });
+
+  let res = await send(accessToken);
+  if (res.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      res = await send(refreshed);
+    }
+  }
+  if (!res.ok || !res.body) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.error?.message ?? "生成回答失败");
+  }
+  await consumeAskStream(res.body, handlers);
+}
+
+async function consumeAskStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: AskStreamHandlers,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        dispatchAskEvent(buffer.slice(0, boundary), handlers);
+        buffer = buffer.slice(boundary + 2);
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  } catch (cause) {
+    // An aborted stream (stop button) surfaces as an AbortError; treat it as a
+    // normal end — the server has persisted whatever streamed so far.
+    if (cause instanceof DOMException && cause.name === "AbortError") {
+      return;
+    }
+    throw cause;
+  }
+}
+
+function dispatchAskEvent(block: string, handlers: AskStreamHandlers): void {
+  let event = "message";
+  let data = "";
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+    } else if (line.startsWith("data:")) {
+      data += line.slice("data:".length).trim();
+    }
+  }
+  if (!data) {
+    return;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return;
+  }
+  switch (event) {
+    case "start":
+      handlers.onStart?.(
+        parsed as { userMessage: AskMessage; sources: AskSourceRef[] },
+      );
+      break;
+    case "delta":
+      handlers.onDelta?.((parsed as { text: string }).text);
+      break;
+    case "done":
+      handlers.onDone?.((parsed as { message: AskMessage }).message);
+      break;
+    case "error":
+      handlers.onError?.((parsed as { message: string }).message);
+      break;
+  }
+}
+
 export async function getAISettings(
   accessToken: string,
 ): Promise<{ profiles: AIProfile[] }> {

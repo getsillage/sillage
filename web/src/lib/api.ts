@@ -306,10 +306,16 @@ export async function listAskMessages(
   });
 }
 
+export type AskSourceKind = "records" | "memo_summary" | "summaries";
+
 export async function createAskMessage(
   accessToken: string,
   conversationId: string,
-  input: { content: string; contextScope: AskContextScope },
+  input: {
+    content: string;
+    contextScope: AskContextScope;
+    sourceKind?: AskSourceKind;
+  },
 ): Promise<{ messages: AskMessage[] }> {
   return request(`/api/v1/ask/conversations/${conversationId}/messages`, {
     method: "POST",

@@ -148,7 +148,7 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 	}
 
 	scope := firstNonEmpty(input.ContextScope, conversation.ContextScope)
-	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, input.Content, scope, conversation.ID)
+	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, input.Content, scope, input.SourceKind, conversation.ID)
 	if err != nil {
 		return nil, err
 	}

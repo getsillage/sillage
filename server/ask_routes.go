@@ -26,6 +26,7 @@ type askMessageRequest struct {
 	ContextScope string `json:"contextScope"`
 	ParentID     string `json:"parentId"`
 	ForkOfID     string `json:"forkOfId"`
+	SourceKind   string `json:"sourceKind"`
 }
 
 type askSourceRef struct {
@@ -103,6 +104,7 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 		ContextScope:   req.ContextScope,
 		ParentID:       req.ParentID,
 		ForkOfID:       req.ForkOfID,
+		SourceKind:     req.SourceKind,
 	})
 	if err != nil {
 		if errors.Is(err, errValidation) {
@@ -125,7 +127,7 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"messages": askMessageDTOs(result.Messages)})
 }
 
-func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope string, conversationID string) ([]askSourceRef, string, string, error) {
+func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind string, conversationID string) ([]askSourceRef, string, string, error) {
 	jobDone, err := s.acquireAskAIJob()
 	if err != nil {
 		return nil, "", "", err
@@ -151,6 +153,11 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 	sources := selectAskSourceRefs(question, memos, scope)
 	if len(sources) == 0 {
 		return nil, "现有记录不足以判断。当前范围内没有可引用的记录。", "", nil
+	}
+	// In summary mode, ground the answer in each source's stored AI summary
+	// (distilled) rather than its raw text, falling back to the raw excerpt.
+	if isSummarySourceKind(sourceKind) {
+		sources = s.applySummaryExcerpts(ctx, sources)
 	}
 
 	_, err = s.Store.GetAskConversation(ctx, accountID, conversationID)
@@ -190,6 +197,33 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 		return nil, "", "", err
 	}
 	return sources, answer.Content, profile.Model, nil
+}
+
+// isSummarySourceKind reports whether the answer should be grounded in stored
+// summaries rather than raw memo text. "records" (or empty) means raw text.
+func isSummarySourceKind(kind string) bool {
+	switch kind {
+	case "summaries", "memo_summary":
+		return true
+	default:
+		return false
+	}
+}
+
+// applySummaryExcerpts replaces each source's excerpt with the memo's stored AI
+// summary when one exists; memos without a summary keep their raw excerpt.
+func (s *Server) applySummaryExcerpts(ctx context.Context, sources []askSourceRef) []askSourceRef {
+	out := make([]askSourceRef, 0, len(sources))
+	for _, source := range sources {
+		ref := source
+		if ai, err := s.Store.GetMemoAI(ctx, source.MemoID); err == nil && ai.Summary.Valid {
+			if summary := strings.TrimSpace(ai.Summary.String); summary != "" {
+				ref.Excerpt = excerpt(summary, 200)
+			}
+		}
+		out = append(out, ref)
+	}
+	return out
 }
 
 func (s *Server) listAskCandidateMemos(ctx context.Context, accountID string) ([]*store.Memo, error) {

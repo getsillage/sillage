@@ -1,21 +1,29 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Markdown } from "../components/Markdown";
 import {
+  ghostLinkClass,
   pageTitleClass,
   primaryButtonClass,
   readingShellClass,
   selectClass,
   textareaClass,
 } from "../components/ui";
-import type { AskContextScope, AskMessage } from "../lib/api";
+import type { AskContextScope, AskMessage, AskSourceKind } from "../lib/api";
+import { todayISO } from "../lib/date";
 import { useAsk } from "../state/AskContext";
+import { useMemos } from "../state/MemosContext";
 
 const SCOPE_LABELS: Record<AskContextScope, string> = {
   recent_7_days: "最近 7 天",
   recent_30_days: "最近 30 天",
   all: "全部记录",
 };
+
+const SOURCE_KIND_OPTIONS: { value: AskSourceKind; label: string }[] = [
+  { value: "records", label: "原始记录" },
+  { value: "summaries", label: "记录总结" },
+];
 
 export function AskPage() {
   const [searchParams] = useSearchParams();
@@ -25,9 +33,11 @@ export function AskPage() {
     activeId,
     messages,
     scope,
+    sourceKind,
     busy,
     error,
     setScope,
+    setSourceKind,
     selectConversation,
     send,
   } = useAsk();
@@ -62,20 +72,38 @@ export function AskPage() {
             基于你的记录回答，范围：{SCOPE_LABELS[scope]}
           </p>
         </div>
-        <label className="text-gray-500 text-sm dark:text-gray-400">
-          <span className="mr-2">范围</span>
-          <select
-            value={scope}
-            onChange={(event) =>
-              setScope(event.target.value as AskContextScope)
-            }
-            className={`${selectClass} mt-0 inline-block w-auto`}
-          >
-            <option value="recent_7_days">最近 7 天</option>
-            <option value="recent_30_days">最近 30 天</option>
-            <option value="all">全部记录</option>
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-gray-500 text-sm dark:text-gray-400">
+            <span className="mr-2">来源</span>
+            <select
+              value={sourceKind}
+              onChange={(event) =>
+                setSourceKind(event.target.value as AskSourceKind)
+              }
+              className={`${selectClass} mt-0 inline-block w-auto`}
+            >
+              {SOURCE_KIND_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-gray-500 text-sm dark:text-gray-400">
+            <span className="mr-2">范围</span>
+            <select
+              value={scope}
+              onChange={(event) =>
+                setScope(event.target.value as AskContextScope)
+              }
+              className={`${selectClass} mt-0 inline-block w-auto`}
+            >
+              <option value="recent_7_days">最近 7 天</option>
+              <option value="recent_30_days">最近 30 天</option>
+              <option value="all">全部记录</option>
+            </select>
+          </label>
+        </div>
       </header>
 
       <div className="flex-1 space-y-6 py-6">
@@ -126,6 +154,11 @@ export function AskPage() {
 }
 
 function MessageBubble({ message }: { message: AskMessage }) {
+  const { create } = useMemos();
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
@@ -135,23 +168,49 @@ function MessageBubble({ message }: { message: AskMessage }) {
       </div>
     );
   }
+
+  async function saveAsRecord() {
+    if (!message.content.trim()) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const memo = await create({
+        content: message.content,
+        entryDate: todayISO(),
+      });
+      setSaved(true);
+      navigate(`/entries/${memo.id}`);
+    } catch {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="max-w-[92%]">
       <Markdown content={message.content} variant="chat" />
-      {message.sourceRefs.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {message.sourceRefs.map((source) => (
-            <Link
-              key={`${message.id}-${source.memoId}-${source.rank}`}
-              to={`/entries/${source.memoId}`}
-              title={source.excerpt}
-              className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              <span>{source.entryDate}</span>
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {message.sourceRefs.map((source) => (
+          <Link
+            key={`${message.id}-${source.memoId}-${source.rank}`}
+            to={`/entries/${source.memoId}`}
+            title={source.excerpt}
+            className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            <span>{source.entryDate}</span>
+          </Link>
+        ))}
+        {message.content.trim() ? (
+          <button
+            type="button"
+            onClick={saveAsRecord}
+            disabled={saving || saved}
+            className={`${ghostLinkClass} text-xs`}
+          >
+            {saved ? "已存为记录" : saving ? "保存中…" : "存为记录"}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

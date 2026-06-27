@@ -11,6 +11,7 @@ import {
   type AskContextScope,
   type AskConversation,
   type AskMessage,
+  type AskSourceKind,
   createAskConversation,
   createAskMessage,
   listAskConversations,
@@ -23,9 +24,11 @@ interface AskContextValue {
   activeConversation: AskConversation | undefined;
   messages: AskMessage[];
   scope: AskContextScope;
+  sourceKind: AskSourceKind;
   busy: boolean;
   error: string;
   setScope: (scope: AskContextScope) => void;
+  setSourceKind: (kind: AskSourceKind) => void;
   selectConversation: (id: string) => void;
   startNew: () => void;
   send: (question: string) => Promise<void>;
@@ -44,6 +47,7 @@ export function AskProvider({
   const [activeId, setActiveId] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [scope, setScope] = useState<AskContextScope>("recent_30_days");
+  const [sourceKind, setSourceKind] = useState<AskSourceKind>("records");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -120,6 +124,7 @@ export function AskProvider({
         const res = await createAskMessage(token, conversationId, {
           content: trimmed,
           contextScope: scope,
+          sourceKind,
         });
         setMessages((current) =>
           createdNew ? res.messages : [...current, ...res.messages],
@@ -132,7 +137,7 @@ export function AskProvider({
         setBusy(false);
       }
     },
-    [token, activeId, scope],
+    [token, activeId, scope, sourceKind],
   );
 
   const activeConversation = useMemo(
@@ -147,9 +152,11 @@ export function AskProvider({
       activeConversation,
       messages,
       scope,
+      sourceKind,
       busy,
       error,
       setScope,
+      setSourceKind,
       selectConversation,
       startNew,
       send,
@@ -160,6 +167,7 @@ export function AskProvider({
       activeConversation,
       messages,
       scope,
+      sourceKind,
       busy,
       error,
       selectConversation,

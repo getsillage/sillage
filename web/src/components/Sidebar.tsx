@@ -170,7 +170,7 @@ export function Sidebar({
       </section>
 
       <div className="mt-3 flex items-center justify-between gap-2 border-gray-200 border-t pt-3 dark:border-gray-800">
-        <details ref={accountMenuRef} className="group relative min-w-0">
+        <details ref={accountMenuRef} className="group relative min-w-0 flex-1">
           <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-gray-900 font-medium text-white text-xs dark:bg-gray-100 dark:text-gray-900">
               {(account.displayName || account.username || "S")

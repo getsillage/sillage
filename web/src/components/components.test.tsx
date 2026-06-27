@@ -7,7 +7,16 @@ import { EntryCard } from "./EntryCard";
 import { EntryComposer } from "./EntryComposer";
 import { LocalDateTime } from "./LocalDateTime";
 import { Markdown } from "./Markdown";
+import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
+
+vi.mock("../state/AskContext", () => ({
+  useAsk: () => ({
+    conversations: [],
+    activeId: "",
+    startNew: vi.fn(),
+  }),
+}));
 
 function memo(overrides: Partial<Memo> = {}): Memo {
   return {
@@ -85,6 +94,28 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     await user.click(button);
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+});
+
+describe("Sidebar", () => {
+  it("anchors the account menu to the available footer width", () => {
+    render(
+      <MemoryRouter>
+        <Sidebar
+          account={{
+            id: "a1",
+            username: "felix",
+            displayName: "Felix",
+            createdAt: "2026-06-27T08:00:00Z",
+            updatedAt: "2026-06-27T08:00:00Z",
+          }}
+          onSignOut={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const details = screen.getByText("Felix").closest("details");
+    expect(details).toHaveClass("flex-1");
   });
 });
 

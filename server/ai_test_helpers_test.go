@@ -25,6 +25,7 @@ type mockAIMessage struct {
 
 type mockAIChatRequest struct {
 	Messages []mockAIMessage `json:"messages"`
+	Stream   bool            `json:"stream"`
 }
 
 type mockAIAnthropicRequest struct {
@@ -51,6 +52,10 @@ func newMockAIProvider(t *testing.T) *httptest.Server {
 			var req mockAIChatRequest
 			if err := json.Unmarshal(body, &req); err != nil {
 				http.Error(w, "invalid json", http.StatusBadRequest)
+				return
+			}
+			if req.Stream {
+				writeMockAIStream(w, mockAIContent(req.Messages))
 				return
 			}
 			writeMockAIResponse(w, mockAIContent(req.Messages))
@@ -128,6 +133,26 @@ func writeMockAIResponse(w http.ResponseWriter, content string) {
 			"total_tokens":  mockAITotalTokens,
 		},
 	})
+}
+
+// writeMockAIStream emits the answer as two OpenAI-style SSE chunks so tests can
+// verify delta accumulation, then [DONE].
+func writeMockAIStream(w http.ResponseWriter, content string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	runes := []rune(content)
+	mid := len(runes) / 2
+	chunks := []string{string(runes[:mid]), string(runes[mid:])}
+	for _, chunk := range chunks {
+		_, _ = w.Write([]byte("data: " + mustJSON(map[string]any{
+			"choices": []map[string]any{{"delta": map[string]any{"content": chunk}}},
+		}) + "\n\n"))
+	}
+	_, _ = w.Write([]byte("data: [DONE]\n\n"))
+}
+
+func mustJSON(v any) string {
+	payload, _ := json.Marshal(v)
+	return string(payload)
 }
 
 func writeMockAnthropicResponse(w http.ResponseWriter, content string) {

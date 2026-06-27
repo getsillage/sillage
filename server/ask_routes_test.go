@@ -160,6 +160,100 @@ func TestAskAllScopeUsesOlderMemosBeyondRecentWindow(t *testing.T) {
 	}
 }
 
+func TestAskStreamMessageDeliversSSEEvents(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+
+	createMemoForAsk(t, srv, token, "今天和朋友散步，聊到最近睡眠变好了。", "2026-06-26")
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create conversation status = %d body=%s", res.Code, res.Body.String())
+	}
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+
+	res = doJSON(t, srv, http.MethodPost,
+		"/api/v1/ask/conversations/"+conversationID+"/messages:stream",
+		map[string]any{"content": "我最近状态有什么变化？"}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("stream status = %d body=%s", res.Code, res.Body.String())
+	}
+	if ct := res.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("content-type = %q, want text/event-stream", ct)
+	}
+
+	events := parseSSE(res.Body.String())
+	if len(events["start"]) != 1 {
+		t.Fatalf("want exactly 1 start event, got %d", len(events["start"]))
+	}
+	if len(events["delta"]) < 1 {
+		t.Fatalf("want at least 1 delta event, got %d", len(events["delta"]))
+	}
+	if len(events["done"]) != 1 {
+		t.Fatalf("want exactly 1 done event, got %d", len(events["done"]))
+	}
+
+	// Deltas reassemble into the mock answer; the done event carries the
+	// persisted assistant message.
+	var streamed strings.Builder
+	for _, d := range events["delta"] {
+		var delta struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal([]byte(d), &delta); err != nil {
+			t.Fatalf("decode delta: %v", err)
+		}
+		streamed.WriteString(delta.Text)
+	}
+	if streamed.String() != mockAIAnswerContent {
+		t.Fatalf("streamed = %q, want %q", streamed.String(), mockAIAnswerContent)
+	}
+
+	var done struct {
+		Message map[string]any `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(events["done"][0]), &done); err != nil {
+		t.Fatalf("decode done: %v", err)
+	}
+	if done.Message["content"] != mockAIAnswerContent {
+		t.Fatalf("done content = %v, want %q", done.Message["content"], mockAIAnswerContent)
+	}
+
+	// The assistant message is persisted.
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(payload["messages"]) != 2 {
+		t.Fatalf("persisted messages = %d, want 2", len(payload["messages"]))
+	}
+}
+
+// parseSSE groups an SSE response body's data payloads by event name.
+func parseSSE(body string) map[string][]string {
+	out := map[string][]string{}
+	for _, block := range strings.Split(body, "\n\n") {
+		event := "message"
+		data := ""
+		for _, line := range strings.Split(block, "\n") {
+			if strings.HasPrefix(line, "event:") {
+				event = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			} else if strings.HasPrefix(line, "data:") {
+				data += strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			}
+		}
+		if data != "" {
+			out[event] = append(out[event], data)
+		}
+	}
+	return out
+}
+
 func createMemoForAsk(t *testing.T, srv interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }, token, content, entryDate string) {

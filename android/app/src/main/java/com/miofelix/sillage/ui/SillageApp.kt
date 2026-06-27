@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -54,6 +55,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -1194,22 +1196,52 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    var showConversations by remember { mutableStateOf(false) }
+    var showOptions by remember { mutableStateOf(false) }
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
     }
     val latestAssistantId = remember(entries) {
         lastAssistantMessageId(entries)
     }
+    if (showConversations) {
+        AskConversationSheet(
+            state = state,
+            viewModel = viewModel,
+            onDismiss = { showConversations = false },
+        )
+    }
+    if (showOptions) {
+        AskOptionsSheet(
+            state = state,
+            viewModel = viewModel,
+            onDismiss = { showOptions = false },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ask") },
-                actions = {
-                    TextButton(onClick = viewModel::startNewAsk, enabled = !state.askSending) {
-                        Text("新会话")
+                title = {
+                    Column {
+                        Text("Ask", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            askContextLabel(state),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                    TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
-                        Text("刷新")
+                },
+                actions = {
+                    TextButton(onClick = { showConversations = true }) {
+                        Text("会话")
+                    }
+                    TextButton(onClick = { showOptions = true }) {
+                        Text("上下文")
+                    }
+                    IconButton(onClick = viewModel::startNewAsk, enabled = !state.askSending) {
+                        Icon(Icons.Rounded.Add, contentDescription = "新会话")
                     }
                 },
             )
@@ -1222,12 +1254,13 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .imePadding(),
         ) {
-            MessageBlock(state.error, state.notice)
-            AskOptions(state, viewModel)
-            AskConversationList(state.askConversations, state.activeAskId, viewModel)
+            MessageBlock(
+                error = state.error,
+                notice = state.notice,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             if (state.askLoading && entries.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -1242,15 +1275,12 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (entries.isEmpty()) {
                         item {
-                            Text(
-                                "可以根据记录提问，例如「我最近在反复想些什么？」",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            AskEmptyPrompt()
                         }
                     }
                     items(entries, key = { it.message.id }) { entry ->
@@ -1278,15 +1308,68 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
+            AskComposer(state = state, viewModel = viewModel)
+        }
+    }
+}
+
+private fun askContextLabel(state: SillageUiState): String {
+    val scope = when (state.askScope) {
+        "recent_7_days" -> "最近 7 天"
+        "all" -> "全部记录"
+        else -> "最近 30 天"
+    }
+    val source = if (state.askSourceKind == "summaries") "记录总结" else "原始记录"
+    return "$scope · $source"
+}
+
+@Composable
+private fun AskEmptyPrompt() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "可以根据记录提问",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "例如「我最近在反复想些什么？」或「这周有什么值得继续做？」",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AskComposer(state: SillageUiState, viewModel: SillageViewModel) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             OutlinedTextField(
                 value = state.askQuestion,
                 onValueChange = viewModel::updateAskQuestion,
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
+                minLines = 1,
                 maxLines = 4,
-                label = { Text("根据记录提问") },
+                placeholder = { Text("根据记录提问") },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (state.askStreaming) {
                     TextButton(
                         onClick = viewModel::stopAskStreaming,
@@ -1297,7 +1380,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 }
                 Button(
                     onClick = viewModel::sendAskQuestion,
-                    enabled = !state.askSending,
+                    enabled = !state.askSending && state.askQuestion.isNotBlank(),
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(if (state.askSending) "生成中" else "发送")
@@ -1307,9 +1390,77 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AskConversationSheet(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "问答会话",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
+                    Text("刷新")
+                }
+            }
+            AskConversationList(
+                conversations = state.askConversations,
+                activeId = state.activeAskId,
+                onSelect = {
+                    viewModel.selectAskConversation(it)
+                    onDismiss()
+                },
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AskOptionsSheet(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "上下文",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            AskOptions(state, viewModel)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
 @Composable
 private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "时间范围",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AskOptionButton("7 天", state.askScope == "recent_7_days") {
                 viewModel.updateAskScope("recent_7_days")
@@ -1321,6 +1472,11 @@ private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
                 viewModel.updateAskScope("all")
             }
         }
+        Text(
+            "来源",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AskOptionButton("原始记录", state.askSourceKind == "records") {
                 viewModel.updateAskSourceKind("records")
@@ -1349,7 +1505,7 @@ private fun AskOptionButton(label: String, selected: Boolean, onClick: () -> Uni
 private fun AskConversationList(
     conversations: List<AskConversation>,
     activeId: String,
-    viewModel: SillageViewModel,
+    onSelect: (String) -> Unit,
 ) {
     if (conversations.isEmpty()) {
         Text(
@@ -1362,12 +1518,12 @@ private fun AskConversationList(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .height(112.dp),
+            .height(320.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(conversations, key = { it.id }) { conversation ->
             TextButton(
-                onClick = { viewModel.selectAskConversation(conversation.id) },
+                onClick = { onSelect(conversation.id) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -1393,60 +1549,72 @@ private fun AskMessageCard(
     onSelectVariant: (String) -> Unit,
 ) {
     val message = entry.message
-    Card(
+    val isAssistant = message.role == "assistant"
+    val bubbleColor = if (isAssistant) {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val textColor = if (isAssistant) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        horizontalAlignment = if (isAssistant) Alignment.Start else Alignment.End,
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Card(
+            modifier = Modifier.fillMaxWidth(if (isAssistant) 1f else 0.86f),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = bubbleColor),
         ) {
-            Text(
-                if (message.role == "assistant") "回答" else "问题",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
-                when {
-                    streamingText != null && streamingText.isNotBlank() -> streamingText
-                    regenerating -> "正在重新生成…"
-                    else -> message.content
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (message.sourceRefs.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "来源",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    message.sourceRefs.take(5).forEach { source ->
-                        TextButton(
-                            onClick = { onOpenSource(source.memoId) },
-                            enabled = source.memoId.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                askSourceLabel(source),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    when {
+                        streamingText != null && streamingText.isNotBlank() -> streamingText
+                        regenerating -> "正在重新生成…"
+                        else -> message.content
+                    },
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isAssistant && message.sourceRefs.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "来源",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        message.sourceRefs.take(5).forEach { source ->
+                            TextButton(
+                                onClick = { onOpenSource(source.memoId) },
+                                enabled = source.memoId.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    askSourceLabel(source),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
-            }
-            if (message.role == "assistant") {
-                AskMessageActions(
-                    entry = entry,
-                    canRegenerate = canRegenerate,
-                    regenerating = regenerating,
-                    savingDisabled = savingDisabled,
-                    onRegenerate = onRegenerate,
-                    onSaveAsMemo = onSaveAsMemo,
-                    onSelectVariant = onSelectVariant,
-                )
+                if (isAssistant) {
+                    AskMessageActions(
+                        entry = entry,
+                        canRegenerate = canRegenerate,
+                        regenerating = regenerating,
+                        savingDisabled = savingDisabled,
+                        onRegenerate = onRegenerate,
+                        onSaveAsMemo = onSaveAsMemo,
+                        onSelectVariant = onSelectVariant,
+                    )
+                }
             }
         }
     }
@@ -1454,21 +1622,21 @@ private fun AskMessageCard(
 
 @Composable
 private fun AskLiveUserCard(message: AskMessage) {
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        horizontalAlignment = Alignment.End,
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Card(
+            modifier = Modifier.fillMaxWidth(0.86f),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
         ) {
             Text(
-                "问题",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
+                message.content,
+                modifier = Modifier.padding(12.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.bodyMedium,
             )
-            Text(message.content, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -1481,14 +1649,9 @@ private fun AskLiveAnswerCard(answer: String) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                "回答",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
             Text(
                 answer.ifBlank { "正在思考…" },
                 color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,

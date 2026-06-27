@@ -158,35 +158,6 @@ WHERE creator_id = ?`
 	return memos, nil
 }
 
-func (s *Store) ListRecentMemos(ctx context.Context, accountID string, limit int) ([]*Memo, error) {
-	if limit <= 0 || limit > 200 {
-		limit = 50
-	}
-	rows, err := s.driver.GetDB().QueryContext(ctx, `
-SELECT id, creator_id, content, entry_date, version, pinned_at, archived_at, created_at, updated_at, deleted_at
-FROM memo
-WHERE creator_id = ? AND deleted_at IS NULL
-ORDER BY entry_date DESC, created_at DESC, id DESC
-LIMIT ?`, accountID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list recent memos: %w", err)
-	}
-	defer rows.Close()
-
-	var memos []*Memo
-	for rows.Next() {
-		memo, err := scanMemo(rows)
-		if err != nil {
-			return nil, err
-		}
-		memos = append(memos, memo)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate recent memos: %w", err)
-	}
-	return memos, nil
-}
-
 func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Memo, error) {
 	query := strings.TrimSpace(opts.Query)
 	if query == "" {
@@ -291,10 +262,13 @@ func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, erro
 
 	now := time.Now().UTC().UnixMilli()
 	newVersion := current.Version + 1
-	if _, err := s.driver.GetDB().ExecContext(ctx, `
+	// Guard the version inside the UPDATE so the read-check-write is atomic:
+	// a concurrent writer that bumped the version between our GetMemo and here
+	// changes WHERE version, leaving RowsAffected == 0 instead of clobbering it.
+	result, err := s.driver.GetDB().ExecContext(ctx, `
 UPDATE memo
 SET content = ?, entry_date = ?, version = ?, pinned_at = ?, archived_at = ?, deleted_at = ?, updated_at = ?
-WHERE id = ? AND creator_id = ?`,
+WHERE id = ? AND creator_id = ? AND version = ?`,
 		content,
 		entryDate,
 		newVersion,
@@ -304,8 +278,23 @@ WHERE id = ? AND creator_id = ?`,
 		now,
 		update.ID,
 		update.CreatorID,
-	); err != nil {
+		current.Version,
+	)
+	if err != nil {
 		return nil, fmt.Errorf("update memo: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("update memo rows affected: %w", err)
+	}
+	if affected == 0 {
+		// The row vanished or its version moved under us. Re-read to report an
+		// accurate conflict (or not-found) rather than a silent lost update.
+		latest, getErr := s.GetMemo(ctx, update.CreatorID, update.ID, true)
+		if getErr != nil {
+			return nil, getErr
+		}
+		return nil, &MemoConflictError{ServerMemo: latest}
 	}
 	return s.GetMemo(ctx, update.CreatorID, update.ID, true)
 }

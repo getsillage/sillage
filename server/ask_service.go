@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -21,7 +19,7 @@ func (s *askService) ListAskConversations(ctx context.Context, req *connect.Requ
 	}
 	conversations, err := s.server.listAskConversations(ctx, account.ID, int(req.Msg.GetLimit()))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.ListAskConversationsResponse{Conversations: make([]*apiv1.AskConversation, 0, len(conversations))}
 	for _, conversation := range conversations {
@@ -40,7 +38,7 @@ func (s *askService) CreateAskConversation(ctx context.Context, req *connect.Req
 		ContextScope: req.Msg.GetContextScope(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.AskConversationResponse{Conversation: askConversationPB(conversation)}), nil
 }
@@ -52,7 +50,7 @@ func (s *askService) ListAskMessages(ctx context.Context, req *connect.Request[a
 	}
 	messages, err := s.server.listAskMessages(ctx, account.ID, req.Msg.GetConversationId())
 	if err != nil {
-		return nil, askConnectError(err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.ListAskMessagesResponse{Messages: make([]*apiv1.AskMessage, 0, len(messages))}
 	for _, message := range messages {
@@ -72,24 +70,14 @@ func (s *askService) CreateAskMessage(ctx context.Context, req *connect.Request[
 		ContextScope:   req.Msg.GetContextScope(),
 		ParentID:       req.Msg.GetParentId(),
 		ForkOfID:       req.Msg.GetForkOfId(),
+		SourceKind:     req.Msg.GetSourceKind(),
 	})
 	if err != nil {
-		return nil, askConnectError(err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.CreateAskMessageResponse{Messages: make([]*apiv1.AskMessage, 0, len(result.Messages))}
 	for _, message := range result.Messages {
 		res.Messages = append(res.Messages, askMessagePB(message))
 	}
 	return connect.NewResponse(res), nil
-}
-
-func askConnectError(err error) error {
-	switch {
-	case errors.Is(err, errValidation):
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, sql.ErrNoRows):
-		return connect.NewError(connect.CodeNotFound, err)
-	default:
-		return connect.NewError(connect.CodeInternal, err)
-	}
 }

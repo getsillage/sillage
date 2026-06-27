@@ -1,27 +1,11 @@
 package server
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/miofelix/sillage/store"
 )
-
-type aiUsage struct {
-	InputTokens  int64
-	OutputTokens int64
-	TotalTokens  int64
-}
-
-type askAnswerResult struct {
-	Sources   []askSourceRef
-	Answer    string
-	Model     string
-	ProfileID string
-	Usage     aiUsage
-}
 
 func (s *Server) acquireMemoAIJob() (func(), error) {
 	return acquireAIJob(s.memoAIJobs)
@@ -60,23 +44,6 @@ func pickActiveAIProfile(profiles []*store.AIProfile) (*store.AIProfile, error) 
 		return fallback, nil
 	}
 	return nil, errAINotConfigured
-}
-
-func encodeSourceMemoIDs(refs []askSourceRef) string {
-	ids := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		if ref.MemoID != "" {
-			ids = append(ids, ref.MemoID)
-		}
-	}
-	if len(ids) == 0 {
-		return "[]"
-	}
-	payload, err := json.Marshal(ids)
-	if err != nil {
-		return "[]"
-	}
-	return string(payload)
 }
 
 func memoSummarySystemPrompt() string {
@@ -135,18 +102,5 @@ func askScopeLabel(scope string) string {
 		return "全部记录"
 	default:
 		return "最近 30 天"
-	}
-}
-
-func askErrorMessage(err error) string {
-	switch {
-	case errors.Is(err, errAINotConfigured):
-		return "请先配置并启用一个 AI 档案。"
-	case errors.Is(err, errAIOverloaded):
-		return "当前生成任务较多，请稍后再试。"
-	case errors.Is(err, errAIKeyUnavailable):
-		return "当前 AI API Key 无法解密，请重新保存。"
-	default:
-		return "生成回答失败。"
 	}
 }

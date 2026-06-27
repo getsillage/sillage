@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -296,9 +295,4 @@ func optionalInt(value sql.NullInt64) any {
 		return nil
 	}
 	return value.Int64
-}
-
-func parseContentLength(raw string) int64 {
-	value, _ := strconv.ParseInt(raw, 10, 64)
-	return value
 }

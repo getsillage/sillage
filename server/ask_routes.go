@@ -133,7 +133,10 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 	defer jobDone()
 
 	memos, err := s.listAskCandidateMemos(ctx, accountID)
-	if err != nil || len(memos) == 0 {
+	if err != nil {
+		return nil, "", "", err
+	}
+	if len(memos) == 0 {
 		return nil, "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。", "", nil
 	}
 	sort.Slice(memos, func(i, j int) bool {
@@ -419,10 +422,11 @@ func encodeAskSourceRefs(refs []askSourceRef) string {
 
 func excerpt(content string, limit int) string {
 	content = strings.TrimSpace(content)
-	if len(content) <= limit {
+	runes := []rune(content)
+	if len(runes) <= limit {
 		return content
 	}
-	return content[:limit] + "..."
+	return string(runes[:limit]) + "..."
 }
 
 func firstNonEmpty(values ...string) string {

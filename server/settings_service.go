@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -20,7 +19,7 @@ func (s *settingsService) GetAISettings(ctx context.Context, req *connect.Reques
 	}
 	profiles, err := s.server.getAISettings(ctx, account.ID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(aiSettingsResponsePB(profiles)), nil
 }
@@ -50,10 +49,7 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 	}
 	profiles, err := s.server.patchAISettings(ctx, account.ID, input)
 	if err != nil {
-		if errors.Is(err, errValidation) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(aiSettingsResponsePB(profiles)), nil
 }

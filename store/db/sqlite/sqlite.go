@@ -66,14 +66,3 @@ func (d *DB) IsInitialized(ctx context.Context) (bool, error) {
 	}
 	return exists, nil
 }
-
-func (d *DB) GetDatabaseSize(ctx context.Context) (int64, error) {
-	var pageCount, pageSize int64
-	if err := d.db.QueryRowContext(ctx, "PRAGMA page_count").Scan(&pageCount); err != nil {
-		return -1, fmt.Errorf("read sqlite page_count: %w", err)
-	}
-	if err := d.db.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
-		return -1, fmt.Errorf("read sqlite page_size: %w", err)
-	}
-	return pageCount * pageSize, nil
-}

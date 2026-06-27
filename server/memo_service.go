@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"net/http"
 	"strings"
 
@@ -25,7 +23,7 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	}
 	memos, err := s.server.listMemos(ctx, account.ID, int(req.Msg.GetLimit()))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.ListMemosResponse{Memos: make([]*apiv1.Memo, 0, len(memos))}
 	for _, memo := range memos {
@@ -45,7 +43,7 @@ func (s *memoService) CreateMemo(ctx context.Context, req *connect.Request[apiv1
 		EntryDate: req.Msg.GetEntryDate(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
@@ -57,7 +55,7 @@ func (s *memoService) GetMemo(ctx context.Context, req *connect.Request[apiv1.Ge
 	}
 	memo, err := s.server.getMemo(ctx, account.ID, req.Msg.GetId())
 	if err != nil {
-		return nil, memoConnectError(err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
@@ -76,7 +74,7 @@ func (s *memoService) UpdateMemo(ctx context.Context, req *connect.Request[apiv1
 		Archived:        req.Msg.Archived,
 	})
 	if err != nil {
-		return nil, memoConnectError(err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
@@ -88,7 +86,7 @@ func (s *memoService) DeleteMemo(ctx context.Context, req *connect.Request[apiv1
 	}
 	memo, err := s.server.deleteMemo(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
 	if err != nil {
-		return nil, memoConnectError(err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
@@ -108,7 +106,7 @@ func (s *memoService) GenerateMemoSummary(ctx context.Context, req *connect.Requ
 	}
 	ai, err := s.server.generateMemoSummary(ctx, account.ID, req.Msg.GetId())
 	if err != nil {
-		return nil, memoConnectError(err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.GenerateMemoSummaryResponse{Ai: memoAIPB(ai)}), nil
 }
@@ -132,7 +130,7 @@ func (s *memoService) updateMemoBool(
 		Archived:        archived,
 	})
 	if err != nil {
-		return nil, memoConnectError(err)
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
@@ -151,20 +149,4 @@ func (s *Server) accountFromConnect(ctx context.Context, header http.Header) (*s
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	return account, nil
-}
-
-func memoConnectError(err error) error {
-	var conflict *store.MemoConflictError
-	switch {
-	case errors.Is(err, errValidation):
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.As(err, &conflict):
-		return connect.NewError(connect.CodeAborted, err)
-	case errors.Is(err, sql.ErrNoRows):
-		return connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, errAIKeyUnavailable):
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	default:
-		return connect.NewError(connect.CodeInternal, err)
-	}
 }

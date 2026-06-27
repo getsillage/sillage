@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -20,7 +19,7 @@ func (s *syncService) PullSync(ctx context.Context, req *connect.Request[apiv1.P
 	}
 	result, err := s.server.pullSync(ctx, account.ID, req.Msg.GetCursor(), int(req.Msg.GetLimit()))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.PullSyncResponse{
 		Memos:            make([]*apiv1.Memo, 0, len(result.Memos)),
@@ -57,10 +56,7 @@ func (s *syncService) PushSync(ctx context.Context, req *connect.Request[apiv1.P
 	}
 	results, err := s.server.pushSync(ctx, account.ID, syncChangesFromPB(req.Msg.GetChanges()))
 	if err != nil {
-		if errors.Is(err, errTooManyChanges) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connectError(err)
 	}
 	res := &apiv1.PushSyncResponse{Results: make([]*apiv1.SyncResult, 0, len(results))}
 	for _, result := range results {

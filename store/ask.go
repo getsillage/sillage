@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -294,8 +295,10 @@ func scanAskMessage(row interface {
 }
 
 func titleFromContent(content string) string {
-	if len(content) <= 24 {
+	content = strings.TrimSpace(content)
+	runes := []rune(content)
+	if len(runes) <= 24 {
 		return content
 	}
-	return content[:24]
+	return string(runes[:24])
 }

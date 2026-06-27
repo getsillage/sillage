@@ -57,7 +57,7 @@ func (s *Store) UpsertMemoAI(ctx context.Context, upsert *UpsertMemoAI) (*MemoAI
 	if upsert.FinishedAt != nil {
 		finishedAt = sql.NullInt64{Int64: *upsert.FinishedAt, Valid: true}
 	}
-if _, err := s.driver.GetDB().ExecContext(ctx, `
+	if _, err := s.driver.GetDB().ExecContext(ctx, `
 INSERT INTO memo_ai (
   memo_id, summary, sentiment, provider, model, profile_id, prompt_version,
   source_memo_ids, status, error_code, started_at, finished_at,

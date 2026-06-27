@@ -11,5 +11,4 @@ type Driver interface {
 	Close() error
 	Ping(ctx context.Context) error
 	IsInitialized(ctx context.Context) (bool, error)
-	GetDatabaseSize(ctx context.Context) (int64, error)
 }

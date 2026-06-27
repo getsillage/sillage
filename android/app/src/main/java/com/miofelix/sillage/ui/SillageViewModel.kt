@@ -324,95 +324,11 @@ class SillageViewModel(context: Context) : ViewModel() {
         _state.update {
             it.copy(
                 screen = Screen.Editor,
-                quickCaptureOpen = false,
-                quickCaptureBody = "",
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
                 draftContent = "",
-                draftEntryDate = LocalDate.now().toString(),
-                markdownPreview = false,
-                error = null,
-                notice = null,
-            )
-        }
-    }
-
-    fun openQuickCapture() {
-        _state.update {
-            it.copy(
-                quickCaptureOpen = true,
-                quickCaptureError = null,
-                notice = null,
-                error = null,
-            )
-        }
-    }
-
-    fun closeQuickCapture() {
-        _state.update {
-            it.copy(
-                quickCaptureOpen = false,
-                quickCaptureError = null,
-            )
-        }
-    }
-
-    fun updateQuickCaptureBody(value: String) {
-        _state.update { it.copy(quickCaptureBody = value, quickCaptureError = null) }
-    }
-
-    fun saveQuickCapture() {
-        val body = state.value.quickCaptureBody.trim()
-        if (body.isBlank()) {
-            _state.update { it.copy(quickCaptureError = "想记录什么？") }
-            return
-        }
-        viewModelScope.launch {
-            _state.update { it.copy(quickCaptureSaving = true, quickCaptureError = null, error = null, notice = null) }
-            runCatching {
-                if (isOfflineMode()) {
-                    localDataStore.createMemo(body, LocalDate.now().toString())
-                } else {
-                    api.createMemo(body, LocalDate.now().toString())
-                }
-            }
-                .onSuccess { memo ->
-                    applyMemo(memo)
-                    _state.update {
-                        it.copy(
-                            quickCaptureOpen = false,
-                            quickCaptureBody = "",
-                            quickCaptureSaving = false,
-                            notice = "已保存",
-                        )
-                    }
-                    refreshMemos()
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            quickCaptureSaving = false,
-                            quickCaptureError = error.readableMessage(),
-                        )
-                    }
-                }
-        }
-    }
-
-    fun expandQuickCaptureToEditor() {
-        val body = state.value.quickCaptureBody
-        _state.update {
-            it.copy(
-                screen = Screen.Editor,
-                quickCaptureOpen = false,
-                quickCaptureError = null,
-                selectedMemo = null,
-                selectedSummary = null,
-                summaryLoading = false,
-                uploadingAttachment = false,
-                draftContent = body,
                 draftEntryDate = LocalDate.now().toString(),
                 markdownPreview = false,
                 error = null,
@@ -1302,27 +1218,6 @@ class SillageViewModel(context: Context) : ViewModel() {
         state.value.selectedMemo?.id?.let(::fetchSelectedMemoDetail)
     }
 
-    fun closeAISettings() {
-        _state.update {
-            it.copy(
-                screen = Screen.Memos,
-                aiTestingProfileId = "",
-                error = null,
-                notice = null,
-            )
-        }
-    }
-
-    fun closeAsk() {
-        _state.update {
-            it.copy(
-                screen = Screen.Memos,
-                error = null,
-                notice = null,
-            )
-        }
-    }
-
     private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {
         _state.update {
             it.copy(
@@ -1747,10 +1642,6 @@ data class SillageUiState(
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val markdownPreview: Boolean = false,
-    val quickCaptureOpen: Boolean = false,
-    val quickCaptureBody: String = "",
-    val quickCaptureSaving: Boolean = false,
-    val quickCaptureError: String? = null,
     val searchQuery: String = "",
     val searchResults: List<Memo>? = null,
     val searching: Boolean = false,

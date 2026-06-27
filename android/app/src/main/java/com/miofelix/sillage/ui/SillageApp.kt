@@ -7,14 +7,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,16 +31,13 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudSync
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.QuestionAnswer
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
@@ -58,7 +54,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -132,9 +127,6 @@ private fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewMod
         title = "选择使用方式",
         supporting = "首次启动需要选择数据保存方式。之后会直接进入上次选择的模式，也可以在应用内切换。",
         state = state,
-        trailing = {
-            ThemeModeButton(state, viewModel)
-        },
     ) {
         Button(
             onClick = viewModel::useOfflineMode,
@@ -179,13 +171,10 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         supporting = "填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。",
         state = state,
         trailing = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (state.serverReturnScreen != null) {
-                    TextButton(onClick = viewModel::closeServerSettings) {
-                        Text("返回")
-                    }
+            if (state.serverReturnScreen != null) {
+                TextButton(onClick = viewModel::closeServerSettings) {
+                    Text("返回")
                 }
-                ThemeModeButton(state, viewModel)
             }
         },
     ) {
@@ -216,11 +205,8 @@ private fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel)
         supporting = "这是你的私密记录空间，初始化后不允许创建第二个账号。",
         state = state,
         trailing = {
-            Row {
-                ThemeModeButton(state, viewModel)
-                TextButton(onClick = viewModel::openServerSettings) {
-                    Text("服务器")
-                }
+            TextButton(onClick = viewModel::openServerSettings) {
+                Text("服务器")
             }
         },
     ) {
@@ -263,11 +249,8 @@ private fun LoginScreen(state: SillageUiState, viewModel: SillageViewModel) {
         supporting = "登录后可查看和编辑你的记录。",
         state = state,
         trailing = {
-            Row {
-                ThemeModeButton(state, viewModel)
-                TextButton(onClick = viewModel::openServerSettings) {
-                    Text("服务器")
-                }
+            TextButton(onClick = viewModel::openServerSettings) {
+                Text("服务器")
             }
         },
     ) {
@@ -335,16 +318,6 @@ private fun AuthScaffold(
     }
 }
 
-@Composable
-private fun ThemeModeButton(state: SillageUiState, viewModel: SillageViewModel) {
-    IconButton(onClick = viewModel::toggleThemeMode) {
-        Icon(
-            imageVector = if (state.themeMode == SessionStore.THEME_DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
-            contentDescription = if (state.themeMode == SessionStore.THEME_DARK) "切换浅色模式" else "切换深色模式",
-        )
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -352,21 +325,6 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val showingSearchResults = state.searchResults != null
     val today = remember { LocalDate.now().toString() }
     val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportFullData(uri)
-        }
-    }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            viewModel.importFullData(uri)
-        }
-    }
-    if (state.quickCaptureOpen) {
-        QuickCaptureSheet(state, viewModel)
-    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -386,28 +344,10 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "刷新")
-                    }
-                    MemoActionsMenu(
-                        state = state,
-                        onExport = { exportLauncher.launch("sillage-data.json") },
-                        onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                        onSyncToLocal = viewModel::syncFromServer,
-                        onSyncToServer = viewModel::syncToServer,
-                        onSyncBothWays = viewModel::syncBothWays,
-                        onOnline = viewModel::useOnlineMode,
-                        onOffline = viewModel::useOfflineMode,
-                        onServerSettings = viewModel::openServerSettings,
-                        onSignOut = viewModel::signOut,
-                        onToggleTheme = viewModel::toggleThemeMode,
-                    )
-                },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::openQuickCapture) {
+            FloatingActionButton(onClick = viewModel::startNewMemo) {
                 Icon(Icons.Rounded.Add, contentDescription = "新建记录")
             }
         },
@@ -444,189 +384,6 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     onMemoClick = viewModel::openMemoDetail,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun MemoActionsMenu(
-    state: SillageUiState,
-    onExport: () -> Unit,
-    onImport: () -> Unit,
-    onSyncToLocal: () -> Unit,
-    onSyncToServer: () -> Unit,
-    onSyncBothWays: () -> Unit,
-    onOnline: () -> Unit,
-    onOffline: () -> Unit,
-    onServerSettings: () -> Unit,
-    onSignOut: () -> Unit,
-    onToggleTheme: () -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }, enabled = !state.loading) {
-            Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (state.appMode == SessionStore.MODE_ONLINE) {
-                DropdownMenuItem(
-                    text = { Text("服务器设置") },
-                    leadingIcon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
-                    onClick = {
-                        expanded = false
-                        onServerSettings()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(if (state.themeMode == SessionStore.THEME_DARK) "切换浅色模式" else "切换深色模式") },
-                leadingIcon = {
-                    Icon(
-                        if (state.themeMode == SessionStore.THEME_DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
-                        contentDescription = null,
-                    )
-                },
-                onClick = {
-                    expanded = false
-                    onToggleTheme()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式") },
-                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onOnline()
-                },
-                enabled = state.appMode != SessionStore.MODE_ONLINE,
-            )
-            DropdownMenuItem(
-                text = { Text(if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式") },
-                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onOffline()
-                },
-                enabled = state.appMode != SessionStore.MODE_OFFLINE,
-            )
-            DropdownMenuItem(
-                text = { Text("同步到本地") },
-                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onSyncToLocal()
-                },
-                enabled = state.appMode == SessionStore.MODE_ONLINE,
-            )
-            DropdownMenuItem(
-                text = { Text("同步到云端") },
-                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onSyncToServer()
-                },
-                enabled = state.appMode == SessionStore.MODE_ONLINE,
-            )
-            DropdownMenuItem(
-                text = { Text("双向同步") },
-                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onSyncBothWays()
-                },
-                enabled = state.appMode == SessionStore.MODE_ONLINE,
-            )
-            DropdownMenuItem(
-                text = { Text("导出完整数据") },
-                onClick = {
-                    expanded = false
-                    onExport()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("导入完整数据") },
-                onClick = {
-                    expanded = false
-                    onImport()
-                },
-            )
-            if (state.appMode == SessionStore.MODE_ONLINE) {
-                DropdownMenuItem(
-                    text = { Text("退出登录") },
-                    onClick = {
-                        expanded = false
-                        onSignOut()
-                    },
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickCaptureSheet(state: SillageUiState, viewModel: SillageViewModel) {
-    ModalBottomSheet(
-        onDismissRequest = {
-            if (!state.quickCaptureSaving) {
-                viewModel.closeQuickCapture()
-            }
-        },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "速记",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                IconButton(onClick = viewModel::closeQuickCapture, enabled = !state.quickCaptureSaving) {
-                    Icon(Icons.Rounded.Close, contentDescription = "关闭速记")
-                }
-            }
-            OutlinedTextField(
-                value = state.quickCaptureBody,
-                onValueChange = viewModel::updateQuickCaptureBody,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 5,
-                maxLines = 8,
-                placeholder = { Text("想记录什么？") },
-            )
-            if (state.quickCaptureError != null) {
-                Text(
-                    state.quickCaptureError,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = viewModel::expandQuickCaptureToEditor,
-                    enabled = !state.quickCaptureSaving,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("完整编辑")
-                }
-                Button(
-                    onClick = viewModel::saveQuickCapture,
-                    enabled = !state.quickCaptureSaving,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (state.quickCaptureSaving) "保存中" else "保存")
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -1447,11 +1204,6 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text("Ask") },
-                navigationIcon = {
-                    TextButton(onClick = viewModel::closeAsk) {
-                        Text("返回")
-                    }
-                },
                 actions = {
                     TextButton(onClick = viewModel::startNewAsk, enabled = !state.askSending) {
                         Text("新会话")
@@ -1459,7 +1211,6 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
                         Text("刷新")
                     }
-                    ThemeModeButton(state, viewModel)
                 },
             )
         },
@@ -1808,23 +1559,29 @@ private fun AskMessageActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportFullData(uri)
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            viewModel.importFullData(uri)
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AI 设置") },
-                navigationIcon = {
-                    TextButton(onClick = viewModel::closeAISettings) {
-                        Text("返回")
-                    }
-                },
+                title = { Text("设置") },
                 actions = {
                     TextButton(onClick = viewModel::addAIProfile, enabled = !state.aiSettingsSaving) {
-                        Text("新增")
+                        Text("新增 AI")
                     }
                     TextButton(onClick = viewModel::saveAISettings, enabled = !state.aiSettingsSaving) {
                         Text(if (state.aiSettingsSaving) "保存中" else "保存")
                     }
-                    ThemeModeButton(state, viewModel)
                 },
             )
         },
@@ -1846,8 +1603,6 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (state.aiProfiles.isEmpty()) {
-                EmptyState("还没有 AI 档案。点击右上角新增。")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -1855,24 +1610,180 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
+                        SettingsSectionCard(title = "外观") {
+                            SettingsActionRow(
+                                title = if (state.themeMode == SessionStore.THEME_DARK) "浅色模式" else "深色模式",
+                                supporting = "切换应用主题显示。",
+                                onClick = viewModel::toggleThemeMode,
+                            )
+                        }
+                    }
+                    item {
+                        SettingsSectionCard(title = "服务与同步") {
+                            SettingsActionRow(
+                                title = "刷新记录",
+                                supporting = "重新读取当前模式下的记录列表。",
+                                onClick = viewModel::refreshMemos,
+                                enabled = !state.loading,
+                            )
+                            SettingsActionRow(
+                                title = if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式",
+                                supporting = state.baseUrl.ifBlank { "未配置服务器地址" },
+                                onClick = viewModel::useOnlineMode,
+                                enabled = state.appMode != SessionStore.MODE_ONLINE,
+                            )
+                            SettingsActionRow(
+                                title = if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式",
+                                supporting = "记录保存在当前设备。",
+                                onClick = viewModel::useOfflineMode,
+                                enabled = state.appMode != SessionStore.MODE_OFFLINE,
+                            )
+                            if (state.appMode == SessionStore.MODE_ONLINE) {
+                                SettingsActionRow(
+                                    title = "服务器设置",
+                                    supporting = "修改服务地址和重新连接。",
+                                    onClick = viewModel::openServerSettings,
+                                )
+                                SettingsActionRow(
+                                    title = "同步到本地",
+                                    supporting = "把服务端数据保存到本机离线库。",
+                                    onClick = viewModel::syncFromServer,
+                                    enabled = !state.loading,
+                                )
+                                SettingsActionRow(
+                                    title = "同步到云端",
+                                    supporting = "把本机离线记录推送到服务端。",
+                                    onClick = viewModel::syncToServer,
+                                    enabled = !state.loading,
+                                )
+                                SettingsActionRow(
+                                    title = "双向同步",
+                                    supporting = "先推送本地更改，再拉取服务端数据。",
+                                    onClick = viewModel::syncBothWays,
+                                    enabled = !state.loading,
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        SettingsSectionCard(title = "数据") {
+                            SettingsActionRow(
+                                title = "导出完整数据",
+                                supporting = "导出记录、AI 设置和问答数据。",
+                                onClick = { exportLauncher.launch("sillage-data.json") },
+                                enabled = !state.loading,
+                            )
+                            SettingsActionRow(
+                                title = "导入完整数据",
+                                supporting = "从 JSON 文件恢复或合并数据。",
+                                onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                                enabled = !state.loading,
+                            )
+                        }
+                    }
+                    if (state.appMode == SessionStore.MODE_ONLINE) {
+                        item {
+                            SettingsSectionCard(title = "账号") {
+                                SettingsActionRow(
+                                    title = "退出登录",
+                                    supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
+                                    onClick = viewModel::signOut,
+                                    enabled = !state.loading,
+                                )
+                            }
+                        }
+                    }
+                    item {
                         Text(
                             "密钥加密保存在本地服务端，不会回显。",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
-                        AIProfileCard(
-                            index = index,
-                            profile = state.aiProfiles[index],
-                            testing = state.aiTestingProfileId == state.aiProfiles[index].id,
-                            testResult = state.aiTestResults[state.aiProfiles[index].id],
-                            viewModel = viewModel,
-                        )
+                    if (state.aiProfiles.isEmpty()) {
+                        item {
+                            EmptySettingsCard("还没有 AI 档案。点击右上角新增 AI。")
+                        }
+                    } else {
+                        items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
+                            AIProfileCard(
+                                index = index,
+                                profile = state.aiProfiles[index],
+                                testing = state.aiTestingProfileId == state.aiProfiles[index].id,
+                                testResult = state.aiTestResults[state.aiProfiles[index].id],
+                                viewModel = viewModel,
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsActionRow(
+    title: String,
+    supporting: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text(title, textAlign = TextAlign.Start)
+            if (supporting.isNotBlank()) {
+                Text(
+                    supporting,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Start,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptySettingsCard(text: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(14.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

@@ -166,7 +166,7 @@ export function AskPage() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 z-10 bg-white/80 py-4 backdrop-blur dark:bg-gray-950/70">
+      <div className="sticky bottom-0 z-10 py-4">
         <div className="space-y-3">
           <textarea
             value={question}

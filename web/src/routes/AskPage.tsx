@@ -167,7 +167,7 @@ export function AskPage() {
       </div>
 
       <div className="sticky bottom-0 z-10 py-4">
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/40 dark:shadow-black/10">
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.miofelix.sillage.data.Memo
+import com.miofelix.sillage.data.MemoAI
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
@@ -440,6 +441,13 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     .weight(1f),
                 label = { Text("内容") },
             )
+            if (state.selectedMemo != null) {
+                MemoSummarySection(
+                    summary = state.selectedSummary,
+                    loading = state.summaryLoading,
+                    onGenerate = viewModel::summarizeSelectedMemo,
+                )
+            }
         }
     }
 }
@@ -455,6 +463,86 @@ private fun MemoStatusLine(memo: Memo?) {
     }
     Text(
         flags.joinToString(" · "),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.labelMedium,
+    )
+}
+
+@Composable
+private fun MemoSummarySection(
+    summary: MemoAI?,
+    loading: Boolean,
+    onGenerate: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "总结",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                TextButton(onClick = onGenerate, enabled = !loading) {
+                    Text(
+                        when {
+                            loading && summary == null -> "读取中"
+                            loading -> "总结中"
+                            summary == null -> "生成总结"
+                            else -> "重新总结"
+                        },
+                    )
+                }
+            }
+            val body = summary?.summary?.takeIf { it.isNotBlank() }
+            if (body != null) {
+                Text(
+                    body,
+                    maxLines = 8,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                SummaryMeta(summary)
+            } else {
+                Text(
+                    if (loading) "正在读取总结…" else "让 AI 基于这条记录生成一段简短的总结。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryMeta(summary: MemoAI) {
+    val model = listOf(summary.provider, summary.model)
+        .filter { it.isNotBlank() }
+        .joinToString(" / ")
+    if (model.isBlank() && summary.totalTokens == 0L) {
+        return
+    }
+    val text = buildString {
+        if (model.isNotBlank()) {
+            append(model)
+        }
+        if (summary.totalTokens > 0) {
+            if (isNotEmpty()) {
+                append(" · ")
+            }
+            append(summary.totalTokens)
+            append(" tokens")
+        }
+    }
+    Text(
+        text,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.labelMedium,
     )

@@ -24,6 +24,31 @@ data class Memo(
     val deletedAt: String?,
 )
 
+data class MemoDetail(
+    val memo: Memo,
+    val ai: MemoAI?,
+)
+
+data class MemoAI(
+    val memoId: String,
+    val summary: String?,
+    val sentiment: String?,
+    val provider: String,
+    val model: String,
+    val profileId: String,
+    val promptVersion: String,
+    val sourceMemoIds: String,
+    val status: String,
+    val errorCode: String?,
+    val startedAt: String?,
+    val finishedAt: String?,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val totalTokens: Long,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
 class ApiException(message: String) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null

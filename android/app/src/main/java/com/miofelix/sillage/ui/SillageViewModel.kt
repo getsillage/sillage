@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miofelix.sillage.data.Account
 import com.miofelix.sillage.data.Memo
+import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
@@ -44,6 +45,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
                 memos = emptyList(),
+                selectedSummary = null,
+                summaryLoading = false,
                 searchQuery = "",
                 searchResults = null,
                 searching = false,
@@ -127,6 +130,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                     account = null,
                     memos = emptyList(),
                     selectedMemo = null,
+                    selectedSummary = null,
+                    summaryLoading = false,
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -160,6 +165,8 @@ class SillageViewModel(context: Context) : ViewModel() {
             it.copy(
                 screen = Screen.Editor,
                 selectedMemo = null,
+                selectedSummary = null,
+                summaryLoading = false,
                 draftContent = "",
                 draftEntryDate = LocalDate.now().toString(),
                 error = null,
@@ -173,12 +180,15 @@ class SillageViewModel(context: Context) : ViewModel() {
             it.copy(
                 screen = Screen.Editor,
                 selectedMemo = memo,
+                selectedSummary = null,
+                summaryLoading = true,
                 draftContent = memo.content,
                 draftEntryDate = memo.entryDate,
                 error = null,
                 notice = null,
             )
         }
+        fetchSelectedMemoDetail(memo.id)
     }
 
     fun updateDraftContent(value: String) = _state.update { it.copy(draftContent = value) }
@@ -252,6 +262,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 it.copy(
                     screen = Screen.Memos,
                     selectedMemo = null,
+                    selectedSummary = null,
+                    summaryLoading = false,
                     draftContent = "",
                     searchQuery = "",
                     searchResults = null,
@@ -270,6 +282,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 it.copy(
                     screen = Screen.Memos,
                     selectedMemo = null,
+                    selectedSummary = null,
+                    summaryLoading = false,
                     draftContent = "",
                     searchQuery = "",
                     searchResults = null,
@@ -302,14 +316,81 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun summarizeSelectedMemo() {
+        val memo = state.value.selectedMemo ?: return
+        val memoId = memo.id
+        viewModelScope.launch {
+            _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
+            runCatching { api.generateMemoSummary(memo) }
+                .onSuccess { ai ->
+                    _state.update { current ->
+                        if (current.selectedMemo?.id == memoId) {
+                            current.copy(
+                                selectedSummary = ai,
+                                summaryLoading = false,
+                                notice = "已生成总结",
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { current ->
+                        if (current.selectedMemo?.id == memoId) {
+                            current.copy(
+                                summaryLoading = false,
+                                error = error.readableMessage(),
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
+        }
+    }
+
     fun closeEditor() {
         _state.update {
             it.copy(
                 screen = Screen.Memos,
                 selectedMemo = null,
+                selectedSummary = null,
+                summaryLoading = false,
                 draftContent = "",
                 error = null,
             )
+        }
+    }
+
+    private fun fetchSelectedMemoDetail(memoId: String) {
+        viewModelScope.launch {
+            runCatching { api.getMemo(memoId) }
+                .onSuccess { detail ->
+                    applyMemo(detail.memo)
+                    _state.update { current ->
+                        if (current.selectedMemo?.id == memoId) {
+                            current.copy(
+                                selectedSummary = detail.ai,
+                                summaryLoading = false,
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { current ->
+                        if (current.selectedMemo?.id == memoId) {
+                            current.copy(
+                                summaryLoading = false,
+                                error = error.readableMessage(),
+                            )
+                        } else {
+                            current
+                        }
+                    }
+                }
         }
     }
 
@@ -362,6 +443,8 @@ data class SillageUiState(
     val account: Account? = null,
     val memos: List<Memo> = emptyList(),
     val selectedMemo: Memo? = null,
+    val selectedSummary: MemoAI? = null,
+    val summaryLoading: Boolean = false,
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",

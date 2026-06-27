@@ -83,6 +83,18 @@ class SillageApi(private val sessionStore: SessionStore) {
         return memos.toMemoList()
     }
 
+    suspend fun getMemo(id: String): MemoDetail {
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${id.pathSegment()}"))
+            .get()
+            .build()
+        val body = execute(request)
+        return MemoDetail(
+            memo = parseMemo(body.getJSONObject("memo")),
+            ai = if (body.isNull("ai")) null else parseMemoAI(body.getJSONObject("ai")),
+        )
+    }
+
     suspend fun createMemo(content: String, entryDate: String): Memo {
         val payload = JSONObject()
             .put("content", content)
@@ -130,6 +142,14 @@ class SillageApi(private val sessionStore: SessionStore) {
             .post(EMPTY_BODY)
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
+    }
+
+    suspend fun generateMemoSummary(memo: Memo): MemoAI {
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:generate-summary"))
+            .post(EMPTY_BODY)
+            .build()
+        return parseMemoAI(execute(request).getJSONObject("ai"))
     }
 
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {
@@ -208,6 +228,28 @@ class SillageApi(private val sessionStore: SessionStore) {
             pinnedAt = body.nullableString("pinnedAt"),
             archivedAt = body.nullableString("archivedAt"),
             deletedAt = body.nullableString("deletedAt"),
+        )
+    }
+
+    private fun parseMemoAI(body: JSONObject): MemoAI {
+        return MemoAI(
+            memoId = body.getString("memoId"),
+            summary = body.nullableString("summary"),
+            sentiment = body.nullableString("sentiment"),
+            provider = body.optString("provider"),
+            model = body.optString("model"),
+            profileId = body.optString("profileId"),
+            promptVersion = body.optString("promptVersion"),
+            sourceMemoIds = body.optString("sourceMemoIds"),
+            status = body.optString("status"),
+            errorCode = body.nullableString("errorCode"),
+            startedAt = body.nullableString("startedAt"),
+            finishedAt = body.nullableString("finishedAt"),
+            inputTokens = body.optLong("inputTokens"),
+            outputTokens = body.optLong("outputTokens"),
+            totalTokens = body.optLong("totalTokens"),
+            createdAt = body.optString("createdAt"),
+            updatedAt = body.optString("updatedAt"),
         )
     }
 

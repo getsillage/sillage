@@ -493,13 +493,21 @@ export async function patchAISettings(
 // failure (the server maps provider errors to a user-facing string).
 export async function testAIConnection(
   accessToken: string,
-  id: string,
+  input: {
+    id?: string;
+    provider: string;
+    baseUrl: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    apiKey?: string | null;
+  },
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; model: string }> {
   return request("/api/v1/settings/ai:test", {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ id }),
+    body: JSON.stringify(input),
     signal,
   });
 }

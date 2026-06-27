@@ -7,6 +7,7 @@ import {
   patchAISettings,
   testAIConnection,
 } from "../lib/api";
+import { ThemeToggle } from "./ThemeToggle";
 import {
   dangerButtonClass,
   helperTextClass,
@@ -60,8 +61,13 @@ type ModelState = {
   status?: "ok" | "error";
   message?: string;
 };
+type SettingsTab = "ai" | "appearance";
 
 const ACTION_TIMEOUT_MS = 65_000;
+const SETTINGS_TABS: { value: SettingsTab; label: string }[] = [
+  { value: "ai", label: "AI" },
+  { value: "appearance", label: "外观" },
+];
 
 function profileKey(profile: EditableProfile, index: number): string {
   return profile.id || `new-${index}`;
@@ -90,6 +96,7 @@ function actionErrorMessage(cause: unknown, fallback: string): string {
 }
 
 export function SettingsWorkspace({ token }: { token: string }) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [autoSummary, setAutoSummary] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -169,21 +176,24 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
   }
 
-  // Tests a saved profile. Requires a stored id, so it nudges the user to save
-  // first when testing a brand-new, unsaved profile.
   async function testConnection(profile: EditableProfile, index: number) {
     const key = profileKey(profile, index);
-    if (!profile.id) {
-      setTestResults((current) => ({
-        ...current,
-        [key]: { status: "error", message: "请先保存后再测试连接。" },
-      }));
-      return;
-    }
     setTestingId(key);
     try {
       const res = await withTimeout((signal) =>
-        testAIConnection(token, profile.id, signal),
+        testAIConnection(
+          token,
+          {
+            id: profile.id || undefined,
+            provider: profile.provider,
+            baseUrl: profile.baseUrl,
+            model: profile.model,
+            temperature: profile.temperature,
+            maxTokens: profile.maxTokens,
+            apiKey: profile.apiKeyInput.trim() || undefined,
+          },
+          signal,
+        ),
       );
       setTestResults((current) => ({
         ...current,
@@ -251,278 +261,330 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className={helperTextClass}>密钥加密保存在本地服务端，不会回显。</p>
-        <button
-          type="button"
-          onClick={() => setProfiles((current) => [...current, blankProfile()])}
-          className={secondaryButtonClass}
-        >
-          新增档案
-        </button>
+      <div className="flex border-gray-200 border-b dark:border-gray-800">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setActiveTab(tab.value)}
+            className={`border-b-2 px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-gray-500/40 ${
+              activeTab === tab.value
+                ? "border-gray-900 font-medium text-gray-900 dark:border-gray-100 dark:text-gray-50"
+                : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            }`}
+            aria-current={activeTab === tab.value ? "page" : undefined}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <section className={`${panelClass} p-4 sm:p-5`}>
-        <label className="inline-flex items-center gap-2 text-gray-700 text-sm dark:text-gray-300">
-          <input
-            type="checkbox"
-            className="accent-gray-900 dark:accent-gray-100"
-            checked={autoSummary}
-            onChange={(event) => setAutoSummary(event.target.checked)}
-          />
-          新建记录后自动总结
-        </label>
-      </section>
+      {activeTab === "appearance" ? (
+        <section className={`${panelClass} p-4 sm:p-5`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
+                主题色
+              </h2>
+              <p className={helperTextClass}>切换浅色和深色界面。</p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </section>
+      ) : null}
 
-      {profiles.length === 0 ? (
-        <div className="rounded-lg bg-gray-100/60 px-4 py-10 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
-          还没有 AI 档案。点击「新增档案」添加一个。
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {profiles.map((profile, index) => {
-            const key = profileKey(profile, index);
-            const modelState = modelResults[key];
-            const testState = testResults[key];
-            return (
-              <article key={key} className={`${panelClass} p-4 sm:p-5`}>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className={labelClass}>名称</span>
-                    <input
-                      className={inputClass}
-                      value={profile.name}
-                      onChange={(event) =>
-                        updateProfile(index, { name: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Provider</span>
-                    <select
-                      className={selectClass}
-                      value={profile.provider}
-                      onChange={(event) =>
-                        updateProfile(index, { provider: event.target.value })
-                      }
-                    >
-                      {PROVIDER_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                      {!PROVIDER_OPTIONS.some(
-                        (option) => option.value === profile.provider,
-                      ) && (
-                        <option value={profile.provider}>
-                          {profile.provider}
-                        </option>
-                      )}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Base URL</span>
-                    <input
-                      className={inputClass}
-                      value={profile.baseUrl}
-                      placeholder="https://api.anthropic.com"
-                      onChange={(event) =>
-                        updateProfile(index, { baseUrl: event.target.value })
-                      }
-                    />
-                  </label>
-                  <div className="block">
-                    <span className={labelClass}>模型</span>
-                    <div className="mt-1 flex gap-2">
-                      <input
-                        aria-label="模型"
-                        className={`${inputClass} mt-0`}
-                        value={profile.model}
-                        placeholder="claude-opus-4-8"
-                        onChange={(event) =>
-                          updateProfile(index, { model: event.target.value })
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fetchModels(profile, index)}
-                        disabled={modelState?.loading}
-                        className={`${secondaryButtonClass} shrink-0`}
-                      >
-                        {modelState?.loading ? "获取中…" : "获取模型"}
-                      </button>
-                    </div>
-                    {modelState?.models.length ? (
-                      <select
-                        aria-label="选择模型"
-                        className={selectClass}
-                        value={profile.model}
-                        onChange={(event) =>
-                          updateProfile(index, { model: event.target.value })
-                        }
-                      >
-                        {!modelState.models.includes(profile.model) && (
-                          <option value={profile.model}>
-                            {profile.model || "手动输入模型"}
-                          </option>
+      {activeTab === "ai" ? (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <p className={helperTextClass}>
+              密钥加密保存在本地服务端，不会回显。
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                setProfiles((current) => [...current, blankProfile()])
+              }
+              className={secondaryButtonClass}
+            >
+              新增档案
+            </button>
+          </div>
+
+          <section className={`${panelClass} p-4 sm:p-5`}>
+            <label className="inline-flex items-center gap-2 text-gray-700 text-sm dark:text-gray-300">
+              <input
+                type="checkbox"
+                className="accent-gray-900 dark:accent-gray-100"
+                checked={autoSummary}
+                onChange={(event) => setAutoSummary(event.target.checked)}
+              />
+              新建记录后自动总结
+            </label>
+          </section>
+
+          {profiles.length === 0 ? (
+            <div className="rounded-lg bg-gray-100/60 px-4 py-10 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
+              还没有 AI 档案。点击「新增档案」添加一个。
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {profiles.map((profile, index) => {
+                const key = profileKey(profile, index);
+                const modelState = modelResults[key];
+                const testState = testResults[key];
+                return (
+                  <article key={key} className={`${panelClass} p-4 sm:p-5`}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className={labelClass}>名称</span>
+                        <input
+                          className={inputClass}
+                          value={profile.name}
+                          onChange={(event) =>
+                            updateProfile(index, { name: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="block">
+                        <span className={labelClass}>Provider</span>
+                        <select
+                          className={selectClass}
+                          value={profile.provider}
+                          onChange={(event) =>
+                            updateProfile(index, {
+                              provider: event.target.value,
+                            })
+                          }
+                        >
+                          {PROVIDER_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                          {!PROVIDER_OPTIONS.some(
+                            (option) => option.value === profile.provider,
+                          ) && (
+                            <option value={profile.provider}>
+                              {profile.provider}
+                            </option>
+                          )}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className={labelClass}>Base URL</span>
+                        <input
+                          className={inputClass}
+                          value={profile.baseUrl}
+                          placeholder="https://api.anthropic.com"
+                          onChange={(event) =>
+                            updateProfile(index, {
+                              baseUrl: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <div className="block">
+                        <span className={labelClass}>模型</span>
+                        <div className="mt-1 flex gap-2">
+                          <input
+                            aria-label="模型"
+                            className={`${inputClass} mt-0`}
+                            value={profile.model}
+                            placeholder="claude-opus-4-8"
+                            onChange={(event) =>
+                              updateProfile(index, {
+                                model: event.target.value,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => fetchModels(profile, index)}
+                            disabled={modelState?.loading}
+                            className={`${secondaryButtonClass} shrink-0`}
+                          >
+                            {modelState?.loading ? "获取中…" : "获取模型"}
+                          </button>
+                        </div>
+                        {modelState?.models.length ? (
+                          <select
+                            aria-label="选择模型"
+                            className={selectClass}
+                            value={profile.model}
+                            onChange={(event) =>
+                              updateProfile(index, {
+                                model: event.target.value,
+                              })
+                            }
+                          >
+                            {!modelState.models.includes(profile.model) && (
+                              <option value={profile.model}>
+                                {profile.model || "手动输入模型"}
+                              </option>
+                            )}
+                            {modelState.models.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        {modelState?.message ? (
+                          <p
+                            className={`mt-1 text-xs ${
+                              modelState.status === "error"
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-gray-500 dark:text-gray-400"
+                            }`}
+                          >
+                            {modelState.message}
+                          </p>
+                        ) : null}
+                      </div>
+                      <label className="block">
+                        <span className={labelClass}>温度</span>
+                        <input
+                          className={inputClass}
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="2"
+                          value={profile.temperature}
+                          onChange={(event) =>
+                            updateProfile(index, {
+                              temperature:
+                                Number.parseFloat(event.target.value) || 0,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="block">
+                        <span className={labelClass}>最大 Tokens</span>
+                        <input
+                          className={inputClass}
+                          type="number"
+                          min="1"
+                          value={profile.maxTokens}
+                          onChange={(event) =>
+                            updateProfile(index, {
+                              maxTokens:
+                                Number.parseInt(event.target.value, 10) || 0,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="block sm:col-span-2">
+                        <span className={labelClass}>API 密钥</span>
+                        <input
+                          className={inputClass}
+                          type="password"
+                          autoComplete="off"
+                          value={profile.apiKeyInput}
+                          placeholder={
+                            profile.hasApiKey
+                              ? "已配置，留空保持不变"
+                              : "未配置"
+                          }
+                          onChange={(event) =>
+                            updateProfile(index, {
+                              apiKeyInput: event.target.value,
+                            })
+                          }
+                        />
+                        {profile.keyUnavailable && (
+                          <span className="mt-1 block text-red-600 text-xs dark:text-red-400">
+                            当前密钥无法解密，请重新填写。
+                          </span>
                         )}
-                        {modelState.models.map((model) => (
-                          <option key={model} value={model}>
-                            {model}
-                          </option>
-                        ))}
-                      </select>
-                    ) : null}
-                    {modelState?.message ? (
+                      </label>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-100 border-t pt-3 dark:border-gray-800">
+                      <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm dark:text-gray-300">
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="accent-gray-900 dark:accent-gray-100"
+                            checked={profile.enabled}
+                            onChange={(event) =>
+                              updateProfile(index, {
+                                enabled: event.target.checked,
+                              })
+                            }
+                          />
+                          启用
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="accent-gray-900 dark:accent-gray-100"
+                            checked={profile.active}
+                            onChange={(event) =>
+                              updateProfile(index, {
+                                active: event.target.checked,
+                              })
+                            }
+                          />
+                          设为默认
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => testConnection(profile, index)}
+                          disabled={testingId === key}
+                          className={subtleButtonClass}
+                        >
+                          {testingId === key ? "测试中…" : "测试连接"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeProfile(index)}
+                          className={dangerButtonClass}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                    {testState ? (
                       <p
-                        className={`mt-1 text-xs ${
-                          modelState.status === "error"
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-gray-500 dark:text-gray-400"
+                        className={`mt-2 text-xs ${
+                          testState.status === "ok"
+                            ? "text-gray-500 dark:text-gray-400"
+                            : "text-red-600 dark:text-red-400"
                         }`}
                       >
-                        {modelState.message}
+                        {testState.message}
                       </p>
                     ) : null}
-                  </div>
-                  <label className="block">
-                    <span className={labelClass}>温度</span>
-                    <input
-                      className={inputClass}
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="2"
-                      value={profile.temperature}
-                      onChange={(event) =>
-                        updateProfile(index, {
-                          temperature:
-                            Number.parseFloat(event.target.value) || 0,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>最大 Tokens</span>
-                    <input
-                      className={inputClass}
-                      type="number"
-                      min="1"
-                      value={profile.maxTokens}
-                      onChange={(event) =>
-                        updateProfile(index, {
-                          maxTokens:
-                            Number.parseInt(event.target.value, 10) || 0,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="block sm:col-span-2">
-                    <span className={labelClass}>API 密钥</span>
-                    <input
-                      className={inputClass}
-                      type="password"
-                      autoComplete="off"
-                      value={profile.apiKeyInput}
-                      placeholder={
-                        profile.hasApiKey ? "已配置，留空保持不变" : "未配置"
-                      }
-                      onChange={(event) =>
-                        updateProfile(index, {
-                          apiKeyInput: event.target.value,
-                        })
-                      }
-                    />
-                    {profile.keyUnavailable && (
-                      <span className="mt-1 block text-red-600 text-xs dark:text-red-400">
-                        当前密钥无法解密，请重新填写。
-                      </span>
-                    )}
-                  </label>
-                </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-100 border-t pt-3 dark:border-gray-800">
-                  <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm dark:text-gray-300">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="accent-gray-900 dark:accent-gray-100"
-                        checked={profile.enabled}
-                        onChange={(event) =>
-                          updateProfile(index, {
-                            enabled: event.target.checked,
-                          })
-                        }
-                      />
-                      启用
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="accent-gray-900 dark:accent-gray-100"
-                        checked={profile.active}
-                        onChange={(event) =>
-                          updateProfile(index, { active: event.target.checked })
-                        }
-                      />
-                      设为默认
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => testConnection(profile, index)}
-                      disabled={testingId === key}
-                      className={subtleButtonClass}
-                    >
-                      {testingId === key ? "测试中…" : "测试连接"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeProfile(index)}
-                      className={dangerButtonClass}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-                {testState ? (
-                  <p
-                    className={`mt-2 text-xs ${
-                      testState.status === "ok"
-                        ? "text-gray-500 dark:text-gray-400"
-                        : "text-red-600 dark:text-red-400"
-                    }`}
-                  >
-                    {testState.message}
-                  </p>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {error ? (
-          <p className="mr-auto text-red-600 text-sm dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
-        {notice ? (
-          <p className="mr-auto text-gray-500 text-sm dark:text-gray-400">
-            {notice}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          disabled={saving}
-          onClick={save}
-          className={primaryButtonClass}
-        >
-          {saving ? "保存中…" : "保存设置"}
-        </button>
-      </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {error ? (
+              <p className="mr-auto text-red-600 text-sm dark:text-red-400">
+                {error}
+              </p>
+            ) : null}
+            {notice ? (
+              <p className="mr-auto text-gray-500 text-sm dark:text-gray-400">
+                {notice}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={save}
+              className={primaryButtonClass}
+            >
+              {saving ? "保存中…" : "保存设置"}
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

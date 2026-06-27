@@ -99,6 +99,16 @@ type aiModelsInput struct {
 	APIKey   *string
 }
 
+type aiTestInput struct {
+	ID          string
+	Provider    string
+	BaseURL     string
+	Model       string
+	Temperature float64
+	MaxTokens   int64
+	APIKey      *string
+}
+
 type aiSettingsResult struct {
 	Profiles    []*store.AIProfile
 	AutoSummary bool
@@ -237,6 +247,9 @@ func (s *Server) getAISettings(ctx context.Context, accountID string) (*aiSettin
 }
 
 func (s *Server) patchAISettings(ctx context.Context, accountID string, input aiSettingsInput) (*aiSettingsResult, error) {
+	if err := s.Store.EnsureCompatSchema(ctx); err != nil {
+		return nil, err
+	}
 	profiles := make([]*store.AIProfile, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		if profileReq.Name == "" || profileReq.Provider == "" {
@@ -335,15 +348,13 @@ func (s *Server) setGlobalAutoSummary(ctx context.Context, accountID string, ena
 	return s.Store.PutAccountSetting(ctx, accountID, aiAutoSummarySettingKey, value)
 }
 
-// testAIConnection makes a minimal call against a saved profile to verify the
-// key, base URL, and model actually work, returning the model on success.
-func (s *Server) testAIConnection(ctx context.Context, accountID, profileID string) (string, error) {
-	if profileID == "" {
-		return "", validationError{message: "缺少要测试的 AI 档案"}
-	}
+// testAIConnection makes a minimal call against a saved profile or an unsaved
+// draft to verify the key, base URL, and model actually work.
+func (s *Server) testAIConnection(ctx context.Context, accountID string, input aiTestInput) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
 	defer cancel()
-	profile, err := s.Store.GetAIProfile(ctx, accountID, profileID)
+
+	profile, err := s.aiProfileForConnectionTest(ctx, accountID, input)
 	if err != nil {
 		return "", err
 	}
@@ -360,6 +371,61 @@ func (s *Server) testAIConnection(ctx context.Context, accountID, profileID stri
 		return "", err
 	}
 	return profile.Model, nil
+}
+
+func (s *Server) aiProfileForConnectionTest(ctx context.Context, accountID string, input aiTestInput) (*store.AIProfile, error) {
+	var profile *store.AIProfile
+	if input.ID != "" {
+		saved, err := s.Store.GetAIProfile(ctx, accountID, input.ID)
+		if err != nil {
+			return nil, err
+		}
+		copy := *saved
+		profile = &copy
+	} else {
+		profile = &store.AIProfile{
+			ID:          "draft",
+			AccountID:   accountID,
+			Provider:    "openai",
+			Temperature: 0.3,
+			MaxTokens:   1000,
+			Enabled:     true,
+		}
+	}
+
+	if strings.TrimSpace(input.Provider) != "" {
+		profile.Provider = strings.TrimSpace(input.Provider)
+	}
+	if strings.TrimSpace(input.BaseURL) != "" {
+		profile.BaseURL = strings.TrimSpace(input.BaseURL)
+	}
+	if strings.TrimSpace(input.Model) != "" {
+		profile.Model = strings.TrimSpace(input.Model)
+	}
+	if input.Temperature != 0 {
+		profile.Temperature = input.Temperature
+	}
+	if input.MaxTokens > 0 {
+		profile.MaxTokens = input.MaxTokens
+	}
+	if input.APIKey != nil {
+		apiKey := strings.TrimSpace(*input.APIKey)
+		if apiKey != "" {
+			envelope, err := secret.EncryptEnvelope(s.Secrets.EncryptionSecret, apiKey)
+			if err != nil {
+				return nil, err
+			}
+			profile.APIKeyEnvelope = sql.NullString{String: envelope, Valid: true}
+			profile.KeyUnavailable = false
+		}
+	}
+	if input.ID == "" && !profile.APIKeyEnvelope.Valid {
+		return nil, errAINotConfigured
+	}
+	if strings.TrimSpace(profile.Model) == "" {
+		return nil, validationError{message: "模型不能为空"}
+	}
+	return profile, nil
 }
 
 func (s *Server) listAIModels(ctx context.Context, accountID string, input aiModelsInput) ([]string, error) {

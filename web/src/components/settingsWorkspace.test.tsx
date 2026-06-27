@@ -134,11 +134,66 @@ describe("SettingsWorkspace", () => {
     await waitFor(() =>
       expect(testAIConnection).toHaveBeenCalledWith(
         "t",
-        "p1",
+        {
+          id: "p1",
+          provider: "anthropic",
+          baseUrl: "",
+          model: "claude-opus-4-8",
+          temperature: 0.3,
+          maxTokens: 1000,
+          apiKey: undefined,
+        },
         expect.any(AbortSignal),
       ),
     );
     expect(await screen.findByText(/连接成功/)).toBeInTheDocument();
+  });
+
+  it("tests a new unsaved profile with current form values", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [],
+      autoSummary: false,
+    });
+    render(<SettingsWorkspace token="t" />);
+    await screen.findByText(/还没有 AI 档案/);
+
+    await user.click(screen.getByRole("button", { name: "新增档案" }));
+    await user.type(screen.getByLabelText("Base URL"), "https://ai.example/v1");
+    await user.type(screen.getByRole("textbox", { name: "模型" }), "gpt-test");
+    await user.type(screen.getByLabelText("API 密钥"), "sk-test");
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+
+    await waitFor(() =>
+      expect(testAIConnection).toHaveBeenCalledWith(
+        "t",
+        {
+          id: undefined,
+          provider: "anthropic",
+          baseUrl: "https://ai.example/v1",
+          model: "gpt-test",
+          temperature: 0.3,
+          maxTokens: 1000,
+          apiKey: "sk-test",
+        },
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(
+      screen.queryByText("请先保存后再测试连接。"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the theme switcher under the appearance tab", async () => {
+    const user = userEvent.setup();
+    render(<SettingsWorkspace token="t" />);
+    await screen.findByDisplayValue("默认");
+
+    await user.click(screen.getByRole("button", { name: "外观" }));
+    expect(screen.getByText("主题色")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /切换主题/ }),
+    ).toBeInTheDocument();
   });
 
   it("surfaces a failed connection test", async () => {

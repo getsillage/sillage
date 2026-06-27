@@ -33,12 +33,17 @@ type aiProfileRequest struct {
 func (s *Server) registerAIRoutes(e *echo.Echo) {
 	e.GET("/api/v1/settings/ai", s.handleGetAISettings)
 	e.PATCH("/api/v1/settings/ai", s.handlePatchAISettings)
-	e.POST("/api/v1/settings/ai:test", s.handleTestAISettings)
-	e.POST("/api/v1/settings/ai:models", s.handleListAIModels)
+	e.POST("/api/v1/settings/:aiAction", s.handleAISettingsAction)
 }
 
 type aiTestRequest struct {
-	ID string `json:"id"`
+	ID          string  `json:"id"`
+	Provider    string  `json:"provider"`
+	BaseURL     string  `json:"baseUrl"`
+	Model       string  `json:"model"`
+	Temperature float64 `json:"temperature"`
+	MaxTokens   int64   `json:"maxTokens"`
+	APIKey      *string `json:"apiKey"`
 }
 
 type aiModelsRequest struct {
@@ -46,6 +51,17 @@ type aiModelsRequest struct {
 	Provider string  `json:"provider"`
 	BaseURL  string  `json:"baseUrl"`
 	APIKey   *string `json:"apiKey"`
+}
+
+func (s *Server) handleAISettingsAction(c *echo.Context) error {
+	switch c.Request().URL.Path {
+	case "/api/v1/settings/ai:test":
+		return s.handleTestAISettings(c)
+	case "/api/v1/settings/ai:models":
+		return s.handleListAIModels(c)
+	default:
+		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
+	}
 }
 
 func (s *Server) handleTestAISettings(c *echo.Context) error {
@@ -57,7 +73,15 @@ func (s *Server) handleTestAISettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	model, err := s.testAIConnection(c.Request().Context(), account.ID, req.ID)
+	model, err := s.testAIConnection(c.Request().Context(), account.ID, aiTestInput{
+		ID:          req.ID,
+		Provider:    req.Provider,
+		BaseURL:     req.BaseURL,
+		Model:       req.Model,
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
+		APIKey:      req.APIKey,
+	})
 	if err != nil {
 		status, code, message := aiTestHTTPStatus(err)
 		return apiError(c, status, code, message)

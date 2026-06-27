@@ -141,7 +141,14 @@ describe("ask + settings + auth api wrappers", () => {
     expect(lastCall().init.method).toBe("PATCH");
     expect(JSON.parse(lastCall().init.body as string).autoSummary).toBe(true);
 
-    await testAIConnection("t", "p1");
+    await testAIConnection("t", {
+      id: "p1",
+      provider: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-test",
+      temperature: 0.3,
+      maxTokens: 1000,
+    });
     expect(lastCall().path).toBe("/api/v1/settings/ai:test");
 
     await listAIModels("t", {

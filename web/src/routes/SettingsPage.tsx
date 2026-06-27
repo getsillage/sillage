@@ -12,7 +12,7 @@ export function SettingsPage({ token }: { token: string }) {
       <section className={pageSectionClass}>
         <header>
           <h1 className={pageTitleClass}>设置</h1>
-          <p className={pageLeadClass}>管理用于总结与问答的 AI 档案。</p>
+          <p className={pageLeadClass}>管理 AI 档案和界面外观。</p>
         </header>
         <SettingsWorkspace token={token} />
       </section>

@@ -96,6 +96,24 @@ func TestAISettingsGlobalAutoSummaryAndModels(t *testing.T) {
 	}
 }
 
+func TestAISettingsTestsUnsavedProfile(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/settings/ai:test", map[string]any{
+		"provider":    "openai",
+		"baseUrl":     mockAI.URL,
+		"model":       "gpt-test",
+		"temperature": 0.2,
+		"maxTokens":   1000,
+		"apiKey":      mockAIAPIKey,
+	}, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"model":"gpt-test"`) {
+		t.Fatalf("test unsaved ai profile status/body = %d %s", res.Code, res.Body.String())
+	}
+}
+
 func TestAISettingsLegacyPatchKeepsGlobalAutoSummary(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

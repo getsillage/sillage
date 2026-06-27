@@ -58,6 +58,52 @@ func seedMemo(t *testing.T, s *store.Store, accountID, content string) *store.Me
 
 func strptr(v string) *string { return &v }
 
+// TestSearchMemosMatchesAndExcludesTombstones covers the FTS/LIKE search path:
+// it finds matching content and never returns soft-deleted memos.
+func TestSearchMemosMatchesAndExcludesTombstones(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	keep := seedMemo(t, s, account, "今天去爬山看日出")
+	seedMemo(t, s, account, "完全无关的内容")
+	gone := seedMemo(t, s, account, "爬山笔记需要删除")
+	deleted := true
+	if _, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID:              gone.ID,
+		CreatorID:       account,
+		ExpectedVersion: gone.Version,
+		Deleted:         &deleted,
+	}); err != nil {
+		t.Fatalf("soft-delete error = %v", err)
+	}
+
+	got, err := s.SearchMemos(ctx, &store.SearchMemoOptions{
+		AccountID: account,
+		Query:     "爬山",
+		Limit:     20,
+	})
+	if err != nil {
+		t.Fatalf("SearchMemos() error = %v", err)
+	}
+	ids := make([]string, 0, len(got))
+	for _, m := range got {
+		ids = append(ids, m.ID)
+	}
+	if len(ids) != 1 || ids[0] != keep.ID {
+		t.Fatalf("search ids = %v, want only the kept memo %s", ids, keep.ID)
+	}
+
+	// Blank query returns nothing (callers fall back to the recent list).
+	blank, err := s.SearchMemos(ctx, &store.SearchMemoOptions{AccountID: account, Query: "  "})
+	if err != nil {
+		t.Fatalf("blank SearchMemos() error = %v", err)
+	}
+	if len(blank) != 0 {
+		t.Fatalf("blank query returned %d memos, want 0", len(blank))
+	}
+}
+
 // TestUpdateMemoStaleVersionConflict locks in that an update carrying a stale
 // expected version is rejected as a conflict rather than clobbering the row.
 func TestUpdateMemoStaleVersionConflict(t *testing.T) {

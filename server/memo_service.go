@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -21,7 +23,13 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	if err != nil {
 		return nil, err
 	}
-	memos, err := s.server.listMemos(ctx, account.ID, int(req.Msg.GetLimit()))
+	limit := int(req.Msg.GetLimit())
+	var memos []*store.Memo
+	if query := req.Msg.GetQuery(); query != "" {
+		memos, err = s.server.searchMemos(ctx, account.ID, query, limit)
+	} else {
+		memos, err = s.server.listMemos(ctx, account.ID, limit)
+	}
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -57,7 +65,13 @@ func (s *memoService) GetMemo(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
+	res := &apiv1.MemoResponse{Memo: memoPB(memo)}
+	if ai, aiErr := s.server.Store.GetMemoAI(ctx, memo.ID); aiErr == nil {
+		res.Ai = memoAIPB(ai)
+	} else if !errors.Is(aiErr, sql.ErrNoRows) {
+		return nil, connectError(aiErr)
+	}
+	return connect.NewResponse(res), nil
 }
 
 func (s *memoService) UpdateMemo(ctx context.Context, req *connect.Request[apiv1.UpdateMemoRequest]) (*connect.Response[apiv1.MemoResponse], error) {

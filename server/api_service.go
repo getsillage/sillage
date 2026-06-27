@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/miofelix/sillage/internal/secret"
 	"github.com/miofelix/sillage/server/auth"
@@ -85,6 +87,7 @@ type aiProfileInput struct {
 	MaxTokens   int64
 	Enabled     bool
 	Active      bool
+	AutoSummary bool
 	APIKey      *string
 }
 
@@ -203,6 +206,7 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 			Active:         profileReq.Active,
 			APIKeyEnvelope: envelope,
 			KeyUnavailable: false,
+			AutoSummary:    profileReq.AutoSummary,
 		})
 		if err != nil {
 			return nil, err
@@ -210,6 +214,31 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 		profiles = append(profiles, profile)
 	}
 	return profiles, nil
+}
+
+// testAIConnection makes a minimal call against a saved profile to verify the
+// key, base URL, and model actually work, returning the model on success.
+func (s *Server) testAIConnection(ctx context.Context, accountID, profileID string) (string, error) {
+	if profileID == "" {
+		return "", validationError{message: "缺少要测试的 AI 档案"}
+	}
+	profile, err := s.Store.GetAIProfile(ctx, accountID, profileID)
+	if err != nil {
+		return "", err
+	}
+	jobDone, err := s.acquireMemoAIJob()
+	if err != nil {
+		return "", err
+	}
+	defer jobDone()
+	if _, err := s.callAI(ctx, accountID, profile,
+		"你是连接测试助手。",
+		[]aiProviderMessage{{Role: "user", Content: "请只回复 ok。"}},
+		profile.Temperature, 16,
+	); err != nil {
+		return "", err
+	}
+	return profile.Model, nil
 }
 
 func (s *Server) getAttachment(ctx context.Context, accountID, uid string) (*store.Attachment, error) {
@@ -245,12 +274,38 @@ func (s *Server) createMemo(ctx context.Context, accountID string, input memoCre
 	if err := validateMemoFields(input.Content, input.EntryDate); err != nil {
 		return nil, validationError{message: err.Error()}
 	}
-	return s.Store.CreateMemo(ctx, &store.CreateMemo{
+	memo, err := s.Store.CreateMemo(ctx, &store.CreateMemo{
 		ID:        input.ID,
 		CreatorID: accountID,
 		Content:   input.Content,
 		EntryDate: input.EntryDate,
 	})
+	if err != nil {
+		return nil, err
+	}
+	s.maybeScheduleAutoSummary(accountID, memo.ID)
+	return memo, nil
+}
+
+// maybeScheduleAutoSummary generates a summary in the background when the active
+// AI profile has auto_summary on. It is best-effort: it runs off the request
+// path with its own timeout and never blocks or fails the memo write.
+func (s *Server) maybeScheduleAutoSummary(accountID, memoID string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		profiles, err := s.Store.ListAIProfiles(ctx, accountID)
+		if err != nil {
+			return
+		}
+		profile, err := pickActiveAIProfile(profiles)
+		if err != nil || profile == nil || !profile.AutoSummary {
+			return
+		}
+		if _, err := s.generateMemoSummary(ctx, accountID, memoID); err != nil {
+			slog.Warn("auto summary failed", "memo", memoID, "error", err)
+		}
+	}()
 }
 
 func (s *Server) getMemo(ctx context.Context, accountID, id string) (*store.Memo, error) {

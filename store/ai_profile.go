@@ -23,6 +23,7 @@ type AIProfile struct {
 	Active         bool
 	APIKeyEnvelope sql.NullString
 	KeyUnavailable bool
+	AutoSummary    bool
 	CreatedAt      int64
 	UpdatedAt      int64
 	DeletedAt      sql.NullInt64
@@ -41,6 +42,7 @@ type UpsertAIProfile struct {
 	Active         bool
 	APIKeyEnvelope *string
 	KeyUnavailable bool
+	AutoSummary    bool
 }
 
 func (s *Store) UpsertAIProfile(ctx context.Context, upsert *UpsertAIProfile) (*AIProfile, error) {
@@ -82,8 +84,8 @@ WHERE id = ? AND account_id = ?`, id, upsert.AccountID))
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO ai_profile (
   id, account_id, name, provider, base_url, model, temperature, max_tokens,
-  enabled, active, api_key_envelope, key_unavailable, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  enabled, active, api_key_envelope, key_unavailable, auto_summary, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id,
 			upsert.AccountID,
 			upsert.Name,
@@ -96,6 +98,7 @@ INSERT INTO ai_profile (
 			boolInt(upsert.Active),
 			nullableString(apiKeyEnvelope),
 			boolInt(upsert.KeyUnavailable),
+			boolInt(upsert.AutoSummary),
 			now,
 			now,
 		); err != nil {
@@ -105,7 +108,7 @@ INSERT INTO ai_profile (
 		if _, err := tx.ExecContext(ctx, `
 UPDATE ai_profile
 SET name = ?, provider = ?, base_url = ?, model = ?, temperature = ?, max_tokens = ?,
-  enabled = ?, active = ?, api_key_envelope = ?, key_unavailable = ?, updated_at = ?, deleted_at = NULL
+  enabled = ?, active = ?, api_key_envelope = ?, key_unavailable = ?, auto_summary = ?, updated_at = ?, deleted_at = NULL
 WHERE id = ? AND account_id = ?`,
 			upsert.Name,
 			upsert.Provider,
@@ -117,6 +120,7 @@ WHERE id = ? AND account_id = ?`,
 			boolInt(upsert.Active),
 			nullableString(apiKeyEnvelope),
 			boolInt(upsert.KeyUnavailable),
+			boolInt(upsert.AutoSummary),
 			now,
 			id,
 			upsert.AccountID,
@@ -170,7 +174,7 @@ UPDATE ai_profile SET key_unavailable = 1, updated_at = ? WHERE account_id = ? A
 func aiProfileSelect() string {
 	return `
 SELECT id, account_id, name, provider, base_url, model, temperature, max_tokens,
-  enabled, active, api_key_envelope, key_unavailable, created_at, updated_at, deleted_at
+  enabled, active, api_key_envelope, key_unavailable, auto_summary, created_at, updated_at, deleted_at
 FROM ai_profile `
 }
 
@@ -178,7 +182,7 @@ func scanAIProfile(row interface {
 	Scan(dest ...any) error
 }) (*AIProfile, error) {
 	var profile AIProfile
-	var enabled, active, keyUnavailable int
+	var enabled, active, keyUnavailable, autoSummary int
 	if err := row.Scan(
 		&profile.ID,
 		&profile.AccountID,
@@ -192,6 +196,7 @@ func scanAIProfile(row interface {
 		&active,
 		&profile.APIKeyEnvelope,
 		&keyUnavailable,
+		&autoSummary,
 		&profile.CreatedAt,
 		&profile.UpdatedAt,
 		&profile.DeletedAt,
@@ -204,6 +209,7 @@ func scanAIProfile(row interface {
 	profile.Enabled = enabled == 1
 	profile.Active = active == 1
 	profile.KeyUnavailable = keyUnavailable == 1
+	profile.AutoSummary = autoSummary == 1
 	return &profile, nil
 }
 

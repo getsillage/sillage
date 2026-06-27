@@ -55,6 +55,7 @@ func aiProfilePB(profile *store.AIProfile) *apiv1.AIProfile {
 		Active:         profile.Active,
 		HasApiKey:      profile.APIKeyEnvelope.Valid,
 		KeyUnavailable: profile.KeyUnavailable,
+		AutoSummary:    profile.AutoSummary,
 		CreatedTime:    timestamppb.New(unixMilliTime(profile.CreatedAt)),
 		UpdatedTime:    timestamppb.New(unixMilliTime(profile.UpdatedAt)),
 	}

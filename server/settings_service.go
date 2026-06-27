@@ -44,6 +44,7 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 			MaxTokens:   profile.GetMaxTokens(),
 			Enabled:     profile.GetEnabled(),
 			Active:      profile.GetActive(),
+			AutoSummary: profile.GetAutoSummary(),
 			APIKey:      profile.ApiKey,
 		})
 	}

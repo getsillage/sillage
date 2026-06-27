@@ -40,7 +40,12 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 	}
 	limit := parseLimit(c.QueryParam("limit"), 50)
 	var memos []*store.Memo
-	if query := c.QueryParam("q"); query != "" {
+	// Accept both "query" (canonical, matches proto) and legacy "q".
+	query := c.QueryParam("query")
+	if query == "" {
+		query = c.QueryParam("q")
+	}
+	if query != "" {
 		memos, err = s.searchMemos(c.Request().Context(), account.ID, query, limit)
 	} else {
 		memos, err = s.listMemos(c.Request().Context(), account.ID, limit)
@@ -84,14 +89,23 @@ func (s *Server) handleGetMemo(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	memo, err := s.getMemo(c.Request().Context(), account.ID, c.Param("memo"))
+	ctx := c.Request().Context()
+	memo, err := s.getMemo(ctx, account.ID, c.Param("memo"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
-	return c.JSON(http.StatusOK, map[string]any{"memo": memoDTO(memo)})
+	body := map[string]any{"memo": memoDTO(memo)}
+	// Inline the stored summary (if any) so clients render it without
+	// regenerating. A missing row is not an error.
+	if ai, aiErr := s.Store.GetMemoAI(ctx, memo.ID); aiErr == nil {
+		body["ai"] = memoAIDTO(ai)
+	} else if !errors.Is(aiErr, sql.ErrNoRows) {
+		return apiError(c, http.StatusInternalServerError, "internal", "读取总结失败")
+	}
+	return c.JSON(http.StatusOK, body)
 }
 
 func (s *Server) handleUpdateMemo(c *echo.Context) error {

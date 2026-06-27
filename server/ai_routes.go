@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"time"
@@ -24,12 +25,55 @@ type aiProfileRequest struct {
 	MaxTokens   int64   `json:"maxTokens"`
 	Enabled     bool    `json:"enabled"`
 	Active      bool    `json:"active"`
+	AutoSummary bool    `json:"autoSummary"`
 	APIKey      *string `json:"apiKey"`
 }
 
 func (s *Server) registerAIRoutes(e *echo.Echo) {
 	e.GET("/api/v1/settings/ai", s.handleGetAISettings)
 	e.PATCH("/api/v1/settings/ai", s.handlePatchAISettings)
+	e.POST("/api/v1/settings/ai:test", s.handleTestAISettings)
+}
+
+type aiTestRequest struct {
+	ID string `json:"id"`
+}
+
+func (s *Server) handleTestAISettings(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req aiTestRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	model, err := s.testAIConnection(c.Request().Context(), account.ID, req.ID)
+	if err != nil {
+		status, code, message := aiTestHTTPStatus(err)
+		return apiError(c, status, code, message)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"ok": true, "model": model})
+}
+
+// aiTestHTTPStatus maps a connection-test failure to a status + a message the
+// user can act on. Unknown failures surface the provider's own message since
+// diagnosing the connection is the whole point of this endpoint.
+func aiTestHTTPStatus(err error) (int, string, string) {
+	switch {
+	case errors.Is(err, errValidation):
+		return http.StatusBadRequest, "invalid_field", err.Error()
+	case errors.Is(err, sql.ErrNoRows):
+		return http.StatusNotFound, "not_found", "AI 档案不存在"
+	case errors.Is(err, errAINotConfigured):
+		return http.StatusBadRequest, "ai_not_configured", "该档案还没有可用的 API Key"
+	case errors.Is(err, errAIKeyUnavailable):
+		return http.StatusBadRequest, "key_unavailable", "当前 API Key 无法解密，请重新保存"
+	case errors.Is(err, errAIOverloaded):
+		return http.StatusTooManyRequests, "rate_limited", "当前生成任务较多，请稍后再试"
+	default:
+		return http.StatusBadGateway, "ai_error", "连接失败：" + err.Error()
+	}
 }
 
 func (s *Server) handleGetAISettings(c *echo.Context) error {
@@ -65,6 +109,7 @@ func (s *Server) handlePatchAISettings(c *echo.Context) error {
 			MaxTokens:   profileReq.MaxTokens,
 			Enabled:     profileReq.Enabled,
 			Active:      profileReq.Active,
+			AutoSummary: profileReq.AutoSummary,
 			APIKey:      profileReq.APIKey,
 		})
 	}
@@ -99,6 +144,7 @@ func aiProfileDTO(profile *store.AIProfile) map[string]any {
 		"active":         profile.Active,
 		"hasApiKey":      profile.APIKeyEnvelope.Valid,
 		"keyUnavailable": profile.KeyUnavailable,
+		"autoSummary":    profile.AutoSummary,
 		"createdAt":      time.UnixMilli(profile.CreatedAt).UTC().Format(time.RFC3339),
 		"updatedAt":      time.UnixMilli(profile.UpdatedAt).UTC().Format(time.RFC3339),
 	}

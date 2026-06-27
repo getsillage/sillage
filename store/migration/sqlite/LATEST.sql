@@ -251,6 +251,7 @@ CREATE TABLE ai_profile (
   active INTEGER NOT NULL DEFAULT 0,
   api_key_envelope TEXT,
   key_unavailable INTEGER NOT NULL DEFAULT 0,
+  auto_summary INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER,

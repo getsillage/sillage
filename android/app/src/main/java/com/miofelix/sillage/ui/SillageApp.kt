@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.miofelix.sillage.data.AIProfileDraft
@@ -54,8 +55,16 @@ import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AskPathEntry
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
+import com.miofelix.sillage.data.adjacentMonth
 import com.miofelix.sillage.data.buildAskActivePath
+import com.miofelix.sillage.data.entriesByDate
+import com.miofelix.sillage.data.entryDateCounts
+import com.miofelix.sillage.data.excerpt
 import com.miofelix.sillage.data.lastAssistantMessageId
+import com.miofelix.sillage.data.monthGrid
+import com.miofelix.sillage.data.onThisDay
+import com.miofelix.sillage.data.yearsBetween
+import java.time.LocalDate
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
@@ -231,6 +240,8 @@ private fun AuthScaffold(
 private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val visibleMemos = state.searchResults ?: state.memos
     val showingSearchResults = state.searchResults != null
+    val today = remember { LocalDate.now().toString() }
+    val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -281,35 +292,95 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 notice = state.notice,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            SearchBlock(state = state, viewModel = viewModel)
+            MemoViewToggle(state.memoViewMode, viewModel)
+            if (state.memoViewMode == MemoViewMode.List) {
+                SearchBlock(state = state, viewModel = viewModel)
+            }
             if (state.loading && state.memos.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (state.searching && visibleMemos.isEmpty()) {
-                EmptyState("正在搜索…")
-            } else if (visibleMemos.isEmpty()) {
-                EmptyState(if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。")
+            } else if (state.memoViewMode == MemoViewMode.Calendar) {
+                CalendarMemoView(state = state, viewModel = viewModel)
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    if (showingSearchResults) {
-                        item {
-                            Text(
-                                "搜索结果",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        }
-                    }
-                    items(visibleMemos, key = { it.id }) { memo ->
-                        MemoRow(memo = memo, onClick = { viewModel.editMemo(memo) })
-                    }
-                }
+                MemoListView(
+                    visibleMemos = visibleMemos,
+                    showingSearchResults = showingSearchResults,
+                    searching = state.searching,
+                    memories = memories,
+                    today = today,
+                    onMemoClick = viewModel::editMemo,
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun MemoViewToggle(mode: MemoViewMode, viewModel: SillageViewModel) {
+    Row(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MemoViewButton("列表", mode == MemoViewMode.List) {
+            viewModel.updateMemoViewMode(MemoViewMode.List)
+        }
+        MemoViewButton("日历", mode == MemoViewMode.Calendar) {
+            viewModel.updateMemoViewMode(MemoViewMode.Calendar)
+        }
+    }
+}
+
+@Composable
+private fun MemoViewButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    if (selected) {
+        Button(onClick = onClick) {
+            Text(label)
+        }
+    } else {
+        TextButton(onClick = onClick) {
+            Text(label)
+        }
+    }
+}
+
+@Composable
+private fun MemoListView(
+    visibleMemos: List<Memo>,
+    showingSearchResults: Boolean,
+    searching: Boolean,
+    memories: List<Memo>,
+    today: String,
+    onMemoClick: (Memo) -> Unit,
+) {
+    if (searching && visibleMemos.isEmpty()) {
+        EmptyState("正在搜索…")
+        return
+    }
+    if (visibleMemos.isEmpty()) {
+        EmptyState(if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。")
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (showingSearchResults) {
+            item {
+                Text(
+                    "搜索结果",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        } else if (memories.isNotEmpty()) {
+            item {
+                OnThisDayCard(entries = memories, today = today, onMemoClick = onMemoClick)
+            }
+        }
+        items(visibleMemos, key = { it.id }) { memo ->
+            MemoRow(memo = memo, onClick = { onMemoClick(memo) })
         }
     }
 }
@@ -350,6 +421,206 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
 private fun EmptyState(text: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "那年今日",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            entries.forEach { memo ->
+                Text(
+                    "${yearsBetween(memo.entryDate, today)}年前 · ${excerpt(memo.content, 56).ifBlank { "空白记录" }}",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onMemoClick(memo) }
+                        .padding(vertical = 4.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel) {
+    val today = remember { LocalDate.now().toString() }
+    val weeks = remember(state.calendarYear, state.calendarMonth) {
+        monthGrid(state.calendarYear, state.calendarMonth)
+    }
+    val counts = remember(state.memos) { entryDateCounts(state.memos) }
+    val selectedEntries = remember(state.memos, state.selectedCalendarDate) {
+        state.selectedCalendarDate?.let { entriesByDate(state.memos, it) }.orEmpty()
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            CalendarHeader(state, viewModel)
+        }
+        item {
+            CalendarGrid(
+                weeks = weeks,
+                counts = counts,
+                today = today,
+                selectedDate = state.selectedCalendarDate,
+                onSelectDate = viewModel::selectCalendarDate,
+            )
+        }
+        item {
+            Text(
+                state.selectedCalendarDate ?: "选择一天查看当天记录。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        if (state.selectedCalendarDate != null && selectedEntries.isEmpty()) {
+            item {
+                EmptyCalendarSelection()
+            }
+        }
+        items(selectedEntries, key = { it.id }) { memo ->
+            MemoRow(memo = memo, onClick = { viewModel.editMemo(memo) })
+        }
+    }
+}
+
+@Composable
+private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
+    val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
+    val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
+            Text("${previous.first}年${previous.second}月")
+        }
+        Text(
+            "${state.calendarYear}年${state.calendarMonth}月",
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = { viewModel.changeCalendarMonth(1) }) {
+            Text("${next.first}年${next.second}月")
+        }
+    }
+}
+
+@Composable
+private fun CalendarGrid(
+    weeks: List<List<String?>>,
+    counts: Map<String, Int>,
+    today: String,
+    selectedDate: String?,
+    onSelectDate: (String) -> Unit,
+) {
+    val weekdays = listOf("日", "一", "二", "三", "四", "五", "六")
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            weekdays.forEach { day ->
+                Text(
+                    day,
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        weeks.forEach { week ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                week.forEach { date ->
+                    if (date == null) {
+                        Spacer(modifier = Modifier.weight(1f).height(44.dp))
+                    } else {
+                        CalendarDayCell(
+                            date = date,
+                            count = counts[date] ?: 0,
+                            isToday = date == today,
+                            selected = date == selectedDate,
+                            onClick = { onSelectDate(date) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCell(
+    date: String,
+    count: Int,
+    isToday: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = when {
+        selected -> MaterialTheme.colorScheme.primaryContainer
+        count > 0 -> MaterialTheme.colorScheme.surfaceContainerHigh
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    Card(
+        modifier = modifier
+            .height(48.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = color),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                date.takeLast(2).toInt().toString(),
+                fontWeight = if (isToday || selected) FontWeight.SemiBold else FontWeight.Normal,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (count > 0) {
+                Text(
+                    count.toString(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyCalendarSelection() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Text(
+            "这一天没有记录。",
+            modifier = Modifier.padding(14.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

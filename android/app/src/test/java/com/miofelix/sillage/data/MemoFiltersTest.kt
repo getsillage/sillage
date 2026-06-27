@@ -27,6 +27,54 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun onThisDayReturnsEarlierYearsNewestFirst() {
+        val newest = memo(id = "newest", entryDate = "2025-06-27")
+        val older = memo(id = "older", entryDate = "2024-06-27")
+        val today = memo(id = "today", entryDate = "2026-06-27")
+        val otherDay = memo(id = "other-day", entryDate = "2025-06-26")
+        val archived = memo(id = "archived", entryDate = "2023-06-27", archivedAt = "x")
+
+        val memories = onThisDay(listOf(older, today, newest, archived, otherDay), "2026-06-27")
+
+        assertEquals(listOf("newest", "older"), memories.map { it.id })
+    }
+
+    @Test
+    fun entryDateCountsAndEntriesByDateUseActiveMemosOnly() {
+        val first = memo(id = "first", entryDate = "2026-06-27", createdAt = "2026-06-27T00:00:00Z")
+        val second = memo(id = "second", entryDate = "2026-06-27", createdAt = "2026-06-27T00:01:00Z")
+        val archived = memo(id = "archived", entryDate = "2026-06-27", archivedAt = "x")
+        val other = memo(id = "other", entryDate = "2026-06-28")
+
+        val memos = listOf(first, second, archived, other)
+
+        assertEquals(2, entryDateCounts(memos)["2026-06-27"])
+        assertEquals(listOf("second", "first"), entriesByDate(memos, "2026-06-27").map { it.id })
+    }
+
+    @Test
+    fun monthGridStartsOnSundayAndPadsTrailingCells() {
+        val grid = monthGrid(2026, 6)
+
+        assertEquals("2026-06-01", grid.first()[1])
+        assertEquals(null, grid.first()[0])
+        assertEquals("2026-06-30", grid.last()[2])
+        assertEquals(null, grid.last()[6])
+    }
+
+    @Test
+    fun adjacentMonthCrossesYears() {
+        assertEquals(2025 to 12, adjacentMonth(2026, 1, -1))
+        assertEquals(2027 to 1, adjacentMonth(2026, 12, 1))
+    }
+
+    @Test
+    fun excerptCollapsesWhitespaceAndTruncates() {
+        assertEquals("a b c", excerpt(" a\n b\t c "))
+        assertEquals("abc…", excerpt("abcdef", max = 3))
+    }
+
+    @Test
     fun attachmentMarkdownUsesImageSyntaxForImages() {
         val attachment = attachment(filename = "photo.jpg", contentType = "image/jpeg")
 
@@ -101,6 +149,7 @@ class MemoFiltersTest {
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",
+        createdAt: String = "${entryDate}T00:00:00Z",
         pinnedAt: String? = null,
         archivedAt: String? = null,
         deletedAt: String? = null,
@@ -110,7 +159,7 @@ class MemoFiltersTest {
             content = "content",
             entryDate = entryDate,
             version = 1,
-            createdAt = "${entryDate}T00:00:00Z",
+            createdAt = createdAt,
             updatedAt = "${entryDate}T00:00:00Z",
             pinnedAt = pinnedAt,
             archivedAt = archivedAt,

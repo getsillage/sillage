@@ -287,6 +287,33 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun updateMemoViewMode(mode: MemoViewMode) {
+        _state.update {
+            it.copy(
+                memoViewMode = mode,
+                searchQuery = if (mode == MemoViewMode.Calendar) "" else it.searchQuery,
+                searchResults = if (mode == MemoViewMode.Calendar) null else it.searchResults,
+                searching = if (mode == MemoViewMode.Calendar) false else it.searching,
+                error = if (mode == MemoViewMode.Calendar) null else it.error,
+            )
+        }
+    }
+
+    fun changeCalendarMonth(delta: Int) {
+        _state.update {
+            val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
+            it.copy(
+                calendarYear = next.year,
+                calendarMonth = next.monthValue,
+                selectedCalendarDate = null,
+            )
+        }
+    }
+
+    fun selectCalendarDate(date: String) {
+        _state.update { it.copy(selectedCalendarDate = date) }
+    }
+
     fun saveMemo() {
         val current = state.value
         if (current.draftContent.isBlank()) {
@@ -962,6 +989,10 @@ data class SillageUiState(
     val searchQuery: String = "",
     val searchResults: List<Memo>? = null,
     val searching: Boolean = false,
+    val memoViewMode: MemoViewMode = MemoViewMode.List,
+    val calendarYear: Int = LocalDate.now().year,
+    val calendarMonth: Int = LocalDate.now().monthValue,
+    val selectedCalendarDate: String? = null,
     val username: String = "",
     val displayName: String = "",
     val password: String = "",
@@ -969,6 +1000,11 @@ data class SillageUiState(
     val error: String? = null,
     val notice: String? = null,
 )
+
+enum class MemoViewMode {
+    List,
+    Calendar,
+}
 
 enum class Screen {
     Loading,

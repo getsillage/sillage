@@ -1,5 +1,9 @@
 package com.miofelix.sillage.data
 
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+
 data class Account(
     val id: String,
     val username: String,
@@ -166,6 +170,60 @@ fun sortMemos(memos: List<Memo>): List<Memo> {
 
 fun activeMemos(memos: List<Memo>): List<Memo> {
     return sortMemos(memos.filter { it.isActive() })
+}
+
+fun excerpt(body: String, max: Int = 120): String {
+    val text = body.replace(Regex("\\s+"), " ").trim()
+    return if (text.length > max) "${text.take(max)}…" else text
+}
+
+fun onThisDay(memos: List<Memo>, todayISO: String): List<Memo> {
+    val monthDay = todayISO.drop(5)
+    val year = todayISO.take(4)
+    return memos
+        .filter {
+            it.isActive() &&
+                it.entryDate.drop(5) == monthDay &&
+                it.entryDate.take(4) < year
+        }
+        .sortedByDescending { it.entryDate }
+}
+
+fun yearsBetween(fromISO: String, toISO: String): Int {
+    return toISO.take(4).toInt() - fromISO.take(4).toInt()
+}
+
+fun entryDateCounts(memos: List<Memo>): Map<String, Int> {
+    return memos.filter { it.isActive() }
+        .groupingBy { it.entryDate }
+        .eachCount()
+}
+
+fun entriesByDate(memos: List<Memo>, date: String): List<Memo> {
+    return activeMemos(memos.filter { it.entryDate == date })
+}
+
+fun monthGrid(year: Int, month: Int): List<List<String?>> {
+    val ym = YearMonth.of(year, month)
+    val lead = firstWeekday(ym.atDay(1).dayOfWeek)
+    val cells = mutableListOf<String?>()
+    repeat(lead) { cells += null }
+    for (day in 1..ym.lengthOfMonth()) {
+        cells += LocalDate.of(year, month, day).toString()
+    }
+    while (cells.size % 7 != 0) {
+        cells += null
+    }
+    return cells.chunked(7)
+}
+
+fun adjacentMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> {
+    val ym = YearMonth.of(year, month).plusMonths(delta.toLong())
+    return ym.year to ym.monthValue
+}
+
+private fun firstWeekday(day: DayOfWeek): Int {
+    return day.value % 7
 }
 
 fun attachmentMarkdown(attachment: Attachment): String {

@@ -55,6 +55,49 @@ class MemoFiltersTest {
         assertEquals("sk-test", input.apiKey)
     }
 
+    @Test
+    fun buildAskActivePathFollowsSelectedHeadAndExposesAnswerVariants() {
+        val user = askMessage(id = "u1", role = "user", createdAt = "2026-01-01T00:00:00Z")
+        val first = askMessage(
+            id = "a1",
+            role = "assistant",
+            parentId = "u1",
+            createdAt = "2026-01-01T00:00:01Z",
+        )
+        val second = askMessage(
+            id = "a2",
+            role = "assistant",
+            parentId = "u1",
+            forkOfId = "a1",
+            createdAt = "2026-01-01T00:00:02Z",
+        )
+
+        val path = buildAskActivePath(listOf(user, first, second), "a1")
+
+        assertEquals(listOf("u1", "a1"), path.map { it.message.id })
+        assertEquals(listOf("a1", "a2"), path.last().variants.map { it.id })
+        assertEquals(0, path.last().index)
+    }
+
+    @Test
+    fun askBranchLeafIdDescendsThroughNewestChildren() {
+        val user = askMessage(id = "u1", role = "user", createdAt = "2026-01-01T00:00:00Z")
+        val answer = askMessage(
+            id = "a1",
+            role = "assistant",
+            parentId = "u1",
+            createdAt = "2026-01-01T00:00:01Z",
+        )
+        val followUp = askMessage(
+            id = "u2",
+            role = "user",
+            parentId = "a1",
+            createdAt = "2026-01-01T00:00:02Z",
+        )
+
+        assertEquals("u2", askBranchLeafId(listOf(user, answer, followUp), "a1"))
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",
@@ -83,6 +126,29 @@ class MemoFiltersTest {
             contentType = contentType,
             size = 10,
             sha256 = null,
+        )
+    }
+
+    private fun askMessage(
+        id: String,
+        role: String,
+        parentId: String? = null,
+        forkOfId: String? = null,
+        createdAt: String,
+    ): AskMessage {
+        return AskMessage(
+            id = id,
+            conversationId = "c1",
+            role = role,
+            content = id,
+            parentId = parentId,
+            forkOfId = forkOfId,
+            status = "complete",
+            sourceRefs = emptyList(),
+            model = "",
+            createdAt = createdAt,
+            updatedAt = createdAt,
+            deletedAt = null,
         )
     }
 }

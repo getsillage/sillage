@@ -16,7 +16,10 @@ import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
+import com.miofelix.sillage.data.askBranchLeafId
 import com.miofelix.sillage.data.attachmentMarkdown
+import com.miofelix.sillage.data.buildAskActivePath
+import com.miofelix.sillage.data.lastAssistantMessageId
 import com.miofelix.sillage.data.toDraft
 import com.miofelix.sillage.data.toInput
 import java.time.LocalDate
@@ -163,10 +166,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                     aiTestResults = emptyMap(),
                     askConversations = emptyList(),
                     activeAskId = "",
+                    askHeadId = null,
                     askMessages = emptyList(),
                     askQuestion = "",
                     askLoading = false,
                     askSending = false,
+                    askRegeneratingId = "",
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -581,6 +586,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         _state.update {
             it.copy(
                 activeAskId = id,
+                askHeadId = conversation?.headMessageId,
                 askMessages = emptyList(),
                 askScope = conversation?.contextScope ?: it.askScope,
                 askLoading = true,
@@ -594,7 +600,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     _state.update {
                         if (it.activeAskId == id) {
                             it.copy(
-                                askMessages = messages.filter { message -> message.deletedAt == null },
+                                askMessages = messages,
                                 askLoading = false,
                             )
                         } else {
@@ -618,8 +624,10 @@ class SillageViewModel(context: Context) : ViewModel() {
         _state.update {
             it.copy(
                 activeAskId = "",
+                askHeadId = null,
                 askMessages = emptyList(),
                 askQuestion = "",
+                askRegeneratingId = "",
                 error = null,
                 notice = null,
             )
@@ -654,24 +662,25 @@ class SillageViewModel(context: Context) : ViewModel() {
                     _state.update {
                         it.copy(
                             activeAskId = created.id,
+                            askHeadId = created.headMessageId,
                             askConversations = listOf(created) + it.askConversations.filter { conversation -> conversation.id != created.id },
                         )
                     }
                 }
-                val messages = api.createAskMessage(
+                api.createAskMessage(
                     conversationId = conversationId,
                     content = question,
                     contextScope = state.value.askScope,
                     sourceKind = state.value.askSourceKind,
                 )
-                val conversations = api.listAskConversations()
-                Pair(messages, conversations)
+                reloadAskConversation(conversationId)
             }
-                .onSuccess { (messages, conversations) ->
+                .onSuccess { snapshot ->
                     _state.update {
                         it.copy(
-                            askMessages = it.askMessages + messages.filter { message -> message.deletedAt == null },
-                            askConversations = conversations.filter { conversation -> conversation.deletedAt == null },
+                            askMessages = snapshot.messages,
+                            askConversations = snapshot.conversations,
+                            askHeadId = snapshot.headId,
                             askQuestion = "",
                             askSending = false,
                         )
@@ -684,6 +693,80 @@ class SillageViewModel(context: Context) : ViewModel() {
                             error = error.readableMessage(),
                         )
                     }
+                }
+        }
+    }
+
+    fun regenerateAskAnswer(messageId: String) {
+        val conversationId = state.value.activeAskId
+        if (conversationId.isBlank() || state.value.askSending) {
+            return
+        }
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    askSending = true,
+                    askRegeneratingId = messageId,
+                    error = null,
+                    notice = null,
+                )
+            }
+            runCatching {
+                api.createAskMessage(
+                    conversationId = conversationId,
+                    content = "",
+                    contextScope = state.value.askScope,
+                    sourceKind = state.value.askSourceKind,
+                    forkOfId = messageId,
+                )
+                reloadAskConversation(conversationId)
+            }
+                .onSuccess { snapshot ->
+                    _state.update {
+                        it.copy(
+                            askMessages = snapshot.messages,
+                            askConversations = snapshot.conversations,
+                            askHeadId = snapshot.headId,
+                            askSending = false,
+                            askRegeneratingId = "",
+                            notice = "已重新生成",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            askSending = false,
+                            askRegeneratingId = "",
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun selectAskVariant(messageId: String) {
+        val conversationId = state.value.activeAskId
+        if (conversationId.isBlank()) {
+            return
+        }
+        val leafId = askBranchLeafId(state.value.askMessages, messageId)
+        _state.update { it.copy(askHeadId = leafId, error = null, notice = null) }
+        viewModelScope.launch {
+            runCatching {
+                api.setAskHead(conversationId, leafId)
+                api.listAskConversations().filter { conversation -> conversation.deletedAt == null }
+            }
+                .onSuccess { conversations ->
+                    _state.update {
+                        it.copy(
+                            askConversations = conversations,
+                            askHeadId = conversations.find { conversation -> conversation.id == conversationId }?.headMessageId ?: leafId,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
                 }
         }
     }
@@ -790,6 +873,17 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private suspend fun reloadAskConversation(conversationId: String): AskSnapshot {
+        val messages = api.listAskMessages(conversationId)
+        val conversations = api.listAskConversations().filter { conversation -> conversation.deletedAt == null }
+        val headId = conversations.find { it.id == conversationId }?.headMessageId
+        return AskSnapshot(
+            messages = messages,
+            conversations = conversations,
+            headId = headId ?: lastAssistantMessageId(buildAskActivePath(messages, null)),
+        )
+    }
+
     private fun launchBusy(block: suspend () -> Unit) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notice = null) }
@@ -832,6 +926,12 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 }
 
+private data class AskSnapshot(
+    val messages: List<AskMessage>,
+    val conversations: List<AskConversation>,
+    val headId: String?,
+)
+
 data class SillageUiState(
     val screen: Screen,
     val baseUrl: String,
@@ -849,12 +949,14 @@ data class SillageUiState(
     val aiTestResults: Map<String, String> = emptyMap(),
     val askConversations: List<AskConversation> = emptyList(),
     val activeAskId: String = "",
+    val askHeadId: String? = null,
     val askMessages: List<AskMessage> = emptyList(),
     val askQuestion: String = "",
     val askScope: String = "recent_30_days",
     val askSourceKind: String = "records",
     val askLoading: Boolean = false,
     val askSending: Boolean = false,
+    val askRegeneratingId: String = "",
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",

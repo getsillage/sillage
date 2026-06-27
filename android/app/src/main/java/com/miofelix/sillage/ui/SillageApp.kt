@@ -51,8 +51,11 @@ import androidx.compose.ui.unit.dp
 import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
 import com.miofelix.sillage.data.AskMessage
+import com.miofelix.sillage.data.AskPathEntry
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
+import com.miofelix.sillage.data.buildAskActivePath
+import com.miofelix.sillage.data.lastAssistantMessageId
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
@@ -480,6 +483,12 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    val entries = remember(state.askMessages, state.askHeadId) {
+        buildAskActivePath(state.askMessages, state.askHeadId)
+    }
+    val latestAssistantId = remember(entries) {
+        lastAssistantMessageId(entries)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -510,7 +519,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             MessageBlock(state.error, state.notice)
             AskOptions(state, viewModel)
             AskConversationList(state.askConversations, state.activeAskId, viewModel)
-            if (state.askLoading && state.askMessages.isEmpty()) {
+            if (state.askLoading && entries.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -526,7 +535,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    if (state.askMessages.isEmpty()) {
+                    if (entries.isEmpty()) {
                         item {
                             Text(
                                 "可以根据记录提问，例如「我最近在反复想些什么？」",
@@ -535,8 +544,23 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             )
                         }
                     }
-                    items(state.askMessages, key = { it.id }) { message ->
-                        AskMessageCard(message)
+                    items(entries, key = { it.message.id }) { entry ->
+                        AskMessageCard(
+                            entry = entry,
+                            canRegenerate = entry.message.id == latestAssistantId && !state.askSending,
+                            regenerating = state.askRegeneratingId == entry.message.id,
+                            onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
+                            onSelectVariant = viewModel::selectAskVariant,
+                        )
+                    }
+                    if (state.askSending && state.askRegeneratingId.isBlank()) {
+                        item {
+                            Text(
+                                "正在生成回答…",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     }
                 }
             }
@@ -633,7 +657,14 @@ private fun AskConversationList(
 }
 
 @Composable
-private fun AskMessageCard(message: AskMessage) {
+private fun AskMessageCard(
+    entry: AskPathEntry,
+    canRegenerate: Boolean,
+    regenerating: Boolean,
+    onRegenerate: () -> Unit,
+    onSelectVariant: (String) -> Unit,
+) {
+    val message = entry.message
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -648,7 +679,10 @@ private fun AskMessageCard(message: AskMessage) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
-            Text(message.content, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (regenerating) "正在重新生成…" else message.content,
+                style = MaterialTheme.typography.bodyMedium,
+            )
             if (message.sourceRefs.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
@@ -666,6 +700,65 @@ private fun AskMessageCard(message: AskMessage) {
                         )
                     }
                 }
+            }
+            if (message.role == "assistant") {
+                AskMessageActions(
+                    entry = entry,
+                    canRegenerate = canRegenerate,
+                    regenerating = regenerating,
+                    onRegenerate = onRegenerate,
+                    onSelectVariant = onSelectVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskMessageActions(
+    entry: AskPathEntry,
+    canRegenerate: Boolean,
+    regenerating: Boolean,
+    onRegenerate: () -> Unit,
+    onSelectVariant: (String) -> Unit,
+) {
+    val hasVariants = entry.variants.size > 1
+    if (!hasVariants && !canRegenerate && !regenerating) {
+        return
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (hasVariants) {
+            TextButton(
+                onClick = {
+                    val previous = entry.variants.getOrNull(entry.index - 1)
+                    if (previous != null) {
+                        onSelectVariant(previous.id)
+                    }
+                },
+                enabled = entry.index > 0 && !regenerating,
+            ) {
+                Text("上一条")
+            }
+            Text(
+                "${entry.index + 1}/${entry.variants.size}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            TextButton(
+                onClick = {
+                    val next = entry.variants.getOrNull(entry.index + 1)
+                    if (next != null) {
+                        onSelectVariant(next.id)
+                    }
+                },
+                enabled = entry.index >= 0 && entry.index < entry.variants.lastIndex && !regenerating,
+            ) {
+                Text("下一条")
+            }
+        }
+        if (canRegenerate || regenerating) {
+            TextButton(onClick = onRegenerate, enabled = canRegenerate && !regenerating) {
+                Text(if (regenerating) "生成中" else "重新生成")
             }
         }
     }

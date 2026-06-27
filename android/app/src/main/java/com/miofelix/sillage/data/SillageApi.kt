@@ -258,16 +258,28 @@ class SillageApi(private val sessionStore: SessionStore) {
         content: String,
         contextScope: String,
         sourceKind: String,
+        forkOfId: String? = null,
     ): List<AskMessage> {
         val payload = JSONObject()
             .put("content", content)
             .put("contextScope", contextScope)
             .put("sourceKind", sourceKind)
+        if (!forkOfId.isNullOrBlank()) {
+            payload.put("forkOfId", forkOfId)
+        }
         val request = Request.Builder()
             .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/messages"))
             .post(payload.toString().jsonBody())
             .build()
         return execute(request).getJSONArray("messages").toAskMessageList()
+    }
+
+    suspend fun setAskHead(conversationId: String, messageId: String) {
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/head"))
+            .post(JSONObject().put("messageId", messageId).toString().jsonBody())
+            .build()
+        execute(request)
     }
 
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {

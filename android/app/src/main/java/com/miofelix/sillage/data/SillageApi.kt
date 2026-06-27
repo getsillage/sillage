@@ -81,6 +81,40 @@ class SillageApi(private val sessionStore: SessionStore) {
         return memos.toMemoList()
     }
 
+    suspend fun pullFullSync(limit: Int = 200): SillageExportData {
+        val memos = mutableListOf<Memo>()
+        val memoAI = mutableListOf<MemoAI>()
+        val askConversations = mutableListOf<AskConversation>()
+        val askMessages = mutableListOf<AskMessage>()
+        var cursor = ""
+        do {
+            val suffix = if (cursor.isBlank()) {
+                "?limit=$limit"
+            } else {
+                "?limit=$limit&cursor=${cursor.queryParam()}"
+            }
+            val request = Request.Builder().url(url("/api/v1/sync$suffix")).get().build()
+            val body = execute(request)
+            memos += body.optJSONArray("memos").toMemoListOrEmpty()
+            memoAI += body.optJSONArray("memoAi").toMemoAIListOrEmpty()
+            askConversations += body.optJSONArray("askConversations").toAskConversationListOrEmpty()
+            askMessages += body.optJSONArray("askMessages").toAskMessageListOrEmpty()
+            cursor = body.optString("nextCursor")
+            val hasMore = body.optBoolean("hasMore")
+        } while (hasMore && cursor.isNotBlank())
+        return SillageExportData(
+            formatVersion = SillageExportCodec.FORMAT_VERSION,
+            exportedAt = java.time.Instant.now().toString(),
+            themeMode = "",
+            memoViewMode = "",
+            memos = memos,
+            memoAI = memoAI,
+            aiProfiles = runCatching { getAISettings() }.getOrDefault(emptyList()),
+            askConversations = askConversations,
+            askMessages = askMessages,
+        )
+    }
+
     suspend fun searchMemos(query: String, limit: Int = 100): List<Memo> {
         val request = Request.Builder()
             .url(url("/api/v1/memos?query=${query.queryParam()}&limit=$limit"))
@@ -455,6 +489,13 @@ class SillageApi(private val sessionStore: SessionStore) {
         }
     }
 
+    private fun JSONArray?.toMemoListOrEmpty(): List<Memo> = buildList {
+        val array = this@toMemoListOrEmpty ?: return@buildList
+        for (index in 0 until array.length()) {
+            add(parseMemo(array.getJSONObject(index)))
+        }
+    }
+
     private fun parseMemo(body: JSONObject): Memo {
         return Memo(
             id = body.getString("id"),
@@ -489,6 +530,13 @@ class SillageApi(private val sessionStore: SessionStore) {
             createdAt = body.optString("createdAt"),
             updatedAt = body.optString("updatedAt"),
         )
+    }
+
+    private fun JSONArray?.toMemoAIListOrEmpty(): List<MemoAI> = buildList {
+        val array = this@toMemoAIListOrEmpty ?: return@buildList
+        for (index in 0 until array.length()) {
+            add(parseMemoAI(array.getJSONObject(index)))
+        }
     }
 
     private fun parseAttachment(body: JSONObject): Attachment {
@@ -536,9 +584,23 @@ class SillageApi(private val sessionStore: SessionStore) {
         )
     }
 
+    private fun JSONArray?.toAskConversationListOrEmpty(): List<AskConversation> = buildList {
+        val array = this@toAskConversationListOrEmpty ?: return@buildList
+        for (index in 0 until array.length()) {
+            add(parseAskConversation(array.getJSONObject(index)))
+        }
+    }
+
     private fun JSONArray.toAskMessageList(): List<AskMessage> = buildList {
         for (index in 0 until length()) {
             add(parseAskMessage(getJSONObject(index)))
+        }
+    }
+
+    private fun JSONArray?.toAskMessageListOrEmpty(): List<AskMessage> = buildList {
+        val array = this@toAskMessageListOrEmpty ?: return@buildList
+        for (index in 0 until array.length()) {
+            add(parseAskMessage(array.getJSONObject(index)))
         }
     }
 

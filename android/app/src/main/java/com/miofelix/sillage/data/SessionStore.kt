@@ -76,10 +76,18 @@ class SessionStore(context: Context) {
         prefs.edit().putString(KEY_THEME_MODE, normalizeThemeMode(value)).apply()
     }
 
+    fun appMode(): String = prefs.getString(KEY_APP_MODE, MODE_ONLINE) ?: MODE_ONLINE
+
+    fun saveAppMode(value: String) {
+        prefs.edit().putString(KEY_APP_MODE, normalizeAppMode(value)).apply()
+    }
+
     companion object {
         const val DEFAULT_BASE_URL = "http://10.0.2.2:5231"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val MODE_ONLINE = "online"
+        const val MODE_OFFLINE = "offline"
 
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
@@ -89,6 +97,7 @@ class SessionStore(context: Context) {
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_COOKIES = "cookies"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_APP_MODE = "app_mode"
 
         fun normalizeBaseUrl(value: String): String {
             val trimmed = value.trim().trimEnd('/')
@@ -101,6 +110,10 @@ class SessionStore(context: Context) {
 
         fun normalizeThemeMode(value: String): String {
             return if (value == THEME_DARK) THEME_DARK else THEME_LIGHT
+        }
+
+        fun normalizeAppMode(value: String): String {
+            return if (value == MODE_OFFLINE) MODE_OFFLINE else MODE_ONLINE
         }
     }
 }

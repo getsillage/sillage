@@ -11,11 +11,13 @@ import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
 import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AttachmentUpload
+import com.miofelix.sillage.data.LocalDataStore
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
+import com.miofelix.sillage.data.SillageExportCodec
 import com.miofelix.sillage.data.activeMemos
 import com.miofelix.sillage.data.askAnswerMemoContent
 import com.miofelix.sillage.data.askBranchLeafId
@@ -40,6 +42,7 @@ import kotlinx.coroutines.withContext
 class SillageViewModel(context: Context) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
+    private val localDataStore = LocalDataStore(appContext)
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null
     private val _state = MutableStateFlow(
@@ -48,13 +51,18 @@ class SillageViewModel(context: Context) : ViewModel() {
             baseUrl = sessionStore.baseUrl(),
             account = sessionStore.account(),
             themeMode = sessionStore.themeMode(),
+            appMode = sessionStore.appMode(),
         ),
     )
 
     val state: StateFlow<SillageUiState> = _state.asStateFlow()
 
     init {
-        connect()
+        if (sessionStore.appMode() == SessionStore.MODE_OFFLINE) {
+            enterOfflineMode(notice = null)
+        } else {
+            connect()
+        }
     }
 
     fun updateBaseUrl(value: String) {
@@ -63,8 +71,10 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun saveServer() {
         sessionStore.saveBaseUrl(state.value.baseUrl)
+        sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         _state.update {
             it.copy(
+                appMode = SessionStore.MODE_ONLINE,
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
                 memos = emptyList(),
@@ -81,16 +91,46 @@ class SillageViewModel(context: Context) : ViewModel() {
         connect()
     }
 
+    fun useOnlineMode() {
+        sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
+        _state.update {
+            it.copy(
+                appMode = SessionStore.MODE_ONLINE,
+                memos = emptyList(),
+                selectedMemo = null,
+                selectedSummary = null,
+                searchQuery = "",
+                searchResults = null,
+                error = null,
+                notice = null,
+            )
+        }
+        connect()
+    }
+
+    fun useOfflineMode() {
+        sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+        enterOfflineMode(notice = "已切换到离线模式")
+    }
+
     fun openServerSettings() {
         _state.update { it.copy(screen = Screen.Server, error = null, notice = null) }
     }
 
     fun openAISettings() {
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "AI 设置需要在线模式", notice = null) }
+            return
+        }
         _state.update { it.copy(screen = Screen.AISettings, error = null, notice = null) }
         loadAISettings()
     }
 
     fun openAsk() {
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "Ask 需要在线模式", notice = null) }
+            return
+        }
         _state.update { it.copy(screen = Screen.Ask, error = null, notice = null) }
         loadAskConversations()
     }
@@ -106,6 +146,10 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun connect() {
+        if (state.value.appMode == SessionStore.MODE_OFFLINE) {
+            enterOfflineMode(notice = null)
+            return
+        }
         launchBusy {
             val initialized = api.bootstrap(state.value.baseUrl)
             val token = sessionStore.accessToken()
@@ -167,7 +211,9 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun signOut() {
         viewModelScope.launch {
-            runCatching { api.signOut() }
+            if (!isOfflineMode()) {
+                runCatching { api.signOut() }
+            }
             sessionStore.clearSession()
             _state.update {
                 it.copy(
@@ -196,8 +242,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
-                    screen = Screen.Login,
-                    notice = "已退出登录",
+                    screen = if (isOfflineMode()) Screen.Memos else Screen.Login,
+                    notice = if (isOfflineMode()) "已清除在线登录信息" else "已退出登录",
                     error = null,
                 )
             }
@@ -206,7 +252,13 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun refreshMemos() {
         viewModelScope.launch {
-            runCatching { api.listMemos() }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.listMemos()
+                } else {
+                    api.listMemos()
+                }
+            }
                 .onSuccess { memos ->
                     _state.update {
                         it.copy(
@@ -272,8 +324,15 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         viewModelScope.launch {
             _state.update { it.copy(quickCaptureSaving = true, quickCaptureError = null, error = null, notice = null) }
-            runCatching { api.createMemo(body, LocalDate.now().toString()) }
-                .onSuccess {
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.createMemo(body, LocalDate.now().toString())
+                } else {
+                    api.createMemo(body, LocalDate.now().toString())
+                }
+            }
+                .onSuccess { memo ->
+                    applyMemo(memo)
                     _state.update {
                         it.copy(
                             quickCaptureOpen = false,
@@ -321,7 +380,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 screen = Screen.Editor,
                 selectedMemo = memo,
                 selectedSummary = null,
-                summaryLoading = true,
+                summaryLoading = !isOfflineMode(),
                 draftContent = memo.content,
                 draftEntryDate = memo.entryDate,
                 markdownPreview = false,
@@ -369,7 +428,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         viewModelScope.launch {
             _state.update { it.copy(searching = true, error = null, notice = null) }
-            runCatching { api.searchMemos(query) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.searchMemos(query)
+                } else {
+                    api.searchMemos(query)
+                }
+            }
                 .onSuccess { memos ->
                     _state.update {
                         it.copy(
@@ -399,6 +464,81 @@ class SillageViewModel(context: Context) : ViewModel() {
                 searching = false,
                 error = null,
             )
+        }
+    }
+
+    fun exportFullData(uri: Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching {
+                val data = if (isOfflineMode()) {
+                    localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
+                } else {
+                    exportOnlineData()
+                }
+                val json = SillageExportCodec.toJson(data)
+                withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray(Charsets.UTF_8))
+                    } ?: throw IllegalArgumentException("无法写入导出文件")
+                }
+            }
+                .onSuccess {
+                    _state.update { it.copy(notice = "完整数据已导出") }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
+        }
+    }
+
+    fun importFullData(uri: Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching {
+                val raw = withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openInputStream(uri)?.use { input ->
+                        input.readBytes().toString(Charsets.UTF_8)
+                    } ?: throw IllegalArgumentException("无法读取导入文件")
+                }
+                val data = SillageExportCodec.fromJson(raw)
+                localDataStore.replaceWith(data)
+                sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+                data.themeMode.takeIf { it.isNotBlank() }?.let(sessionStore::saveThemeMode)
+                ImportedDataResult(
+                    themeMode = sessionStore.themeMode(),
+                    memoViewMode = memoViewModeFromName(data.memoViewMode),
+                )
+            }
+                .onSuccess { result ->
+                    _state.update {
+                        it.copy(
+                            appMode = SessionStore.MODE_OFFLINE,
+                            themeMode = result.themeMode,
+                            memoViewMode = result.memoViewMode,
+                            initialized = true,
+                            account = null,
+                            screen = Screen.Memos,
+                            selectedMemo = null,
+                            selectedSummary = null,
+                            summaryLoading = false,
+                            uploadingAttachment = false,
+                            aiProfiles = emptyList(),
+                            askConversations = emptyList(),
+                            askMessages = emptyList(),
+                            searchQuery = "",
+                            searchResults = null,
+                            searching = false,
+                            notice = "完整数据已导入，当前为离线模式",
+                        )
+                    }
+                    refreshMemos()
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
         }
     }
 
@@ -436,11 +576,20 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         launchBusy {
-            if (current.selectedMemo == null) {
-                api.createMemo(current.draftContent.trim(), current.draftEntryDate)
+            val saved = if (current.selectedMemo == null) {
+                if (isOfflineMode()) {
+                    localDataStore.createMemo(current.draftContent.trim(), current.draftEntryDate)
+                } else {
+                    api.createMemo(current.draftContent.trim(), current.draftEntryDate)
+                }
             } else {
-                api.updateMemo(current.selectedMemo, current.draftContent.trim(), current.draftEntryDate)
+                if (isOfflineMode()) {
+                    localDataStore.updateMemo(current.selectedMemo, current.draftContent.trim(), current.draftEntryDate)
+                } else {
+                    api.updateMemo(current.selectedMemo, current.draftContent.trim(), current.draftEntryDate)
+                }
             }
+            applyMemo(saved)
             _state.update {
                 it.copy(
                     screen = Screen.Memos,
@@ -461,7 +610,12 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun deleteSelectedMemo() {
         val memo = state.value.selectedMemo ?: return
         launchBusy {
-            api.deleteMemo(memo)
+            val deleted = if (isOfflineMode()) {
+                localDataStore.deleteMemo(memo)
+            } else {
+                api.deleteMemo(memo)
+            }
+            applyMemo(deleted)
             _state.update {
                 it.copy(
                     screen = Screen.Memos,
@@ -482,7 +636,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun toggleSelectedMemoPinned() {
         val memo = state.value.selectedMemo ?: return
         launchBusy {
-            val updated = api.setMemoPinned(memo, memo.pinnedAt == null)
+            val updated = if (isOfflineMode()) {
+                localDataStore.setMemoPinned(memo, memo.pinnedAt == null)
+            } else {
+                api.setMemoPinned(memo, memo.pinnedAt == null)
+            }
             applyMemo(updated)
             _state.update {
                 it.copy(notice = if (updated.pinnedAt == null) "已取消置顶" else "已置顶")
@@ -493,7 +651,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun toggleSelectedMemoArchived() {
         val memo = state.value.selectedMemo ?: return
         launchBusy {
-            val updated = api.setMemoArchived(memo, memo.archivedAt == null)
+            val updated = if (isOfflineMode()) {
+                localDataStore.setMemoArchived(memo, memo.archivedAt == null)
+            } else {
+                api.setMemoArchived(memo, memo.archivedAt == null)
+            }
             applyMemo(updated)
             _state.update {
                 it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
@@ -503,6 +665,10 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun summarizeSelectedMemo() {
         val memo = state.value.selectedMemo ?: return
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "AI 总结需要在线模式") }
+            return
+        }
         val memoId = memo.id
         viewModelScope.launch {
             _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
@@ -537,6 +703,10 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun uploadAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) {
+            return
+        }
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "附件上传需要在线模式") }
             return
         }
         viewModelScope.launch {
@@ -973,7 +1143,13 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private fun fetchSelectedMemoDetail(memoId: String) {
         viewModelScope.launch {
-            runCatching { api.getMemo(memoId) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.getMemo(memoId)
+                } else {
+                    api.getMemo(memoId)
+                }
+            }
                 .onSuccess { detail ->
                     applyMemo(detail.memo)
                     _state.update { current ->
@@ -1010,6 +1186,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             messages = messages,
             conversations = conversations,
             headId = headId ?: lastAssistantMessageId(buildAskActivePath(messages, null)),
+        )
+    }
+
+    private suspend fun exportOnlineData() = withContext(Dispatchers.IO) {
+        api.pullFullSync().copy(
+            themeMode = state.value.themeMode,
+            memoViewMode = state.value.memoViewMode.name,
         )
     }
 
@@ -1118,6 +1301,34 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private fun enterOfflineMode(notice: String?) {
+        val memos = activeMemos(localDataStore.listMemos())
+        _state.update {
+            it.copy(
+                appMode = SessionStore.MODE_OFFLINE,
+                initialized = true,
+                account = null,
+                memos = memos,
+                selectedMemo = null,
+                selectedSummary = null,
+                summaryLoading = false,
+                uploadingAttachment = false,
+                searchQuery = "",
+                searchResults = null,
+                searching = false,
+                screen = Screen.Memos,
+                error = null,
+                notice = notice,
+            )
+        }
+    }
+
+    private fun isOfflineMode(): Boolean = state.value.appMode == SessionStore.MODE_OFFLINE
+
+    private fun memoViewModeFromName(value: String): MemoViewMode {
+        return runCatching { MemoViewMode.valueOf(value) }.getOrDefault(MemoViewMode.List)
+    }
+
     private fun applyMemo(memo: Memo) {
         _state.update { current ->
             val cached = activeMemos(current.memos.filter { it.id != memo.id } + memo)
@@ -1150,9 +1361,15 @@ private data class AskSnapshot(
     val headId: String?,
 )
 
+private data class ImportedDataResult(
+    val themeMode: String,
+    val memoViewMode: MemoViewMode,
+)
+
 data class SillageUiState(
     val screen: Screen,
     val baseUrl: String,
+    val appMode: String = SessionStore.MODE_ONLINE,
     val themeMode: String = SessionStore.THEME_LIGHT,
     val initialized: Boolean? = null,
     val account: Account? = null,

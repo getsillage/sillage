@@ -266,6 +266,18 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val showingSearchResults = state.searchResults != null
     val today = remember { LocalDate.now().toString() }
     val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportFullData(uri)
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            viewModel.importFullData(uri)
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -273,7 +285,11 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     Column {
                         Text("记录", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            state.account?.displayName ?: state.baseUrl,
+                            if (state.appMode == SessionStore.MODE_OFFLINE) {
+                                "离线模式"
+                            } else {
+                                state.account?.displayName ?: state.baseUrl
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -285,18 +301,29 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     TextButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
                         Text("刷新")
                     }
-                    TextButton(onClick = viewModel::openAISettings) {
-                        Text("AI")
-                    }
-                    TextButton(onClick = viewModel::openAsk) {
-                        Text("Ask")
-                    }
-                    TextButton(onClick = viewModel::openServerSettings) {
-                        Text("服务器")
+                    DataMenu(
+                        state = state,
+                        onExport = { exportLauncher.launch("sillage-data.json") },
+                        onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                        onOnline = viewModel::useOnlineMode,
+                        onOffline = viewModel::useOfflineMode,
+                    )
+                    if (state.appMode == SessionStore.MODE_ONLINE) {
+                        TextButton(onClick = viewModel::openAISettings) {
+                            Text("AI")
+                        }
+                        TextButton(onClick = viewModel::openAsk) {
+                            Text("Ask")
+                        }
+                        TextButton(onClick = viewModel::openServerSettings) {
+                            Text("服务器")
+                        }
                     }
                     ThemeModeButton(state, viewModel)
-                    TextButton(onClick = viewModel::signOut) {
-                        Text("退出")
+                    if (state.appMode == SessionStore.MODE_ONLINE) {
+                        TextButton(onClick = viewModel::signOut) {
+                            Text("退出")
+                        }
                     }
                 },
             )
@@ -340,6 +367,54 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
             if (state.quickCaptureOpen) {
                 QuickCaptureSheet(state, viewModel)
             }
+        }
+    }
+}
+
+@Composable
+private fun DataMenu(
+    state: SillageUiState,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    onOnline: () -> Unit,
+    onOffline: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { expanded = true }, enabled = !state.loading) {
+            Text("数据")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式") },
+                onClick = {
+                    expanded = false
+                    onOnline()
+                },
+                enabled = state.appMode != SessionStore.MODE_ONLINE,
+            )
+            DropdownMenuItem(
+                text = { Text(if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式") },
+                onClick = {
+                    expanded = false
+                    onOffline()
+                },
+                enabled = state.appMode != SessionStore.MODE_OFFLINE,
+            )
+            DropdownMenuItem(
+                text = { Text("导出完整数据") },
+                onClick = {
+                    expanded = false
+                    onExport()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("导入完整数据") },
+                onClick = {
+                    expanded = false
+                    onImport()
+                },
+            )
         }
     }
 }
@@ -759,7 +834,15 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("删除记录？") },
-            text = { Text("删除后会从当前列表移除，并同步为服务端 tombstone。") },
+            text = {
+                Text(
+                    if (state.appMode == SessionStore.MODE_OFFLINE) {
+                        "删除后会从离线列表移除。"
+                    } else {
+                        "删除后会从当前列表移除，并同步为服务端 tombstone。"
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -857,15 +940,17 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     .fillMaxWidth()
                     .weight(1f),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { attachmentLauncher.launch("*/*") },
-                    enabled = !state.uploadingAttachment,
-                ) {
-                    Text(if (state.uploadingAttachment) "上传中" else "附件")
+            if (state.appMode == SessionStore.MODE_ONLINE) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { attachmentLauncher.launch("*/*") },
+                        enabled = !state.uploadingAttachment,
+                    ) {
+                        Text(if (state.uploadingAttachment) "上传中" else "附件")
+                    }
                 }
             }
-            if (state.selectedMemo != null) {
+            if (state.selectedMemo != null && state.appMode == SessionStore.MODE_ONLINE) {
                 MemoSummarySection(
                     summary = state.selectedSummary,
                     loading = state.summaryLoading,

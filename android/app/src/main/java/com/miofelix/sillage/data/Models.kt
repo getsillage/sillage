@@ -263,6 +263,18 @@ fun askSourceLabel(source: AskSourceRef): String {
     return "${source.entryDate} · ${source.excerpt}"
 }
 
+fun memoMetadataLines(memo: Memo?): List<String> {
+    if (memo == null) {
+        return emptyList()
+    }
+    return buildList {
+        add("创建于 ${memo.createdAt}")
+        if (memo.version > 1) {
+            add("最近修改 ${memo.updatedAt}，共修改 ${memo.version - 1} 次")
+        }
+    }
+}
+
 fun parseMarkdownPreview(content: String): List<MarkdownBlock> {
     return content
         .lines()

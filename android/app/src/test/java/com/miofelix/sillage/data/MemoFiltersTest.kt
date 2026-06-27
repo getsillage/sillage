@@ -228,10 +228,38 @@ class MemoFiltersTest {
         assertEquals("2026-06-27 · 来源摘要", askSourceLabel(source))
     }
 
+    @Test
+    fun memoMetadataLinesShowsCreationAndRevisionCount() {
+        val firstVersion = memo(
+            id = "first",
+            createdAt = "2026-06-27T01:00:00Z",
+            updatedAt = "2026-06-27T01:00:00Z",
+            version = 1,
+        )
+        val revised = memo(
+            id = "revised",
+            createdAt = "2026-06-27T01:00:00Z",
+            updatedAt = "2026-06-28T02:00:00Z",
+            version = 3,
+        )
+
+        assertEquals(listOf("创建于 2026-06-27T01:00:00Z"), memoMetadataLines(firstVersion))
+        assertEquals(
+            listOf(
+                "创建于 2026-06-27T01:00:00Z",
+                "最近修改 2026-06-28T02:00:00Z，共修改 2 次",
+            ),
+            memoMetadataLines(revised),
+        )
+        assertEquals(emptyList<String>(), memoMetadataLines(null))
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",
         createdAt: String = "${entryDate}T00:00:00Z",
+        updatedAt: String = "${entryDate}T00:00:00Z",
+        version: Long = 1,
         pinnedAt: String? = null,
         archivedAt: String? = null,
         deletedAt: String? = null,
@@ -240,9 +268,9 @@ class MemoFiltersTest {
             id = id,
             content = "content",
             entryDate = entryDate,
-            version = 1,
+            version = version,
             createdAt = createdAt,
-            updatedAt = "${entryDate}T00:00:00Z",
+            updatedAt = updatedAt,
             pinnedAt = pinnedAt,
             archivedAt = archivedAt,
             deletedAt = deletedAt,

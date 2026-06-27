@@ -67,6 +67,7 @@ import com.miofelix.sillage.data.entriesByDate
 import com.miofelix.sillage.data.entryDateCounts
 import com.miofelix.sillage.data.excerpt
 import com.miofelix.sillage.data.lastAssistantMessageId
+import com.miofelix.sillage.data.memoMetadataLines
 import com.miofelix.sillage.data.monthGrid
 import com.miofelix.sillage.data.onThisDay
 import com.miofelix.sillage.data.parseMarkdownPreview
@@ -838,6 +839,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
         ) {
             MessageBlock(state.error, state.notice)
             MemoStatusLine(state.selectedMemo)
+            MemoMetadataBlock(state.selectedMemo)
             OutlinedTextField(
                 value = state.draftEntryDate,
                 onValueChange = viewModel::updateDraftEntryDate,
@@ -1569,6 +1571,23 @@ private fun MemoStatusLine(memo: Memo?) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.labelMedium,
     )
+}
+
+@Composable
+private fun MemoMetadataBlock(memo: Memo?) {
+    val lines = memoMetadataLines(memo)
+    if (lines.isEmpty()) {
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        lines.forEach { line ->
+            Text(
+                line,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
 }
 
 @Composable

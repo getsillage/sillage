@@ -63,10 +63,24 @@ class SillageViewModel(context: Context) : ViewModel() {
     val state: StateFlow<SillageUiState> = _state.asStateFlow()
 
     init {
-        if (sessionStore.appMode() == SessionStore.MODE_OFFLINE) {
+        if (!sessionStore.hasAppModeSelection()) {
+            _state.update { it.copy(screen = Screen.ModeSelection) }
+        } else if (sessionStore.appMode() == SessionStore.MODE_OFFLINE) {
             enterOfflineMode(notice = null)
         } else {
             connect()
+        }
+    }
+
+    fun chooseOnlineMode() {
+        sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
+        _state.update {
+            it.copy(
+                appMode = SessionStore.MODE_ONLINE,
+                screen = Screen.Server,
+                error = null,
+                notice = null,
+            )
         }
     }
 
@@ -75,6 +89,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun saveServer() {
+        val normalized = SessionStore.normalizeBaseUrl(state.value.baseUrl)
+        if (normalized.isBlank()) {
+            _state.update { it.copy(error = "请先填写服务器地址", notice = null) }
+            return
+        }
         sessionStore.saveBaseUrl(state.value.baseUrl)
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         _state.update {
@@ -145,6 +164,16 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun connect() {
         if (state.value.appMode == SessionStore.MODE_OFFLINE) {
             enterOfflineMode(notice = null)
+            return
+        }
+        if (SessionStore.normalizeBaseUrl(state.value.baseUrl).isBlank()) {
+            _state.update {
+                it.copy(
+                    screen = Screen.Server,
+                    error = null,
+                    notice = null,
+                )
+            }
             return
         }
         launchBusy {
@@ -371,21 +400,29 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun editMemo(memo: Memo) {
+    fun openMemoDetail(memo: Memo) {
         _state.update {
             it.copy(
-                screen = Screen.Editor,
+                screen = Screen.MemoDetail,
                 selectedMemo = memo,
                 selectedSummary = null,
                 summaryLoading = !isOfflineMode(),
-                draftContent = memo.content,
-                draftEntryDate = memo.entryDate,
                 markdownPreview = false,
                 error = null,
                 notice = null,
             )
         }
         fetchSelectedMemoDetail(memo.id)
+    }
+
+    fun editMemo(memo: Memo) {
+        openEditorForMemo(memo)
+        fetchSelectedMemoDetail(memo.id)
+    }
+
+    fun editSelectedMemo() {
+        val memo = state.value.selectedMemo ?: return
+        openEditorForMemo(memo)
     }
 
     fun updateDraftContent(value: String) = _state.update { it.copy(draftContent = value) }
@@ -663,10 +700,10 @@ class SillageViewModel(context: Context) : ViewModel() {
             applyMemo(saved)
             _state.update {
                 it.copy(
-                    screen = Screen.Memos,
-                    selectedMemo = null,
-                    selectedSummary = null,
-                    summaryLoading = false,
+                    screen = Screen.MemoDetail,
+                    selectedMemo = saved,
+                    selectedSummary = if (current.selectedMemo?.id == saved.id) it.selectedSummary else null,
+                    summaryLoading = !isOfflineMode(),
                     uploadingAttachment = false,
                     draftContent = "",
                     searchQuery = "",
@@ -674,6 +711,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     notice = "已保存",
                 )
             }
+            fetchSelectedMemoDetail(saved.id)
             refreshMemos()
         }
     }
@@ -1148,13 +1186,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                     applyMemo(memo)
                     _state.update {
                         it.copy(
-                            screen = Screen.Editor,
+                            screen = Screen.MemoDetail,
                             selectedMemo = memo,
                             selectedSummary = null,
                             summaryLoading = !isOfflineMode(),
                             uploadingAttachment = false,
-                            draftContent = memo.content,
-                            draftEntryDate = memo.entryDate,
                             markdownPreview = false,
                             notice = "已存为记录",
                         )
@@ -1186,13 +1222,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                     applyMemo(detail.memo)
                     _state.update {
                         it.copy(
-                            screen = Screen.Editor,
+                            screen = Screen.MemoDetail,
                             selectedMemo = detail.memo,
                             selectedSummary = detail.ai,
                             summaryLoading = false,
                             uploadingAttachment = false,
-                            draftContent = detail.memo.content,
-                            draftEntryDate = detail.memo.entryDate,
                             markdownPreview = false,
                         )
                     }
@@ -1204,7 +1238,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun closeEditor() {
+    fun closeMemoDetail() {
         _state.update {
             it.copy(
                 screen = Screen.Memos,
@@ -1212,10 +1246,36 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
-                draftContent = "",
                 error = null,
+                notice = null,
             )
         }
+    }
+
+    fun closeEditor() {
+        _state.update {
+            if (it.selectedMemo == null) {
+                it.copy(
+                    screen = Screen.Memos,
+                    selectedSummary = null,
+                    summaryLoading = false,
+                    uploadingAttachment = false,
+                    draftContent = "",
+                    error = null,
+                )
+            } else {
+                it.copy(
+                    screen = Screen.MemoDetail,
+                    selectedSummary = null,
+                    summaryLoading = !isOfflineMode(),
+                    uploadingAttachment = false,
+                    draftContent = "",
+                    error = null,
+                    notice = null,
+                )
+            }
+        }
+        state.value.selectedMemo?.id?.let(::fetchSelectedMemoDetail)
     }
 
     fun closeAISettings() {
@@ -1589,6 +1649,23 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private fun openEditorForMemo(memo: Memo) {
+        _state.update {
+            it.copy(
+                screen = Screen.Editor,
+                selectedMemo = memo,
+                selectedSummary = null,
+                summaryLoading = !isOfflineMode(),
+                uploadingAttachment = false,
+                draftContent = memo.content,
+                draftEntryDate = memo.entryDate,
+                markdownPreview = false,
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
     private fun Throwable.readableMessage(): String {
         return message?.takeIf { it.isNotBlank() } ?: "操作失败"
     }
@@ -1671,10 +1748,12 @@ enum class MemoViewMode {
 
 enum class Screen {
     Loading,
+    ModeSelection,
     Server,
     Initialize,
     Login,
     Memos,
+    MemoDetail,
     Editor,
     AISettings,
     Ask,

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -112,14 +113,55 @@ fun SillageApp(viewModel: SillageViewModel) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (state.screen) {
             Screen.Loading -> LoadingScreen()
+            Screen.ModeSelection -> ModeSelectionScreen(state, viewModel)
             Screen.Server -> ServerScreen(state, viewModel)
             Screen.Initialize -> InitializeScreen(state, viewModel)
             Screen.Login -> LoginScreen(state, viewModel)
             Screen.Memos -> MemoListScreen(state, viewModel)
+            Screen.MemoDetail -> MemoDetailScreen(state, viewModel)
             Screen.Editor -> MemoEditorScreen(state, viewModel)
             Screen.AISettings -> AISettingsScreen(state, viewModel)
             Screen.Ask -> AskScreen(state, viewModel)
         }
+    }
+}
+
+@Composable
+private fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    AuthScaffold(
+        title = "选择使用方式",
+        supporting = "首次启动需要选择数据保存方式。之后会直接进入上次选择的模式，也可以在应用内切换。",
+        state = state,
+        trailing = {
+            ThemeModeButton(state, viewModel)
+        },
+    ) {
+        Button(
+            onClick = viewModel::useOfflineMode,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Rounded.OfflineBolt, contentDescription = null)
+            Text("离线模式")
+        }
+        Text(
+            "记录只保存在当前设备。适合先体验、无网络或不想配置服务器时使用。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Button(
+            onClick = viewModel::chooseOnlineMode,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Rounded.CloudSync, contentDescription = null)
+            Text("在线模式")
+        }
+        Text(
+            "连接自托管 Sillage 服务，支持登录、附件、跨设备同步和服务端 AI 能力。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 
@@ -146,6 +188,7 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             label = { Text("服务器地址") },
+            placeholder = { Text("https://example.com 或 192.168.1.10:5231") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         )
         Button(
@@ -153,6 +196,7 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
             enabled = !state.loading,
             modifier = Modifier.fillMaxWidth(),
         ) {
+            Icon(Icons.Rounded.CloudSync, contentDescription = null)
             Text(if (state.loading) "连接中" else "保存并连接")
         }
     }
@@ -392,7 +436,7 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     searching = state.searching,
                     memories = memories,
                     today = today,
-                    onMemoClick = viewModel::editMemo,
+                    onMemoClick = viewModel::openMemoDetail,
                 )
             }
         }
@@ -783,7 +827,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
             }
         }
         items(selectedEntries, key = { it.id }) { memo ->
-            MemoRow(memo = memo, onClick = { viewModel.editMemo(memo) })
+            MemoRow(memo = memo, onClick = { viewModel.openMemoDetail(memo) })
         }
     }
 }
@@ -939,6 +983,182 @@ private fun MemoRow(memo: Memo, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    val memo = state.selectedMemo
+    var menuExpanded by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    if (confirmDelete && memo != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("删除记录？") },
+            text = { Text("删除后会从当前列表移除。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        viewModel.deleteSelectedMemo()
+                    },
+                    enabled = !state.loading,
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }, enabled = !state.loading) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("记录详情", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = viewModel::closeMemoDetail) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = viewModel::editSelectedMemo,
+                        enabled = memo != null && !state.loading,
+                    ) {
+                        Icon(Icons.Rounded.Edit, contentDescription = "编辑记录")
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }, enabled = memo != null && !state.loading) {
+                            Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            if (memo != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (memo.pinnedAt == null) "置顶" else "取消置顶") },
+                                    leadingIcon = { Icon(Icons.Rounded.PushPin, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.toggleSelectedMemoPinned()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (memo.archivedAt == null) "归档" else "取消归档") },
+                                    leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.toggleSelectedMemoArchived()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("删除") },
+                                    leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        confirmDelete = true
+                                    },
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        if (memo == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("这条记录不存在或已被删除。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            return@Scaffold
+        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                MessageBlock(state.error, state.notice)
+            }
+            item {
+                MemoDetailCard(memo)
+            }
+            item {
+                MemoSummarySection(
+                    summary = state.selectedSummary,
+                    loading = state.summaryLoading,
+                    onGenerate = viewModel::summarizeSelectedMemo,
+                )
+            }
+            item {
+                MemoMetadataBlock(memo)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoDetailCard(memo: Memo) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    memo.entryDate,
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                MemoStatusLine(memo)
+            }
+            if (memo.content.trim().isBlank()) {
+                Text(
+                    "空白记录",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            } else {
+                MarkdownContent(memo.content)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownContent(content: String) {
+    val blocks = remember(content) { parseMarkdownPreview(content) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (blocks.isEmpty()) {
+            Text(
+                content,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        } else {
+            blocks.forEach { block ->
+                MarkdownPreviewBlock(block)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -987,9 +1207,8 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                 },
                 actions = {
                     val selected = state.selectedMemo
-                    TextButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
-                        Icon(Icons.Rounded.Check, contentDescription = null)
-                        Text(if (state.loading) "保存中" else "保存")
+                    IconButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
+                        Icon(Icons.Rounded.Check, contentDescription = if (state.loading) "保存中" else "保存")
                     }
                     if (selected != null) {
                         Box {

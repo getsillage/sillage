@@ -78,12 +78,17 @@ class SessionStore(context: Context) {
 
     fun appMode(): String = prefs.getString(KEY_APP_MODE, MODE_ONLINE) ?: MODE_ONLINE
 
+    fun hasAppModeSelection(): Boolean = prefs.getBoolean(KEY_APP_MODE_SELECTED, false)
+
     fun saveAppMode(value: String) {
-        prefs.edit().putString(KEY_APP_MODE, normalizeAppMode(value)).apply()
+        prefs.edit()
+            .putString(KEY_APP_MODE, normalizeAppMode(value))
+            .putBoolean(KEY_APP_MODE_SELECTED, true)
+            .apply()
     }
 
     companion object {
-        const val DEFAULT_BASE_URL = "http://10.0.2.2:5231"
+        const val DEFAULT_BASE_URL = ""
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
         const val MODE_ONLINE = "online"
@@ -98,11 +103,12 @@ class SessionStore(context: Context) {
         private const val KEY_COOKIES = "cookies"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_APP_MODE = "app_mode"
+        private const val KEY_APP_MODE_SELECTED = "app_mode_selected"
 
         fun normalizeBaseUrl(value: String): String {
             val trimmed = value.trim().trimEnd('/')
             return when {
-                trimmed.isBlank() -> DEFAULT_BASE_URL
+                trimmed.isBlank() -> ""
                 trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
                 else -> "http://$trimmed"
             }

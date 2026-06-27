@@ -632,8 +632,8 @@ const file_api_v1_sync_service_proto_rawDesc = "" +
 	"\x0eserver_version\x18\v \x01(\x03R\rserverVersion2\xdf\x01\n" +
 	"\vSyncService\x12c\n" +
 	"\bPullSync\x12\x1f.sillage.api.v1.PullSyncRequest\x1a .sillage.api.v1.PullSyncResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/api/v1/sync\x12k\n" +
-	"\bPushSync\x12\x1f.sillage.api.v1.PushSyncRequest\x1a .sillage.api.v1.PushSyncResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/api/v1/sync:pushB\xb4\x01\n" +
-	"\x12com.sillage.api.v1B\x10SyncServiceProtoP\x01Z2github.com/miofelix/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\bPushSync\x12\x1f.sillage.api.v1.PushSyncRequest\x1a .sillage.api.v1.PushSyncResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/api/v1/sync:pushB\xb6\x01\n" +
+	"\x12com.sillage.api.v1B\x10SyncServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_sync_service_proto_rawDescOnce sync.Once

@@ -1,4 +1,4 @@
-package com.miofelix.sillage.data
+package app.sillage.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

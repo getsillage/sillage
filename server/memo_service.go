@@ -9,9 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	apiv1 "github.com/miofelix/sillage/proto/gen/api/v1"
-	"github.com/miofelix/sillage/server/auth"
-	"github.com/miofelix/sillage/store"
+	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
+	"github.com/getsillage/sillage/server/auth"
+	"github.com/getsillage/sillage/store"
 )
 
 type memoService struct {

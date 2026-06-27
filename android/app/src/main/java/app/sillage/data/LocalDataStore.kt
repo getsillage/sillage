@@ -1,4 +1,4 @@
-package com.miofelix.sillage.data
+package app.sillage.data
 
 import android.content.Context
 import java.time.Instant

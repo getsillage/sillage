@@ -1,4 +1,4 @@
-package com.miofelix.sillage.ui.theme
+package app.sillage.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme

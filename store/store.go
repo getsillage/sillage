@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/miofelix/sillage/internal/profile"
+	"github.com/getsillage/sillage/internal/profile"
 )
 
 // Store aggregates database-backed services.

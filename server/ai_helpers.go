@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 func (s *Server) acquireMemoAIJob() (func(), error) {

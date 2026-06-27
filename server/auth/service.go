@@ -18,7 +18,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 const (

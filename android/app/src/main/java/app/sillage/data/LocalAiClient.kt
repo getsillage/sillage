@@ -1,4 +1,4 @@
-package com.miofelix.sillage.data
+package app.sillage.data
 
 import java.net.URL
 import java.time.Instant

@@ -122,8 +122,8 @@ const file_api_v1_attachment_service_proto_rawDesc = "" +
 	"attachment\x18\x01 \x01(\v2\x1a.sillage.api.v1.AttachmentR\n" +
 	"attachment2\x91\x01\n" +
 	"\x11AttachmentService\x12|\n" +
-	"\rGetAttachment\x12$.sillage.api.v1.GetAttachmentRequest\x1a\".sillage.api.v1.AttachmentResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/attachments/{uid}B\xba\x01\n" +
-	"\x12com.sillage.api.v1B\x16AttachmentServiceProtoP\x01Z2github.com/miofelix/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\rGetAttachment\x12$.sillage.api.v1.GetAttachmentRequest\x1a\".sillage.api.v1.AttachmentResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/attachments/{uid}B\xbc\x01\n" +
+	"\x12com.sillage.api.v1B\x16AttachmentServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_attachment_service_proto_rawDescOnce sync.Once

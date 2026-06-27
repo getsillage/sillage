@@ -9,8 +9,8 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/miofelix/sillage/server/auth"
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/server/auth"
+	"github.com/getsillage/sillage/store"
 )
 
 type authRequest struct {

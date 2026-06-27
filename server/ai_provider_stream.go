@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 // streamingHTTPClient has no overall timeout (a long answer can take a while);

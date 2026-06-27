@@ -1147,8 +1147,8 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\fcreated_time\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
 	"\fupdated_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12=\n" +
-	"\fdeleted_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTimeB\xaf\x01\n" +
-	"\x12com.sillage.api.v1B\vCommonProtoP\x01Z2github.com/miofelix/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\fdeleted_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTimeB\xb1\x01\n" +
+	"\x12com.sillage.api.v1B\vCommonProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_common_proto_rawDescOnce sync.Once

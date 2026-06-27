@@ -684,8 +684,8 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"DeleteMemo\x12!.sillage.api.v1.DeleteMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/memos/{id}\x12|\n" +
 	"\rSetMemoPinned\x12$.sillage.api.v1.SetMemoPinnedRequest\x1a\x1c.sillage.api.v1.MemoResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/memos/{id}:setPinned\x12\x82\x01\n" +
 	"\x0fSetMemoArchived\x12&.sillage.api.v1.SetMemoArchivedRequest\x1a\x1c.sillage.api.v1.MemoResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/memos/{id}:setArchived\x12\x9e\x01\n" +
-	"\x13GenerateMemoSummary\x12*.sillage.api.v1.GenerateMemoSummaryRequest\x1a+.sillage.api.v1.GenerateMemoSummaryResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/memos/{id}:generate-summaryB\xb4\x01\n" +
-	"\x12com.sillage.api.v1B\x10MemoServiceProtoP\x01Z2github.com/miofelix/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\x13GenerateMemoSummary\x12*.sillage.api.v1.GenerateMemoSummaryRequest\x1a+.sillage.api.v1.GenerateMemoSummaryResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/memos/{id}:generate-summaryB\xb6\x01\n" +
+	"\x12com.sillage.api.v1B\x10MemoServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_memo_service_proto_rawDescOnce sync.Once

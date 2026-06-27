@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 func TestConnectErrorMapping(t *testing.T) {

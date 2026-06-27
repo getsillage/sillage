@@ -14,7 +14,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 type askCreateConversationRequest struct {

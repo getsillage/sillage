@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/miofelix/sillage/internal/secret"
+	"github.com/getsillage/sillage/internal/secret"
 )
 
 func TestLoadGeneratesAndPersistsSecrets(t *testing.T) {

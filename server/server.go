@@ -14,11 +14,11 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 
-	"github.com/miofelix/sillage/internal/profile"
-	"github.com/miofelix/sillage/internal/secret"
-	"github.com/miofelix/sillage/server/auth"
-	"github.com/miofelix/sillage/server/router/frontend"
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/internal/profile"
+	"github.com/getsillage/sillage/internal/secret"
+	"github.com/getsillage/sillage/server/auth"
+	"github.com/getsillage/sillage/server/router/frontend"
+	"github.com/getsillage/sillage/store"
 )
 
 const shutdownTimeout = 10 * time.Second

@@ -14,11 +14,11 @@ val signingProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.miofelix.sillage"
+    namespace = "app.sillage"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.miofelix.sillage"
+        applicationId = "app.sillage"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

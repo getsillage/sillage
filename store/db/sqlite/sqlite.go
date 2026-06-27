@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miofelix/sillage/internal/profile"
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/internal/profile"
+	"github.com/getsillage/sillage/store"
 
 	_ "modernc.org/sqlite"
 )

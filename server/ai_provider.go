@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/miofelix/sillage/internal/secret"
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/internal/secret"
+	"github.com/getsillage/sillage/store"
 )
 
 type aiProviderMessage struct {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/miofelix/sillage/internal/secret"
+	"github.com/getsillage/sillage/internal/secret"
 )
 
 func TestEnvelopeEncryptDecrypt(t *testing.T) {

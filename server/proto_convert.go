@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	apiv1 "github.com/miofelix/sillage/proto/gen/api/v1"
-	"github.com/miofelix/sillage/store"
+	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
+	"github.com/getsillage/sillage/store"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

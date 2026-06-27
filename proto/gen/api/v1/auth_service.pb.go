@@ -462,8 +462,8 @@ const file_api_v1_auth_service_proto_rawDesc = "" +
 	"\x06SignIn\x12\x1d.sillage.api.v1.SignInRequest\x1a\x1c.sillage.api.v1.AuthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/api/v1/auth/signin\x12h\n" +
 	"\aRefresh\x12\x1e.sillage.api.v1.RefreshRequest\x1a\x1c.sillage.api.v1.AuthResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/auth/refresh\x12b\n" +
 	"\aSignOut\x12\x1e.sillage.api.v1.SignOutRequest\x1a\x16.google.protobuf.Empty\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/auth/signout\x12T\n" +
-	"\x02Me\x12\x19.sillage.api.v1.MeRequest\x1a\x1a.sillage.api.v1.MeResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/auth/meB\xb4\x01\n" +
-	"\x12com.sillage.api.v1B\x10AuthServiceProtoP\x01Z2github.com/miofelix/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\x02Me\x12\x19.sillage.api.v1.MeRequest\x1a\x1a.sillage.api.v1.MeResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/auth/meB\xb6\x01\n" +
+	"\x12com.sillage.api.v1B\x10AuthServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_auth_service_proto_rawDescOnce sync.Once

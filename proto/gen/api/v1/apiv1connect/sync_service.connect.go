@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "github.com/miofelix/sillage/proto/gen/api/v1"
+	v1 "github.com/getsillage/sillage/proto/gen/api/v1"
 	http "net/http"
 	strings "strings"
 )

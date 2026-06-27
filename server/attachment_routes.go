@@ -17,7 +17,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 const defaultMaxUploadBytes = 30 << 20

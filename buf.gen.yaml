@@ -6,7 +6,7 @@ managed:
       module: buf.build/googleapis/googleapis
   override:
     - file_option: go_package_prefix
-      value: github.com/miofelix/sillage/proto/gen
+      value: github.com/getsillage/sillage/proto/gen
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: proto/gen

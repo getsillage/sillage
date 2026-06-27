@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/miofelix/sillage/internal/profile"
-	"github.com/miofelix/sillage/store"
-	"github.com/miofelix/sillage/store/db"
+	"github.com/getsillage/sillage/internal/profile"
+	"github.com/getsillage/sillage/store"
+	"github.com/getsillage/sillage/store/db"
 )
 
 func newTestStore(t *testing.T) *store.Store {

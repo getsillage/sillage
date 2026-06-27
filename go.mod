@@ -1,4 +1,4 @@
-module github.com/miofelix/sillage
+module github.com/getsillage/sillage
 
 go 1.25.0
 

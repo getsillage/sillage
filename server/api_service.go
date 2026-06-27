@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/miofelix/sillage/internal/secret"
-	"github.com/miofelix/sillage/server/auth"
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/internal/secret"
+	"github.com/getsillage/sillage/server/auth"
+	"github.com/getsillage/sillage/store"
 )
 
 var (

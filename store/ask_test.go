@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/miofelix/sillage/store"
+	"github.com/getsillage/sillage/store"
 )
 
 func TestAskConversationAndMessageLifecycle(t *testing.T) {

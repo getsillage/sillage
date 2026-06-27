@@ -137,6 +137,20 @@ describe("TimelinePage calendar view", () => {
     expect(await screen.findByText("2026-06-27")).toBeInTheDocument();
     expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
   });
+
+  it("normalizes out-of-range month params", async () => {
+    renderWithMemos(<TimelinePage />, "/timeline?view=calendar&y=2026&m=13");
+
+    expect(await screen.findByText("2027年1月")).toBeInTheDocument();
+    expect(screen.queryByText("2026年13月")).not.toBeInTheDocument();
+  });
+
+  it("normalizes zero month params instead of falling back to today", async () => {
+    renderWithMemos(<TimelinePage />, "/timeline?view=calendar&y=2026&m=0");
+
+    expect(await screen.findByText("2025年12月")).toBeInTheDocument();
+    expect(screen.queryByText("2026年0月")).not.toBeInTheDocument();
+  });
 });
 
 describe("EntryPage", () => {

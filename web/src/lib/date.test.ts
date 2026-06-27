@@ -3,6 +3,7 @@ import {
   daysInMonth,
   firstWeekday,
   monthGrid,
+  normalizeYearMonth,
   pad2,
   toLocalISODate,
   yearsBetween,
@@ -36,6 +37,13 @@ describe("firstWeekday", () => {
   it("returns 0..6 for the first of a month", () => {
     // 2026-06-01 is a Monday.
     expect(firstWeekday(2026, 6)).toBe(1);
+  });
+});
+
+describe("normalizeYearMonth", () => {
+  it("normalizes out-of-range 1-indexed months", () => {
+    expect(normalizeYearMonth(2026, 13)).toEqual({ year: 2027, month: 1 });
+    expect(normalizeYearMonth(2026, 0)).toEqual({ year: 2025, month: 12 });
   });
 });
 

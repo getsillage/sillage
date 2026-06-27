@@ -12,7 +12,7 @@ import {
   wideShellClass,
 } from "../components/ui";
 import type { Memo } from "../lib/api";
-import { monthGrid, todayISO } from "../lib/date";
+import { monthGrid, normalizeYearMonth, todayISO } from "../lib/date";
 import {
   entriesByDate,
   entryDateCounts,
@@ -164,8 +164,9 @@ function CalendarMonth({
   memos: Memo[];
   today: string;
 }) {
-  const year = Number(searchParams.get("y")) || Number(today.slice(0, 4));
-  const month = Number(searchParams.get("m")) || Number(today.slice(5, 7));
+  const rawYear = queryNumber(searchParams, "y", Number(today.slice(0, 4)));
+  const rawMonth = queryNumber(searchParams, "m", Number(today.slice(5, 7)));
+  const { year, month } = normalizeYearMonth(rawYear, rawMonth);
   const selectedDate = searchParams.get("date");
   return (
     <CalendarView
@@ -178,4 +179,17 @@ function CalendarMonth({
       dayEntries={selectedDate ? entriesByDate(memos, selectedDate) : []}
     />
   );
+}
+
+function queryNumber(
+  searchParams: URLSearchParams,
+  key: string,
+  fallback: number,
+): number {
+  const raw = searchParams.get(key);
+  if (raw === null || raw.trim() === "") {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }

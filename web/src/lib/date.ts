@@ -13,6 +13,18 @@ export function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
+/** Normalizes a possibly out-of-range 1-indexed month into a real year/month. */
+export function normalizeYearMonth(
+  year: number,
+  month: number,
+): { year: number; month: number } {
+  const normalized = new Date(year, month - 1, 1);
+  return {
+    year: normalized.getFullYear(),
+    month: normalized.getMonth() + 1,
+  };
+}
+
 /** Weekday (0=Sun..6=Sat) of the first day of a 1-indexed month. */
 export function firstWeekday(year: number, month: number): number {
   return new Date(year, month - 1, 1).getDay();

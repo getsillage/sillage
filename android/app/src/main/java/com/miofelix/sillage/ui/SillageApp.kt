@@ -820,17 +820,19 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             entry = entry,
                             canRegenerate = entry.message.id == latestAssistantId && !state.askSending,
                             regenerating = state.askRegeneratingId == entry.message.id,
+                            streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
                             onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
                             onSelectVariant = viewModel::selectAskVariant,
                         )
                     }
+                    if (state.askLiveUser != null) {
+                        item {
+                            AskLiveUserCard(state.askLiveUser)
+                        }
+                    }
                     if (state.askSending && state.askRegeneratingId.isBlank()) {
                         item {
-                            Text(
-                                "正在生成回答…",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            AskLiveAnswerCard(state.askLiveAnswer)
                         }
                     }
                 }
@@ -843,12 +845,22 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 maxLines = 4,
                 label = { Text("根据记录提问") },
             )
-            Button(
-                onClick = viewModel::sendAskQuestion,
-                enabled = !state.askSending,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (state.askSending) "生成中" else "发送")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.askStreaming) {
+                    TextButton(
+                        onClick = viewModel::stopAskStreaming,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("停止")
+                    }
+                }
+                Button(
+                    onClick = viewModel::sendAskQuestion,
+                    enabled = !state.askSending,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (state.askSending) "生成中" else "发送")
+                }
             }
         }
     }
@@ -932,6 +944,7 @@ private fun AskMessageCard(
     entry: AskPathEntry,
     canRegenerate: Boolean,
     regenerating: Boolean,
+    streamingText: String?,
     onRegenerate: () -> Unit,
     onSelectVariant: (String) -> Unit,
 ) {
@@ -951,7 +964,11 @@ private fun AskMessageCard(
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
-                if (regenerating) "正在重新生成…" else message.content,
+                when {
+                    streamingText != null && streamingText.isNotBlank() -> streamingText
+                    regenerating -> "正在重新生成…"
+                    else -> message.content
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (message.sourceRefs.isNotEmpty()) {
@@ -981,6 +998,52 @@ private fun AskMessageCard(
                     onSelectVariant = onSelectVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AskLiveUserCard(message: AskMessage) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "问题",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(message.content, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun AskLiveAnswerCard(answer: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "回答",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                answer.ifBlank { "正在思考…" },
+                color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }

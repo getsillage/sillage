@@ -3,7 +3,10 @@ package com.miofelix.sillage.data
 import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -14,6 +17,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSource
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -282,6 +286,31 @@ class SillageApi(private val sessionStore: SessionStore) {
         execute(request)
     }
 
+    suspend fun streamAskMessage(
+        conversationId: String,
+        content: String,
+        contextScope: String,
+        sourceKind: String,
+        forkOfId: String? = null,
+        onStart: (AskMessage, Boolean) -> Unit,
+        onDelta: (String) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        val payload = JSONObject()
+            .put("content", content)
+            .put("contextScope", contextScope)
+            .put("sourceKind", sourceKind)
+        if (!forkOfId.isNullOrBlank()) {
+            payload.put("forkOfId", forkOfId)
+        }
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/messages:stream"))
+            .post(payload.toString().jsonBody())
+            .build()
+            .withAuth(true)
+        executeAskStream(request, onStart, onDelta, onError)
+    }
+
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {
         val request = Request.Builder()
             .url(url(path))
@@ -310,6 +339,85 @@ class SillageApi(private val sessionStore: SessionStore) {
             } else {
                 JSONObject(body)
             }
+        }
+    }
+
+    private suspend fun executeAskStream(
+        request: Request,
+        onStart: (AskMessage, Boolean) -> Unit,
+        onDelta: (String) -> Unit,
+        onError: (String) -> Unit,
+        retryRefresh: Boolean = true,
+    ): Unit = withContext(Dispatchers.IO) {
+        val streamClient = client.newBuilder()
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .build()
+        val call = streamClient.newCall(request)
+        val cancellation = currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
+            if (cause is CancellationException) {
+                call.cancel()
+            }
+        }
+        try {
+            val response = call.execute()
+            response.use { res ->
+                if (res.code == 401 && retryRefresh) {
+                    runCatching { refresh() }.onFailure { sessionStore.clearSession() }
+                    return@withContext executeAskStream(
+                        request.withAuth(true),
+                        onStart,
+                        onDelta,
+                        onError,
+                        retryRefresh = false,
+                    )
+                }
+                if (!res.isSuccessful) {
+                    throw ApiException(parseErrorMessage(res.body?.string().orEmpty()))
+                }
+                val source = res.body?.source() ?: throw ApiException("生成回答失败")
+                consumeAskStream(source, onStart, onDelta, onError)
+            }
+        } finally {
+            cancellation?.dispose()
+        }
+    }
+
+    private fun consumeAskStream(
+        source: BufferedSource,
+        onStart: (AskMessage, Boolean) -> Unit,
+        onDelta: (String) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        val block = StringBuilder()
+        while (true) {
+            val line = source.readUtf8Line() ?: break
+            if (line.isEmpty()) {
+                dispatchAskEvent(block.toString(), onStart, onDelta, onError)
+                block.clear()
+            } else {
+                block.append(line).append('\n')
+            }
+        }
+        if (block.isNotEmpty()) {
+            dispatchAskEvent(block.toString(), onStart, onDelta, onError)
+        }
+    }
+
+    private fun dispatchAskEvent(
+        block: String,
+        onStart: (AskMessage, Boolean) -> Unit,
+        onDelta: (String) -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        val parsed = parseAskStreamEvent(block) ?: return
+        val data = runCatching { JSONObject(parsed.data) }.getOrNull() ?: return
+        when (parsed.event) {
+            "start" -> onStart(
+                parseAskMessage(data.getJSONObject("userMessage")),
+                data.optBoolean("regenerate"),
+            )
+            "delta" -> onDelta(data.optString("text"))
+            "error" -> onError(data.optString("message", "生成回答失败"))
         }
     }
 

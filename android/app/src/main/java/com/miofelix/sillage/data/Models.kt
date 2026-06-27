@@ -156,6 +156,11 @@ data class AskPathEntry(
     val index: Int,
 )
 
+data class AskStreamEvent(
+    val event: String,
+    val data: String,
+)
+
 class ApiException(message: String) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
@@ -317,6 +322,21 @@ fun askBranchLeafId(messages: List<AskMessage>, fromId: String): String {
 
 fun lastAssistantMessageId(entries: List<AskPathEntry>): String? {
     return entries.lastOrNull { it.message.role == "assistant" }?.message?.id
+}
+
+fun parseAskStreamEvent(block: String): AskStreamEvent? {
+    var event = "message"
+    val data = StringBuilder()
+    for (line in block.lineSequence()) {
+        when {
+            line.startsWith("event:") -> event = line.removePrefix("event:").trim()
+            line.startsWith("data:") -> data.append(line.removePrefix("data:").trim())
+        }
+    }
+    if (data.isBlank()) {
+        return null
+    }
+    return AskStreamEvent(event = event, data = data.toString())
 }
 
 private fun askChildrenByParent(messages: List<AskMessage>): Map<String, List<AskMessage>> {

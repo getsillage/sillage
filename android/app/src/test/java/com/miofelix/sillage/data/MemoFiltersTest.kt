@@ -146,6 +146,25 @@ class MemoFiltersTest {
         assertEquals("u2", askBranchLeafId(listOf(user, answer, followUp), "a1"))
     }
 
+    @Test
+    fun parseAskStreamEventReadsEventNameAndJsonData() {
+        val event = parseAskStreamEvent(
+            """
+            event: delta
+            data: {"text":"你好"}
+            """.trimIndent(),
+        )
+
+        assertEquals("delta", event?.event)
+        assertEquals("""{"text":"你好"}""", event?.data)
+    }
+
+    @Test
+    fun parseAskStreamEventIgnoresBlankOrInvalidData() {
+        assertEquals(null, parseAskStreamEvent("event: delta"))
+        assertEquals("nope", parseAskStreamEvent("event: delta\ndata: nope")?.data)
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",

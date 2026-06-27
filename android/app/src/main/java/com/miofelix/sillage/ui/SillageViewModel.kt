@@ -23,7 +23,10 @@ import com.miofelix.sillage.data.lastAssistantMessageId
 import com.miofelix.sillage.data.toDraft
 import com.miofelix.sillage.data.toInput
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +38,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val api = SillageApi(sessionStore)
+    private var askStreamJob: Job? = null
     private val _state = MutableStateFlow(
         SillageUiState(
             screen = Screen.Loading,
@@ -171,7 +175,10 @@ class SillageViewModel(context: Context) : ViewModel() {
                     askQuestion = "",
                     askLoading = false,
                     askSending = false,
+                    askStreaming = false,
                     askRegeneratingId = "",
+                    askLiveUser = null,
+                    askLiveAnswer = "",
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -655,6 +662,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 askMessages = emptyList(),
                 askQuestion = "",
                 askRegeneratingId = "",
+                askLiveUser = null,
+                askLiveAnswer = "",
+                askStreaming = false,
                 error = null,
                 notice = null,
             )
@@ -679,49 +689,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             _state.update { it.copy(error = "先写下要问的问题") }
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(askSending = true, error = null, notice = null) }
-            runCatching {
-                var conversationId = state.value.activeAskId
-                if (conversationId.isBlank()) {
-                    val created = api.createAskConversation(state.value.askScope)
-                    conversationId = created.id
-                    _state.update {
-                        it.copy(
-                            activeAskId = created.id,
-                            askHeadId = created.headMessageId,
-                            askConversations = listOf(created) + it.askConversations.filter { conversation -> conversation.id != created.id },
-                        )
-                    }
-                }
-                api.createAskMessage(
-                    conversationId = conversationId,
-                    content = question,
-                    contextScope = state.value.askScope,
-                    sourceKind = state.value.askSourceKind,
-                )
-                reloadAskConversation(conversationId)
-            }
-                .onSuccess { snapshot ->
-                    _state.update {
-                        it.copy(
-                            askMessages = snapshot.messages,
-                            askConversations = snapshot.conversations,
-                            askHeadId = snapshot.headId,
-                            askQuestion = "",
-                            askSending = false,
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            askSending = false,
-                            error = error.readableMessage(),
-                        )
-                    }
-                }
-        }
+        startAskStream(content = question, forkOfId = null)
     }
 
     fun regenerateAskAnswer(messageId: String) {
@@ -729,47 +697,11 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (conversationId.isBlank() || state.value.askSending) {
             return
         }
-        viewModelScope.launch {
-            _state.update {
-                it.copy(
-                    askSending = true,
-                    askRegeneratingId = messageId,
-                    error = null,
-                    notice = null,
-                )
-            }
-            runCatching {
-                api.createAskMessage(
-                    conversationId = conversationId,
-                    content = "",
-                    contextScope = state.value.askScope,
-                    sourceKind = state.value.askSourceKind,
-                    forkOfId = messageId,
-                )
-                reloadAskConversation(conversationId)
-            }
-                .onSuccess { snapshot ->
-                    _state.update {
-                        it.copy(
-                            askMessages = snapshot.messages,
-                            askConversations = snapshot.conversations,
-                            askHeadId = snapshot.headId,
-                            askSending = false,
-                            askRegeneratingId = "",
-                            notice = "已重新生成",
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            askSending = false,
-                            askRegeneratingId = "",
-                            error = error.readableMessage(),
-                        )
-                    }
-                }
-        }
+        startAskStream(content = "", forkOfId = messageId)
+    }
+
+    fun stopAskStreaming() {
+        askStreamJob?.cancel()
     }
 
     fun selectAskVariant(messageId: String) {
@@ -911,6 +843,95 @@ class SillageViewModel(context: Context) : ViewModel() {
         )
     }
 
+    private fun startAskStream(content: String, forkOfId: String?) {
+        if (state.value.askSending) {
+            return
+        }
+        askStreamJob?.cancel()
+        askStreamJob = viewModelScope.launch {
+            var conversationId = state.value.activeAskId
+            val contextScope = state.value.askScope
+            val sourceKind = state.value.askSourceKind
+            val regeneratingId = forkOfId.orEmpty()
+            _state.update {
+                it.copy(
+                    askSending = true,
+                    askStreaming = false,
+                    askRegeneratingId = regeneratingId,
+                    askLiveUser = null,
+                    askLiveAnswer = "",
+                    error = null,
+                    notice = null,
+                )
+            }
+            try {
+                if (conversationId.isBlank()) {
+                    val created = api.createAskConversation(contextScope)
+                    conversationId = created.id
+                    _state.update {
+                        it.copy(
+                            activeAskId = created.id,
+                            askHeadId = created.headMessageId,
+                            askConversations = listOf(created) + it.askConversations.filter { conversation -> conversation.id != created.id },
+                        )
+                    }
+                }
+                api.streamAskMessage(
+                    conversationId = conversationId,
+                    content = content,
+                    contextScope = contextScope,
+                    sourceKind = sourceKind,
+                    forkOfId = forkOfId,
+                    onStart = { userMessage, regenerate ->
+                        _state.update {
+                            it.copy(
+                                askStreaming = true,
+                                askLiveAnswer = "",
+                                askLiveUser = if (regenerate) null else userMessage,
+                            )
+                        }
+                    },
+                    onDelta = { text ->
+                        _state.update { it.copy(askLiveAnswer = it.askLiveAnswer + text) }
+                    },
+                    onError = { message ->
+                        _state.update { it.copy(error = message) }
+                    },
+                )
+            } catch (cancelled: CancellationException) {
+                // Stop is user-initiated; the server persists whatever streamed before cancellation.
+            } catch (error: Throwable) {
+                _state.update { it.copy(error = error.readableMessage()) }
+            } finally {
+                withContext(NonCancellable) {
+                    if (conversationId.isNotBlank()) {
+                        runCatching { reloadAskConversation(conversationId) }
+                            .onSuccess { snapshot ->
+                                _state.update {
+                                    it.copy(
+                                        askMessages = snapshot.messages,
+                                        askConversations = snapshot.conversations,
+                                        askHeadId = snapshot.headId,
+                                    )
+                                }
+                            }
+                    }
+                    _state.update {
+                        it.copy(
+                            askQuestion = if (forkOfId == null && it.error == null) "" else it.askQuestion,
+                            askSending = false,
+                            askStreaming = false,
+                            askRegeneratingId = "",
+                            askLiveUser = null,
+                            askLiveAnswer = "",
+                        )
+                    }
+                    askStreamJob = null
+                }
+            }
+        }
+    }
+
     private fun launchBusy(block: suspend () -> Unit) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notice = null) }
@@ -983,7 +1004,10 @@ data class SillageUiState(
     val askSourceKind: String = "records",
     val askLoading: Boolean = false,
     val askSending: Boolean = false,
+    val askStreaming: Boolean = false,
     val askRegeneratingId: String = "",
+    val askLiveUser: AskMessage? = null,
+    val askLiveAnswer: String = "",
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",

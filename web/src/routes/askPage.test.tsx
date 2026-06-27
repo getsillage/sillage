@@ -134,6 +134,44 @@ describe("AskPage", () => {
     expect(streamAskMessage).toHaveBeenCalled();
   });
 
+  it("sends with Enter and keeps Shift+Enter as a newline", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementation(
+      async (_token, _conv, _input, handlers) => {
+        handlers.onStart?.({
+          userMessage: message("u9", "user", null, "第一行\n第二行", "09"),
+          sources: [],
+        });
+        handlers.onDelta?.("回答");
+      },
+    );
+    vi.mocked(listAskMessages)
+      .mockResolvedValueOnce({ messages: [] })
+      .mockResolvedValue({
+        messages: [
+          message("u9", "user", null, "第一行\n第二行", "09"),
+          message("a9", "assistant", "u9", "回答", "10"),
+        ],
+      });
+
+    renderAsk();
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "第一行{Shift>}{Enter}{/Shift}第二行");
+    expect(streamAskMessage).not.toHaveBeenCalled();
+
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(streamAskMessage).toHaveBeenCalled());
+    expect(streamAskMessage).toHaveBeenCalledWith(
+      "t",
+      "c1",
+      expect.objectContaining({ content: "第一行\n第二行" }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it("does not render the live user bubble twice after reload", () => {
     const liveUser = message("u9", "user", null, "新问题", "09");
     const entries = [{ message: liveUser, variants: [liveUser], index: 0 }];

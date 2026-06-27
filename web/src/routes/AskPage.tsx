@@ -172,13 +172,17 @@ export function AskPage() {
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
                 event.preventDefault();
                 void submit();
               }
             }}
             rows={2}
-            placeholder="根据记录提问…（⌘/Ctrl + Enter 发送）"
+            placeholder="根据记录提问…（Enter 发送，Shift + Enter 换行）"
             className={`${textareaClass} min-h-28 bg-white dark:bg-gray-900`}
           />
           {error ? (

@@ -7,6 +7,37 @@ afterEach(() => {
   cleanup();
 });
 
+// This jsdom build does not expose Web Storage; provide a minimal in-memory
+// implementation so token storage and theme preference code runs under test.
+function memoryStorage(): Storage {
+  const data = new Map<string, string>();
+  return {
+    get length() {
+      return data.size;
+    },
+    key: (i: number) => Array.from(data.keys())[i] ?? null,
+    getItem: (k: string) => (data.has(k) ? (data.get(k) as string) : null),
+    setItem: (k: string, v: string) => {
+      data.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      data.delete(k);
+    },
+    clear: () => {
+      data.clear();
+    },
+  } as Storage;
+}
+
+for (const key of ["localStorage", "sessionStorage"] as const) {
+  if (!window[key]) {
+    Object.defineProperty(window, key, {
+      value: memoryStorage(),
+      configurable: true,
+    });
+  }
+}
+
 // jsdom lacks matchMedia, which ThemeToggle and others probe defensively.
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>

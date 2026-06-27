@@ -222,6 +222,54 @@ class SillageApi(private val sessionStore: SessionStore) {
         return execute(request).optString("model")
     }
 
+    suspend fun listAskConversations(limit: Int = 50): List<AskConversation> {
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations?limit=$limit"))
+            .get()
+            .build()
+        val conversations = execute(request).getJSONArray("conversations")
+        return buildList {
+            for (index in 0 until conversations.length()) {
+                add(parseAskConversation(conversations.getJSONObject(index)))
+            }
+        }
+    }
+
+    suspend fun createAskConversation(contextScope: String): AskConversation {
+        val payload = JSONObject().put("contextScope", contextScope)
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations"))
+            .post(payload.toString().jsonBody())
+            .build()
+        return parseAskConversation(execute(request).getJSONObject("conversation"))
+    }
+
+    suspend fun listAskMessages(conversationId: String): List<AskMessage> {
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/messages"))
+            .get()
+            .build()
+        val messages = execute(request).getJSONArray("messages")
+        return messages.toAskMessageList()
+    }
+
+    suspend fun createAskMessage(
+        conversationId: String,
+        content: String,
+        contextScope: String,
+        sourceKind: String,
+    ): List<AskMessage> {
+        val payload = JSONObject()
+            .put("content", content)
+            .put("contextScope", contextScope)
+            .put("sourceKind", sourceKind)
+        val request = Request.Builder()
+            .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/messages"))
+            .post(payload.toString().jsonBody())
+            .build()
+        return execute(request).getJSONArray("messages").toAskMessageList()
+    }
+
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {
         val request = Request.Builder()
             .url(url(path))
@@ -350,6 +398,58 @@ class SillageApi(private val sessionStore: SessionStore) {
             autoSummary = body.optBoolean("autoSummary"),
             createdAt = body.optString("createdAt"),
             updatedAt = body.optString("updatedAt"),
+        )
+    }
+
+    private fun parseAskConversation(body: JSONObject): AskConversation {
+        return AskConversation(
+            id = body.getString("id"),
+            title = body.optString("title"),
+            status = body.optString("status"),
+            contextScope = body.optString("contextScope"),
+            headMessageId = body.nullableString("headMessageId"),
+            pinnedAt = body.nullableString("pinnedAt"),
+            archivedAt = body.nullableString("archivedAt"),
+            createdAt = body.optString("createdAt"),
+            updatedAt = body.optString("updatedAt"),
+            deletedAt = body.nullableString("deletedAt"),
+        )
+    }
+
+    private fun JSONArray.toAskMessageList(): List<AskMessage> = buildList {
+        for (index in 0 until length()) {
+            add(parseAskMessage(getJSONObject(index)))
+        }
+    }
+
+    private fun parseAskMessage(body: JSONObject): AskMessage {
+        val refs = body.optJSONArray("sourceRefs") ?: JSONArray()
+        return AskMessage(
+            id = body.getString("id"),
+            conversationId = body.getString("conversationId"),
+            role = body.optString("role"),
+            content = body.optString("content"),
+            parentId = body.nullableString("parentId"),
+            forkOfId = body.nullableString("forkOfId"),
+            status = body.optString("status"),
+            sourceRefs = buildList {
+                for (index in 0 until refs.length()) {
+                    add(parseAskSourceRef(refs.getJSONObject(index)))
+                }
+            },
+            model = body.optString("model"),
+            createdAt = body.optString("createdAt"),
+            updatedAt = body.optString("updatedAt"),
+            deletedAt = body.nullableString("deletedAt"),
+        )
+    }
+
+    private fun parseAskSourceRef(body: JSONObject): AskSourceRef {
+        return AskSourceRef(
+            memoId = body.optString("memoId"),
+            entryDate = body.optString("entryDate"),
+            excerpt = body.optString("excerpt"),
+            rank = body.optInt("rank"),
         )
     }
 

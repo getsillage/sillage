@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miofelix.sillage.data.Account
 import com.miofelix.sillage.data.AIProfileDraft
+import com.miofelix.sillage.data.AskConversation
+import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AttachmentUpload
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
@@ -75,6 +77,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun openAISettings() {
         _state.update { it.copy(screen = Screen.AISettings, error = null, notice = null) }
         loadAISettings()
+    }
+
+    fun openAsk() {
+        _state.update { it.copy(screen = Screen.Ask, error = null, notice = null) }
+        loadAskConversations()
     }
 
     fun connect() {
@@ -154,6 +161,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                     aiSettingsSaving = false,
                     aiTestingProfileId = "",
                     aiTestResults = emptyMap(),
+                    askConversations = emptyList(),
+                    activeAskId = "",
+                    askMessages = emptyList(),
+                    askQuestion = "",
+                    askLoading = false,
+                    askSending = false,
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -539,6 +552,142 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun loadAskConversations() {
+        viewModelScope.launch {
+            _state.update { it.copy(askLoading = true, error = null, notice = null) }
+            runCatching { api.listAskConversations() }
+                .onSuccess { conversations ->
+                    _state.update {
+                        it.copy(
+                            askConversations = conversations.filter { conversation -> conversation.deletedAt == null },
+                            askLoading = false,
+                            error = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            askLoading = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun selectAskConversation(id: String) {
+        val conversation = state.value.askConversations.find { it.id == id }
+        _state.update {
+            it.copy(
+                activeAskId = id,
+                askMessages = emptyList(),
+                askScope = conversation?.contextScope ?: it.askScope,
+                askLoading = true,
+                error = null,
+                notice = null,
+            )
+        }
+        viewModelScope.launch {
+            runCatching { api.listAskMessages(id) }
+                .onSuccess { messages ->
+                    _state.update {
+                        if (it.activeAskId == id) {
+                            it.copy(
+                                askMessages = messages.filter { message -> message.deletedAt == null },
+                                askLoading = false,
+                            )
+                        } else {
+                            it
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        if (it.activeAskId == id) {
+                            it.copy(askLoading = false, error = error.readableMessage())
+                        } else {
+                            it
+                        }
+                    }
+                }
+        }
+    }
+
+    fun startNewAsk() {
+        _state.update {
+            it.copy(
+                activeAskId = "",
+                askMessages = emptyList(),
+                askQuestion = "",
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
+    fun updateAskQuestion(value: String) {
+        _state.update { it.copy(askQuestion = value) }
+    }
+
+    fun updateAskScope(value: String) {
+        _state.update { it.copy(askScope = value) }
+    }
+
+    fun updateAskSourceKind(value: String) {
+        _state.update { it.copy(askSourceKind = value) }
+    }
+
+    fun sendAskQuestion() {
+        val question = state.value.askQuestion.trim()
+        if (question.isBlank()) {
+            _state.update { it.copy(error = "先写下要问的问题") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(askSending = true, error = null, notice = null) }
+            runCatching {
+                var conversationId = state.value.activeAskId
+                if (conversationId.isBlank()) {
+                    val created = api.createAskConversation(state.value.askScope)
+                    conversationId = created.id
+                    _state.update {
+                        it.copy(
+                            activeAskId = created.id,
+                            askConversations = listOf(created) + it.askConversations.filter { conversation -> conversation.id != created.id },
+                        )
+                    }
+                }
+                val messages = api.createAskMessage(
+                    conversationId = conversationId,
+                    content = question,
+                    contextScope = state.value.askScope,
+                    sourceKind = state.value.askSourceKind,
+                )
+                val conversations = api.listAskConversations()
+                Pair(messages, conversations)
+            }
+                .onSuccess { (messages, conversations) ->
+                    _state.update {
+                        it.copy(
+                            askMessages = it.askMessages + messages.filter { message -> message.deletedAt == null },
+                            askConversations = conversations.filter { conversation -> conversation.deletedAt == null },
+                            askQuestion = "",
+                            askSending = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            askSending = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
     fun closeEditor() {
         _state.update {
             it.copy(
@@ -558,6 +707,16 @@ class SillageViewModel(context: Context) : ViewModel() {
             it.copy(
                 screen = Screen.Memos,
                 aiTestingProfileId = "",
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
+    fun closeAsk() {
+        _state.update {
+            it.copy(
+                screen = Screen.Memos,
                 error = null,
                 notice = null,
             )
@@ -688,6 +847,14 @@ data class SillageUiState(
     val aiSettingsSaving: Boolean = false,
     val aiTestingProfileId: String = "",
     val aiTestResults: Map<String, String> = emptyMap(),
+    val askConversations: List<AskConversation> = emptyList(),
+    val activeAskId: String = "",
+    val askMessages: List<AskMessage> = emptyList(),
+    val askQuestion: String = "",
+    val askScope: String = "recent_30_days",
+    val askSourceKind: String = "records",
+    val askLoading: Boolean = false,
+    val askSending: Boolean = false,
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",
@@ -709,4 +876,5 @@ enum class Screen {
     Memos,
     Editor,
     AISettings,
+    Ask,
 }

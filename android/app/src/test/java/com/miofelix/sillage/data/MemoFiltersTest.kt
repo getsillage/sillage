@@ -200,6 +200,15 @@ class MemoFiltersTest {
         assertEquals("nope", parseAskStreamEvent("event: delta\ndata: nope")?.data)
     }
 
+    @Test
+    fun askAnswerMemoContentOnlyUsesTrimmedAssistantAnswers() {
+        val answer = askMessage(id = "a1", role = "assistant", content = "  可保存的回答  ")
+        val question = askMessage(id = "u1", role = "user", content = "  不应保存  ")
+
+        assertEquals("可保存的回答", askAnswerMemoContent(answer))
+        assertEquals("", askAnswerMemoContent(question))
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",
@@ -235,15 +244,16 @@ class MemoFiltersTest {
     private fun askMessage(
         id: String,
         role: String,
+        content: String = id,
         parentId: String? = null,
         forkOfId: String? = null,
-        createdAt: String,
+        createdAt: String = "2026-01-01T00:00:00Z",
     ): AskMessage {
         return AskMessage(
             id = id,
             conversationId = "c1",
             role = role,
-            content = id,
+            content = content,
             parentId = parentId,
             forkOfId = forkOfId,
             status = "complete",

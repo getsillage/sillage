@@ -1027,8 +1027,10 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             entry = entry,
                             canRegenerate = entry.message.id == latestAssistantId && !state.askSending,
                             regenerating = state.askRegeneratingId == entry.message.id,
+                            savingDisabled = state.loading || state.askSending,
                             streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
                             onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
+                            onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
                             onSelectVariant = viewModel::selectAskVariant,
                         )
                     }
@@ -1151,8 +1153,10 @@ private fun AskMessageCard(
     entry: AskPathEntry,
     canRegenerate: Boolean,
     regenerating: Boolean,
+    savingDisabled: Boolean,
     streamingText: String?,
     onRegenerate: () -> Unit,
+    onSaveAsMemo: () -> Unit,
     onSelectVariant: (String) -> Unit,
 ) {
     val message = entry.message
@@ -1201,7 +1205,9 @@ private fun AskMessageCard(
                     entry = entry,
                     canRegenerate = canRegenerate,
                     regenerating = regenerating,
+                    savingDisabled = savingDisabled,
                     onRegenerate = onRegenerate,
+                    onSaveAsMemo = onSaveAsMemo,
                     onSelectVariant = onSelectVariant,
                 )
             }
@@ -1260,11 +1266,14 @@ private fun AskMessageActions(
     entry: AskPathEntry,
     canRegenerate: Boolean,
     regenerating: Boolean,
+    savingDisabled: Boolean,
     onRegenerate: () -> Unit,
+    onSaveAsMemo: () -> Unit,
     onSelectVariant: (String) -> Unit,
 ) {
     val hasVariants = entry.variants.size > 1
-    if (!hasVariants && !canRegenerate && !regenerating) {
+    val canSave = entry.message.content.isNotBlank()
+    if (!hasVariants && !canRegenerate && !regenerating && !canSave) {
         return
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1300,6 +1309,11 @@ private fun AskMessageActions(
         if (canRegenerate || regenerating) {
             TextButton(onClick = onRegenerate, enabled = canRegenerate && !regenerating) {
                 Text(if (regenerating) "生成中" else "重新生成")
+            }
+        }
+        if (canSave) {
+            TextButton(onClick = onSaveAsMemo, enabled = !savingDisabled && !regenerating) {
+                Text("存为记录")
             }
         }
     }

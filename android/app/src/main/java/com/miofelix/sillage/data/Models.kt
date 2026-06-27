@@ -255,6 +255,10 @@ fun attachmentMarkdown(attachment: Attachment): String {
     }
 }
 
+fun askAnswerMemoContent(message: AskMessage): String {
+    return if (message.role == "assistant") message.content.trim() else ""
+}
+
 fun parseMarkdownPreview(content: String): List<MarkdownBlock> {
     return content
         .lines()

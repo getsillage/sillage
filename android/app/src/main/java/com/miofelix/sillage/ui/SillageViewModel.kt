@@ -17,6 +17,7 @@ import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
+import com.miofelix.sillage.data.askAnswerMemoContent
 import com.miofelix.sillage.data.askBranchLeafId
 import com.miofelix.sillage.data.attachmentMarkdown
 import com.miofelix.sillage.data.buildAskActivePath
@@ -823,6 +824,39 @@ class SillageViewModel(context: Context) : ViewModel() {
                 .onFailure { error ->
                     _state.update { it.copy(error = error.readableMessage()) }
                 }
+        }
+    }
+
+    fun saveAskAnswerAsMemo(message: AskMessage) {
+        val content = askAnswerMemoContent(message)
+        if (content.isBlank()) {
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching { api.createMemo(content, LocalDate.now().toString()) }
+                .onSuccess { memo ->
+                    applyMemo(memo)
+                    _state.update {
+                        it.copy(
+                            screen = Screen.Editor,
+                            selectedMemo = memo,
+                            selectedSummary = null,
+                            summaryLoading = true,
+                            uploadingAttachment = false,
+                            draftContent = memo.content,
+                            draftEntryDate = memo.entryDate,
+                            markdownPreview = false,
+                            notice = "已存为记录",
+                        )
+                    }
+                    fetchSelectedMemoDetail(memo.id)
+                    refreshMemos()
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
         }
     }
 

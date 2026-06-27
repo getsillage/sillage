@@ -139,6 +139,13 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun normalizeThemeModeAcceptsOnlyDarkOtherwiseLight() {
+        assertEquals(SessionStore.THEME_DARK, SessionStore.normalizeThemeMode("dark"))
+        assertEquals(SessionStore.THEME_LIGHT, SessionStore.normalizeThemeMode("light"))
+        assertEquals(SessionStore.THEME_LIGHT, SessionStore.normalizeThemeMode("system"))
+    }
+
+    @Test
     fun buildAskActivePathFollowsSelectedHeadAndExposesAnswerVariants() {
         val user = askMessage(id = "u1", role = "user", createdAt = "2026-01-01T00:00:00Z")
         val first = askMessage(

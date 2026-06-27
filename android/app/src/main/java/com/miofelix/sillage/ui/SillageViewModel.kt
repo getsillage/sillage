@@ -47,6 +47,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             screen = Screen.Loading,
             baseUrl = sessionStore.baseUrl(),
             account = sessionStore.account(),
+            themeMode = sessionStore.themeMode(),
         ),
     )
 
@@ -92,6 +93,16 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun openAsk() {
         _state.update { it.copy(screen = Screen.Ask, error = null, notice = null) }
         loadAskConversations()
+    }
+
+    fun toggleThemeMode() {
+        val next = if (state.value.themeMode == SessionStore.THEME_DARK) {
+            SessionStore.THEME_LIGHT
+        } else {
+            SessionStore.THEME_DARK
+        }
+        sessionStore.saveThemeMode(next)
+        _state.update { it.copy(themeMode = next) }
     }
 
     fun connect() {
@@ -1142,6 +1153,7 @@ private data class AskSnapshot(
 data class SillageUiState(
     val screen: Screen,
     val baseUrl: String,
+    val themeMode: String = SessionStore.THEME_LIGHT,
     val initialized: Boolean? = null,
     val account: Account? = null,
     val memos: List<Memo> = emptyList(),

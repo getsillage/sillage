@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.ui.SillageApp
 import com.miofelix.sillage.ui.SillageViewModel
 import com.miofelix.sillage.ui.theme.SillageTheme
@@ -16,7 +19,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            SillageTheme {
+            val state by viewModel.state.collectAsState()
+            SillageTheme(darkTheme = state.themeMode == SessionStore.THEME_DARK) {
                 SillageApp(viewModel = viewModel)
             }
         }

@@ -1,11 +1,12 @@
 package com.miofelix.sillage.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val SillageColors = lightColorScheme(
+private val SillageLightColors = lightColorScheme(
     primary = Color(0xFF244E47),
     onPrimary = Color.White,
     secondary = Color(0xFF7A6A44),
@@ -18,9 +19,22 @@ private val SillageColors = lightColorScheme(
 )
 
 @Composable
-fun SillageTheme(content: @Composable () -> Unit) {
+fun SillageTheme(darkTheme: Boolean = false, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = SillageColors,
+        colorScheme = if (darkTheme) SillageDarkColors else SillageLightColors,
         content = content,
     )
 }
+
+private val SillageDarkColors = darkColorScheme(
+    primary = Color(0xFF9BD5C8),
+    onPrimary = Color(0xFF003C34),
+    secondary = Color(0xFFE0CA84),
+    background = Color(0xFF111827),
+    surface = Color(0xFF111827),
+    surfaceContainerLow = Color(0xFF1F2937),
+    surfaceContainerHigh = Color(0xFF374151),
+    onSurface = Color(0xFFF9FAFB),
+    onSurfaceVariant = Color(0xFFB8C7C0),
+    error = Color(0xFFFFB4AB),
+)

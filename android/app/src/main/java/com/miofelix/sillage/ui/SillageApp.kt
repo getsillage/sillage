@@ -58,6 +58,7 @@ import com.miofelix.sillage.data.MarkdownBlockKind
 import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
+import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.adjacentMonth
 import com.miofelix.sillage.data.askSourceLabel
 import com.miofelix.sillage.data.buildAskActivePath
@@ -101,6 +102,9 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         title = "连接 Sillage",
         supporting = "填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。",
         state = state,
+        trailing = {
+            ThemeModeButton(state, viewModel)
+        },
     ) {
         OutlinedTextField(
             value = state.baseUrl,
@@ -127,8 +131,11 @@ private fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel)
         supporting = "这是你的私密记录空间，初始化后不允许创建第二个账号。",
         state = state,
         trailing = {
-            TextButton(onClick = viewModel::openServerSettings) {
-                Text("服务器")
+            Row {
+                ThemeModeButton(state, viewModel)
+                TextButton(onClick = viewModel::openServerSettings) {
+                    Text("服务器")
+                }
             }
         },
     ) {
@@ -171,8 +178,11 @@ private fun LoginScreen(state: SillageUiState, viewModel: SillageViewModel) {
         supporting = "登录后可查看和编辑你的记录。",
         state = state,
         trailing = {
-            TextButton(onClick = viewModel::openServerSettings) {
-                Text("服务器")
+            Row {
+                ThemeModeButton(state, viewModel)
+                TextButton(onClick = viewModel::openServerSettings) {
+                    Text("服务器")
+                }
             }
         },
     ) {
@@ -240,6 +250,13 @@ private fun AuthScaffold(
     }
 }
 
+@Composable
+private fun ThemeModeButton(state: SillageUiState, viewModel: SillageViewModel) {
+    TextButton(onClick = viewModel::toggleThemeMode) {
+        Text(if (state.themeMode == SessionStore.THEME_DARK) "深色" else "浅色")
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -275,6 +292,7 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     TextButton(onClick = viewModel::openServerSettings) {
                         Text("服务器")
                     }
+                    ThemeModeButton(state, viewModel)
                     TextButton(onClick = viewModel::signOut) {
                         Text("退出")
                     }
@@ -781,6 +799,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     TextButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
                         Text(if (state.loading) "保存中" else "保存")
                     }
+                    ThemeModeButton(state, viewModel)
                 },
             )
         },
@@ -984,6 +1003,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
                         Text("刷新")
                     }
+                    ThemeModeButton(state, viewModel)
                 },
             )
         },
@@ -1345,6 +1365,7 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     TextButton(onClick = viewModel::saveAISettings, enabled = !state.aiSettingsSaving) {
                         Text(if (state.aiSettingsSaving) "保存中" else "保存")
                     }
+                    ThemeModeButton(state, viewModel)
                 },
             )
         },

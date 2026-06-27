@@ -70,8 +70,16 @@ class SessionStore(context: Context) {
         prefs.edit().putString(KEY_COOKIES, array.toString()).apply()
     }
 
+    fun themeMode(): String = prefs.getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
+
+    fun saveThemeMode(value: String) {
+        prefs.edit().putString(KEY_THEME_MODE, normalizeThemeMode(value)).apply()
+    }
+
     companion object {
         const val DEFAULT_BASE_URL = "http://10.0.2.2:5231"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
 
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
@@ -80,6 +88,7 @@ class SessionStore(context: Context) {
         private const val KEY_USERNAME = "username"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_COOKIES = "cookies"
+        private const val KEY_THEME_MODE = "theme_mode"
 
         fun normalizeBaseUrl(value: String): String {
             val trimmed = value.trim().trimEnd('/')
@@ -88,6 +97,10 @@ class SessionStore(context: Context) {
                 trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
                 else -> "http://$trimmed"
             }
+        }
+
+        fun normalizeThemeMode(value: String): String {
+            return if (value == THEME_DARK) THEME_DARK else THEME_LIGHT
         }
     }
 }

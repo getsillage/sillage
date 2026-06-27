@@ -51,6 +51,7 @@ export function AskPage() {
     stop,
   } = useAsk();
   const [question, setQuestion] = useState("");
+  const liveUserMessage = shouldShowLiveUser(entries, liveUser) ? liveUser : null;
   const lastAssistantId = [...entries]
     .reverse()
     .find((entry) => entry.message.role === "assistant")?.message.id;
@@ -141,11 +142,11 @@ export function AskPage() {
             />
           ))
         )}
-        {liveUser ? (
+        {liveUserMessage ? (
           <>
             <div className="ml-auto max-w-[85%] rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
               <p className="whitespace-pre-wrap text-[15px] leading-7">
-                {liveUser.content}
+                {liveUserMessage.content}
               </p>
             </div>
             <div className="max-w-[92%]">
@@ -203,6 +204,16 @@ export function AskPage() {
       </div>
     </main>
   );
+}
+
+export function shouldShowLiveUser(
+  entries: ActiveEntry[],
+  liveUser: { id: string } | null,
+): boolean {
+  if (!liveUser) {
+    return false;
+  }
+  return !entries.some((entry) => entry.message.id === liveUser.id);
 }
 
 interface MessageBubbleProps {

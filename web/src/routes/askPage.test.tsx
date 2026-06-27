@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskConversation, AskMessage } from "../lib/api";
 import { AskProvider } from "../state/AskContext";
 import { MemosProvider } from "../state/MemosContext";
-import { AskPage } from "./AskPage";
+import { AskPage, shouldShowLiveUser } from "./AskPage";
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
@@ -132,6 +132,14 @@ describe("AskPage", () => {
 
     expect(await screen.findByText("回答片段")).toBeInTheDocument();
     expect(streamAskMessage).toHaveBeenCalled();
+  });
+
+  it("does not render the live user bubble twice after reload", () => {
+    const liveUser = message("u9", "user", null, "新问题", "09");
+    const entries = [{ message: liveUser, variants: [liveUser], index: 0 }];
+
+    expect(shouldShowLiveUser(entries, liveUser)).toBe(false);
+    expect(shouldShowLiveUser([], liveUser)).toBe(true);
   });
 
   it("switches between regenerated answer variants", async () => {

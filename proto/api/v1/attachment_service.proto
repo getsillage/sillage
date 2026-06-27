@@ -5,6 +5,8 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
+// AttachmentService exposes attachment metadata. The bytes are served
+// separately at /file/attachments/{uid}/{filename} (auth required).
 service AttachmentService {
   rpc GetAttachment(GetAttachmentRequest) returns (AttachmentResponse) {
     option (google.api.http) = {get: "/api/v1/attachments/{uid}"};

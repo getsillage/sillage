@@ -102,6 +102,8 @@ func (x *PatchAISettingsRequest) GetProfiles() []*AIProfileInput {
 	return nil
 }
 
+// AIProfileInput is the writable shape of a profile. api_key is optional: unset
+// keeps the stored key, empty string clears it.
 type AIProfileInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -114,6 +116,7 @@ type AIProfileInput struct {
 	Enabled       bool                   `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	Active        bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"`
 	ApiKey        *string                `protobuf:"bytes,10,opt,name=api_key,json=apiKey,proto3,oneof" json:"api_key,omitempty"`
+	AutoSummary   bool                   `protobuf:"varint,11,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -218,6 +221,13 @@ func (x *AIProfileInput) GetApiKey() string {
 	return ""
 }
 
+func (x *AIProfileInput) GetAutoSummary() bool {
+	if x != nil {
+		return x.AutoSummary
+	}
+	return false
+}
+
 type AISettingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Profiles      []*AIProfile           `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
@@ -269,7 +279,7 @@ const file_api_v1_settings_service_proto_rawDesc = "" +
 	"\x1dapi/v1/settings_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\x16\n" +
 	"\x14GetAISettingsRequest\"T\n" +
 	"\x16PatchAISettingsRequest\x12:\n" +
-	"\bprofiles\x18\x01 \x03(\v2\x1e.sillage.api.v1.AIProfileInputR\bprofiles\"\x9e\x02\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x1e.sillage.api.v1.AIProfileInputR\bprofiles\"\xc1\x02\n" +
 	"\x0eAIProfileInput\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -282,7 +292,8 @@ const file_api_v1_settings_service_proto_rawDesc = "" +
 	"\aenabled\x18\b \x01(\bR\aenabled\x12\x16\n" +
 	"\x06active\x18\t \x01(\bR\x06active\x12\x1c\n" +
 	"\aapi_key\x18\n" +
-	" \x01(\tH\x00R\x06apiKey\x88\x01\x01B\n" +
+	" \x01(\tH\x00R\x06apiKey\x88\x01\x01\x12!\n" +
+	"\fauto_summary\x18\v \x01(\bR\vautoSummaryB\n" +
 	"\n" +
 	"\b_api_key\"K\n" +
 	"\x12AISettingsResponse\x125\n" +

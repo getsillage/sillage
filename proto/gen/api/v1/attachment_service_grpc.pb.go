@@ -25,6 +25,9 @@ const (
 // AttachmentServiceClient is the client API for AttachmentService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// AttachmentService exposes attachment metadata. The bytes are served
+// separately at /file/attachments/{uid}/{filename} (auth required).
 type AttachmentServiceClient interface {
 	GetAttachment(ctx context.Context, in *GetAttachmentRequest, opts ...grpc.CallOption) (*AttachmentResponse, error)
 }
@@ -50,6 +53,9 @@ func (c *attachmentServiceClient) GetAttachment(ctx context.Context, in *GetAtta
 // AttachmentServiceServer is the server API for AttachmentService service.
 // All implementations must embed UnimplementedAttachmentServiceServer
 // for forward compatibility.
+//
+// AttachmentService exposes attachment metadata. The bytes are served
+// separately at /file/attachments/{uid}/{filename} (auth required).
 type AttachmentServiceServer interface {
 	GetAttachment(context.Context, *GetAttachmentRequest) (*AttachmentResponse, error)
 	mustEmbedUnimplementedAttachmentServiceServer()

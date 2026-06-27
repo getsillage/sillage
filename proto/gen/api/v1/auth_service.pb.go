@@ -367,6 +367,8 @@ func (x *MeResponse) GetAccount() *Account {
 	return nil
 }
 
+// AuthResponse carries the account plus a short-lived access token. The refresh
+// token is delivered out-of-band as an HttpOnly cookie, not in this message.
 type AuthResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Account       *Account               `protobuf:"bytes,1,opt,name=account,proto3" json:"account,omitempty"`

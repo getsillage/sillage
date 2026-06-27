@@ -22,6 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Account is the single owner of a Sillage instance. The instance allows
+// exactly one account; a second registration is rejected after initialization.
 type Account struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -98,16 +100,24 @@ func (x *Account) GetUpdatedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+// Memo is the only content unit in Sillage (shown as "记录" in the UI).
+// Deletion is a tombstone: deleted_time is set while the row is retained so
+// sync clients can converge.
 type Memo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	EntryDate     string                 `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
-	Version       int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
-	PinnedTime    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pinned_time,json=pinnedTime,proto3" json:"pinned_time,omitempty"`
-	ArchivedTime  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=archived_time,json=archivedTime,proto3" json:"archived_time,omitempty"`
-	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
-	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Content string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	// entry_date is the user-chosen calendar day in YYYY-MM-DD form; it is
+	// independent of created_time.
+	EntryDate string `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
+	// version is bumped on every content/state mutation and drives optimistic
+	// concurrency: writes carry the expected_version they read.
+	Version      int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	PinnedTime   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pinned_time,json=pinnedTime,proto3" json:"pinned_time,omitempty"`
+	ArchivedTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=archived_time,json=archivedTime,proto3" json:"archived_time,omitempty"`
+	CreatedTime  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
+	UpdatedTime  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
+	// deleted_time set => the memo is tombstoned (soft-deleted).
 	DeletedTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -206,18 +216,22 @@ func (x *Memo) GetDeletedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+// Attachment is a file stored alongside a memo. Bytes live on disk; this
+// message carries only metadata. In sync, attachments are pull-only (the
+// server never accepts attachment pushes).
 type Attachment struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Uid           string                 `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
-	MemoId        string                 `protobuf:"bytes,3,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
-	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
-	Filename      string                 `protobuf:"bytes,5,opt,name=filename,proto3" json:"filename,omitempty"`
-	ContentType   string                 `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	Size          int64                  `protobuf:"varint,7,opt,name=size,proto3" json:"size,omitempty"`
-	Sha256        string                 `protobuf:"bytes,8,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	Width         int64                  `protobuf:"varint,9,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int64                  `protobuf:"varint,10,opt,name=height,proto3" json:"height,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Uid         string                 `protobuf:"bytes,2,opt,name=uid,proto3" json:"uid,omitempty"`
+	MemoId      string                 `protobuf:"bytes,3,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
+	Url         string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	Filename    string                 `protobuf:"bytes,5,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType string                 `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Size        int64                  `protobuf:"varint,7,opt,name=size,proto3" json:"size,omitempty"`
+	Sha256      string                 `protobuf:"bytes,8,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Width       int64                  `protobuf:"varint,9,opt,name=width,proto3" json:"width,omitempty"`
+	Height      int64                  `protobuf:"varint,10,opt,name=height,proto3" json:"height,omitempty"`
+	// status is the lifecycle marker (e.g. "ready"); reserved for future states.
 	Status        string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
 	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
 	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
@@ -354,6 +368,9 @@ func (x *Attachment) GetDeletedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+// MemoAI holds AI-derived data for a memo (currently the summary). It is stored
+// in a separate table and intentionally does NOT bump the memo's version or
+// updated_time, so regenerating a summary never looks like a content edit.
 type MemoAI struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MemoId        string                 `protobuf:"bytes,1,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
@@ -363,8 +380,11 @@ type MemoAI struct {
 	Model         string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
 	ProfileId     string                 `protobuf:"bytes,6,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
 	PromptVersion string                 `protobuf:"bytes,7,opt,name=prompt_version,json=promptVersion,proto3" json:"prompt_version,omitempty"`
-	SourceMemoIds string                 `protobuf:"bytes,8,opt,name=source_memo_ids,json=sourceMemoIds,proto3" json:"source_memo_ids,omitempty"`
-	Status        string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	// source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
+	SourceMemoIds string `protobuf:"bytes,8,opt,name=source_memo_ids,json=sourceMemoIds,proto3" json:"source_memo_ids,omitempty"`
+	// status is one of "pending" | "ready" | "failed".
+	Status string `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	// error_code explains a "failed"/degraded status, e.g. "key_unavailable".
 	ErrorCode     string                 `protobuf:"bytes,10,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	StartedTime   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_time,json=startedTime,proto3" json:"started_time,omitempty"`
 	FinishedTime  *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=finished_time,json=finishedTime,proto3" json:"finished_time,omitempty"`
@@ -526,23 +546,33 @@ func (x *MemoAI) GetUpdatedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+// AIProfile is a user-configured AI provider. The API key is never returned;
+// has_api_key reports whether one is stored and key_unavailable reports that a
+// stored key could not be decrypted (degraded, not fatal).
 type AIProfile struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Provider       string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
-	BaseUrl        string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	Temperature    float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens      int64                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	Enabled        bool                   `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// provider selects the request shape: "anthropic" or any OpenAI-compatible
+	// value (default).
+	Provider    string  `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
+	BaseUrl     string  `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model       string  `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	Temperature float64 `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens   int64   `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	Enabled     bool    `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// active marks the single profile used for generation. At most one profile
+	// is active at a time.
 	Active         bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"`
 	HasApiKey      bool                   `protobuf:"varint,10,opt,name=has_api_key,json=hasApiKey,proto3" json:"has_api_key,omitempty"`
 	KeyUnavailable bool                   `protobuf:"varint,11,opt,name=key_unavailable,json=keyUnavailable,proto3" json:"key_unavailable,omitempty"`
 	CreatedTime    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
 	UpdatedTime    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// auto_summary, when true, generates a memo summary in the background after a
+	// memo is created. Best-effort; never blocks the write.
+	AutoSummary   bool `protobuf:"varint,14,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AIProfile) Reset() {
@@ -666,12 +696,25 @@ func (x *AIProfile) GetUpdatedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AIProfile) GetAutoSummary() bool {
+	if x != nil {
+		return x.AutoSummary
+	}
+	return false
+}
+
+// AskConversation is a single Ask thread (a ChatGPT-style conversation grounded
+// in the user's memos).
 type AskConversation struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	ContextScope  string                 `protobuf:"bytes,4,opt,name=context_scope,json=contextScope,proto3" json:"context_scope,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title  string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	// context_scope is the default time window for grounding: "recent_7_days" |
+	// "recent_30_days" | "all". Per-message scope/source may override it.
+	ContextScope string `protobuf:"bytes,4,opt,name=context_scope,json=contextScope,proto3" json:"context_scope,omitempty"`
+	// head_message_id is the currently active leaf when forks (regenerations /
+	// branches) exist.
 	HeadMessageId string                 `protobuf:"bytes,5,opt,name=head_message_id,json=headMessageId,proto3" json:"head_message_id,omitempty"`
 	PinnedTime    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=pinned_time,json=pinnedTime,proto3" json:"pinned_time,omitempty"`
 	ArchivedTime  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=archived_time,json=archivedTime,proto3" json:"archived_time,omitempty"`
@@ -782,6 +825,8 @@ func (x *AskConversation) GetDeletedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+// AskSourceRef is a citation: a memo an answer was grounded in, so the user can
+// jump back to the original record.
 type AskSourceRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MemoId        string                 `protobuf:"bytes,1,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
@@ -850,22 +895,30 @@ func (x *AskSourceRef) GetRank() int32 {
 	return 0
 }
 
+// AskMessage is one turn in a conversation. Branching and regeneration are
+// modeled as a tree: parent_id links a follow-up to the message it answers, and
+// fork_of_id links a regenerated answer to the answer it replaces.
 type AskMessage struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	Role           string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
-	Content        string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
-	ParentId       string                 `protobuf:"bytes,5,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
-	ForkOfId       string                 `protobuf:"bytes,6,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
-	Status         string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	SourceRefs     []*AskSourceRef        `protobuf:"bytes,8,rep,name=source_refs,json=sourceRefs,proto3" json:"source_refs,omitempty"`
-	Model          string                 `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`
-	CreatedTime    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
-	UpdatedTime    *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
-	DeletedTime    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// role is "user" | "assistant".
+	Role    string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	Content string `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	// parent_id is the message this one follows (empty for the first turn).
+	ParentId string `protobuf:"bytes,5,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	// fork_of_id, when set, marks this as an alternative (regenerated) answer to
+	// the same parent as the referenced message.
+	ForkOfId string `protobuf:"bytes,6,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
+	// status is one of "pending" | "ready" | "failed".
+	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	SourceRefs    []*AskSourceRef        `protobuf:"bytes,8,rep,name=source_refs,json=sourceRefs,proto3" json:"source_refs,omitempty"`
+	Model         string                 `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`
+	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
+	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
+	DeletedTime   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AskMessage) Reset() {
@@ -1042,7 +1095,7 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\routput_tokens\x18\x0e \x01(\x03R\foutputTokens\x12!\n" +
 	"\ftotal_tokens\x18\x0f \x01(\x03R\vtotalTokens\x12=\n" +
 	"\fcreated_time\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
-	"\fupdated_time\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xb6\x03\n" +
+	"\fupdated_time\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xd9\x03\n" +
 	"\tAIProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -1058,7 +1111,8 @@ const file_api_v1_common_proto_rawDesc = "" +
 	" \x01(\bR\thasApiKey\x12'\n" +
 	"\x0fkey_unavailable\x18\v \x01(\bR\x0ekeyUnavailable\x12=\n" +
 	"\fcreated_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
-	"\fupdated_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xd7\x03\n" +
+	"\fupdated_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12!\n" +
+	"\fauto_summary\x18\x0e \x01(\bR\vautoSummary\"\xd7\x03\n" +
 	"\x0fAskConversation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +

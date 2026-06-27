@@ -23,8 +23,11 @@ const (
 )
 
 type ListMemosRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Limit int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
+	// instead of returning the recent list.
+	Query         string `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -64,6 +67,13 @@ func (x *ListMemosRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListMemosRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
 }
 
 type ListMemosResponse struct {
@@ -111,10 +121,11 @@ func (x *ListMemosResponse) GetMemos() []*Memo {
 }
 
 type CreateMemoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	EntryDate     string                 `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id is client-supplied so creation is idempotent across retries/offline sync.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	EntryDate     string `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,6 +225,8 @@ func (x *GetMemoRequest) GetId() string {
 	return ""
 }
 
+// UpdateMemo applies a partial update guarded by expected_version. Unset
+// optional fields are left unchanged.
 type UpdateMemoRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -559,8 +572,11 @@ func (x *GenerateMemoSummaryResponse) GetAi() *MemoAI {
 }
 
 type MemoResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Memo          *Memo                  `protobuf:"bytes,1,opt,name=memo,proto3" json:"memo,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Memo  *Memo                  `protobuf:"bytes,1,opt,name=memo,proto3" json:"memo,omitempty"`
+	// ai carries the memo's latest summary when one exists, so clients can render
+	// a stored summary without regenerating it.
+	Ai            *MemoAI `protobuf:"bytes,2,opt,name=ai,proto3" json:"ai,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,13 +618,21 @@ func (x *MemoResponse) GetMemo() *Memo {
 	return nil
 }
 
+func (x *MemoResponse) GetAi() *MemoAI {
+	if x != nil {
+		return x.Ai
+	}
+	return nil
+}
+
 var File_api_v1_memo_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"(\n" +
+	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\">\n" +
 	"\x10ListMemosRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"?\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\"?\n" +
 	"\x11ListMemosResponse\x12*\n" +
 	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\"\\\n" +
 	"\x11CreateMemoRequest\x12\x0e\n" +
@@ -645,9 +669,10 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\x1aGenerateMemoSummaryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"E\n" +
 	"\x1bGenerateMemoSummaryResponse\x12&\n" +
-	"\x02ai\x18\x01 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai\"8\n" +
+	"\x02ai\x18\x01 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai\"`\n" +
 	"\fMemoResponse\x12(\n" +
-	"\x04memo\x18\x01 \x01(\v2\x14.sillage.api.v1.MemoR\x04memo2\xc1\a\n" +
+	"\x04memo\x18\x01 \x01(\v2\x14.sillage.api.v1.MemoR\x04memo\x12&\n" +
+	"\x02ai\x18\x02 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai2\xc1\a\n" +
 	"\vMemoService\x12g\n" +
 	"\tListMemos\x12 .sillage.api.v1.ListMemosRequest\x1a!.sillage.api.v1.ListMemosResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/v1/memos\x12g\n" +
 	"\n" +
@@ -694,27 +719,28 @@ var file_api_v1_memo_service_proto_depIdxs = []int32{
 	11, // 0: sillage.api.v1.ListMemosResponse.memos:type_name -> sillage.api.v1.Memo
 	12, // 1: sillage.api.v1.GenerateMemoSummaryResponse.ai:type_name -> sillage.api.v1.MemoAI
 	11, // 2: sillage.api.v1.MemoResponse.memo:type_name -> sillage.api.v1.Memo
-	0,  // 3: sillage.api.v1.MemoService.ListMemos:input_type -> sillage.api.v1.ListMemosRequest
-	2,  // 4: sillage.api.v1.MemoService.CreateMemo:input_type -> sillage.api.v1.CreateMemoRequest
-	3,  // 5: sillage.api.v1.MemoService.GetMemo:input_type -> sillage.api.v1.GetMemoRequest
-	4,  // 6: sillage.api.v1.MemoService.UpdateMemo:input_type -> sillage.api.v1.UpdateMemoRequest
-	5,  // 7: sillage.api.v1.MemoService.DeleteMemo:input_type -> sillage.api.v1.DeleteMemoRequest
-	6,  // 8: sillage.api.v1.MemoService.SetMemoPinned:input_type -> sillage.api.v1.SetMemoPinnedRequest
-	7,  // 9: sillage.api.v1.MemoService.SetMemoArchived:input_type -> sillage.api.v1.SetMemoArchivedRequest
-	8,  // 10: sillage.api.v1.MemoService.GenerateMemoSummary:input_type -> sillage.api.v1.GenerateMemoSummaryRequest
-	1,  // 11: sillage.api.v1.MemoService.ListMemos:output_type -> sillage.api.v1.ListMemosResponse
-	10, // 12: sillage.api.v1.MemoService.CreateMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 13: sillage.api.v1.MemoService.GetMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 14: sillage.api.v1.MemoService.UpdateMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 15: sillage.api.v1.MemoService.DeleteMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 16: sillage.api.v1.MemoService.SetMemoPinned:output_type -> sillage.api.v1.MemoResponse
-	10, // 17: sillage.api.v1.MemoService.SetMemoArchived:output_type -> sillage.api.v1.MemoResponse
-	9,  // 18: sillage.api.v1.MemoService.GenerateMemoSummary:output_type -> sillage.api.v1.GenerateMemoSummaryResponse
-	11, // [11:19] is the sub-list for method output_type
-	3,  // [3:11] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	12, // 3: sillage.api.v1.MemoResponse.ai:type_name -> sillage.api.v1.MemoAI
+	0,  // 4: sillage.api.v1.MemoService.ListMemos:input_type -> sillage.api.v1.ListMemosRequest
+	2,  // 5: sillage.api.v1.MemoService.CreateMemo:input_type -> sillage.api.v1.CreateMemoRequest
+	3,  // 6: sillage.api.v1.MemoService.GetMemo:input_type -> sillage.api.v1.GetMemoRequest
+	4,  // 7: sillage.api.v1.MemoService.UpdateMemo:input_type -> sillage.api.v1.UpdateMemoRequest
+	5,  // 8: sillage.api.v1.MemoService.DeleteMemo:input_type -> sillage.api.v1.DeleteMemoRequest
+	6,  // 9: sillage.api.v1.MemoService.SetMemoPinned:input_type -> sillage.api.v1.SetMemoPinnedRequest
+	7,  // 10: sillage.api.v1.MemoService.SetMemoArchived:input_type -> sillage.api.v1.SetMemoArchivedRequest
+	8,  // 11: sillage.api.v1.MemoService.GenerateMemoSummary:input_type -> sillage.api.v1.GenerateMemoSummaryRequest
+	1,  // 12: sillage.api.v1.MemoService.ListMemos:output_type -> sillage.api.v1.ListMemosResponse
+	10, // 13: sillage.api.v1.MemoService.CreateMemo:output_type -> sillage.api.v1.MemoResponse
+	10, // 14: sillage.api.v1.MemoService.GetMemo:output_type -> sillage.api.v1.MemoResponse
+	10, // 15: sillage.api.v1.MemoService.UpdateMemo:output_type -> sillage.api.v1.MemoResponse
+	10, // 16: sillage.api.v1.MemoService.DeleteMemo:output_type -> sillage.api.v1.MemoResponse
+	10, // 17: sillage.api.v1.MemoService.SetMemoPinned:output_type -> sillage.api.v1.MemoResponse
+	10, // 18: sillage.api.v1.MemoService.SetMemoArchived:output_type -> sillage.api.v1.MemoResponse
+	9,  // 19: sillage.api.v1.MemoService.GenerateMemoSummary:output_type -> sillage.api.v1.GenerateMemoSummaryResponse
+	12, // [12:20] is the sub-list for method output_type
+	4,  // [4:12] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_memo_service_proto_init() }

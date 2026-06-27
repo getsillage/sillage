@@ -5,6 +5,9 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
+// MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
+// carries expected_version for optimistic concurrency; a stale version is
+// rejected as a conflict (HTTP 409 / Connect Aborted).
 service MemoService {
   rpc ListMemos(ListMemosRequest) returns (ListMemosResponse) {
     option (google.api.http) = {get: "/api/v1/memos"};
@@ -56,6 +59,9 @@ service MemoService {
 
 message ListMemosRequest {
   int32 limit = 1;
+  // query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
+  // instead of returning the recent list.
+  string query = 2;
 }
 
 message ListMemosResponse {
@@ -63,6 +69,7 @@ message ListMemosResponse {
 }
 
 message CreateMemoRequest {
+  // id is client-supplied so creation is idempotent across retries/offline sync.
   string id = 1;
   string content = 2;
   string entry_date = 3;
@@ -72,6 +79,8 @@ message GetMemoRequest {
   string id = 1;
 }
 
+// UpdateMemo applies a partial update guarded by expected_version. Unset
+// optional fields are left unchanged.
 message UpdateMemoRequest {
   string id = 1;
   int64 expected_version = 2;
@@ -108,4 +117,7 @@ message GenerateMemoSummaryResponse {
 
 message MemoResponse {
   Memo memo = 1;
+  // ai carries the memo's latest summary when one exists, so clients can render
+  // a stored summary without regenerating it.
+  MemoAI ai = 2;
 }

@@ -5,6 +5,8 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
+// SettingsService manages the user's AI profiles. Get never returns API keys;
+// Patch replaces the full profile set (api_key omitted = keep the stored key).
 service SettingsService {
   rpc GetAISettings(GetAISettingsRequest) returns (AISettingsResponse) {
     option (google.api.http) = {get: "/api/v1/settings/ai"};
@@ -24,6 +26,8 @@ message PatchAISettingsRequest {
   repeated AIProfileInput profiles = 1;
 }
 
+// AIProfileInput is the writable shape of a profile. api_key is optional: unset
+// keeps the stored key, empty string clears it.
 message AIProfileInput {
   string id = 1;
   string name = 2;
@@ -35,6 +39,7 @@ message AIProfileInput {
   bool enabled = 8;
   bool active = 9;
   optional string api_key = 10;
+  bool auto_summary = 11;
 }
 
 message AISettingsResponse {

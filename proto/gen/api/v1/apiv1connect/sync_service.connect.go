@@ -41,7 +41,12 @@ const (
 
 // SyncServiceClient is a client for the sillage.api.v1.SyncService service.
 type SyncServiceClient interface {
+	// PullSync returns changes after the given cursor, including tombstones, in
+	// pages. Attachments are pull-only (metadata).
 	PullSync(context.Context, *connect.Request[v1.PullSyncRequest]) (*connect.Response[v1.PullSyncResponse], error)
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
+	// for idempotent retries; a stale base_version yields a conflict result
+	// rather than an error.
 	PushSync(context.Context, *connect.Request[v1.PushSyncRequest]) (*connect.Response[v1.PushSyncResponse], error)
 }
 
@@ -89,7 +94,12 @@ func (c *syncServiceClient) PushSync(ctx context.Context, req *connect.Request[v
 
 // SyncServiceHandler is an implementation of the sillage.api.v1.SyncService service.
 type SyncServiceHandler interface {
+	// PullSync returns changes after the given cursor, including tombstones, in
+	// pages. Attachments are pull-only (metadata).
 	PullSync(context.Context, *connect.Request[v1.PullSyncRequest]) (*connect.Response[v1.PullSyncResponse], error)
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
+	// for idempotent retries; a stale base_version yields a conflict result
+	// rather than an error.
 	PushSync(context.Context, *connect.Request[v1.PushSyncRequest]) (*connect.Response[v1.PushSyncResponse], error)
 }
 

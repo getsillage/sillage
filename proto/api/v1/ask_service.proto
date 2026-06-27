@@ -5,6 +5,8 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
+// AskService powers the Ask feature: conversations grounded in the user's
+// memos, with branching follow-ups and answer regeneration.
 service AskService {
   rpc ListAskConversations(ListAskConversationsRequest) returns (ListAskConversationsResponse) {
     option (google.api.http) = {get: "/api/v1/ask/conversations"};
@@ -21,6 +23,9 @@ service AskService {
     option (google.api.http) = {get: "/api/v1/ask/conversations/{conversation_id}/messages"};
   }
 
+  // CreateAskMessage posts a question and returns the user message plus the
+  // generated answer. This is the unary path; the REST surface also exposes a
+  // streaming variant for token-by-token delivery.
   rpc CreateAskMessage(CreateAskMessageRequest) returns (CreateAskMessageResponse) {
     option (google.api.http) = {
       post: "/api/v1/ask/conversations/{conversation_id}/messages"
@@ -57,9 +62,18 @@ message ListAskMessagesResponse {
 message CreateAskMessageRequest {
   string conversation_id = 1;
   string content = 2;
+  // context_scope overrides the conversation's time window for this turn:
+  // "recent_7_days" | "recent_30_days" | "all".
   string context_scope = 3;
+  // parent_id branches a follow-up off a specific message (empty = continue the
+  // active head).
   string parent_id = 4;
+  // fork_of_id regenerates an answer: the new assistant message becomes an
+  // alternative to the referenced one under the same parent.
   string fork_of_id = 5;
+  // source_kind selects what the answer is grounded in for this turn:
+  // "records" (raw memos, default) | "memo_summary" | "summaries".
+  string source_kind = 6;
 }
 
 message CreateAskMessageResponse {

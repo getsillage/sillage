@@ -23,9 +23,11 @@ const (
 )
 
 type PullSyncRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// cursor is an opaque position from a prior response; empty means from the
+	// beginning.
+	Cursor        string `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,11 +83,12 @@ type PullSyncResponse struct {
 	MemoAi           []*MemoAI              `protobuf:"bytes,3,rep,name=memo_ai,json=memoAi,proto3" json:"memo_ai,omitempty"`
 	AskConversations []*AskConversation     `protobuf:"bytes,4,rep,name=ask_conversations,json=askConversations,proto3" json:"ask_conversations,omitempty"`
 	AskMessages      []*AskMessage          `protobuf:"bytes,5,rep,name=ask_messages,json=askMessages,proto3" json:"ask_messages,omitempty"`
-	Cursor           string                 `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	NextCursor       string                 `protobuf:"bytes,7,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
-	HasMore          bool                   `protobuf:"varint,8,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// cursor echoes the request cursor; next_cursor is the position to pass next.
+	Cursor        string `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	NextCursor    string `protobuf:"bytes,7,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool   `protobuf:"varint,8,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PullSyncResponse) Reset() {
@@ -218,15 +221,21 @@ func (x *PushSyncRequest) GetChanges() []*SyncChange {
 	return nil
 }
 
+// SyncChange is one client mutation. Only resource_type "memo" is accepted on
+// push today.
 type SyncChange struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	MutationId     string                 `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
-	ResourceType   string                 `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
-	ResourceId     string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Action         string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
-	BaseVersion    int64                  `protobuf:"varint,5,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
-	LocalChangedAt string                 `protobuf:"bytes,6,opt,name=local_changed_at,json=localChangedAt,proto3" json:"local_changed_at,omitempty"`
-	Memo           *SyncMemoPayload       `protobuf:"bytes,7,opt,name=memo,proto3" json:"memo,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// mutation_id is a client-generated unique id used for idempotency.
+	MutationId   string `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
+	ResourceType string `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
+	ResourceId   string `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// action is "create" | "update" | "delete".
+	Action string `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	// base_version is the memo version the client based this change on; used for
+	// conflict detection on update/delete.
+	BaseVersion    int64            `protobuf:"varint,5,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	LocalChangedAt string           `protobuf:"bytes,6,opt,name=local_changed_at,json=localChangedAt,proto3" json:"local_changed_at,omitempty"`
+	Memo           *SyncMemoPayload `protobuf:"bytes,7,opt,name=memo,proto3" json:"memo,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -430,19 +439,26 @@ func (x *PushSyncResponse) GetResults() []*SyncResult {
 	return nil
 }
 
+// SyncResult is the per-change outcome, returned in request order.
 type SyncResult struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	MutationId     string                 `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
-	ResourceType   string                 `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
-	ResourceId     string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Reason         string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message        string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
-	Idempotent     bool                   `protobuf:"varint,7,opt,name=idempotent,proto3" json:"idempotent,omitempty"`
-	Resource       *Memo                  `protobuf:"bytes,8,opt,name=resource,proto3" json:"resource,omitempty"`
-	ServerResource *Memo                  `protobuf:"bytes,9,opt,name=server_resource,json=serverResource,proto3" json:"server_resource,omitempty"`
-	ClientVersion  int64                  `protobuf:"varint,10,opt,name=client_version,json=clientVersion,proto3" json:"client_version,omitempty"`
-	ServerVersion  int64                  `protobuf:"varint,11,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	MutationId   string                 `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
+	ResourceType string                 `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
+	ResourceId   string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// status is "applied" | "conflict" | "invalid".
+	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	// reason is a machine code complementing a non-applied status.
+	Reason  string `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message string `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	// idempotent is true when this mutation_id was already applied and the stored
+	// result was replayed.
+	Idempotent bool `protobuf:"varint,7,opt,name=idempotent,proto3" json:"idempotent,omitempty"`
+	// resource is the server state after a successful apply.
+	Resource *Memo `protobuf:"bytes,8,opt,name=resource,proto3" json:"resource,omitempty"`
+	// server_resource is the current server state when status is "conflict".
+	ServerResource *Memo `protobuf:"bytes,9,opt,name=server_resource,json=serverResource,proto3" json:"server_resource,omitempty"`
+	ClientVersion  int64 `protobuf:"varint,10,opt,name=client_version,json=clientVersion,proto3" json:"client_version,omitempty"`
+	ServerVersion  int64 `protobuf:"varint,11,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

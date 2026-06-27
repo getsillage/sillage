@@ -31,7 +31,13 @@ const (
 // AuthServiceClient is the client API for AuthService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// AuthService handles the single-account lifecycle: one-time initialization,
+// sign-in/out, and access-token refresh. After initialization, Initialize is
+// rejected (no second account).
 type AuthServiceClient interface {
+	// Bootstrap reports whether the instance has been initialized yet, so the
+	// client knows whether to show initialization or sign-in.
 	Bootstrap(ctx context.Context, in *BootstrapRequest, opts ...grpc.CallOption) (*BootstrapResponse, error)
 	Initialize(ctx context.Context, in *InitializeRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	SignIn(ctx context.Context, in *SignInRequest, opts ...grpc.CallOption) (*AuthResponse, error)
@@ -111,7 +117,13 @@ func (c *authServiceClient) Me(ctx context.Context, in *MeRequest, opts ...grpc.
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
+//
+// AuthService handles the single-account lifecycle: one-time initialization,
+// sign-in/out, and access-token refresh. After initialization, Initialize is
+// rejected (no second account).
 type AuthServiceServer interface {
+	// Bootstrap reports whether the instance has been initialized yet, so the
+	// client knows whether to show initialization or sign-in.
 	Bootstrap(context.Context, *BootstrapRequest) (*BootstrapResponse, error)
 	Initialize(context.Context, *InitializeRequest) (*AuthResponse, error)
 	SignIn(context.Context, *SignInRequest) (*AuthResponse, error)

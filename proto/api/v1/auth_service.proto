@@ -6,7 +6,12 @@ import "api/v1/common.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
+// AuthService handles the single-account lifecycle: one-time initialization,
+// sign-in/out, and access-token refresh. After initialization, Initialize is
+// rejected (no second account).
 service AuthService {
+  // Bootstrap reports whether the instance has been initialized yet, so the
+  // client knows whether to show initialization or sign-in.
   rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse) {
     option (google.api.http) = {get: "/api/v1/auth/bootstrap"};
   }
@@ -71,6 +76,8 @@ message MeResponse {
   Account account = 1;
 }
 
+// AuthResponse carries the account plus a short-lived access token. The refresh
+// token is delivered out-of-band as an HttpOnly cookie, not in this message.
 message AuthResponse {
   Account account = 1;
   string access_token = 2;

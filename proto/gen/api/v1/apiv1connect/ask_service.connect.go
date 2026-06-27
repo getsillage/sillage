@@ -52,6 +52,9 @@ type AskServiceClient interface {
 	ListAskConversations(context.Context, *connect.Request[v1.ListAskConversationsRequest]) (*connect.Response[v1.ListAskConversationsResponse], error)
 	CreateAskConversation(context.Context, *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
 	ListAskMessages(context.Context, *connect.Request[v1.ListAskMessagesRequest]) (*connect.Response[v1.ListAskMessagesResponse], error)
+	// CreateAskMessage posts a question and returns the user message plus the
+	// generated answer. This is the unary path; the REST surface also exposes a
+	// streaming variant for token-by-token delivery.
 	CreateAskMessage(context.Context, *connect.Request[v1.CreateAskMessageRequest]) (*connect.Response[v1.CreateAskMessageResponse], error)
 }
 
@@ -126,6 +129,9 @@ type AskServiceHandler interface {
 	ListAskConversations(context.Context, *connect.Request[v1.ListAskConversationsRequest]) (*connect.Response[v1.ListAskConversationsResponse], error)
 	CreateAskConversation(context.Context, *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
 	ListAskMessages(context.Context, *connect.Request[v1.ListAskMessagesRequest]) (*connect.Response[v1.ListAskMessagesResponse], error)
+	// CreateAskMessage posts a question and returns the user message plus the
+	// generated answer. This is the unary path; the REST surface also exposes a
+	// streaming variant for token-by-token delivery.
 	CreateAskMessage(context.Context, *connect.Request[v1.CreateAskMessageRequest]) (*connect.Response[v1.CreateAskMessageResponse], error)
 }
 

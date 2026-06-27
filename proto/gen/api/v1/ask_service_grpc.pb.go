@@ -28,10 +28,16 @@ const (
 // AskServiceClient is the client API for AskService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// AskService powers the Ask feature: conversations grounded in the user's
+// memos, with branching follow-ups and answer regeneration.
 type AskServiceClient interface {
 	ListAskConversations(ctx context.Context, in *ListAskConversationsRequest, opts ...grpc.CallOption) (*ListAskConversationsResponse, error)
 	CreateAskConversation(ctx context.Context, in *CreateAskConversationRequest, opts ...grpc.CallOption) (*AskConversationResponse, error)
 	ListAskMessages(ctx context.Context, in *ListAskMessagesRequest, opts ...grpc.CallOption) (*ListAskMessagesResponse, error)
+	// CreateAskMessage posts a question and returns the user message plus the
+	// generated answer. This is the unary path; the REST surface also exposes a
+	// streaming variant for token-by-token delivery.
 	CreateAskMessage(ctx context.Context, in *CreateAskMessageRequest, opts ...grpc.CallOption) (*CreateAskMessageResponse, error)
 }
 
@@ -86,10 +92,16 @@ func (c *askServiceClient) CreateAskMessage(ctx context.Context, in *CreateAskMe
 // AskServiceServer is the server API for AskService service.
 // All implementations must embed UnimplementedAskServiceServer
 // for forward compatibility.
+//
+// AskService powers the Ask feature: conversations grounded in the user's
+// memos, with branching follow-ups and answer regeneration.
 type AskServiceServer interface {
 	ListAskConversations(context.Context, *ListAskConversationsRequest) (*ListAskConversationsResponse, error)
 	CreateAskConversation(context.Context, *CreateAskConversationRequest) (*AskConversationResponse, error)
 	ListAskMessages(context.Context, *ListAskMessagesRequest) (*ListAskMessagesResponse, error)
+	// CreateAskMessage posts a question and returns the user message plus the
+	// generated answer. This is the unary path; the REST surface also exposes a
+	// streaming variant for token-by-token delivery.
 	CreateAskMessage(context.Context, *CreateAskMessageRequest) (*CreateAskMessageResponse, error)
 	mustEmbedUnimplementedAskServiceServer()
 }

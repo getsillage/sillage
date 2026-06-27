@@ -26,6 +26,9 @@ const (
 // SettingsServiceClient is the client API for SettingsService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// SettingsService manages the user's AI profiles. Get never returns API keys;
+// Patch replaces the full profile set (api_key omitted = keep the stored key).
 type SettingsServiceClient interface {
 	GetAISettings(ctx context.Context, in *GetAISettingsRequest, opts ...grpc.CallOption) (*AISettingsResponse, error)
 	PatchAISettings(ctx context.Context, in *PatchAISettingsRequest, opts ...grpc.CallOption) (*AISettingsResponse, error)
@@ -62,6 +65,9 @@ func (c *settingsServiceClient) PatchAISettings(ctx context.Context, in *PatchAI
 // SettingsServiceServer is the server API for SettingsService service.
 // All implementations must embed UnimplementedSettingsServiceServer
 // for forward compatibility.
+//
+// SettingsService manages the user's AI profiles. Get never returns API keys;
+// Patch replaces the full profile set (api_key omitted = keep the stored key).
 type SettingsServiceServer interface {
 	GetAISettings(context.Context, *GetAISettingsRequest) (*AISettingsResponse, error)
 	PatchAISettings(context.Context, *PatchAISettingsRequest) (*AISettingsResponse, error)

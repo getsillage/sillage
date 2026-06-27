@@ -298,11 +298,20 @@ type CreateAskMessageRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	Content        string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	ContextScope   string                 `protobuf:"bytes,3,opt,name=context_scope,json=contextScope,proto3" json:"context_scope,omitempty"`
-	ParentId       string                 `protobuf:"bytes,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
-	ForkOfId       string                 `protobuf:"bytes,5,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// context_scope overrides the conversation's time window for this turn:
+	// "recent_7_days" | "recent_30_days" | "all".
+	ContextScope string `protobuf:"bytes,3,opt,name=context_scope,json=contextScope,proto3" json:"context_scope,omitempty"`
+	// parent_id branches a follow-up off a specific message (empty = continue the
+	// active head).
+	ParentId string `protobuf:"bytes,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	// fork_of_id regenerates an answer: the new assistant message becomes an
+	// alternative to the referenced one under the same parent.
+	ForkOfId string `protobuf:"bytes,5,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
+	// source_kind selects what the answer is grounded in for this turn:
+	// "records" (raw memos, default) | "memo_summary" | "summaries".
+	SourceKind    string `protobuf:"bytes,6,opt,name=source_kind,json=sourceKind,proto3" json:"source_kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateAskMessageRequest) Reset() {
@@ -370,6 +379,13 @@ func (x *CreateAskMessageRequest) GetForkOfId() string {
 	return ""
 }
 
+func (x *CreateAskMessageRequest) GetSourceKind() string {
+	if x != nil {
+		return x.SourceKind
+	}
+	return ""
+}
+
 type CreateAskMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Messages      []*AskMessage          `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
@@ -431,14 +447,16 @@ const file_api_v1_ask_service_proto_rawDesc = "" +
 	"\x16ListAskMessagesRequest\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\"Q\n" +
 	"\x17ListAskMessagesResponse\x126\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1a.sillage.api.v1.AskMessageR\bmessages\"\xbc\x01\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1a.sillage.api.v1.AskMessageR\bmessages\"\xdd\x01\n" +
 	"\x17CreateAskMessageRequest\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12#\n" +
 	"\rcontext_scope\x18\x03 \x01(\tR\fcontextScope\x12\x1b\n" +
 	"\tparent_id\x18\x04 \x01(\tR\bparentId\x12\x1c\n" +
 	"\n" +
-	"fork_of_id\x18\x05 \x01(\tR\bforkOfId\"R\n" +
+	"fork_of_id\x18\x05 \x01(\tR\bforkOfId\x12\x1f\n" +
+	"\vsource_kind\x18\x06 \x01(\tR\n" +
+	"sourceKind\"R\n" +
 	"\x18CreateAskMessageResponse\x126\n" +
 	"\bmessages\x18\x01 \x03(\v2\x1a.sillage.api.v1.AskMessageR\bmessages2\x86\x05\n" +
 	"\n" +

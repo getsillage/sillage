@@ -4,6 +4,8 @@ package sillage.api.v1;
 
 import "google/protobuf/timestamp.proto";
 
+// Account is the single owner of a Sillage instance. The instance allows
+// exactly one account; a second registration is rejected after initialization.
 message Account {
   string id = 1;
   string username = 2;
@@ -12,18 +14,29 @@ message Account {
   google.protobuf.Timestamp updated_time = 5;
 }
 
+// Memo is the only content unit in Sillage (shown as "记录" in the UI).
+// Deletion is a tombstone: deleted_time is set while the row is retained so
+// sync clients can converge.
 message Memo {
   string id = 1;
   string content = 2;
+  // entry_date is the user-chosen calendar day in YYYY-MM-DD form; it is
+  // independent of created_time.
   string entry_date = 3;
+  // version is bumped on every content/state mutation and drives optimistic
+  // concurrency: writes carry the expected_version they read.
   int64 version = 4;
   google.protobuf.Timestamp pinned_time = 5;
   google.protobuf.Timestamp archived_time = 6;
   google.protobuf.Timestamp created_time = 7;
   google.protobuf.Timestamp updated_time = 8;
+  // deleted_time set => the memo is tombstoned (soft-deleted).
   google.protobuf.Timestamp deleted_time = 9;
 }
 
+// Attachment is a file stored alongside a memo. Bytes live on disk; this
+// message carries only metadata. In sync, attachments are pull-only (the
+// server never accepts attachment pushes).
 message Attachment {
   string id = 1;
   string uid = 2;
@@ -35,12 +48,16 @@ message Attachment {
   string sha256 = 8;
   int64 width = 9;
   int64 height = 10;
+  // status is the lifecycle marker (e.g. "ready"); reserved for future states.
   string status = 11;
   google.protobuf.Timestamp created_time = 12;
   google.protobuf.Timestamp updated_time = 13;
   google.protobuf.Timestamp deleted_time = 14;
 }
 
+// MemoAI holds AI-derived data for a memo (currently the summary). It is stored
+// in a separate table and intentionally does NOT bump the memo's version or
+// updated_time, so regenerating a summary never looks like a content edit.
 message MemoAI {
   string memo_id = 1;
   string summary = 2;
@@ -49,8 +66,11 @@ message MemoAI {
   string model = 5;
   string profile_id = 6;
   string prompt_version = 7;
+  // source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
   string source_memo_ids = 8;
+  // status is one of "pending" | "ready" | "failed".
   string status = 9;
+  // error_code explains a "failed"/degraded status, e.g. "key_unavailable".
   string error_code = 10;
   google.protobuf.Timestamp started_time = 11;
   google.protobuf.Timestamp finished_time = 12;
@@ -61,27 +81,43 @@ message MemoAI {
   google.protobuf.Timestamp updated_time = 17;
 }
 
+// AIProfile is a user-configured AI provider. The API key is never returned;
+// has_api_key reports whether one is stored and key_unavailable reports that a
+// stored key could not be decrypted (degraded, not fatal).
 message AIProfile {
   string id = 1;
   string name = 2;
+  // provider selects the request shape: "anthropic" or any OpenAI-compatible
+  // value (default).
   string provider = 3;
   string base_url = 4;
   string model = 5;
   double temperature = 6;
   int64 max_tokens = 7;
   bool enabled = 8;
+  // active marks the single profile used for generation. At most one profile
+  // is active at a time.
   bool active = 9;
   bool has_api_key = 10;
   bool key_unavailable = 11;
   google.protobuf.Timestamp created_time = 12;
   google.protobuf.Timestamp updated_time = 13;
+  // auto_summary, when true, generates a memo summary in the background after a
+  // memo is created. Best-effort; never blocks the write.
+  bool auto_summary = 14;
 }
 
+// AskConversation is a single Ask thread (a ChatGPT-style conversation grounded
+// in the user's memos).
 message AskConversation {
   string id = 1;
   string title = 2;
   string status = 3;
+  // context_scope is the default time window for grounding: "recent_7_days" |
+  // "recent_30_days" | "all". Per-message scope/source may override it.
   string context_scope = 4;
+  // head_message_id is the currently active leaf when forks (regenerations /
+  // branches) exist.
   string head_message_id = 5;
   google.protobuf.Timestamp pinned_time = 6;
   google.protobuf.Timestamp archived_time = 7;
@@ -90,6 +126,8 @@ message AskConversation {
   google.protobuf.Timestamp deleted_time = 10;
 }
 
+// AskSourceRef is a citation: a memo an answer was grounded in, so the user can
+// jump back to the original record.
 message AskSourceRef {
   string memo_id = 1;
   string entry_date = 2;
@@ -97,13 +135,21 @@ message AskSourceRef {
   int32 rank = 4;
 }
 
+// AskMessage is one turn in a conversation. Branching and regeneration are
+// modeled as a tree: parent_id links a follow-up to the message it answers, and
+// fork_of_id links a regenerated answer to the answer it replaces.
 message AskMessage {
   string id = 1;
   string conversation_id = 2;
+  // role is "user" | "assistant".
   string role = 3;
   string content = 4;
+  // parent_id is the message this one follows (empty for the first turn).
   string parent_id = 5;
+  // fork_of_id, when set, marks this as an alternative (regenerated) answer to
+  // the same parent as the referenced message.
   string fork_of_id = 6;
+  // status is one of "pending" | "ready" | "failed".
   string status = 7;
   repeated AskSourceRef source_refs = 8;
   string model = 9;

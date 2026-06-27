@@ -80,6 +80,10 @@ paths:
         post:
             tags:
                 - AskService
+            description: |-
+                CreateAskMessage posts a question and returns the user message plus the
+                 generated answer. This is the unary path; the REST surface also exposes a
+                 streaming variant for token-by-token delivery.
             operationId: AskService_CreateAskMessage
             parameters:
                 - name: conversationId
@@ -134,6 +138,9 @@ paths:
         get:
             tags:
                 - AuthService
+            description: |-
+                Bootstrap reports whether the instance has been initialized yet, so the
+                 client knows whether to show initialization or sign-in.
             operationId: AuthService_Bootstrap
             responses:
                 "200":
@@ -270,6 +277,13 @@ paths:
                   schema:
                     type: integer
                     format: int32
+                - name: query
+                  in: query
+                  description: |-
+                    query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
+                     instead of returning the recent list.
+                  schema:
+                    type: string
             responses:
                 "200":
                     description: OK
@@ -521,10 +535,16 @@ paths:
         get:
             tags:
                 - SyncService
+            description: |-
+                PullSync returns changes after the given cursor, including tombstones, in
+                 pages. Attachments are pull-only (metadata).
             operationId: SyncService_PullSync
             parameters:
                 - name: cursor
                   in: query
+                  description: |-
+                    cursor is an opaque position from a prior response; empty means from the
+                     beginning.
                   schema:
                     type: string
                 - name: limit
@@ -549,6 +569,10 @@ paths:
         post:
             tags:
                 - SyncService
+            description: |-
+                PushSync applies a batch of client mutations. Each is keyed by mutation_id
+                 for idempotent retries; a stale base_version yields a conflict result
+                 rather than an error.
             operationId: SyncService_PushSync
             requestBody:
                 content:
@@ -580,6 +604,9 @@ components:
                     type: string
                 provider:
                     type: string
+                    description: |-
+                        provider selects the request shape: "anthropic" or any OpenAI-compatible
+                         value (default).
                 baseUrl:
                     type: string
                 model:
@@ -593,6 +620,9 @@ components:
                     type: boolean
                 active:
                     type: boolean
+                    description: |-
+                        active marks the single profile used for generation. At most one profile
+                         is active at a time.
                 hasApiKey:
                     type: boolean
                 keyUnavailable:
@@ -603,6 +633,15 @@ components:
                 updatedTime:
                     type: string
                     format: date-time
+                autoSummary:
+                    type: boolean
+                    description: |-
+                        auto_summary, when true, generates a memo summary in the background after a
+                         memo is created. Best-effort; never blocks the write.
+            description: |-
+                AIProfile is a user-configured AI provider. The API key is never returned;
+                 has_api_key reports whether one is stored and key_unavailable reports that a
+                 stored key could not be decrypted (degraded, not fatal).
         AIProfileInput:
             type: object
             properties:
@@ -627,6 +666,11 @@ components:
                     type: boolean
                 apiKey:
                     type: string
+                autoSummary:
+                    type: boolean
+            description: |-
+                AIProfileInput is the writable shape of a profile. api_key is optional: unset
+                 keeps the stored key, empty string clears it.
         AISettingsResponse:
             type: object
             properties:
@@ -649,6 +693,9 @@ components:
                 updatedTime:
                     type: string
                     format: date-time
+            description: |-
+                Account is the single owner of a Sillage instance. The instance allows
+                 exactly one account; a second registration is rejected after initialization.
         AskConversation:
             type: object
             properties:
@@ -660,8 +707,14 @@ components:
                     type: string
                 contextScope:
                     type: string
+                    description: |-
+                        context_scope is the default time window for grounding: "recent_7_days" |
+                         "recent_30_days" | "all". Per-message scope/source may override it.
                 headMessageId:
                     type: string
+                    description: |-
+                        head_message_id is the currently active leaf when forks (regenerations /
+                         branches) exist.
                 pinnedTime:
                     type: string
                     format: date-time
@@ -677,6 +730,9 @@ components:
                 deletedTime:
                     type: string
                     format: date-time
+            description: |-
+                AskConversation is a single Ask thread (a ChatGPT-style conversation grounded
+                 in the user's memos).
         AskConversationResponse:
             type: object
             properties:
@@ -691,14 +747,20 @@ components:
                     type: string
                 role:
                     type: string
+                    description: role is "user" | "assistant".
                 content:
                     type: string
                 parentId:
                     type: string
+                    description: parent_id is the message this one follows (empty for the first turn).
                 forkOfId:
                     type: string
+                    description: |-
+                        fork_of_id, when set, marks this as an alternative (regenerated) answer to
+                         the same parent as the referenced message.
                 status:
                     type: string
+                    description: status is one of "pending" | "ready" | "failed".
                 sourceRefs:
                     type: array
                     items:
@@ -714,6 +776,10 @@ components:
                 deletedTime:
                     type: string
                     format: date-time
+            description: |-
+                AskMessage is one turn in a conversation. Branching and regeneration are
+                 modeled as a tree: parent_id links a follow-up to the message it answers, and
+                 fork_of_id links a regenerated answer to the answer it replaces.
         AskSourceRef:
             type: object
             properties:
@@ -726,6 +792,9 @@ components:
                 rank:
                     type: integer
                     format: int32
+            description: |-
+                AskSourceRef is a citation: a memo an answer was grounded in, so the user can
+                 jump back to the original record.
         Attachment:
             type: object
             properties:
@@ -751,6 +820,7 @@ components:
                     type: string
                 status:
                     type: string
+                    description: status is the lifecycle marker (e.g. "ready"); reserved for future states.
                 createdTime:
                     type: string
                     format: date-time
@@ -760,6 +830,10 @@ components:
                 deletedTime:
                     type: string
                     format: date-time
+            description: |-
+                Attachment is a file stored alongside a memo. Bytes live on disk; this
+                 message carries only metadata. In sync, attachments are pull-only (the
+                 server never accepts attachment pushes).
         AttachmentResponse:
             type: object
             properties:
@@ -774,6 +848,9 @@ components:
                     type: string
                 expiresAt:
                     type: string
+            description: |-
+                AuthResponse carries the account plus a short-lived access token. The refresh
+                 token is delivered out-of-band as an HttpOnly cookie, not in this message.
         BootstrapResponse:
             type: object
             properties:
@@ -795,10 +872,24 @@ components:
                     type: string
                 contextScope:
                     type: string
+                    description: |-
+                        context_scope overrides the conversation's time window for this turn:
+                         "recent_7_days" | "recent_30_days" | "all".
                 parentId:
                     type: string
+                    description: |-
+                        parent_id branches a follow-up off a specific message (empty = continue the
+                         active head).
                 forkOfId:
                     type: string
+                    description: |-
+                        fork_of_id regenerates an answer: the new assistant message becomes an
+                         alternative to the referenced one under the same parent.
+                sourceKind:
+                    type: string
+                    description: |-
+                        source_kind selects what the answer is grounded in for this turn:
+                         "records" (raw memos, default) | "memo_summary" | "summaries".
         CreateAskMessageResponse:
             type: object
             properties:
@@ -811,6 +902,7 @@ components:
             properties:
                 id:
                     type: string
+                    description: id is client-supplied so creation is idempotent across retries/offline sync.
                 content:
                     type: string
                 entryDate:
@@ -877,8 +969,14 @@ components:
                     type: string
                 entryDate:
                     type: string
+                    description: |-
+                        entry_date is the user-chosen calendar day in YYYY-MM-DD form; it is
+                         independent of created_time.
                 version:
                     type: string
+                    description: |-
+                        version is bumped on every content/state mutation and drives optimistic
+                         concurrency: writes carry the expected_version they read.
                 pinnedTime:
                     type: string
                     format: date-time
@@ -893,7 +991,12 @@ components:
                     format: date-time
                 deletedTime:
                     type: string
+                    description: deleted_time set => the memo is tombstoned (soft-deleted).
                     format: date-time
+            description: |-
+                Memo is the only content unit in Sillage (shown as "记录" in the UI).
+                 Deletion is a tombstone: deleted_time is set while the row is retained so
+                 sync clients can converge.
         MemoAI:
             type: object
             properties:
@@ -913,10 +1016,13 @@ components:
                     type: string
                 sourceMemoIds:
                     type: string
+                    description: source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
                 status:
                     type: string
+                    description: status is one of "pending" | "ready" | "failed".
                 errorCode:
                     type: string
+                    description: error_code explains a "failed"/degraded status, e.g. "key_unavailable".
                 startedTime:
                     type: string
                     format: date-time
@@ -935,11 +1041,21 @@ components:
                 updatedTime:
                     type: string
                     format: date-time
+            description: |-
+                MemoAI holds AI-derived data for a memo (currently the summary). It is stored
+                 in a separate table and intentionally does NOT bump the memo's version or
+                 updated_time, so regenerating a summary never looks like a content edit.
         MemoResponse:
             type: object
             properties:
                 memo:
                     $ref: '#/components/schemas/Memo'
+                ai:
+                    allOf:
+                        - $ref: '#/components/schemas/MemoAI'
+                    description: |-
+                        ai carries the memo's latest summary when one exists, so clients can render
+                         a stored summary without regenerating it.
         PatchAISettingsRequest:
             type: object
             properties:
@@ -972,6 +1088,7 @@ components:
                         $ref: '#/components/schemas/AskMessage'
                 cursor:
                     type: string
+                    description: cursor echoes the request cursor; next_cursor is the position to pass next.
                 nextCursor:
                     type: string
                 hasMore:
@@ -1042,18 +1159,26 @@ components:
             properties:
                 mutationId:
                     type: string
+                    description: mutation_id is a client-generated unique id used for idempotency.
                 resourceType:
                     type: string
                 resourceId:
                     type: string
                 action:
                     type: string
+                    description: action is "create" | "update" | "delete".
                 baseVersion:
                     type: string
+                    description: |-
+                        base_version is the memo version the client based this change on; used for
+                         conflict detection on update/delete.
                 localChangedAt:
                     type: string
                 memo:
                     $ref: '#/components/schemas/SyncMemoPayload'
+            description: |-
+                SyncChange is one client mutation. Only resource_type "memo" is accepted on
+                 push today.
         SyncMemoPayload:
             type: object
             properties:
@@ -1078,20 +1203,30 @@ components:
                     type: string
                 status:
                     type: string
+                    description: status is "applied" | "conflict" | "invalid".
                 reason:
                     type: string
+                    description: reason is a machine code complementing a non-applied status.
                 message:
                     type: string
                 idempotent:
                     type: boolean
+                    description: |-
+                        idempotent is true when this mutation_id was already applied and the stored
+                         result was replayed.
                 resource:
-                    $ref: '#/components/schemas/Memo'
+                    allOf:
+                        - $ref: '#/components/schemas/Memo'
+                    description: resource is the server state after a successful apply.
                 serverResource:
-                    $ref: '#/components/schemas/Memo'
+                    allOf:
+                        - $ref: '#/components/schemas/Memo'
+                    description: server_resource is the current server state when status is "conflict".
                 clientVersion:
                     type: string
                 serverVersion:
                     type: string
+            description: SyncResult is the per-change outcome, returned in request order.
         UpdateMemoRequest:
             type: object
             properties:
@@ -1107,10 +1242,34 @@ components:
                     type: boolean
                 archived:
                     type: boolean
+            description: |-
+                UpdateMemo applies a partial update guarded by expected_version. Unset
+                 optional fields are left unchanged.
 tags:
     - name: AskService
+      description: |-
+        AskService powers the Ask feature: conversations grounded in the user's
+         memos, with branching follow-ups and answer regeneration.
     - name: AttachmentService
+      description: |-
+        AttachmentService exposes attachment metadata. The bytes are served
+         separately at /file/attachments/{uid}/{filename} (auth required).
     - name: AuthService
+      description: |-
+        AuthService handles the single-account lifecycle: one-time initialization,
+         sign-in/out, and access-token refresh. After initialization, Initialize is
+         rejected (no second account).
     - name: MemoService
+      description: |-
+        MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
+         carries expected_version for optimistic concurrency; a stale version is
+         rejected as a conflict (HTTP 409 / Connect Aborted).
     - name: SettingsService
+      description: |-
+        SettingsService manages the user's AI profiles. Get never returns API keys;
+         Patch replaces the full profile set (api_key omitted = keep the stored key).
     - name: SyncService
+      description: |-
+        SyncService is the offline-sync surface for future mobile clients. Pull
+         streams server changes since a cursor; push applies client mutations with
+         per-mutation idempotency and version-based conflict detection.

@@ -26,8 +26,17 @@ const (
 // SyncServiceClient is the client API for SyncService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// SyncService is the offline-sync surface for future mobile clients. Pull
+// streams server changes since a cursor; push applies client mutations with
+// per-mutation idempotency and version-based conflict detection.
 type SyncServiceClient interface {
+	// PullSync returns changes after the given cursor, including tombstones, in
+	// pages. Attachments are pull-only (metadata).
 	PullSync(ctx context.Context, in *PullSyncRequest, opts ...grpc.CallOption) (*PullSyncResponse, error)
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
+	// for idempotent retries; a stale base_version yields a conflict result
+	// rather than an error.
 	PushSync(ctx context.Context, in *PushSyncRequest, opts ...grpc.CallOption) (*PushSyncResponse, error)
 }
 
@@ -62,8 +71,17 @@ func (c *syncServiceClient) PushSync(ctx context.Context, in *PushSyncRequest, o
 // SyncServiceServer is the server API for SyncService service.
 // All implementations must embed UnimplementedSyncServiceServer
 // for forward compatibility.
+//
+// SyncService is the offline-sync surface for future mobile clients. Pull
+// streams server changes since a cursor; push applies client mutations with
+// per-mutation idempotency and version-based conflict detection.
 type SyncServiceServer interface {
+	// PullSync returns changes after the given cursor, including tombstones, in
+	// pages. Attachments are pull-only (metadata).
 	PullSync(context.Context, *PullSyncRequest) (*PullSyncResponse, error)
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
+	// for idempotent retries; a stale base_version yields a conflict result
+	// rather than an error.
 	PushSync(context.Context, *PushSyncRequest) (*PushSyncResponse, error)
 	mustEmbedUnimplementedSyncServiceServer()
 }

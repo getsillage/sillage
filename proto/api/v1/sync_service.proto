@@ -5,11 +5,19 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
+// SyncService is the offline-sync surface for future mobile clients. Pull
+// streams server changes since a cursor; push applies client mutations with
+// per-mutation idempotency and version-based conflict detection.
 service SyncService {
+  // PullSync returns changes after the given cursor, including tombstones, in
+  // pages. Attachments are pull-only (metadata).
   rpc PullSync(PullSyncRequest) returns (PullSyncResponse) {
     option (google.api.http) = {get: "/api/v1/sync"};
   }
 
+  // PushSync applies a batch of client mutations. Each is keyed by mutation_id
+  // for idempotent retries; a stale base_version yields a conflict result
+  // rather than an error.
   rpc PushSync(PushSyncRequest) returns (PushSyncResponse) {
     option (google.api.http) = {
       post: "/api/v1/sync:push"
@@ -19,6 +27,8 @@ service SyncService {
 }
 
 message PullSyncRequest {
+  // cursor is an opaque position from a prior response; empty means from the
+  // beginning.
   string cursor = 1;
   int32 limit = 2;
 }
@@ -29,6 +39,7 @@ message PullSyncResponse {
   repeated MemoAI memo_ai = 3;
   repeated AskConversation ask_conversations = 4;
   repeated AskMessage ask_messages = 5;
+  // cursor echoes the request cursor; next_cursor is the position to pass next.
   string cursor = 6;
   string next_cursor = 7;
   bool has_more = 8;
@@ -38,11 +49,17 @@ message PushSyncRequest {
   repeated SyncChange changes = 1;
 }
 
+// SyncChange is one client mutation. Only resource_type "memo" is accepted on
+// push today.
 message SyncChange {
+  // mutation_id is a client-generated unique id used for idempotency.
   string mutation_id = 1;
   string resource_type = 2;
   string resource_id = 3;
+  // action is "create" | "update" | "delete".
   string action = 4;
+  // base_version is the memo version the client based this change on; used for
+  // conflict detection on update/delete.
   int64 base_version = 5;
   string local_changed_at = 6;
   SyncMemoPayload memo = 7;
@@ -60,15 +77,22 @@ message PushSyncResponse {
   repeated SyncResult results = 1;
 }
 
+// SyncResult is the per-change outcome, returned in request order.
 message SyncResult {
   string mutation_id = 1;
   string resource_type = 2;
   string resource_id = 3;
+  // status is "applied" | "conflict" | "invalid".
   string status = 4;
+  // reason is a machine code complementing a non-applied status.
   string reason = 5;
   string message = 6;
+  // idempotent is true when this mutation_id was already applied and the stored
+  // result was replayed.
   bool idempotent = 7;
+  // resource is the server state after a successful apply.
   Memo resource = 8;
+  // server_resource is the current server state when status is "conflict".
   Memo server_resource = 9;
   int64 client_version = 10;
   int64 server_version = 11;

@@ -50,6 +50,8 @@ const (
 
 // AuthServiceClient is a client for the sillage.api.v1.AuthService service.
 type AuthServiceClient interface {
+	// Bootstrap reports whether the instance has been initialized yet, so the
+	// client knows whether to show initialization or sign-in.
 	Bootstrap(context.Context, *connect.Request[v1.BootstrapRequest]) (*connect.Response[v1.BootstrapResponse], error)
 	Initialize(context.Context, *connect.Request[v1.InitializeRequest]) (*connect.Response[v1.AuthResponse], error)
 	SignIn(context.Context, *connect.Request[v1.SignInRequest]) (*connect.Response[v1.AuthResponse], error)
@@ -150,6 +152,8 @@ func (c *authServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRe
 
 // AuthServiceHandler is an implementation of the sillage.api.v1.AuthService service.
 type AuthServiceHandler interface {
+	// Bootstrap reports whether the instance has been initialized yet, so the
+	// client knows whether to show initialization or sign-in.
 	Bootstrap(context.Context, *connect.Request[v1.BootstrapRequest]) (*connect.Response[v1.BootstrapResponse], error)
 	Initialize(context.Context, *connect.Request[v1.InitializeRequest]) (*connect.Response[v1.AuthResponse], error)
 	SignIn(context.Context, *connect.Request[v1.SignInRequest]) (*connect.Response[v1.AuthResponse], error)

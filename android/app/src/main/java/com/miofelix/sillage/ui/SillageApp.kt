@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -749,8 +750,32 @@ private fun MemoRow(memo: Memo, onClick: () -> Unit) {
 @Composable
 private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         viewModel.uploadAttachments(uris)
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("删除记录？") },
+            text = { Text("删除后会从当前列表移除，并同步为服务端 tombstone。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        viewModel.deleteSelectedMemo()
+                    },
+                    enabled = !state.loading,
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }, enabled = !state.loading) {
+                    Text("取消")
+                }
+            },
+        )
     }
     Scaffold(
         topBar = {
@@ -790,7 +815,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                     text = { Text("删除") },
                                     onClick = {
                                         menuExpanded = false
-                                        viewModel.deleteSelectedMemo()
+                                        confirmDelete = true
                                     },
                                 )
                             }

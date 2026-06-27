@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -179,7 +180,14 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         supporting = "填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。",
         state = state,
         trailing = {
-            ThemeModeButton(state, viewModel)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (state.serverReturnScreen != null) {
+                    TextButton(onClick = viewModel::closeServerSettings) {
+                        Text("返回")
+                    }
+                }
+                ThemeModeButton(state, viewModel)
+            }
         },
     ) {
         OutlinedTextField(
@@ -384,7 +392,7 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         Icon(Icons.Rounded.Refresh, contentDescription = "刷新")
                     }
                     IconButton(onClick = viewModel::openAsk) {
-                        Icon(Icons.Rounded.SmartToy, contentDescription = "Ask")
+                        Icon(Icons.Rounded.QuestionAnswer, contentDescription = "Ask")
                     }
                     MemoActionsMenu(
                         state = state,

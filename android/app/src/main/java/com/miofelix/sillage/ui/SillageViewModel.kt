@@ -105,6 +105,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
+                serverReturnScreen = null,
                 searchQuery = "",
                 searchResults = null,
                 searching = false,
@@ -138,7 +139,27 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun openServerSettings() {
-        _state.update { it.copy(screen = Screen.Server, error = null, notice = null) }
+        _state.update {
+            it.copy(
+                screen = Screen.Server,
+                serverReturnScreen = it.screen.takeIf { screen -> screen != Screen.Server && screen != Screen.ModeSelection },
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
+    fun closeServerSettings() {
+        _state.update {
+            val target = it.serverReturnScreen ?: if (it.appMode == SessionStore.MODE_OFFLINE) Screen.Memos else Screen.Login
+            it.copy(
+                screen = target,
+                serverReturnScreen = null,
+                baseUrl = sessionStore.baseUrl(),
+                error = null,
+                notice = null,
+            )
+        }
     }
 
     fun openAISettings() {
@@ -1693,6 +1714,7 @@ data class SillageUiState(
     val screen: Screen,
     val baseUrl: String,
     val appMode: String = SessionStore.MODE_ONLINE,
+    val serverReturnScreen: Screen? = null,
     val themeMode: String = SessionStore.THEME_LIGHT,
     val initialized: Boolean? = null,
     val account: Account? = null,

@@ -255,6 +255,15 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 		if profileReq.Name == "" || profileReq.Provider == "" {
 			return nil, validationError{message: "AI 档案名称和 provider 不能为空"}
 		}
+		if profileReq.ID != "" {
+			deleted, err := s.Store.AIProfileDeleted(ctx, accountID, profileReq.ID)
+			if err != nil {
+				return nil, err
+			}
+			if deleted {
+				return nil, validationError{message: "AI 档案已被删除，请刷新设置后重试"}
+			}
+		}
 	}
 	autoSummary, err := s.resolvePatchAutoSummary(ctx, accountID, input)
 	if err != nil {
@@ -263,6 +272,7 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 	if err := s.setGlobalAutoSummary(ctx, accountID, autoSummary); err != nil {
 		return nil, err
 	}
+	keepIDs := make([]string, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		var envelope *string
 		if profileReq.APIKey != nil {
@@ -299,6 +309,10 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 			return nil, err
 		}
 		profiles = append(profiles, profile)
+		keepIDs = append(keepIDs, profile.ID)
+	}
+	if err := s.Store.DeleteAIProfilesExcept(ctx, accountID, keepIDs); err != nil {
+		return nil, err
 	}
 	return &aiSettingsResult{Profiles: profiles, AutoSummary: autoSummary}, nil
 }

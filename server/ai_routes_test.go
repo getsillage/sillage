@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -143,6 +144,139 @@ func TestAISettingsLegacyPatchKeepsGlobalAutoSummary(t *testing.T) {
 	}, bearer(token))
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"autoSummary":true`) {
 		t.Fatalf("legacy patch should keep auto summary status/body = %d %s", res.Code, res.Body.String())
+	}
+}
+
+func TestAISettingsPatchDeletesOmittedProfiles(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{
+			{
+				"name":      "Keep",
+				"provider":  "openai",
+				"model":     "gpt-keep",
+				"enabled":   true,
+				"active":    true,
+				"maxTokens": 1000,
+			},
+			{
+				"name":      "Delete",
+				"provider":  "openai",
+				"model":     "gpt-delete",
+				"enabled":   true,
+				"maxTokens": 1000,
+			},
+		},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("initial patch ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode initial ai settings: %v", err)
+	}
+	profiles, ok := payload["profiles"].([]any)
+	if !ok || len(profiles) != 2 {
+		t.Fatalf("initial profiles = %#v, want 2 profiles", payload["profiles"])
+	}
+	keep, ok := profiles[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first profile has unexpected shape: %#v", profiles[0])
+	}
+	keepID, ok := keep["id"].(string)
+	if !ok || keepID == "" {
+		t.Fatalf("first profile missing id: %#v", keep)
+	}
+	deleted, ok := profiles[1].(map[string]any)
+	if !ok {
+		t.Fatalf("second profile has unexpected shape: %#v", profiles[1])
+	}
+	deletedID, ok := deleted["id"].(string)
+	if !ok || deletedID == "" {
+		t.Fatalf("second profile missing id: %#v", deleted)
+	}
+
+	res = doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{{
+			"id":        keepID,
+			"name":      "Keep",
+			"provider":  "openai",
+			"model":     "gpt-keep",
+			"enabled":   true,
+			"active":    true,
+			"maxTokens": 1000,
+		}},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("delete patch ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/settings/ai", nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("get ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode final ai settings: %v", err)
+	}
+	profiles, ok = payload["profiles"].([]any)
+	if !ok || len(profiles) != 1 {
+		t.Fatalf("profiles after delete = %#v, want only kept profile", payload["profiles"])
+	}
+	got, ok := profiles[0].(map[string]any)
+	if !ok || got["id"] != keepID || got["name"] != "Keep" {
+		t.Fatalf("unexpected profile after delete: %#v", profiles[0])
+	}
+
+	res = doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{
+			{
+				"id":        keepID,
+				"name":      "Keep",
+				"provider":  "openai",
+				"model":     "gpt-keep",
+				"enabled":   true,
+				"active":    true,
+				"maxTokens": 1000,
+			},
+			{
+				"id":        deletedID,
+				"name":      "Delete",
+				"provider":  "openai",
+				"model":     "gpt-delete",
+				"enabled":   true,
+				"maxTokens": 1000,
+			},
+		},
+	}, bearer(token))
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "已被删除") {
+		t.Fatalf("patch with deleted profile id status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{
+			{
+				"id":        keepID,
+				"name":      "Keep",
+				"provider":  "openai",
+				"model":     "gpt-keep",
+				"enabled":   true,
+				"active":    true,
+				"maxTokens": 1000,
+			},
+			{
+				"id":        "client-generated-profile-id",
+				"name":      "Client",
+				"provider":  "openai",
+				"model":     "gpt-client",
+				"enabled":   true,
+				"maxTokens": 1000,
+			},
+		},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("patch with new client-generated id status/body = %d %s", res.Code, res.Body.String())
 	}
 }
 

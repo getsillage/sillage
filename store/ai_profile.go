@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -139,6 +140,20 @@ func (s *Store) GetAIProfile(ctx context.Context, accountID, id string) (*AIProf
 WHERE id = ? AND account_id = ? AND deleted_at IS NULL`, id, accountID))
 }
 
+func (s *Store) AIProfileDeleted(ctx context.Context, accountID, id string) (bool, error) {
+	if id == "" {
+		return false, nil
+	}
+	var count int
+	if err := s.driver.GetDB().QueryRowContext(ctx, `
+SELECT COUNT(1)
+FROM ai_profile
+WHERE id = ? AND account_id = ? AND deleted_at IS NOT NULL`, id, accountID).Scan(&count); err != nil {
+		return false, fmt.Errorf("check ai profile deleted: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (s *Store) ListAIProfiles(ctx context.Context, accountID string) ([]*AIProfile, error) {
 	rows, err := s.driver.GetDB().QueryContext(ctx, aiProfileSelect()+`
 WHERE account_id = ? AND deleted_at IS NULL
@@ -160,6 +175,25 @@ ORDER BY active DESC, updated_at DESC, id DESC`, accountID)
 		return nil, fmt.Errorf("iterate ai profiles: %w", err)
 	}
 	return profiles, nil
+}
+
+func (s *Store) DeleteAIProfilesExcept(ctx context.Context, accountID string, keepIDs []string) error {
+	now := time.Now().UTC().UnixMilli()
+	query := `
+UPDATE ai_profile
+SET deleted_at = ?, updated_at = ?, active = 0
+WHERE account_id = ? AND deleted_at IS NULL`
+	args := []any{now, now, accountID}
+	if len(keepIDs) > 0 {
+		query += " AND id NOT IN (" + strings.TrimRight(strings.Repeat("?,", len(keepIDs)), ",") + ")"
+		for _, id := range keepIDs {
+			args = append(args, id)
+		}
+	}
+	if _, err := s.driver.GetDB().ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("delete missing ai profiles: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) MarkAIProfileKeyUnavailable(ctx context.Context, accountID, id string) error {

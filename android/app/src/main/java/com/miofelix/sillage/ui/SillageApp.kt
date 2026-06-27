@@ -783,7 +783,7 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
                     },
                     enabled = !state.loading,
                 ) {
-                    Text("删除")
+                    Text("确认删除")
                 }
             },
             dismissButton = {
@@ -969,7 +969,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     },
                     enabled = !state.loading,
                 ) {
-                    Text("删除")
+                    Text("确认删除")
                 }
             },
             dismissButton = {
@@ -2209,6 +2209,7 @@ private fun AIProfileDetailCard(
     viewModel: SillageViewModel,
     onClose: () -> Unit,
 ) {
+    var confirmingDelete by remember(profile.id, index) { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -2307,11 +2308,19 @@ private fun AIProfileDetailCard(
                 Button(onClick = { viewModel.testAIProfile(index) }, enabled = !testing) {
                     Text(if (testing) "测试中" else "测试连接")
                 }
-                TextButton(onClick = {
-                    viewModel.removeAIProfile(index)
-                    onClose()
-                }) {
-                    Text("删除")
+                TextButton(
+                    onClick = {
+                        if (confirmingDelete) {
+                            confirmingDelete = false
+                            viewModel.removeAIProfile(index)
+                            onClose()
+                        } else {
+                            confirmingDelete = true
+                        }
+                    },
+                    enabled = !testing,
+                ) {
+                    Text(if (confirmingDelete) "确认删除" else "删除")
                 }
             }
             if (testResult != null) {

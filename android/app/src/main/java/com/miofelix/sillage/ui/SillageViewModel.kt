@@ -806,8 +806,40 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun removeAIProfile(index: Int) {
-        _state.update {
-            it.copy(aiProfiles = it.aiProfiles.filterIndexed { i, _ -> i != index })
+        val currentProfiles = state.value.aiProfiles
+        if (index !in currentProfiles.indices) {
+            return
+        }
+        val nextProfiles = currentProfiles.filterIndexed { i, _ -> i != index }
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    aiProfiles = nextProfiles,
+                    aiSettingsSaving = true,
+                    error = null,
+                    notice = null,
+                )
+            }
+            runCatching { persistAIProfiles(nextProfiles) }
+                .onSuccess { saved ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = saved,
+                            aiSettingsSaving = false,
+                            aiTestResults = emptyMap(),
+                            notice = "AI 档案已删除",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = currentProfiles,
+                            aiSettingsSaving = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
         }
     }
 
@@ -886,13 +918,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val profiles = state.value.aiProfiles
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
-            runCatching {
-                if (isOfflineMode()) {
-                    localDataStore.saveAIProfiles(profiles)
-                } else {
-                    api.patchAISettings(profiles.map { it.toInput() }).map { it.toDraft() }
-                }
-            }
+            runCatching { persistAIProfiles(profiles) }
                 .onSuccess { saved ->
                     _state.update {
                         it.copy(
@@ -911,6 +937,14 @@ class SillageViewModel(context: Context) : ViewModel() {
                         )
                     }
                 }
+        }
+    }
+
+    private suspend fun persistAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+        return if (isOfflineMode()) {
+            localDataStore.saveAIProfiles(profiles)
+        } else {
+            api.patchAISettings(profiles.map { it.toInput() }).map { it.toDraft() }
         }
     }
 

@@ -130,7 +130,7 @@ class LocalDataStore(context: Context) {
             profile.copy(
                 id = profile.id.ifBlank { UUID.randomUUID().toString() },
                 active = active,
-                hasApiKey = profile.apiKeyInput.isNotBlank(),
+                hasApiKey = profile.hasApiKey || profile.apiKeyInput.isNotBlank(),
                 keyUnavailable = false,
             )
         }

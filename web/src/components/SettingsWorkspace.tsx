@@ -112,6 +112,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [autoSummary, setAutoSummary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -145,6 +147,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }, [token]);
 
   function updateProfile(index: number, patch: Partial<EditableProfile>) {
+    setConfirmDeleteKey(null);
     setProfiles((current) =>
       current.map((profile, i) =>
         i === index ? { ...profile, ...patch } : profile,
@@ -152,9 +155,66 @@ export function SettingsWorkspace({ token }: { token: string }) {
     );
   }
 
-  function removeProfile(index: number) {
-    const key = profiles[index] ? profileKey(profiles[index], index) : null;
-    setProfiles((current) => current.filter((_, i) => i !== index));
+  async function saveProfiles(
+    nextProfiles: EditableProfile[],
+    successNotice: string,
+  ) {
+    const payload: AIProfileInput[] = nextProfiles.map((profile) => ({
+      id: profile.id || undefined,
+      name: profile.name,
+      provider: profile.provider,
+      baseUrl: profile.baseUrl,
+      model: profile.model,
+      temperature: profile.temperature,
+      maxTokens: profile.maxTokens,
+      enabled: profile.enabled,
+      active: profile.active,
+      apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
+    }));
+    const res = await patchAISettings(token, {
+      profiles: payload,
+      autoSummary,
+    });
+    setProfiles(res.profiles.map(toEditable));
+    setAutoSummary(res.autoSummary ?? autoSummary);
+    setConfirmDeleteKey(null);
+    setNotice(successNotice);
+  }
+
+  async function removeProfile(index: number) {
+    const profile = profiles[index];
+    const key = profile ? profileKey(profile, index) : null;
+    if (!profile) {
+      return;
+    }
+    if (confirmDeleteKey !== key) {
+      setConfirmDeleteKey(key);
+      setNotice("");
+      setError("");
+      return;
+    }
+    if (!profile.id) {
+      setProfiles((current) => current.filter((_, i) => i !== index));
+      setConfirmDeleteKey(null);
+      if (selectedProfileKey === key) {
+        setSelectedProfileKey(null);
+      }
+      return;
+    }
+    setDeletingId(profile.id);
+    setNotice("");
+    setError("");
+    try {
+      await saveProfiles(
+        profiles.filter((_, i) => i !== index),
+        "已删除",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setDeletingId((current) => (current === profile.id ? null : current));
+    }
+    setConfirmDeleteKey(null);
     if (selectedProfileKey === key) {
       setSelectedProfileKey(null);
     }
@@ -165,26 +225,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setNotice("");
     setError("");
     try {
-      const payload: AIProfileInput[] = profiles.map((profile) => ({
-        id: profile.id || undefined,
-        name: profile.name,
-        provider: profile.provider,
-        baseUrl: profile.baseUrl,
-        model: profile.model,
-        temperature: profile.temperature,
-        maxTokens: profile.maxTokens,
-        enabled: profile.enabled,
-        active: profile.active,
-        apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
-      }));
-      const res = await patchAISettings(token, {
-        profiles: payload,
-        autoSummary,
-      });
-      setProfiles(res.profiles.map(toEditable));
+      await saveProfiles(profiles, "已保存");
       setSelectedProfileKey(null);
-      setAutoSummary(res.autoSummary ?? autoSummary);
-      setNotice("已保存");
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存失败");
     } finally {
@@ -645,9 +687,14 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           <button
                             type="button"
                             onClick={() => removeProfile(index)}
+                            disabled={deletingId === profile.id}
                             className={dangerButtonClass}
                           >
-                            删除
+                            {deletingId === profile.id
+                              ? "删除中…"
+                              : confirmDeleteKey === key
+                                ? "确认删除"
+                                : "删除"}
                           </button>
                         </div>
                       </div>

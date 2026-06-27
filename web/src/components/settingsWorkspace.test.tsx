@@ -101,6 +101,24 @@ describe("SettingsWorkspace", () => {
     ).not.toHaveProperty("autoSummary");
   });
 
+  it("requires confirmation before deleting a saved profile", async () => {
+    const user = userEvent.setup();
+    vi.mocked(patchAISettings).mockResolvedValue({
+      profiles: [],
+      autoSummary: false,
+    });
+    render(<SettingsWorkspace token="t" />);
+    await openDefaultProfile(user);
+
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    expect(patchAISettings).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toEqual([]);
+    expect(await screen.findByText("已删除")).toBeInTheDocument();
+  });
+
   it("fetches models while keeping manual model input editable", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);

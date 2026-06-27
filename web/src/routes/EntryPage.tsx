@@ -37,6 +37,7 @@ export function EntryPage() {
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Load fresh memo + stored summary once per id. fetchMemo is stable, so this
   // runs only on navigation, not on every memo-list change.
@@ -45,6 +46,7 @@ export function EntryPage() {
       return;
     }
     let cancelled = false;
+    setConfirmingDelete(false);
     setMissing(false);
     fetchMemo(id).catch(() => {
       if (!cancelled) {
@@ -113,11 +115,9 @@ export function EntryPage() {
     if (!memo) {
       return;
     }
-    if (action === "delete" && !window.confirm("确定删除这条记录？")) {
-      return;
-    }
     setBusy(action);
     setError("");
+    setConfirmingDelete(false);
     try {
       if (action === "pin") {
         await memos.setPinned(memo, !memo.pinnedAt);
@@ -181,11 +181,22 @@ export function EntryPage() {
           </button>
           <button
             type="button"
-            onClick={() => runAction("delete")}
+            onClick={() => {
+              if (confirmingDelete) {
+                void runAction("delete");
+              } else {
+                setConfirmingDelete(true);
+              }
+            }}
+            onBlur={() => setConfirmingDelete(false)}
             disabled={busy === "delete"}
             className={dangerLinkClass}
           >
-            删除
+            {busy === "delete"
+              ? "删除中…"
+              : confirmingDelete
+                ? "确认删除"
+                : "删除"}
           </button>
         </div>
       </div>

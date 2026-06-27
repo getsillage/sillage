@@ -27,6 +27,7 @@ vi.mock("../lib/api", async (importOriginal) => {
 
 import {
   createMemo,
+  deleteMemo,
   generateMemoSummary,
   getMemo,
   listMemos,
@@ -173,6 +174,20 @@ describe("EntryPage", () => {
     expect(
       await screen.findByText("这条记录不存在或已被删除。"),
     ).toBeInTheDocument();
+  });
+
+  it("requires a second click before deleting a record", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
+    vi.mocked(deleteMemo).mockResolvedValue({ memo: memo({ deletedAt: "x" }) });
+    renderWithMemos(<EntryPage />, "/entries/m1");
+
+    await screen.findByText("今天的记录内容");
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    expect(deleteMemo).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(deleteMemo).toHaveBeenCalledTimes(1));
   });
 });
 

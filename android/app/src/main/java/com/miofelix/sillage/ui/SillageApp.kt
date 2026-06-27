@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,7 +85,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -1210,7 +1212,7 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
-    var composerFocused by remember { mutableStateOf(false) }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = rememberLazyListState()
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
@@ -1275,7 +1277,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         },
         bottomBar = {
-            if (!composerFocused) {
+            if (!keyboardVisible) {
                 MainNavigationBar(state = state, viewModel = viewModel)
             }
         },
@@ -1283,7 +1285,8 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .imePadding(),
         ) {
             MessageBlock(
                 error = state.error,
@@ -1338,11 +1341,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
-            AskComposer(
-                state = state,
-                viewModel = viewModel,
-                onFocusChanged = { composerFocused = it },
-            )
+            AskComposer(state = state, viewModel = viewModel)
         }
     }
 }
@@ -1386,12 +1385,10 @@ private fun AskEmptyPrompt() {
 private fun AskComposer(
     state: SillageUiState,
     viewModel: SillageViewModel,
-    onFocusChanged: (Boolean) -> Unit,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .imePadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -1404,9 +1401,7 @@ private fun AskComposer(
             OutlinedTextField(
                 value = state.askQuestion,
                 onValueChange = viewModel::updateAskQuestion,
-                modifier = Modifier
-                    .weight(1f)
-                    .onFocusChanged { onFocusChanged(it.isFocused) },
+                modifier = Modifier.weight(1f),
                 minLines = 1,
                 maxLines = 3,
                 placeholder = { Text("根据记录提问") },

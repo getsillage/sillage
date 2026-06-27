@@ -85,6 +85,18 @@ export function AskProvider({
 
   useEffect(() => {
     if (!activeId) {
+      return;
+    }
+    const found = conversations.find((c) => c.id === activeId);
+    if (!found) {
+      return;
+    }
+    setScope(found.contextScope);
+    setHeadId((current) => current ?? found.headMessageId);
+  }, [activeId, conversations]);
+
+  useEffect(() => {
+    if (!activeId) {
       setMessages([]);
       setHeadId(null);
       return;
@@ -109,6 +121,7 @@ export function AskProvider({
   const selectConversation = useCallback(
     (id: string) => {
       setActiveId(id);
+      setHeadId(null);
       const found = conversations.find((c) => c.id === id);
       if (found) {
         setScope(found.contextScope);

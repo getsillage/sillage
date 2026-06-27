@@ -137,6 +137,14 @@ describe("AskPage", () => {
   it("switches between regenerated answer variants", async () => {
     const user = userEvent.setup();
     // u1 has two assistant answers; head points at the newer (a1b).
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        {
+          ...conversation(),
+          headMessageId: "a1b",
+        },
+      ],
+    });
     vi.mocked(listAskMessages).mockResolvedValue({
       messages: [
         message("u1", "user", null, "问题", "1"),
@@ -154,5 +162,29 @@ describe("AskPage", () => {
       expect(setAskHead).toHaveBeenCalledWith("t", "c1", "a1"),
     );
     expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+  });
+
+  it("uses the loaded conversation head when opened from a URL", async () => {
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        {
+          ...conversation(),
+          // The server remembers that the user selected the first variant.
+          headMessageId: "a1",
+        },
+      ],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [
+        message("u1", "user", null, "问题", "1"),
+        message("a1", "assistant", "u1", "第一个回答", "2"),
+        message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+      ],
+    });
+
+    renderAsk();
+
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    expect(screen.queryByText("第二个回答")).not.toBeInTheDocument();
   });
 });

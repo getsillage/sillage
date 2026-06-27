@@ -13,6 +13,7 @@ import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AttachmentUpload
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
+import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
@@ -20,6 +21,7 @@ import com.miofelix.sillage.data.askBranchLeafId
 import com.miofelix.sillage.data.attachmentMarkdown
 import com.miofelix.sillage.data.buildAskActivePath
 import com.miofelix.sillage.data.lastAssistantMessageId
+import com.miofelix.sillage.data.markdownFormatSnippet
 import com.miofelix.sillage.data.toDraft
 import com.miofelix.sillage.data.toInput
 import java.time.LocalDate
@@ -217,6 +219,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 uploadingAttachment = false,
                 draftContent = "",
                 draftEntryDate = LocalDate.now().toString(),
+                markdownPreview = false,
                 error = null,
                 notice = null,
             )
@@ -232,6 +235,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = true,
                 draftContent = memo.content,
                 draftEntryDate = memo.entryDate,
+                markdownPreview = false,
                 error = null,
                 notice = null,
             )
@@ -242,6 +246,21 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun updateDraftContent(value: String) = _state.update { it.copy(draftContent = value) }
 
     fun updateDraftEntryDate(value: String) = _state.update { it.copy(draftEntryDate = value) }
+
+    fun updateMarkdownPreview(preview: Boolean) {
+        _state.update { it.copy(markdownPreview = preview) }
+    }
+
+    fun appendMarkdownFormat(style: MarkdownFormatStyle) {
+        val snippet = markdownFormatSnippet(style)
+        _state.update {
+            val separator = if (it.draftContent.isBlank() || snippet.startsWith("\n")) "" else " "
+            it.copy(
+                draftContent = it.draftContent + separator + snippet,
+                markdownPreview = false,
+            )
+        }
+    }
 
     fun updateSearchQuery(value: String) {
         _state.update {
@@ -1010,6 +1029,7 @@ data class SillageUiState(
     val askLiveAnswer: String = "",
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
+    val markdownPreview: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Memo>? = null,
     val searching: Boolean = false,

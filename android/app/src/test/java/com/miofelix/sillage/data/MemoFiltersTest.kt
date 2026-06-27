@@ -89,6 +89,41 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun parseMarkdownPreviewRecognizesCommonBlocks() {
+        val blocks = parseMarkdownPreview(
+            """
+            # 标题
+            > 引用
+            - 列表项
+            ![图](/a.png)
+            [链接](https://example.com)
+            **普通** `文字`
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            listOf(
+                MarkdownBlockKind.Heading,
+                MarkdownBlockKind.Quote,
+                MarkdownBlockKind.ListItem,
+                MarkdownBlockKind.Image,
+                MarkdownBlockKind.Link,
+                MarkdownBlockKind.Paragraph,
+            ),
+            blocks.map { it.kind },
+        )
+        assertEquals("普通 文字", blocks.last().text)
+        assertEquals("/a.png", blocks[3].url)
+    }
+
+    @Test
+    fun markdownFormatSnippetReturnsExpectedMarkup() {
+        assertEquals("**加粗**", markdownFormatSnippet(MarkdownFormatStyle.Bold))
+        assertEquals("\n# 标题\n", markdownFormatSnippet(MarkdownFormatStyle.Heading))
+        assertEquals("\n- 列表项\n", markdownFormatSnippet(MarkdownFormatStyle.List))
+    }
+
+    @Test
     fun aiProfileDraftInputKeepsStoredKeyWhenApiKeyIsBlank() {
         val input = AIProfileDraft(id = "p1", name = "默认", provider = "anthropic", apiKeyInput = " ").toInput()
 

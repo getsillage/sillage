@@ -53,6 +53,9 @@ import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
 import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AskPathEntry
+import com.miofelix.sillage.data.MarkdownBlock
+import com.miofelix.sillage.data.MarkdownBlockKind
+import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.adjacentMonth
@@ -63,6 +66,7 @@ import com.miofelix.sillage.data.excerpt
 import com.miofelix.sillage.data.lastAssistantMessageId
 import com.miofelix.sillage.data.monthGrid
 import com.miofelix.sillage.data.onThisDay
+import com.miofelix.sillage.data.parseMarkdownPreview
 import com.miofelix.sillage.data.yearsBetween
 import java.time.LocalDate
 
@@ -724,13 +728,15 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                 singleLine = true,
                 label = { Text("日期 YYYY-MM-DD") },
             )
-            OutlinedTextField(
-                value = state.draftContent,
-                onValueChange = viewModel::updateDraftContent,
+            MarkdownEditorSection(
+                content = state.draftContent,
+                preview = state.markdownPreview,
+                onContentChange = viewModel::updateDraftContent,
+                onPreviewChange = viewModel::updateMarkdownPreview,
+                onFormat = viewModel::appendMarkdownFormat,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                label = { Text("内容") },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -748,6 +754,135 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MarkdownEditorSection(
+    content: String,
+    preview: Boolean,
+    onContentChange: (String) -> Unit,
+    onPreviewChange: (Boolean) -> Unit,
+    onFormat: (MarkdownFormatStyle) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MemoViewButton("编辑", !preview) { onPreviewChange(false) }
+            MemoViewButton("预览", preview) { onPreviewChange(true) }
+        }
+        MarkdownToolbar(onFormat)
+        if (preview) {
+            MarkdownPreview(
+                content = content,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            )
+        } else {
+            OutlinedTextField(
+                value = content,
+                onValueChange = onContentChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                label = { Text("内容") },
+                placeholder = { Text("写下想记录的内容…") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            MarkdownToolButton("H") { onFormat(MarkdownFormatStyle.Heading) }
+            MarkdownToolButton("B") { onFormat(MarkdownFormatStyle.Bold) }
+            MarkdownToolButton("I") { onFormat(MarkdownFormatStyle.Italic) }
+            MarkdownToolButton("`") { onFormat(MarkdownFormatStyle.Code) }
+            MarkdownToolButton("列表") { onFormat(MarkdownFormatStyle.List) }
+            MarkdownToolButton("引用") { onFormat(MarkdownFormatStyle.Quote) }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownToolButton(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(label)
+    }
+}
+
+@Composable
+private fun MarkdownPreview(content: String, modifier: Modifier = Modifier) {
+    val blocks = remember(content) { parseMarkdownPreview(content) }
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        if (blocks.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(14.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    "没有可预览的内容",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(blocks) { block ->
+                    MarkdownPreviewBlock(block)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownPreviewBlock(block: MarkdownBlock) {
+    when (block.kind) {
+        MarkdownBlockKind.Heading -> Text(
+            block.text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        MarkdownBlockKind.Quote -> Text(
+            "｜ ${block.text}",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        MarkdownBlockKind.ListItem -> Text(
+            "• ${block.text}",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        MarkdownBlockKind.Code -> Text(
+            block.text,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        MarkdownBlockKind.Link -> Text(
+            "${block.text} · ${block.url.orEmpty()}",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        MarkdownBlockKind.Image -> Text(
+            "图片：${block.text} · ${block.url.orEmpty()}",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        MarkdownBlockKind.Paragraph -> Text(
+            block.text,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

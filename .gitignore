@@ -35,8 +35,11 @@ android/.gradle/
 android/build/
 android/app/build/
 android/local.properties
+android/signing.properties
 android/.idea/
 *.apk
 *.aab
 *.keystore
+*.keystore.bak-*
 *.jks
+*.jks.bak-*

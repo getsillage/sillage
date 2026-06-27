@@ -1738,14 +1738,6 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
         topBar = {
             TopAppBar(
                 title = { Text("设置") },
-                actions = {
-                    TextButton(onClick = viewModel::addAIProfile, enabled = !state.aiSettingsSaving) {
-                        Text("新增 AI")
-                    }
-                    TextButton(onClick = viewModel::saveAISettings, enabled = !state.aiSettingsSaving) {
-                        Text(if (state.aiSettingsSaving) "保存中" else "保存")
-                    }
-                },
             )
         },
         bottomBar = {
@@ -1857,15 +1849,15 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                         }
                     }
                     item {
-                        Text(
-                            "密钥加密保存在本地服务端，不会回显。",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
+                        AISettingsHeaderCard(
+                            saving = state.aiSettingsSaving,
+                            onAdd = viewModel::addAIProfile,
+                            onSave = viewModel::saveAISettings,
                         )
                     }
                     if (state.aiProfiles.isEmpty()) {
                         item {
-                            EmptySettingsCard("还没有 AI 档案。点击右上角新增 AI。")
+                            EmptySettingsCard("还没有 AI 档案。可以在上方新增一个档案。")
                         }
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
@@ -1878,6 +1870,51 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AISettingsHeaderCard(
+    saving: Boolean,
+    onAdd: () -> Unit,
+    onSave: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "AI 档案",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "管理总结和 Ask 使用的模型配置。密钥加密保存在本地服务端，不会回显。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onAdd,
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("新增档案")
+                }
+                TextButton(
+                    onClick = onSave,
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (saving) "保存中" else "保存 AI 设置")
                 }
             }
         }

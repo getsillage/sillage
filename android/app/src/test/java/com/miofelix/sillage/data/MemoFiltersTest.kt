@@ -40,6 +40,21 @@ class MemoFiltersTest {
         assertEquals("\n[note.pdf](/file/attachments/a/note.pdf)\n", attachmentMarkdown(attachment))
     }
 
+    @Test
+    fun aiProfileDraftInputKeepsStoredKeyWhenApiKeyIsBlank() {
+        val input = AIProfileDraft(id = "p1", name = "默认", provider = "anthropic", apiKeyInput = " ").toInput()
+
+        assertEquals("p1", input.id)
+        assertEquals(null, input.apiKey)
+    }
+
+    @Test
+    fun aiProfileDraftInputIncludesNewApiKeyWhenProvided() {
+        val input = AIProfileDraft(apiKeyInput = " sk-test ").toInput()
+
+        assertEquals("sk-test", input.apiKey)
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",

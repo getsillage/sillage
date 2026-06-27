@@ -172,6 +172,56 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseAttachment(execute(request).getJSONObject("attachment"))
     }
 
+    suspend fun getAISettings(): List<AIProfile> {
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai"))
+            .get()
+            .build()
+        val profiles = execute(request).getJSONArray("profiles")
+        return buildList {
+            for (index in 0 until profiles.length()) {
+                add(parseAIProfile(profiles.getJSONObject(index)))
+            }
+        }
+    }
+
+    suspend fun patchAISettings(profiles: List<AIProfileInput>): List<AIProfile> {
+        val payloadProfiles = JSONArray()
+        for (profile in profiles) {
+            val item = JSONObject()
+                .put("name", profile.name)
+                .put("provider", profile.provider)
+                .put("baseUrl", profile.baseUrl)
+                .put("model", profile.model)
+                .put("temperature", profile.temperature)
+                .put("maxTokens", profile.maxTokens)
+                .put("enabled", profile.enabled)
+                .put("active", profile.active)
+                .put("autoSummary", profile.autoSummary)
+            profile.id?.let { item.put("id", it) }
+            profile.apiKey?.let { item.put("apiKey", it) }
+            payloadProfiles.put(item)
+        }
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai"))
+            .patch(JSONObject().put("profiles", payloadProfiles).toString().jsonBody())
+            .build()
+        val saved = execute(request).getJSONArray("profiles")
+        return buildList {
+            for (index in 0 until saved.length()) {
+                add(parseAIProfile(saved.getJSONObject(index)))
+            }
+        }
+    }
+
+    suspend fun testAIConnection(profileId: String): String {
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai:test"))
+            .post(JSONObject().put("id", profileId).toString().jsonBody())
+            .build()
+        return execute(request).optString("model")
+    }
+
     private suspend fun auth(path: String, payload: JSONObject): AuthSession {
         val request = Request.Builder()
             .url(url(path))
@@ -281,6 +331,25 @@ class SillageApi(private val sessionStore: SessionStore) {
             contentType = body.optString("contentType"),
             size = body.optLong("size"),
             sha256 = body.nullableString("sha256"),
+        )
+    }
+
+    private fun parseAIProfile(body: JSONObject): AIProfile {
+        return AIProfile(
+            id = body.getString("id"),
+            name = body.getString("name"),
+            provider = body.getString("provider"),
+            baseUrl = body.optString("baseUrl"),
+            model = body.optString("model"),
+            temperature = body.optDouble("temperature"),
+            maxTokens = body.optLong("maxTokens"),
+            enabled = body.optBoolean("enabled"),
+            active = body.optBoolean("active"),
+            hasApiKey = body.optBoolean("hasApiKey"),
+            keyUnavailable = body.optBoolean("keyUnavailable"),
+            autoSummary = body.optBoolean("autoSummary"),
+            createdAt = body.optString("createdAt"),
+            updatedAt = body.optString("updatedAt"),
         )
     }
 

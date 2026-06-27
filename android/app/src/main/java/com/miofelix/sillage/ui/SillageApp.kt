@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
+import com.miofelix.sillage.data.AIProfileDraft
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
@@ -61,6 +63,7 @@ fun SillageApp(viewModel: SillageViewModel) {
             Screen.Login -> LoginScreen(state, viewModel)
             Screen.Memos -> MemoListScreen(state, viewModel)
             Screen.Editor -> MemoEditorScreen(state, viewModel)
+            Screen.AISettings -> AISettingsScreen(state, viewModel)
         }
     }
 }
@@ -240,6 +243,9 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 actions = {
                     TextButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
                         Text("刷新")
+                    }
+                    TextButton(onClick = viewModel::openAISettings) {
+                        Text("AI")
                     }
                     TextButton(onClick = viewModel::openServerSettings) {
                         Text("服务器")
@@ -462,6 +468,189 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AI 设置") },
+                navigationIcon = {
+                    TextButton(onClick = viewModel::closeAISettings) {
+                        Text("返回")
+                    }
+                },
+                actions = {
+                    TextButton(onClick = viewModel::addAIProfile, enabled = !state.aiSettingsSaving) {
+                        Text("新增")
+                    }
+                    TextButton(onClick = viewModel::saveAISettings, enabled = !state.aiSettingsSaving) {
+                        Text(if (state.aiSettingsSaving) "保存中" else "保存")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            MessageBlock(
+                error = state.error,
+                notice = state.notice,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            if (state.aiSettingsLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (state.aiProfiles.isEmpty()) {
+                EmptyState("还没有 AI 档案。点击右上角新增。")
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item {
+                        Text(
+                            "密钥加密保存在本地服务端，不会回显。",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
+                        AIProfileCard(
+                            index = index,
+                            profile = state.aiProfiles[index],
+                            testing = state.aiTestingProfileId == state.aiProfiles[index].id,
+                            testResult = state.aiTestResults[state.aiProfiles[index].id],
+                            viewModel = viewModel,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AIProfileCard(
+    index: Int,
+    profile: AIProfileDraft,
+    testing: Boolean,
+    testResult: String?,
+    viewModel: SillageViewModel,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            OutlinedTextField(
+                value = profile.name,
+                onValueChange = { viewModel.updateAIProfileName(index, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("名称") },
+            )
+            OutlinedTextField(
+                value = profile.provider,
+                onValueChange = { viewModel.updateAIProfileProvider(index, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Provider") },
+                placeholder = { Text("anthropic / openai / workers-ai") },
+            )
+            OutlinedTextField(
+                value = profile.baseUrl,
+                onValueChange = { viewModel.updateAIProfileBaseUrl(index, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Base URL") },
+            )
+            OutlinedTextField(
+                value = profile.model,
+                onValueChange = { viewModel.updateAIProfileModel(index, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("模型") },
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = profile.temperature.toString(),
+                    onValueChange = { viewModel.updateAIProfileTemperature(index, it) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("温度") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                OutlinedTextField(
+                    value = profile.maxTokens.toString(),
+                    onValueChange = { viewModel.updateAIProfileMaxTokens(index, it) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("最大 Tokens") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            }
+            OutlinedTextField(
+                value = profile.apiKeyInput,
+                onValueChange = { viewModel.updateAIProfileApiKey(index, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("API 密钥") },
+                placeholder = { Text(if (profile.hasApiKey) "已配置，留空保持不变" else "未配置") },
+                visualTransformation = PasswordVisualTransformation(),
+            )
+            if (profile.keyUnavailable) {
+                Text(
+                    "当前密钥无法解密，请重新填写。",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            AISettingSwitch("启用", profile.enabled) { viewModel.toggleAIProfileEnabled(index) }
+            AISettingSwitch("设为默认", profile.active) { viewModel.toggleAIProfileActive(index) }
+            AISettingSwitch("新建记录后自动总结", profile.autoSummary) {
+                viewModel.toggleAIProfileAutoSummary(index)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { viewModel.testAIProfile(index) }, enabled = !testing) {
+                    Text(if (testing) "测试中" else "测试连接")
+                }
+                TextButton(onClick = { viewModel.removeAIProfile(index) }) {
+                    Text("删除")
+                }
+            }
+            if (testResult != null) {
+                Text(
+                    testResult,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AISettingSwitch(label: String, checked: Boolean, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Switch(checked = checked, onCheckedChange = { onClick() })
     }
 }
 

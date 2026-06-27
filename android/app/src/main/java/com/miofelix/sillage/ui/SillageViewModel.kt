@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miofelix.sillage.data.Account
+import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AttachmentUpload
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
@@ -14,6 +15,8 @@ import com.miofelix.sillage.data.SessionStore
 import com.miofelix.sillage.data.SillageApi
 import com.miofelix.sillage.data.activeMemos
 import com.miofelix.sillage.data.attachmentMarkdown
+import com.miofelix.sillage.data.toDraft
+import com.miofelix.sillage.data.toInput
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +70,11 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun openServerSettings() {
         _state.update { it.copy(screen = Screen.Server, error = null, notice = null) }
+    }
+
+    fun openAISettings() {
+        _state.update { it.copy(screen = Screen.AISettings, error = null, notice = null) }
+        loadAISettings()
     }
 
     fun connect() {
@@ -141,6 +149,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                     selectedSummary = null,
                     summaryLoading = false,
                     uploadingAttachment = false,
+                    aiProfiles = emptyList(),
+                    aiSettingsLoading = false,
+                    aiSettingsSaving = false,
+                    aiTestingProfileId = "",
+                    aiTestResults = emptyMap(),
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
@@ -397,6 +410,135 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun addAIProfile() {
+        _state.update { it.copy(aiProfiles = it.aiProfiles + AIProfileDraft()) }
+    }
+
+    fun removeAIProfile(index: Int) {
+        _state.update {
+            it.copy(aiProfiles = it.aiProfiles.filterIndexed { i, _ -> i != index })
+        }
+    }
+
+    fun updateAIProfileName(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(name = value) }
+    }
+
+    fun updateAIProfileProvider(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(provider = value) }
+    }
+
+    fun updateAIProfileBaseUrl(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(baseUrl = value) }
+    }
+
+    fun updateAIProfileModel(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(model = value) }
+    }
+
+    fun updateAIProfileTemperature(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(temperature = value.toDoubleOrNull() ?: 0.0) }
+    }
+
+    fun updateAIProfileMaxTokens(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(maxTokens = value.toLongOrNull() ?: 0) }
+    }
+
+    fun updateAIProfileApiKey(index: Int, value: String) {
+        updateAIProfile(index) { it.copy(apiKeyInput = value) }
+    }
+
+    fun toggleAIProfileEnabled(index: Int) {
+        updateAIProfile(index) { it.copy(enabled = !it.enabled) }
+    }
+
+    fun toggleAIProfileActive(index: Int) {
+        updateAIProfile(index) { it.copy(active = !it.active) }
+    }
+
+    fun toggleAIProfileAutoSummary(index: Int) {
+        updateAIProfile(index) { it.copy(autoSummary = !it.autoSummary) }
+    }
+
+    fun loadAISettings() {
+        viewModelScope.launch {
+            _state.update { it.copy(aiSettingsLoading = true, error = null, notice = null) }
+            runCatching { api.getAISettings() }
+                .onSuccess { profiles ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = profiles.map { profile -> profile.toDraft() },
+                            aiSettingsLoading = false,
+                            aiTestResults = emptyMap(),
+                            error = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiSettingsLoading = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun saveAISettings() {
+        val profiles = state.value.aiProfiles
+        viewModelScope.launch {
+            _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
+            runCatching { api.patchAISettings(profiles.map { it.toInput() }) }
+                .onSuccess { saved ->
+                    _state.update {
+                        it.copy(
+                            aiProfiles = saved.map { profile -> profile.toDraft() },
+                            aiSettingsSaving = false,
+                            aiTestResults = emptyMap(),
+                            notice = "AI 设置已保存",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiSettingsSaving = false,
+                            error = error.readableMessage(),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun testAIProfile(index: Int) {
+        val profile = state.value.aiProfiles.getOrNull(index) ?: return
+        if (profile.id.isBlank()) {
+            _state.update { it.copy(error = "请先保存后再测试连接") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(aiTestingProfileId = profile.id, error = null, notice = null) }
+            runCatching { api.testAIConnection(profile.id) }
+                .onSuccess { model ->
+                    _state.update {
+                        it.copy(
+                            aiTestingProfileId = "",
+                            aiTestResults = it.aiTestResults + (profile.id to "连接成功（$model）"),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiTestingProfileId = "",
+                            aiTestResults = it.aiTestResults + (profile.id to error.readableMessage()),
+                        )
+                    }
+                }
+        }
+    }
+
     fun closeEditor() {
         _state.update {
             it.copy(
@@ -407,6 +549,27 @@ class SillageViewModel(context: Context) : ViewModel() {
                 uploadingAttachment = false,
                 draftContent = "",
                 error = null,
+            )
+        }
+    }
+
+    fun closeAISettings() {
+        _state.update {
+            it.copy(
+                screen = Screen.Memos,
+                aiTestingProfileId = "",
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
+    private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {
+        _state.update {
+            it.copy(
+                aiProfiles = it.aiProfiles.mapIndexed { i, profile ->
+                    if (i == index) transform(profile) else profile
+                },
             )
         }
     }
@@ -520,6 +683,11 @@ data class SillageUiState(
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,
     val uploadingAttachment: Boolean = false,
+    val aiProfiles: List<AIProfileDraft> = emptyList(),
+    val aiSettingsLoading: Boolean = false,
+    val aiSettingsSaving: Boolean = false,
+    val aiTestingProfileId: String = "",
+    val aiTestResults: Map<String, String> = emptyMap(),
     val draftContent: String = "",
     val draftEntryDate: String = LocalDate.now().toString(),
     val searchQuery: String = "",
@@ -540,4 +708,5 @@ enum class Screen {
     Login,
     Memos,
     Editor,
+    AISettings,
 }

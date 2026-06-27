@@ -23,17 +23,23 @@ import { useMemos } from "../state/MemosContext";
 
 function viewToggleClass(active: boolean): string {
   return active
-    ? "rounded-md bg-gray-200 px-3 py-1 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-50"
-    : "rounded-md px-3 py-1 text-gray-500 text-sm hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100";
+    ? "h-8 rounded-md bg-white px-3 text-sm text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
+    : "h-8 rounded-md px-3 text-gray-500 text-sm hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100";
 }
 
 function ViewToggle({ calendar }: { calendar: boolean }) {
   return (
-    <div className="flex gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-gray-800">
-      <Link to="/timeline" className={viewToggleClass(!calendar)}>
+    <div className="flex gap-0.5 rounded-lg border border-gray-200 bg-gray-100/70 p-0.5 dark:border-gray-800 dark:bg-gray-950">
+      <Link
+        to="/timeline"
+        className={`${viewToggleClass(!calendar)} inline-flex items-center`}
+      >
         列表
       </Link>
-      <Link to="/timeline?view=calendar" className={viewToggleClass(calendar)}>
+      <Link
+        to="/timeline?view=calendar"
+        className={`${viewToggleClass(calendar)} inline-flex items-center`}
+      >
         日历
       </Link>
     </div>
@@ -120,13 +126,13 @@ function ListView({ memos, today }: { memos: Memo[]; today: string }) {
   const list = trimmed ? (results ?? []) : active.slice(0, 120);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <input
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="搜索记录…"
-        className={`${inputClass} mt-0`}
+        className={`${inputClass} mt-0 bg-white/80 dark:bg-gray-900/80`}
       />
       {!trimmed && memories.length > 0 ? (
         <OnThisDay entries={memories} today={today} />
@@ -142,7 +148,7 @@ function ListView({ memos, today }: { memos: Memo[]; today: string }) {
             {trimmed ? "没有匹配的记录。" : "还没有记录。可以先写一条记录。"}
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-800">
+          <ul className="rounded-lg border border-gray-200/80 bg-white/70 p-1 shadow-sm shadow-gray-900/[0.02] dark:border-gray-800 dark:bg-gray-900/45">
             {list.map((memo) => (
               <li key={memo.id}>
                 <EntryCard memo={memo} openOnCardClick />

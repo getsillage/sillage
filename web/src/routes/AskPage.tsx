@@ -1,12 +1,10 @@
+import { SendHorizontal, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { SendHorizontal, Square } from "lucide-react";
 import { Markdown } from "../components/Markdown";
 import {
   ghostLinkClass,
-  pageTitleClass,
   primaryButtonClass,
-  readingShellClass,
   secondaryButtonClass,
   selectClass,
   textareaClass,
@@ -52,7 +50,9 @@ export function AskPage() {
     stop,
   } = useAsk();
   const [question, setQuestion] = useState("");
-  const liveUserMessage = shouldShowLiveUser(entries, liveUser) ? liveUser : null;
+  const liveUserMessage = shouldShowLiveUser(entries, liveUser)
+    ? liveUser
+    : null;
   const lastAssistantId = [...entries]
     .reverse()
     .find((entry) => entry.message.role === "assistant")?.message.id;
@@ -74,27 +74,25 @@ export function AskPage() {
   }
 
   return (
-    <main
-      className={`${readingShellClass} flex min-h-[calc(100vh-3.5rem)] flex-col lg:min-h-screen`}
-    >
-      <header className="flex flex-wrap items-end justify-between gap-3 border-gray-200 border-b pb-4 dark:border-gray-800">
+    <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-4xl flex-col px-4 pt-5 pb-0 sm:px-6 lg:min-h-screen lg:pt-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-4">
         <div>
-          <h1 className={pageTitleClass}>
+          <h1 className="font-semibold text-xl text-gray-900 tracking-tight sm:text-2xl dark:text-gray-50">
             {activeConversation?.title || "根据记录提问"}
           </h1>
           <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
             基于你的记录回答，范围：{SCOPE_LABELS[scope]}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="text-gray-500 text-sm dark:text-gray-400">
-            <span className="mr-2">来源</span>
+        <div className="-mx-1 flex max-w-full items-center gap-2 overflow-x-auto px-1">
+          <label className="flex shrink-0 items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
+            <span className="whitespace-nowrap">来源</span>
             <select
               value={sourceKind}
               onChange={(event) =>
                 setSourceKind(event.target.value as AskSourceKind)
               }
-              className={`${selectClass} mt-0 inline-block w-auto`}
+              className={`${selectClass} mt-0 h-9 w-auto min-w-30 bg-white/80 dark:bg-gray-900/80`}
             >
               {SOURCE_KIND_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -103,14 +101,14 @@ export function AskPage() {
               ))}
             </select>
           </label>
-          <label className="text-gray-500 text-sm dark:text-gray-400">
-            <span className="mr-2">范围</span>
+          <label className="flex shrink-0 items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
+            <span className="whitespace-nowrap">范围</span>
             <select
               value={scope}
               onChange={(event) =>
                 setScope(event.target.value as AskContextScope)
               }
-              className={`${selectClass} mt-0 inline-block w-auto`}
+              className={`${selectClass} mt-0 h-9 w-auto min-w-32 bg-white/80 dark:bg-gray-900/80`}
             >
               <option value="recent_7_days">最近 7 天</option>
               <option value="recent_30_days">最近 30 天</option>
@@ -120,10 +118,17 @@ export function AskPage() {
         </div>
       </header>
 
-      <div className="flex-1 space-y-6 py-6">
+      <div className="flex-1 space-y-7 pt-5 pb-36">
         {entries.length === 0 && !liveUser ? (
-          <div className="rounded-lg bg-gray-100/60 px-4 py-12 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
-            可以根据记录提问，例如「我最近在反复想些什么？」
+          <div className="mx-auto flex min-h-[42vh] max-w-xl items-center justify-center text-center">
+            <div className="space-y-3">
+              <p className="font-medium text-gray-900 text-lg dark:text-gray-50">
+                可以根据记录提问
+              </p>
+              <p className="text-gray-500 text-sm dark:text-gray-400">
+                例如「我最近在反复想些什么？」
+              </p>
+            </div>
           </div>
         ) : (
           entries.map((entry) => (
@@ -145,12 +150,12 @@ export function AskPage() {
         )}
         {liveUserMessage ? (
           <>
-            <div className="ml-auto max-w-[85%] rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+            <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
               <p className="whitespace-pre-wrap text-[15px] leading-7">
                 {liveUserMessage.content}
               </p>
             </div>
-            <div className="max-w-[92%]">
+            <div className="max-w-[92%] px-1">
               {liveAnswer ? (
                 <Markdown content={liveAnswer} variant="chat" />
               ) : (
@@ -166,8 +171,8 @@ export function AskPage() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 z-10 py-4">
-        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/40 dark:shadow-black/10">
+      <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-gray-50 via-gray-50 to-gray-50/0 px-4 pt-6 pb-4 sm:-mx-6 sm:px-6 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950/0">
+        <div className="space-y-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-xl shadow-gray-900/[0.07] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/25">
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
@@ -183,31 +188,44 @@ export function AskPage() {
             }}
             rows={2}
             placeholder="根据记录提问…（Enter 发送，Shift + Enter 换行）"
-            className={`${textareaClass} min-h-28 bg-white dark:bg-gray-900`}
+            className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 focus:ring-0 dark:bg-transparent`}
           />
           {error ? (
-            <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
+            <p className="px-3 text-red-600 text-sm dark:text-red-400">
+              {error}
+            </p>
           ) : null}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-            {streaming ? (
+          <div className="flex items-center justify-between gap-2 px-1 pb-1">
+            <p className="px-2 text-gray-400 text-xs dark:text-gray-500">
+              AI 只基于选定范围内的记录回答
+            </p>
+            <div className="flex items-center gap-2">
+              {streaming ? (
+                <button
+                  type="button"
+                  onClick={stop}
+                  className={`${secondaryButtonClass} h-11 w-11 rounded-full px-0`}
+                  aria-label="停止生成"
+                  title="停止生成"
+                >
+                  <Square className="h-5 w-5" />
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={stop}
-                className={`${secondaryButtonClass} h-10 w-full sm:w-auto`}
+                onClick={submit}
+                disabled={busy}
+                className={`${primaryButtonClass} h-11 w-11 rounded-full px-0`}
+                aria-label={busy ? "生成中" : "发送"}
+                title={busy ? "生成中" : "发送"}
               >
-                <Square className="h-4 w-4" />
-                停止
+                {busy ? (
+                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                ) : (
+                  <SendHorizontal className="h-5 w-5" />
+                )}
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={submit}
-              disabled={busy}
-              className={`${primaryButtonClass} h-10 w-full sm:w-auto`}
-            >
-              <SendHorizontal className="h-4 w-4" />
-              {busy ? "生成中…" : "发送"}
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -248,7 +266,7 @@ function MessageBubble({
 
   if (message.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] rounded-lg bg-gray-100 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+      <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
         <p className="whitespace-pre-wrap text-[15px] leading-7">
           {message.content}
         </p>
@@ -277,7 +295,7 @@ function MessageBubble({
   const hasVariants = variants.length > 1;
 
   return (
-    <div className="max-w-[92%]">
+    <div className="max-w-[92%] px-1">
       <Markdown content={content} variant="chat" />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {message.sourceRefs.map((source) => (
@@ -285,7 +303,7 @@ function MessageBubble({
             key={`${message.id}-${source.memoId}-${source.rank}`}
             to={`/entries/${source.memoId}`}
             title={source.excerpt}
-            className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="inline-flex h-7 items-center gap-1 rounded-full bg-gray-100 px-2.5 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             <span>{source.entryDate}</span>
           </Link>

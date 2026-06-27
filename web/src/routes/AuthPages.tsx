@@ -20,7 +20,7 @@ function AuthSurface({
 }) {
   return (
     <main className="grid min-h-screen place-items-center bg-gray-50 px-4 dark:bg-gray-950">
-      <section className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-sm shadow-gray-900/5 dark:border-gray-800 dark:bg-gray-900">
+      <section className="w-full max-w-sm rounded-2xl border border-gray-200/80 bg-white/85 p-6 shadow-xl shadow-gray-900/[0.06] backdrop-blur dark:border-gray-800 dark:bg-gray-900/80 dark:shadow-black/20">
         <p className="font-semibold text-lg text-gray-900 tracking-tight dark:text-gray-50">
           Sillage
         </p>

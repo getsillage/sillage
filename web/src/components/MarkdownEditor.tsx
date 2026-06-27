@@ -1,3 +1,4 @@
+import { Paperclip } from "lucide-react";
 import { type DragEvent, useRef, useState } from "react";
 import type { UploadedAttachment } from "../state/MemosContext";
 import { Markdown } from "./Markdown";
@@ -83,8 +84,8 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-950">
-      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-100/60 p-1 text-sm dark:border-gray-800 dark:bg-gray-900">
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950">
+      <div className="flex items-center gap-1 border-gray-200 border-b bg-gray-100/45 p-1 text-sm dark:border-gray-800 dark:bg-gray-900">
         <TabButton active={!preview} onClick={() => setPreview(false)}>
           编辑
         </TabButton>
@@ -97,7 +98,10 @@ export function MarkdownEditor({
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             className={subtleButtonClass}
+            aria-label={uploading ? "上传中" : "添加附件"}
+            title={uploading ? "上传中" : "添加附件"}
           >
+            <Paperclip className="h-4 w-4" />
             {uploading ? "上传中…" : "附件"}
           </button>
           <input
@@ -122,10 +126,10 @@ export function MarkdownEditor({
         onDragOver={(event) => event.preventDefault()}
         placeholder={placeholder}
         rows={12}
-        className={`${textareaClass} rounded-t-none border-0 text-[15px] leading-7 focus:ring-0 ${preview ? "hidden" : ""}`}
+        className={`${textareaClass} min-h-56 rounded-t-none border-0 bg-white text-[15px] leading-7 focus:ring-0 dark:bg-gray-950 ${preview ? "hidden" : ""}`}
       />
       {preview ? (
-        <div className="min-h-48 bg-white p-3 dark:bg-gray-950">
+        <div className="min-h-56 bg-white p-3 dark:bg-gray-950">
           {value.trim() ? (
             <Markdown content={value} />
           ) : (
@@ -156,9 +160,9 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 transition ${
+      className={`h-8 rounded-lg px-3 text-sm transition ${
         active
-          ? "bg-gray-200 font-medium text-gray-900 dark:bg-gray-700 dark:text-gray-50"
+          ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
           : "text-gray-500 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
       }`}
     >

@@ -19,10 +19,10 @@ const navItems = [
 
 function navClass({ isActive }: { isActive: boolean }): string {
   const base =
-    "flex h-10 items-center gap-2.5 rounded-lg px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-gray-500/40";
+    "flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40";
   return isActive
-    ? `${base} bg-gray-200 font-medium text-gray-900 dark:bg-gray-700/70 dark:text-gray-50`
-    : `${base} text-gray-600 hover:bg-gray-200/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50`;
+    ? `${base} bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50 dark:shadow-black/10`
+    : `${base} text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-gray-50`;
 }
 
 export function Wordmark({ onClick }: { onClick?: () => void }) {
@@ -30,7 +30,7 @@ export function Wordmark({ onClick }: { onClick?: () => void }) {
     <Link
       to="/"
       onClick={onClick}
-      className="block px-2 focus-visible:outline-none"
+      className="block rounded-lg px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40"
     >
       <span className="font-semibold text-gray-900 text-lg tracking-tight dark:text-gray-50">
         Sillage
@@ -89,7 +89,7 @@ export function Sidebar({
 
   return (
     <aside
-      className={`flex min-h-0 flex-col border-gray-200 border-r bg-gray-50 px-3 py-4 dark:border-gray-800 dark:bg-gray-950 ${className}`}
+      className={`flex min-h-0 flex-col border-gray-200/80 border-r bg-gray-100/70 px-3 py-4 dark:border-gray-800 dark:bg-gray-950 ${className}`}
     >
       <div className="flex items-center justify-between gap-2 pb-3">
         <Wordmark onClick={onNavigate} />
@@ -99,7 +99,7 @@ export function Sidebar({
             onClick={onCollapse}
             aria-label="收起侧栏"
             title="收起侧栏"
-            className="hidden h-8 w-8 flex-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-200 hover:text-gray-900 lg:flex dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
+            className="hidden h-8 w-8 flex-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
@@ -113,7 +113,7 @@ export function Sidebar({
             startNew();
             onNavigate?.();
           }}
-          className="flex h-10 items-center gap-2.5 rounded-lg border border-gray-300 bg-white px-3 font-medium text-gray-800 text-sm transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40"
+          className="flex h-10 items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 font-medium text-gray-800 text-sm shadow-sm shadow-gray-900/[0.03] transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40"
         >
           <Plus className="h-4 w-4" />
           <span>新问答</span>
@@ -138,9 +138,11 @@ export function Sidebar({
         </nav>
       </div>
 
-      <section className="mt-4 flex min-h-0 flex-1 flex-col border-gray-200 border-t pt-3 dark:border-gray-800">
-        <h2 className="px-3 font-medium text-gray-400 text-xs">问答</h2>
-        <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+      <section className="mt-4 flex min-h-0 flex-1 flex-col border-gray-200/80 border-t pt-3 dark:border-gray-800">
+        <h2 className="px-3 font-medium text-gray-500 text-xs dark:text-gray-500">
+          问答
+        </h2>
+        <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
           {conversations.length === 0 ? (
             <p className="px-3 py-2 text-gray-400 text-sm">还没有对话。</p>
           ) : (
@@ -154,10 +156,10 @@ export function Sidebar({
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   title={label}
-                  className={`block truncate rounded-lg px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-gray-500/40 ${
+                  className={`block h-9 truncate rounded-lg px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
                     active
-                      ? "bg-gray-200 text-gray-900 dark:bg-gray-700/70 dark:text-gray-50"
-                      : "text-gray-600 hover:bg-gray-200/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50"
+                      ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
+                      : "text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-gray-50"
                   }`}
                 >
                   {label}
@@ -168,9 +170,9 @@ export function Sidebar({
         </nav>
       </section>
 
-      <div className="mt-3 flex items-center border-gray-200 border-t pt-3 dark:border-gray-800">
+      <div className="mt-3 flex items-center border-gray-200/80 border-t pt-3 dark:border-gray-800">
         <details ref={accountMenuRef} className="group relative min-w-0 flex-1">
-          <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40">
+          <summary className="flex h-10 min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-gray-900 font-medium text-white text-xs dark:bg-gray-100 dark:text-gray-900">
               {(account.displayName || account.username || "S")
                 .slice(0, 1)
@@ -181,7 +183,7 @@ export function Sidebar({
             </span>
             <MoreHorizontal className="h-4 w-4 flex-none text-gray-400" />
           </summary>
-          <div className="absolute right-0 bottom-full z-20 mb-2 w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-800 dark:shadow-black/30">
+          <div className="absolute right-0 bottom-full z-20 mb-2 w-44 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-900 dark:shadow-black/30">
             <Link
               to="/settings"
               onClick={() => {
@@ -190,7 +192,7 @@ export function Sidebar({
                 }
                 onNavigate?.();
               }}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-700 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-50"
+              className="flex h-9 items-center gap-2 rounded-lg px-3 text-gray-700 text-sm transition hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-gray-50"
             >
               <Settings className="h-4 w-4" />
               设置
@@ -198,7 +200,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onSignOut}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-red-600 text-sm transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
             >
               <LogOut className="h-4 w-4" />
               退出登录

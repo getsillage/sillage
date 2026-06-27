@@ -1,3 +1,4 @@
+import { Check, Save } from "lucide-react";
 import { useState } from "react";
 import { todayISO } from "../lib/date";
 import type { UploadedAttachment } from "../state/MemosContext";
@@ -53,9 +54,11 @@ export function EntryComposer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <label className="block text-sm text-gray-500 dark:text-gray-400">
-        日期
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          日期
+        </span>
         <input
           type="date"
           value={entryDate}
@@ -74,7 +77,10 @@ export function EntryComposer({
         <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
       ) : null}
       {notice ? (
-        <p className="text-gray-500 text-sm dark:text-gray-400">{notice}</p>
+        <p className="inline-flex items-center gap-1.5 text-gray-500 text-sm dark:text-gray-400">
+          <Check className="h-4 w-4" />
+          {notice}
+        </p>
       ) : null}
 
       <div className="flex justify-end gap-2">
@@ -93,6 +99,7 @@ export function EntryComposer({
           disabled={busy}
           className={`${primaryButtonClass} w-full sm:w-auto`}
         >
+          <Save className="h-4 w-4" />
           {busy ? "保存中…" : submitLabel}
         </button>
       </div>

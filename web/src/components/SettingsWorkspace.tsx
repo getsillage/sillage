@@ -10,6 +10,7 @@ import {
 import { ThemeToggle } from "./ThemeToggle";
 import {
   dangerButtonClass,
+  emptyStateClass,
   helperTextClass,
   inputClass,
   labelClass,
@@ -261,16 +262,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex border-gray-200 border-b dark:border-gray-800">
+      <div className="inline-flex gap-0.5 rounded-lg border border-gray-200 bg-gray-100/70 p-0.5 dark:border-gray-800 dark:bg-gray-950">
         {SETTINGS_TABS.map((tab) => (
           <button
             key={tab.value}
             type="button"
             onClick={() => setActiveTab(tab.value)}
-            className={`border-b-2 px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-gray-500/40 ${
+            className={`h-8 rounded-md px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
               activeTab === tab.value
-                ? "border-gray-900 font-medium text-gray-900 dark:border-gray-100 dark:text-gray-50"
-                : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
+                : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100"
             }`}
             aria-current={activeTab === tab.value ? "page" : undefined}
           >
@@ -323,7 +324,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
           </section>
 
           {profiles.length === 0 ? (
-            <div className="rounded-lg bg-gray-100/60 px-4 py-10 text-center text-gray-500 text-sm dark:bg-gray-900/50 dark:text-gray-400">
+            <div className={emptyStateClass}>
               还没有 AI 档案。点击「新增档案」添加一个。
             </div>
           ) : (
@@ -499,7 +500,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       </label>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-100 border-t pt-3 dark:border-gray-800">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-200/70 border-t pt-3 dark:border-gray-800">
                       <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm dark:text-gray-300">
                         <label className="inline-flex items-center gap-2">
                           <input

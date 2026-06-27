@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ghostLinkClass, primaryButtonClass, textareaClass } from "./ui";
@@ -85,9 +86,13 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
         onClick={() => setOpen((value) => !value)}
         aria-label="速记"
         title="速记（⌘/Ctrl + J）"
-        className="fixed right-4 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-2xl text-white shadow-lg shadow-gray-900/15 transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 sm:right-5 sm:bottom-5 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:ring-gray-500/40"
+        className="fixed right-4 bottom-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-white shadow-xl shadow-gray-900/15 transition hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 sm:right-5 sm:bottom-5 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:ring-gray-500/40"
       >
-        <span className={open ? "rotate-45 transition" : "transition"}>+</span>
+        <Plus
+          className={
+            open ? "h-5 w-5 rotate-45 transition" : "h-5 w-5 transition"
+          }
+        />
       </button>
 
       {open ? (
@@ -104,7 +109,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
             aria-modal="true"
             aria-label="速记"
             onKeyDown={onDialogKeyDown}
-            className="absolute right-3 bottom-20 left-3 rounded-lg border border-gray-200 bg-white p-4 shadow-xl shadow-gray-900/10 sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/30"
+            className="absolute right-3 bottom-20 left-3 rounded-2xl border border-gray-200/80 bg-white/95 p-3 shadow-xl shadow-gray-900/10 backdrop-blur-xl sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/30"
           >
             <div className="space-y-3">
               <textarea
@@ -122,7 +127,7 @@ export function QuickCapture({ onCapture }: QuickCaptureProps) {
                 }}
                 rows={4}
                 placeholder="想记录什么？"
-                className={textareaClass}
+                className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 focus:ring-0 dark:bg-gray-950`}
               />
               {error ? (
                 <p className="text-red-600 text-xs dark:text-red-400">

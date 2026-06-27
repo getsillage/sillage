@@ -68,7 +68,7 @@ export function ThemeToggle() {
       type="button"
       title={`主题：${MODE_LABELS[mode]}`}
       aria-label={`切换主题，当前为${MODE_LABELS[mode]}`}
-      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-gray-600 text-sm transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+      className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-gray-600 text-sm transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
       onClick={() => {
         const next = nextMode(mode);
         setMode(next);

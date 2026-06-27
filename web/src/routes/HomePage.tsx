@@ -27,7 +27,7 @@ function EntrySection({
   return (
     <section className="min-w-0 pr-16 sm:pr-0">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="font-medium text-gray-600 text-sm dark:text-gray-300">
+        <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">
           {title}
         </h2>
         {showAllLink ? (
@@ -39,7 +39,7 @@ function EntrySection({
       {entries.length === 0 ? (
         <div className={emptyStateClass}>{empty}</div>
       ) : (
-        <ul className="divide-y divide-gray-200 dark:divide-gray-800">
+        <ul className="rounded-lg border border-gray-200/80 bg-white/70 p-1 shadow-sm shadow-gray-900/[0.02] dark:border-gray-800 dark:bg-gray-900/45">
           {entries.map((memo) => (
             <li key={memo.id}>
               <EntryCard memo={memo} openOnCardClick />
@@ -69,15 +69,15 @@ export function HomePage() {
 
   return (
     <main className={`${readingShellClass} pb-32`}>
-      <div className="space-y-8">
+      <div className="space-y-7">
         <header>
           <p className="text-gray-500 text-xs dark:text-gray-400">{today}</p>
-          <h1 className="mt-1 font-semibold text-2xl text-gray-900 tracking-tight sm:text-3xl dark:text-gray-50">
+          <h1 className="mt-1 font-semibold text-2xl text-gray-900 tracking-tight sm:text-[1.75rem] dark:text-gray-50">
             今天想记录什么？
           </h1>
         </header>
 
-        <section className={`${panelClass} p-4 sm:p-5`}>
+        <section className={`${panelClass} p-3 sm:p-4`}>
           <EntryComposer
             submitLabel="保存"
             onSubmit={async (input) => {

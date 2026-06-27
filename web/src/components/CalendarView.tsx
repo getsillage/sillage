@@ -47,11 +47,11 @@ export function CalendarView({
 
   return (
     <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-lg border border-gray-200 bg-white p-3 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+      <section className="rounded-lg border border-gray-200/80 bg-white/80 p-3 shadow-sm shadow-gray-900/[0.03] sm:p-6 dark:border-gray-800 dark:bg-gray-900/70 dark:shadow-black/10">
         <div className="mb-4 grid grid-cols-2 items-center gap-3 sm:mb-5 sm:flex sm:justify-between">
           <Link
             to={monthHref(prev.year, prev.month)}
-            className="text-gray-500 text-sm hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+            className="rounded-md text-gray-500 text-sm transition hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:text-gray-100"
           >
             ← {prev.year}年{prev.month}月
           </Link>
@@ -60,7 +60,7 @@ export function CalendarView({
           </h2>
           <Link
             to={monthHref(next.year, next.month)}
-            className="text-right text-gray-500 text-sm hover:text-gray-900 sm:text-left dark:text-gray-400 dark:hover:text-gray-100"
+            className="rounded-md text-right text-gray-500 text-sm transition hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 sm:text-left dark:text-gray-400 dark:hover:text-gray-100"
           >
             {next.year}年{next.month}月 →
           </Link>
@@ -94,7 +94,7 @@ export function CalendarView({
         </div>
       </section>
 
-      <aside className="rounded-lg border border-gray-200 bg-white p-3 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+      <aside className="rounded-lg border border-gray-200/80 bg-white/80 p-3 shadow-sm shadow-gray-900/[0.03] sm:p-5 dark:border-gray-800 dark:bg-gray-900/70 dark:shadow-black/10">
         {selectedDate ? (
           <>
             <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
@@ -110,7 +110,7 @@ export function CalendarView({
                   <li key={memo.id}>
                     <Link
                       to={`/entries/${memo.id}`}
-                      className="block rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="block rounded-lg px-3 py-2 text-gray-800 text-sm transition hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
                     >
                       {excerpt(memo.content, 40) || "空白记录"}
                     </Link>
@@ -148,7 +148,7 @@ function DayCell({
 }: DayCellProps) {
   const day = Number(date.slice(8));
   const base =
-    "flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg border text-sm sm:min-h-12 sm:text-base";
+    "flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg border text-sm transition sm:min-h-12 sm:text-base";
   const state = isSelected
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
     : count > 0

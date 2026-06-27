@@ -14,7 +14,7 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** One memo as a compact list row; whole-row click opens its detail page. */
+/** One record as a compact list row; whole-row click opens its detail page. */
 export function EntryCard({
   memo,
   openOnCardClick = false,
@@ -58,7 +58,7 @@ export function EntryCard({
       onClick={openOnCardClick ? handleCardClick : undefined}
       onKeyDown={openOnCardClick ? handleCardKeyDown : undefined}
     >
-      <div className="flex flex-wrap items-center gap-2 text-gray-400 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-gray-500 text-xs dark:text-gray-500">
         <LocalDateTime value={memo.createdAt} />
         {showEntryDate ? <time>归属 {memo.entryDate}</time> : null}
         {memo.pinnedAt ? <span>· 置顶</span> : null}

@@ -91,7 +91,7 @@ export function EntryPage() {
             取消
           </button>
         </div>
-        <div className={`${panelClass} p-5 sm:p-6`}>
+        <div className={`${panelClass} p-4 sm:p-5`}>
           <EntryComposer
             mode="edit"
             submitLabel="更新"
@@ -190,14 +190,14 @@ export function EntryPage() {
         </div>
       </div>
 
-      <article className="min-w-0">
-        <header className="flex flex-wrap items-center gap-2 border-gray-200 border-b pb-5 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
+      <article className="min-w-0 rounded-lg border border-gray-200/80 bg-white/65 px-4 shadow-sm shadow-gray-900/[0.02] sm:px-5 dark:border-gray-800 dark:bg-gray-900/45">
+        <header className="flex flex-wrap items-center gap-2 border-gray-200/80 border-b py-4 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
           <time>{memo.entryDate}</time>
           {memo.pinnedAt ? <span className="text-gray-400">· 置顶</span> : null}
           {memo.archivedAt ? <span>· 已归档</span> : null}
         </header>
 
-        <div className="py-6 sm:py-8">
+        <div className="py-6 sm:py-7">
           {memo.content.trim() ? (
             <Markdown content={memo.content} />
           ) : (
@@ -206,7 +206,7 @@ export function EntryPage() {
         </div>
       </article>
 
-      <section className="border-gray-200 border-t pt-4 dark:border-gray-800">
+      <section className="mt-5 rounded-lg border border-gray-200/80 bg-white/65 p-4 shadow-sm shadow-gray-900/[0.02] sm:p-5 dark:border-gray-800 dark:bg-gray-900/45">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold text-gray-900 dark:text-gray-50">
             总结
@@ -226,7 +226,7 @@ export function EntryPage() {
           </button>
         </div>
         {summary ? (
-          <div className="mt-3 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
+          <div className="mt-3 rounded-lg bg-gray-100/70 p-4 dark:bg-gray-800/70">
             <Markdown
               content={summary.summary || "（暂无总结内容）"}
               variant="chat"
@@ -243,7 +243,7 @@ export function EntryPage() {
         )}
       </section>
 
-      <section className="mt-5 border-gray-200 border-t pt-4 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
+      <section className="mt-5 border-gray-200/80 border-t pt-4 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
         <p>
           创建于 <LocalDateTime value={memo.createdAt} />
         </p>

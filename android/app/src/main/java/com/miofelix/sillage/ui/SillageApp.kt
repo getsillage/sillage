@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -93,6 +94,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
@@ -1213,7 +1215,11 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
-    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val density = LocalDensity.current
+    val keyboardBottom = with(density) {
+        WindowInsets.ime.getBottom(this).toDp()
+    }
+    val keyboardVisible = keyboardBottom > 0.dp
     val listState = rememberLazyListState()
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
@@ -1291,7 +1297,10 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = if (keyboardVisible) 0.dp else padding.calculateBottomPadding(),
+                ),
         ) {
             MessageBlock(
                 error = state.error,
@@ -1346,7 +1355,11 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
-            AskComposer(state = state, viewModel = viewModel)
+            AskComposer(
+                state = state,
+                viewModel = viewModel,
+                keyboardBottom = keyboardBottom,
+            )
         }
     }
 }
@@ -1390,10 +1403,12 @@ private fun AskEmptyPrompt() {
 private fun AskComposer(
     state: SillageUiState,
     viewModel: SillageViewModel,
+    keyboardBottom: Dp,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .offset(y = -keyboardBottom)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),

@@ -58,6 +58,26 @@ class SillageExportCodecTest {
         assertEquals("回答", decoded.askMessages.single().content)
     }
 
+    @Test
+    fun localJsonKeepsApiKeyForOfflineAiUse() {
+        val data = SillageExportData(
+            formatVersion = SillageExportCodec.FORMAT_VERSION,
+            exportedAt = "2026-06-27T00:00:00Z",
+            themeMode = SessionStore.THEME_DARK,
+            memoViewMode = "List",
+            memos = emptyList(),
+            memoAI = emptyList(),
+            aiProfiles = listOf(aiProfile(hasApiKey = true, apiKey = "sk-test")),
+            askConversations = emptyList(),
+            askMessages = emptyList(),
+        )
+
+        val decoded = SillageExportCodec.fromJson(SillageExportCodec.toLocalJson(data))
+
+        assertEquals("sk-test", decoded.aiProfiles.single().apiKeyInput)
+        assertEquals(true, decoded.aiProfiles.single().hasApiKey)
+    }
+
     private fun memo(content: String = "content"): Memo {
         return Memo(
             id = "m1",
@@ -94,8 +114,12 @@ class SillageExportCodecTest {
         )
     }
 
-    private fun aiProfile(hasApiKey: Boolean = false, keyUnavailable: Boolean = false): AIProfile {
-        return AIProfile(
+    private fun aiProfile(
+        hasApiKey: Boolean = false,
+        keyUnavailable: Boolean = false,
+        apiKey: String = "",
+    ): AIProfileDraft {
+        return AIProfileDraft(
             id = "p1",
             name = "默认",
             provider = "openai",
@@ -108,8 +132,7 @@ class SillageExportCodecTest {
             hasApiKey = hasApiKey,
             keyUnavailable = keyUnavailable,
             autoSummary = true,
-            createdAt = "2026-06-27T00:00:00Z",
-            updatedAt = "2026-06-27T00:00:00Z",
+            apiKeyInput = apiKey,
         )
     }
 

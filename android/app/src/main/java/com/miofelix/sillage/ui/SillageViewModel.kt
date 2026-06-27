@@ -11,6 +11,7 @@ import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
 import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AttachmentUpload
+import com.miofelix.sillage.data.LocalAiClient
 import com.miofelix.sillage.data.LocalDataStore
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
@@ -43,6 +44,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = LocalDataStore(appContext)
+    private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null
     private val _state = MutableStateFlow(
@@ -118,19 +120,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun openAISettings() {
-        if (isOfflineMode()) {
-            _state.update { it.copy(error = "AI 设置需要在线模式", notice = null) }
-            return
-        }
         _state.update { it.copy(screen = Screen.AISettings, error = null, notice = null) }
         loadAISettings()
     }
 
     fun openAsk() {
-        if (isOfflineMode()) {
-            _state.update { it.copy(error = "Ask 需要在线模式", notice = null) }
-            return
-        }
         _state.update { it.copy(screen = Screen.Ask, error = null, notice = null) }
         loadAskConversations()
     }
@@ -471,11 +465,10 @@ class SillageViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notice = null) }
             runCatching {
-                val data = if (isOfflineMode()) {
-                    localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
-                } else {
-                    exportOnlineData()
+                if (!isOfflineMode()) {
+                    localDataStore.mergeWith(exportOnlineData())
                 }
+                val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
                 val json = SillageExportCodec.toJson(data)
                 withContext(Dispatchers.IO) {
                     appContext.contentResolver.openOutputStream(uri)?.use { output ->
@@ -503,8 +496,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     } ?: throw IllegalArgumentException("无法读取导入文件")
                 }
                 val data = SillageExportCodec.fromJson(raw)
-                localDataStore.replaceWith(data)
-                sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+                localDataStore.mergeWith(data)
                 data.themeMode.takeIf { it.isNotBlank() }?.let(sessionStore::saveThemeMode)
                 ImportedDataResult(
                     themeMode = sessionStore.themeMode(),
@@ -514,12 +506,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 .onSuccess { result ->
                     _state.update {
                         it.copy(
-                            appMode = SessionStore.MODE_OFFLINE,
                             themeMode = result.themeMode,
                             memoViewMode = result.memoViewMode,
-                            initialized = true,
-                            account = null,
-                            screen = Screen.Memos,
                             selectedMemo = null,
                             selectedSummary = null,
                             summaryLoading = false,
@@ -530,10 +518,31 @@ class SillageViewModel(context: Context) : ViewModel() {
                             searchQuery = "",
                             searchResults = null,
                             searching = false,
-                            notice = "完整数据已导入，当前为离线模式",
+                            notice = "完整数据已导入",
                         )
                     }
                     refreshMemos()
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
+        }
+    }
+
+    fun syncFromServer() {
+        if (isOfflineMode()) {
+            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching {
+                val data = exportOnlineData()
+                localDataStore.mergeWith(data)
+            }
+                .onSuccess {
+                    _state.update { it.copy(notice = "已同步到本地") }
                 }
                 .onFailure { error ->
                     _state.update { it.copy(error = error.readableMessage()) }
@@ -666,7 +675,19 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun summarizeSelectedMemo() {
         val memo = state.value.selectedMemo ?: return
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "AI 总结需要在线模式") }
+            viewModelScope.launch {
+                _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
+                runCatching {
+                    val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置启用的 AI 档案")
+                    localAiClient.summarizeMemo(profile, memo).also(localDataStore::saveMemoAI)
+                }
+                    .onSuccess { ai ->
+                        _state.update { it.copy(selectedSummary = ai, summaryLoading = false, notice = "已生成总结") }
+                    }
+                    .onFailure { error ->
+                        _state.update { it.copy(summaryLoading = false, error = error.readableMessage()) }
+                    }
+            }
             return
         }
         val memoId = memo.id
@@ -793,11 +814,17 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun loadAISettings() {
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsLoading = true, error = null, notice = null) }
-            runCatching { api.getAISettings() }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.listAIProfiles()
+                } else {
+                    api.getAISettings().map { it.toDraft() }
+                }
+            }
                 .onSuccess { profiles ->
                     _state.update {
                         it.copy(
-                            aiProfiles = profiles.map { profile -> profile.toDraft() },
+                            aiProfiles = profiles,
                             aiSettingsLoading = false,
                             aiTestResults = emptyMap(),
                             error = null,
@@ -819,11 +846,17 @@ class SillageViewModel(context: Context) : ViewModel() {
         val profiles = state.value.aiProfiles
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
-            runCatching { api.patchAISettings(profiles.map { it.toInput() }) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.saveAIProfiles(profiles)
+                } else {
+                    api.patchAISettings(profiles.map { it.toInput() }).map { it.toDraft() }
+                }
+            }
                 .onSuccess { saved ->
                     _state.update {
                         it.copy(
-                            aiProfiles = saved.map { profile -> profile.toDraft() },
+                            aiProfiles = saved,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             notice = "AI 设置已保存",
@@ -849,7 +882,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         viewModelScope.launch {
             _state.update { it.copy(aiTestingProfileId = profile.id, error = null, notice = null) }
-            runCatching { api.testAIConnection(profile.id) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localAiClient.testConnection(profile)
+                } else {
+                    api.testAIConnection(profile.id)
+                }
+            }
                 .onSuccess { model ->
                     _state.update {
                         it.copy(
@@ -872,7 +911,13 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun loadAskConversations() {
         viewModelScope.launch {
             _state.update { it.copy(askLoading = true, error = null, notice = null) }
-            runCatching { api.listAskConversations() }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.listAskConversations()
+                } else {
+                    api.listAskConversations()
+                }
+            }
                 .onSuccess { conversations ->
                     _state.update {
                         it.copy(
@@ -907,7 +952,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             )
         }
         viewModelScope.launch {
-            runCatching { api.listAskMessages(id) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.listAskMessages(id)
+                } else {
+                    api.listAskMessages(id)
+                }
+            }
                 .onSuccess { messages ->
                     _state.update {
                         if (it.activeAskId == id) {
@@ -989,6 +1040,15 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         val leafId = askBranchLeafId(state.value.askMessages, messageId)
         _state.update { it.copy(askHeadId = leafId, error = null, notice = null) }
+        if (isOfflineMode()) {
+            localDataStore.setAskHead(conversationId, leafId)
+            _state.update {
+                it.copy(
+                    askConversations = localDataStore.listAskConversations().filter { conversation -> conversation.deletedAt == null },
+                )
+            }
+            return
+        }
         viewModelScope.launch {
             runCatching {
                 api.setAskHead(conversationId, leafId)
@@ -1015,7 +1075,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notice = null) }
-            runCatching { api.createMemo(content, LocalDate.now().toString()) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.createMemo(content, LocalDate.now().toString())
+                } else {
+                    api.createMemo(content, LocalDate.now().toString())
+                }
+            }
                 .onSuccess { memo ->
                     applyMemo(memo)
                     _state.update {
@@ -1023,7 +1089,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             screen = Screen.Editor,
                             selectedMemo = memo,
                             selectedSummary = null,
-                            summaryLoading = true,
+                            summaryLoading = !isOfflineMode(),
                             uploadingAttachment = false,
                             draftContent = memo.content,
                             draftEntryDate = memo.entryDate,
@@ -1047,7 +1113,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, notice = null) }
-            runCatching { api.getMemo(memoId) }
+            runCatching {
+                if (isOfflineMode()) {
+                    localDataStore.getMemo(memoId)
+                } else {
+                    api.getMemo(memoId)
+                }
+            }
                 .onSuccess { detail ->
                     applyMemo(detail.memo)
                     _state.update {
@@ -1200,6 +1272,10 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.askSending) {
             return
         }
+        if (isOfflineMode()) {
+            startLocalAsk(content, forkOfId)
+            return
+        }
         askStreamJob?.cancel()
         askStreamJob = viewModelScope.launch {
             var conversationId = state.value.activeAskId
@@ -1282,6 +1358,94 @@ class SillageViewModel(context: Context) : ViewModel() {
                     askStreamJob = null
                 }
             }
+        }
+    }
+
+    private fun startLocalAsk(content: String, forkOfId: String?) {
+        askStreamJob?.cancel()
+        askStreamJob = viewModelScope.launch {
+            var conversationId = state.value.activeAskId
+            val contextScope = state.value.askScope
+            val regeneratingId = forkOfId.orEmpty()
+            _state.update {
+                it.copy(
+                    askSending = true,
+                    askStreaming = false,
+                    askRegeneratingId = regeneratingId,
+                    askLiveUser = null,
+                    askLiveAnswer = "",
+                    error = null,
+                    notice = null,
+                )
+            }
+            runCatching {
+                if (conversationId.isBlank()) {
+                    val created = localDataStore.createAskConversation(contextScope)
+                    conversationId = created.id
+                    _state.update {
+                        it.copy(
+                            activeAskId = created.id,
+                            askHeadId = created.headMessageId,
+                            askConversations = listOf(created) + it.askConversations.filter { conversation -> conversation.id != created.id },
+                        )
+                    }
+                }
+                val messages = localDataStore.listAskMessages(conversationId)
+                val parentId = if (forkOfId == null) lastAssistantMessageId(buildAskActivePath(messages, state.value.askHeadId)) else null
+                val question = if (forkOfId == null) {
+                    content
+                } else {
+                    messages.find { it.id == forkOfId }?.parentId?.let { parent ->
+                        messages.find { it.id == parent }?.content
+                    }.orEmpty()
+                }
+                if (question.isBlank()) {
+                    throw IllegalArgumentException("找不到要重新生成的问题")
+                }
+                val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置启用的 AI 档案")
+                val history = buildAskActivePath(messages, parentId).map { it.message }
+                val answer = localAiClient.answerQuestion(
+                    profile = profile,
+                    question = question,
+                    scope = contextScope,
+                    memos = localDataStore.listMemos(),
+                    history = history,
+                )
+                localDataStore.appendAskTurn(
+                    conversationId = conversationId,
+                    question = question,
+                    answer = answer.answer,
+                    sourceRefs = answer.sourceRefs,
+                    model = answer.model,
+                    parentId = parentId,
+                    forkOfId = forkOfId,
+                )
+            }
+                .onSuccess {
+                    val messages = localDataStore.listAskMessages(conversationId)
+                    val conversations = localDataStore.listAskConversations().filter { it.deletedAt == null }
+                    _state.update {
+                        it.copy(
+                            askMessages = messages,
+                            askConversations = conversations,
+                            askHeadId = conversations.find { conversation -> conversation.id == conversationId }?.headMessageId,
+                            askQuestion = if (forkOfId == null) "" else it.askQuestion,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update {
+                it.copy(
+                    askSending = false,
+                    askStreaming = false,
+                    askRegeneratingId = "",
+                    askLiveUser = null,
+                    askLiveAnswer = "",
+                )
+            }
+            askStreamJob = null
         }
     }
 

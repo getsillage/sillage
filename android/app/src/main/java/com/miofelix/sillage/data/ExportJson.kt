@@ -3,14 +3,26 @@ package com.miofelix.sillage.data
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal fun SillageExportData.sanitizedForLocalImport(): SillageExportData {
+internal fun SillageExportData.normalizedForLocalStorage(): SillageExportData {
     return copy(
         formatVersion = SillageExportCodec.FORMAT_VERSION,
         themeMode = SessionStore.normalizeThemeMode(themeMode),
         aiProfiles = aiProfiles.map {
             it.copy(
+                hasApiKey = it.apiKeyInput.isNotBlank() || it.hasApiKey,
+                keyUnavailable = false,
+            )
+        },
+    )
+}
+
+internal fun SillageExportData.sanitizedForFileExport(): SillageExportData {
+    return normalizedForLocalStorage().copy(
+        aiProfiles = aiProfiles.map {
+            it.copy(
                 hasApiKey = false,
                 keyUnavailable = false,
+                apiKeyInput = "",
             )
         },
     )
@@ -86,8 +98,8 @@ internal fun jsonToMemoAI(body: JSONObject): MemoAI {
     )
 }
 
-internal fun aiProfileToJson(profile: AIProfile): JSONObject {
-    return JSONObject()
+internal fun aiProfileToJson(profile: AIProfileDraft): JSONObject {
+    val body = JSONObject()
         .put("id", profile.id)
         .put("name", profile.name)
         .put("provider", profile.provider)
@@ -100,12 +112,14 @@ internal fun aiProfileToJson(profile: AIProfile): JSONObject {
         .put("hasApiKey", false)
         .put("keyUnavailable", false)
         .put("autoSummary", profile.autoSummary)
-        .put("createdAt", profile.createdAt)
-        .put("updatedAt", profile.updatedAt)
+    if (profile.apiKeyInput.isNotBlank()) {
+        body.put("apiKey", profile.apiKeyInput)
+    }
+    return body
 }
 
-internal fun jsonToAIProfile(body: JSONObject): AIProfile {
-    return AIProfile(
+internal fun jsonToAIProfileDraft(body: JSONObject): AIProfileDraft {
+    return AIProfileDraft(
         id = body.getString("id"),
         name = body.optString("name"),
         provider = body.optString("provider"),
@@ -115,11 +129,10 @@ internal fun jsonToAIProfile(body: JSONObject): AIProfile {
         maxTokens = body.optLong("maxTokens"),
         enabled = body.optBoolean("enabled"),
         active = body.optBoolean("active"),
-        hasApiKey = false,
+        hasApiKey = body.optString("apiKey").isNotBlank(),
         keyUnavailable = false,
         autoSummary = body.optBoolean("autoSummary"),
-        createdAt = body.optString("createdAt"),
-        updatedAt = body.optString("updatedAt"),
+        apiKeyInput = body.optString("apiKey"),
     )
 }
 

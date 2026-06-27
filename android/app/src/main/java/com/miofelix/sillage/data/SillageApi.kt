@@ -109,7 +109,7 @@ class SillageApi(private val sessionStore: SessionStore) {
             memoViewMode = "",
             memos = memos,
             memoAI = memoAI,
-            aiProfiles = runCatching { getAISettings() }.getOrDefault(emptyList()),
+            aiProfiles = runCatching { getAISettings().map { it.toDraft() } }.getOrDefault(emptyList()),
             askConversations = askConversations,
             askMessages = askMessages,
         )

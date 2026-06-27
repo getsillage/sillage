@@ -305,16 +305,17 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         state = state,
                         onExport = { exportLauncher.launch("sillage-data.json") },
                         onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                        onSync = viewModel::syncFromServer,
                         onOnline = viewModel::useOnlineMode,
                         onOffline = viewModel::useOfflineMode,
                     )
+                    TextButton(onClick = viewModel::openAISettings) {
+                        Text("AI")
+                    }
+                    TextButton(onClick = viewModel::openAsk) {
+                        Text("Ask")
+                    }
                     if (state.appMode == SessionStore.MODE_ONLINE) {
-                        TextButton(onClick = viewModel::openAISettings) {
-                            Text("AI")
-                        }
-                        TextButton(onClick = viewModel::openAsk) {
-                            Text("Ask")
-                        }
                         TextButton(onClick = viewModel::openServerSettings) {
                             Text("服务器")
                         }
@@ -376,6 +377,7 @@ private fun DataMenu(
     state: SillageUiState,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onSync: () -> Unit,
     onOnline: () -> Unit,
     onOffline: () -> Unit,
 ) {
@@ -400,6 +402,14 @@ private fun DataMenu(
                     onOffline()
                 },
                 enabled = state.appMode != SessionStore.MODE_OFFLINE,
+            )
+            DropdownMenuItem(
+                text = { Text("同步到本地") },
+                onClick = {
+                    expanded = false
+                    onSync()
+                },
+                enabled = state.appMode == SessionStore.MODE_ONLINE,
             )
             DropdownMenuItem(
                 text = { Text("导出完整数据") },
@@ -950,7 +960,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     }
                 }
             }
-            if (state.selectedMemo != null && state.appMode == SessionStore.MODE_ONLINE) {
+            if (state.selectedMemo != null) {
                 MemoSummarySection(
                     summary = state.selectedSummary,
                     loading = state.summaryLoading,

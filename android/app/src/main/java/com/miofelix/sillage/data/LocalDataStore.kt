@@ -8,6 +8,8 @@ import org.json.JSONObject
 class LocalDataStore(context: Context) {
     private val prefs = context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE)
 
+    fun exportData(): SillageExportData = loadData()
+
     fun listMemos(): List<Memo> = loadData().memos
 
     fun searchMemos(query: String): List<Memo> {
@@ -87,6 +89,145 @@ class LocalDataStore(context: Context) {
         return updated
     }
 
+    fun saveMemoAI(ai: MemoAI) {
+        updateData { data ->
+            data.copy(memoAI = data.memoAI.filter { it.memoId != ai.memoId } + ai)
+        }
+    }
+
+    fun listAIProfiles(): List<AIProfileDraft> = loadData().aiProfiles
+
+    fun saveAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+        val now = now()
+        var activeSeen = false
+        val saved = profiles.map { profile ->
+            val active = profile.active && !activeSeen
+            if (active) {
+                activeSeen = true
+            }
+            profile.copy(
+                id = profile.id.ifBlank { UUID.randomUUID().toString() },
+                active = active,
+                hasApiKey = profile.apiKeyInput.isNotBlank(),
+                keyUnavailable = false,
+            )
+        }
+        updateData { data -> data.copy(exportedAt = now, aiProfiles = saved) }
+        return saved
+    }
+
+    fun activeAIProfile(): AIProfileDraft? {
+        val profiles = loadData().aiProfiles.filter { it.enabled }
+        return profiles.firstOrNull { it.active } ?: profiles.firstOrNull()
+    }
+
+    fun listAskConversations(): List<AskConversation> {
+        return loadData().askConversations.sortedByDescending { it.updatedAt }
+    }
+
+    fun listAskMessages(conversationId: String): List<AskMessage> {
+        return loadData().askMessages
+            .filter { it.conversationId == conversationId }
+            .sortedBy { it.createdAt }
+    }
+
+    fun createAskConversation(contextScope: String): AskConversation {
+        val now = now()
+        val conversation = AskConversation(
+            id = UUID.randomUUID().toString(),
+            title = "新会话",
+            status = "active",
+            contextScope = contextScope,
+            headMessageId = null,
+            pinnedAt = null,
+            archivedAt = null,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+        )
+        updateData { data ->
+            data.copy(askConversations = listOf(conversation) + data.askConversations)
+        }
+        return conversation
+    }
+
+    fun appendAskTurn(
+        conversationId: String,
+        question: String,
+        answer: String,
+        sourceRefs: List<AskSourceRef>,
+        model: String,
+        parentId: String?,
+        forkOfId: String?,
+    ): Pair<AskConversation, List<AskMessage>> {
+        val now = now()
+        val userMessage = if (forkOfId == null) {
+            AskMessage(
+                id = UUID.randomUUID().toString(),
+                conversationId = conversationId,
+                role = "user",
+                content = question,
+                parentId = parentId,
+                forkOfId = null,
+                status = "complete",
+                sourceRefs = emptyList(),
+                model = "",
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+            )
+        } else {
+            null
+        }
+        val assistant = AskMessage(
+            id = UUID.randomUUID().toString(),
+            conversationId = conversationId,
+            role = "assistant",
+            content = answer,
+            parentId = userMessage?.id ?: parentId,
+            forkOfId = forkOfId,
+            status = "complete",
+            sourceRefs = sourceRefs,
+            model = model,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+        )
+        val newMessages = listOfNotNull(userMessage, assistant)
+        var updatedConversation: AskConversation? = null
+        updateData { data ->
+            if (data.askConversations.none { it.id == conversationId }) {
+                throw ApiException("会话不存在")
+            }
+            val updatedConversations = data.askConversations.map { conversation ->
+                if (conversation.id == conversationId) {
+                    conversation.copy(
+                        title = if (conversation.title == "新会话") question.take(30) else conversation.title,
+                        headMessageId = assistant.id,
+                        updatedAt = now,
+                    ).also { updatedConversation = it }
+                } else {
+                    conversation
+                }
+            }
+            data.copy(
+                askConversations = updatedConversations,
+                askMessages = data.askMessages + newMessages,
+            )
+        }
+        return (updatedConversation ?: throw ApiException("会话不存在")) to newMessages
+    }
+
+    fun setAskHead(conversationId: String, messageId: String) {
+        updateData { data ->
+            data.copy(
+                askConversations = data.askConversations.map {
+                    if (it.id == conversationId) it.copy(headMessageId = messageId, updatedAt = now()) else it
+                },
+            )
+        }
+    }
+
     fun exportData(themeMode: String, memoViewMode: String): SillageExportData {
         val data = loadData()
         return data.copy(
@@ -96,8 +237,8 @@ class LocalDataStore(context: Context) {
         )
     }
 
-    fun replaceWith(data: SillageExportData) {
-        saveData(data.sanitizedForLocalImport())
+    fun mergeWith(data: SillageExportData) {
+        saveData(mergeData(loadData(), data.normalizedForLocalStorage()))
     }
 
     private fun replaceMemo(memo: Memo) {
@@ -116,7 +257,7 @@ class LocalDataStore(context: Context) {
     }
 
     private fun saveData(data: SillageExportData) {
-        prefs.edit().putString(KEY_DATA, SillageExportCodec.toJson(data.sanitizedForLocalImport())).apply()
+        prefs.edit().putString(KEY_DATA, SillageExportCodec.toLocalJson(data.normalizedForLocalStorage())).apply()
     }
 
     private fun emptyData(): SillageExportData {
@@ -135,6 +276,40 @@ class LocalDataStore(context: Context) {
 
     private fun now(): String = Instant.now().toString()
 
+    private fun mergeData(current: SillageExportData, incoming: SillageExportData): SillageExportData {
+        return incoming.copy(
+            themeMode = incoming.themeMode.ifBlank { current.themeMode },
+            memoViewMode = incoming.memoViewMode.ifBlank { current.memoViewMode },
+            memos = mergeBy(current.memos, incoming.memos) { it.id },
+            memoAI = mergeBy(current.memoAI, incoming.memoAI) { it.memoId },
+            aiProfiles = mergeProfiles(current.aiProfiles, incoming.aiProfiles),
+            askConversations = mergeBy(current.askConversations, incoming.askConversations) { it.id },
+            askMessages = mergeBy(current.askMessages, incoming.askMessages) { it.id },
+        )
+    }
+
+    private fun mergeProfiles(
+        current: List<AIProfileDraft>,
+        incoming: List<AIProfileDraft>,
+    ): List<AIProfileDraft> {
+        val currentById = current.associateBy { it.id }
+        return mergeBy(current, incoming) { it.id }.map { profile ->
+            val existing = currentById[profile.id]
+            if (profile.apiKeyInput.isBlank() && existing?.apiKeyInput?.isNotBlank() == true) {
+                profile.copy(apiKeyInput = existing.apiKeyInput, hasApiKey = true)
+            } else {
+                profile
+            }
+        }
+    }
+
+    private fun <T> mergeBy(current: List<T>, incoming: List<T>, key: (T) -> String): List<T> {
+        val merged = linkedMapOf<String, T>()
+        current.forEach { item -> merged[key(item)] = item }
+        incoming.forEach { item -> merged[key(item)] = item }
+        return merged.values.toList()
+    }
+
     companion object {
         private const val KEY_DATA = "data"
     }
@@ -147,7 +322,7 @@ data class SillageExportData(
     val memoViewMode: String,
     val memos: List<Memo>,
     val memoAI: List<MemoAI>,
-    val aiProfiles: List<AIProfile>,
+    val aiProfiles: List<AIProfileDraft>,
     val askConversations: List<AskConversation>,
     val askMessages: List<AskMessage>,
 )
@@ -156,7 +331,14 @@ object SillageExportCodec {
     const val FORMAT_VERSION = 1
 
     fun toJson(data: SillageExportData): String {
-        val sanitized = data.sanitizedForLocalImport()
+        return toJsonObject(data.sanitizedForFileExport()).toString(2)
+    }
+
+    internal fun toLocalJson(data: SillageExportData): String {
+        return toJsonObject(data.normalizedForLocalStorage()).toString()
+    }
+
+    private fun toJsonObject(sanitized: SillageExportData): JSONObject {
         return JSONObject()
             .put("formatVersion", FORMAT_VERSION)
             .put("exportedAt", sanitized.exportedAt)
@@ -167,7 +349,6 @@ object SillageExportCodec {
             .put("aiProfiles", sanitized.aiProfiles.toJsonArray(::aiProfileToJson))
             .put("askConversations", sanitized.askConversations.toJsonArray(::askConversationToJson))
             .put("askMessages", sanitized.askMessages.toJsonArray(::askMessageToJson))
-            .toString(2)
     }
 
     fun fromJson(raw: String): SillageExportData {
@@ -183,9 +364,9 @@ object SillageExportCodec {
             memoViewMode = root.optString("memoViewMode"),
             memos = root.optJSONArray("memos").toListOrEmpty(::jsonToMemo),
             memoAI = root.optJSONArray("memoAI").toListOrEmpty(::jsonToMemoAI),
-            aiProfiles = root.optJSONArray("aiProfiles").toListOrEmpty(::jsonToAIProfile),
+            aiProfiles = root.optJSONArray("aiProfiles").toListOrEmpty(::jsonToAIProfileDraft),
             askConversations = root.optJSONArray("askConversations").toListOrEmpty(::jsonToAskConversation),
             askMessages = root.optJSONArray("askMessages").toListOrEmpty(::jsonToAskMessage),
-        ).sanitizedForLocalImport()
+        ).normalizedForLocalStorage()
     }
 }

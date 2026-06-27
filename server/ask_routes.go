@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -41,6 +42,7 @@ func (s *Server) registerAskRoutes(e *echo.Echo) {
 	e.POST("/api/v1/ask/conversations", s.handleCreateAskConversation)
 	e.GET("/api/v1/ask/conversations/:conversation/messages", s.handleListAskMessages)
 	e.POST("/api/v1/ask/conversations/:conversation/messages", s.handleCreateAskMessage)
+	e.POST("/api/v1/ask/conversations/:conversation/messages:stream", s.handleStreamAskMessage)
 }
 
 func (s *Server) handleListAskConversations(c *echo.Context) error {
@@ -127,19 +129,26 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"messages": askMessageDTOs(result.Messages)})
 }
 
-func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind string, conversationID string) ([]askSourceRef, string, string, error) {
-	jobDone, err := s.acquireAskAIJob()
-	if err != nil {
-		return nil, "", "", err
-	}
-	defer jobDone()
+// askAnswerPrep is everything needed to call the AI for an answer, gathered
+// without making the call. A non-empty fallback means there is nothing to ask
+// (no records / no in-scope sources) and the fallback text is the whole answer.
+type askAnswerPrep struct {
+	sources  []askSourceRef
+	messages []aiProviderMessage
+	profile  *store.AIProfile
+	fallback string
+}
 
+// prepareAskAnswer selects sources, builds the prompt + history, and picks the
+// active profile. Shared by the unary and streaming answer paths; it makes no
+// AI call and acquires no job slot.
+func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scope, sourceKind, conversationID string) (*askAnswerPrep, error) {
 	memos, err := s.listAskCandidateMemos(ctx, accountID)
 	if err != nil {
-		return nil, "", "", err
+		return nil, err
 	}
 	if len(memos) == 0 {
-		return nil, "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。", "", nil
+		return &askAnswerPrep{fallback: "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。"}, nil
 	}
 	sort.Slice(memos, func(i, j int) bool {
 		if memos[i].EntryDate != memos[j].EntryDate {
@@ -152,7 +161,7 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 	})
 	sources := selectAskSourceRefs(question, memos, scope)
 	if len(sources) == 0 {
-		return nil, "现有记录不足以判断。当前范围内没有可引用的记录。", "", nil
+		return &askAnswerPrep{fallback: "现有记录不足以判断。当前范围内没有可引用的记录。"}, nil
 	}
 	// In summary mode, ground the answer in each source's stored AI summary
 	// (distilled) rather than its raw text, falling back to the raw excerpt.
@@ -160,21 +169,20 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 		sources = s.applySummaryExcerpts(ctx, sources)
 	}
 
-	_, err = s.Store.GetAskConversation(ctx, accountID, conversationID)
-	if err != nil {
-		return nil, "", "", err
+	if _, err := s.Store.GetAskConversation(ctx, accountID, conversationID); err != nil {
+		return nil, err
 	}
 	messages, err := s.Store.ListAskMessages(ctx, conversationID)
 	if err != nil {
-		return nil, "", "", err
+		return nil, err
 	}
 	profiles, err := s.Store.ListAIProfiles(ctx, accountID)
 	if err != nil {
-		return nil, "", "", err
+		return nil, err
 	}
 	profile, err := pickActiveAIProfile(profiles)
 	if err != nil {
-		return nil, "", "", err
+		return nil, err
 	}
 
 	history := make([]aiProviderMessage, 0, len(messages))
@@ -185,18 +193,169 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 		}
 		history = append(history, aiProviderMessage{Role: role, Content: message.Content})
 	}
-	finalPrompt := askUserPrompt(scope, question, sources)
+	// Drop the just-created question; it is re-added as the grounded prompt.
 	if len(history) > 0 {
 		history = history[:len(history)-1]
 	}
-	answer, err := s.callAI(ctx, accountID, profile, askSystemPrompt(), append(history, aiProviderMessage{
-		Role:    "user",
-		Content: finalPrompt,
-	}), profile.Temperature, profile.MaxTokens)
+	history = append(history, aiProviderMessage{Role: "user", Content: askUserPrompt(scope, question, sources)})
+	return &askAnswerPrep{sources: sources, messages: history, profile: profile}, nil
+}
+
+// handleStreamAskMessage answers a question over Server-Sent Events, delivering
+// the answer token-by-token. Events: "start" (the user message + sources),
+// "delta" (a text chunk), "done" (the persisted assistant message), "error".
+// Pre-stream failures (auth, validation, no AI) are normal HTTP errors; once the
+// stream opens, failures arrive as an "error" event. A client disconnect (stop)
+// cancels the request context and the partial answer is persisted.
+func (s *Server) handleStreamAskMessage(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req askMessageRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	reqCtx := c.Request().Context()
+	conversation, err := s.Store.GetAskConversation(reqCtx, account.ID, c.Param("conversation"))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
+		}
+		return apiError(c, http.StatusInternalServerError, "internal", "读取会话失败")
+	}
+	content := strings.TrimSpace(req.Content)
+	if content == "" {
+		return apiError(c, http.StatusBadRequest, "invalid_field", "问题不能为空")
+	}
+
+	userMessage, err := s.Store.CreateAskMessage(reqCtx, &store.AskMessage{
+		ConversationID: conversation.ID,
+		Role:           "user",
+		Content:        content,
+		ParentID:       sql.NullString{String: req.ParentID, Valid: req.ParentID != ""},
+		ForkOfID:       sql.NullString{String: req.ForkOfID, Valid: req.ForkOfID != ""},
+		Status:         "complete",
+		SourceRefs:     "[]",
+	})
+	if err != nil {
+		return apiError(c, http.StatusInternalServerError, "internal", "保存问题失败")
+	}
+
+	scope := firstNonEmpty(req.ContextScope, conversation.ContextScope)
+	prep, err := s.prepareAskAnswer(reqCtx, account.ID, content, scope, req.SourceKind, conversation.ID)
+	if err != nil {
+		status, code, message := memoHTTPStatus(err)
+		return apiError(c, status, code, message)
+	}
+
+	emit := sseEmitter(c)
+	_ = emit("start", map[string]any{
+		"userMessage": askMessageDTO(userMessage),
+		"sources":     prep.sources,
+	})
+
+	answer := prep.fallback
+	modelName := ""
+	streamErr := error(nil)
+	if prep.fallback == "" {
+		jobDone, jobErr := s.acquireAskAIJob()
+		if jobErr != nil {
+			_ = emit("error", map[string]any{"message": "当前生成任务较多，请稍后再试"})
+			return nil
+		}
+		defer jobDone()
+		modelName = prep.profile.Model
+		var builder strings.Builder
+		result, callErr := s.callAIStream(reqCtx, account.ID, prep.profile, askSystemPrompt(), prep.messages, prep.profile.Temperature, prep.profile.MaxTokens, func(delta string) {
+			builder.WriteString(delta)
+			_ = emit("delta", map[string]any{"text": delta})
+		})
+		switch {
+		case callErr == nil:
+			answer = result.Content
+		case reqCtx.Err() != nil:
+			// Client stopped: keep whatever streamed so far.
+			answer = strings.TrimSpace(builder.String())
+		default:
+			streamErr = callErr
+		}
+	}
+
+	if streamErr != nil {
+		_ = emit("error", map[string]any{"message": "生成回答失败"})
+		return nil
+	}
+	if answer == "" {
+		answer = "（未生成内容）"
+	}
+
+	// Persist with a fresh context so a stop (cancelled reqCtx) still saves the
+	// partial answer.
+	assistantMessage, err := s.Store.CreateAskMessage(context.Background(), &store.AskMessage{
+		ConversationID: conversation.ID,
+		Role:           "assistant",
+		Content:        answer,
+		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
+		Status:         "complete",
+		SourceRefs:     encodeAskSourceRefs(prep.sources),
+		Model:          modelName,
+	})
+	if err != nil {
+		_ = emit("error", map[string]any{"message": "保存回答失败"})
+		return nil
+	}
+	_ = emit("done", map[string]any{"message": askMessageDTO(assistantMessage)})
+	return nil
+}
+
+// sseEmitter prepares the response for Server-Sent Events and returns a function
+// that writes one event and flushes it immediately.
+func sseEmitter(c *echo.Context) func(event string, data any) error {
+	res := c.Response()
+	header := res.Header()
+	header.Set("Content-Type", "text/event-stream")
+	header.Set("Cache-Control", "no-cache")
+	header.Set("Connection", "keep-alive")
+	header.Set("X-Accel-Buffering", "no")
+	res.WriteHeader(http.StatusOK)
+	flusher, _ := res.(http.Flusher)
+	if flusher != nil {
+		flusher.Flush()
+	}
+	return func(event string, data any) error {
+		payload, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(res, "event: %s\ndata: %s\n\n", event, payload); err != nil {
+			return err
+		}
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return nil
+	}
+}
+
+func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind string, conversationID string) ([]askSourceRef, string, string, error) {
+	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID)
 	if err != nil {
 		return nil, "", "", err
 	}
-	return sources, answer.Content, profile.Model, nil
+	if prep.fallback != "" {
+		return nil, prep.fallback, "", nil
+	}
+	jobDone, err := s.acquireAskAIJob()
+	if err != nil {
+		return nil, "", "", err
+	}
+	defer jobDone()
+	answer, err := s.callAI(ctx, accountID, prep.profile, askSystemPrompt(), prep.messages, prep.profile.Temperature, prep.profile.MaxTokens)
+	if err != nil {
+		return nil, "", "", err
+	}
+	return prep.sources, answer.Content, prep.profile.Model, nil
 }
 
 // isSummarySourceKind reports whether the answer should be grounded in stored

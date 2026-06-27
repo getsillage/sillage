@@ -32,6 +32,7 @@ type openAIChatRequest struct {
 	Messages    []aiProviderMessage `json:"messages"`
 	Temperature float64             `json:"temperature,omitempty"`
 	MaxTokens   int64               `json:"max_tokens,omitempty"`
+	Stream      bool                `json:"stream,omitempty"`
 }
 
 type openAIChatResponse struct {
@@ -63,6 +64,7 @@ type anthropicMessagesRequest struct {
 	Messages    []anthropicMessage `json:"messages"`
 	Temperature float64            `json:"temperature,omitempty"`
 	MaxTokens   int64              `json:"max_tokens"`
+	Stream      bool               `json:"stream,omitempty"`
 }
 
 type anthropicMessagesResponse struct {

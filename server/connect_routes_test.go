@@ -103,7 +103,9 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 
 	settingsClient := apiv1connect.NewSettingsServiceClient(httpServer.Client(), httpServer.URL)
 	apiKey := "mock-api-key"
+	autoSummary := true
 	patchReq := connect.NewRequest(&apiv1.PatchAISettingsRequest{
+		AutoSummary: &autoSummary,
 		Profiles: []*apiv1.AIProfileInput{{
 			Name:        "本地测试",
 			Provider:    "openai",
@@ -125,6 +127,9 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 	if len(profiles) != 1 || !profiles[0].GetHasApiKey() || profiles[0].GetKeyUnavailable() {
 		t.Fatalf("unexpected profiles after patch: %#v", profiles)
 	}
+	if !patchRes.Msg.GetAutoSummary() {
+		t.Fatal("PatchAISettings response did not preserve global auto_summary")
+	}
 	if strings.Contains(profiles[0].String(), apiKey) {
 		t.Fatal("PatchAISettings response leaked API key")
 	}
@@ -137,6 +142,9 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 	}
 	if len(getRes.Msg.GetProfiles()) != 1 || !getRes.Msg.GetProfiles()[0].GetHasApiKey() {
 		t.Fatalf("unexpected profiles from get: %#v", getRes.Msg.GetProfiles())
+	}
+	if !getRes.Msg.GetAutoSummary() {
+		t.Fatal("GetAISettings response did not include global auto_summary")
 	}
 
 	refreshReq := connect.NewRequest(&apiv1.RefreshRequest{})

@@ -59,8 +59,11 @@ func (*GetAISettingsRequest) Descriptor() ([]byte, []int) {
 }
 
 type PatchAISettingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Profiles      []*AIProfileInput      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Profiles []*AIProfileInput      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	// auto_summary is a global setting. It generates a memo summary in the
+	// background after a memo is created. Best-effort; never blocks the write.
+	AutoSummary   *bool `protobuf:"varint,2,opt,name=auto_summary,json=autoSummary,proto3,oneof" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,21 +105,29 @@ func (x *PatchAISettingsRequest) GetProfiles() []*AIProfileInput {
 	return nil
 }
 
+func (x *PatchAISettingsRequest) GetAutoSummary() bool {
+	if x != nil && x.AutoSummary != nil {
+		return *x.AutoSummary
+	}
+	return false
+}
+
 // AIProfileInput is the writable shape of a profile. api_key is optional: unset
 // keeps the stored key, empty string clears it.
 type AIProfileInput struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
-	BaseUrl       string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Model         string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	Temperature   float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens     int64                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	Enabled       bool                   `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Active        bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"`
-	ApiKey        *string                `protobuf:"bytes,10,opt,name=api_key,json=apiKey,proto3,oneof" json:"api_key,omitempty"`
-	AutoSummary   bool                   `protobuf:"varint,11,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Provider    string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
+	BaseUrl     string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model       string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	Temperature float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens   int64                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	Enabled     bool                   `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Active      bool                   `protobuf:"varint,9,opt,name=active,proto3" json:"active,omitempty"`
+	ApiKey      *string                `protobuf:"bytes,10,opt,name=api_key,json=apiKey,proto3,oneof" json:"api_key,omitempty"`
+	// Deprecated: auto_summary is global on PatchAISettingsRequest.
+	AutoSummary   bool `protobuf:"varint,11,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -231,6 +242,7 @@ func (x *AIProfileInput) GetAutoSummary() bool {
 type AISettingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Profiles      []*AIProfile           `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	AutoSummary   bool                   `protobuf:"varint,2,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,14 +284,23 @@ func (x *AISettingsResponse) GetProfiles() []*AIProfile {
 	return nil
 }
 
+func (x *AISettingsResponse) GetAutoSummary() bool {
+	if x != nil {
+		return x.AutoSummary
+	}
+	return false
+}
+
 var File_api_v1_settings_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_settings_service_proto_rawDesc = "" +
 	"\n" +
 	"\x1dapi/v1/settings_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\x16\n" +
-	"\x14GetAISettingsRequest\"T\n" +
+	"\x14GetAISettingsRequest\"\x8d\x01\n" +
 	"\x16PatchAISettingsRequest\x12:\n" +
-	"\bprofiles\x18\x01 \x03(\v2\x1e.sillage.api.v1.AIProfileInputR\bprofiles\"\xc1\x02\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x1e.sillage.api.v1.AIProfileInputR\bprofiles\x12&\n" +
+	"\fauto_summary\x18\x02 \x01(\bH\x00R\vautoSummary\x88\x01\x01B\x0f\n" +
+	"\r_auto_summary\"\xc1\x02\n" +
 	"\x0eAIProfileInput\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -295,9 +316,10 @@ const file_api_v1_settings_service_proto_rawDesc = "" +
 	" \x01(\tH\x00R\x06apiKey\x88\x01\x01\x12!\n" +
 	"\fauto_summary\x18\v \x01(\bR\vautoSummaryB\n" +
 	"\n" +
-	"\b_api_key\"K\n" +
+	"\b_api_key\"n\n" +
 	"\x12AISettingsResponse\x125\n" +
-	"\bprofiles\x18\x01 \x03(\v2\x19.sillage.api.v1.AIProfileR\bprofiles2\x88\x02\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x19.sillage.api.v1.AIProfileR\bprofiles\x12!\n" +
+	"\fauto_summary\x18\x02 \x01(\bR\vautoSummary2\x88\x02\n" +
 	"\x0fSettingsService\x12v\n" +
 	"\rGetAISettings\x12$.sillage.api.v1.GetAISettingsRequest\x1a\".sillage.api.v1.AISettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/settings/ai\x12}\n" +
 	"\x0fPatchAISettings\x12&.sillage.api.v1.PatchAISettingsRequest\x1a\".sillage.api.v1.AISettingsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/api/v1/settings/aiB\xb8\x01\n" +
@@ -343,6 +365,7 @@ func file_api_v1_settings_service_proto_init() {
 		return
 	}
 	file_api_v1_common_proto_init()
+	file_api_v1_settings_service_proto_msgTypes[1].OneofWrappers = []any{}
 	file_api_v1_settings_service_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

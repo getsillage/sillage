@@ -74,7 +74,8 @@ type memoCreateInput struct {
 }
 
 type aiSettingsInput struct {
-	Profiles []aiProfileInput
+	Profiles    []aiProfileInput
+	AutoSummary *bool
 }
 
 type aiProfileInput struct {
@@ -89,6 +90,18 @@ type aiProfileInput struct {
 	Active      bool
 	AutoSummary bool
 	APIKey      *string
+}
+
+type aiModelsInput struct {
+	ID       string
+	Provider string
+	BaseURL  string
+	APIKey   *string
+}
+
+type aiSettingsResult struct {
+	Profiles    []*store.AIProfile
+	AutoSummary bool
 }
 
 type askConversationInput struct {
@@ -211,16 +224,33 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 	return &askCreateMessageResult{Messages: messages}, nil
 }
 
-func (s *Server) getAISettings(ctx context.Context, accountID string) ([]*store.AIProfile, error) {
-	return s.Store.ListAIProfiles(ctx, accountID)
+func (s *Server) getAISettings(ctx context.Context, accountID string) (*aiSettingsResult, error) {
+	profiles, err := s.Store.ListAIProfiles(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	autoSummary, err := s.getGlobalAutoSummary(ctx, accountID, profiles)
+	if err != nil {
+		return nil, err
+	}
+	return &aiSettingsResult{Profiles: profiles, AutoSummary: autoSummary}, nil
 }
 
-func (s *Server) patchAISettings(ctx context.Context, accountID string, input aiSettingsInput) ([]*store.AIProfile, error) {
+func (s *Server) patchAISettings(ctx context.Context, accountID string, input aiSettingsInput) (*aiSettingsResult, error) {
 	profiles := make([]*store.AIProfile, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		if profileReq.Name == "" || profileReq.Provider == "" {
 			return nil, validationError{message: "AI 档案名称和 provider 不能为空"}
 		}
+	}
+	autoSummary, err := s.resolvePatchAutoSummary(ctx, accountID, input)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.setGlobalAutoSummary(ctx, accountID, autoSummary); err != nil {
+		return nil, err
+	}
+	for _, profileReq := range input.Profiles {
 		var envelope *string
 		if profileReq.APIKey != nil {
 			raw, err := secret.EncryptEnvelope(s.Secrets.EncryptionSecret, *profileReq.APIKey)
@@ -250,14 +280,59 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 			Active:         profileReq.Active,
 			APIKeyEnvelope: envelope,
 			KeyUnavailable: false,
-			AutoSummary:    profileReq.AutoSummary,
+			AutoSummary:    false,
 		})
 		if err != nil {
 			return nil, err
 		}
 		profiles = append(profiles, profile)
 	}
-	return profiles, nil
+	return &aiSettingsResult{Profiles: profiles, AutoSummary: autoSummary}, nil
+}
+
+const aiAutoSummarySettingKey = "ai.auto_summary"
+
+func (s *Server) resolvePatchAutoSummary(ctx context.Context, accountID string, input aiSettingsInput) (bool, error) {
+	if input.AutoSummary != nil {
+		return *input.AutoSummary, nil
+	}
+	for _, profileReq := range input.Profiles {
+		if profileReq.AutoSummary {
+			return true, nil
+		}
+	}
+	value, ok, err := s.Store.GetAccountSetting(ctx, accountID, aiAutoSummarySettingKey)
+	if err != nil {
+		return false, err
+	}
+	if ok {
+		return value == "true", nil
+	}
+	return false, nil
+}
+
+func (s *Server) getGlobalAutoSummary(ctx context.Context, accountID string, profiles []*store.AIProfile) (bool, error) {
+	value, ok, err := s.Store.GetAccountSetting(ctx, accountID, aiAutoSummarySettingKey)
+	if err != nil {
+		return false, err
+	}
+	if ok {
+		return value == "true", nil
+	}
+	for _, profile := range profiles {
+		if profile != nil && profile.AutoSummary {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Server) setGlobalAutoSummary(ctx context.Context, accountID string, enabled bool) error {
+	value := "false"
+	if enabled {
+		value = "true"
+	}
+	return s.Store.PutAccountSetting(ctx, accountID, aiAutoSummarySettingKey, value)
 }
 
 // testAIConnection makes a minimal call against a saved profile to verify the
@@ -266,6 +341,8 @@ func (s *Server) testAIConnection(ctx context.Context, accountID, profileID stri
 	if profileID == "" {
 		return "", validationError{message: "缺少要测试的 AI 档案"}
 	}
+	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
+	defer cancel()
 	profile, err := s.Store.GetAIProfile(ctx, accountID, profileID)
 	if err != nil {
 		return "", err
@@ -283,6 +360,55 @@ func (s *Server) testAIConnection(ctx context.Context, accountID, profileID stri
 		return "", err
 	}
 	return profile.Model, nil
+}
+
+func (s *Server) listAIModels(ctx context.Context, accountID string, input aiModelsInput) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
+	defer cancel()
+
+	provider := strings.TrimSpace(input.Provider)
+	baseURL := strings.TrimSpace(input.BaseURL)
+	apiKey := ""
+	if input.APIKey != nil {
+		apiKey = strings.TrimSpace(*input.APIKey)
+	}
+
+	if input.ID != "" && (provider == "" || baseURL == "" || apiKey == "") {
+		profile, err := s.Store.GetAIProfile(ctx, accountID, input.ID)
+		if err != nil {
+			return nil, err
+		}
+		if provider == "" {
+			provider = profile.Provider
+		}
+		if baseURL == "" {
+			baseURL = profile.BaseURL
+		}
+		if apiKey == "" {
+			resolved, err := s.resolveAIKey(ctx, accountID, profile)
+			if err != nil {
+				return nil, err
+			}
+			apiKey = resolved
+		}
+	}
+
+	if provider == "" {
+		provider = "openai"
+	}
+	if apiKey == "" {
+		return nil, errAINotConfigured
+	}
+	normalizedBaseURL, err := normalizeAIBaseURL(baseURL, provider)
+	if err != nil {
+		return nil, validationError{message: "Base URL 格式不正确"}
+	}
+	jobDone, err := s.acquireMemoAIJob()
+	if err != nil {
+		return nil, err
+	}
+	defer jobDone()
+	return fetchAIModels(ctx, provider, normalizedBaseURL, apiKey)
 }
 
 func (s *Server) getAttachment(ctx context.Context, accountID, uid string) (*store.Attachment, error) {
@@ -331,8 +457,8 @@ func (s *Server) createMemo(ctx context.Context, accountID string, input memoCre
 	return memo, nil
 }
 
-// maybeScheduleAutoSummary generates a summary in the background when the active
-// AI profile has auto_summary on. It is best-effort: it runs off the request
+// maybeScheduleAutoSummary generates a summary in the background when the global
+// auto summary setting is on. It is best-effort: it runs off the request
 // path with its own timeout and never blocks or fails the memo write.
 func (s *Server) maybeScheduleAutoSummary(accountID, memoID string) {
 	go func() {
@@ -342,8 +468,12 @@ func (s *Server) maybeScheduleAutoSummary(accountID, memoID string) {
 		if err != nil {
 			return
 		}
+		autoSummary, err := s.getGlobalAutoSummary(ctx, accountID, profiles)
+		if err != nil || !autoSummary {
+			return
+		}
 		profile, err := pickActiveAIProfile(profiles)
-		if err != nil || profile == nil || !profile.AutoSummary {
+		if err != nil || profile == nil {
 			return
 		}
 		if _, err := s.generateMemoSummary(ctx, accountID, memoID); err != nil {

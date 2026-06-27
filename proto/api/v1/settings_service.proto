@@ -24,6 +24,9 @@ message GetAISettingsRequest {}
 
 message PatchAISettingsRequest {
   repeated AIProfileInput profiles = 1;
+  // auto_summary is a global setting. It generates a memo summary in the
+  // background after a memo is created. Best-effort; never blocks the write.
+  optional bool auto_summary = 2;
 }
 
 // AIProfileInput is the writable shape of a profile. api_key is optional: unset
@@ -39,9 +42,11 @@ message AIProfileInput {
   bool enabled = 8;
   bool active = 9;
   optional string api_key = 10;
+  // Deprecated: auto_summary is global on PatchAISettingsRequest.
   bool auto_summary = 11;
 }
 
 message AISettingsResponse {
   repeated AIProfile profiles = 1;
+  bool auto_summary = 2;
 }

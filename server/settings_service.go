@@ -17,11 +17,11 @@ func (s *settingsService) GetAISettings(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	profiles, err := s.server.getAISettings(ctx, account.ID)
+	settings, err := s.server.getAISettings(ctx, account.ID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(aiSettingsResponsePB(profiles)), nil
+	return connect.NewResponse(aiSettingsResponsePB(settings)), nil
 }
 
 func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Request[apiv1.PatchAISettingsRequest]) (*connect.Response[apiv1.AISettingsResponse], error) {
@@ -29,7 +29,10 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	input := aiSettingsInput{Profiles: make([]aiProfileInput, 0, len(req.Msg.GetProfiles()))}
+	input := aiSettingsInput{
+		Profiles:    make([]aiProfileInput, 0, len(req.Msg.GetProfiles())),
+		AutoSummary: req.Msg.AutoSummary,
+	}
 	for _, profile := range req.Msg.GetProfiles() {
 		if profile == nil {
 			continue
@@ -48,9 +51,9 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 			APIKey:      profile.ApiKey,
 		})
 	}
-	profiles, err := s.server.patchAISettings(ctx, account.ID, input)
+	settings, err := s.server.patchAISettings(ctx, account.ID, input)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(aiSettingsResponsePB(profiles)), nil
+	return connect.NewResponse(aiSettingsResponsePB(settings)), nil
 }

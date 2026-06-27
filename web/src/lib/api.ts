@@ -104,9 +104,15 @@ export type AIProfile = {
   active: boolean;
   hasApiKey: boolean;
   keyUnavailable: boolean;
+  // Deprecated response compatibility; auto-summary is global on AISettings.
   autoSummary: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AISettings = {
+  profiles: AIProfile[];
+  autoSummary?: boolean;
 };
 
 // apiKey omitted/null keeps the stored key; a string sets a new one.
@@ -120,7 +126,6 @@ export type AIProfileInput = {
   maxTokens: number;
   enabled: boolean;
   active: boolean;
-  autoSummary: boolean;
   apiKey?: string | null;
 };
 
@@ -467,9 +472,7 @@ function dispatchAskEvent(block: string, handlers: AskStreamHandlers): void {
   }
 }
 
-export async function getAISettings(
-  accessToken: string,
-): Promise<{ profiles: AIProfile[] }> {
+export async function getAISettings(accessToken: string): Promise<AISettings> {
   return request("/api/v1/settings/ai", {
     headers: authHeaders(accessToken),
   });
@@ -477,12 +480,12 @@ export async function getAISettings(
 
 export async function patchAISettings(
   accessToken: string,
-  profiles: AIProfileInput[],
-): Promise<{ profiles: AIProfile[] }> {
+  input: { profiles: AIProfileInput[]; autoSummary: boolean },
+): Promise<AISettings> {
   return request("/api/v1/settings/ai", {
     method: "PATCH",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ profiles }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -491,11 +494,31 @@ export async function patchAISettings(
 export async function testAIConnection(
   accessToken: string,
   id: string,
+  signal?: AbortSignal,
 ): Promise<{ ok: boolean; model: string }> {
   return request("/api/v1/settings/ai:test", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify({ id }),
+    signal,
+  });
+}
+
+export async function listAIModels(
+  accessToken: string,
+  input: {
+    id?: string;
+    provider: string;
+    baseUrl: string;
+    apiKey?: string | null;
+  },
+  signal?: AbortSignal,
+): Promise<{ models: string[] }> {
+  return request("/api/v1/settings/ai:models", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+    signal,
   });
 }
 

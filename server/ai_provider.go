@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -76,6 +77,11 @@ type anthropicMessagesResponse struct {
 		InputTokens  int64 `json:"input_tokens"`
 		OutputTokens int64 `json:"output_tokens"`
 	} `json:"usage"`
+}
+
+type aiModelListResponse struct {
+	Data   []json.RawMessage `json:"data"`
+	Models []json.RawMessage `json:"models"`
 }
 
 func (s *Server) callAI(
@@ -250,6 +256,35 @@ func callAnthropicAI(
 	}, nil
 }
 
+func fetchAIModels(ctx context.Context, provider, baseURL, apiKey string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/models", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create ai models request: %w", err)
+	}
+	switch strings.ToLower(provider) {
+	case "anthropic":
+		req.Header.Set("x-api-key", apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	default:
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	res, body, err := doAIRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil, fmt.Errorf("ai provider status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
+	models, err := decodeAIModels(body)
+	if err != nil {
+		return nil, err
+	}
+	if len(models) == 0 {
+		return nil, fmt.Errorf("ai provider returned no models")
+	}
+	return models, nil
+}
+
 func doAIRequest(req *http.Request) (*http.Response, []byte, error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 	res, err := client.Do(req)
@@ -262,6 +297,42 @@ func doAIRequest(req *http.Request) (*http.Response, []byte, error) {
 		return nil, nil, fmt.Errorf("read ai response: %w", err)
 	}
 	return res, body, nil
+}
+
+func decodeAIModels(body []byte) ([]string, error) {
+	var decoded aiModelListResponse
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return nil, fmt.Errorf("decode ai models response: %w", err)
+	}
+	seen := map[string]bool{}
+	var models []string
+	for _, raw := range append(decoded.Data, decoded.Models...) {
+		model := decodeAIModelID(raw)
+		if model == "" || seen[model] {
+			continue
+		}
+		seen[model] = true
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models, nil
+}
+
+func decodeAIModelID(raw json.RawMessage) string {
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil {
+		return strings.TrimSpace(value)
+	}
+	var item struct {
+		ID          string `json:"id"`
+		Model       string `json:"model"`
+		Name        string `json:"name"`
+		DisplayName string `json:"display_name"`
+	}
+	if err := json.Unmarshal(raw, &item); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(firstNonEmpty(item.ID, item.Model, item.Name, item.DisplayName))
 }
 
 func openAIContent(decoded openAIChatResponse) string {

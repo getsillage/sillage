@@ -61,9 +61,15 @@ func aiProfilePB(profile *store.AIProfile) *apiv1.AIProfile {
 	}
 }
 
-func aiSettingsResponsePB(profiles []*store.AIProfile) *apiv1.AISettingsResponse {
-	res := &apiv1.AISettingsResponse{Profiles: make([]*apiv1.AIProfile, 0, len(profiles))}
-	for _, profile := range profiles {
+func aiSettingsResponsePB(settings *aiSettingsResult) *apiv1.AISettingsResponse {
+	if settings == nil {
+		return &apiv1.AISettingsResponse{}
+	}
+	res := &apiv1.AISettingsResponse{
+		Profiles:    make([]*apiv1.AIProfile, 0, len(settings.Profiles)),
+		AutoSummary: settings.AutoSummary,
+	}
+	for _, profile := range settings.Profiles {
 		res.Profiles = append(res.Profiles, aiProfilePB(profile))
 	}
 	return res

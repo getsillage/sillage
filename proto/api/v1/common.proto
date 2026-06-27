@@ -102,8 +102,7 @@ message AIProfile {
   bool key_unavailable = 11;
   google.protobuf.Timestamp created_time = 12;
   google.protobuf.Timestamp updated_time = 13;
-  // auto_summary, when true, generates a memo summary in the background after a
-  // memo is created. Best-effort; never blocks the write.
+  // Deprecated: auto_summary is now a global AI setting.
   bool auto_summary = 14;
 }
 

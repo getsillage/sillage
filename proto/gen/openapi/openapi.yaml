@@ -635,9 +635,7 @@ components:
                     format: date-time
                 autoSummary:
                     type: boolean
-                    description: |-
-                        auto_summary, when true, generates a memo summary in the background after a
-                         memo is created. Best-effort; never blocks the write.
+                    description: 'Deprecated: auto_summary is now a global AI setting.'
             description: |-
                 AIProfile is a user-configured AI provider. The API key is never returned;
                  has_api_key reports whether one is stored and key_unavailable reports that a
@@ -668,6 +666,7 @@ components:
                     type: string
                 autoSummary:
                     type: boolean
+                    description: 'Deprecated: auto_summary is global on PatchAISettingsRequest.'
             description: |-
                 AIProfileInput is the writable shape of a profile. api_key is optional: unset
                  keeps the stored key, empty string clears it.
@@ -678,6 +677,8 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AIProfile'
+                autoSummary:
+                    type: boolean
         Account:
             type: object
             properties:
@@ -1063,6 +1064,11 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AIProfileInput'
+                autoSummary:
+                    type: boolean
+                    description: |-
+                        auto_summary is a global setting. It generates a memo summary in the
+                         background after a memo is created. Best-effort; never blocks the write.
         PullSyncResponse:
             type: object
             properties:

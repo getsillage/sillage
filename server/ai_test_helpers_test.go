@@ -44,6 +44,17 @@ func newMockAIProvider(t *testing.T) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 
 		switch {
+		case strings.HasSuffix(r.URL.Path, "/models"):
+			if got := r.Header.Get("Authorization"); got != "Bearer "+mockAIAPIKey {
+				http.Error(w, "missing bearer key", http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": "gpt-test"},
+					{"id": "gpt-test-mini"},
+				},
+			})
 		case strings.HasSuffix(r.URL.Path, "/chat/completions"):
 			if got := r.Header.Get("Authorization"); got != "Bearer "+mockAIAPIKey {
 				http.Error(w, "missing bearer key", http.StatusUnauthorized)

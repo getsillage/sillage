@@ -9,6 +9,7 @@ import {
   getAISettings,
   getMe,
   initializeAccount,
+  listAIModels,
   listAskConversations,
   listAskMessages,
   listMemos,
@@ -136,11 +137,19 @@ describe("ask + settings + auth api wrappers", () => {
     await getAISettings("t");
     expect(lastCall().path).toBe("/api/v1/settings/ai");
 
-    await patchAISettings("t", []);
+    await patchAISettings("t", { profiles: [], autoSummary: true });
     expect(lastCall().init.method).toBe("PATCH");
+    expect(JSON.parse(lastCall().init.body as string).autoSummary).toBe(true);
 
     await testAIConnection("t", "p1");
     expect(lastCall().path).toBe("/api/v1/settings/ai:test");
+
+    await listAIModels("t", {
+      id: "p1",
+      provider: "openai",
+      baseUrl: "https://api.openai.com/v1",
+    });
+    expect(lastCall().path).toBe("/api/v1/settings/ai:models");
 
     await getMe("t");
     expect(lastCall().path).toBe("/api/v1/auth/me");

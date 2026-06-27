@@ -12,7 +12,8 @@ import (
 )
 
 type aiSettingsRequest struct {
-	Profiles []aiProfileRequest `json:"profiles"`
+	Profiles    []aiProfileRequest `json:"profiles"`
+	AutoSummary *bool              `json:"autoSummary"`
 }
 
 type aiProfileRequest struct {
@@ -33,10 +34,18 @@ func (s *Server) registerAIRoutes(e *echo.Echo) {
 	e.GET("/api/v1/settings/ai", s.handleGetAISettings)
 	e.PATCH("/api/v1/settings/ai", s.handlePatchAISettings)
 	e.POST("/api/v1/settings/ai:test", s.handleTestAISettings)
+	e.POST("/api/v1/settings/ai:models", s.handleListAIModels)
 }
 
 type aiTestRequest struct {
 	ID string `json:"id"`
+}
+
+type aiModelsRequest struct {
+	ID       string  `json:"id"`
+	Provider string  `json:"provider"`
+	BaseURL  string  `json:"baseUrl"`
+	APIKey   *string `json:"apiKey"`
 }
 
 func (s *Server) handleTestAISettings(c *echo.Context) error {
@@ -54,6 +63,28 @@ func (s *Server) handleTestAISettings(c *echo.Context) error {
 		return apiError(c, status, code, message)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "model": model})
+}
+
+func (s *Server) handleListAIModels(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req aiModelsRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	models, err := s.listAIModels(c.Request().Context(), account.ID, aiModelsInput{
+		ID:       req.ID,
+		Provider: req.Provider,
+		BaseURL:  req.BaseURL,
+		APIKey:   req.APIKey,
+	})
+	if err != nil {
+		status, code, message := aiTestHTTPStatus(err)
+		return apiError(c, status, code, message)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"models": models})
 }
 
 // aiTestHTTPStatus maps a connection-test failure to a status + a message the
@@ -81,11 +112,11 @@ func (s *Server) handleGetAISettings(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	profiles, err := s.getAISettings(c.Request().Context(), account.ID)
+	settings, err := s.getAISettings(c.Request().Context(), account.ID)
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取 AI 设置失败")
 	}
-	return c.JSON(http.StatusOK, map[string]any{"profiles": aiProfileDTOs(profiles)})
+	return c.JSON(http.StatusOK, aiSettingsDTO(settings))
 }
 
 func (s *Server) handlePatchAISettings(c *echo.Context) error {
@@ -113,14 +144,25 @@ func (s *Server) handlePatchAISettings(c *echo.Context) error {
 			APIKey:      profileReq.APIKey,
 		})
 	}
-	profiles, err := s.patchAISettings(c.Request().Context(), account.ID, input)
+	input.AutoSummary = req.AutoSummary
+	settings, err := s.patchAISettings(c.Request().Context(), account.ID, input)
 	if err != nil {
 		if errors.Is(err, errValidation) {
 			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "保存 AI 设置失败")
 	}
-	return c.JSON(http.StatusOK, map[string]any{"profiles": aiProfileDTOs(profiles)})
+	return c.JSON(http.StatusOK, aiSettingsDTO(settings))
+}
+
+func aiSettingsDTO(settings *aiSettingsResult) map[string]any {
+	if settings == nil {
+		return map[string]any{"profiles": []map[string]any{}, "autoSummary": false}
+	}
+	return map[string]any{
+		"profiles":    aiProfileDTOs(settings.Profiles),
+		"autoSummary": settings.AutoSummary,
+	}
 }
 
 func aiProfileDTOs(profiles []*store.AIProfile) []map[string]any {

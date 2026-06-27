@@ -568,8 +568,7 @@ type AIProfile struct {
 	KeyUnavailable bool                   `protobuf:"varint,11,opt,name=key_unavailable,json=keyUnavailable,proto3" json:"key_unavailable,omitempty"`
 	CreatedTime    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
 	UpdatedTime    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
-	// auto_summary, when true, generates a memo summary in the background after a
-	// memo is created. Best-effort; never blocks the write.
+	// Deprecated: auto_summary is now a global AI setting.
 	AutoSummary   bool `protobuf:"varint,14,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

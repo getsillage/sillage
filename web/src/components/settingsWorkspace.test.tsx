@@ -9,12 +9,18 @@ vi.mock("../lib/api", async (importOriginal) => {
   return {
     ...actual,
     getAISettings: vi.fn(),
+    listAIModels: vi.fn(),
     patchAISettings: vi.fn(),
     testAIConnection: vi.fn(),
   };
 });
 
-import { getAISettings, patchAISettings, testAIConnection } from "../lib/api";
+import {
+  getAISettings,
+  listAIModels,
+  patchAISettings,
+  testAIConnection,
+} from "../lib/api";
 
 function profile(overrides: Partial<AIProfile> = {}): AIProfile {
   return {
@@ -38,8 +44,17 @@ function profile(overrides: Partial<AIProfile> = {}): AIProfile {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getAISettings).mockResolvedValue({ profiles: [profile()] });
-  vi.mocked(patchAISettings).mockResolvedValue({ profiles: [profile()] });
+  vi.mocked(getAISettings).mockResolvedValue({
+    profiles: [profile()],
+    autoSummary: false,
+  });
+  vi.mocked(patchAISettings).mockResolvedValue({
+    profiles: [profile()],
+    autoSummary: false,
+  });
+  vi.mocked(listAIModels).mockResolvedValue({
+    models: ["claude-opus-4-8", "claude-sonnet-4-5"],
+  });
   vi.mocked(testAIConnection).mockResolvedValue({
     ok: true,
     model: "claude-opus-4-8",
@@ -57,13 +72,13 @@ describe("SettingsWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "保存设置" }));
 
     await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(patchAISettings).mock.calls[0][1][0].name).toBe(
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles[0].name).toBe(
       "工作档案",
     );
     expect(await screen.findByText("已保存")).toBeInTheDocument();
   });
 
-  it("toggles auto-summary and includes it in the saved payload", async () => {
+  it("saves auto-summary as a global setting", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
     await screen.findByDisplayValue("默认");
@@ -75,9 +90,39 @@ describe("SettingsWorkspace", () => {
     expect(checkbox).toBeChecked();
     await user.click(screen.getByRole("button", { name: "保存设置" }));
     await waitFor(() => expect(patchAISettings).toHaveBeenCalled());
-    expect(vi.mocked(patchAISettings).mock.calls[0][1][0].autoSummary).toBe(
-      true,
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].autoSummary).toBe(true);
+    expect(
+      vi.mocked(patchAISettings).mock.calls[0][1].profiles[0],
+    ).not.toHaveProperty("autoSummary");
+  });
+
+  it("fetches models while keeping manual model input editable", async () => {
+    const user = userEvent.setup();
+    render(<SettingsWorkspace token="t" />);
+    await screen.findByDisplayValue("默认");
+
+    await user.click(screen.getByRole("button", { name: "获取模型" }));
+    await waitFor(() =>
+      expect(listAIModels).toHaveBeenCalledWith(
+        "t",
+        {
+          id: "p1",
+          provider: "anthropic",
+          baseUrl: "",
+          apiKey: undefined,
+        },
+        expect.any(AbortSignal),
+      ),
     );
+    await user.selectOptions(screen.getByLabelText("选择模型"), [
+      "claude-sonnet-4-5",
+    ]);
+    const manualInput = screen.getByRole("textbox", { name: "模型" });
+    expect(manualInput).toHaveValue("claude-sonnet-4-5");
+
+    await user.clear(manualInput);
+    await user.type(manualInput, "custom-model");
+    expect(manualInput).toHaveValue("custom-model");
   });
 
   it("tests a saved profile's connection", async () => {
@@ -87,7 +132,11 @@ describe("SettingsWorkspace", () => {
 
     await user.click(screen.getByRole("button", { name: "测试连接" }));
     await waitFor(() =>
-      expect(testAIConnection).toHaveBeenCalledWith("t", "p1"),
+      expect(testAIConnection).toHaveBeenCalledWith(
+        "t",
+        "p1",
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByText(/连接成功/)).toBeInTheDocument();
   });

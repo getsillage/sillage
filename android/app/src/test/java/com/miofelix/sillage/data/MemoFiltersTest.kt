@@ -209,6 +209,18 @@ class MemoFiltersTest {
         assertEquals("", askAnswerMemoContent(question))
     }
 
+    @Test
+    fun askSourceLabelIncludesDateAndExcerpt() {
+        val source = AskSourceRef(
+            memoId = "m1",
+            entryDate = "2026-06-27",
+            excerpt = "来源摘要",
+            rank = 1,
+        )
+
+        assertEquals("2026-06-27 · 来源摘要", askSourceLabel(source))
+    }
+
     private fun memo(
         id: String,
         entryDate: String = "2024-01-01",

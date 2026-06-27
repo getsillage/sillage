@@ -59,6 +59,7 @@ import com.miofelix.sillage.data.MarkdownFormatStyle
 import com.miofelix.sillage.data.Memo
 import com.miofelix.sillage.data.MemoAI
 import com.miofelix.sillage.data.adjacentMonth
+import com.miofelix.sillage.data.askSourceLabel
 import com.miofelix.sillage.data.buildAskActivePath
 import com.miofelix.sillage.data.entriesByDate
 import com.miofelix.sillage.data.entryDateCounts
@@ -1031,6 +1032,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
                             onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
                             onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
+                            onOpenSource = viewModel::openAskSourceMemo,
                             onSelectVariant = viewModel::selectAskVariant,
                         )
                     }
@@ -1157,6 +1159,7 @@ private fun AskMessageCard(
     streamingText: String?,
     onRegenerate: () -> Unit,
     onSaveAsMemo: () -> Unit,
+    onOpenSource: (String) -> Unit,
     onSelectVariant: (String) -> Unit,
 ) {
     val message = entry.message
@@ -1190,13 +1193,17 @@ private fun AskMessageCard(
                         style = MaterialTheme.typography.labelMedium,
                     )
                     message.sourceRefs.take(5).forEach { source ->
-                        Text(
-                            "${source.entryDate} · ${source.excerpt}",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        TextButton(
+                            onClick = { onOpenSource(source.memoId) },
+                            enabled = source.memoId.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                askSourceLabel(source),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }

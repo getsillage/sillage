@@ -860,6 +860,35 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun openAskSourceMemo(memoId: String) {
+        if (memoId.isBlank()) {
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, notice = null) }
+            runCatching { api.getMemo(memoId) }
+                .onSuccess { detail ->
+                    applyMemo(detail.memo)
+                    _state.update {
+                        it.copy(
+                            screen = Screen.Editor,
+                            selectedMemo = detail.memo,
+                            selectedSummary = detail.ai,
+                            summaryLoading = false,
+                            uploadingAttachment = false,
+                            draftContent = detail.memo.content,
+                            draftEntryDate = detail.memo.entryDate,
+                            markdownPreview = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.readableMessage()) }
+                }
+            _state.update { it.copy(loading = false) }
+        }
+    }
+
     fun closeEditor() {
         _state.update {
             it.copy(

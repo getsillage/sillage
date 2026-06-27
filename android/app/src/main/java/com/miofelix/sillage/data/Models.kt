@@ -259,6 +259,10 @@ fun askAnswerMemoContent(message: AskMessage): String {
     return if (message.role == "assistant") message.content.trim() else ""
 }
 
+fun askSourceLabel(source: AskSourceRef): String {
+    return "${source.entryDate} · ${source.excerpt}"
+}
+
 fun parseMarkdownPreview(content: String): List<MarkdownBlock> {
     return content
         .lines()

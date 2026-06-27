@@ -62,11 +62,16 @@ beforeEach(() => {
 });
 
 describe("SettingsWorkspace", () => {
+  async function openDefaultProfile(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: /默认/ }));
+  }
+
   it("loads profiles and saves edits", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
 
-    const nameInput = await screen.findByDisplayValue("默认");
+    await openDefaultProfile(user);
+    const nameInput = screen.getByDisplayValue("默认");
     await user.clear(nameInput);
     await user.type(nameInput, "工作档案");
     await user.click(screen.getByRole("button", { name: "保存设置" }));
@@ -81,7 +86,7 @@ describe("SettingsWorkspace", () => {
   it("saves auto-summary as a global setting", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByDisplayValue("默认");
+    await screen.findByRole("button", { name: /默认/ });
 
     const checkbox = screen.getByRole("checkbox", {
       name: "新建记录后自动总结",
@@ -99,7 +104,7 @@ describe("SettingsWorkspace", () => {
   it("fetches models while keeping manual model input editable", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByDisplayValue("默认");
+    await openDefaultProfile(user);
 
     await user.click(screen.getByRole("button", { name: "获取模型" }));
     await waitFor(() =>
@@ -128,7 +133,7 @@ describe("SettingsWorkspace", () => {
   it("tests a saved profile's connection", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByDisplayValue("默认");
+    await openDefaultProfile(user);
 
     await user.click(screen.getByRole("button", { name: "测试连接" }));
     await waitFor(() =>
@@ -187,7 +192,7 @@ describe("SettingsWorkspace", () => {
   it("shows the theme switcher under the appearance tab", async () => {
     const user = userEvent.setup();
     render(<SettingsWorkspace token="t" />);
-    await screen.findByDisplayValue("默认");
+    await screen.findByRole("button", { name: /默认/ });
 
     await user.click(screen.getByRole("button", { name: "外观" }));
     expect(screen.getByText("主题色")).toBeInTheDocument();
@@ -200,7 +205,7 @@ describe("SettingsWorkspace", () => {
     const user = userEvent.setup();
     vi.mocked(testAIConnection).mockRejectedValue(new Error("连接失败：401"));
     render(<SettingsWorkspace token="t" />);
-    await screen.findByDisplayValue("默认");
+    await openDefaultProfile(user);
 
     await user.click(screen.getByRole("button", { name: "测试连接" }));
     expect(await screen.findByText("连接失败：401")).toBeInTheDocument();

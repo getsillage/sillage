@@ -1722,6 +1722,8 @@ private fun AskMessageActions(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    var selectedAIProfileIndex by remember { mutableStateOf<Int?>(null) }
+    val selectedIndex = selectedAIProfileIndex?.takeIf { it in state.aiProfiles.indices }
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -1851,7 +1853,10 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     item {
                         AISettingsHeaderCard(
                             saving = state.aiSettingsSaving,
-                            onAdd = viewModel::addAIProfile,
+                            onAdd = {
+                                selectedAIProfileIndex = state.aiProfiles.size
+                                viewModel.addAIProfile()
+                            },
                             onSave = viewModel::saveAISettings,
                         )
                     }
@@ -1861,13 +1866,25 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                         }
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
-                            AIProfileCard(
-                                index = index,
-                                profile = state.aiProfiles[index],
-                                testing = state.aiTestingProfileId == state.aiProfiles[index].id,
-                                testResult = state.aiTestResults[state.aiProfiles[index].id],
-                                viewModel = viewModel,
-                            )
+                            val profile = state.aiProfiles[index]
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AIProfileSummaryCard(
+                                    profile = profile,
+                                    testResult = state.aiTestResults[profile.id],
+                                    selected = selectedIndex == index,
+                                    onClick = { selectedAIProfileIndex = index },
+                                )
+                                if (selectedIndex == index) {
+                                    AIProfileDetailCard(
+                                        index = index,
+                                        profile = profile,
+                                        testing = profile.id.isNotBlank() && state.aiTestingProfileId == profile.id,
+                                        testResult = state.aiTestResults[profile.id],
+                                        viewModel = viewModel,
+                                        onClose = { selectedAIProfileIndex = null },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1988,12 +2005,103 @@ private fun EmptySettingsCard(text: String) {
 }
 
 @Composable
-private fun AIProfileCard(
+private fun AIProfileSummaryCard(
+    profile: AIProfileDraft,
+    testResult: String?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        profile.name.ifBlank { "未命名档案" },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        profile.provider.ifBlank { "未设置 Provider" },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (profile.active) {
+                    AssistChip(onClick = onClick, label = { Text("默认") })
+                }
+            }
+            Text(
+                profile.model.ifBlank { "未设置模型" },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (profile.enabled) "已启用" else "已停用",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) "有密钥" else "无密钥",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                if (profile.keyUnavailable) {
+                    Text(
+                        "密钥异常",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+            if (testResult != null) {
+                Text(
+                    testResult,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AIProfileDetailCard(
     index: Int,
     profile: AIProfileDraft,
     testing: Boolean,
     testResult: String?,
     viewModel: SillageViewModel,
+    onClose: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2004,6 +2112,23 @@ private fun AIProfileCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "详细配置",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "修改当前档案后保存生效。",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+                TextButton(onClick = onClose) {
+                    Text("收起")
+                }
+            }
             OutlinedTextField(
                 value = profile.name,
                 onValueChange = { viewModel.updateAIProfileName(index, it) },
@@ -2076,7 +2201,10 @@ private fun AIProfileCard(
                 Button(onClick = { viewModel.testAIProfile(index) }, enabled = !testing) {
                     Text(if (testing) "测试中" else "测试连接")
                 }
-                TextButton(onClick = { viewModel.removeAIProfile(index) }) {
+                TextButton(onClick = {
+                    viewModel.removeAIProfile(index)
+                    onClose()
+                }) {
                     Text("删除")
                 }
             }

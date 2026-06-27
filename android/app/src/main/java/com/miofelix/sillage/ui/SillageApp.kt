@@ -19,12 +19,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AttachFile
@@ -34,13 +38,18 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.QuestionAnswer
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -66,6 +75,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,6 +83,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -84,6 +95,7 @@ import com.miofelix.sillage.data.AIProfileDraft
 import com.miofelix.sillage.data.AskConversation
 import com.miofelix.sillage.data.AskMessage
 import com.miofelix.sillage.data.AskPathEntry
+import com.miofelix.sillage.data.AskSourceRef
 import com.miofelix.sillage.data.MarkdownBlock
 import com.miofelix.sillage.data.MarkdownBlockKind
 import com.miofelix.sillage.data.MarkdownFormatStyle
@@ -1198,11 +1210,27 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
+    var composerFocused by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
     }
     val latestAssistantId = remember(entries) {
         lastAssistantMessageId(entries)
+    }
+    val listItemCount = entries.size +
+        (if (entries.isEmpty()) 1 else 0) +
+        (if (state.askLiveUser != null) 1 else 0) +
+        (if (state.askSending && state.askRegeneratingId.isBlank()) 1 else 0)
+    LaunchedEffect(
+        entries.size,
+        state.askLiveUser?.id,
+        state.askSending,
+        state.askLiveAnswer.length,
+    ) {
+        if (listItemCount > 0) {
+            listState.animateScrollToItem(listItemCount - 1)
+        }
     }
     if (showConversations) {
         AskConversationSheet(
@@ -1247,14 +1275,15 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         },
         bottomBar = {
-            MainNavigationBar(state = state, viewModel = viewModel)
+            if (!composerFocused) {
+                MainNavigationBar(state = state, viewModel = viewModel)
+            }
         },
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .imePadding(),
+                .padding(padding),
         ) {
             MessageBlock(
                 error = state.error,
@@ -1275,6 +1304,7 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
+                    state = listState,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -1308,7 +1338,11 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
-            AskComposer(state = state, viewModel = viewModel)
+            AskComposer(
+                state = state,
+                viewModel = viewModel,
+                onFocusChanged = { composerFocused = it },
+            )
         }
     }
 }
@@ -1349,41 +1383,56 @@ private fun AskEmptyPrompt() {
 }
 
 @Composable
-private fun AskComposer(state: SillageUiState, viewModel: SillageViewModel) {
+private fun AskComposer(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    onFocusChanged: (Boolean) -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
             OutlinedTextField(
                 value = state.askQuestion,
                 onValueChange = viewModel::updateAskQuestion,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { onFocusChanged(it.isFocused) },
                 minLines = 1,
-                maxLines = 4,
+                maxLines = 3,
                 placeholder = { Text("根据记录提问") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        if (!state.askSending && state.askQuestion.isNotBlank()) {
+                            viewModel.sendAskQuestion()
+                        }
+                    },
+                ),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (state.askStreaming) {
-                    TextButton(
-                        onClick = viewModel::stopAskStreaming,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("停止")
-                    }
+            if (state.askStreaming) {
+                IconButton(
+                    onClick = viewModel::stopAskStreaming,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(Icons.Rounded.StopCircle, contentDescription = "停止生成")
                 }
-                Button(
+            } else {
+                FilledIconButton(
                     onClick = viewModel::sendAskQuestion,
                     enabled = !state.askSending && state.askQuestion.isNotBlank(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.size(44.dp),
                 ) {
-                    Text(if (state.askSending) "生成中" else "发送")
+                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
                 }
             }
         }
@@ -1583,26 +1632,10 @@ private fun AskMessageCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (isAssistant && message.sourceRefs.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "来源",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                        message.sourceRefs.take(5).forEach { source ->
-                            TextButton(
-                                onClick = { onOpenSource(source.memoId) },
-                                enabled = source.memoId.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    askSourceLabel(source),
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
+                    AskSourceRefs(
+                        sources = message.sourceRefs,
+                        onOpenSource = onOpenSource,
+                    )
                 }
                 if (isAssistant) {
                     AskMessageActions(
@@ -1613,6 +1646,50 @@ private fun AskMessageCard(
                         onRegenerate = onRegenerate,
                         onSaveAsMemo = onSaveAsMemo,
                         onSelectVariant = onSelectVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskSourceRefs(
+    sources: List<AskSourceRef>,
+    onOpenSource: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.height(32.dp),
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+        ) {
+            Text(
+                "来源 ${sources.size}",
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Icon(
+                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                contentDescription = if (expanded) "隐藏来源" else "显示来源",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (expanded) {
+            sources.take(5).forEach { source ->
+                TextButton(
+                    onClick = { onOpenSource(source.memoId) },
+                    enabled = source.memoId.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        askSourceLabel(source),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -1676,9 +1753,9 @@ private fun AskMessageActions(
     if (!hasVariants && !canRegenerate && !regenerating && !canSave) {
         return
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (hasVariants) {
-            TextButton(
+            IconButton(
                 onClick = {
                     val previous = entry.variants.getOrNull(entry.index - 1)
                     if (previous != null) {
@@ -1686,15 +1763,16 @@ private fun AskMessageActions(
                     }
                 },
                 enabled = entry.index > 0 && !regenerating,
+                modifier = Modifier.size(34.dp),
             ) {
-                Text("上一条")
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "上一条")
             }
             Text(
                 "${entry.index + 1}/${entry.variants.size}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
-            TextButton(
+            IconButton(
                 onClick = {
                     val next = entry.variants.getOrNull(entry.index + 1)
                     if (next != null) {
@@ -1702,18 +1780,27 @@ private fun AskMessageActions(
                     }
                 },
                 enabled = entry.index >= 0 && entry.index < entry.variants.lastIndex && !regenerating,
+                modifier = Modifier.size(34.dp),
             ) {
-                Text("下一条")
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "下一条")
             }
         }
         if (canRegenerate || regenerating) {
-            TextButton(onClick = onRegenerate, enabled = canRegenerate && !regenerating) {
-                Text(if (regenerating) "生成中" else "重新生成")
+            IconButton(
+                onClick = onRegenerate,
+                enabled = canRegenerate && !regenerating,
+                modifier = Modifier.size(34.dp),
+            ) {
+                Icon(Icons.Rounded.Refresh, contentDescription = if (regenerating) "生成中" else "重新生成")
             }
         }
         if (canSave) {
-            TextButton(onClick = onSaveAsMemo, enabled = !savingDisabled && !regenerating) {
-                Text("存为记录")
+            IconButton(
+                onClick = onSaveAsMemo,
+                enabled = !savingDisabled && !regenerating,
+                modifier = Modifier.size(34.dp),
+            ) {
+                Icon(Icons.Rounded.Save, contentDescription = "存为记录")
             }
         }
     }

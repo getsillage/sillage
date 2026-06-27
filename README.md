@@ -1,47 +1,57 @@
-# Sillage
+<p align="center">
+  <img src="web/public/sillage-icon.svg" alt="Sillage" width="96" height="96" />
+</p>
 
-Sillage 是一个单人私密记录空间，用来保存日常片段、查看历史，并基于记录做 AI 总结与问答。
+<h1 align="center">Sillage</h1>
 
-当前仓库已迁移为 memos 风格的 Go 自托管单体：Go 后端、SQLite 文件数据库、本地附件存储、React + TypeScript + Vite 前端、原生 Android 初版、REST API v1 与 Connect/gRPC API v1。旧 Cloudflare Workers 运行路径、内置备份功能、备份 UI、定时任务和备份下载接口已移除。
+Sillage 是一个自托管的个人记录空间，用来保存日常片段、查看历史，并基于自己的记录做 AI 总结与问答。
 
-产品指导文件见 [docs/product/sillage.md](docs/product/sillage.md)，同步契约见 [docs/api/sync.md](docs/api/sync.md)。
+它面向单人使用。首次打开时创建唯一账号，之后需要登录才能访问记录、附件、总结和问答。
 
-## 功能状态
+## 你可以用它做什么
 
-- 唯一账号初始化、登录、refresh、退出。
-- memo 创建、列表、搜索、编辑、删除、置顶、归档。
-- SQLite FTS5 搜索，中文短语和长查询使用 `LIKE` fallback。
-- 本地附件上传与登录后下载，文件保存在数据目录内。
-- AI 档案设置，API key 使用 `ENCRYPTION_SECRET` 加密 envelope 保存。
-- 单条 memo 总结与 Ask 回答由配置的 AI 档案基于记录生成，并进入 sync。
-- `/api/v1/sync` 与 `/api/v1/sync:push` 支持 tombstone、mutation id 幂等和 memo 冲突返回。
-- Connect v1 注册 `AuthService`、`MemoService`、`AttachmentService`、`SettingsService`、`AskService` 与 `SyncService`。
-- Android 初版位于 `android/`，使用 Kotlin + Jetpack Compose + OkHttp，支持服务器地址配置、初始化/登录、记录列表、新建/编辑/删除。
+- 写下每天发生的事、想法、感受或照片。
+- 按列表或日历回看历史记录。
+- 上传附件，图片和文件会保存在自己的数据目录里。
+- 配置自己的 AI 服务，用记录生成总结。
+- 根据已有记录提问，并回到回答引用的原始记录。
+- 在浏览器使用完整功能，也可以用 Android 客户端记录和回看。
 
-后端、数据库、proto 和 API 使用 `memo` 命名；中文界面使用“记录”。首版不引入多用户、公开分享、标签、reaction、relation、RSS、任务系统或知识库能力。
+Sillage 不提供公开主页、多人协作、社交分享、公开探索或内置云同步。你的数据保存在自托管实例的数据目录中。
 
-## 本地开发
+## 快速开始
+
+最简单的方式是使用 Docker：
 
 ```bash
-go test ./...
-go vet ./...
-go build ./cmd/sillage
-
-pnpm --dir web install
-pnpm --dir web typecheck
-pnpm --dir web lint
-pnpm --dir web build
-
-buf lint
-buf generate
-
-SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
-curl http://localhost:5231/healthz
-curl http://localhost:5231/readyz
-curl http://localhost:5231/api/v1/auth/bootstrap
+docker build -t sillage:latest -f scripts/Dockerfile .
+docker run --rm -p 5231:5231 -v "$HOME/.sillage:/var/opt/sillage" sillage:latest
 ```
 
-默认监听端口为 `5231`。默认数据目录为 `/var/opt/sillage`；本地没有该目录时会使用当前目录，也可以显式设置 `SILLAGE_DATA`。运行时目录包含：
+然后打开：
+
+```text
+http://localhost:5231
+```
+
+首次访问会进入初始化页面。创建账号后，这个实例就只允许这个账号登录。
+
+也可以使用 Compose：
+
+```bash
+docker compose -f scripts/compose.yaml up -d --build sillage
+docker compose -f scripts/compose.yaml logs -f sillage
+```
+
+## 数据目录
+
+Docker 默认把持久数据放在容器内 `/var/opt/sillage`。上面的命令会把它映射到本机：
+
+```text
+$HOME/.sillage
+```
+
+目录中包含：
 
 ```text
 sillage.db
@@ -50,89 +60,61 @@ assets/attachments/
 runtime/
 ```
 
-未显式配置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 时，Sillage 会自动生成并持久化到 `runtime/secrets.json`。
+`runtime/` 里保存自动生成的运行密钥。备份时请复制整个数据目录，不要只复制 `sillage.db`。
 
-## Android
-
-Android 工程位于 [android/](android/)，是独立 Gradle 工程；详细说明见 [android/README.md](android/README.md)。初版范围保持在线优先：
-
-- 配置 Sillage 后端地址。
-- 初始化唯一账号或登录已有账号。
-- 查看记录列表。
-- 新建、编辑、删除记录。
-
-默认服务器地址为 `http://10.0.2.2:5231`，适用于 Android 模拟器访问宿主机本地服务。真机需要填写局域网或公网可访问的 Sillage 地址。当前 Android 初版 `minSdk` 为 26，允许 HTTP 明文连接以便本地自托管调试；生产部署建议使用 HTTPS。
-
-```bash
-cd android
-./gradlew :app:assembleDebug
-```
-
-## 配置
-
-常用环境变量：
+## 常用配置
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `SILLAGE_ADDR` | 空 | HTTP 监听地址 |
 | `SILLAGE_PORT` | `5231` | HTTP 监听端口 |
 | `SILLAGE_DATA` | `/var/opt/sillage` | 持久数据目录 |
 | `SILLAGE_DSN` | `$SILLAGE_DATA/sillage.db` | SQLite 数据库路径 |
-| `SILLAGE_MAX_UPLOAD_MB` | `30` | 单文件上传上限 |
-| `SILLAGE_INSTANCE_URL` | 空 | 外部访问地址；未设置时从请求推断 |
+| `SILLAGE_MAX_UPLOAD_MB` | `30` | 单个附件上传上限 |
+| `SILLAGE_INSTANCE_URL` | 空 | 外部访问地址，反向代理或 Tunnel 场景可设置 |
 | `SILLAGE_LOG_FORMAT` | `json` | `json` 或 `text` |
 | `SILLAGE_LOG_LEVEL` | `info` | `debug`、`info`、`warn`、`error` |
-| `SESSION_SECRET` | 自动生成 | 签名 access/refresh token |
-| `ENCRYPTION_SECRET` | 自动生成 | 加密 AI provider API key |
+| `SESSION_SECRET` | 自动生成 | 登录会话签名密钥 |
+| `ENCRYPTION_SECRET` | 自动生成 | AI API key 加密密钥 |
 
-`SILLAGE_DSN_FILE`、`SESSION_SECRET_FILE` 和 `ENCRYPTION_SECRET_FILE` 可用于文件注入 secret。显式变量与对应 `_FILE` 变量不能同时设置。
+`SESSION_SECRET` 和 `ENCRYPTION_SECRET` 可以省略；Sillage 会在首次启动时生成并保存到数据目录。也支持 `SILLAGE_DSN_FILE`、`SESSION_SECRET_FILE`、`ENCRYPTION_SECRET_FILE` 这类文件注入方式。
 
-## API 契约
+## 使用 AI
 
-Protobuf 契约源位于 [proto/](proto/)。Android 工程放在同仓库 `android/` 下，后续离线同步阶段直接复用根目录 `proto/`，不复制契约文件。当前 Android 初版先使用 REST v1 实现在线基础功能。
+登录 Web 端后，在设置里添加 AI 档案。API key 会用 `ENCRYPTION_SECRET` 加密后保存，页面不会再次显示明文 key。
 
-```bash
-buf lint
-buf generate
-```
+AI 功能只基于你的记录生成总结或回答问题。回答中会展示来源记录，方便回到原文确认。
 
-生成物提交入库：
+## Android 客户端
 
-- Go protobuf / gRPC / Connect / grpc-gateway：`proto/gen/api/v1/`
-- OpenAPI：`proto/gen/openapi/openapi.yaml`
+Android 客户端位于 [android/](android/)，适合在手机上连接自己的 Sillage 实例。
 
-Web 前端和 Android 初版都走 REST v1 包装层，不提交 TypeScript 或 Android proto 生成物。REST v1 入口使用 `/api/v1/*`，Connect v1 入口形如 `/sillage.api.v1.MemoService/ListMemos`。REST 与 Connect 共用同一 service 逻辑。
+- Android 模拟器访问本机 Docker 服务时，服务器地址填 `http://10.0.2.2:5231`。
+- 真机需要填写手机可以访问到的局域网或公网地址。
+- 生产使用建议通过 HTTPS 反向代理或 Cloudflare Tunnel 暴露服务。
 
-## Docker 自托管
+更多说明见 [Android 使用说明](android/README.md)。
 
-Docker 是主部署方式。镜像内只提供 HTTP 服务，默认监听 `5231`，所有持久数据放在 `/var/opt/sillage`：
+## 反向代理和 Tunnel
 
-```bash
-docker build -t sillage:latest -f scripts/Dockerfile .
-docker run --rm -p 5231:5231 -v "$HOME/.sillage:/var/opt/sillage" sillage:latest
-```
+Sillage 自身只提供 HTTP 服务。对公网访问时，建议在外层使用 Caddy、Nginx、Cloudflare Tunnel 或其他代理提供 HTTPS。
 
-也可以使用 compose：
-
-```bash
-docker compose -f scripts/compose.yaml up -d --build sillage
-docker compose -f scripts/compose.yaml logs -f sillage
-```
-
-首次访问 `http://localhost:5231` 会进入创建唯一账号页面。初始化完成后不允许创建第二个账号。
-
-Cloudflare Tunnel 可使用 compose profile：
+Compose 文件内置了 Cloudflare Tunnel profile：
 
 ```bash
 CLOUDFLARED_TOKEN=... docker compose -f scripts/compose.yaml --profile tunnel up -d
 ```
 
-Tunnel 的服务地址指向 `http://sillage:5231`。如果使用 Nginx、Caddy 或其他反向代理，由外层负责 TLS，并转发 `X-Forwarded-Proto`、`X-Forwarded-Host` 和 `X-Forwarded-For`；需要固定外部地址时设置 `SILLAGE_INSTANCE_URL`。
+Tunnel 的服务地址指向：
 
-## 运维数据
+```text
+http://sillage:5231
+```
 
-本迁移不导入旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
+如果使用反向代理，请转发 `X-Forwarded-Proto`、`X-Forwarded-Host` 和 `X-Forwarded-For`。需要固定外部地址时设置 `SILLAGE_INSTANCE_URL`。
 
-当前版本不提供内置备份、备份 UI、定时备份、下载接口或导出 CLI。需要备份时，请停止容器后复制整个数据目录，不要只复制 `sillage.db`。同一目录还包含 SQLite WAL/SHM、附件、缩略图缓存和运行时 secret。
+## 更多文档
 
-更详细的协作、架构和验证说明见 [CLAUDE.md](CLAUDE.md)。
+- [使用与部署](docs/user/deployment.md)
+- [数据与备份](docs/user/data.md)
+- [文档目录](docs/README.md)
+- [开发资料](docs/development/README.md)

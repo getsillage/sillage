@@ -43,5 +43,5 @@
 ## 收尾
 
 - [ ] 全站明暗 × 桌面移动走查：记录 / 历史 / 问答 / 设置 / 初始化 / 登录
-- [ ] 涉及产品形态 / 导航 / 命名的改动，已同步 [`../product/sillage.md`](../product/sillage.md)
+- [ ] 涉及产品形态 / 导航 / 命名的改动，已同步 [`../product-guidance.md`](../product-guidance.md)
 - [ ] 无 `console.log` / 调试代码；无硬编码密钥

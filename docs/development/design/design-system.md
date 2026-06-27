@@ -1,6 +1,6 @@
 # Sillage 设计系统 — 令牌规范
 
-> 本文是配色、字体、宽度、组件配方的**单一事实来源**的文档化镜像。真正的事实来源是代码：全局令牌在 [`web/src/styles/app.css`](../../web/src/styles/app.css) 的 `@theme`，组件级类名在 [`web/src/components/ui.ts`](../../web/src/components/ui.ts)。本文与代码冲突时以代码为准，并应更新本文。
+> 本文是配色、字体、宽度、组件配方的**单一事实来源**的文档化镜像。真正的事实来源是代码：全局令牌在 [`web/src/styles/app.css`](../../../web/src/styles/app.css) 的 `@theme`，组件级类名在 [`web/src/components/ui.ts`](../../../web/src/components/ui.ts)。本文与代码冲突时以代码为准，并应更新本文。
 > 方向：ChatGPT-web 式的安静、专注、清楚。详见 [`README.md`](./README.md)。
 
 ## 1. 配色
@@ -57,7 +57,7 @@
 
 ## 4. 布局与宽度
 
-在 [`web/src/components/ui.ts`](../../web/src/components/ui.ts) 定义两个外壳宽度：
+在 [`web/src/components/ui.ts`](../../../web/src/components/ui.ts) 定义两个外壳宽度：
 
 ```ts
 // 阅读 / 表单 / 对话：居中窄栏 ~768px
@@ -93,7 +93,7 @@ export const wideShellClass = "mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-
 
 ### 5.1 Markdown / 长正文
 
-复用已装的 `@tailwindcss/typography`：容器加 `prose max-w-none dark:prose-invert`。落点：[`web/src/components/Markdown.tsx`](../../web/src/components/Markdown.tsx) 及其消费方。**不手写正文排版。**
+复用已装的 `@tailwindcss/typography`：容器加 `prose max-w-none dark:prose-invert`。落点为渲染 Markdown 的组件及其消费方。**不手写正文排版。**
 
 ### 5.2 图标
 
@@ -102,6 +102,6 @@ export const wideShellClass = "mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-
 ## 6. 暗色策略
 
 - class 策略：`.dark`（`app.css` 的 `@custom-variant dark`），`html.color-scheme` 同步。
-- 首屏防闪：[`web/public/theme-init.js`](../../web/public/theme-init.js) 在渲染前应用偏好，storage key `sillage-theme`，支持 `light` / `dark` / `system`（system 不写 storage）。
-- 切换：[`web/src/components/ThemeToggle.tsx`](../../web/src/components/ThemeToggle.tsx) 在浅 / 深间切换，并跟随系统变化。
+- 首屏防闪：[`web/public/theme-init.js`](../../../web/public/theme-init.js) 在渲染前应用偏好，storage key `sillage-theme`，支持 `light` / `dark` / `system`（system 不写 storage）。
+- 切换：[`web/src/components/ThemeToggle.tsx`](../../../web/src/components/ThemeToggle.tsx) 在浅 / 深间切换，并跟随系统变化。
 - **每个新令牌都必须给暗色值。** 不允许残留纯白 / 纯黑硬编码。

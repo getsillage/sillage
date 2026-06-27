@@ -4,7 +4,7 @@
 > Cloudflare Workers 版本的 `/api/sync`。该契约面向 Android 后续离线同步阶段设计，支持
 > tombstone、mutation id 幂等、逐条冲突返回和附件 metadata 同步扩展。
 
-Protobuf 契约源位于 [`../../proto/api/v1`](../../proto/api/v1)，生成物提交入库：
+Protobuf 契约源位于 [`../../../proto/api/v1`](../../../proto/api/v1)，生成物提交入库：
 
 - Go protobuf / gRPC / Connect / grpc-gateway：`proto/gen/api/v1/`
 - OpenAPI：`proto/gen/openapi/openapi.yaml`

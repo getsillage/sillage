@@ -3,8 +3,8 @@
 > 本文件夹记录 Sillage 界面的**设计方向与决策**。
 > 阅读顺序：本文（方向 / 决策 / 约束）→ [`design-system.md`](./design-system.md)（令牌：配色 / 字体 / 宽度 / 组件）→ [`implementation-plan.md`](./implementation-plan.md)（外壳与令牌现状 + 维护约定）。
 > 配套：[`checklist.md`](./checklist.md)（验收清单）。
-> 产品语义以 [`../product/sillage.md`](../product/sillage.md) 为准；本文只描述「外观与外壳」，不改数据模型与产品功能。
-> 本目录只覆盖 Web 客户端；其中“移动端”指 Web 响应式布局。原生 Android 初版见 [`../../android/README.md`](../../android/README.md)。
+> 产品语义以 [`../product-guidance.md`](../product-guidance.md) 为准；本文只描述「外观与外壳」，不改数据模型与产品功能。
+> 本目录只覆盖 Web 客户端；其中“移动端”指 Web 响应式布局。原生 Android 初版见 [`../../../android/README.md`](../../../android/README.md)。
 > 事实来源是代码：`web/src/styles/app.css` 与 `web/src/components/ui.ts`。文档与代码冲突以代码为准。
 
 ## 背景与动机
@@ -37,10 +37,10 @@
 
 ## 技术基线
 
-- **Tailwind v4**（无 `tailwind.config`），主题集中在 [`web/src/styles/app.css`](../../web/src/styles/app.css) 的 `@theme`：`--font-sans` + 重定义的 `--color-gray-*` + `@custom-variant dark` + `@plugin "@tailwindcss/typography"`。
-- **暗色**：class 策略（`.dark`）。[`web/public/theme-init.js`](../../web/public/theme-init.js) 首屏前应用，storage key `sillage-theme`，支持 `light` / `dark` / `system`。
-- **共享样式**集中在 [`web/src/components/ui.ts`](../../web/src/components/ui.ts)；页面也会内联 `gray-*` 工具类，高频模式逐步收敛为令牌。
-- **外壳**：[`web/src/components/AppShell.tsx`](../../web/src/components/AppShell.tsx)（桌面可折叠侧栏 + 移动抽屉 + QuickCapture 挂载）与 [`web/src/components/Sidebar.tsx`](../../web/src/components/Sidebar.tsx)。
+- **Tailwind v4**（无 `tailwind.config`），主题集中在 [`web/src/styles/app.css`](../../../web/src/styles/app.css) 的 `@theme`：`--font-sans` + 重定义的 `--color-gray-*` + `@custom-variant dark` + `@plugin "@tailwindcss/typography"`。
+- **暗色**：class 策略（`.dark`）。[`web/public/theme-init.js`](../../../web/public/theme-init.js) 首屏前应用，storage key `sillage-theme`，支持 `light` / `dark` / `system`。
+- **共享样式**集中在 [`web/src/components/ui.ts`](../../../web/src/components/ui.ts)；页面也会内联 `gray-*` 工具类，高频模式逐步收敛为令牌。
+- **外壳**：[`web/src/components/AppShell.tsx`](../../../web/src/components/AppShell.tsx)（桌面可折叠侧栏 + 移动抽屉 + QuickCapture 挂载）与 [`web/src/components/Sidebar.tsx`](../../../web/src/components/Sidebar.tsx)。
 - **Markdown**：`react-markdown` + `remark-gfm` + `remark-breaks` + `@tailwindcss/typography`（非富文本所见即所得编辑器）。
 
 ## 不在范围内（Non-goals）
@@ -54,4 +54,4 @@
 - `pnpm --dir web typecheck` 且 `pnpm --dir web lint`（Biome）。
 - 改了交互逻辑（抽屉开合 / 焦点管理 / active 态）补轻量测试：`pnpm --dir web test`。
 - `pnpm --dir web build` 通过；配合本地 Go 服务人工核对：**明 + 暗 × 桌面 + 移动**，覆盖 记录 / 历史 / 问答 / 设置 / 初始化 / 登录。
-- 涉及产品形态 / 导航 / 命名的改动，对照并按需更新 [`../product/sillage.md`](../product/sillage.md)。
+- 涉及产品形态 / 导航 / 命名的改动，对照并按需更新 [`../product-guidance.md`](../product-guidance.md)。

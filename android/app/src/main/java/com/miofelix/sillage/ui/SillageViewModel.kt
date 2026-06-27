@@ -34,6 +34,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null
+    private var searchJob: Job? = null
     private val _state = MutableStateFlow(
         SillageUiState(
             screen = Screen.Loading,
@@ -413,9 +415,18 @@ class SillageViewModel(context: Context) : ViewModel() {
                 searching = if (value.isBlank()) false else it.searching,
             )
         }
+        searchJob?.cancel()
+        if (value.isBlank()) {
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(350)
+            searchMemos()
+        }
     }
 
     fun searchMemos() {
+        searchJob?.cancel()
         val query = state.value.searchQuery.trim()
         if (query.isBlank()) {
             clearSearch()
@@ -431,27 +442,36 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { memos ->
-                    _state.update {
-                        it.copy(
-                            searchResults = activeMemos(memos),
-                            searching = false,
-                            error = null,
-                        )
+                    _state.update { current ->
+                        if (current.searchQuery.trim() == query) {
+                            current.copy(
+                                searchResults = activeMemos(memos),
+                                searching = false,
+                                error = null,
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            searchResults = emptyList(),
-                            searching = false,
-                            error = error.readableMessage(),
-                        )
+                    _state.update { current ->
+                        if (current.searchQuery.trim() == query) {
+                            current.copy(
+                                searchResults = emptyList(),
+                                searching = false,
+                                error = error.readableMessage(),
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
         }
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
         _state.update {
             it.copy(
                 searchQuery = "",

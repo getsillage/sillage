@@ -3,6 +3,7 @@ package com.miofelix.sillage.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,26 +13,57 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -254,8 +286,11 @@ private fun AuthScaffold(
 
 @Composable
 private fun ThemeModeButton(state: SillageUiState, viewModel: SillageViewModel) {
-    TextButton(onClick = viewModel::toggleThemeMode) {
-        Text(if (state.themeMode == SessionStore.THEME_DARK) "深色" else "浅色")
+    IconButton(onClick = viewModel::toggleThemeMode) {
+        Icon(
+            imageVector = if (state.themeMode == SessionStore.THEME_DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+            contentDescription = if (state.themeMode == SessionStore.THEME_DARK) "切换浅色模式" else "切换深色模式",
+        )
     }
 }
 
@@ -278,6 +313,9 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
             viewModel.importFullData(uri)
         }
     }
+    if (state.quickCaptureOpen) {
+        QuickCaptureSheet(state, viewModel)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -298,10 +336,13 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 },
                 actions = {
-                    TextButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
-                        Text("刷新")
+                    IconButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "刷新")
                     }
-                    DataMenu(
+                    IconButton(onClick = viewModel::openAsk) {
+                        Icon(Icons.Rounded.SmartToy, contentDescription = "Ask")
+                    }
+                    MemoActionsMenu(
                         state = state,
                         onExport = { exportLauncher.launch("sillage-data.json") },
                         onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
@@ -310,30 +351,17 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onSyncBothWays = viewModel::syncBothWays,
                         onOnline = viewModel::useOnlineMode,
                         onOffline = viewModel::useOfflineMode,
+                        onAISettings = viewModel::openAISettings,
+                        onServerSettings = viewModel::openServerSettings,
+                        onSignOut = viewModel::signOut,
+                        onToggleTheme = viewModel::toggleThemeMode,
                     )
-                    TextButton(onClick = viewModel::openAISettings) {
-                        Text("AI")
-                    }
-                    TextButton(onClick = viewModel::openAsk) {
-                        Text("Ask")
-                    }
-                    if (state.appMode == SessionStore.MODE_ONLINE) {
-                        TextButton(onClick = viewModel::openServerSettings) {
-                            Text("服务器")
-                        }
-                    }
-                    ThemeModeButton(state, viewModel)
-                    if (state.appMode == SessionStore.MODE_ONLINE) {
-                        TextButton(onClick = viewModel::signOut) {
-                            Text("退出")
-                        }
-                    }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = viewModel::openQuickCapture) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
+                Icon(Icons.Rounded.Add, contentDescription = "新建记录")
             }
         },
     ) { padding ->
@@ -367,15 +395,12 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     onMemoClick = viewModel::editMemo,
                 )
             }
-            if (state.quickCaptureOpen) {
-                QuickCaptureSheet(state, viewModel)
-            }
         }
     }
 }
 
 @Composable
-private fun DataMenu(
+private fun MemoActionsMenu(
     state: SillageUiState,
     onExport: () -> Unit,
     onImport: () -> Unit,
@@ -384,15 +409,51 @@ private fun DataMenu(
     onSyncBothWays: () -> Unit,
     onOnline: () -> Unit,
     onOffline: () -> Unit,
+    onAISettings: () -> Unit,
+    onServerSettings: () -> Unit,
+    onSignOut: () -> Unit,
+    onToggleTheme: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { expanded = true }, enabled = !state.loading) {
-            Text("数据")
+        IconButton(onClick = { expanded = true }, enabled = !state.loading) {
+            Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
+                text = { Text("AI 设置") },
+                leadingIcon = { Icon(Icons.Rounded.SmartToy, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onAISettings()
+                },
+            )
+            if (state.appMode == SessionStore.MODE_ONLINE) {
+                DropdownMenuItem(
+                    text = { Text("服务器设置") },
+                    leadingIcon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onServerSettings()
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(if (state.themeMode == SessionStore.THEME_DARK) "切换浅色模式" else "切换深色模式") },
+                leadingIcon = {
+                    Icon(
+                        if (state.themeMode == SessionStore.THEME_DARK) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onToggleTheme()
+                },
+            )
+            DropdownMenuItem(
                 text = { Text(if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式") },
+                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onOnline()
@@ -401,6 +462,7 @@ private fun DataMenu(
             )
             DropdownMenuItem(
                 text = { Text(if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式") },
+                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onOffline()
@@ -409,6 +471,7 @@ private fun DataMenu(
             )
             DropdownMenuItem(
                 text = { Text("同步到本地") },
+                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onSyncToLocal()
@@ -417,6 +480,7 @@ private fun DataMenu(
             )
             DropdownMenuItem(
                 text = { Text("同步到云端") },
+                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onSyncToServer()
@@ -425,6 +489,7 @@ private fun DataMenu(
             )
             DropdownMenuItem(
                 text = { Text("双向同步") },
+                leadingIcon = { Icon(Icons.Rounded.CloudSync, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onSyncBothWays()
@@ -445,96 +510,109 @@ private fun DataMenu(
                     onImport()
                 },
             )
-        }
-    }
-}
-
-@Composable
-private fun QuickCaptureSheet(state: SillageUiState, viewModel: SillageViewModel) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = viewModel::closeQuickCapture),
-            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.18f),
-        ) {
-            Spacer(modifier = Modifier.fillMaxSize())
-        }
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "速记",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    TextButton(onClick = viewModel::closeQuickCapture, enabled = !state.quickCaptureSaving) {
-                        Text("关闭")
-                    }
-                }
-                OutlinedTextField(
-                    value = state.quickCaptureBody,
-                    onValueChange = viewModel::updateQuickCaptureBody,
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    maxLines = 6,
-                    placeholder = { Text("想记录什么？") },
+            if (state.appMode == SessionStore.MODE_ONLINE) {
+                DropdownMenuItem(
+                    text = { Text("退出登录") },
+                    onClick = {
+                        expanded = false
+                        onSignOut()
+                    },
                 )
-                if (state.quickCaptureError != null) {
-                    Text(
-                        state.quickCaptureError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = viewModel::expandQuickCaptureToEditor,
-                        enabled = !state.quickCaptureSaving,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("写得更完整")
-                    }
-                    Button(
-                        onClick = viewModel::saveQuickCapture,
-                        enabled = !state.quickCaptureSaving,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(if (state.quickCaptureSaving) "保存中" else "保存")
-                    }
-                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemoViewToggle(mode: MemoViewMode, viewModel: SillageViewModel) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun QuickCaptureSheet(state: SillageUiState, viewModel: SillageViewModel) {
+    ModalBottomSheet(
+        onDismissRequest = {
+            if (!state.quickCaptureSaving) {
+                viewModel.closeQuickCapture()
+            }
+        },
     ) {
-        MemoViewButton("列表", mode == MemoViewMode.List) {
-            viewModel.updateMemoViewMode(MemoViewMode.List)
-        }
-        MemoViewButton("日历", mode == MemoViewMode.Calendar) {
-            viewModel.updateMemoViewMode(MemoViewMode.Calendar)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "速记",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = viewModel::closeQuickCapture, enabled = !state.quickCaptureSaving) {
+                    Icon(Icons.Rounded.Close, contentDescription = "关闭速记")
+                }
+            }
+            OutlinedTextField(
+                value = state.quickCaptureBody,
+                onValueChange = viewModel::updateQuickCaptureBody,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 5,
+                maxLines = 8,
+                placeholder = { Text("想记录什么？") },
+            )
+            if (state.quickCaptureError != null) {
+                Text(
+                    state.quickCaptureError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = viewModel::expandQuickCaptureToEditor,
+                    enabled = !state.quickCaptureSaving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("完整编辑")
+                }
+                Button(
+                    onClick = viewModel::saveQuickCapture,
+                    enabled = !state.quickCaptureSaving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (state.quickCaptureSaving) "保存中" else "保存")
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemoViewButton(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun MemoViewToggle(mode: MemoViewMode, viewModel: SillageViewModel) {
+    val selectedIndex = if (mode == MemoViewMode.List) 0 else 1
+    PrimaryTabRow(selectedTabIndex = selectedIndex) {
+        Tab(
+            selected = mode == MemoViewMode.List,
+            onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
+            text = { Text("列表") },
+            icon = { Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, contentDescription = null) },
+        )
+        Tab(
+            selected = mode == MemoViewMode.Calendar,
+            onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
+            text = { Text("日历") },
+            icon = { Icon(Icons.Rounded.CalendarMonth, contentDescription = null) },
+        )
+    }
+}
+
+@Composable
+private fun MarkdownModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
     if (selected) {
         Button(onClick = onClick) {
             Text(label)
@@ -589,32 +667,39 @@ private fun MemoListView(
 
 @Composable
 private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
-    Column(
+    Row(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         OutlinedTextField(
             value = state.searchQuery,
             onValueChange = viewModel::updateSearchQuery,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.weight(1f),
             singleLine = true,
-            label = { Text("搜索记录") },
+            placeholder = { Text("搜索记录") },
+            leadingIcon = {
+                if (state.searching) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Rounded.Search, contentDescription = null)
+                }
+            },
+            trailingIcon = {
+                if (state.searchQuery.isNotBlank() || state.searchResults != null) {
+                    IconButton(onClick = viewModel::clearSearch) {
+                        Icon(Icons.Rounded.Close, contentDescription = "清除搜索")
+                    }
+                }
+            },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { viewModel.searchMemos() }),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = viewModel::searchMemos,
-                enabled = !state.searching && state.searchQuery.isNotBlank(),
-            ) {
-                Text(if (state.searching) "搜索中" else "搜索")
-            }
-            TextButton(
-                onClick = viewModel::clearSearch,
-                enabled = state.searchQuery.isNotBlank() || state.searchResults != null,
-            ) {
-                Text("清除")
-            }
+        FilledIconButton(
+            onClick = viewModel::searchMemos,
+            enabled = !state.searching && state.searchQuery.isNotBlank(),
+        ) {
+            Icon(Icons.Rounded.Search, contentDescription = "搜索")
         }
     }
 }
@@ -896,16 +981,20 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             TopAppBar(
                 title = { Text(if (state.selectedMemo == null) "新建记录" else "编辑记录") },
                 navigationIcon = {
-                    TextButton(onClick = viewModel::closeEditor) {
-                        Text("返回")
+                    IconButton(onClick = viewModel::closeEditor) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
                     val selected = state.selectedMemo
+                    TextButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
+                        Icon(Icons.Rounded.Check, contentDescription = null)
+                        Text(if (state.loading) "保存中" else "保存")
+                    }
                     if (selected != null) {
                         Box {
-                            TextButton(onClick = { menuExpanded = true }, enabled = !state.loading) {
-                                Text("更多")
+                            IconButton(onClick = { menuExpanded = true }, enabled = !state.loading) {
+                                Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
                             }
                             DropdownMenu(
                                 expanded = menuExpanded,
@@ -913,6 +1002,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(if (selected.pinnedAt == null) "置顶" else "取消置顶") },
+                                    leadingIcon = { Icon(Icons.Rounded.PushPin, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoPinned()
@@ -920,6 +1010,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 )
                                 DropdownMenuItem(
                                     text = { Text(if (selected.archivedAt == null) "归档" else "取消归档") },
+                                    leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoArchived()
@@ -927,6 +1018,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 )
                                 DropdownMenuItem(
                                     text = { Text("删除") },
+                                    leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
                                         confirmDelete = true
@@ -935,10 +1027,6 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                             }
                         }
                     }
-                    TextButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
-                        Text(if (state.loading) "保存中" else "保存")
-                    }
-                    ThemeModeButton(state, viewModel)
                 },
             )
         },
@@ -972,10 +1060,11 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             )
             if (state.appMode == SessionStore.MODE_ONLINE) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                    TextButton(
                         onClick = { attachmentLauncher.launch("*/*") },
                         enabled = !state.uploadingAttachment,
                     ) {
+                        Icon(Icons.Rounded.AttachFile, contentDescription = null)
                         Text(if (state.uploadingAttachment) "上传中" else "附件")
                     }
                 }
@@ -1005,8 +1094,8 @@ private fun MarkdownEditorSection(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MemoViewButton("编辑", !preview) { onPreviewChange(false) }
-            MemoViewButton("预览", preview) { onPreviewChange(true) }
+            MarkdownModeButton("编辑", !preview) { onPreviewChange(false) }
+            MarkdownModeButton("预览", preview) { onPreviewChange(true) }
         }
         MarkdownToolbar(onFormat)
         if (preview) {
@@ -1032,23 +1121,22 @@ private fun MarkdownEditorSection(
 
 @Composable
 private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MarkdownToolButton("H") { onFormat(MarkdownFormatStyle.Heading) }
-            MarkdownToolButton("B") { onFormat(MarkdownFormatStyle.Bold) }
-            MarkdownToolButton("I") { onFormat(MarkdownFormatStyle.Italic) }
-            MarkdownToolButton("`") { onFormat(MarkdownFormatStyle.Code) }
-            MarkdownToolButton("列表") { onFormat(MarkdownFormatStyle.List) }
-            MarkdownToolButton("引用") { onFormat(MarkdownFormatStyle.Quote) }
-        }
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        MarkdownToolButton("H") { onFormat(MarkdownFormatStyle.Heading) }
+        MarkdownToolButton("B") { onFormat(MarkdownFormatStyle.Bold) }
+        MarkdownToolButton("I") { onFormat(MarkdownFormatStyle.Italic) }
+        MarkdownToolButton("`") { onFormat(MarkdownFormatStyle.Code) }
+        MarkdownToolButton("列表") { onFormat(MarkdownFormatStyle.List) }
+        MarkdownToolButton("引用") { onFormat(MarkdownFormatStyle.Quote) }
     }
 }
 
 @Composable
 private fun MarkdownToolButton(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) {
-        Text(label)
-    }
+    AssistChip(onClick = onClick, label = { Text(label) })
 }
 
 @Composable

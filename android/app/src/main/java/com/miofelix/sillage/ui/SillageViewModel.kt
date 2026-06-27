@@ -674,10 +674,13 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun updateMemoViewMode(mode: MemoViewMode) {
         _state.update {
             it.copy(
+                screen = Screen.Memos,
                 memoViewMode = mode,
                 searchQuery = if (mode == MemoViewMode.Calendar) "" else it.searchQuery,
                 searchResults = if (mode == MemoViewMode.Calendar) null else it.searchResults,
                 searching = if (mode == MemoViewMode.Calendar) false else it.searching,
+                selectedMemo = null,
+                selectedSummary = null,
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
         }

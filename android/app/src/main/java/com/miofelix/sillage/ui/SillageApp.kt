@@ -25,7 +25,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AttachFile
@@ -36,6 +35,7 @@ import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
@@ -44,7 +44,6 @@ import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -60,12 +59,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -391,9 +390,6 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     IconButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
                         Icon(Icons.Rounded.Refresh, contentDescription = "刷新")
                     }
-                    IconButton(onClick = viewModel::openAsk) {
-                        Icon(Icons.Rounded.QuestionAnswer, contentDescription = "Ask")
-                    }
                     MemoActionsMenu(
                         state = state,
                         onExport = { exportLauncher.launch("sillage-data.json") },
@@ -403,7 +399,6 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onSyncBothWays = viewModel::syncBothWays,
                         onOnline = viewModel::useOnlineMode,
                         onOffline = viewModel::useOfflineMode,
-                        onAISettings = viewModel::openAISettings,
                         onServerSettings = viewModel::openServerSettings,
                         onSignOut = viewModel::signOut,
                         onToggleTheme = viewModel::toggleThemeMode,
@@ -416,6 +411,9 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 Icon(Icons.Rounded.Add, contentDescription = "新建记录")
             }
         },
+        bottomBar = {
+            MainNavigationBar(state = state, viewModel = viewModel)
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -427,7 +425,6 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 notice = state.notice,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
-            MemoViewToggle(state.memoViewMode, viewModel)
             if (state.memoViewMode == MemoViewMode.List) {
                 SearchBlock(state = state, viewModel = viewModel)
             }
@@ -461,7 +458,6 @@ private fun MemoActionsMenu(
     onSyncBothWays: () -> Unit,
     onOnline: () -> Unit,
     onOffline: () -> Unit,
-    onAISettings: () -> Unit,
     onServerSettings: () -> Unit,
     onSignOut: () -> Unit,
     onToggleTheme: () -> Unit,
@@ -472,14 +468,6 @@ private fun MemoActionsMenu(
             Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("AI 设置") },
-                leadingIcon = { Icon(Icons.Rounded.SmartToy, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onAISettings()
-                },
-            )
             if (state.appMode == SessionStore.MODE_ONLINE) {
                 DropdownMenuItem(
                     text = { Text("服务器设置") },
@@ -645,20 +633,31 @@ private fun QuickCaptureSheet(state: SillageUiState, viewModel: SillageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemoViewToggle(mode: MemoViewMode, viewModel: SillageViewModel) {
-    val selectedIndex = if (mode == MemoViewMode.List) 0 else 1
-    PrimaryTabRow(selectedTabIndex = selectedIndex) {
-        Tab(
-            selected = mode == MemoViewMode.List,
+private fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewModel) {
+    NavigationBar {
+        NavigationBarItem(
+            selected = state.screen == Screen.Memos && state.memoViewMode == MemoViewMode.List,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
-            text = { Text("列表") },
-            icon = { Icon(Icons.AutoMirrored.Rounded.FormatListBulleted, contentDescription = null) },
+            icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
+            label = { Text("记录") },
         )
-        Tab(
-            selected = mode == MemoViewMode.Calendar,
+        NavigationBarItem(
+            selected = state.screen == Screen.Memos && state.memoViewMode == MemoViewMode.Calendar,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
-            text = { Text("日历") },
             icon = { Icon(Icons.Rounded.CalendarMonth, contentDescription = null) },
+            label = { Text("日历") },
+        )
+        NavigationBarItem(
+            selected = state.screen == Screen.Ask,
+            onClick = viewModel::openAsk,
+            icon = { Icon(Icons.Rounded.QuestionAnswer, contentDescription = null) },
+            label = { Text("Ask") },
+        )
+        NavigationBarItem(
+            selected = state.screen == Screen.AISettings,
+            onClick = viewModel::openAISettings,
+            icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+            label = { Text("设置") },
         )
     }
 }
@@ -1464,6 +1463,9 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 },
             )
         },
+        bottomBar = {
+            MainNavigationBar(state = state, viewModel = viewModel)
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -1825,6 +1827,9 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     ThemeModeButton(state, viewModel)
                 },
             )
+        },
+        bottomBar = {
+            MainNavigationBar(state = state, viewModel = viewModel)
         },
     ) { padding ->
         Column(

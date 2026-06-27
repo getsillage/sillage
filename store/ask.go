@@ -134,6 +134,30 @@ func (s *Store) GetAskMessage(ctx context.Context, id string) (*AskMessage, erro
 WHERE id = ? AND deleted_at IS NULL`, id))
 }
 
+// SetAskConversationHead points a conversation's active leaf at headMessageID,
+// used when the user switches between regenerated answer variants. The message
+// must belong to the conversation.
+func (s *Store) SetAskConversationHead(ctx context.Context, accountID, conversationID, headMessageID string) error {
+	result, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE ask_conversations
+SET head_message_id = ?, updated_at = ?
+WHERE id = ? AND creator_id = ? AND deleted_at IS NULL
+  AND EXISTS (SELECT 1 FROM ask_messages WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL)`,
+		headMessageID, time.Now().UTC().UnixMilli(),
+		conversationID, accountID, headMessageID, conversationID)
+	if err != nil {
+		return fmt.Errorf("set ask conversation head: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set ask conversation head rows: %w", err)
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (s *Store) ListAskMessages(ctx context.Context, conversationID string) ([]*AskMessage, error) {
 	rows, err := s.driver.GetDB().QueryContext(ctx, askMessageSelect()+`
 WHERE conversation_id = ? AND deleted_at IS NULL

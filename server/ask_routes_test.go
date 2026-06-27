@@ -234,6 +234,81 @@ func TestAskStreamMessageDeliversSSEEvents(t *testing.T) {
 	}
 }
 
+func TestAskRegenerateForksAnswerAndSetHead(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+	createMemoForAsk(t, srv, token, "今天睡得好，精神不错。", "2026-06-26")
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversationID+"/messages",
+		map[string]any{"content": "我最近怎么样？"}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("first message status = %d body=%s", res.Code, res.Body.String())
+	}
+	var first map[string][]map[string]any
+	_ = json.Unmarshal(res.Body.Bytes(), &first)
+	if len(first["messages"]) != 2 {
+		t.Fatalf("first turn messages = %d, want 2", len(first["messages"]))
+	}
+	assistant := first["messages"][1]
+	assistantID := assistant["id"].(string)
+
+	// Regenerate: forkOfId set, empty content — no new user message, one new
+	// assistant sibling.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversationID+"/messages",
+		map[string]any{"forkOfId": assistantID}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("regenerate status = %d body=%s", res.Code, res.Body.String())
+	}
+	var regen map[string][]map[string]any
+	_ = json.Unmarshal(res.Body.Bytes(), &regen)
+	if len(regen["messages"]) != 1 {
+		t.Fatalf("regenerate returned %d messages, want 1 (assistant only)", len(regen["messages"]))
+	}
+	variant := regen["messages"][0]
+	if variant["role"] != "assistant" {
+		t.Fatalf("regenerated role = %v, want assistant", variant["role"])
+	}
+	if variant["forkOfId"] != assistantID {
+		t.Fatalf("forkOfId = %v, want %s", variant["forkOfId"], assistantID)
+	}
+	if variant["parentId"] != assistant["parentId"] {
+		t.Fatalf("variant parentId = %v, want same question %v", variant["parentId"], assistant["parentId"])
+	}
+
+	// The conversation now holds 3 messages: U1, A1, A1'.
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
+	var all map[string][]map[string]any
+	_ = json.Unmarshal(res.Body.Bytes(), &all)
+	if len(all["messages"]) != 3 {
+		t.Fatalf("messages after regenerate = %d, want 3", len(all["messages"]))
+	}
+
+	// setHead switches the active leaf back to the first answer.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversationID+"/head",
+		map[string]any{"messageId": assistantID}, bearer(token))
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("setHead status = %d body=%s", res.Code, res.Body.String())
+	}
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations", nil, bearer(token))
+	if !strings.Contains(res.Body.String(), `"headMessageId":"`+assistantID+`"`) {
+		t.Fatalf("head not switched: %s", res.Body.String())
+	}
+
+	// setHead rejects a message from outside the conversation.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversationID+"/head",
+		map[string]any{"messageId": "does-not-exist"}, bearer(token))
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("setHead bad id status = %d, want 404", res.Code)
+	}
+}
+
 // parseSSE groups an SSE response body's data payloads by event name.
 func parseSSE(body string) map[string][]string {
 	out := map[string][]string{}

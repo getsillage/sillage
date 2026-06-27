@@ -125,30 +125,68 @@ func (s *Server) listAskMessages(ctx context.Context, accountID, conversationID 
 	return s.Store.ListAskMessages(ctx, conversation.ID)
 }
 
-func (s *Server) createAskMessage(ctx context.Context, accountID string, input askMessageInput) (*askCreateMessageResult, error) {
-	conversation, err := s.Store.GetAskConversation(ctx, accountID, input.ConversationID)
-	if err != nil {
-		return nil, err
+// askTurn is the resolved question for a new answer. newUser is non-nil only
+// when a fresh user message was created (a normal turn); forkOfID is set when
+// regenerating, so the new answer becomes a sibling of an existing one.
+type askTurn struct {
+	question *store.AskMessage
+	newUser  *store.AskMessage
+	forkOfID string
+}
+
+// resolveAskTurn figures out which question a new answer responds to. A
+// regenerate (forkOfId set, empty content) reuses the forked answer's question;
+// a normal turn creates a user message under the requested parent (or the head).
+func (s *Server) resolveAskTurn(ctx context.Context, conv *store.AskConversation, input askMessageInput) (*askTurn, error) {
+	if input.ForkOfID != "" && strings.TrimSpace(input.Content) == "" {
+		fork, err := s.Store.GetAskMessage(ctx, input.ForkOfID)
+		if err != nil {
+			return nil, err
+		}
+		if fork.ConversationID != conv.ID || fork.Role != "assistant" || !fork.ParentID.Valid {
+			return nil, validationError{message: "无法重新生成该回答"}
+		}
+		question, err := s.Store.GetAskMessage(ctx, fork.ParentID.String)
+		if err != nil {
+			return nil, err
+		}
+		return &askTurn{question: question, forkOfID: fork.ID}, nil
 	}
-	input.Content = strings.TrimSpace(input.Content)
-	if input.Content == "" {
+
+	content := strings.TrimSpace(input.Content)
+	if content == "" {
 		return nil, validationError{message: "问题不能为空"}
 	}
-	userMessage, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{
-		ConversationID: conversation.ID,
+	parentID := input.ParentID
+	if parentID == "" && conv.HeadMessageID.Valid {
+		parentID = conv.HeadMessageID.String
+	}
+	user, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{
+		ConversationID: conv.ID,
 		Role:           "user",
-		Content:        input.Content,
-		ParentID:       sql.NullString{String: input.ParentID, Valid: input.ParentID != ""},
-		ForkOfID:       sql.NullString{String: input.ForkOfID, Valid: input.ForkOfID != ""},
+		Content:        content,
+		ParentID:       sql.NullString{String: parentID, Valid: parentID != ""},
 		Status:         "complete",
 		SourceRefs:     "[]",
 	})
 	if err != nil {
 		return nil, err
 	}
+	return &askTurn{question: user, newUser: user}, nil
+}
+
+func (s *Server) createAskMessage(ctx context.Context, accountID string, input askMessageInput) (*askCreateMessageResult, error) {
+	conversation, err := s.Store.GetAskConversation(ctx, accountID, input.ConversationID)
+	if err != nil {
+		return nil, err
+	}
+	turn, err := s.resolveAskTurn(ctx, conversation, input)
+	if err != nil {
+		return nil, err
+	}
 
 	scope := firstNonEmpty(input.ContextScope, conversation.ContextScope)
-	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, input.Content, scope, input.SourceKind, conversation.ID)
+	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, turn.question.Content, scope, input.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +194,8 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 		ConversationID: conversation.ID,
 		Role:           "assistant",
 		Content:        answer,
-		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
+		ParentID:       sql.NullString{String: turn.question.ID, Valid: true},
+		ForkOfID:       sql.NullString{String: turn.forkOfID, Valid: turn.forkOfID != ""},
 		Status:         "complete",
 		SourceRefs:     encodeAskSourceRefs(sources),
 		Model:          modelName,
@@ -164,7 +203,12 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 	if err != nil {
 		return nil, err
 	}
-	return &askCreateMessageResult{Messages: []*store.AskMessage{userMessage, assistantMessage}}, nil
+	messages := make([]*store.AskMessage, 0, 2)
+	if turn.newUser != nil {
+		messages = append(messages, turn.newUser)
+	}
+	messages = append(messages, assistantMessage)
+	return &askCreateMessageResult{Messages: messages}, nil
 }
 
 func (s *Server) getAISettings(ctx context.Context, accountID string) ([]*store.AIProfile, error) {

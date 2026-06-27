@@ -43,6 +43,35 @@ func (s *Server) registerAskRoutes(e *echo.Echo) {
 	e.GET("/api/v1/ask/conversations/:conversation/messages", s.handleListAskMessages)
 	e.POST("/api/v1/ask/conversations/:conversation/messages", s.handleCreateAskMessage)
 	e.POST("/api/v1/ask/conversations/:conversation/messages:stream", s.handleStreamAskMessage)
+	e.POST("/api/v1/ask/conversations/:conversation/head", s.handleSetAskHead)
+}
+
+type askSetHeadRequest struct {
+	MessageID string `json:"messageId"`
+}
+
+// handleSetAskHead points the conversation's active leaf at the given message,
+// persisting which regenerated branch the user is viewing so follow-ups attach
+// to it and a reload restores the same branch.
+func (s *Server) handleSetAskHead(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req askSetHeadRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	if strings.TrimSpace(req.MessageID) == "" {
+		return apiError(c, http.StatusBadRequest, "invalid_field", "messageId 不能为空")
+	}
+	if err := s.Store.SetAskConversationHead(c.Request().Context(), account.ID, c.Param("conversation"), req.MessageID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError(c, http.StatusNotFound, "not_found", "会话或消息不存在")
+		}
+		return apiError(c, http.StatusInternalServerError, "internal", "更新会话失败")
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (s *Server) handleListAskConversations(c *echo.Context) error {
@@ -141,8 +170,11 @@ type askAnswerPrep struct {
 
 // prepareAskAnswer selects sources, builds the prompt + history, and picks the
 // active profile. Shared by the unary and streaming answer paths; it makes no
-// AI call and acquires no job slot.
-func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scope, sourceKind, conversationID string) (*askAnswerPrep, error) {
+// AI call and acquires no job slot. historyParentID is the message the new
+// answer's question follows (i.e. the question's own parent); history is the
+// ancestor chain ending there, which is correct for linear, branched, and
+// regenerated turns alike.
+func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scope, sourceKind, conversationID, historyParentID string) (*askAnswerPrep, error) {
 	memos, err := s.listAskCandidateMemos(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -185,20 +217,45 @@ func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scop
 		return nil, err
 	}
 
-	history := make([]aiProviderMessage, 0, len(messages))
-	for _, message := range messages {
-		role := strings.ToLower(strings.TrimSpace(message.Role))
-		if role != "user" && role != "assistant" {
-			continue
-		}
-		history = append(history, aiProviderMessage{Role: role, Content: message.Content})
-	}
-	// Drop the just-created question; it is re-added as the grounded prompt.
-	if len(history) > 0 {
-		history = history[:len(history)-1]
-	}
+	history := askAncestorHistory(messages, historyParentID)
 	history = append(history, aiProviderMessage{Role: "user", Content: askUserPrompt(scope, question, sources)})
 	return &askAnswerPrep{sources: sources, messages: history, profile: profile}, nil
+}
+
+// askAncestorHistory walks the message tree from leafID up to the root via
+// parent links and returns the chain root-first as provider messages. This is
+// the conversation context preceding a new answer, independent of sibling
+// branches created by regeneration.
+func askAncestorHistory(messages []*store.AskMessage, leafID string) []aiProviderMessage {
+	byID := make(map[string]*store.AskMessage, len(messages))
+	for _, message := range messages {
+		byID[message.ID] = message
+	}
+	chain := make([]aiProviderMessage, 0, len(messages))
+	seen := make(map[string]struct{})
+	for id := leafID; id != ""; {
+		node, ok := byID[id]
+		if !ok {
+			break
+		}
+		if _, dup := seen[id]; dup {
+			break // defensive against a cyclic parent link
+		}
+		seen[id] = struct{}{}
+		role := strings.ToLower(strings.TrimSpace(node.Role))
+		if role == "user" || role == "assistant" {
+			chain = append(chain, aiProviderMessage{Role: role, Content: node.Content})
+		}
+		if !node.ParentID.Valid {
+			break
+		}
+		id = node.ParentID.String
+	}
+	// Collected leaf-first; reverse to root-first.
+	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
+		chain[i], chain[j] = chain[j], chain[i]
+	}
+	return chain
 }
 
 // handleStreamAskMessage answers a question over Server-Sent Events, delivering
@@ -224,35 +281,32 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取会话失败")
 	}
-	content := strings.TrimSpace(req.Content)
-	if content == "" {
-		return apiError(c, http.StatusBadRequest, "invalid_field", "问题不能为空")
-	}
 
-	userMessage, err := s.Store.CreateAskMessage(reqCtx, &store.AskMessage{
+	turn, err := s.resolveAskTurn(reqCtx, conversation, askMessageInput{
 		ConversationID: conversation.ID,
-		Role:           "user",
-		Content:        content,
-		ParentID:       sql.NullString{String: req.ParentID, Valid: req.ParentID != ""},
-		ForkOfID:       sql.NullString{String: req.ForkOfID, Valid: req.ForkOfID != ""},
-		Status:         "complete",
-		SourceRefs:     "[]",
+		Content:        req.Content,
+		ParentID:       req.ParentID,
+		ForkOfID:       req.ForkOfID,
 	})
 	if err != nil {
-		return apiError(c, http.StatusInternalServerError, "internal", "保存问题失败")
+		status, code, message := memoHTTPStatus(err)
+		return apiError(c, status, code, message)
 	}
 
 	scope := firstNonEmpty(req.ContextScope, conversation.ContextScope)
-	prep, err := s.prepareAskAnswer(reqCtx, account.ID, content, scope, req.SourceKind, conversation.ID)
+	prep, err := s.prepareAskAnswer(reqCtx, account.ID, turn.question.Content, scope, req.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
 		status, code, message := memoHTTPStatus(err)
 		return apiError(c, status, code, message)
 	}
 
 	emit := sseEmitter(c)
+	// On a regenerate there is no new user message; send the existing question
+	// so the client knows which turn this answers, plus a regenerate flag.
 	_ = emit("start", map[string]any{
-		"userMessage": askMessageDTO(userMessage),
+		"userMessage": askMessageDTO(turn.question),
 		"sources":     prep.sources,
+		"regenerate":  turn.newUser == nil,
 	})
 
 	answer := prep.fallback
@@ -296,7 +350,8 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 		ConversationID: conversation.ID,
 		Role:           "assistant",
 		Content:        answer,
-		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
+		ParentID:       sql.NullString{String: turn.question.ID, Valid: true},
+		ForkOfID:       sql.NullString{String: turn.forkOfID, Valid: turn.forkOfID != ""},
 		Status:         "complete",
 		SourceRefs:     encodeAskSourceRefs(prep.sources),
 		Model:          modelName,
@@ -338,8 +393,8 @@ func sseEmitter(c *echo.Context) func(event string, data any) error {
 	}
 }
 
-func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind string, conversationID string) ([]askSourceRef, string, string, error) {
-	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID)
+func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind, conversationID, historyParentID string) ([]askSourceRef, string, string, error) {
+	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID, historyParentID)
 	if err != nil {
 		return nil, "", "", err
 	}

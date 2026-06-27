@@ -74,17 +74,20 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
   "memoAi": [
     {
       "memoId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
-      "summary": "本地生成的记录总结",
+      "summary": "基于配置 AI 档案生成的记录总结",
       "sentiment": null,
-      "provider": "local",
-      "model": "local-summary",
+      "provider": "openai",
+      "model": "gpt-4.1-mini",
       "profileId": "",
-      "promptVersion": "memo-summary-v1",
+      "promptVersion": "memo-summary-v2",
       "sourceMemoIds": "[\"019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7\"]",
       "status": "complete",
       "errorCode": null,
       "startedAt": "2026-06-26T11:15:07Z",
       "finishedAt": "2026-06-26T11:15:07Z",
+      "inputTokens": 120,
+      "outputTokens": 42,
+      "totalTokens": 162,
       "createdAt": "2026-06-26T11:15:07Z",
       "updatedAt": "2026-06-26T11:15:07Z"
     }
@@ -108,7 +111,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
       "id": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0d2",
       "conversationId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0d0",
       "role": "assistant",
-      "content": "根据当前范围内的记录，可以先看这些来源：...",
+      "content": "根据当前范围内的记录，睡眠更稳定。",
       "parentId": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0d1",
       "forkOfId": null,
       "status": "complete",
@@ -120,7 +123,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
           "rank": 1
         }
       ],
-      "model": "local-grounded-answer",
+      "model": "gpt-4.1-mini",
       "createdAt": "2026-06-26T11:15:07Z",
       "updatedAt": "2026-06-26T11:15:07Z",
       "deletedAt": null
@@ -248,6 +251,6 @@ GET /api/v1/ask/conversations/{conversation}/messages
 POST /api/v1/ask/conversations/{conversation}/messages
 ```
 
-新会话支持 `contextScope`：`recent_7_days`、`recent_30_days`、`all`，默认 `recent_30_days`。当前迁移阶段的回答由服务端基于范围内最近 memo 生成本地、带来源的占位回答；记录不足时返回“现有记录不足以判断”，不会编造分析。后续接入真实 provider、流式、停止、重生成和分支时，仍使用同一 `askConversations` / `askMessages` sync stream。
+新会话支持 `contextScope`：`recent_7_days`、`recent_30_days`、`all`，默认 `recent_30_days`。回答由服务端根据所选范围内的记录和对话历史调用当前启用的 AI 档案生成，记录不足时返回“现有记录不足以判断”，不会编造分析。后续若接入流式、停止、重生成和分支时，仍使用同一 `askConversations` / `askMessages` sync stream。
 
 `askMessages.sourceRefs` 是结构化数组，至少包含 `memoId`、`entryDate`、`excerpt` 和 `rank`，供 Web 和未来 Android 客户端跳回来源 memo。

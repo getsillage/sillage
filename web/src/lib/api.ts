@@ -42,12 +42,15 @@ export type MemoAI = {
   provider: string;
   model: string;
   profileId: string;
-  promptVersion: number;
-  sourceMemoIds: string[];
+  promptVersion: string;
+  sourceMemoIds: string;
   status: string;
   errorCode: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
   createdAt: string;
   updatedAt: string;
 };

@@ -923,6 +923,12 @@ components:
                 finishedTime:
                     type: string
                     format: date-time
+                inputTokens:
+                    type: string
+                outputTokens:
+                    type: string
+                totalTokens:
+                    type: string
                 createdTime:
                     type: string
                     format: date-time

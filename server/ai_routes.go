@@ -104,13 +104,6 @@ func aiProfileDTO(profile *store.AIProfile) map[string]any {
 	}
 }
 
-func summarizeMemoLocally(content string) string {
-	if len(content) <= 120 {
-		return content
-	}
-	return content[:120] + "..."
-}
-
 func memoAIDTO(ai *store.MemoAI) map[string]any {
 	if ai == nil {
 		return nil
@@ -128,6 +121,9 @@ func memoAIDTO(ai *store.MemoAI) map[string]any {
 		"errorCode":     optionalString(ai.ErrorCode),
 		"startedAt":     optionalTime(ai.StartedAt),
 		"finishedAt":    optionalTime(ai.FinishedAt),
+		"inputTokens":   ai.InputTokens,
+		"outputTokens":  ai.OutputTokens,
+		"totalTokens":   ai.TotalTokens,
 		"createdAt":     time.UnixMilli(ai.CreatedAt).UTC().Format(time.RFC3339),
 		"updatedAt":     time.UnixMilli(ai.UpdatedAt).UTC().Format(time.RFC3339),
 	}

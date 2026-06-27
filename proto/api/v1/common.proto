@@ -54,8 +54,11 @@ message MemoAI {
   string error_code = 10;
   google.protobuf.Timestamp started_time = 11;
   google.protobuf.Timestamp finished_time = 12;
-  google.protobuf.Timestamp created_time = 13;
-  google.protobuf.Timestamp updated_time = 14;
+  int64 input_tokens = 13;
+  int64 output_tokens = 14;
+  int64 total_tokens = 15;
+  google.protobuf.Timestamp created_time = 16;
+  google.protobuf.Timestamp updated_time = 17;
 }
 
 message AIProfile {

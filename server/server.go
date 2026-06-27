@@ -31,6 +31,8 @@ type Server struct {
 	echoServer *echo.Echo
 	httpServer *http.Server
 	auth       *auth.Service
+	memoAIJobs chan struct{}
+	askAIJobs  chan struct{}
 }
 
 func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
@@ -45,6 +47,8 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 		Secrets:    secrets,
 		echoServer: e,
 		auth:       auth.NewService(s, secrets.SessionSecret),
+		memoAIJobs: make(chan struct{}, 2),
+		askAIJobs:  make(chan struct{}, 2),
 	}
 
 	e.GET("/healthz", func(c *echo.Context) error {

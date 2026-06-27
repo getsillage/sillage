@@ -13,8 +13,7 @@ Sillage 是一个单人私密记录空间，用来保存日常片段、查看历
 - SQLite FTS5 搜索，中文短语和长查询使用 `LIKE` fallback。
 - 本地附件上传与登录后下载，文件保存在数据目录内。
 - AI 档案设置，API key 使用 `ENCRYPTION_SECRET` 加密 envelope 保存。
-- 单条 memo 本地占位总结，并进入 sync。
-- Ask 会话与消息，当前基于最近 7 天、最近 30 天或全部记录生成带来源的本地占位回答。
+- 单条 memo 总结与 Ask 回答由配置的 AI 档案基于记录生成，并进入 sync。
 - `/api/v1/sync` 与 `/api/v1/sync:push` 支持 tombstone、mutation id 幂等和 memo 冲突返回。
 - Connect v1 注册 `AuthService`、`MemoService`、`AttachmentService`、`SettingsService`、`AskService` 与 `SyncService`。
 

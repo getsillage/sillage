@@ -368,8 +368,11 @@ type MemoAI struct {
 	ErrorCode     string                 `protobuf:"bytes,10,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	StartedTime   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_time,json=startedTime,proto3" json:"started_time,omitempty"`
 	FinishedTime  *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=finished_time,json=finishedTime,proto3" json:"finished_time,omitempty"`
-	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
-	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
+	InputTokens   int64                  `protobuf:"varint,13,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens  int64                  `protobuf:"varint,14,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	TotalTokens   int64                  `protobuf:"varint,15,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
+	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -486,6 +489,27 @@ func (x *MemoAI) GetFinishedTime() *timestamppb.Timestamp {
 		return x.FinishedTime
 	}
 	return nil
+}
+
+func (x *MemoAI) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *MemoAI) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *MemoAI) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
 }
 
 func (x *MemoAI) GetCreatedTime() *timestamppb.Timestamp {
@@ -997,7 +1021,7 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\x06status\x18\v \x01(\tR\x06status\x12=\n" +
 	"\fcreated_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
 	"\fupdated_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12=\n" +
-	"\fdeleted_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\"\xae\x04\n" +
+	"\fdeleted_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\"\x99\x05\n" +
 	"\x06MemoAI\x12\x17\n" +
 	"\amemo_id\x18\x01 \x01(\tR\x06memoId\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12\x1c\n" +
@@ -1013,9 +1037,12 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"error_code\x18\n" +
 	" \x01(\tR\terrorCode\x12=\n" +
 	"\fstarted_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vstartedTime\x12?\n" +
-	"\rfinished_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\ffinishedTime\x12=\n" +
-	"\fcreated_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
-	"\fupdated_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xb6\x03\n" +
+	"\rfinished_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\ffinishedTime\x12!\n" +
+	"\finput_tokens\x18\r \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x0e \x01(\x03R\foutputTokens\x12!\n" +
+	"\ftotal_tokens\x18\x0f \x01(\x03R\vtotalTokens\x12=\n" +
+	"\fcreated_time\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
+	"\fupdated_time\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xb6\x03\n" +
 	"\tAIProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +

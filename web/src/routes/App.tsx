@@ -898,8 +898,9 @@ function ActivityStrip({ memos }: { memos: Memo[] }) {
   }
   const days = Array.from({ length: 35 }, (_, index) => {
     const date = new Date();
+    date.setHours(12, 0, 0, 0);
     date.setDate(date.getDate() - (34 - index));
-    const key = date.toISOString().slice(0, 10);
+    const key = formatLocalDate(date);
     return { key, count: counts.get(key) ?? 0 };
   });
   return (
@@ -916,7 +917,14 @@ function ActivityStrip({ memos }: { memos: Memo[] }) {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDate(new Date());
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function upsertMemo(memos: Memo[], memo: Memo) {

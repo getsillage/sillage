@@ -21,6 +21,9 @@ type MemoAI struct {
 	ErrorCode     sql.NullString
 	StartedAt     sql.NullInt64
 	FinishedAt    sql.NullInt64
+	InputTokens   int64
+	OutputTokens  int64
+	TotalTokens   int64
 	CreatedAt     int64
 	UpdatedAt     int64
 	DeletedAt     sql.NullInt64
@@ -37,18 +40,32 @@ type UpsertMemoAI struct {
 	SourceMemoIDs string
 	Status        string
 	ErrorCode     string
+	StartedAt     *int64
+	FinishedAt    *int64
+	InputTokens   int64
+	OutputTokens  int64
+	TotalTokens   int64
 }
 
 func (s *Store) UpsertMemoAI(ctx context.Context, upsert *UpsertMemoAI) (*MemoAI, error) {
 	now := time.Now().UTC().UnixMilli()
-	if _, err := s.driver.GetDB().ExecContext(ctx, `
+	startedAt := now
+	if upsert.StartedAt != nil {
+		startedAt = *upsert.StartedAt
+	}
+	finishedAt := sql.NullInt64{}
+	if upsert.FinishedAt != nil {
+		finishedAt = sql.NullInt64{Int64: *upsert.FinishedAt, Valid: true}
+	}
+if _, err := s.driver.GetDB().ExecContext(ctx, `
 INSERT INTO memo_ai (
   memo_id, summary, sentiment, provider, model, profile_id, prompt_version,
-  source_memo_ids, status, error_code, started_at, finished_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  source_memo_ids, status, error_code, started_at, finished_at,
+  input_tokens, output_tokens, total_tokens, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(memo_id) DO UPDATE SET
-  summary = excluded.summary,
-  sentiment = excluded.sentiment,
+  summary = CASE WHEN excluded.summary = '' THEN memo_ai.summary ELSE excluded.summary END,
+  sentiment = CASE WHEN excluded.sentiment = '' THEN memo_ai.sentiment ELSE excluded.sentiment END,
   provider = excluded.provider,
   model = excluded.model,
   profile_id = excluded.profile_id,
@@ -56,7 +73,11 @@ ON CONFLICT(memo_id) DO UPDATE SET
   source_memo_ids = excluded.source_memo_ids,
   status = excluded.status,
   error_code = excluded.error_code,
+  started_at = excluded.started_at,
   finished_at = excluded.finished_at,
+  input_tokens = excluded.input_tokens,
+  output_tokens = excluded.output_tokens,
+  total_tokens = excluded.total_tokens,
   updated_at = excluded.updated_at,
   deleted_at = NULL`,
 		upsert.MemoID,
@@ -69,8 +90,11 @@ ON CONFLICT(memo_id) DO UPDATE SET
 		upsert.SourceMemoIDs,
 		upsert.Status,
 		nullString(upsert.ErrorCode),
-		now,
-		now,
+		startedAt,
+		finishedAt,
+		upsert.InputTokens,
+		upsert.OutputTokens,
+		upsert.TotalTokens,
 		now,
 		now,
 	); err != nil {
@@ -140,6 +164,9 @@ func scanMemoAI(row interface {
 		&ai.ErrorCode,
 		&ai.StartedAt,
 		&ai.FinishedAt,
+		&ai.InputTokens,
+		&ai.OutputTokens,
+		&ai.TotalTokens,
 		&ai.CreatedAt,
 		&ai.UpdatedAt,
 		&ai.DeletedAt,
@@ -155,6 +182,7 @@ func scanMemoAI(row interface {
 func memoAISelect() string {
 	return `
 SELECT memo_id, summary, sentiment, provider, model, profile_id, prompt_version,
-  source_memo_ids, status, error_code, started_at, finished_at, created_at, updated_at, deleted_at
+  source_memo_ids, status, error_code, started_at, finished_at,
+  input_tokens, output_tokens, total_tokens, created_at, updated_at, deleted_at
 FROM memo_ai `
 }

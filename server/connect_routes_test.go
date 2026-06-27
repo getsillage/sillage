@@ -102,7 +102,7 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 	}
 
 	settingsClient := apiv1connect.NewSettingsServiceClient(httpServer.Client(), httpServer.URL)
-	apiKey := "sk-test"
+	apiKey := "mock-api-key"
 	patchReq := connect.NewRequest(&apiv1.PatchAISettingsRequest{
 		Profiles: []*apiv1.AIProfileInput{{
 			Name:        "本地测试",
@@ -216,6 +216,8 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 func TestConnectAskServiceGroundedMessages(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
 	createMemoForAsk(t, srv, token, "今天散步后睡眠更稳定。", "2026-06-26")
 	httpServer := httptest.NewServer(srv)
 	t.Cleanup(httpServer.Close)
@@ -247,6 +249,9 @@ func TestConnectAskServiceGroundedMessages(t *testing.T) {
 	}
 	if len(messages[1].GetSourceRefs()) == 0 || !strings.Contains(messages[1].GetContent(), "根据当前范围内的记录") {
 		t.Fatalf("assistant answer is not grounded: %#v", messages[1])
+	}
+	if messages[1].GetModel() != "gpt-test" {
+		t.Fatalf("assistant model = %q, want gpt-test", messages[1].GetModel())
 	}
 
 	listReq := connect.NewRequest(&apiv1.ListAskMessagesRequest{ConversationId: conversationID})

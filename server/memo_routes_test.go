@@ -12,6 +12,8 @@ import (
 func TestMemoCRUDAndSyncPull(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
 
 	res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
 		"content":   "今天开始写新的 memo",
@@ -59,7 +61,7 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 	version = int64(archived["version"].(float64))
 
 	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":generate-summary", nil, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"complete"`) {
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"complete"`) || !strings.Contains(res.Body.String(), `"inputTokens":11`) {
 		t.Fatalf("generate summary action status/body = %d %s", res.Code, res.Body.String())
 	}
 
@@ -189,6 +191,8 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 func TestMemoSearchChineseSummaryAndTombstone(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
 
 	res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
 		"content":   "今天和朋友散步，聊到睡眠变好了。",

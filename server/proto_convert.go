@@ -85,6 +85,9 @@ func memoAIPB(ai *store.MemoAI) *apiv1.MemoAI {
 		ErrorCode:     nullStringValue(ai.ErrorCode),
 		StartedTime:   timestampPB(ai.StartedAt),
 		FinishedTime:  timestampPB(ai.FinishedAt),
+		InputTokens:   ai.InputTokens,
+		OutputTokens:  ai.OutputTokens,
+		TotalTokens:   ai.TotalTokens,
 		CreatedTime:   timestamppb.New(unixMilliTime(ai.CreatedAt)),
 		UpdatedTime:   timestamppb.New(unixMilliTime(ai.UpdatedAt)),
 	}

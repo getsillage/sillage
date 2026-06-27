@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 
 var (
 	errAIKeyUnavailable = errors.New("ai key unavailable")
+	errAINotConfigured  = errors.New("ai not configured")
+	errAIOverloaded     = errors.New("ai overloaded")
 	errTooManyChanges   = errors.New("too many sync changes")
 	errValidation       = errors.New("validation error")
 )
@@ -140,7 +143,11 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 		return nil, err
 	}
 
-	sources, answer := s.answerFromMemos(ctx, accountID, input.Content, firstNonEmpty(input.ContextScope, conversation.ContextScope))
+	scope := firstNonEmpty(input.ContextScope, conversation.ContextScope)
+	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, input.Content, scope, conversation.ID)
+	if err != nil {
+		return nil, err
+	}
 	assistantMessage, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{
 		ConversationID: conversation.ID,
 		Role:           "assistant",
@@ -148,7 +155,7 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 		ParentID:       sql.NullString{String: userMessage.ID, Valid: true},
 		Status:         "complete",
 		SourceRefs:     encodeAskSourceRefs(sources),
-		Model:          "local-grounded-answer",
+		Model:          modelName,
 	})
 	if err != nil {
 		return nil, err
@@ -288,26 +295,39 @@ func (s *Server) generateMemoSummary(ctx context.Context, accountID, id string) 
 	if err != nil {
 		return nil, err
 	}
-	for _, profile := range profiles {
-		if profile.Active && profile.APIKeyEnvelope.Valid {
-			if _, err := secret.DecryptEnvelope(s.Secrets.EncryptionSecret, profile.APIKeyEnvelope.String); err != nil {
-				_ = s.Store.MarkAIProfileKeyUnavailable(ctx, accountID, profile.ID)
-				return nil, errAIKeyUnavailable
-			}
-			break
-		}
+	profile, err := pickActiveAIProfile(profiles)
+	if err != nil {
+		return nil, err
 	}
-	return s.Store.UpsertMemoAI(ctx, &store.UpsertMemoAI{
+	jobDone, err := s.acquireMemoAIJob()
+	if err != nil {
+		return nil, err
+	}
+	defer jobDone()
+	result, err := s.callAI(ctx, accountID, profile, memoSummarySystemPrompt(), []aiProviderMessage{
+		{Role: "user", Content: memoSummaryUserPrompt(memo.Content)},
+	}, profile.Temperature, profile.MaxTokens)
+	if err != nil {
+		return nil, err
+	}
+	ai, err := s.Store.UpsertMemoAI(ctx, &store.UpsertMemoAI{
 		MemoID:        memo.ID,
-		Summary:       summarizeMemoLocally(memo.Content),
+		Summary:       result.Content,
 		Sentiment:     "",
-		Provider:      "local",
-		Model:         "local-summary",
-		ProfileID:     "",
-		PromptVersion: "memo-summary-v1",
-		SourceMemoIDs: `["` + memo.ID + `"]`,
+		Provider:      profile.Provider,
+		Model:         profile.Model,
+		ProfileID:     profile.ID,
+		PromptVersion: "memo-summary-v2",
+		SourceMemoIDs: fmt.Sprintf("[\"%s\"]", memo.ID),
 		Status:        "complete",
+		InputTokens:   result.InputTokens,
+		OutputTokens:  result.OutputTokens,
+		TotalTokens:   result.TotalTokens,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return ai, nil
 }
 
 type syncPushRequest struct {
@@ -685,6 +705,10 @@ func memoHTTPStatus(err error) (int, string, string) {
 	switch {
 	case errors.Is(err, errValidation):
 		return 400, "invalid_field", err.Error()
+	case errors.Is(err, errAINotConfigured):
+		return 400, "ai_not_configured", "请先配置并启用一个 AI 档案"
+	case errors.Is(err, errAIOverloaded):
+		return 429, "rate_limited", "当前生成任务较多，请稍后再试"
 	case errors.As(err, &conflict):
 		return 409, "version_conflict", "记录已被其他修改更新"
 	case errors.Is(err, sql.ErrNoRows):

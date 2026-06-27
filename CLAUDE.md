@@ -204,7 +204,7 @@ AI 与 Ask：
 - AI profile 保存在 SQLite。
 - API key 使用 `ENCRYPTION_SECRET` 经 HKDF 派生 AES-256-GCM key 后加密为 envelope。
 - key 解不开时标记 `key_unavailable`，服务不能崩溃。
-- 当前单条 memo 总结和 Ask 回答为本地占位实现，必须基于来源 memo，不编造没有记录支撑的分析。
+- 当前单条 memo 总结和 Ask 回答由配置的 AI 档案生成，必须基于来源 memo，不编造没有记录支撑的分析。
 - Ask 默认上下文范围推荐最近 30 天，不默认读取全量历史。
 
 前端：

@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/labstack/echo/v5"
 
@@ -106,53 +108,243 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 		if errors.Is(err, errValidation) {
 			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 		}
+		if errors.Is(err, errAIOverloaded) {
+			return apiError(c, http.StatusTooManyRequests, "rate_limited", "当前生成任务较多，请稍后再试")
+		}
+		if errors.Is(err, errAIKeyUnavailable) {
+			return apiError(c, http.StatusBadRequest, "key_unavailable", "当前 AI API Key 无法解密，请重新保存")
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
+		}
+		if errors.Is(err, errAINotConfigured) {
+			return apiError(c, http.StatusBadRequest, "ai_not_configured", "请先配置并启用一个 AI 档案")
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "生成回答失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"messages": askMessageDTOs(result.Messages)})
 }
 
-func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope string) ([]askSourceRef, string) {
-	memos, err := s.Store.ListRecentMemos(ctx, accountID, 30)
+func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope string, conversationID string) ([]askSourceRef, string, string, error) {
+	jobDone, err := s.acquireAskAIJob()
+	if err != nil {
+		return nil, "", "", err
+	}
+	defer jobDone()
+
+	memos, err := s.listAskCandidateMemos(ctx, accountID)
 	if err != nil || len(memos) == 0 {
-		return nil, "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。"
+		return nil, "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。", "", nil
 	}
-	cutoff := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
-	if scope == "recent_7_days" {
-		cutoff = time.Now().AddDate(0, 0, -7).Format("2006-01-02")
+	sort.Slice(memos, func(i, j int) bool {
+		if memos[i].EntryDate != memos[j].EntryDate {
+			return memos[i].EntryDate > memos[j].EntryDate
+		}
+		if memos[i].CreatedAt != memos[j].CreatedAt {
+			return memos[i].CreatedAt > memos[j].CreatedAt
+		}
+		return memos[i].ID > memos[j].ID
+	})
+	sources := selectAskSourceRefs(question, memos, scope)
+	if len(sources) == 0 {
+		return nil, "现有记录不足以判断。当前范围内没有可引用的记录。", "", nil
 	}
-	var sources []askSourceRef
-	for _, memo := range memos {
-		if scope != "all" && memo.EntryDate < cutoff {
+
+	_, err = s.Store.GetAskConversation(ctx, accountID, conversationID)
+	if err != nil {
+		return nil, "", "", err
+	}
+	messages, err := s.Store.ListAskMessages(ctx, conversationID)
+	if err != nil {
+		return nil, "", "", err
+	}
+	profiles, err := s.Store.ListAIProfiles(ctx, accountID)
+	if err != nil {
+		return nil, "", "", err
+	}
+	profile, err := pickActiveAIProfile(profiles)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	history := make([]aiProviderMessage, 0, len(messages))
+	for _, message := range messages {
+		role := strings.ToLower(strings.TrimSpace(message.Role))
+		if role != "user" && role != "assistant" {
 			continue
 		}
+		history = append(history, aiProviderMessage{Role: role, Content: message.Content})
+	}
+	finalPrompt := askUserPrompt(scope, question, sources)
+	if len(history) > 0 {
+		history = history[:len(history)-1]
+	}
+	answer, err := s.callAI(ctx, accountID, profile, askSystemPrompt(), append(history, aiProviderMessage{
+		Role:    "user",
+		Content: finalPrompt,
+	}), profile.Temperature, profile.MaxTokens)
+	if err != nil {
+		return nil, "", "", err
+	}
+	return sources, answer.Content, profile.Model, nil
+}
+
+func (s *Server) listAskCandidateMemos(ctx context.Context, accountID string) ([]*store.Memo, error) {
+	const pageSize = 200
+
+	memos := make([]*store.Memo, 0, pageSize)
+	var updatedAfter int64
+	var updatedAfterID string
+	for {
+		page, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
+			AccountID:      accountID,
+			Limit:          pageSize,
+			UpdatedAfter:   updatedAfter,
+			UpdatedAfterID: updatedAfterID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		memos = append(memos, page...)
+		if len(page) < pageSize {
+			return memos, nil
+		}
+		last := page[len(page)-1]
+		updatedAfter = last.UpdatedAt
+		updatedAfterID = last.ID
+	}
+}
+
+func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []askSourceRef {
+	const sourceLimit = 5
+
+	terms := askQueryTerms(question)
+	cutoff := ""
+	if scope != "all" {
+		cutoff = askScopeCutoff(scope)
+	}
+
+	type scoredMemo struct {
+		memo  *store.Memo
+		score int
+	}
+
+	scored := make([]scoredMemo, 0, len(memos))
+	for _, memo := range memos {
+		if memo == nil || memo.ID == "" {
+			continue
+		}
+		if cutoff != "" && memo.EntryDate < cutoff {
+			continue
+		}
+		scored = append(scored, scoredMemo{
+			memo:  memo,
+			score: askMemoScore(question, terms, memo),
+		})
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
+		if scored[i].memo.EntryDate != scored[j].memo.EntryDate {
+			return scored[i].memo.EntryDate > scored[j].memo.EntryDate
+		}
+		if scored[i].memo.CreatedAt != scored[j].memo.CreatedAt {
+			return scored[i].memo.CreatedAt > scored[j].memo.CreatedAt
+		}
+		return scored[i].memo.ID > scored[j].memo.ID
+	})
+
+	limit := sourceLimit
+	if len(scored) < limit {
+		limit = len(scored)
+	}
+	sources := make([]askSourceRef, 0, limit)
+	for i := 0; i < limit; i++ {
+		memo := scored[i].memo
 		sources = append(sources, askSourceRef{
 			MemoID:    memo.ID,
 			EntryDate: memo.EntryDate,
 			Excerpt:   excerpt(memo.Content, 96),
-			Rank:      len(sources) + 1,
+			Rank:      i + 1,
 		})
-		if len(sources) >= 5 {
-			break
+	}
+	return sources
+}
+
+func askScopeCutoff(scope string) string {
+	switch scope {
+	case "recent_7_days":
+		return time.Now().AddDate(0, 0, -7).Format("2006-01-02")
+	default:
+		return time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	}
+}
+
+func askMemoScore(question string, terms []string, memo *store.Memo) int {
+	content := strings.ToLower(strings.TrimSpace(memo.Content))
+	if content == "" {
+		return 0
+	}
+	score := 0
+	if q := strings.ToLower(strings.TrimSpace(question)); q != "" && strings.Contains(content, q) {
+		score += 100
+	}
+	for _, term := range terms {
+		if term == "" {
+			continue
+		}
+		if strings.Contains(content, term) {
+			score += 10 + len(term)
 		}
 	}
-	if len(sources) == 0 {
-		return nil, "现有记录不足以判断。当前范围内没有可引用的记录。"
+	if strings.Contains(content, memo.EntryDate) {
+		score += 5
 	}
-	var builder strings.Builder
-	builder.WriteString("根据当前范围内的记录，可以先看这些来源：\n")
-	for _, source := range sources {
-		builder.WriteString("- ")
-		builder.WriteString(source.EntryDate)
-		builder.WriteString("：")
-		builder.WriteString(source.Excerpt)
-		builder.WriteString("\n")
+	return score
+}
+
+func askQueryTerms(question string) []string {
+	question = strings.TrimSpace(strings.ToLower(question))
+	if question == "" {
+		return nil
 	}
-	builder.WriteString("\n这只是基于记录的整理，不会脱离来源做判断。")
-	_ = question
-	return sources, builder.String()
+
+	seen := make(map[string]struct{})
+	add := func(term string) {
+		term = strings.TrimSpace(strings.ToLower(term))
+		if len(term) < 2 {
+			return
+		}
+		if _, ok := seen[term]; ok {
+			return
+		}
+		seen[term] = struct{}{}
+	}
+
+	for _, field := range strings.FieldsFunc(question, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune("，。！？；：、,.!?;:()[]{}<>\"'`", r)
+	}) {
+		add(field)
+	}
+
+	runes := []rune(question)
+	for i := 0; i < len(runes); i++ {
+		if i+1 < len(runes) {
+			add(string(runes[i : i+2]))
+		}
+		if i+2 < len(runes) {
+			add(string(runes[i : i+3]))
+		}
+	}
+
+	terms := make([]string, 0, len(seen))
+	for term := range seen {
+		terms = append(terms, term)
+	}
+	sort.Slice(terms, func(i, j int) bool { return terms[i] < terms[j] })
+	return terms
 }
 
 func askConversationDTOs(conversations []*store.AskConversation) []map[string]any {

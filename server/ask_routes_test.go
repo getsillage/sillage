@@ -10,6 +10,8 @@ import (
 func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
 
 	createMemoForAsk(t, srv, token, "今天和朋友散步，聊到最近睡眠变好了。", "2026-06-26")
 	createMemoForAsk(t, srv, token, "这周开始固定早睡，白天精神更稳定。", "2026-06-25")
@@ -44,7 +46,7 @@ func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 		t.Fatalf("unexpected roles: %#v", messages)
 	}
 	answer := messages[1]["content"].(string)
-	if !strings.Contains(answer, "根据当前范围内的记录") || !strings.Contains(answer, "睡眠") {
+	if !strings.Contains(answer, "睡眠更稳定") {
 		t.Fatalf("assistant answer not grounded: %s", answer)
 	}
 	sourceRefs := messages[1]["sourceRefs"].([]any)
@@ -57,7 +59,7 @@ func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 	}
 
 	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "local-grounded-answer") {
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"model":"gpt-test"`) {
 		t.Fatalf("list ask messages status/body = %d %s", res.Code, res.Body.String())
 	}
 
@@ -105,6 +107,56 @@ func TestAskInsufficientRecordsResponse(t *testing.T) {
 	}
 	if refs := payload["messages"][1]["sourceRefs"].([]any); len(refs) != 0 {
 		t.Fatalf("source refs len = %d, want 0", len(refs))
+	}
+}
+
+func TestAskAllScopeUsesOlderMemosBeyondRecentWindow(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+
+	for i := 0; i < 5; i++ {
+		createMemoForAsk(t, srv, token, strings.Repeat("新记录", 12), "2026-06-26")
+	}
+	createMemoForAsk(t, srv, token, "中间唯一标记 12345，这条记录提到了需要保留的中间事实。", "2025-01-01")
+	for i := 0; i < 5; i++ {
+		createMemoForAsk(t, srv, token, strings.Repeat("旧记录", 12), "2024-01-01")
+	}
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create conversation status = %d body=%s", res.Code, res.Body.String())
+	}
+	conversation := decodeAskConversationResponse(t, res.Body.Bytes())
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversation["id"].(string)+"/messages", map[string]any{
+		"content": "请问中间那条记录说了什么？",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create ask message status = %d body=%s", res.Code, res.Body.String())
+	}
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode ask messages: %v", err)
+	}
+	answer := payload["messages"][1]["content"].(string)
+	if !strings.Contains(answer, "中间") && !strings.Contains(answer, "记录") {
+		t.Fatalf("all scope answer too weak: %s", answer)
+	}
+	refs := payload["messages"][1]["sourceRefs"].([]any)
+	foundOldMemo := false
+	for _, ref := range refs {
+		item := ref.(map[string]any)
+		if item["excerpt"] == "中间唯一标记 12345，这条记录提到了需要保留的中间事实。" {
+			foundOldMemo = true
+			break
+		}
+	}
+	if !foundOldMemo {
+		t.Fatalf("all scope source refs missed old memo: %#v", refs)
 	}
 }
 

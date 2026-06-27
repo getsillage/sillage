@@ -166,8 +166,8 @@ export function AskPage() {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 z-10 border-gray-200 border-t bg-white/95 py-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
-        <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900/60">
+      <div className="sticky bottom-0 z-10 border-gray-200 border-t bg-white/80 py-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/70">
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/40 dark:shadow-black/10">
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}

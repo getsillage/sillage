@@ -50,6 +50,57 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## 构建发布版
+
+Android 应用包名固定为：
+
+```text
+app.sillage
+```
+
+发布版 APK 使用本地 release keystore 签名。签名文件不提交到仓库，需要在 `android/`
+目录下准备：
+
+```text
+release.keystore
+signing.properties
+```
+
+`signing.properties` 格式：
+
+```properties
+storeFile=release.keystore
+storePassword=...
+keyAlias=sillage-release
+keyPassword=...
+```
+
+构建 release APK：
+
+```bash
+cd android
+./gradlew :app:assembleRelease
+```
+
+APK 输出位置：
+
+```text
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+发布前建议校验签名和 zipalign：
+
+```bash
+apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+zipalign -c -v 4 app/build/outputs/apk/release/app-release.apk
+```
+
+GitHub Release 附件建议命名为：
+
+```text
+Sillage-vX.Y.Z.apk
+```
+
 ## 安全建议
 
 本地调试允许 HTTP 明文连接。生产使用建议通过 HTTPS 反向代理或 Cloudflare Tunnel 访问 Sillage。

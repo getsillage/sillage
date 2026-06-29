@@ -27,6 +27,7 @@ import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.markdownFormatSnippet
+import app.sillage.data.mergeSavedAIProfilesForLocalStorage
 import app.sillage.data.toDraft
 import app.sillage.data.toInput
 import java.time.LocalDate
@@ -763,16 +764,14 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (isOfflineMode()) {
             viewModelScope.launch {
                 _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
-                runCatching {
+                try {
                     val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置一个默认 AI 档案")
-                    localAiClient.summarizeMemo(profile, memo).also(localDataStore::saveMemoAI)
+                    val ai = localAiClient.summarizeMemo(profile, memo)
+                    localDataStore.saveMemoAI(ai)
+                    _state.update { it.copy(selectedSummary = ai, summaryLoading = false, notice = "已生成总结") }
+                } catch (error: Throwable) {
+                    _state.update { it.copy(summaryLoading = false, error = error.readableMessage()) }
                 }
-                    .onSuccess { ai ->
-                        _state.update { it.copy(selectedSummary = ai, summaryLoading = false, notice = "已生成总结") }
-                    }
-                    .onFailure { error ->
-                        _state.update { it.copy(summaryLoading = false, error = error.readableMessage()) }
-                    }
             }
             return
         }
@@ -1061,8 +1060,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             )
         } else {
             api.patchAISettings(normalized.map { it.toInput() }, autoSummary).let { settings ->
+                val localProfiles = mergeSavedAIProfilesForLocalStorage(
+                    currentProfiles = localDataStore.listAIProfiles(),
+                    remoteProfiles = settings.profiles.map { it.toDraft() },
+                    submittedProfiles = normalized,
+                )
                 EditableAISettings(
-                    profiles = settings.profiles.map { it.toDraft() },
+                    profiles = localDataStore.saveAISettings(localProfiles, settings.autoSummary),
                     autoSummary = settings.autoSummary,
                 )
             }
@@ -1084,31 +1088,28 @@ class SillageViewModel(context: Context) : ViewModel() {
         val key = profile.uiKey(index)
         viewModelScope.launch {
             _state.update { it.copy(aiTestingProfileId = key, error = null, notice = null) }
-            runCatching {
-                if (isOfflineMode()) {
+            try {
+                val model = if (isOfflineMode()) {
                     localAiClient.testConnection(profile)
                 } else if (profile.id.isBlank()) {
                     api.testAIConnection(profile.toInput())
                 } else {
                     api.testAIConnection(profile.id)
                 }
+                _state.update {
+                    it.copy(
+                        aiTestingProfileId = "",
+                        aiTestResults = it.aiTestResults + (key to "连接成功（$model）"),
+                    )
+                }
+            } catch (error: Throwable) {
+                _state.update {
+                    it.copy(
+                        aiTestingProfileId = "",
+                        aiTestResults = it.aiTestResults + (key to error.readableMessage()),
+                    )
+                }
             }
-                .onSuccess { model ->
-                    _state.update {
-                        it.copy(
-                            aiTestingProfileId = "",
-                            aiTestResults = it.aiTestResults + (key to "连接成功（$model）"),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            aiTestingProfileId = "",
-                            aiTestResults = it.aiTestResults + (key to error.readableMessage()),
-                        )
-                    }
-                }
         }
     }
 
@@ -1635,7 +1636,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     notice = null,
                 )
             }
-            runCatching {
+            try {
                 if (conversationId.isBlank()) {
                     val created = localDataStore.createAskConversation(contextScope)
                     conversationId = created.id
@@ -1677,22 +1678,19 @@ class SillageViewModel(context: Context) : ViewModel() {
                     parentId = parentId,
                     forkOfId = forkOfId,
                 )
+                val refreshedMessages = localDataStore.listAskMessages(conversationId)
+                val conversations = localDataStore.listAskConversations().filter { it.deletedAt == null }
+                _state.update {
+                    it.copy(
+                        askMessages = refreshedMessages,
+                        askConversations = conversations,
+                        askHeadId = conversations.find { conversation -> conversation.id == conversationId }?.headMessageId,
+                        askQuestion = if (forkOfId == null) "" else it.askQuestion,
+                    )
+                }
+            } catch (error: Throwable) {
+                _state.update { it.copy(error = error.readableMessage()) }
             }
-                .onSuccess {
-                    val messages = localDataStore.listAskMessages(conversationId)
-                    val conversations = localDataStore.listAskConversations().filter { it.deletedAt == null }
-                    _state.update {
-                        it.copy(
-                            askMessages = messages,
-                            askConversations = conversations,
-                            askHeadId = conversations.find { conversation -> conversation.id == conversationId }?.headMessageId,
-                            askQuestion = if (forkOfId == null) "" else it.askQuestion,
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
-                }
             _state.update {
                 it.copy(
                     askSending = false,

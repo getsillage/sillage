@@ -125,8 +125,16 @@ class LocalDataStore(context: Context) {
 
     fun saveAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
         val now = now()
+        val currentById = loadData().aiProfiles.associateBy { it.id }
         var activeSeen = false
         val saved = profiles.map { profile ->
+            val existing = currentById[profile.id]
+            val apiKeyInput = if (profile.apiKeyInput.isBlank()) {
+                existing?.apiKeyInput.orEmpty()
+            } else {
+                profile.apiKeyInput
+            }
+            val hasApiKey = profile.hasApiKey || apiKeyInput.isNotBlank() || existing?.hasApiKey == true
             val active = profile.active && !activeSeen
             if (active) {
                 activeSeen = true
@@ -134,8 +142,9 @@ class LocalDataStore(context: Context) {
             profile.copy(
                 id = profile.id.ifBlank { UUID.randomUUID().toString() },
                 active = active,
-                hasApiKey = profile.hasApiKey || profile.apiKeyInput.isNotBlank(),
+                hasApiKey = hasApiKey,
                 keyUnavailable = false,
+                apiKeyInput = apiKeyInput,
             )
         }
         updateData { data -> data.copy(exportedAt = now, aiProfiles = saved) }

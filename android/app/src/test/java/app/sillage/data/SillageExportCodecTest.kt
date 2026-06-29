@@ -83,6 +83,38 @@ class SillageExportCodecTest {
     }
 
     @Test
+    fun mergeSavedAIProfilesForLocalStorageKeepsExistingApiKeyWhenServerOmitsIt() {
+        val current = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = "sk-local"))
+        val remote = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = ""))
+        val submitted = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = ""))
+
+        val merged = mergeSavedAIProfilesForLocalStorage(
+            currentProfiles = current,
+            remoteProfiles = remote,
+            submittedProfiles = submitted,
+        )
+
+        assertEquals("sk-local", merged.single().apiKeyInput)
+        assertEquals(true, merged.single().hasApiKey)
+    }
+
+    @Test
+    fun mergeSavedAIProfilesForLocalStoragePrefersSubmittedApiKey() {
+        val current = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = "sk-old"))
+        val remote = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = ""))
+        val submitted = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = "sk-new"))
+
+        val merged = mergeSavedAIProfilesForLocalStorage(
+            currentProfiles = current,
+            remoteProfiles = remote,
+            submittedProfiles = submitted,
+        )
+
+        assertEquals("sk-new", merged.single().apiKeyInput)
+        assertEquals(true, merged.single().hasApiKey)
+    }
+
+    @Test
     fun legacyProfileAutoSummaryMigratesToGlobalSetting() {
         val json = """
             {
@@ -155,12 +187,13 @@ class SillageExportCodecTest {
     }
 
     private fun aiProfile(
+        id: String = "p1",
         hasApiKey: Boolean = false,
         keyUnavailable: Boolean = false,
         apiKey: String = "",
     ): AIProfileDraft {
         return AIProfileDraft(
-            id = "p1",
+            id = id,
             name = "默认",
             provider = "openai",
             baseUrl = "https://api.example.com",

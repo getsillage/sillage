@@ -391,6 +391,28 @@ fun AIProfileDraft.toInput(): AIProfileInput {
     )
 }
 
+fun mergeSavedAIProfilesForLocalStorage(
+    currentProfiles: List<AIProfileDraft>,
+    remoteProfiles: List<AIProfileDraft>,
+    submittedProfiles: List<AIProfileDraft>,
+): List<AIProfileDraft> {
+    val currentById = currentProfiles.associateBy { it.id }
+    return remoteProfiles.mapIndexed { index, profile ->
+        val submitted = submittedProfiles.getOrNull(index)
+        val existing = currentById[profile.id]
+        val apiKeyInput = when {
+            submitted?.apiKeyInput.orEmpty().isNotBlank() -> submitted?.apiKeyInput?.trim().orEmpty()
+            existing?.apiKeyInput.orEmpty().isNotBlank() -> existing?.apiKeyInput?.trim().orEmpty()
+            else -> ""
+        }
+        profile.copy(
+            hasApiKey = profile.hasApiKey || apiKeyInput.isNotBlank(),
+            apiKeyInput = apiKeyInput,
+            keyUnavailable = false,
+        )
+    }
+}
+
 fun activeAskMessages(messages: List<AskMessage>): List<AskMessage> {
     return messages.filter { it.deletedAt == null }
 }

@@ -8,6 +8,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -17,14 +19,14 @@ class LocalAiClient {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    fun summarizeMemo(profile: AIProfileDraft, memo: Memo): MemoAI {
+    suspend fun summarizeMemo(profile: AIProfileDraft, memo: Memo): MemoAI = withContext(Dispatchers.IO) {
         val result = callAI(
             profile = profile,
             systemPrompt = memoSummarySystemPrompt(),
             messages = listOf(AIMessage("user", memoSummaryUserPrompt(memo.content))),
         )
         val now = Instant.now().toString()
-        return MemoAI(
+        MemoAI(
             memoId = memo.id,
             summary = result.content,
             sentiment = null,
@@ -45,16 +47,16 @@ class LocalAiClient {
         )
     }
 
-    fun answerQuestion(
+    suspend fun answerQuestion(
         profile: AIProfileDraft,
         question: String,
         scope: String,
         memos: List<Memo>,
         history: List<AskMessage>,
-    ): LocalAskAnswer {
+    ): LocalAskAnswer = withContext(Dispatchers.IO) {
         val sources = selectLocalAskSources(question, memos, scope)
         if (sources.isEmpty()) {
-            return LocalAskAnswer(
+            return@withContext LocalAskAnswer(
                 answer = "现有记录不足以判断。当前范围内没有可引用的记录。",
                 sourceRefs = emptyList(),
                 model = profile.model,
@@ -69,21 +71,21 @@ class LocalAiClient {
             systemPrompt = askSystemPrompt(),
             messages = messages,
         )
-        return LocalAskAnswer(
+        LocalAskAnswer(
             answer = result.content,
             sourceRefs = sources,
             model = profile.model,
         )
     }
 
-    fun testConnection(profile: AIProfileDraft): String {
+    suspend fun testConnection(profile: AIProfileDraft): String = withContext(Dispatchers.IO) {
         val result = callAI(
             profile = profile,
             systemPrompt = "你是连接测试助手。",
             messages = listOf(AIMessage("user", "请只回复 OK")),
             maxTokens = 16,
         )
-        return result.content.ifBlank { profile.model }
+        result.content.ifBlank { profile.model }
     }
 
     private fun callAI(

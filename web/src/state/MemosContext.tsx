@@ -22,7 +22,9 @@ import {
   type MemoAI,
   uploadAttachment,
 } from "../lib/api";
-import { sortMemos, upsertMemo } from "../lib/memos";
+import { mergeMemos, sortMemos, upsertMemo } from "../lib/memos";
+
+const PAGE_SIZE = 200;
 
 export interface UploadedAttachment {
   url: string;
@@ -33,9 +35,12 @@ export interface UploadedAttachment {
 interface MemosContextValue {
   memos: Memo[];
   loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
   error: string;
   summaries: Record<string, MemoAI>;
   refresh: () => Promise<void>;
+  loadMore: () => Promise<void>;
   getById: (id: string) => Memo | undefined;
   fetchMemo: (id: string) => Promise<Memo>;
   create: (input: { content: string; entryDate: string }) => Promise<Memo>;
@@ -62,21 +67,27 @@ export function MemosProvider({
 }) {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
   const [summaries, setSummaries] = useState<Record<string, MemoAI>>({});
   // Monotonic id so a slow earlier refresh can't overwrite a newer one
   // (e.g. StrictMode's double-invoke, or a manual refresh racing the mount).
   const refreshSeq = useRef(0);
+  // Opaque cursor for the next (older) page; empty once the list is exhausted.
+  const cursorRef = useRef("");
 
   const refresh = useCallback(async () => {
     const seq = ++refreshSeq.current;
     setLoading(true);
     try {
-      const res = await listMemos(token);
+      const res = await listMemos(token, PAGE_SIZE);
       if (seq !== refreshSeq.current) {
         return;
       }
       setMemos(sortMemos(res.memos));
+      cursorRef.current = res.nextCursor ?? "";
+      setHasMore(Boolean(res.nextCursor));
       setError("");
     } catch (err) {
       if (seq !== refreshSeq.current) {
@@ -86,6 +97,35 @@ export function MemosProvider({
     } finally {
       if (seq === refreshSeq.current) {
         setLoading(false);
+      }
+    }
+  }, [token]);
+
+  // Appends the next older page. A concurrent refresh (newer seq) discards the
+  // result so pages from a stale list never leak into a fresh one.
+  const loadMore = useCallback(async () => {
+    if (!cursorRef.current) {
+      return;
+    }
+    const seq = refreshSeq.current;
+    const cursor = cursorRef.current;
+    setLoadingMore(true);
+    try {
+      const res = await listMemos(token, PAGE_SIZE, cursor);
+      if (seq !== refreshSeq.current) {
+        return;
+      }
+      setMemos((current) => mergeMemos(current, res.memos));
+      cursorRef.current = res.nextCursor ?? "";
+      setHasMore(Boolean(res.nextCursor));
+    } catch (err) {
+      if (seq !== refreshSeq.current) {
+        return;
+      }
+      setError(err instanceof Error ? err.message : "读取更多记录失败");
+    } finally {
+      if (seq === refreshSeq.current) {
+        setLoadingMore(false);
       }
     }
   }, [token]);
@@ -193,9 +233,12 @@ export function MemosProvider({
     () => ({
       memos,
       loading,
+      loadingMore,
+      hasMore,
       error,
       summaries,
       refresh,
+      loadMore,
       getById,
       fetchMemo,
       create,
@@ -210,9 +253,12 @@ export function MemosProvider({
     [
       memos,
       loading,
+      loadingMore,
+      hasMore,
       error,
       summaries,
       refresh,
+      loadMore,
       getById,
       fetchMemo,
       create,

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarView } from "../components/CalendarView";
 import { EntryCard } from "../components/EntryCard";
 import { OnThisDay } from "../components/OnThisDay";
 import {
   emptyStateClass,
+  ghostLinkClass,
   inputClass,
   pageLeadClass,
   pageSectionClass,
@@ -78,7 +79,7 @@ export function TimelinePage() {
 }
 
 function ListView({ memos, today }: { memos: Memo[]; today: string }) {
-  const { search } = useMemos();
+  const { search, loadMore, hasMore, loadingMore } = useMemos();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Memo[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -123,7 +124,31 @@ function ListView({ memos, today }: { memos: Memo[]; today: string }) {
     };
   }, [trimmed, search]);
 
-  const list = trimmed ? (results ?? []) : active.slice(0, 120);
+  // The full loaded set in reverse-chronological order; older pages stream in
+  // via the infinite-scroll sentinel below. Search results bypass pagination.
+  const list = trimmed ? (results ?? []) : active;
+  const showLoadMore = !trimmed && hasMore;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showLoadMore) {
+      return;
+    }
+    const el = sentinelRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [showLoadMore, loadMore]);
 
   return (
     <div className="space-y-5">
@@ -156,6 +181,24 @@ function ListView({ memos, today }: { memos: Memo[]; today: string }) {
             ))}
           </ul>
         )}
+        {showLoadMore ? (
+          <div
+            ref={sentinelRef}
+            className="flex justify-center py-4 text-gray-400 text-sm dark:text-gray-500"
+          >
+            {loadingMore ? (
+              "正在加载更多…"
+            ) : (
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                className={ghostLinkClass}
+              >
+                加载更多
+              </button>
+            )}
+          </div>
+        ) : null}
       </section>
     </div>
   );

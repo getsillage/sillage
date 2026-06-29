@@ -168,9 +168,14 @@ export async function getMe(
 
 export async function listMemos(
   accessToken: string,
-  limit = 300,
-): Promise<{ memos: Memo[] }> {
-  return request(`/api/v1/memos?limit=${limit}`, {
+  limit = 200,
+  cursor?: string,
+): Promise<{ memos: Memo[]; nextCursor?: string }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+  return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
   });
 }

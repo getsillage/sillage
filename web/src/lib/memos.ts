@@ -27,6 +27,18 @@ export function upsertMemo(memos: readonly Memo[], memo: Memo): Memo[] {
   return [...memos.filter((item) => item.id !== memo.id), memo];
 }
 
+/** Merges a freshly loaded page into the cache, replacing by id and re-sorting. */
+export function mergeMemos(
+  existing: readonly Memo[],
+  incoming: readonly Memo[],
+): Memo[] {
+  const byId = new Map(existing.map((memo) => [memo.id, memo]));
+  for (const memo of incoming) {
+    byId.set(memo.id, memo);
+  }
+  return sortMemos([...byId.values()]);
+}
+
 /** Active = not archived and not soft-deleted. */
 export function isActive(memo: Memo): boolean {
   return !memo.archivedAt && !memo.deletedAt;

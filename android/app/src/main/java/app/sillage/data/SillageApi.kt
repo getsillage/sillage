@@ -263,18 +263,7 @@ class SillageApi(private val sessionStore: SessionStore) {
     ): AISettings {
         val payloadProfiles = JSONArray()
         for (profile in profiles) {
-            val item = JSONObject()
-                .put("name", profile.name)
-                .put("provider", profile.provider)
-                .put("baseUrl", profile.baseUrl)
-                .put("model", profile.model)
-                .put("enabled", profile.enabled)
-                .put("active", profile.active)
-            profile.temperature?.let { item.put("temperature", it) }
-            profile.maxTokens?.let { item.put("maxTokens", it) }
-            profile.id?.let { item.put("id", it) }
-            profile.apiKey?.let { item.put("apiKey", it) }
-            payloadProfiles.put(item)
+            payloadProfiles.put(profile.toJson())
         }
         val request = Request.Builder()
             .url(url("/api/v1/settings/ai"))
@@ -289,6 +278,42 @@ class SillageApi(private val sessionStore: SessionStore) {
             .post(JSONObject().put("id", profileId).toString().jsonBody())
             .build()
         return execute(request).optString("model")
+    }
+
+    suspend fun testAIConnection(input: AIProfileInput): String {
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai:test"))
+            .post(input.toJson().toString().jsonBody())
+            .build()
+        return execute(request).optString("model")
+    }
+
+    suspend fun listAIModels(input: AIProfileInput): List<String> {
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai:models"))
+            .post(input.toJson().toString().jsonBody())
+            .build()
+        val models = execute(request).optJSONArray("models") ?: JSONArray()
+        return buildList {
+            for (index in 0 until models.length()) {
+                add(models.optString(index))
+            }
+        }
+    }
+
+    private fun AIProfileInput.toJson(): JSONObject {
+        val item = JSONObject()
+            .put("name", name)
+            .put("provider", provider)
+            .put("baseUrl", baseUrl)
+            .put("model", model)
+            .put("enabled", enabled)
+            .put("active", active)
+        temperature?.let { item.put("temperature", it) }
+        maxTokens?.let { item.put("maxTokens", it) }
+        id?.let { item.put("id", it) }
+        apiKey?.let { item.put("apiKey", it) }
+        return item
     }
 
     suspend fun listAskConversations(limit: Int = 50): List<AskConversation> {

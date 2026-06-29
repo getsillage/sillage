@@ -1983,10 +1983,11 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
                             val profile = state.aiProfiles[index]
+                            val profileKey = profile.id.ifBlank { "new-$index" }
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 AIProfileSummaryCard(
                                     profile = profile,
-                                    testResult = state.aiTestResults[profile.id],
+                                    testResult = state.aiTestResults[profileKey],
                                     selected = selectedIndex == index,
                                     saving = state.aiSettingsSaving,
                                     onConfigure = { selectedAIProfileIndex = index },
@@ -1996,8 +1997,10 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                                     AIProfileDetailCard(
                                         index = index,
                                         profile = profile,
-                                        testing = profile.id.isNotBlank() && state.aiTestingProfileId == profile.id,
-                                        testResult = state.aiTestResults[profile.id],
+                                        testing = state.aiTestingProfileId == profileKey,
+                                        loadingModels = state.aiLoadingModelsProfileId == profileKey,
+                                        modelOptions = state.aiModelResults[profileKey].orEmpty(),
+                                        testResult = state.aiTestResults[profileKey],
                                         viewModel = viewModel,
                                         onClose = { selectedAIProfileIndex = null },
                                     )
@@ -2223,6 +2226,8 @@ private fun AIProfileDetailCard(
     index: Int,
     profile: AIProfileDraft,
     testing: Boolean,
+    loadingModels: Boolean,
+    modelOptions: List<String>,
     testResult: String?,
     viewModel: SillageViewModel,
     onClose: () -> Unit,
@@ -2276,13 +2281,34 @@ private fun AIProfileDetailCard(
                 singleLine = true,
                 label = { Text("Base URL") },
             )
-            OutlinedTextField(
-                value = profile.model,
-                onValueChange = { viewModel.updateAIProfileModel(index, it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("模型") },
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = profile.model,
+                    onValueChange = { viewModel.updateAIProfileModel(index, it) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("模型") },
+                )
+                TextButton(
+                    onClick = { viewModel.loadAIModels(index) },
+                    enabled = !loadingModels,
+                ) {
+                    Text(if (loadingModels) "获取中" else "获取模型")
+                }
+            }
+            if (modelOptions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    modelOptions.forEach { model ->
+                        AssistChip(
+                            onClick = { viewModel.updateAIProfileModel(index, model) },
+                            label = { Text(model, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        )
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = profile.temperatureInput,

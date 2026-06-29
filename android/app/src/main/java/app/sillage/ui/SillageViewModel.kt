@@ -281,7 +281,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                     aiSettingsLoading = false,
                     aiSettingsSaving = false,
                     aiTestingProfileId = "",
+                    aiLoadingModelsProfileId = "",
                     aiTestResults = emptyMap(),
+                    aiModelResults = emptyMap(),
                     askConversations = emptyList(),
                     activeAskId = "",
                     askHeadId = null,
@@ -874,6 +876,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiAutoSummary = saved.autoSummary,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
+                            aiModelResults = emptyMap(),
                             notice = "AI 档案已删除",
                         )
                     }
@@ -953,6 +956,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiAutoSummary = saved.autoSummary,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
+                            aiModelResults = emptyMap(),
                             notice = "已设为默认",
                         )
                     }
@@ -1000,6 +1004,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiAutoSummary = settings.autoSummary,
                             aiSettingsLoading = false,
                             aiTestResults = emptyMap(),
+                            aiModelResults = emptyMap(),
                             error = null,
                         )
                     }
@@ -1028,6 +1033,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiAutoSummary = saved.autoSummary,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
+                            aiModelResults = emptyMap(),
                             notice = "AI 设置已保存",
                         )
                     }
@@ -1075,15 +1081,14 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun testAIProfile(index: Int) {
         val profile = state.value.aiProfiles.getOrNull(index) ?: return
-        if (profile.id.isBlank()) {
-            _state.update { it.copy(error = "请先保存后再测试连接") }
-            return
-        }
+        val key = profile.uiKey(index)
         viewModelScope.launch {
-            _state.update { it.copy(aiTestingProfileId = profile.id, error = null, notice = null) }
+            _state.update { it.copy(aiTestingProfileId = key, error = null, notice = null) }
             runCatching {
                 if (isOfflineMode()) {
                     localAiClient.testConnection(profile)
+                } else if (profile.id.isBlank()) {
+                    api.testAIConnection(profile.toInput())
                 } else {
                     api.testAIConnection(profile.id)
                 }
@@ -1092,7 +1097,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     _state.update {
                         it.copy(
                             aiTestingProfileId = "",
-                            aiTestResults = it.aiTestResults + (profile.id to "连接成功（$model）"),
+                            aiTestResults = it.aiTestResults + (key to "连接成功（$model）"),
                         )
                     }
                 }
@@ -1100,7 +1105,37 @@ class SillageViewModel(context: Context) : ViewModel() {
                     _state.update {
                         it.copy(
                             aiTestingProfileId = "",
-                            aiTestResults = it.aiTestResults + (profile.id to error.readableMessage()),
+                            aiTestResults = it.aiTestResults + (key to error.readableMessage()),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun loadAIModels(index: Int) {
+        val profile = state.value.aiProfiles.getOrNull(index) ?: return
+        val key = profile.uiKey(index)
+        if (isOfflineMode()) {
+            _state.update { it.copy(aiTestResults = it.aiTestResults + (key to "离线模式无法获取云端模型列表")) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(aiLoadingModelsProfileId = key, error = null, notice = null) }
+            runCatching { api.listAIModels(profile.toInput()) }
+                .onSuccess { models ->
+                    _state.update {
+                        it.copy(
+                            aiLoadingModelsProfileId = "",
+                            aiModelResults = it.aiModelResults + (key to models),
+                            aiTestResults = it.aiTestResults + (key to if (models.isEmpty()) "没有可用模型" else "已获取模型列表"),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            aiLoadingModelsProfileId = "",
+                            aiTestResults = it.aiTestResults + (key to error.readableMessage()),
                         )
                     }
                 }
@@ -1376,6 +1411,8 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         state.value.selectedMemo?.id?.let(::fetchSelectedMemoDetail)
     }
+
+    private fun AIProfileDraft.uiKey(index: Int): String = id.ifBlank { "new-$index" }
 
     private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {
         _state.update {
@@ -1802,7 +1839,9 @@ data class SillageUiState(
     val aiSettingsLoading: Boolean = false,
     val aiSettingsSaving: Boolean = false,
     val aiTestingProfileId: String = "",
+    val aiLoadingModelsProfileId: String = "",
     val aiTestResults: Map<String, String> = emptyMap(),
+    val aiModelResults: Map<String, List<String>> = emptyMap(),
     val askConversations: List<AskConversation> = emptyList(),
     val activeAskId: String = "",
     val askHeadId: String? = null,

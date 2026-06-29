@@ -450,6 +450,7 @@ func (s *Server) listAskCandidateMemos(ctx context.Context, accountID string) ([
 		page, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
 			AccountID:      accountID,
 			Limit:          pageSize,
+			Sync:           true,
 			UpdatedAfter:   updatedAfter,
 			UpdatedAfterID: updatedAfterID,
 		})

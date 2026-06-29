@@ -108,9 +108,23 @@ type ListMemoOptions struct {
 	AccountID      string
 	Limit          int
 	IncludeDeleted bool
+	// Sync selects the forward updated_at walk (oldest first) used by sync pull
+	// and the Ask candidate scan. Without it, listing is reverse-chronological
+	// by entry date — what the timeline and home screens actually want.
+	Sync           bool
 	UpdatedAfter   int64
 	UpdatedAfterID string
+	// Reverse-chronological keyset cursor for "load older" pages. BeforeID being
+	// set activates the predicate; the three fields together identify the last
+	// row of the previous page.
+	BeforeEntryDate string
+	BeforeCreatedAt int64
+	BeforeID        string
 }
+
+// MaxMemoListLimit caps a single memo page. Clients paginate with the cursor
+// returned alongside the list rather than asking for everything at once.
+const MaxMemoListLimit = 500
 
 type SearchMemoOptions struct {
 	AccountID string
@@ -120,8 +134,11 @@ type SearchMemoOptions struct {
 
 func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, error) {
 	limit := opts.Limit
-	if limit <= 0 || limit > 200 {
+	if limit <= 0 {
 		limit = 50
+	}
+	if limit > MaxMemoListLimit {
+		limit = MaxMemoListLimit
 	}
 	query := `
 SELECT id, creator_id, content, entry_date, version, pinned_at, archived_at, created_at, updated_at, deleted_at
@@ -131,11 +148,25 @@ WHERE creator_id = ?`
 	if !opts.IncludeDeleted {
 		query += " AND deleted_at IS NULL"
 	}
-	if opts.UpdatedAfter > 0 || opts.UpdatedAfterID != "" {
-		query += " AND (updated_at > ? OR (updated_at = ? AND id > ?))"
-		args = append(args, opts.UpdatedAfter, opts.UpdatedAfter, opts.UpdatedAfterID)
+	if opts.Sync {
+		if opts.UpdatedAfter > 0 || opts.UpdatedAfterID != "" {
+			query += " AND (updated_at > ? OR (updated_at = ? AND id > ?))"
+			args = append(args, opts.UpdatedAfter, opts.UpdatedAfter, opts.UpdatedAfterID)
+		}
+		query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
+	} else {
+		if opts.BeforeID != "" {
+			query += ` AND (entry_date < ?
+  OR (entry_date = ? AND created_at < ?)
+  OR (entry_date = ? AND created_at = ? AND id < ?))`
+			args = append(args,
+				opts.BeforeEntryDate,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
+			)
+		}
+		query += " ORDER BY entry_date DESC, created_at DESC, id DESC LIMIT ?"
 	}
-	query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
 	args = append(args, limit)
 
 	rows, err := s.driver.GetDB().QueryContext(ctx, query, args...)
@@ -143,19 +174,7 @@ WHERE creator_id = ?`
 		return nil, fmt.Errorf("list memos: %w", err)
 	}
 	defer rows.Close()
-
-	var memos []*Memo
-	for rows.Next() {
-		memo, err := scanMemo(rows)
-		if err != nil {
-			return nil, err
-		}
-		memos = append(memos, memo)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate memos: %w", err)
-	}
-	return memos, nil
+	return scanMemos(rows)
 }
 
 func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Memo, error) {

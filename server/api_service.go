@@ -79,11 +79,11 @@ type aiSettingsInput struct {
 }
 
 type aiProfileInput struct {
-	ID          string
-	Name        string
-	Provider    string
-	BaseURL     string
-	Model       string
+	ID       string
+	Name     string
+	Provider string
+	BaseURL  string
+	Model    string
 	// Temperature and MaxTokens are pointers so an explicit 0 (deterministic
 	// output) is distinguishable from an omitted field that should take the
 	// default. A nil pointer means "use the default".
@@ -531,11 +531,68 @@ type memoUpdateInput struct {
 	Deleted         *bool
 }
 
-func (s *Server) listMemos(ctx context.Context, accountID string, limit int) ([]*store.Memo, error) {
-	return s.Store.ListMemos(ctx, &store.ListMemoOptions{
+type memoListPage struct {
+	Memos      []*store.Memo
+	NextCursor string
+}
+
+// listMemos returns one reverse-chronological page plus an opaque cursor for the
+// next (older) page. An empty NextCursor means the list is exhausted.
+func (s *Server) listMemos(ctx context.Context, accountID string, limit int, rawCursor string) (*memoListPage, error) {
+	pageSize := normalizeLimit(limit, 50)
+	opts := &store.ListMemoOptions{
 		AccountID: accountID,
-		Limit:     normalizeLimit(limit, 50),
-	})
+		Limit:     pageSize + 1,
+	}
+	if cur, ok := decodeMemoListCursor(rawCursor); ok {
+		opts.BeforeEntryDate = cur.EntryDate
+		opts.BeforeCreatedAt = cur.CreatedAt
+		opts.BeforeID = cur.ID
+	}
+	memos, err := s.Store.ListMemos(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	next := ""
+	if len(memos) > pageSize {
+		memos = memos[:pageSize]
+		last := memos[len(memos)-1]
+		next = encodeMemoListCursor(memoListCursor{
+			EntryDate: last.EntryDate,
+			CreatedAt: last.CreatedAt,
+			ID:        last.ID,
+		})
+	}
+	return &memoListPage{Memos: memos, NextCursor: next}, nil
+}
+
+type memoListCursor struct {
+	EntryDate string `json:"entryDate"`
+	CreatedAt int64  `json:"createdAt"`
+	ID        string `json:"id"`
+}
+
+func decodeMemoListCursor(raw string) (memoListCursor, bool) {
+	if raw == "" {
+		return memoListCursor{}, false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		return memoListCursor{}, false
+	}
+	var cur memoListCursor
+	if err := json.Unmarshal(payload, &cur); err != nil || cur.ID == "" {
+		return memoListCursor{}, false
+	}
+	return cur, true
+}
+
+func encodeMemoListCursor(cur memoListCursor) string {
+	payload, err := json.Marshal(cur)
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(payload)
 }
 
 func (s *Server) searchMemos(ctx context.Context, accountID, query string, limit int) ([]*store.Memo, error) {
@@ -721,6 +778,7 @@ func (s *Server) pullSync(ctx context.Context, accountID, rawCursor string, limi
 		AccountID:      accountID,
 		Limit:          limit + 1,
 		IncludeDeleted: true,
+		Sync:           true,
 		UpdatedAfter:   cursor.Memo.UpdatedAt,
 		UpdatedAfterID: cursor.Memo.ID,
 	})
@@ -1033,8 +1091,8 @@ func normalizeLimit(limit, fallback int) int {
 	if limit <= 0 {
 		return fallback
 	}
-	if limit > 200 {
-		return 200
+	if limit > store.MaxMemoListLimit {
+		return store.MaxMemoListLimit
 	}
 	return limit
 }

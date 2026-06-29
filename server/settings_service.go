@@ -38,11 +38,11 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 			continue
 		}
 		input.Profiles = append(input.Profiles, aiProfileInput{
-			ID:          profile.GetId(),
-			Name:        profile.GetName(),
-			Provider:    profile.GetProvider(),
-			BaseURL:     profile.GetBaseUrl(),
-			Model:       profile.GetModel(),
+			ID:       profile.GetId(),
+			Name:     profile.GetName(),
+			Provider: profile.GetProvider(),
+			BaseURL:  profile.GetBaseUrl(),
+			Model:    profile.GetModel(),
 			// proto3 scalars can't distinguish 0 from unset; keep the prior
 			// Connect behaviour where 0 falls back to the server default.
 			Temperature: connectOptionalFloat(profile.GetTemperature()),

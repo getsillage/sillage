@@ -39,21 +39,27 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	limit := parseLimit(c.QueryParam("limit"), 50)
-	var memos []*store.Memo
+	ctx := c.Request().Context()
 	// Accept both "query" (canonical, matches proto) and legacy "q".
 	query := c.QueryParam("query")
 	if query == "" {
 		query = c.QueryParam("q")
 	}
 	if query != "" {
-		memos, err = s.searchMemos(c.Request().Context(), account.ID, query, limit)
-	} else {
-		memos, err = s.listMemos(c.Request().Context(), account.ID, limit)
+		memos, err := s.searchMemos(ctx, account.ID, query, limit)
+		if err != nil {
+			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
+		}
+		return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})
 	}
+	page, err := s.listMemos(ctx, account.ID, limit, c.QueryParam("cursor"))
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
-	return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})
+	return c.JSON(http.StatusOK, map[string]any{
+		"memos":      memoDTOs(page.Memos),
+		"nextCursor": page.NextCursor,
+	})
 }
 
 func (s *Server) handleCreateMemo(c *echo.Context) error {

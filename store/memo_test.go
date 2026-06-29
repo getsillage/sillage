@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -101,6 +102,55 @@ func TestSearchMemosMatchesAndExcludesTombstones(t *testing.T) {
 	}
 	if len(blank) != 0 {
 		t.Fatalf("blank query returned %d memos, want 0", len(blank))
+	}
+}
+
+// TestListMemosNewestFirstAndPaginates proves the default list is
+// reverse-chronological by entry date (the pre-pagination query returned the
+// OLDEST rows first) and that the keyset cursor walks every page without gaps
+// or overlap.
+func TestListMemosNewestFirstAndPaginates(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	dates := []string{"2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"}
+	for _, d := range dates {
+		if _, err := s.CreateMemo(ctx, &store.CreateMemo{
+			CreatorID: account,
+			Content:   "entry " + d,
+			EntryDate: d,
+		}); err != nil {
+			t.Fatalf("CreateMemo(%s) error = %v", d, err)
+		}
+	}
+
+	var got []string
+	opts := &store.ListMemoOptions{AccountID: account, Limit: 2}
+	for {
+		page, err := s.ListMemos(ctx, opts)
+		if err != nil {
+			t.Fatalf("ListMemos() error = %v", err)
+		}
+		for _, m := range page {
+			got = append(got, m.EntryDate)
+		}
+		if len(page) < opts.Limit {
+			break
+		}
+		last := page[len(page)-1]
+		opts = &store.ListMemoOptions{
+			AccountID:       account,
+			Limit:           2,
+			BeforeEntryDate: last.EntryDate,
+			BeforeCreatedAt: last.CreatedAt,
+			BeforeID:        last.ID,
+		}
+	}
+
+	want := "2026-01-05,2026-01-04,2026-01-03,2026-01-02,2026-01-01"
+	if strings.Join(got, ",") != want {
+		t.Fatalf("paged entry dates = %v, want %s", got, want)
 	}
 }
 

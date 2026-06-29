@@ -28,7 +28,11 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	if query := req.Msg.GetQuery(); query != "" {
 		memos, err = s.server.searchMemos(ctx, account.ID, query, limit)
 	} else {
-		memos, err = s.server.listMemos(ctx, account.ID, limit)
+		var page *memoListPage
+		page, err = s.server.listMemos(ctx, account.ID, limit, "")
+		if page != nil {
+			memos = page.Memos
+		}
 	}
 	if err != nil {
 		return nil, connectError(err)

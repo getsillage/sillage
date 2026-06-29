@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -87,14 +85,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskConversation
@@ -400,6 +396,9 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     searching = state.searching,
                     memories = memories,
                     today = today,
+                    hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
+                    loadingMore = state.loadingMoreMemos,
+                    onLoadMore = viewModel::loadMoreMemos,
                     onMemoClick = viewModel::openMemoDetail,
                 )
             }
@@ -458,6 +457,9 @@ private fun MemoListView(
     searching: Boolean,
     memories: List<Memo>,
     today: String,
+    hasMore: Boolean,
+    loadingMore: Boolean,
+    onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
 ) {
     if (searching && visibleMemos.isEmpty()) {
@@ -488,6 +490,17 @@ private fun MemoListView(
         }
         items(visibleMemos, key = { it.id }) { memo ->
             MemoRow(memo = memo, onClick = { onMemoClick(memo) })
+        }
+        if (hasMore) {
+            item {
+                Button(
+                    onClick = onLoadMore,
+                    enabled = !loadingMore,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (loadingMore) "正在加载…" else "加载更多")
+                }
+            }
         }
     }
 }
@@ -1215,11 +1228,6 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
 private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    val keyboardBottom = with(density) {
-        WindowInsets.ime.getBottom(this).toDp()
-    }
-    val keyboardVisible = keyboardBottom > 0.dp
     val listState = rememberLazyListState()
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
@@ -1289,18 +1297,13 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         },
         bottomBar = {
-            if (!keyboardVisible) {
-                MainNavigationBar(state = state, viewModel = viewModel)
-            }
-        },
+            MainNavigationBar(state = state, viewModel = viewModel)
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    bottom = if (keyboardVisible) 0.dp else padding.calculateBottomPadding(),
-                ),
+                .padding(padding),
         ) {
             MessageBlock(
                 error = state.error,
@@ -1358,7 +1361,6 @@ private fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             AskComposer(
                 state = state,
                 viewModel = viewModel,
-                keyboardBottom = keyboardBottom,
             )
         }
     }
@@ -1403,12 +1405,11 @@ private fun AskEmptyPrompt() {
 private fun AskComposer(
     state: SillageUiState,
     viewModel: SillageViewModel,
-    keyboardBottom: Dp,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(y = -keyboardBottom)
+            .imePadding()
             .padding(horizontal = 8.dp, vertical = 4.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -2284,7 +2285,7 @@ private fun AIProfileDetailCard(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
-                    value = profile.temperature.toString(),
+                    value = profile.temperatureInput,
                     onValueChange = { viewModel.updateAIProfileTemperature(index, it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
@@ -2292,7 +2293,7 @@ private fun AIProfileDetailCard(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 OutlinedTextField(
-                    value = profile.maxTokens.toString(),
+                    value = profile.maxTokensInput,
                     onValueChange = { viewModel.updateAIProfileMaxTokens(index, it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,

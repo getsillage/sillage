@@ -102,6 +102,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
                 memos = emptyList(),
+                memoNextCursor = "",
+                loadingMoreMemos = false,
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
@@ -122,6 +124,8 @@ class SillageViewModel(context: Context) : ViewModel() {
             it.copy(
                 appMode = SessionStore.MODE_ONLINE,
                 memos = emptyList(),
+                memoNextCursor = "",
+                loadingMoreMemos = false,
                 selectedMemo = null,
                 selectedSummary = null,
                 searchQuery = "",
@@ -266,6 +270,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 it.copy(
                     account = null,
                     memos = emptyList(),
+                    memoNextCursor = "",
+                    loadingMoreMemos = false,
                     selectedMemo = null,
                     selectedSummary = null,
                     summaryLoading = false,
@@ -302,21 +308,54 @@ class SillageViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             runCatching {
                 if (isOfflineMode()) {
-                    localDataStore.listMemos()
+                    MemoListSnapshot(
+                        memos = localDataStore.listMemos(),
+                        nextCursor = "",
+                    )
                 } else {
-                    api.listMemos()
+                    api.listMemos().let { page ->
+                        MemoListSnapshot(
+                            memos = page.memos,
+                            nextCursor = page.nextCursor,
+                        )
+                    }
                 }
             }
-                .onSuccess { memos ->
+                .onSuccess { snapshot ->
                     _state.update {
                         it.copy(
-                            memos = activeMemos(memos),
+                            memos = activeMemos(snapshot.memos),
+                            memoNextCursor = snapshot.nextCursor,
+                            loadingMoreMemos = false,
                             error = null,
                         )
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    _state.update { it.copy(loadingMoreMemos = false, error = error.readableMessage()) }
+                }
+        }
+    }
+
+    fun loadMoreMemos() {
+        val cursor = state.value.memoNextCursor
+        if (isOfflineMode() || cursor.isBlank() || state.value.loadingMoreMemos) {
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loadingMoreMemos = true, error = null, notice = null) }
+            runCatching { api.listMemos(cursor = cursor) }
+                .onSuccess { page ->
+                    _state.update { current ->
+                        current.copy(
+                            memos = activeMemos(current.memos + page.memos),
+                            memoNextCursor = page.nextCursor,
+                            loadingMoreMemos = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(loadingMoreMemos = false, error = error.readableMessage()) }
                 }
         }
     }
@@ -868,11 +907,21 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateAIProfileTemperature(index: Int, value: String) {
-        updateAIProfile(index) { it.copy(temperature = value.toDoubleOrNull() ?: 0.0) }
+        updateAIProfile(index) { profile ->
+            profile.copy(
+                temperatureInput = value,
+                temperature = value.trim().toDoubleOrNull() ?: profile.temperature,
+            )
+        }
     }
 
     fun updateAIProfileMaxTokens(index: Int, value: String) {
-        updateAIProfile(index) { it.copy(maxTokens = value.toLongOrNull() ?: 0) }
+        updateAIProfile(index) { profile ->
+            profile.copy(
+                maxTokensInput = value,
+                maxTokens = value.trim().toLongOrNull()?.takeIf { it > 0 } ?: profile.maxTokens,
+            )
+        }
     }
 
     fun updateAIProfileApiKey(index: Int, value: String) {
@@ -1644,6 +1693,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 initialized = true,
                 account = null,
                 memos = memos,
+                memoNextCursor = "",
+                loadingMoreMemos = false,
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
@@ -1726,6 +1777,11 @@ private data class EditableAISettings(
     val autoSummary: Boolean,
 )
 
+private data class MemoListSnapshot(
+    val memos: List<Memo>,
+    val nextCursor: String,
+)
+
 data class SillageUiState(
     val screen: Screen,
     val baseUrl: String,
@@ -1735,6 +1791,8 @@ data class SillageUiState(
     val initialized: Boolean? = null,
     val account: Account? = null,
     val memos: List<Memo> = emptyList(),
+    val memoNextCursor: String = "",
+    val loadingMoreMemos: Boolean = false,
     val selectedMemo: Memo? = null,
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,

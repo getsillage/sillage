@@ -75,10 +75,18 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseAccount(execute(request).getJSONObject("account"))
     }
 
-    suspend fun listMemos(limit: Int = 300): List<Memo> {
-        val request = Request.Builder().url(url("/api/v1/memos?limit=$limit")).get().build()
-        val memos = execute(request).getJSONArray("memos")
-        return memos.toMemoList()
+    suspend fun listMemos(limit: Int = 200, cursor: String = ""): MemoPage {
+        val suffix = if (cursor.isBlank()) {
+            "?limit=$limit"
+        } else {
+            "?limit=$limit&cursor=${cursor.queryParam()}"
+        }
+        val request = Request.Builder().url(url("/api/v1/memos$suffix")).get().build()
+        val body = execute(request)
+        return MemoPage(
+            memos = body.getJSONArray("memos").toMemoList(),
+            nextCursor = body.optString("nextCursor"),
+        )
     }
 
     suspend fun pullFullSync(limit: Int = 200): SillageExportData {
@@ -260,10 +268,10 @@ class SillageApi(private val sessionStore: SessionStore) {
                 .put("provider", profile.provider)
                 .put("baseUrl", profile.baseUrl)
                 .put("model", profile.model)
-                .put("temperature", profile.temperature)
-                .put("maxTokens", profile.maxTokens)
                 .put("enabled", profile.enabled)
                 .put("active", profile.active)
+            profile.temperature?.let { item.put("temperature", it) }
+            profile.maxTokens?.let { item.put("maxTokens", it) }
             profile.id?.let { item.put("id", it) }
             profile.apiKey?.let { item.put("apiKey", it) }
             payloadProfiles.put(item)

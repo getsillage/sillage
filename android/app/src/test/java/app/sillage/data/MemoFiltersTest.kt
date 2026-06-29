@@ -139,6 +139,22 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun aiProfileDraftInputPreservesZeroTemperature() {
+        val input = AIProfileDraft(temperatureInput = "0", maxTokensInput = "").toInput()
+
+        assertEquals(0.0, input.temperature)
+        assertEquals(null, input.maxTokens)
+    }
+
+    @Test
+    fun localAskQueryTermsAddsChineseBigrams() {
+        val terms = localAskQueryTerms("最近睡眠怎样")
+
+        assertEquals(true, terms.contains("睡眠"))
+        assertEquals(true, terms.contains("怎样"))
+    }
+
+    @Test
     fun normalizeThemeModeAcceptsOnlyDarkOtherwiseLight() {
         assertEquals(SessionStore.THEME_DARK, SessionStore.normalizeThemeMode("dark"))
         assertEquals(SessionStore.THEME_LIGHT, SessionStore.normalizeThemeMode("light"))

@@ -33,6 +33,11 @@ data class MemoDetail(
     val ai: MemoAI?,
 )
 
+data class MemoPage(
+    val memos: List<Memo>,
+    val nextCursor: String,
+)
+
 data class MemoAI(
     val memoId: String,
     val summary: String?,
@@ -103,6 +108,10 @@ data class AIProfileDraft(
     val hasApiKey: Boolean = false,
     val keyUnavailable: Boolean = false,
     val apiKeyInput: String = "",
+    // Raw input drafts avoid coercing transient values such as "" or "0." while
+    // the user types. Parse only when saving/testing.
+    val temperatureInput: String = temperature.toString(),
+    val maxTokensInput: String = maxTokens.toString(),
 )
 
 data class AIProfileInput(
@@ -111,8 +120,8 @@ data class AIProfileInput(
     val provider: String,
     val baseUrl: String,
     val model: String,
-    val temperature: Double,
-    val maxTokens: Long,
+    val temperature: Double?,
+    val maxTokens: Long?,
     val enabled: Boolean,
     val active: Boolean,
     val apiKey: String?,
@@ -361,6 +370,8 @@ fun AIProfile.toDraft(): AIProfileDraft {
         active = active,
         hasApiKey = hasApiKey,
         keyUnavailable = keyUnavailable,
+        temperatureInput = temperature.toString(),
+        maxTokensInput = maxTokens.toString(),
     )
 }
 
@@ -372,8 +383,8 @@ fun AIProfileDraft.toInput(): AIProfileInput {
         provider = provider,
         baseUrl = baseUrl,
         model = model,
-        temperature = temperature,
-        maxTokens = maxTokens,
+        temperature = temperatureInput.trim().toDoubleOrNull(),
+        maxTokens = maxTokensInput.trim().toLongOrNull()?.takeIf { it > 0 },
         enabled = enabled,
         active = active,
         apiKey = trimmedKey.takeIf { it.isNotBlank() },

@@ -305,10 +305,7 @@ private fun selectLocalAskSources(question: String, memos: List<Memo>, scope: St
                 else -> runCatching { LocalDate.parse(memo.entryDate).isAfter(today.minusDays(31)) }.getOrDefault(true)
             }
         }
-    val terms = question
-        .split(Regex("""\s+"""))
-        .map { it.trim() }
-        .filter { it.length >= 2 }
+    val terms = localAskQueryTerms(question)
     return scoped
         .sortedWith(compareByDescending<Memo> { scoreMemo(it, terms) }.thenByDescending { it.entryDate })
         .take(8)
@@ -320,6 +317,24 @@ private fun selectLocalAskSources(question: String, memos: List<Memo>, scope: St
                 rank = index + 1,
             )
         }
+}
+
+internal fun localAskQueryTerms(question: String): List<String> {
+    val normalized = question.trim()
+    if (normalized.isBlank()) {
+        return emptyList()
+    }
+    val words = normalized
+        .split(Regex("""\s+"""))
+        .map { it.trim() }
+        .filter { it.length >= 2 }
+    val compact = normalized.replace(Regex("""\s+"""), "")
+    val grams = if (compact.any { it.code > 127 } && compact.length >= 2) {
+        compact.windowed(size = 2, step = 1).filter { it.any { char -> char.code > 127 } }
+    } else {
+        emptyList()
+    }
+    return (words + grams).distinct()
 }
 
 private fun scoreMemo(memo: Memo, terms: List<String>): Int {

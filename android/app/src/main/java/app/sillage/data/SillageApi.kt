@@ -86,6 +86,7 @@ class SillageApi(private val sessionStore: SessionStore) {
         val memoAI = mutableListOf<MemoAI>()
         val askConversations = mutableListOf<AskConversation>()
         val askMessages = mutableListOf<AskMessage>()
+        val aiSettings = runCatching { getAISettings() }.getOrDefault(AISettings(emptyList(), false))
         var cursor = ""
         do {
             val suffix = if (cursor.isBlank()) {
@@ -107,9 +108,10 @@ class SillageApi(private val sessionStore: SessionStore) {
             exportedAt = java.time.Instant.now().toString(),
             themeMode = "",
             memoViewMode = "",
+            autoSummary = aiSettings.autoSummary,
             memos = memos,
             memoAI = memoAI,
-            aiProfiles = runCatching { getAISettings().map { it.toDraft() } }.getOrDefault(emptyList()),
+            aiProfiles = aiSettings.profiles.map { it.toDraft() },
             askConversations = askConversations,
             askMessages = askMessages,
         )
@@ -239,20 +241,18 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseAttachment(execute(request).getJSONObject("attachment"))
     }
 
-    suspend fun getAISettings(): List<AIProfile> {
+    suspend fun getAISettings(): AISettings {
         val request = Request.Builder()
             .url(url("/api/v1/settings/ai"))
             .get()
             .build()
-        val profiles = execute(request).getJSONArray("profiles")
-        return buildList {
-            for (index in 0 until profiles.length()) {
-                add(parseAIProfile(profiles.getJSONObject(index)))
-            }
-        }
+        return parseAISettings(execute(request))
     }
 
-    suspend fun patchAISettings(profiles: List<AIProfileInput>): List<AIProfile> {
+    suspend fun patchAISettings(
+        profiles: List<AIProfileInput>,
+        autoSummary: Boolean,
+    ): AISettings {
         val payloadProfiles = JSONArray()
         for (profile in profiles) {
             val item = JSONObject()
@@ -264,21 +264,15 @@ class SillageApi(private val sessionStore: SessionStore) {
                 .put("maxTokens", profile.maxTokens)
                 .put("enabled", profile.enabled)
                 .put("active", profile.active)
-                .put("autoSummary", profile.autoSummary)
             profile.id?.let { item.put("id", it) }
             profile.apiKey?.let { item.put("apiKey", it) }
             payloadProfiles.put(item)
         }
         val request = Request.Builder()
             .url(url("/api/v1/settings/ai"))
-            .patch(JSONObject().put("profiles", payloadProfiles).toString().jsonBody())
+            .patch(JSONObject().put("profiles", payloadProfiles).put("autoSummary", autoSummary).toString().jsonBody())
             .build()
-        val saved = execute(request).getJSONArray("profiles")
-        return buildList {
-            for (index in 0 until saved.length()) {
-                add(parseAIProfile(saved.getJSONObject(index)))
-            }
-        }
+        return parseAISettings(execute(request))
     }
 
     suspend fun testAIConnection(profileId: String): String {
@@ -595,6 +589,18 @@ class SillageApi(private val sessionStore: SessionStore) {
             autoSummary = body.optBoolean("autoSummary"),
             createdAt = body.optString("createdAt"),
             updatedAt = body.optString("updatedAt"),
+        )
+    }
+
+    private fun parseAISettings(body: JSONObject): AISettings {
+        val profiles = body.getJSONArray("profiles")
+        return AISettings(
+            profiles = buildList {
+                for (index in 0 until profiles.length()) {
+                    add(parseAIProfile(profiles.getJSONObject(index)))
+                }
+            },
+            autoSummary = body.optBoolean("autoSummary"),
         )
     }
 

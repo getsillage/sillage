@@ -111,7 +111,6 @@ internal fun aiProfileToJson(profile: AIProfileDraft): JSONObject {
         .put("active", profile.active)
         .put("hasApiKey", false)
         .put("keyUnavailable", false)
-        .put("autoSummary", profile.autoSummary)
     if (profile.apiKeyInput.isNotBlank()) {
         body.put("apiKey", profile.apiKeyInput)
     }
@@ -131,7 +130,6 @@ internal fun jsonToAIProfileDraft(body: JSONObject): AIProfileDraft {
         active = body.optBoolean("active"),
         hasApiKey = body.optString("apiKey").isNotBlank(),
         keyUnavailable = false,
-        autoSummary = body.optBoolean("autoSummary"),
         apiKeyInput = body.optString("apiKey"),
     )
 }

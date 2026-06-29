@@ -13,6 +13,7 @@ class SillageExportCodecTest {
                 exportedAt = "2026-06-27T00:00:00Z",
                 themeMode = SessionStore.THEME_DARK,
                 memoViewMode = "Calendar",
+                autoSummary = true,
                 memos = listOf(memo()),
                 memoAI = emptyList(),
                 aiProfiles = listOf(aiProfile(hasApiKey = true, keyUnavailable = true)),
@@ -40,6 +41,7 @@ class SillageExportCodecTest {
             exportedAt = "2026-06-27T00:00:00Z",
             themeMode = SessionStore.THEME_DARK,
             memoViewMode = "Calendar",
+            autoSummary = true,
             memos = listOf(memo(content = "离线记录")),
             memoAI = listOf(memoAI(summary = "总结")),
             aiProfiles = listOf(aiProfile()),
@@ -51,6 +53,7 @@ class SillageExportCodecTest {
 
         assertEquals(SessionStore.THEME_DARK, decoded.themeMode)
         assertEquals("Calendar", decoded.memoViewMode)
+        assertEquals(true, decoded.autoSummary)
         assertEquals("离线记录", decoded.memos.single().content)
         assertEquals("总结", decoded.memoAI.single().summary)
         assertEquals("默认", decoded.aiProfiles.single().name)
@@ -65,6 +68,7 @@ class SillageExportCodecTest {
             exportedAt = "2026-06-27T00:00:00Z",
             themeMode = SessionStore.THEME_DARK,
             memoViewMode = "List",
+            autoSummary = false,
             memos = emptyList(),
             memoAI = emptyList(),
             aiProfiles = listOf(aiProfile(hasApiKey = true, apiKey = "sk-test")),
@@ -76,6 +80,42 @@ class SillageExportCodecTest {
 
         assertEquals("sk-test", decoded.aiProfiles.single().apiKeyInput)
         assertEquals(true, decoded.aiProfiles.single().hasApiKey)
+    }
+
+    @Test
+    fun legacyProfileAutoSummaryMigratesToGlobalSetting() {
+        val json = """
+            {
+              "formatVersion": 1,
+              "exportedAt": "2026-06-27T00:00:00Z",
+              "themeMode": "dark",
+              "memoViewMode": "List",
+              "memos": [],
+              "memoAI": [],
+              "aiProfiles": [
+                {
+                  "id": "p1",
+                  "name": "默认",
+                  "provider": "openai",
+                  "baseUrl": "https://api.example.com",
+                  "model": "model",
+                  "temperature": 0.3,
+                  "maxTokens": 1000,
+                  "enabled": true,
+                  "active": true,
+                  "autoSummary": true
+                }
+              ],
+              "askConversations": [],
+              "askMessages": []
+            }
+        """.trimIndent()
+
+        val decoded = SillageExportCodec.fromJson(json)
+
+        assertEquals(true, decoded.autoSummary)
+        assertEquals(true, decoded.autoSummaryDefined)
+        assertEquals("默认", decoded.aiProfiles.single().name)
     }
 
     private fun memo(content: String = "content"): Memo {
@@ -131,7 +171,6 @@ class SillageExportCodecTest {
             active = true,
             hasApiKey = hasApiKey,
             keyUnavailable = keyUnavailable,
-            autoSummary = true,
             apiKeyInput = apiKey,
         )
     }

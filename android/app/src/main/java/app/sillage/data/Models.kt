@@ -85,6 +85,11 @@ data class AIProfile(
     val updatedAt: String,
 )
 
+data class AISettings(
+    val profiles: List<AIProfile>,
+    val autoSummary: Boolean,
+)
+
 data class AIProfileDraft(
     val id: String = "",
     val name: String = "新档案",
@@ -97,7 +102,6 @@ data class AIProfileDraft(
     val active: Boolean = false,
     val hasApiKey: Boolean = false,
     val keyUnavailable: Boolean = false,
-    val autoSummary: Boolean = false,
     val apiKeyInput: String = "",
 )
 
@@ -111,7 +115,6 @@ data class AIProfileInput(
     val maxTokens: Long,
     val enabled: Boolean,
     val active: Boolean,
-    val autoSummary: Boolean,
     val apiKey: String?,
 )
 
@@ -358,7 +361,6 @@ fun AIProfile.toDraft(): AIProfileDraft {
         active = active,
         hasApiKey = hasApiKey,
         keyUnavailable = keyUnavailable,
-        autoSummary = autoSummary,
     )
 }
 
@@ -374,7 +376,6 @@ fun AIProfileDraft.toInput(): AIProfileInput {
         maxTokens = maxTokens,
         enabled = enabled,
         active = active,
-        autoSummary = autoSummary,
         apiKey = trimmedKey.takeIf { it.isNotBlank() },
     )
 }

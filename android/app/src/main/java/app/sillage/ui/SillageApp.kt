@@ -1873,6 +1873,15 @@ private fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel)
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
+                        SettingsSectionCard(title = "AI") {
+                            AISettingSwitch(
+                                label = "新建记录后自动总结",
+                                checked = state.aiAutoSummary,
+                                onClick = viewModel::toggleAISettingsAutoSummary,
+                            )
+                        }
+                    }
+                    item {
                         SettingsSectionCard(title = "外观") {
                             SettingsActionRow(
                                 title = if (state.themeMode == SessionStore.THEME_DARK) "浅色模式" else "深色模式",
@@ -2306,9 +2315,6 @@ private fun AIProfileDetailCard(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelMedium,
                 )
-            }
-            AISettingSwitch("新建记录后自动总结", profile.autoSummary) {
-                viewModel.toggleAIProfileAutoSummary(index)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { viewModel.testAIProfile(index) }, enabled = !testing) {

@@ -3,6 +3,7 @@ package app.sillage.data
 import android.content.Context
 import java.time.Instant
 import java.util.UUID
+import org.json.JSONArray
 import org.json.JSONObject
 
 class LocalDataStore(context: Context) {
@@ -119,6 +120,8 @@ class LocalDataStore(context: Context) {
 
     fun listAIProfiles(): List<AIProfileDraft> = loadData().aiProfiles
 
+    fun autoSummaryEnabled(): Boolean = loadData().autoSummary
+
     fun saveAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
         val now = now()
         var activeSeen = false
@@ -136,6 +139,12 @@ class LocalDataStore(context: Context) {
         }
         updateData { data -> data.copy(exportedAt = now, aiProfiles = saved) }
         return saved
+    }
+
+    fun saveAISettings(profiles: List<AIProfileDraft>, autoSummary: Boolean): List<AIProfileDraft> {
+        val savedProfiles = saveAIProfiles(profiles)
+        updateData { data -> data.copy(autoSummary = autoSummary, autoSummaryDefined = true) }
+        return savedProfiles
     }
 
     fun activeAIProfile(): AIProfileDraft? {
@@ -294,6 +303,7 @@ class LocalDataStore(context: Context) {
             exportedAt = "",
             themeMode = "",
             memoViewMode = "",
+            autoSummary = false,
             memos = emptyList(),
             memoAI = emptyList(),
             aiProfiles = emptyList(),
@@ -308,6 +318,8 @@ class LocalDataStore(context: Context) {
         return incoming.copy(
             themeMode = incoming.themeMode.ifBlank { current.themeMode },
             memoViewMode = incoming.memoViewMode.ifBlank { current.memoViewMode },
+            autoSummary = if (incoming.autoSummaryDefined) incoming.autoSummary else current.autoSummary,
+            autoSummaryDefined = true,
             memos = mergeBy(current.memos, incoming.memos) { it.id },
             memoAI = mergeBy(current.memoAI, incoming.memoAI) { it.memoId },
             aiProfiles = mergeProfiles(current.aiProfiles, incoming.aiProfiles),
@@ -370,6 +382,8 @@ data class SillageExportData(
     val exportedAt: String,
     val themeMode: String,
     val memoViewMode: String,
+    val autoSummary: Boolean,
+    val autoSummaryDefined: Boolean = true,
     val memos: List<Memo>,
     val memoAI: List<MemoAI>,
     val aiProfiles: List<AIProfileDraft>,
@@ -394,6 +408,7 @@ object SillageExportCodec {
             .put("exportedAt", sanitized.exportedAt)
             .put("themeMode", sanitized.themeMode)
             .put("memoViewMode", sanitized.memoViewMode)
+            .put("autoSummary", sanitized.autoSummary)
             .put("memos", sanitized.memos.toJsonArray(::memoToJson))
             .put("memoAI", sanitized.memoAI.toJsonArray(::memoAIToJson))
             .put("aiProfiles", sanitized.aiProfiles.toJsonArray(::aiProfileToJson))
@@ -407,16 +422,50 @@ object SillageExportCodec {
         if (version != FORMAT_VERSION) {
             throw ApiException("不支持的数据格式版本")
         }
+        val profiles = root.optJSONArray("aiProfiles")
+        val hasTopLevelAutoSummary = root.has("autoSummary")
+        val hasLegacyProfileAutoSummary = profiles.hasLegacyAutoSummary()
         return SillageExportData(
             formatVersion = version,
             exportedAt = root.optString("exportedAt"),
             themeMode = root.optString("themeMode"),
             memoViewMode = root.optString("memoViewMode"),
+            autoSummary = if (hasTopLevelAutoSummary) {
+                root.optBoolean("autoSummary")
+            } else {
+                profiles.legacyAutoSummary()
+            },
+            autoSummaryDefined = hasTopLevelAutoSummary || hasLegacyProfileAutoSummary,
             memos = root.optJSONArray("memos").toListOrEmpty(::jsonToMemo),
             memoAI = root.optJSONArray("memoAI").toListOrEmpty(::jsonToMemoAI),
-            aiProfiles = root.optJSONArray("aiProfiles").toListOrEmpty(::jsonToAIProfileDraft),
+            aiProfiles = profiles.toListOrEmpty(::jsonToAIProfileDraft),
             askConversations = root.optJSONArray("askConversations").toListOrEmpty(::jsonToAskConversation),
             askMessages = root.optJSONArray("askMessages").toListOrEmpty(::jsonToAskMessage),
         ).normalizedForLocalStorage()
+    }
+
+    private fun JSONArray?.hasLegacyAutoSummary(): Boolean {
+        if (this == null) {
+            return false
+        }
+        for (index in 0 until length()) {
+            if (getJSONObject(index).has("autoSummary")) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun JSONArray?.legacyAutoSummary(): Boolean {
+        if (this == null) {
+            return false
+        }
+        for (index in 0 until length()) {
+            val profile = getJSONObject(index)
+            if (profile.has("autoSummary") && profile.optBoolean("autoSummary")) {
+                return true
+            }
+        }
+        return false
     }
 }

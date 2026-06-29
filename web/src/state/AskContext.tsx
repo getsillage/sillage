@@ -74,6 +74,7 @@ export function AskProvider({
   const [liveAnswer, setLiveAnswer] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const scopedConversationRef = useRef("");
 
   useEffect(() => {
     listAskConversations(token)
@@ -84,13 +85,14 @@ export function AskProvider({
   }, [token]);
 
   useEffect(() => {
-    if (!activeId) {
+    if (!activeId || scopedConversationRef.current === activeId) {
       return;
     }
     const found = conversations.find((c) => c.id === activeId);
     if (!found) {
       return;
     }
+    scopedConversationRef.current = activeId;
     setScope(found.contextScope);
     setHeadId((current) => current ?? found.headMessageId);
   }, [activeId, conversations]);
@@ -122,8 +124,10 @@ export function AskProvider({
     (id: string) => {
       setActiveId(id);
       setHeadId(null);
+      scopedConversationRef.current = "";
       const found = conversations.find((c) => c.id === id);
       if (found) {
+        scopedConversationRef.current = id;
         setScope(found.contextScope);
         setHeadId(found.headMessageId);
       }
@@ -132,6 +136,7 @@ export function AskProvider({
   );
 
   const startNew = useCallback(() => {
+    scopedConversationRef.current = "";
     setActiveId("");
     setMessages([]);
     setHeadId(null);

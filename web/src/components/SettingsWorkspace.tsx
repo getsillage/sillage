@@ -27,12 +27,23 @@ const PROVIDER_OPTIONS = [
   { value: "workers-ai", label: "Cloudflare Workers AI" },
 ];
 
-// Local editing copy: apiKeyInput holds a freshly typed key. Empty means keep
-// the stored key untouched (the server only returns hasApiKey, never the key).
-type EditableProfile = AIProfile & { apiKeyInput: string };
+// Local editing copy: apiKeyInput holds a freshly typed key (empty keeps the
+// stored key untouched). temperatureText/maxTokensText keep the raw input as a
+// string so clearing or typing "0." never snaps back to a coerced number; they
+// are parsed only at save time.
+type EditableProfile = AIProfile & {
+  apiKeyInput: string;
+  temperatureText: string;
+  maxTokensText: string;
+};
 
 function toEditable(profile: AIProfile): EditableProfile {
-  return { ...profile, apiKeyInput: "" };
+  return {
+    ...profile,
+    apiKeyInput: "",
+    temperatureText: String(profile.temperature),
+    maxTokensText: String(profile.maxTokens),
+  };
 }
 
 function blankProfile(): EditableProfile {
@@ -52,7 +63,29 @@ function blankProfile(): EditableProfile {
     createdAt: "",
     updatedAt: "",
     apiKeyInput: "",
+    temperatureText: "0.3",
+    maxTokensText: "1000",
   };
+}
+
+// An empty or invalid field means "let the server default apply"; an explicit 0
+// temperature is preserved.
+function parseTemperature(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  const value = Number.parseFloat(trimmed);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function parseMaxTokens(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  const value = Number.parseInt(trimmed, 10);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function normalizeProfilesForSave(
@@ -200,8 +233,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
       provider: profile.provider,
       baseUrl: profile.baseUrl,
       model: profile.model,
-      temperature: profile.temperature,
-      maxTokens: profile.maxTokens,
+      temperature: parseTemperature(profile.temperatureText),
+      maxTokens: parseMaxTokens(profile.maxTokensText),
       enabled: true,
       active: profile.active,
       apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
@@ -283,8 +316,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
             provider: profile.provider,
             baseUrl: profile.baseUrl,
             model: profile.model,
-            temperature: profile.temperature,
-            maxTokens: profile.maxTokens,
+            temperature: parseTemperature(profile.temperatureText),
+            maxTokens: parseMaxTokens(profile.maxTokensText),
             apiKey: profile.apiKeyInput.trim() || undefined,
           },
           signal,
@@ -641,11 +674,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             step="0.1"
                             min="0"
                             max="2"
-                            value={profile.temperature}
+                            value={profile.temperatureText}
                             onChange={(event) =>
                               updateProfile(index, {
-                                temperature:
-                                  Number.parseFloat(event.target.value) || 0,
+                                temperatureText: event.target.value,
                               })
                             }
                           />
@@ -656,11 +688,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             className={inputClass}
                             type="number"
                             min="1"
-                            value={profile.maxTokens}
+                            value={profile.maxTokensText}
                             onChange={(event) =>
                               updateProfile(index, {
-                                maxTokens:
-                                  Number.parseInt(event.target.value, 10) || 0,
+                                maxTokensText: event.target.value,
                               })
                             }
                           />

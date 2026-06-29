@@ -233,4 +233,26 @@ describe("AskPage", () => {
     expect(await screen.findByText("第一个回答")).toBeInTheDocument();
     expect(screen.queryByText("第二个回答")).not.toBeInTheDocument();
   });
+
+  it("keeps the user-selected scope after conversation reload", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementation(async () => undefined);
+
+    renderAsk();
+    await screen.findByPlaceholderText(/根据记录提问/);
+    await user.selectOptions(screen.getByLabelText("范围"), "all");
+    await user.type(screen.getByPlaceholderText(/根据记录提问/), "总结全部");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    await waitFor(() => expect(streamAskMessage).toHaveBeenCalled());
+    expect(streamAskMessage).toHaveBeenCalledWith(
+      "t",
+      "c1",
+      expect.objectContaining({ contextScope: "all" }),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(screen.getByLabelText("范围")).toHaveValue("all");
+  });
 });

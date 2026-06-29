@@ -206,6 +206,22 @@ describe("SettingsWorkspace", () => {
     expect(await screen.findByText(/连接成功/)).toBeInTheDocument();
   });
 
+  it("preserves an explicit zero temperature", async () => {
+    const user = userEvent.setup();
+    render(<SettingsWorkspace token="t" />);
+    await openDefaultProfile(user);
+
+    const temperature = screen.getByLabelText("温度");
+    await user.clear(temperature);
+    await user.type(temperature, "0");
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    expect(
+      vi.mocked(patchAISettings).mock.calls[0][1].profiles[0].temperature,
+    ).toBe(0);
+  });
+
   it("tests a new unsaved profile with current form values", async () => {
     const user = userEvent.setup();
     vi.mocked(getAISettings).mockResolvedValue({

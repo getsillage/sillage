@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { EntryCard } from "../components/EntryCard";
 import { EntryComposer } from "../components/EntryComposer";
@@ -54,18 +55,21 @@ function EntrySection({
 export function HomePage() {
   const { memos, loading, error, create, upload } = useMemos();
   const today = todayISO();
-  const active = memos.filter(isActive);
-  const chronological = [...active].sort((a, b) => {
-    if (a.entryDate !== b.entryDate) {
-      return b.entryDate.localeCompare(a.entryDate);
-    }
-    return b.createdAt.localeCompare(a.createdAt);
-  });
-  const todayEntries = chronological.filter((memo) => memo.entryDate === today);
-  const recentEntries = chronological
-    .filter((memo) => memo.entryDate !== today)
-    .slice(0, 12);
-  const memories = onThisDay(memos, today);
+  const { todayEntries, recentEntries, memories } = useMemo(() => {
+    const chronological = memos.filter(isActive).sort((a, b) => {
+      if (a.entryDate !== b.entryDate) {
+        return b.entryDate.localeCompare(a.entryDate);
+      }
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+    return {
+      todayEntries: chronological.filter((memo) => memo.entryDate === today),
+      recentEntries: chronological
+        .filter((memo) => memo.entryDate !== today)
+        .slice(0, 12),
+      memories: onThisDay(memos, today),
+    };
+  }, [memos, today]);
 
   return (
     <main className={`${readingShellClass} pb-32`}>

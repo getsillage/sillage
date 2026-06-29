@@ -35,13 +35,18 @@ describe("access token store", () => {
     expect(calls).toEqual(["x", null]);
   });
 
-  it("replaces the single subscriber", () => {
+  it("notifies multiple independent subscribers", () => {
     const a = vi.fn();
     const b = vi.fn();
-    subscribeAccessToken(a);
+    const unsubscribeA = subscribeAccessToken(a);
     subscribeAccessToken(b);
     setAccessToken("z");
-    expect(a).not.toHaveBeenCalled();
+    expect(a).toHaveBeenCalledWith("z");
     expect(b).toHaveBeenCalledWith("z");
+
+    unsubscribeA();
+    clearAccessToken();
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenLastCalledWith(null);
   });
 });

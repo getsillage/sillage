@@ -116,14 +116,16 @@ export type AISettings = {
 };
 
 // apiKey omitted/null keeps the stored key; a string sets a new one.
+// temperature/maxTokens omitted let the server apply its default; an explicit
+// 0 temperature is preserved for deterministic output.
 export type AIProfileInput = {
   id?: string;
   name: string;
   provider: string;
   baseUrl: string;
   model: string;
-  temperature: number;
-  maxTokens: number;
+  temperature?: number;
+  maxTokens?: number;
   enabled: boolean;
   active: boolean;
   apiKey?: string | null;
@@ -503,8 +505,8 @@ export async function testAIConnection(
     provider: string;
     baseUrl: string;
     model: string;
-    temperature: number;
-    maxTokens: number;
+    temperature?: number;
+    maxTokens?: number;
     apiKey?: string | null;
   },
   signal?: AbortSignal,

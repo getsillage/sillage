@@ -3,7 +3,13 @@ const ACCESS_TOKEN_KEY = "sillage.accessToken";
 type TokenListener = (token: string | null) => void;
 
 let currentToken: string | null = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-let listener: TokenListener | null = null;
+const listeners = new Set<TokenListener>();
+
+function notify(token: string | null): void {
+  for (const fn of listeners) {
+    fn(token);
+  }
+}
 
 export function getAccessToken(): string | null {
   return currentToken;
@@ -12,22 +18,21 @@ export function getAccessToken(): string | null {
 export function setAccessToken(token: string): void {
   currentToken = token;
   sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
-  listener?.(token);
+  notify(token);
 }
 
 export function clearAccessToken(): void {
   currentToken = null;
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-  listener?.(null);
+  notify(null);
 }
 
-// The app root subscribes so token changes from a background refresh or a
-// sign-out propagate into React state. A single subscriber is enough.
+// Subscribers are notified when a background refresh or sign-out changes the
+// token. Each call registers an independent listener so multiple consumers can
+// coexist without clobbering one another.
 export function subscribeAccessToken(fn: TokenListener): () => void {
-  listener = fn;
+  listeners.add(fn);
   return () => {
-    if (listener === fn) {
-      listener = null;
-    }
+    listeners.delete(fn);
   };
 }

@@ -1,0 +1,673 @@
+package app.sillage.ui
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.List
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.StopCircle
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import app.sillage.data.AskConversation
+import app.sillage.data.AskMessage
+import app.sillage.data.AskPathEntry
+import app.sillage.data.AskSourceRef
+import app.sillage.data.askSourceLabel
+import app.sillage.data.buildAskActivePath
+import app.sillage.data.lastAssistantMessageId
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    var showConversations by remember { mutableStateOf(false) }
+    var showOptions by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val entries = remember(state.askMessages, state.askHeadId) {
+        buildAskActivePath(state.askMessages, state.askHeadId)
+    }
+    val latestAssistantId = remember(entries) {
+        lastAssistantMessageId(entries)
+    }
+    val listItemCount = entries.size +
+        (if (entries.isEmpty()) 1 else 0) +
+        (if (state.askLiveUser != null) 1 else 0) +
+        (if (state.askSending && state.askRegeneratingId.isBlank()) 1 else 0)
+    LaunchedEffect(
+        entries.size,
+        state.askLiveUser?.id,
+        state.askSending,
+        state.askLiveAnswer.length,
+    ) {
+        if (listItemCount > 0) {
+            listState.animateScrollToItem(listItemCount - 1)
+        }
+    }
+    if (showConversations) {
+        AskConversationSheet(
+            state = state,
+            viewModel = viewModel,
+            onDismiss = { showConversations = false },
+        )
+    }
+    if (showOptions) {
+        AskOptionsSheet(
+            state = state,
+            viewModel = viewModel,
+            onDismiss = { showOptions = false },
+        )
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            "Ask",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            askContextLabel(state),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showConversations = true }) {
+                        Icon(Icons.AutoMirrored.Rounded.List, contentDescription = "会话")
+                    }
+                    IconButton(onClick = { showOptions = true }) {
+                        Icon(Icons.Rounded.Tune, contentDescription = "上下文")
+                    }
+                    IconButton(onClick = viewModel::startNewAsk, enabled = !state.askSending) {
+                        Icon(Icons.Rounded.Add, contentDescription = "新会话")
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            MainNavigationBar(state = state, viewModel = viewModel)
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            MessageBlock(
+                error = state.error,
+                notice = state.notice,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            if (state.askLoading && entries.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    state = listState,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (entries.isEmpty()) {
+                        item {
+                            AskEmptyPrompt()
+                        }
+                    }
+                    items(entries, key = { it.message.id }) { entry ->
+                        AskMessageCard(
+                            entry = entry,
+                            canRegenerate = entry.message.id == latestAssistantId && !state.askSending,
+                            regenerating = state.askRegeneratingId == entry.message.id,
+                            savingDisabled = state.loading || state.askSending,
+                            streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
+                            onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
+                            onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
+                            onOpenSource = viewModel::openAskSourceMemo,
+                            onSelectVariant = viewModel::selectAskVariant,
+                        )
+                    }
+                    if (state.askLiveUser != null) {
+                        item {
+                            AskLiveUserCard(state.askLiveUser)
+                        }
+                    }
+                    if (state.askSending && state.askRegeneratingId.isBlank()) {
+                        item {
+                            AskLiveAnswerCard(state.askLiveAnswer)
+                        }
+                    }
+                }
+            }
+            AskComposer(
+                state = state,
+                viewModel = viewModel,
+            )
+        }
+    }
+}
+
+private fun askContextLabel(state: SillageUiState): String {
+    val scope = when (state.askScope) {
+        "recent_7_days" -> "最近 7 天"
+        "all" -> "全部记录"
+        else -> "最近 30 天"
+    }
+    val source = if (state.askSourceKind == "summaries") "记录总结" else "原始记录"
+    return "$scope · $source"
+}
+
+@Composable
+private fun AskEmptyPrompt() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "可以根据记录提问",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "例如「我最近在反复想些什么？」或「这周有什么值得继续做？」",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AskComposer(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .imePadding()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 8.dp, top = 4.dp, end = 6.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            OutlinedTextField(
+                value = state.askQuestion,
+                onValueChange = viewModel::updateAskQuestion,
+                modifier = Modifier.weight(1f),
+                minLines = 1,
+                maxLines = 3,
+                placeholder = { Text("根据记录提问") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        if (!state.askSending && state.askQuestion.isNotBlank()) {
+                            viewModel.sendAskQuestion()
+                        }
+                    },
+                ),
+            )
+            if (state.askStreaming) {
+                IconButton(
+                    onClick = viewModel::stopAskStreaming,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(Icons.Rounded.StopCircle, contentDescription = "停止生成")
+                }
+            } else {
+                FilledIconButton(
+                    onClick = viewModel::sendAskQuestion,
+                    enabled = !state.askSending && state.askQuestion.isNotBlank(),
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AskConversationSheet(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "问答会话",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
+                    Text("刷新")
+                }
+            }
+            AskConversationList(
+                conversations = state.askConversations,
+                activeId = state.activeAskId,
+                onSelect = {
+                    viewModel.selectAskConversation(it)
+                    onDismiss()
+                },
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AskOptionsSheet(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "上下文",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            AskOptions(state, viewModel)
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "时间范围",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            AskOptionButton("7 天", state.askScope == "recent_7_days") {
+                viewModel.updateAskScope("recent_7_days")
+            }
+            AskOptionButton("30 天", state.askScope == "recent_30_days") {
+                viewModel.updateAskScope("recent_30_days")
+            }
+            AskOptionButton("全部", state.askScope == "all") {
+                viewModel.updateAskScope("all")
+            }
+        }
+        Text(
+            "来源",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            AskOptionButton("原始记录", state.askSourceKind == "records") {
+                viewModel.updateAskSourceKind("records")
+            }
+            AskOptionButton("记录总结", state.askSourceKind == "summaries") {
+                viewModel.updateAskSourceKind("summaries")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskOptionButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    if (selected) {
+        Button(onClick = onClick) {
+            Text(label)
+        }
+    } else {
+        TextButton(onClick = onClick) {
+            Text(label)
+        }
+    }
+}
+
+@Composable
+private fun AskConversationList(
+    conversations: List<AskConversation>,
+    activeId: String,
+    onSelect: (String) -> Unit,
+) {
+    if (conversations.isEmpty()) {
+        Text(
+            "暂无问答会话。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        return
+    }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        items(conversations, key = { it.id }) { conversation ->
+            TextButton(
+                onClick = { onSelect(conversation.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            ) {
+                Text(
+                    if (conversation.id == activeId) "当前 · ${conversation.title}" else conversation.title,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskMessageCard(
+    entry: AskPathEntry,
+    canRegenerate: Boolean,
+    regenerating: Boolean,
+    savingDisabled: Boolean,
+    streamingText: String?,
+    onRegenerate: () -> Unit,
+    onSaveAsMemo: () -> Unit,
+    onOpenSource: (String) -> Unit,
+    onSelectVariant: (String) -> Unit,
+) {
+    val message = entry.message
+    val isAssistant = message.role == "assistant"
+    val bubbleColor = if (isAssistant) {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val textColor = if (isAssistant) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isAssistant) Alignment.Start else Alignment.End,
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(if (isAssistant) 0.94f else 0.84f),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = bubbleColor),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    when {
+                        streamingText != null && streamingText.isNotBlank() -> streamingText
+                        regenerating -> "正在重新生成…"
+                        else -> message.content
+                    },
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isAssistant && message.sourceRefs.isNotEmpty()) {
+                    AskSourceRefs(
+                        sources = message.sourceRefs,
+                        onOpenSource = onOpenSource,
+                    )
+                }
+                if (isAssistant) {
+                    AskMessageActions(
+                        entry = entry,
+                        canRegenerate = canRegenerate,
+                        regenerating = regenerating,
+                        savingDisabled = savingDisabled,
+                        onRegenerate = onRegenerate,
+                        onSaveAsMemo = onSaveAsMemo,
+                        onSelectVariant = onSelectVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskSourceRefs(
+    sources: List<AskSourceRef>,
+    onOpenSource: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.height(26.dp),
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+        ) {
+            Text(
+                "来源 ${sources.size}",
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Icon(
+                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                contentDescription = if (expanded) "隐藏来源" else "显示来源",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (expanded) {
+            sources.take(5).forEach { source ->
+                TextButton(
+                    onClick = { onOpenSource(source.memoId) },
+                    enabled = source.memoId.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        askSourceLabel(source),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AskLiveUserCard(message: AskMessage) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.84f),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+        ) {
+            Text(
+                message.content,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AskLiveAnswerCard(answer: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(0.94f),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                answer.ifBlank { "正在思考…" },
+                color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AskMessageActions(
+    entry: AskPathEntry,
+    canRegenerate: Boolean,
+    regenerating: Boolean,
+    savingDisabled: Boolean,
+    onRegenerate: () -> Unit,
+    onSaveAsMemo: () -> Unit,
+    onSelectVariant: (String) -> Unit,
+) {
+    val hasVariants = entry.variants.size > 1
+    val canSave = entry.message.content.isNotBlank()
+    if (!hasVariants && !canRegenerate && !regenerating && !canSave) {
+        return
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (hasVariants) {
+            IconButton(
+                onClick = {
+                    val previous = entry.variants.getOrNull(entry.index - 1)
+                    if (previous != null) {
+                        onSelectVariant(previous.id)
+                    }
+                },
+                enabled = entry.index > 0 && !regenerating,
+                modifier = Modifier.size(30.dp),
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "上一条")
+            }
+            Text(
+                "${entry.index + 1}/${entry.variants.size}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            IconButton(
+                onClick = {
+                    val next = entry.variants.getOrNull(entry.index + 1)
+                    if (next != null) {
+                        onSelectVariant(next.id)
+                    }
+                },
+                enabled = entry.index >= 0 && entry.index < entry.variants.lastIndex && !regenerating,
+                modifier = Modifier.size(30.dp),
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "下一条")
+            }
+        }
+        if (canRegenerate || regenerating) {
+            IconButton(
+                onClick = onRegenerate,
+                enabled = canRegenerate && !regenerating,
+                modifier = Modifier.size(30.dp),
+            ) {
+                Icon(Icons.Rounded.Refresh, contentDescription = if (regenerating) "生成中" else "重新生成")
+            }
+        }
+        if (canSave) {
+            IconButton(
+                onClick = onSaveAsMemo,
+                enabled = !savingDisabled && !regenerating,
+                modifier = Modifier.size(30.dp),
+            ) {
+                Icon(Icons.Rounded.Save, contentDescription = "存为记录")
+            }
+        }
+    }
+}
+

@@ -2,10 +2,14 @@ package app.sillage.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,9 +20,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -83,12 +91,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -105,6 +110,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.sillage.data.MarkdownBlock
 import app.sillage.data.MarkdownBlockKind
@@ -122,6 +128,8 @@ import app.sillage.data.onThisDay
 import app.sillage.data.parseMarkdownPreview
 import app.sillage.data.yearsBetween
 import java.time.LocalDate
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
@@ -224,10 +232,8 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         supporting = "填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。",
         state = state,
         trailing = {
-            if (state.serverReturnScreen != null) {
-                TextButton(onClick = viewModel::closeServerSettings) {
-                    Text("返回")
-                }
+            TextButton(onClick = viewModel::cancelServerConnection) {
+                Text(if (state.serverReturnScreen != null) "返回" else "取消")
             }
         },
     ) {
@@ -247,6 +253,14 @@ private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         ) {
             Icon(Icons.Rounded.CloudSync, contentDescription = null)
             Text(if (state.loading) "连接中" else "保存并连接")
+        }
+        TextButton(
+            onClick = viewModel::useOfflineMode,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Rounded.OfflineBolt, contentDescription = null)
+            Text("离线使用")
         }
     }
 }
@@ -943,17 +957,38 @@ private fun MemoSwipeRow(
     onDelete: () -> Unit,
 ) {
     var showActions by remember { mutableStateOf(false) }
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { direction ->
-            when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> onTogglePin()
-                SwipeToDismissBoxValue.EndToStart -> onToggleArchive()
-                SwipeToDismissBoxValue.Settled -> Unit
+    val actionWidth = 92.dp
+    val actionWidthPx = with(androidx.compose.ui.platform.LocalDensity.current) { actionWidth.toPx() }
+    val settleThreshold = actionWidthPx * 0.56f
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    var offsetX by remember(memo.id) { mutableStateOf(0f) }
+    val dragState = rememberDraggableState { delta ->
+        offsetX = (offsetX + delta).coerceIn(-actionWidthPx, actionWidthPx)
+    }
+    fun animateOffsetTo(target: Float, after: (() -> Unit)? = null) {
+        coroutineScope.launch {
+            val animation = Animatable(offsetX)
+            animation.animateTo(target) {
+                offsetX = value
             }
-            false
-        },
-        positionalThreshold = { totalDistance -> totalDistance * 0.34f },
-    )
+            offsetX = target
+            after?.invoke()
+        }
+    }
+    fun closeActions() {
+        animateOffsetTo(0f)
+    }
+    fun settleActions() {
+        val target = when {
+            offsetX > settleThreshold -> actionWidthPx
+            offsetX < -settleThreshold -> -actionWidthPx
+            else -> 0f
+        }
+        animateOffsetTo(target)
+    }
+    fun runAction(action: () -> Unit) {
+        animateOffsetTo(0f, action)
+    }
     if (showActions) {
         MemoQuickActionsSheet(
             memo = memo,
@@ -980,54 +1015,102 @@ private fun MemoSwipeRow(
             },
         )
     }
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            MemoSwipeBackground(
-                targetValue = dismissState.targetValue,
-                memo = memo,
-            )
-        },
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 92.dp),
     ) {
+        MemoSwipeActionPane(
+            memo = memo,
+            actionWidth = actionWidth,
+            revealedOffset = offsetX,
+            onTogglePin = { runAction(onTogglePin) },
+            onToggleArchive = { runAction(onToggleArchive) },
+            modifier = Modifier.matchParentSize(),
+        )
         MemoRow(
             memo = memo,
-            onClick = onClick,
+            modifier = Modifier
+                .heightIn(min = 92.dp)
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = dragState,
+                    onDragStopped = { settleActions() },
+                ),
+            onClick = {
+                if (offsetX != 0f) {
+                    closeActions()
+                } else {
+                    onClick()
+                }
+            },
             onLongClick = { showActions = true },
         )
     }
 }
 
 @Composable
-private fun MemoSwipeBackground(targetValue: SwipeToDismissBoxValue, memo: Memo) {
-    val isPin = targetValue == SwipeToDismissBoxValue.StartToEnd
-    val active = targetValue != SwipeToDismissBoxValue.Settled
-    val color = when {
-        !active -> MaterialTheme.colorScheme.surfaceContainer
-        isPin -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.secondaryContainer
-    }
-    val alignment = if (isPin) Alignment.CenterStart else Alignment.CenterEnd
-    val icon = if (isPin) Icons.Rounded.PushPin else Icons.Rounded.Archive
-    val label = if (isPin) {
-        if (memo.pinnedAt == null) "置顶" else "取消置顶"
-    } else {
-        if (memo.archivedAt == null) "归档" else "取消归档"
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color, RoundedCornerShape(8.dp))
-            .padding(horizontal = 18.dp),
-        contentAlignment = alignment,
+private fun MemoSwipeActionPane(
+    memo: Memo,
+    actionWidth: androidx.compose.ui.unit.Dp,
+    revealedOffset: Float,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        SwipeActionButton(
+            icon = Icons.Rounded.PushPin,
+            label = if (memo.pinnedAt == null) "置顶" else "取消",
+            visible = revealedOffset > 0f,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            onClick = onTogglePin,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(actionWidth),
+        )
+        SwipeActionButton(
+            icon = Icons.Rounded.Archive,
+            label = if (memo.archivedAt == null) "归档" else "恢复",
+            visible = revealedOffset < 0f,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            onClick = onToggleArchive,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(actionWidth),
+        )
+    }
+}
+
+@Composable
+private fun SwipeActionButton(
+    icon: ImageVector,
+    label: String,
+    visible: Boolean,
+    color: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = if (visible) color else MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(enabled = visible, onClick = onClick)
+                .padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }
 }
@@ -1164,9 +1247,14 @@ private fun QuickActionRow(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MemoRow(memo: Memo, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun MemoRow(
+    memo: Memo,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
     ElevatedCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,

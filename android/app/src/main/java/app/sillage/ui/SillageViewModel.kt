@@ -74,7 +74,6 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun chooseOnlineMode() {
-        sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         _state.update {
             it.copy(
                 appMode = SessionStore.MODE_ONLINE,
@@ -154,11 +153,16 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun closeServerSettings() {
+    fun cancelServerConnection() {
         _state.update {
-            val target = it.serverReturnScreen ?: if (it.appMode == SessionStore.MODE_OFFLINE) Screen.Memos else Screen.Login
+            val target = when {
+                it.serverReturnScreen != null -> it.serverReturnScreen
+                sessionStore.hasAppModeSelection() && sessionStore.appMode() == SessionStore.MODE_OFFLINE -> Screen.Memos
+                else -> Screen.ModeSelection
+            }
             it.copy(
                 screen = target,
+                appMode = sessionStore.appMode(),
                 serverReturnScreen = null,
                 baseUrl = sessionStore.baseUrl(),
                 error = null,

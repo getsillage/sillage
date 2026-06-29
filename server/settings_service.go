@@ -43,8 +43,10 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 			Provider:    profile.GetProvider(),
 			BaseURL:     profile.GetBaseUrl(),
 			Model:       profile.GetModel(),
-			Temperature: profile.GetTemperature(),
-			MaxTokens:   profile.GetMaxTokens(),
+			// proto3 scalars can't distinguish 0 from unset; keep the prior
+			// Connect behaviour where 0 falls back to the server default.
+			Temperature: connectOptionalFloat(profile.GetTemperature()),
+			MaxTokens:   connectOptionalInt(profile.GetMaxTokens()),
 			Enabled:     profile.GetEnabled(),
 			Active:      profile.GetActive(),
 			AutoSummary: profile.GetAutoSummary(),
@@ -56,4 +58,18 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(aiSettingsResponsePB(settings)), nil
+}
+
+func connectOptionalFloat(value float64) *float64 {
+	if value == 0 {
+		return nil
+	}
+	return &value
+}
+
+func connectOptionalInt(value int64) *int64 {
+	if value == 0 {
+		return nil
+	}
+	return &value
 }

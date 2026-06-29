@@ -42,6 +42,58 @@ func TestAISettingsEncryptKeyAndHidePlaintext(t *testing.T) {
 	}
 }
 
+func TestAISettingsAllowsZeroTemperatureAndDefaultsWhenOmitted(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{
+			{
+				"name":        "Deterministic",
+				"provider":    "openai",
+				"baseUrl":     "https://api.openai.com/v1",
+				"model":       "gpt-test",
+				"temperature": 0,
+				"maxTokens":   1000,
+				"enabled":     true,
+				"active":      true,
+				"apiKey":      "mock-api-key",
+			},
+			{
+				// temperature omitted -> server default applies.
+				"name":     "Defaulted",
+				"provider": "openai",
+				"baseUrl":  "https://api.openai.com/v1",
+				"model":    "gpt-test",
+				"enabled":  true,
+				"active":   false,
+				"apiKey":   "mock-api-key",
+			},
+		},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("patch ai settings status = %d body=%s", res.Code, res.Body.String())
+	}
+	var payload struct {
+		Profiles []struct {
+			Name        string  `json:"name"`
+			Temperature float64 `json:"temperature"`
+		} `json:"profiles"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode ai settings: %v", err)
+	}
+	if len(payload.Profiles) != 2 {
+		t.Fatalf("expected 2 profiles, got %d (%s)", len(payload.Profiles), res.Body.String())
+	}
+	if payload.Profiles[0].Temperature != 0 {
+		t.Fatalf("explicit temperature 0 was not preserved, got %v", payload.Profiles[0].Temperature)
+	}
+	if payload.Profiles[1].Temperature != 0.3 {
+		t.Fatalf("omitted temperature should default to 0.3, got %v", payload.Profiles[1].Temperature)
+	}
+}
+
 func TestAISettingsGlobalAutoSummaryAndModels(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

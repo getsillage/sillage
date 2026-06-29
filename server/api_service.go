@@ -84,8 +84,11 @@ type aiProfileInput struct {
 	Provider    string
 	BaseURL     string
 	Model       string
-	Temperature float64
-	MaxTokens   int64
+	// Temperature and MaxTokens are pointers so an explicit 0 (deterministic
+	// output) is distinguishable from an omitted field that should take the
+	// default. A nil pointer means "use the default".
+	Temperature *float64
+	MaxTokens   *int64
 	Enabled     bool
 	Active      bool
 	AutoSummary bool
@@ -104,8 +107,8 @@ type aiTestInput struct {
 	Provider    string
 	BaseURL     string
 	Model       string
-	Temperature float64
-	MaxTokens   int64
+	Temperature *float64
+	MaxTokens   *int64
 	APIKey      *string
 }
 
@@ -283,13 +286,13 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 			}
 			envelope = &raw
 		}
-		maxTokens := profileReq.MaxTokens
-		if maxTokens <= 0 {
-			maxTokens = 1000
+		maxTokens := int64(1000)
+		if profileReq.MaxTokens != nil && *profileReq.MaxTokens > 0 {
+			maxTokens = *profileReq.MaxTokens
 		}
-		temperature := profileReq.Temperature
-		if temperature == 0 {
-			temperature = 0.3
+		temperature := defaultAITemperature
+		if profileReq.Temperature != nil {
+			temperature = clampAITemperature(*profileReq.Temperature)
 		}
 		profile, err := s.Store.UpsertAIProfile(ctx, &store.UpsertAIProfile{
 			ID:             profileReq.ID,
@@ -439,11 +442,11 @@ func (s *Server) aiProfileForConnectionTest(ctx context.Context, accountID strin
 	if strings.TrimSpace(input.Model) != "" {
 		profile.Model = strings.TrimSpace(input.Model)
 	}
-	if input.Temperature != 0 {
-		profile.Temperature = input.Temperature
+	if input.Temperature != nil {
+		profile.Temperature = clampAITemperature(*input.Temperature)
 	}
-	if input.MaxTokens > 0 {
-		profile.MaxTokens = input.MaxTokens
+	if input.MaxTokens != nil && *input.MaxTokens > 0 {
+		profile.MaxTokens = *input.MaxTokens
 	}
 	if input.APIKey != nil {
 		apiKey := strings.TrimSpace(*input.APIKey)

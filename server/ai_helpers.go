@@ -7,6 +7,22 @@ import (
 	"github.com/getsillage/sillage/store"
 )
 
+const defaultAITemperature = 0.3
+
+// clampAITemperature keeps a caller-supplied temperature inside the range every
+// supported provider accepts. An explicit 0 is preserved (deterministic output)
+// rather than being treated as "unset".
+func clampAITemperature(value float64) float64 {
+	switch {
+	case value < 0:
+		return 0
+	case value > 2:
+		return 2
+	default:
+		return value
+	}
+}
+
 func (s *Server) acquireMemoAIJob() (func(), error) {
 	return acquireAIJob(s.memoAIJobs)
 }

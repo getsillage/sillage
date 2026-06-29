@@ -17,17 +17,17 @@ type aiSettingsRequest struct {
 }
 
 type aiProfileRequest struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Provider    string  `json:"provider"`
-	BaseURL     string  `json:"baseUrl"`
-	Model       string  `json:"model"`
-	Temperature float64 `json:"temperature"`
-	MaxTokens   int64   `json:"maxTokens"`
-	Enabled     bool    `json:"enabled"`
-	Active      bool    `json:"active"`
-	AutoSummary bool    `json:"autoSummary"`
-	APIKey      *string `json:"apiKey"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Provider    string   `json:"provider"`
+	BaseURL     string   `json:"baseUrl"`
+	Model       string   `json:"model"`
+	Temperature *float64 `json:"temperature"`
+	MaxTokens   *int64   `json:"maxTokens"`
+	Enabled     bool     `json:"enabled"`
+	Active      bool     `json:"active"`
+	AutoSummary bool     `json:"autoSummary"`
+	APIKey      *string  `json:"apiKey"`
 }
 
 func (s *Server) registerAIRoutes(e *echo.Echo) {
@@ -37,13 +37,13 @@ func (s *Server) registerAIRoutes(e *echo.Echo) {
 }
 
 type aiTestRequest struct {
-	ID          string  `json:"id"`
-	Provider    string  `json:"provider"`
-	BaseURL     string  `json:"baseUrl"`
-	Model       string  `json:"model"`
-	Temperature float64 `json:"temperature"`
-	MaxTokens   int64   `json:"maxTokens"`
-	APIKey      *string `json:"apiKey"`
+	ID          string   `json:"id"`
+	Provider    string   `json:"provider"`
+	BaseURL     string   `json:"baseUrl"`
+	Model       string   `json:"model"`
+	Temperature *float64 `json:"temperature"`
+	MaxTokens   *int64   `json:"maxTokens"`
+	APIKey      *string  `json:"apiKey"`
 }
 
 type aiModelsRequest struct {

@@ -7,7 +7,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,21 +26,24 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.List
-import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.FormatBold
+import androidx.compose.material.icons.rounded.FormatItalic
+import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
@@ -51,14 +54,16 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.StopCircle
+import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,13 +71,11 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -91,12 +94,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import app.sillage.data.AIProfileDraft
-import app.sillage.data.AskConversation
-import app.sillage.data.AskMessage
-import app.sillage.data.AskPathEntry
-import app.sillage.data.AskSourceRef
 import app.sillage.data.MarkdownBlock
 import app.sillage.data.MarkdownBlockKind
 import app.sillage.data.MarkdownFormatStyle
@@ -104,12 +103,9 @@ import app.sillage.data.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
-import app.sillage.data.askSourceLabel
-import app.sillage.data.buildAskActivePath
 import app.sillage.data.entriesByDate
 import app.sillage.data.entryDateCounts
 import app.sillage.data.excerpt
-import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.memoMetadataLines
 import app.sillage.data.monthGrid
 import app.sillage.data.onThisDay
@@ -140,35 +136,67 @@ fun SillageApp(viewModel: SillageViewModel) {
 private fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
     AuthScaffold(
         title = "选择使用方式",
-        supporting = "首次启动需要选择数据保存方式。之后会直接进入上次选择的模式，也可以在应用内切换。",
+        supporting = "之后可以在设置里切换。",
         state = state,
     ) {
-        Button(
+        ModeOptionCard(
+            icon = Icons.Rounded.OfflineBolt,
+            title = "离线模式",
+            supporting = "记录只保存在当前设备。",
             onClick = viewModel::useOfflineMode,
             enabled = !state.loading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Rounded.OfflineBolt, contentDescription = null)
-            Text("离线模式")
-        }
-        Text(
-            "记录只保存在当前设备。适合先体验、无网络或不想配置服务器时使用。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
         )
-        Button(
+        ModeOptionCard(
+            icon = Icons.Rounded.CloudSync,
+            title = "在线模式",
+            supporting = "连接自托管服务，同步附件和 AI 能力。",
             onClick = viewModel::chooseOnlineMode,
             enabled = !state.loading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Rounded.CloudSync, contentDescription = null)
-            Text("在线模式")
-        }
-        Text(
-            "连接自托管 Sillage 服务，支持登录、附件、跨设备同步和服务端 AI 能力。",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+@Composable
+private fun ModeOptionCard(
+    icon: ImageVector,
+    title: String,
+    supporting: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null)
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    supporting,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
     }
 }
 
@@ -308,26 +336,37 @@ private fun AuthScaffold(
             .padding(20.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 460.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Sillage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        supporting,
-                        modifier = Modifier.padding(top = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Sillage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                supporting,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                    trailing?.invoke()
                 }
-                trailing?.invoke()
-            }
-            MessageBlock(state.error, state.notice)
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                content()
+                MessageBlock(state.error, state.notice)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    content()
+                }
             }
         }
     }
@@ -345,18 +384,23 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("记录", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            if (state.appMode == SessionStore.MODE_OFFLINE) {
-                                "离线模式"
-                            } else {
-                                state.account?.displayName ?: state.baseUrl
-                            },
+                            if (state.memoViewMode == MemoViewMode.Calendar) "日历" else "记录",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            memoListSubtitle(state),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "刷新记录")
                     }
                 },
             )
@@ -437,17 +481,18 @@ fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewModel) {
     }
 }
 
+private fun memoListSubtitle(state: SillageUiState): String {
+    val mode = if (state.appMode == SessionStore.MODE_OFFLINE) {
+        "离线"
+    } else {
+        state.account?.displayName ?: state.baseUrl.ifBlank { "在线" }
+    }
+    return "$mode · ${state.memos.size} 条记录"
+}
+
 @Composable
 private fun MarkdownModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(onClick = onClick) {
-            Text(label)
-        }
-    } else {
-        TextButton(onClick = onClick) {
-            Text(label)
-        }
-    }
+    FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
 }
 
 @Composable
@@ -463,11 +508,14 @@ private fun MemoListView(
     onMemoClick: (Memo) -> Unit,
 ) {
     if (searching && visibleMemos.isEmpty()) {
-        EmptyState("正在搜索…")
+        EmptyState("正在搜索…", Icons.Rounded.Search)
         return
     }
     if (visibleMemos.isEmpty()) {
-        EmptyState(if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。")
+        EmptyState(
+            if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。",
+            if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
+        )
         return
     }
     LazyColumn(
@@ -545,28 +593,70 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
 }
 
 @Composable
-private fun EmptyState(text: String) {
+private fun EmptyState(text: String, icon: ImageVector? = null) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (icon != null) {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(icon, contentDescription = null)
+                    }
+                }
+            }
+            Text(
+                text,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
 @Composable
 private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                "那年今日",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    modifier = Modifier.size(28.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                }
+                Text(
+                    "那年今日",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             entries.forEach { memo ->
                 Text(
                     "${yearsBetween(memo.entryDate, today)}年前 · ${excerpt(memo.content, 56).ifBlank { "空白记录" }}",
@@ -632,19 +722,37 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
     val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
     val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
-            Text("${previous.first}年${previous.second}月")
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        IconButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                contentDescription = "${previous.first}年${previous.second}月",
+            )
         }
-        Text(
-            "${state.calendarYear}年${state.calendarMonth}月",
+        Column(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-        TextButton(onClick = { viewModel.changeCalendarMonth(1) }) {
-            Text("${next.first}年${next.second}月")
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "${state.calendarYear}年${state.calendarMonth}月",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "按日期回看记录",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        IconButton(onClick = { viewModel.changeCalendarMonth(1) }) {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = "${next.first}年${next.second}月",
+            )
         }
     }
 }
@@ -753,27 +861,65 @@ private fun EmptyCalendarSelection() {
 
 @Composable
 private fun MemoRow(memo: Memo, onClick: () -> Unit) {
-    Card(
+    ElevatedCard(
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             Text(
-                memo.content,
+                memo.content.ifBlank { "空白记录" },
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                if (memo.pinnedAt == null) memo.entryDate else "置顶 · ${memo.entryDate}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    memo.entryDate,
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                MemoStatusPills(memo)
+            }
         }
+    }
+}
+
+@Composable
+private fun MemoStatusPills(memo: Memo?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (memo?.pinnedAt != null) {
+            StatusPill("置顶")
+        }
+        if (memo?.archivedAt != null) {
+            StatusPill("归档")
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(text: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+        )
     }
 }
 
@@ -1140,18 +1286,24 @@ private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        MarkdownToolButton("H") { onFormat(MarkdownFormatStyle.Heading) }
-        MarkdownToolButton("B") { onFormat(MarkdownFormatStyle.Bold) }
-        MarkdownToolButton("I") { onFormat(MarkdownFormatStyle.Italic) }
-        MarkdownToolButton("`") { onFormat(MarkdownFormatStyle.Code) }
-        MarkdownToolButton("列表") { onFormat(MarkdownFormatStyle.List) }
-        MarkdownToolButton("引用") { onFormat(MarkdownFormatStyle.Quote) }
+        MarkdownToolButton(Icons.Rounded.Title, "标题") { onFormat(MarkdownFormatStyle.Heading) }
+        MarkdownToolButton(Icons.Rounded.FormatBold, "加粗") { onFormat(MarkdownFormatStyle.Bold) }
+        MarkdownToolButton(Icons.Rounded.FormatItalic, "斜体") { onFormat(MarkdownFormatStyle.Italic) }
+        MarkdownToolButton(Icons.Rounded.Code, "代码") { onFormat(MarkdownFormatStyle.Code) }
+        MarkdownToolButton(Icons.AutoMirrored.Rounded.FormatListBulleted, "列表") { onFormat(MarkdownFormatStyle.List) }
+        MarkdownToolButton(Icons.Rounded.FormatQuote, "引用") { onFormat(MarkdownFormatStyle.Quote) }
     }
 }
 
 @Composable
-private fun MarkdownToolButton(label: String, onClick: () -> Unit) {
-    AssistChip(onClick = onClick, label = { Text(label) })
+private fun MarkdownToolButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        },
+    )
 }
 
 @Composable
@@ -1339,11 +1491,38 @@ private fun SummaryMeta(summary: MemoAI) {
 @Composable
 fun MessageBlock(error: String?, notice: String?, modifier: Modifier = Modifier) {
     val text = error ?: notice ?: return
-    val color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    Text(
-        text = text,
+    val isError = error != null
+    val container = if (isError) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val content = if (isError) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        color = color,
-        style = MaterialTheme.typography.bodyMedium,
-    )
+        shape = RoundedCornerShape(8.dp),
+        color = container,
+        contentColor = content,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                if (isError) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = text,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
 }

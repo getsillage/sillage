@@ -20,15 +20,29 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.SessionStore
@@ -108,6 +123,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
                         SettingsSectionCard(title = "外观") {
                             SettingsActionRow(
+                                icon = Icons.Rounded.DarkMode,
                                 title = if (state.themeMode == SessionStore.THEME_DARK) "浅色模式" else "深色模式",
                                 supporting = "切换应用主题显示。",
                                 onClick = viewModel::toggleThemeMode,
@@ -117,18 +133,21 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
                         SettingsSectionCard(title = "服务与同步") {
                             SettingsActionRow(
+                                icon = Icons.Rounded.Refresh,
                                 title = "刷新记录",
                                 supporting = "重新读取当前模式下的记录列表。",
                                 onClick = viewModel::refreshMemos,
                                 enabled = !state.loading,
                             )
                             SettingsActionRow(
+                                icon = Icons.Rounded.CloudSync,
                                 title = if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式",
                                 supporting = state.baseUrl.ifBlank { "未配置服务器地址" },
                                 onClick = viewModel::useOnlineMode,
                                 enabled = state.appMode != SessionStore.MODE_ONLINE,
                             )
                             SettingsActionRow(
+                                icon = Icons.Rounded.Storage,
                                 title = if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式",
                                 supporting = "记录保存在当前设备。",
                                 onClick = viewModel::useOfflineMode,
@@ -136,23 +155,27 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             )
                             if (state.appMode == SessionStore.MODE_ONLINE) {
                                 SettingsActionRow(
+                                    icon = Icons.Rounded.SettingsEthernet,
                                     title = "服务器设置",
                                     supporting = "修改服务地址和重新连接。",
                                     onClick = viewModel::openServerSettings,
                                 )
                                 SettingsActionRow(
+                                    icon = Icons.Rounded.Download,
                                     title = "同步到本地",
                                     supporting = "把服务端数据保存到本机离线库。",
                                     onClick = viewModel::syncFromServer,
                                     enabled = !state.loading,
                                 )
                                 SettingsActionRow(
+                                    icon = Icons.Rounded.UploadFile,
                                     title = "同步到云端",
                                     supporting = "把本机离线记录推送到服务端。",
                                     onClick = viewModel::syncToServer,
                                     enabled = !state.loading,
                                 )
                                 SettingsActionRow(
+                                    icon = Icons.Rounded.CloudSync,
                                     title = "双向同步",
                                     supporting = "先推送本地更改，再拉取服务端数据。",
                                     onClick = viewModel::syncBothWays,
@@ -164,12 +187,14 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
                         SettingsSectionCard(title = "数据") {
                             SettingsActionRow(
+                                icon = Icons.Rounded.Download,
                                 title = "导出完整数据",
                                 supporting = "导出记录、AI 设置和问答数据。",
                                 onClick = { exportLauncher.launch("sillage-data.json") },
                                 enabled = !state.loading,
                             )
                             SettingsActionRow(
+                                icon = Icons.Rounded.UploadFile,
                                 title = "导入完整数据",
                                 supporting = "从 JSON 文件恢复或合并数据。",
                                 onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
@@ -181,6 +206,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         item {
                             SettingsSectionCard(title = "账号") {
                                 SettingsActionRow(
+                                    icon = Icons.AutoMirrored.Rounded.Logout,
                                     title = "退出登录",
                                     supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
                                     onClick = viewModel::signOut,
@@ -243,10 +269,10 @@ private fun AISettingsHeaderCard(
     onAdd: () -> Unit,
     onSave: () -> Unit,
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -268,6 +294,7 @@ private fun AISettingsHeaderCard(
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text("新增档案")
                 }
                 TextButton(
@@ -275,6 +302,7 @@ private fun AISettingsHeaderCard(
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 ) {
+                    Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(if (saving) "保存中" else "保存 AI 设置")
                 }
             }
@@ -284,14 +312,14 @@ private fun AISettingsHeaderCard(
 
 @Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 title,
@@ -305,28 +333,57 @@ private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.
 
 @Composable
 private fun SettingsActionRow(
+    icon: ImageVector,
     title: String,
     supporting: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
-    TextButton(
+    ElevatedCard(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (enabled) {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.Start,
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, textAlign = TextAlign.Start)
-            if (supporting.isNotBlank()) {
-                Text(
-                    supporting,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Start,
-                )
+            Surface(
+                modifier = Modifier.size(34.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(title, textAlign = TextAlign.Start, style = MaterialTheme.typography.bodyMedium)
+                if (supporting.isNotBlank()) {
+                    Text(
+                        supporting,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Start,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
@@ -334,10 +391,10 @@ private fun SettingsActionRow(
 
 @Composable
 private fun EmptySettingsCard(text: String) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Text(
             text,
@@ -357,12 +414,12 @@ private fun AIProfileSummaryCard(
     onConfigure: () -> Unit,
     onSetDefault: () -> Unit,
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
+        colors = CardDefaults.elevatedCardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.surfaceContainerHigh
+                MaterialTheme.colorScheme.primaryContainer
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
             },
@@ -386,7 +443,11 @@ private fun AIProfileSummaryCard(
                     )
                     Text(
                         profile.provider.ifBlank { "未设置 Provider" },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -398,7 +459,11 @@ private fun AIProfileSummaryCard(
             }
             Text(
                 profile.model.ifBlank { "未设置模型" },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -409,7 +474,11 @@ private fun AIProfileSummaryCard(
             ) {
                 Text(
                     if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) "有密钥" else "无密钥",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     style = MaterialTheme.typography.labelMedium,
                 )
                 if (profile.keyUnavailable) {
@@ -423,7 +492,11 @@ private fun AIProfileSummaryCard(
             if (testResult != null) {
                 Text(
                     testResult,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -607,4 +680,3 @@ private fun AISettingSwitch(label: String, checked: Boolean, onClick: () -> Unit
         Switch(checked = checked, onCheckedChange = { onClick() })
     }
 }
-

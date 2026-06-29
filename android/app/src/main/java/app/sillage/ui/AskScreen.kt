@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.List
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
@@ -33,18 +34,20 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -223,20 +226,35 @@ private fun askContextLabel(state: SillageUiState): String {
 
 @Composable
 private fun AskEmptyPrompt() {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                "可以根据记录提问",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+                    }
+                }
+                Text(
+                    "根据记录提问",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
             Text(
                 "例如「我最近在反复想些什么？」或「这周有什么值得继续做？」",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -251,16 +269,17 @@ private fun AskComposer(
     state: SillageUiState,
     viewModel: SillageViewModel,
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .imePadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 2.dp,
     ) {
         Row(
-            modifier = Modifier.padding(start = 8.dp, top = 4.dp, end = 6.dp, bottom = 4.dp),
+            modifier = Modifier.padding(start = 10.dp, top = 6.dp, end = 8.dp, bottom = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -365,13 +384,13 @@ private fun AskOptionsSheet(
 
 @Composable
 private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             "时间范围",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AskOptionButton("7 天", state.askScope == "recent_7_days") {
                 viewModel.updateAskScope("recent_7_days")
             }
@@ -387,7 +406,7 @@ private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AskOptionButton("原始记录", state.askSourceKind == "records") {
                 viewModel.updateAskSourceKind("records")
             }
@@ -400,15 +419,7 @@ private fun AskOptions(state: SillageUiState, viewModel: SillageViewModel) {
 
 @Composable
 private fun AskOptionButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(onClick = onClick) {
-            Text(label)
-        }
-    } else {
-        TextButton(onClick = onClick) {
-            Text(label)
-        }
-    }
+    FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
 }
 
 @Composable
@@ -432,15 +443,26 @@ private fun AskConversationList(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items(conversations, key = { it.id }) { conversation ->
-            TextButton(
+            ElevatedCard(
                 onClick = { onSelect(conversation.id) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(36.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = if (conversation.id == activeId) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
+                ),
             ) {
                 Text(
                     if (conversation.id == activeId) "当前 · ${conversation.title}" else conversation.title,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    color = if (conversation.id == activeId) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -464,11 +486,7 @@ private fun AskMessageCard(
 ) {
     val message = entry.message
     val isAssistant = message.role == "assistant"
-    val bubbleColor = if (isAssistant) {
-        MaterialTheme.colorScheme.surfaceContainerLow
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
+    val bubbleColor = if (isAssistant) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.primary
     val textColor = if (isAssistant) {
         MaterialTheme.colorScheme.onSurface
     } else {
@@ -480,12 +498,17 @@ private fun AskMessageCard(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(if (isAssistant) 0.94f else 0.84f),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(
+                topStart = 8.dp,
+                topEnd = 8.dp,
+                bottomEnd = if (isAssistant) 8.dp else 2.dp,
+                bottomStart = if (isAssistant) 2.dp else 8.dp,
+            ),
             colors = CardDefaults.cardColors(containerColor = bubbleColor),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     when {
@@ -570,7 +593,7 @@ private fun AskLiveUserCard(message: AskMessage) {
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(0.84f),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 8.dp, bottomEnd = 2.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
         ) {
             Text(
@@ -587,7 +610,7 @@ private fun AskLiveUserCard(message: AskMessage) {
 private fun AskLiveAnswerCard(answer: String) {
     Card(
         modifier = Modifier.fillMaxWidth(0.94f),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
@@ -670,4 +693,3 @@ private fun AskMessageActions(
         }
     }
 }
-

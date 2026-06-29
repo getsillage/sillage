@@ -112,6 +112,9 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
+                        SettingsOverviewCard(state)
+                    }
+                    item {
                         SettingsSectionCard(title = "AI") {
                             AISettingSwitch(
                                 label = "新建记录后自动总结",
@@ -259,6 +262,75 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsOverviewCard(state: SillageUiState) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "当前状态",
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OverviewPill(
+                    label = if (state.appMode == SessionStore.MODE_ONLINE) "在线" else "离线",
+                    value = if (state.appMode == SessionStore.MODE_ONLINE) {
+                        state.baseUrl.ifBlank { "未配置" }
+                    } else {
+                        "${state.memos.size} 条记录"
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                OverviewPill(
+                    label = "主题",
+                    value = if (state.themeMode == SessionStore.THEME_DARK) "深色" else "浅色",
+                    modifier = Modifier.weight(1f),
+                )
+                OverviewPill(
+                    label = "AI",
+                    value = if (state.aiAutoSummary) "自动总结" else "手动",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverviewPill(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                label,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

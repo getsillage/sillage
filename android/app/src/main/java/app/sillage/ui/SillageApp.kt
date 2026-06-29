@@ -2,7 +2,10 @@ package app.sillage.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,9 +41,11 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.FormatBold
 import androidx.compose.material.icons.rounded.FormatItalic
 import androidx.compose.material.icons.rounded.FormatQuote
@@ -54,6 +59,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -71,14 +77,18 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -426,6 +436,7 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
             if (state.memoViewMode == MemoViewMode.List) {
                 SearchBlock(state = state, viewModel = viewModel)
+                SearchStatusBlock(state = state)
             }
             if (state.loading && state.memos.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -444,6 +455,11 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     loadingMore = state.loadingMoreMemos,
                     onLoadMore = viewModel::loadMoreMemos,
                     onMemoClick = viewModel::openMemoDetail,
+                    onMemoEdit = viewModel::editMemo,
+                    onMemoDuplicate = viewModel::duplicateMemoDraft,
+                    onMemoTogglePin = viewModel::toggleMemoPinned,
+                    onMemoToggleArchive = viewModel::toggleMemoArchived,
+                    onMemoDelete = viewModel::deleteMemo,
                 )
             }
         }
@@ -491,6 +507,42 @@ private fun memoListSubtitle(state: SillageUiState): String {
 }
 
 @Composable
+private fun SearchStatusBlock(state: SillageUiState) {
+    val query = state.searchQuery.trim()
+    val results = state.searchResults
+    if (query.isBlank() || results == null) {
+        return
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Rounded.Search,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "“$query” · ${results.size} 条结果",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 private fun MarkdownModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
 }
@@ -506,6 +558,11 @@ private fun MemoListView(
     loadingMore: Boolean,
     onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
+    onMemoEdit: (Memo) -> Unit,
+    onMemoDuplicate: (Memo) -> Unit,
+    onMemoTogglePin: (Memo) -> Unit,
+    onMemoToggleArchive: (Memo) -> Unit,
+    onMemoDelete: (Memo) -> Unit,
 ) {
     if (searching && visibleMemos.isEmpty()) {
         EmptyState("正在搜索…", Icons.Rounded.Search)
@@ -537,7 +594,15 @@ private fun MemoListView(
             }
         }
         items(visibleMemos, key = { it.id }) { memo ->
-            MemoRow(memo = memo, onClick = { onMemoClick(memo) })
+            MemoSwipeRow(
+                memo = memo,
+                onClick = { onMemoClick(memo) },
+                onEdit = { onMemoEdit(memo) },
+                onDuplicate = { onMemoDuplicate(memo) },
+                onTogglePin = { onMemoTogglePin(memo) },
+                onToggleArchive = { onMemoToggleArchive(memo) },
+                onDelete = { onMemoDelete(memo) },
+            )
         }
         if (hasMore) {
             item {
@@ -713,7 +778,15 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
             }
         }
         items(selectedEntries, key = { it.id }) { memo ->
-            MemoRow(memo = memo, onClick = { viewModel.openMemoDetail(memo) })
+            MemoSwipeRow(
+                memo = memo,
+                onClick = { viewModel.openMemoDetail(memo) },
+                onEdit = { viewModel.editMemo(memo) },
+                onDuplicate = { viewModel.duplicateMemoDraft(memo) },
+                onTogglePin = { viewModel.toggleMemoPinned(memo) },
+                onToggleArchive = { viewModel.toggleMemoArchived(memo) },
+                onDelete = { viewModel.deleteMemo(memo) },
+            )
         }
     }
 }
@@ -860,11 +933,245 @@ private fun EmptyCalendarSelection() {
 }
 
 @Composable
-private fun MemoRow(memo: Memo, onClick: () -> Unit) {
+private fun MemoSwipeRow(
+    memo: Memo,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var showActions by remember { mutableStateOf(false) }
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { direction ->
+            when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> onTogglePin()
+                SwipeToDismissBoxValue.EndToStart -> onToggleArchive()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.34f },
+    )
+    if (showActions) {
+        MemoQuickActionsSheet(
+            memo = memo,
+            onDismiss = { showActions = false },
+            onEdit = {
+                showActions = false
+                onEdit()
+            },
+            onDuplicate = {
+                showActions = false
+                onDuplicate()
+            },
+            onTogglePin = {
+                showActions = false
+                onTogglePin()
+            },
+            onToggleArchive = {
+                showActions = false
+                onToggleArchive()
+            },
+            onDelete = {
+                showActions = false
+                onDelete()
+            },
+        )
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            MemoSwipeBackground(
+                targetValue = dismissState.targetValue,
+                memo = memo,
+            )
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+    ) {
+        MemoRow(
+            memo = memo,
+            onClick = onClick,
+            onLongClick = { showActions = true },
+        )
+    }
+}
+
+@Composable
+private fun MemoSwipeBackground(targetValue: SwipeToDismissBoxValue, memo: Memo) {
+    val isPin = targetValue == SwipeToDismissBoxValue.StartToEnd
+    val active = targetValue != SwipeToDismissBoxValue.Settled
+    val color = when {
+        !active -> MaterialTheme.colorScheme.surfaceContainer
+        isPin -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val alignment = if (isPin) Alignment.CenterStart else Alignment.CenterEnd
+    val icon = if (isPin) Icons.Rounded.PushPin else Icons.Rounded.Archive
+    val label = if (isPin) {
+        if (memo.pinnedAt == null) "置顶" else "取消置顶"
+    } else {
+        if (memo.archivedAt == null) "归档" else "取消归档"
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color, RoundedCornerShape(8.dp))
+            .padding(horizontal = 18.dp),
+        contentAlignment = alignment,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MemoQuickActionsSheet(
+    memo: Memo,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var confirmingDelete by remember(memo.id) { mutableStateOf(false) }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                excerpt(memo.content, 64).ifBlank { "空白记录" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "${memo.entryDate} · 快捷操作",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            QuickActionRow(
+                icon = Icons.Rounded.Edit,
+                title = "编辑",
+                supporting = "直接进入编辑器。",
+                onClick = onEdit,
+            )
+            QuickActionRow(
+                icon = Icons.Rounded.ContentCopy,
+                title = "复制为新记录",
+                supporting = "保留正文，日期使用今天。",
+                onClick = onDuplicate,
+            )
+            QuickActionRow(
+                icon = Icons.Rounded.PushPin,
+                title = if (memo.pinnedAt == null) "置顶" else "取消置顶",
+                supporting = if (memo.pinnedAt == null) "保留在列表顶部。" else "恢复到时间顺序。",
+                onClick = onTogglePin,
+            )
+            QuickActionRow(
+                icon = Icons.Rounded.Archive,
+                title = if (memo.archivedAt == null) "归档" else "取消归档",
+                supporting = if (memo.archivedAt == null) "从主列表移除。" else "回到主列表。",
+                onClick = onToggleArchive,
+            )
+            QuickActionRow(
+                icon = Icons.Rounded.Delete,
+                title = if (confirmingDelete) "确认删除" else "删除",
+                supporting = if (confirmingDelete) "此操作会从当前列表移除。" else "从当前列表移除。",
+                destructive = true,
+                onClick = {
+                    if (confirmingDelete) {
+                        onDelete()
+                    } else {
+                        confirmingDelete = true
+                    }
+                },
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
+private fun QuickActionRow(
+    icon: ImageVector,
+    title: String,
+    supporting: String,
+    destructive: Boolean = false,
+    onClick: () -> Unit,
+) {
     ElevatedCard(
         onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(34.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = if (destructive) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                contentColor = if (destructive) {
+                    MaterialTheme.colorScheme.onErrorContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    title,
+                    color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    supporting,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MemoRow(memo: Memo, onClick: () -> Unit, onLongClick: () -> Unit) {
+    ElevatedCard(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
@@ -1033,6 +1340,9 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
                 MemoDetailCard(memo)
             }
             item {
+                MemoInsightStrip(memo)
+            }
+            item {
                 MemoSummarySection(
                     summary = state.selectedSummary,
                     loading = state.summaryLoading,
@@ -1044,6 +1354,82 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
             }
         }
     }
+}
+
+@Composable
+private fun MemoInsightStrip(memo: Memo) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MemoInsightChip(
+            icon = Icons.Rounded.History,
+            label = "创建",
+            value = compactDateTime(memo.createdAt),
+            modifier = Modifier.weight(1f),
+        )
+        MemoInsightChip(
+            icon = Icons.Rounded.Update,
+            label = "更新",
+            value = compactDateTime(memo.updatedAt),
+            modifier = Modifier.weight(1f),
+        )
+        MemoInsightChip(
+            icon = Icons.Rounded.Edit,
+            label = "版本",
+            value = memo.version.toString(),
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun MemoInsightChip(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    label,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                )
+            }
+            Text(
+                value.ifBlank { "-" },
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun compactDateTime(value: String): String {
+    if (value.length < 10) {
+        return value
+    }
+    val date = value.take(10)
+    val time = value.substringAfter('T', "").take(5)
+    return if (time.isBlank()) date else "$date $time"
 }
 
 @Composable
@@ -1254,9 +1640,23 @@ private fun MarkdownEditorSection(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MarkdownModeButton("编辑", !preview) { onPreviewChange(false) }
-            MarkdownModeButton("预览", preview) { onPreviewChange(true) }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MarkdownModeButton("编辑", !preview) { onPreviewChange(false) }
+                MarkdownModeButton("预览", preview) { onPreviewChange(true) }
+            }
+            Text(
+                markdownDraftStats(content),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
         }
         MarkdownToolbar(onFormat)
         if (preview) {
@@ -1278,6 +1678,12 @@ private fun MarkdownEditorSection(
             )
         }
     }
+}
+
+private fun markdownDraftStats(content: String): String {
+    val characters = content.trim().length
+    val lines = if (content.isBlank()) 0 else content.lines().size
+    return "$characters 字 · $lines 行"
 }
 
 @Composable

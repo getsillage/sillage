@@ -278,41 +278,60 @@ private fun AskComposer(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 2.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(start = 10.dp, top = 6.dp, end = 8.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.Bottom,
+        Column(
+            modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 8.dp, bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            OutlinedTextField(
-                value = state.askQuestion,
-                onValueChange = viewModel::updateAskQuestion,
-                modifier = Modifier.weight(1f),
-                minLines = 1,
-                maxLines = 3,
-                placeholder = { Text("根据记录提问") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (!state.askSending && state.askQuestion.isNotBlank()) {
-                            viewModel.sendAskQuestion()
-                        }
-                    },
-                ),
-            )
-            if (state.askStreaming) {
-                IconButton(
-                    onClick = viewModel::stopAskStreaming,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(Icons.Rounded.StopCircle, contentDescription = "停止生成")
-                }
-            } else {
-                FilledIconButton(
-                    onClick = viewModel::sendAskQuestion,
-                    enabled = !state.askSending && state.askQuestion.isNotBlank(),
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    askContextLabel(state),
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "${state.askQuestion.trim().length} 字",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                OutlinedTextField(
+                    value = state.askQuestion,
+                    onValueChange = viewModel::updateAskQuestion,
+                    modifier = Modifier.weight(1f),
+                    minLines = 1,
+                    maxLines = 3,
+                    placeholder = { Text("根据记录提问") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (!state.askSending && state.askQuestion.isNotBlank()) {
+                                viewModel.sendAskQuestion()
+                            }
+                        },
+                    ),
+                )
+                if (state.askStreaming) {
+                    IconButton(
+                        onClick = viewModel::stopAskStreaming,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(Icons.Rounded.StopCircle, contentDescription = "停止生成")
+                    }
+                } else {
+                    FilledIconButton(
+                        onClick = viewModel::sendAskQuestion,
+                        enabled = !state.askSending && state.askQuestion.isNotBlank(),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+                    }
                 }
             }
         }

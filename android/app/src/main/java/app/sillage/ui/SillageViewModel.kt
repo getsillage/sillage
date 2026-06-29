@@ -405,6 +405,23 @@ class SillageViewModel(context: Context) : ViewModel() {
         openEditorForMemo(memo)
     }
 
+    fun duplicateMemoDraft(memo: Memo) {
+        _state.update {
+            it.copy(
+                screen = Screen.Editor,
+                selectedMemo = null,
+                selectedSummary = null,
+                summaryLoading = false,
+                uploadingAttachment = false,
+                draftContent = memo.content,
+                draftEntryDate = LocalDate.now().toString(),
+                markdownPreview = false,
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
     fun updateDraftContent(value: String) = _state.update { it.copy(draftContent = value) }
 
     fun updateDraftEntryDate(value: String) = _state.update { it.copy(draftEntryDate = value) }
@@ -756,6 +773,53 @@ class SillageViewModel(context: Context) : ViewModel() {
             _state.update {
                 it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
             }
+        }
+    }
+
+    fun toggleMemoPinned(memo: Memo) {
+        launchBusy {
+            val updated = if (isOfflineMode()) {
+                localDataStore.setMemoPinned(memo, memo.pinnedAt == null)
+            } else {
+                api.setMemoPinned(memo, memo.pinnedAt == null)
+            }
+            applyMemo(updated)
+            _state.update {
+                it.copy(notice = if (updated.pinnedAt == null) "已取消置顶" else "已置顶")
+            }
+        }
+    }
+
+    fun toggleMemoArchived(memo: Memo) {
+        launchBusy {
+            val updated = if (isOfflineMode()) {
+                localDataStore.setMemoArchived(memo, memo.archivedAt == null)
+            } else {
+                api.setMemoArchived(memo, memo.archivedAt == null)
+            }
+            applyMemo(updated)
+            _state.update {
+                it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
+            }
+        }
+    }
+
+    fun deleteMemo(memo: Memo) {
+        launchBusy {
+            val deleted = if (isOfflineMode()) {
+                localDataStore.deleteMemo(memo)
+            } else {
+                api.deleteMemo(memo)
+            }
+            applyMemo(deleted)
+            _state.update {
+                it.copy(
+                    selectedMemo = if (it.selectedMemo?.id == memo.id) null else it.selectedMemo,
+                    selectedSummary = if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
+                    notice = "已删除",
+                )
+            }
+            refreshMemos()
         }
     }
 

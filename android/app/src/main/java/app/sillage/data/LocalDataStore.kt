@@ -8,6 +8,7 @@ import org.json.JSONObject
 
 class LocalDataStore(context: Context) {
     private val prefs = context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE)
+    private val securePrefs = SecurePreferences(prefs)
 
     fun exportData(): SillageExportData = loadData()
 
@@ -285,7 +286,7 @@ class LocalDataStore(context: Context) {
     }
 
     private fun loadData(): SillageExportData {
-        val raw = prefs.getString(KEY_DATA, null) ?: return emptyData()
+        val raw = securePrefs.getString(KEY_DATA, null) ?: return emptyData()
         return runCatching { SillageExportCodec.fromJson(raw) }.getOrElse { emptyData() }
     }
 
@@ -294,7 +295,11 @@ class LocalDataStore(context: Context) {
     }
 
     private fun saveData(data: SillageExportData) {
-        prefs.edit().putString(KEY_DATA, SillageExportCodec.toLocalJson(data.normalizedForLocalStorage())).apply()
+        securePrefs.putString(
+            prefs.edit(),
+            KEY_DATA,
+            SillageExportCodec.toLocalJson(data.normalizedForLocalStorage()),
+        ).apply()
     }
 
     private fun emptyData(): SillageExportData {
@@ -356,7 +361,7 @@ class LocalDataStore(context: Context) {
     }
 
     private fun cloudMemoVersions(): Map<String, Long> {
-        val raw = prefs.getString(KEY_CLOUD_MEMO_VERSIONS, "{}") ?: "{}"
+        val raw = securePrefs.getString(KEY_CLOUD_MEMO_VERSIONS, "{}") ?: "{}"
         val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
         return buildMap {
             body.keys().forEach { id ->
@@ -368,7 +373,7 @@ class LocalDataStore(context: Context) {
     private fun saveCloudMemoVersions(versions: Map<String, Long>) {
         val body = JSONObject()
         versions.forEach { (id, version) -> body.put(id, version) }
-        prefs.edit().putString(KEY_CLOUD_MEMO_VERSIONS, body.toString()).apply()
+        securePrefs.putString(prefs.edit(), KEY_CLOUD_MEMO_VERSIONS, body.toString()).apply()
     }
 }
 

@@ -1,58 +1,45 @@
 package app.sillage.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONArray
 
 class SessionStore(context: Context) {
     private val prefs = context.getSharedPreferences("sillage.session", Context.MODE_PRIVATE)
+    private val securePrefs = SecurePreferences(prefs)
 
     fun baseUrl(): String = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
 
     fun saveBaseUrl(value: String) {
         val normalized = normalizeBaseUrl(value)
-        prefs.edit()
-            .putString(KEY_BASE_URL, normalized)
-            .remove(KEY_ACCESS_TOKEN)
-            .remove(KEY_EXPIRES_AT)
-            .remove(KEY_ACCOUNT_ID)
-            .remove(KEY_USERNAME)
-            .remove(KEY_DISPLAY_NAME)
-            .remove(KEY_COOKIES)
-            .apply()
+        clearSecureSessionKeys(prefs.edit().putString(KEY_BASE_URL, normalized)).apply()
     }
 
-    fun accessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
+    fun accessToken(): String? = securePrefs.getString(KEY_ACCESS_TOKEN, null)
 
     fun account(): Account? {
-        val id = prefs.getString(KEY_ACCOUNT_ID, null) ?: return null
-        val username = prefs.getString(KEY_USERNAME, null) ?: return null
-        val displayName = prefs.getString(KEY_DISPLAY_NAME, null) ?: username
+        val id = securePrefs.getString(KEY_ACCOUNT_ID, null) ?: return null
+        val username = securePrefs.getString(KEY_USERNAME, null) ?: return null
+        val displayName = securePrefs.getString(KEY_DISPLAY_NAME, null) ?: username
         return Account(id = id, username = username, displayName = displayName)
     }
 
     fun saveSession(session: AuthSession) {
-        prefs.edit()
-            .putString(KEY_ACCESS_TOKEN, session.accessToken)
-            .putString(KEY_EXPIRES_AT, session.expiresAt)
-            .putString(KEY_ACCOUNT_ID, session.account.id)
-            .putString(KEY_USERNAME, session.account.username)
-            .putString(KEY_DISPLAY_NAME, session.account.displayName)
-            .apply()
+        securePutAll(
+            KEY_ACCESS_TOKEN to session.accessToken,
+            KEY_EXPIRES_AT to session.expiresAt,
+            KEY_ACCOUNT_ID to session.account.id,
+            KEY_USERNAME to session.account.username,
+            KEY_DISPLAY_NAME to session.account.displayName,
+        ).apply()
     }
 
     fun clearSession() {
-        prefs.edit()
-            .remove(KEY_ACCESS_TOKEN)
-            .remove(KEY_EXPIRES_AT)
-            .remove(KEY_ACCOUNT_ID)
-            .remove(KEY_USERNAME)
-            .remove(KEY_DISPLAY_NAME)
-            .remove(KEY_COOKIES)
-            .apply()
+        clearSecureSessionKeys(prefs.edit()).apply()
     }
 
     fun cookieHeaders(): List<String> {
-        val raw = prefs.getString(KEY_COOKIES, "[]") ?: "[]"
+        val raw = securePrefs.getString(KEY_COOKIES, "[]") ?: "[]"
         val array = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
         return buildList {
             for (index in 0 until array.length()) {
@@ -67,7 +54,7 @@ class SessionStore(context: Context) {
     fun saveCookieHeaders(headers: List<String>) {
         val array = JSONArray()
         headers.distinct().forEach { array.put(it) }
-        prefs.edit().putString(KEY_COOKIES, array.toString()).apply()
+        securePrefs.putString(prefs.edit(), KEY_COOKIES, array.toString()).apply()
     }
 
     fun themeMode(): String = prefs.getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
@@ -87,6 +74,22 @@ class SessionStore(context: Context) {
             .apply()
     }
 
+    private fun securePutAll(vararg entries: Pair<String, String>): SharedPreferences.Editor {
+        var editor = prefs.edit()
+        for ((key, value) in entries) {
+            editor = securePrefs.putString(editor, key, value)
+        }
+        return editor
+    }
+
+    private fun clearSecureSessionKeys(editor: SharedPreferences.Editor): SharedPreferences.Editor {
+        var next = editor
+        for (key in SECURE_SESSION_KEYS) {
+            next = securePrefs.remove(next, key)
+        }
+        return next
+    }
+
     companion object {
         const val DEFAULT_BASE_URL = ""
         const val THEME_LIGHT = "light"
@@ -104,6 +107,14 @@ class SessionStore(context: Context) {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_APP_MODE = "app_mode"
         private const val KEY_APP_MODE_SELECTED = "app_mode_selected"
+        private val SECURE_SESSION_KEYS = listOf(
+            KEY_ACCESS_TOKEN,
+            KEY_EXPIRES_AT,
+            KEY_ACCOUNT_ID,
+            KEY_USERNAME,
+            KEY_DISPLAY_NAME,
+            KEY_COOKIES,
+        )
 
         fun normalizeBaseUrl(value: String): String {
             val trimmed = value.trim().trimEnd('/')

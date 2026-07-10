@@ -1,5 +1,15 @@
-import { BrainCircuit, LoaderCircle, Palette, Plus, Save } from "lucide-react";
+import {
+  BrainCircuit,
+  CircleAlert,
+  CircleCheck,
+  LoaderCircle,
+  Palette,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   type AIProfile,
   type AIProfileInput,
@@ -121,8 +131,13 @@ type ModelState = {
   message?: string;
 };
 type SettingsTab = "ai" | "appearance";
+type ToastState = {
+  kind: "success" | "error";
+  message: string;
+};
 
 const ACTION_TIMEOUT_MS = 65_000;
+const TOAST_DURATION_MS = 3_200;
 const SETTINGS_TABS: {
   value: SettingsTab;
   label: string;
@@ -165,6 +180,52 @@ function actionErrorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback;
 }
 
+function SettingsToast({
+  toast,
+  onClose,
+}: {
+  toast: ToastState;
+  onClose: () => void;
+}) {
+  const Icon = toast.kind === "success" ? CircleCheck : CircleAlert;
+  return createPortal(
+    <div
+      role={toast.kind === "success" ? "status" : "alert"}
+      className="pointer-events-none fixed top-[max(1rem,calc(env(safe-area-inset-top)+0.75rem))] right-4 left-4 z-[90] flex justify-center"
+    >
+      <div className="surface-enter pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white/95 py-2 pr-2 pl-3 shadow-xl shadow-gray-950/15 backdrop-blur-xl dark:border-gray-700 dark:bg-gray-900/95 dark:shadow-black/35">
+        <Icon
+          className={`h-5 w-5 flex-none ${
+            toast.kind === "error"
+              ? "text-red-600 dark:text-red-400"
+              : "text-gray-600 dark:text-gray-300"
+          }`}
+          aria-hidden="true"
+        />
+        <p
+          className={`min-w-0 flex-1 text-sm ${
+            toast.kind === "error"
+              ? "text-red-600 dark:text-red-400"
+              : "text-gray-800 dark:text-gray-100"
+          }`}
+        >
+          {toast.message}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+          aria-label="关闭通知"
+          title="关闭通知"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function SettingsWorkspace({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
@@ -187,6 +248,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [autoSummaryToast, setAutoSummaryToast] = useState<ToastState | null>(
+    null,
+  );
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestState>>({});
   const [modelResults, setModelResults] = useState<Record<string, ModelState>>(
@@ -250,6 +314,17 @@ export function SettingsWorkspace({ token }: { token: string }) {
     window.addEventListener("beforeunload", warnBeforeUnload);
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [dirty]);
+
+  useEffect(() => {
+    if (!autoSummaryToast) {
+      return;
+    }
+    const timeout = window.setTimeout(
+      () => setAutoSummaryToast(null),
+      TOAST_DURATION_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [autoSummaryToast]);
 
   function updateProfile(index: number, patch: Partial<EditableProfile>) {
     setConfirmDeleteKey(null);
@@ -329,6 +404,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     autoSummaryMutationRef.current = true;
     setAutoSummary(nextValue);
     setAutoSummarySaving(true);
+    setAutoSummaryToast(null);
     setNotice("");
     setError("");
     try {
@@ -340,13 +416,19 @@ export function SettingsWorkspace({ token }: { token: string }) {
         return;
       }
       setAutoSummary(res.autoSummary);
-      setNotice(res.autoSummary ? "已开启自动总结" : "已关闭自动总结");
+      setAutoSummaryToast({
+        kind: "success",
+        message: res.autoSummary ? "已开启自动总结" : "已关闭自动总结",
+      });
     } catch (cause) {
       if (autoSummaryRequestIdRef.current !== requestId) {
         return;
       }
       setAutoSummary(previousValue);
-      setError(actionErrorMessage(cause, "保存自动总结设置失败"));
+      setAutoSummaryToast({
+        kind: "error",
+        message: actionErrorMessage(cause, "保存自动总结设置失败"),
+      });
     } finally {
       if (autoSummaryRequestIdRef.current === requestId) {
         autoSummaryAbortRef.current = null;
@@ -541,6 +623,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
+      {autoSummaryToast ? (
+        <SettingsToast
+          toast={autoSummaryToast}
+          onClose={() => setAutoSummaryToast(null)}
+        />
+      ) : null}
       <UnsavedNavigationGuard
         when={dirty}
         title="设置尚未保存"

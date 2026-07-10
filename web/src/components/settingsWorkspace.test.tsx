@@ -246,13 +246,22 @@ describe("SettingsWorkspace", () => {
       expect.any(AbortSignal),
     );
     expect(patchAISettings).not.toHaveBeenCalled();
-    expect(await screen.findByText("已开启自动总结")).toBeInTheDocument();
+    const toast = (await screen.findByText("已开启自动总结")).closest(
+      '[role="status"]',
+    );
+    expect(toast).toHaveClass("fixed", "z-[90]");
+    expect(toast).toHaveTextContent("已开启自动总结");
     expect(screen.queryByText("有未保存更改")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "保存设置" }),
     ).not.toBeInTheDocument();
     const savedUnload = new Event("beforeunload", { cancelable: true });
     expect(window.dispatchEvent(savedUnload)).toBe(true);
+
+    await user.click(
+      within(toast as HTMLElement).getByRole("button", { name: "关闭通知" }),
+    );
+    expect(screen.queryByText("已开启自动总结")).not.toBeInTheDocument();
   });
 
   it("keeps profile drafts while auto-summary is being saved", async () => {

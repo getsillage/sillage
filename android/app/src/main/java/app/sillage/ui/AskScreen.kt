@@ -1,6 +1,8 @@
 package app.sillage.ui
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -57,8 +60,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +83,9 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val isUserDragging by listState.interactionSource.collectIsDraggedAsState()
+    val autoFollowThresholdPx = with(LocalDensity.current) { 96.dp.roundToPx() }
+    var autoFollow by remember(state.activeAskId) { mutableStateOf(true) }
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
     }
@@ -87,14 +96,38 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         (if (entries.isEmpty()) 1 else 0) +
         (if (state.askLiveUser != null) 1 else 0) +
         (if (state.askSending && state.askRegeneratingId.isBlank()) 1 else 0)
+    LaunchedEffect(isUserDragging) {
+        if (isUserDragging) {
+            autoFollow = false
+        }
+    }
+    LaunchedEffect(listState, isUserDragging, autoFollow, autoFollowThresholdPx) {
+        if (!isUserDragging && !autoFollow) {
+            snapshotFlow { listState.isNearAskBottom(autoFollowThresholdPx) }
+                .collect { nearBottom ->
+                    if (nearBottom) {
+                        autoFollow = true
+                    }
+                }
+        }
+    }
+    LaunchedEffect(state.askSending) {
+        if (state.askSending && listItemCount > 0) {
+            autoFollow = true
+            withFrameNanos { }
+            listState.scrollToAskBottom()
+        }
+    }
     LaunchedEffect(
-        entries.size,
-        state.askLiveUser?.id,
-        state.askSending,
+        listItemCount,
+        entries.lastOrNull()?.message?.id,
         state.askLiveAnswer.length,
+        autoFollow,
+        isUserDragging,
     ) {
-        if (listItemCount > 0) {
-            listState.animateScrollToItem(listItemCount - 1)
+        if (!state.askLoading && listItemCount > 0 && autoFollow && !isUserDragging) {
+            withFrameNanos { }
+            listState.scrollToAskBottom()
         }
     }
     if (showConversations) {
@@ -117,7 +150,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 title = {
                     Column {
                         Text(
-                            "Ask",
+                            "问答",
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -132,13 +165,25 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showConversations = true }) {
+                    IconButton(
+                        onClick = { showConversations = true },
+                        enabled = !state.askLoading &&
+                            !state.askSending &&
+                            !state.askVariantLoading &&
+                            !state.askSourceLoading,
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.List, contentDescription = "会话")
                     }
                     IconButton(onClick = { showOptions = true }) {
                         Icon(Icons.Rounded.Tune, contentDescription = "上下文")
                     }
-                    IconButton(onClick = viewModel::startNewAsk, enabled = !state.askSending) {
+                    IconButton(
+                        onClick = viewModel::startNewAsk,
+                        enabled = !state.askLoading &&
+                            !state.askSending &&
+                            !state.askVariantLoading &&
+                            !state.askSourceLoading,
+                    ) {
                         Icon(Icons.Rounded.Add, contentDescription = "新会话")
                     }
                 },
@@ -184,9 +229,21 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     items(entries, key = { it.message.id }) { entry ->
                         AskMessageCard(
                             entry = entry,
-                            canRegenerate = entry.message.id == latestAssistantId && !state.askSending,
+                            canRegenerate = entry.message.id == latestAssistantId &&
+                                !state.askSending &&
+                                !state.askVariantLoading &&
+                                !state.askSourceLoading,
                             regenerating = state.askRegeneratingId == entry.message.id,
-                            savingDisabled = state.loading || state.askSending,
+                            variantChanging = state.askLoading || state.askVariantLoading,
+                            savingDisabled = state.loading ||
+                                state.askSending ||
+                                state.askVariantLoading ||
+                                state.askSourceLoading,
+                            sourceActionsEnabled = !state.loading &&
+                                !state.askSending &&
+                                !state.askLoading &&
+                                !state.askVariantLoading &&
+                                !state.askSourceLoading,
                             streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
                             onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
                             onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
@@ -212,6 +269,48 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         }
     }
+}
+
+private fun LazyListState.isNearAskBottom(thresholdPx: Int): Boolean {
+    val layout = layoutInfo
+    val lastVisibleItem = layout.visibleItemsInfo.lastOrNull()
+    return isAskListNearBottom(
+        lastVisibleIndex = lastVisibleItem?.index,
+        totalItemsCount = layout.totalItemsCount,
+        lastVisibleEnd = lastVisibleItem?.let { it.offset + it.size },
+        viewportEnd = layout.viewportEndOffset,
+        thresholdPx = thresholdPx,
+    )
+}
+
+private suspend fun LazyListState.scrollToAskBottom() {
+    val totalItemsCount = layoutInfo.totalItemsCount
+    if (totalItemsCount <= 0) {
+        return
+    }
+    val lastIndex = totalItemsCount - 1
+    if (layoutInfo.visibleItemsInfo.none { it.index == lastIndex }) {
+        scrollToItem(lastIndex)
+    }
+    val layout = layoutInfo
+    val lastItem = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex } ?: return
+    val remainingDistance = lastItem.offset + lastItem.size - layout.viewportEndOffset
+    if (remainingDistance > 0) {
+        scrollBy(remainingDistance.toFloat())
+    }
+}
+
+internal fun isAskListNearBottom(
+    lastVisibleIndex: Int?,
+    totalItemsCount: Int,
+    lastVisibleEnd: Int?,
+    viewportEnd: Int,
+    thresholdPx: Int,
+): Boolean {
+    if (totalItemsCount <= 0 || lastVisibleIndex != totalItemsCount - 1 || lastVisibleEnd == null) {
+        return false
+    }
+    return lastVisibleEnd - viewportEnd <= thresholdPx.coerceAtLeast(0)
 }
 
 private fun askContextLabel(state: SillageUiState): String {
@@ -311,7 +410,13 @@ private fun AskComposer(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            if (!state.askSending && state.askQuestion.isNotBlank()) {
+                            if (
+                                !state.askLoading &&
+                                !state.askSending &&
+                                !state.askVariantLoading &&
+                                !state.askSourceLoading &&
+                                state.askQuestion.isNotBlank()
+                            ) {
                                 viewModel.sendAskQuestion()
                             }
                         },
@@ -327,7 +432,11 @@ private fun AskComposer(
                 } else {
                     FilledIconButton(
                         onClick = viewModel::sendAskQuestion,
-                        enabled = !state.askSending && state.askQuestion.isNotBlank(),
+                        enabled = !state.askSending &&
+                            !state.askLoading &&
+                            !state.askVariantLoading &&
+                            !state.askSourceLoading &&
+                            state.askQuestion.isNotBlank(),
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
@@ -359,13 +468,20 @@ private fun AskConversationSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
-                TextButton(onClick = viewModel::loadAskConversations, enabled = !state.askLoading) {
+                TextButton(
+                    onClick = viewModel::loadAskConversations,
+                    enabled = !state.askLoading && !state.askSending && !state.askVariantLoading,
+                ) {
                     Text("刷新")
                 }
             }
             AskConversationList(
                 conversations = state.askConversations,
                 activeId = state.activeAskId,
+                enabled = !state.askLoading &&
+                    !state.askSending &&
+                    !state.askVariantLoading &&
+                    !state.askSourceLoading,
                 onSelect = {
                     viewModel.selectAskConversation(it)
                     onDismiss()
@@ -445,6 +561,7 @@ private fun AskOptionButton(label: String, selected: Boolean, onClick: () -> Uni
 private fun AskConversationList(
     conversations: List<AskConversation>,
     activeId: String,
+    enabled: Boolean,
     onSelect: (String) -> Unit,
 ) {
     if (conversations.isEmpty()) {
@@ -464,6 +581,7 @@ private fun AskConversationList(
         items(conversations, key = { it.id }) { conversation ->
             ElevatedCard(
                 onClick = { onSelect(conversation.id) },
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.elevatedCardColors(
@@ -496,7 +614,9 @@ private fun AskMessageCard(
     entry: AskPathEntry,
     canRegenerate: Boolean,
     regenerating: Boolean,
+    variantChanging: Boolean,
     savingDisabled: Boolean,
+    sourceActionsEnabled: Boolean,
     streamingText: String?,
     onRegenerate: () -> Unit,
     onSaveAsMemo: () -> Unit,
@@ -541,6 +661,7 @@ private fun AskMessageCard(
                 if (isAssistant && message.sourceRefs.isNotEmpty()) {
                     AskSourceRefs(
                         sources = message.sourceRefs,
+                        enabled = sourceActionsEnabled,
                         onOpenSource = onOpenSource,
                     )
                 }
@@ -549,6 +670,7 @@ private fun AskMessageCard(
                         entry = entry,
                         canRegenerate = canRegenerate,
                         regenerating = regenerating,
+                        variantChanging = variantChanging,
                         savingDisabled = savingDisabled,
                         onRegenerate = onRegenerate,
                         onSaveAsMemo = onSaveAsMemo,
@@ -563,6 +685,7 @@ private fun AskMessageCard(
 @Composable
 private fun AskSourceRefs(
     sources: List<AskSourceRef>,
+    enabled: Boolean,
     onOpenSource: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -586,7 +709,7 @@ private fun AskSourceRefs(
             sources.take(5).forEach { source ->
                 TextButton(
                     onClick = { onOpenSource(source.memoId) },
-                    enabled = source.memoId.isNotBlank(),
+                    enabled = enabled && source.memoId.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(28.dp),
@@ -650,6 +773,7 @@ private fun AskMessageActions(
     entry: AskPathEntry,
     canRegenerate: Boolean,
     regenerating: Boolean,
+    variantChanging: Boolean,
     savingDisabled: Boolean,
     onRegenerate: () -> Unit,
     onSaveAsMemo: () -> Unit,
@@ -669,7 +793,7 @@ private fun AskMessageActions(
                         onSelectVariant(previous.id)
                     }
                 },
-                enabled = entry.index > 0 && !regenerating,
+                enabled = entry.index > 0 && !regenerating && !variantChanging,
                 modifier = Modifier.size(30.dp),
             ) {
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "上一条")
@@ -686,7 +810,10 @@ private fun AskMessageActions(
                         onSelectVariant(next.id)
                     }
                 },
-                enabled = entry.index >= 0 && entry.index < entry.variants.lastIndex && !regenerating,
+                enabled = entry.index >= 0 &&
+                    entry.index < entry.variants.lastIndex &&
+                    !regenerating &&
+                    !variantChanging,
                 modifier = Modifier.size(30.dp),
             ) {
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "下一条")

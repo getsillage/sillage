@@ -1,13 +1,22 @@
 package app.sillage.data
 
+import java.io.File
+import java.io.IOException
 import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -17,6 +26,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import okio.BufferedSource
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,6 +37,11 @@ class SillageApi(private val sessionStore: SessionStore) {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
+    private val refreshCoordinator = SessionRefreshCoordinator(
+        currentAccessToken = sessionStore::accessToken,
+        clearSession = sessionStore::clearSession,
+        refresh = { refresh() },
+    )
 
     suspend fun bootstrap(baseUrl: String = sessionStore.baseUrl()): Boolean {
         val normalized = SessionStore.normalizeBaseUrl(baseUrl)
@@ -207,19 +222,23 @@ class SillageApi(private val sessionStore: SessionStore) {
     }
 
     suspend fun setMemoPinned(memo: Memo, pinned: Boolean): Memo {
-        val action = if (pinned) "pin" else "unpin"
+        val payload = JSONObject()
+            .put("expectedVersion", memo.version)
+            .put("pinned", pinned)
         val request = Request.Builder()
-            .url(url("/api/v1/memos/${memo.id.pathSegment()}:$action?expectedVersion=${memo.version}"))
-            .post(EMPTY_BODY)
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:setPinned"))
+            .post(payload.toString().jsonBody())
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
     }
 
     suspend fun setMemoArchived(memo: Memo, archived: Boolean): Memo {
-        val action = if (archived) "archive" else "unarchive"
+        val payload = JSONObject()
+            .put("expectedVersion", memo.version)
+            .put("archived", archived)
         val request = Request.Builder()
-            .url(url("/api/v1/memos/${memo.id.pathSegment()}:$action?expectedVersion=${memo.version}"))
-            .post(EMPTY_BODY)
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:setArchived"))
+            .post(payload.toString().jsonBody())
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
     }
@@ -247,6 +266,20 @@ class SillageApi(private val sessionStore: SessionStore) {
             .post(body)
             .build()
         return parseAttachment(execute(request).getJSONObject("attachment"))
+    }
+
+    suspend fun downloadAttachment(
+        target: MarkdownLinkTarget.ProtectedAttachment,
+        tempDestination: File,
+    ): DownloadedAttachment {
+        val validatedTarget = resolveMarkdownLinkTarget(target.path, sessionStore.baseUrl())
+            as? MarkdownLinkTarget.ProtectedAttachment
+            ?: throw ApiException("附件地址无效")
+        val request = Request.Builder()
+            .url(url(validatedTarget.path))
+            .get()
+            .build()
+        return executeAttachmentDownload(request, tempDestination)
     }
 
     suspend fun getAISettings(): AISettings {
@@ -414,10 +447,11 @@ class SillageApi(private val sessionStore: SessionStore) {
         authenticated: Boolean = true,
         retryRefresh: Boolean = true,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val response = client.newCall(request.withAuth(authenticated)).execute()
+        val authenticatedRequest = request.withAuth(authenticated)
+        val response = client.newCall(authenticatedRequest).execute()
         response.use { res ->
             if (res.code == 401 && authenticated && retryRefresh) {
-                runCatching { refresh() }.onFailure { sessionStore.clearSession() }
+                refreshSessionForRetry(authenticatedRequest.requireBearerAccessToken())
                 return@withContext execute(request, authenticated = true, retryRefresh = false)
             }
             val body = res.body?.string().orEmpty()
@@ -432,6 +466,107 @@ class SillageApi(private val sessionStore: SessionStore) {
         }
     }
 
+    private suspend fun executeAttachmentDownload(
+        request: Request,
+        tempDestination: File,
+        retryRefresh: Boolean = true,
+    ): DownloadedAttachment {
+        return when (val result = executeAttachmentDownloadAttempt(request, tempDestination)) {
+            is AttachmentDownloadAttempt.Success -> result.attachment
+            is AttachmentDownloadAttempt.Unauthorized -> {
+                if (!retryRefresh) {
+                    throw ApiException(result.message)
+                }
+                refreshSessionForRetry(result.failedAccessToken)
+                currentCoroutineContext().ensureActive()
+                executeAttachmentDownload(request, tempDestination, retryRefresh = false)
+            }
+        }
+    }
+
+    @OptIn(InternalCoroutinesApi::class)
+    private suspend fun executeAttachmentDownloadAttempt(
+        request: Request,
+        tempDestination: File,
+    ): AttachmentDownloadAttempt = suspendCancellableCoroutine { continuation ->
+        val authenticatedRequest = request.withAuth(true)
+        val failedAccessToken = authenticatedRequest.requireBearerAccessToken()
+        val call = client.newCall(authenticatedRequest)
+        continuation.invokeOnCancellation { call.cancel() }
+        val callback = object : Callback {
+            override fun onFailure(call: Call, error: IOException) {
+                val token = continuation.tryResumeWithException(ApiException("附件下载失败"))
+                if (token != null) {
+                    continuation.completeResume(token)
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use { res ->
+                    if (!continuation.isActive) {
+                        return
+                    }
+                    try {
+                        val result = when {
+                            res.code == 401 -> AttachmentDownloadAttempt.Unauthorized(
+                                message = parseErrorMessage(res.body?.string().orEmpty()),
+                                failedAccessToken = failedAccessToken,
+                            )
+                            !res.isSuccessful -> throw ApiException(
+                                parseErrorMessage(res.body?.string().orEmpty()),
+                            )
+                            else -> {
+                                val body = res.body ?: throw ApiException("附件内容为空")
+                                tempDestination.outputStream().use { output ->
+                                    body.byteStream().use { input -> input.copyTo(output) }
+                                }
+                                AttachmentDownloadAttempt.Success(
+                                    DownloadedAttachment(
+                                        contentType = res.header("Content-Type"),
+                                        contentDisposition = res.header("Content-Disposition"),
+                                        urlFilename = res.request.url.pathSegments.lastOrNull().orEmpty(),
+                                    ),
+                                )
+                            }
+                        }
+                        val token = continuation.tryResume(result)
+                        if (token != null) {
+                            continuation.completeResume(token)
+                        }
+                    } catch (error: Throwable) {
+                        val failure = if (error is IOException) {
+                            ApiException("附件下载失败")
+                        } else {
+                            error
+                        }
+                        val token = continuation.tryResumeWithException(failure)
+                        if (token != null) {
+                            continuation.completeResume(token)
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            call.enqueue(callback)
+        } catch (error: Throwable) {
+            val token = continuation.tryResumeWithException(error)
+            if (token != null) {
+                continuation.completeResume(token)
+            }
+        }
+    }
+
+    private sealed interface AttachmentDownloadAttempt {
+        data class Success(val attachment: DownloadedAttachment) : AttachmentDownloadAttempt
+
+        data class Unauthorized(
+            val message: String,
+            val failedAccessToken: String,
+        ) : AttachmentDownloadAttempt
+    }
+
+    @OptIn(InternalCoroutinesApi::class)
     private suspend fun executeAskStream(
         request: Request,
         onStart: (AskMessage, Boolean) -> Unit,
@@ -443,16 +578,17 @@ class SillageApi(private val sessionStore: SessionStore) {
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .build()
         val call = streamClient.newCall(request)
-        val cancellation = currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
-            if (cause is CancellationException) {
-                call.cancel()
-            }
+        val cancellation = currentCoroutineContext()[Job]?.invokeOnCompletion(
+            onCancelling = true,
+            invokeImmediately = true,
+        ) { cause ->
+            if (cause is CancellationException) call.cancel()
         }
         try {
             val response = call.execute()
             response.use { res ->
                 if (res.code == 401 && retryRefresh) {
-                    runCatching { refresh() }.onFailure { sessionStore.clearSession() }
+                    refreshSessionForRetry(request.requireBearerAccessToken())
                     return@withContext executeAskStream(
                         request.withAuth(true),
                         onStart,
@@ -467,9 +603,16 @@ class SillageApi(private val sessionStore: SessionStore) {
                 val source = res.body?.source() ?: throw ApiException("生成回答失败")
                 consumeAskStream(source, onStart, onDelta, onError)
             }
+        } catch (error: IOException) {
+            currentCoroutineContext().ensureActive()
+            throw error
         } finally {
             cancellation?.dispose()
         }
+    }
+
+    private suspend fun refreshSessionForRetry(failedAccessToken: String) {
+        refreshCoordinator.refreshAfterUnauthorized(failedAccessToken)
     }
 
     private fun consumeAskStream(
@@ -519,6 +662,13 @@ class SillageApi(private val sessionStore: SessionStore) {
         return newBuilder()
             .header("Authorization", "Bearer $token")
             .build()
+    }
+
+    private fun Request.requireBearerAccessToken(): String {
+        return header("Authorization")
+            ?.removePrefix("Bearer ")
+            ?.takeIf(String::isNotBlank)
+            ?: throw ApiException("请先登录")
     }
 
     private fun url(path: String): String = sessionStore.baseUrl().trimEnd('/') + path
@@ -776,6 +926,34 @@ class SillageApi(private val sessionStore: SessionStore) {
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(JSON)
+    }
+}
+
+internal class SessionRefreshCoordinator(
+    private val currentAccessToken: () -> String?,
+    private val clearSession: () -> Unit,
+    private val refresh: suspend () -> Unit,
+) {
+    private val mutex = Mutex()
+
+    suspend fun refreshAfterUnauthorized(failedAccessToken: String) {
+        mutex.withLock {
+            val currentToken = currentAccessToken()
+                ?: throw ApiException("请先登录")
+            if (currentToken != failedAccessToken) {
+                return
+            }
+            try {
+                refresh()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (currentAccessToken() == failedAccessToken) {
+                    clearSession()
+                }
+                throw error
+            }
+        }
     }
 }
 

@@ -1,5 +1,9 @@
 package app.sillage.ui
 
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
@@ -13,6 +17,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -103,37 +108,90 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import app.sillage.data.MarkdownBlock
 import app.sillage.data.MarkdownBlockKind
 import app.sillage.data.MarkdownFormatStyle
+import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
+import app.sillage.data.calendarMemoCoverage
 import app.sillage.data.entriesByDate
 import app.sillage.data.entryDateCounts
 import app.sillage.data.excerpt
 import app.sillage.data.memoMetadataLines
+import app.sillage.data.memoSummarySourceCount
 import app.sillage.data.monthGrid
 import app.sillage.data.onThisDay
 import app.sillage.data.parseMarkdownPreview
+import app.sillage.data.resolveMarkdownLinkTarget
 import app.sillage.data.yearsBetween
 import java.time.LocalDate
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SillageApp(viewModel: SillageViewModel) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    LaunchedEffect(viewModel, context) {
+        viewModel.attachmentOpenEvents.collect { event ->
+            var handedOff = false
+            try {
+                if (!viewModel.state.value.canHandleAttachmentOpen(event.requestId)) {
+                    return@collect
+                }
+                val contentUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    event.file,
+                )
+                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(contentUri, event.mimeType)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    clipData = ClipData.newRawUri(event.displayName, contentUri)
+                }
+                val chooser = Intent.createChooser(viewIntent, "打开附件").apply {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    clipData = viewIntent.clipData
+                }
+                context.startActivity(chooser)
+                handedOff = true
+                viewModel.onAttachmentOpenHandled(event.requestId)
+            } catch (_: ActivityNotFoundException) {
+                viewModel.onAttachmentOpenFailed(event.requestId, "没有可打开此附件的应用")
+            } catch (_: SecurityException) {
+                viewModel.onAttachmentOpenFailed(event.requestId, "系统拒绝共享此附件")
+            } catch (_: IllegalArgumentException) {
+                viewModel.onAttachmentOpenFailed(event.requestId, "无法准备此附件")
+            } catch (_: RuntimeException) {
+                viewModel.onAttachmentOpenFailed(event.requestId, "无法打开此附件")
+            } finally {
+                if (!handedOff) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        event.file.parentFile?.deleteRecursively()
+                    }
+                }
+            }
+        }
+    }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (state.screen) {
             Screen.Loading -> LoadingScreen()
@@ -227,6 +285,7 @@ private fun LoadingScreen() {
 
 @Composable
 private fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
+    BackHandler(onBack = viewModel::cancelServerConnection)
     AuthScaffold(
         title = "连接 Sillage",
         supporting = "填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。",
@@ -354,42 +413,46 @@ private fun AuthScaffold(
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Box(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        contentAlignment = Alignment.Center,
+            .imePadding(),
+        contentPadding = PaddingValues(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        ElevatedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 460.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+        item {
+            ElevatedCard(
+                modifier = Modifier
+                    .widthIn(max = 460.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
             ) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Sillage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                supporting,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Sillage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    supporting,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
+                        trailing?.invoke()
                     }
-                    trailing?.invoke()
-                }
-                MessageBlock(state.error, state.notice)
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    content()
+                    MessageBlock(state.error, state.notice)
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        content()
+                    }
                 }
             }
         }
@@ -487,24 +550,28 @@ fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewModel) {
         NavigationBarItem(
             selected = state.screen == Screen.Memos && state.memoViewMode == MemoViewMode.List,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
+            enabled = !state.askVariantLoading,
             icon = { Icon(Icons.Rounded.Home, contentDescription = null) },
             label = { Text("记录") },
         )
         NavigationBarItem(
             selected = state.screen == Screen.Memos && state.memoViewMode == MemoViewMode.Calendar,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
+            enabled = !state.askVariantLoading,
             icon = { Icon(Icons.Rounded.CalendarMonth, contentDescription = null) },
             label = { Text("日历") },
         )
         NavigationBarItem(
             selected = state.screen == Screen.Ask,
             onClick = viewModel::openAsk,
+            enabled = !state.askVariantLoading,
             icon = { Icon(Icons.Rounded.QuestionAnswer, contentDescription = null) },
-            label = { Text("Ask") },
+            label = { Text("问答") },
         )
         NavigationBarItem(
             selected = state.screen == Screen.AISettings,
             onClick = viewModel::openAISettings,
+            enabled = !state.askVariantLoading,
             icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
             label = { Text("设置") },
         )
@@ -762,6 +829,19 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
     val selectedEntries = remember(state.memos, state.selectedCalendarDate) {
         state.selectedCalendarDate?.let { entriesByDate(state.memos, it) }.orEmpty()
     }
+    val coverage = remember(
+        state.memos,
+        state.memoNextCursor,
+        state.calendarYear,
+        state.calendarMonth,
+    ) {
+        calendarMemoCoverage(
+            memos = state.memos,
+            nextCursor = state.memoNextCursor,
+            year = state.calendarYear,
+            month = state.calendarMonth,
+        )
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -779,6 +859,16 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onSelectDate = viewModel::selectCalendarDate,
             )
         }
+        if (coverage.hasMoreOlderRecords) {
+            item {
+                CalendarCoverageNotice(
+                    loadedCount = state.memos.size,
+                    currentMonthMayBeIncomplete = coverage.currentMonthMayBeIncomplete,
+                    loading = state.loadingMoreMemos,
+                    onLoadMore = viewModel::loadMoreMemos,
+                )
+            }
+        }
         item {
             Text(
                 state.selectedCalendarDate ?: "选择一天查看当天记录。",
@@ -788,7 +878,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         }
         if (state.selectedCalendarDate != null && selectedEntries.isEmpty()) {
             item {
-                EmptyCalendarSelection()
+                EmptyCalendarSelection(mayBeIncomplete = coverage.currentMonthMayBeIncomplete)
             }
         }
         items(selectedEntries, key = { it.id }) { memo ->
@@ -801,6 +891,49 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onToggleArchive = { viewModel.toggleMemoArchived(memo) },
                 onDelete = { viewModel.deleteMemo(memo) },
             )
+        }
+    }
+}
+
+@Composable
+private fun CalendarCoverageNotice(
+    loadedCount: Int,
+    currentMonthMayBeIncomplete: Boolean,
+    loading: Boolean,
+    onLoadMore: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                if (currentMonthMayBeIncomplete) {
+                    "当前月份可能未完整显示。已加载 $loadedCount 条记录，仍有更早记录。"
+                } else {
+                    "当前月份已完整显示，仍有更早记录尚未加载。"
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Button(
+                onClick = onLoadMore,
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                }
+                Text(if (loading) "正在加载更早记录" else "加载更早记录")
+            }
         }
     }
 }
@@ -931,14 +1064,18 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun EmptyCalendarSelection() {
+private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Text(
-            "这一天没有记录。",
+            if (mayBeIncomplete) {
+                "已加载的记录中，这一天暂无内容；继续加载后可能出现更早记录。"
+            } else {
+                "这一天没有记录。"
+            },
             modifier = Modifier.padding(14.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
@@ -1324,6 +1461,7 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
     val memo = state.selectedMemo
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    BackHandler(onBack = viewModel::closeMemoDetail)
     if (confirmDelete && memo != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -1425,7 +1563,12 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
                 MessageBlock(state.error, state.notice)
             }
             item {
-                MemoDetailCard(memo)
+                MemoDetailCard(
+                    memo = memo,
+                    baseUrl = state.baseUrl,
+                    openingAttachmentPath = state.openingAttachmentPath,
+                    onOpenAttachment = viewModel::openProtectedAttachment,
+                )
             }
             item {
                 MemoInsightStrip(memo)
@@ -1521,7 +1664,12 @@ private fun compactDateTime(value: String): String {
 }
 
 @Composable
-private fun MemoDetailCard(memo: Memo) {
+private fun MemoDetailCard(
+    memo: Memo,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -1550,14 +1698,24 @@ private fun MemoDetailCard(memo: Memo) {
                     style = MaterialTheme.typography.bodyLarge,
                 )
             } else {
-                MarkdownContent(memo.content)
+                MarkdownContent(
+                    content = memo.content,
+                    baseUrl = baseUrl,
+                    openingAttachmentPath = openingAttachmentPath,
+                    onOpenAttachment = onOpenAttachment,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MarkdownContent(content: String) {
+private fun MarkdownContent(
+    content: String,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+) {
     val blocks = remember(content) { parseMarkdownPreview(content) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (blocks.isEmpty()) {
@@ -1567,7 +1725,12 @@ private fun MarkdownContent(content: String) {
             )
         } else {
             blocks.forEach { block ->
-                MarkdownPreviewBlock(block)
+                MarkdownPreviewBlock(
+                    block = block,
+                    baseUrl = baseUrl,
+                    openingAttachmentPath = openingAttachmentPath,
+                    onOpenAttachment = onOpenAttachment,
+                )
             }
         }
     }
@@ -1578,8 +1741,45 @@ private fun MarkdownContent(content: String) {
 private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val editorActionsEnabled = state.canRunMemoEditorAction()
+    val requestCloseEditor: () -> Unit = {
+        if (state.hasUnsavedMemoDraft()) {
+            confirmDiscard = true
+        } else {
+            viewModel.closeEditor()
+        }
+    }
+    BackHandler {
+        if (editorActionsEnabled) {
+            requestCloseEditor()
+        }
+    }
     val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         viewModel.uploadAttachments(uris)
+    }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("放弃未保存的修改？") },
+            text = { Text("返回后，本次修改不会保存。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDiscard = false
+                        viewModel.closeEditor()
+                    },
+                    enabled = editorActionsEnabled,
+                ) {
+                    Text("放弃修改", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) {
+                    Text("继续编辑")
+                }
+            },
+        )
     }
     if (confirmDelete) {
         AlertDialog(
@@ -1590,7 +1790,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                     if (state.appMode == SessionStore.MODE_OFFLINE) {
                         "删除后会从离线列表移除。"
                     } else {
-                        "删除后会从当前列表移除，并同步为服务端 tombstone。"
+                        "删除后会从当前列表移除，并同步到服务器。"
                     },
                 )
             },
@@ -1600,7 +1800,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                         confirmDelete = false
                         viewModel.deleteSelectedMemo()
                     },
-                    enabled = !state.loading,
+                    enabled = editorActionsEnabled,
                 ) {
                     Text("确认删除")
                 }
@@ -1617,18 +1817,28 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             TopAppBar(
                 title = { Text(if (state.selectedMemo == null) "新建记录" else "编辑记录") },
                 navigationIcon = {
-                    IconButton(onClick = viewModel::closeEditor) {
+                    IconButton(
+                        onClick = requestCloseEditor,
+                        enabled = editorActionsEnabled,
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
                     val selected = state.selectedMemo
-                    IconButton(onClick = viewModel::saveMemo, enabled = !state.loading) {
-                        Icon(Icons.Rounded.Check, contentDescription = if (state.loading) "保存中" else "保存")
+                    IconButton(onClick = viewModel::saveMemo, enabled = editorActionsEnabled) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = when {
+                                state.uploadingAttachment -> "附件上传中"
+                                state.loading -> "保存中"
+                                else -> "保存"
+                            },
+                        )
                     }
                     if (selected != null) {
                         Box {
-                            IconButton(onClick = { menuExpanded = true }, enabled = !state.loading) {
+                            IconButton(onClick = { menuExpanded = true }, enabled = editorActionsEnabled) {
                                 Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
                             }
                             DropdownMenu(
@@ -1638,6 +1848,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 DropdownMenuItem(
                                     text = { Text(if (selected.pinnedAt == null) "置顶" else "取消置顶") },
                                     leadingIcon = { Icon(Icons.Rounded.PushPin, contentDescription = null) },
+                                    enabled = editorActionsEnabled,
                                     onClick = {
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoPinned()
@@ -1646,6 +1857,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 DropdownMenuItem(
                                     text = { Text(if (selected.archivedAt == null) "归档" else "取消归档") },
                                     leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
+                                    enabled = editorActionsEnabled,
                                     onClick = {
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoArchived()
@@ -1654,6 +1866,7 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 DropdownMenuItem(
                                     text = { Text("删除") },
                                     leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                                    enabled = editorActionsEnabled,
                                     onClick = {
                                         menuExpanded = false
                                         confirmDelete = true
@@ -1666,50 +1879,70 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
             )
         },
     ) { padding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .imePadding(),
         ) {
-            MessageBlock(state.error, state.notice)
-            MemoStatusLine(state.selectedMemo)
-            MemoMetadataBlock(state.selectedMemo)
-            OutlinedTextField(
-                value = state.draftEntryDate,
-                onValueChange = viewModel::updateDraftEntryDate,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("日期 YYYY-MM-DD") },
-            )
-            MarkdownEditorSection(
-                content = state.draftContent,
-                preview = state.markdownPreview,
-                onContentChange = viewModel::updateDraftContent,
-                onPreviewChange = viewModel::updateMarkdownPreview,
-                onFormat = viewModel::appendMarkdownFormat,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
-            if (state.appMode == SessionStore.MODE_ONLINE) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = { attachmentLauncher.launch("*/*") },
-                        enabled = !state.uploadingAttachment,
-                    ) {
-                        Icon(Icons.Rounded.AttachFile, contentDescription = null)
-                        Text(if (state.uploadingAttachment) "上传中" else "附件")
+            val editorHeight = (maxHeight * 0.6f).coerceIn(320.dp, 560.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        MessageBlock(state.error, state.notice)
+                        MemoStatusLine(state.selectedMemo)
+                        MemoMetadataBlock(state.selectedMemo)
+                        OutlinedTextField(
+                            value = state.draftEntryDate,
+                            onValueChange = viewModel::updateDraftEntryDate,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text("日期 YYYY-MM-DD") },
+                        )
                     }
                 }
-            }
-            if (state.selectedMemo != null) {
-                MemoSummarySection(
-                    summary = state.selectedSummary,
-                    loading = state.summaryLoading,
-                    onGenerate = viewModel::summarizeSelectedMemo,
-                )
+                item {
+                    MarkdownEditorSection(
+                        content = state.draftContent,
+                        baseUrl = state.baseUrl,
+                        openingAttachmentPath = state.openingAttachmentPath,
+                        preview = state.markdownPreview,
+                        onContentChange = viewModel::updateDraftContent,
+                        onPreviewChange = viewModel::updateMarkdownPreview,
+                        onFormat = viewModel::appendMarkdownFormat,
+                        onOpenAttachment = viewModel::openProtectedAttachment,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(editorHeight),
+                    )
+                }
+                if (state.appMode == SessionStore.MODE_ONLINE) {
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { attachmentLauncher.launch("*/*") },
+                                enabled = editorActionsEnabled,
+                            ) {
+                                Icon(Icons.Rounded.AttachFile, contentDescription = null)
+                                Text(if (state.uploadingAttachment) "上传中" else "附件")
+                            }
+                        }
+                    }
+                }
+                if (state.selectedMemo != null) {
+                    item {
+                        MemoSummarySection(
+                            summary = state.selectedSummary,
+                            loading = state.summaryLoading,
+                            actionEnabled = editorActionsEnabled,
+                            onGenerate = viewModel::summarizeSelectedMemo,
+                        )
+                    }
+                }
             }
         }
     }
@@ -1718,10 +1951,13 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
 @Composable
 private fun MarkdownEditorSection(
     content: String,
+    baseUrl: String,
+    openingAttachmentPath: String?,
     preview: Boolean,
     onContentChange: (String) -> Unit,
     onPreviewChange: (Boolean) -> Unit,
     onFormat: (MarkdownFormatStyle) -> Unit,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -1750,6 +1986,9 @@ private fun MarkdownEditorSection(
         if (preview) {
             MarkdownPreview(
                 content = content,
+                baseUrl = baseUrl,
+                openingAttachmentPath = openingAttachmentPath,
+                onOpenAttachment = onOpenAttachment,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -1801,7 +2040,13 @@ private fun MarkdownToolButton(icon: ImageVector, label: String, onClick: () -> 
 }
 
 @Composable
-private fun MarkdownPreview(content: String, modifier: Modifier = Modifier) {
+private fun MarkdownPreview(
+    content: String,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val blocks = remember(content) { parseMarkdownPreview(content) }
     Card(
         modifier = modifier,
@@ -1823,7 +2068,12 @@ private fun MarkdownPreview(content: String, modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(blocks) { block ->
-                    MarkdownPreviewBlock(block)
+                    MarkdownPreviewBlock(
+                        block = block,
+                        baseUrl = baseUrl,
+                        openingAttachmentPath = openingAttachmentPath,
+                        onOpenAttachment = onOpenAttachment,
+                    )
                 }
             }
         }
@@ -1831,7 +2081,12 @@ private fun MarkdownPreview(content: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MarkdownPreviewBlock(block: MarkdownBlock) {
+private fun MarkdownPreviewBlock(
+    block: MarkdownBlock,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+) {
     when (block.kind) {
         MarkdownBlockKind.Heading -> Text(
             block.text,
@@ -1852,21 +2107,64 @@ private fun MarkdownPreviewBlock(block: MarkdownBlock) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
-        MarkdownBlockKind.Link -> Text(
-            "${block.text} · ${block.url.orEmpty()}",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.bodyMedium,
+        MarkdownBlockKind.Link -> MarkdownLinkText(
+            label = block.text.ifBlank { "打开链接" },
+            rawUrl = block.url,
+            baseUrl = baseUrl,
+            openingAttachmentPath = openingAttachmentPath,
+            onOpenAttachment = onOpenAttachment,
         )
-        MarkdownBlockKind.Image -> Text(
-            "图片：${block.text} · ${block.url.orEmpty()}",
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.bodyMedium,
+        MarkdownBlockKind.Image -> MarkdownLinkText(
+            label = "图片：${block.text.ifBlank { "图片" }}",
+            rawUrl = block.url,
+            baseUrl = baseUrl,
+            openingAttachmentPath = openingAttachmentPath,
+            onOpenAttachment = onOpenAttachment,
         )
         MarkdownBlockKind.Paragraph -> Text(
             block.text,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+@Composable
+private fun MarkdownLinkText(
+    label: String,
+    rawUrl: String?,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val target = remember(rawUrl, baseUrl) { resolveMarkdownLinkTarget(rawUrl, baseUrl) }
+    val protectedTarget = target as? MarkdownLinkTarget.ProtectedAttachment
+    val opening = protectedTarget?.path == openingAttachmentPath
+    val enabled = when (target) {
+        is MarkdownLinkTarget.ExternalHttp -> true
+        is MarkdownLinkTarget.ProtectedAttachment -> openingAttachmentPath == null
+        null -> false
+    }
+    Text(
+        if (opening) "$label（正在打开）" else label,
+        modifier = if (target == null) {
+            Modifier
+        } else {
+            Modifier.clickable(enabled = enabled) {
+                when (target) {
+                    is MarkdownLinkTarget.ExternalHttp -> runCatching { uriHandler.openUri(target.uri) }
+                    is MarkdownLinkTarget.ProtectedAttachment -> onOpenAttachment(target)
+                }
+            }
+        },
+        color = if (target == null || (!enabled && !opening)) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.primary
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        textDecoration = if (target == null) null else TextDecoration.Underline,
+    )
 }
 
 @Composable
@@ -1906,6 +2204,7 @@ private fun MemoMetadataBlock(memo: Memo?) {
 private fun MemoSummarySection(
     summary: MemoAI?,
     loading: Boolean,
+    actionEnabled: Boolean = true,
     onGenerate: () -> Unit,
 ) {
     Card(
@@ -1924,7 +2223,7 @@ private fun MemoSummarySection(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
-                TextButton(onClick = onGenerate, enabled = !loading) {
+                TextButton(onClick = onGenerate, enabled = actionEnabled && !loading) {
                     Text(
                         when {
                             loading && summary == null -> "读取中"
@@ -1939,8 +2238,6 @@ private fun MemoSummarySection(
             if (body != null) {
                 Text(
                     body,
-                    maxLines = 8,
-                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 SummaryMeta(summary)
@@ -1957,29 +2254,37 @@ private fun MemoSummarySection(
 
 @Composable
 private fun SummaryMeta(summary: MemoAI) {
+    val sourceCount = memoSummarySourceCount(summary.sourceMemoIds)
     val model = listOf(summary.provider, summary.model)
         .filter { it.isNotBlank() }
         .joinToString(" / ")
-    if (model.isBlank() && summary.totalTokens == 0L) {
-        return
-    }
-    val text = buildString {
+    val technicalDetails = buildList {
         if (model.isNotBlank()) {
-            append(model)
+            add(model)
         }
         if (summary.totalTokens > 0) {
-            if (isNotEmpty()) {
-                append(" · ")
-            }
-            append(summary.totalTokens)
-            append(" tokens")
+            add("${summary.totalTokens} tokens")
+        }
+    }.joinToString(" · ")
+    if (sourceCount == null && technicalDetails.isBlank()) {
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (sourceCount != null) {
+            Text(
+                "基于 $sourceCount 条记录生成",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        if (technicalDetails.isNotBlank()) {
+            Text(
+                technicalDetails,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
-    Text(
-        text,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.labelMedium,
-    )
 }
 
 @Composable

@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import org.json.JSONArray
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -255,6 +256,38 @@ fun adjacentMonth(year: Int, month: Int, delta: Int): Pair<Int, Int> {
     return ym.year to ym.monthValue
 }
 
+data class CalendarMemoCoverage(
+    val hasMoreOlderRecords: Boolean,
+    val currentMonthMayBeIncomplete: Boolean,
+)
+
+fun calendarMemoCoverage(
+    memos: List<Memo>,
+    nextCursor: String,
+    year: Int,
+    month: Int,
+): CalendarMemoCoverage {
+    val hasMore = nextCursor.isNotBlank()
+    if (!hasMore) {
+        return CalendarMemoCoverage(
+            hasMoreOlderRecords = false,
+            currentMonthMayBeIncomplete = false,
+        )
+    }
+    val viewedMonth = YearMonth.of(year, month)
+    val oldestLoadedMonth = memos
+        .asSequence()
+        .filter { it.isActive() }
+        .mapNotNull { memo ->
+            runCatching { YearMonth.parse(memo.entryDate.take(7)) }.getOrNull()
+        }
+        .minOrNull()
+    return CalendarMemoCoverage(
+        hasMoreOlderRecords = true,
+        currentMonthMayBeIncomplete = oldestLoadedMonth == null || !viewedMonth.isAfter(oldestLoadedMonth),
+    )
+}
+
 private fun firstWeekday(day: DayOfWeek): Int {
     return day.value % 7
 }
@@ -285,6 +318,19 @@ fun memoMetadataLines(memo: Memo?): List<String> {
             add("最近修改 ${memo.updatedAt}，共修改 ${memo.version - 1} 次")
         }
     }
+}
+
+fun memoSummarySourceCount(sourceMemoIds: String): Int? {
+    val ids = runCatching { JSONArray(sourceMemoIds) }.getOrNull() ?: return null
+    val uniqueIds = buildSet {
+        for (index in 0 until ids.length()) {
+            val id = (ids.opt(index) as? String)?.trim().orEmpty()
+            if (id.isNotEmpty()) {
+                add(id)
+            }
+        }
+    }
+    return uniqueIds.size.takeIf { it > 0 }
 }
 
 fun parseMarkdownPreview(content: String): List<MarkdownBlock> {

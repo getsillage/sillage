@@ -69,6 +69,29 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun calendarCoverageMarksCursorBoundaryAndOlderMonthsIncomplete() {
+        val memos = listOf(
+            memo(id = "new", entryDate = "2026-07-08"),
+            memo(id = "oldest", entryDate = "2026-06-30"),
+        )
+
+        assertEquals(false, calendarMemoCoverage(memos, "cursor", 2026, 7).currentMonthMayBeIncomplete)
+        assertEquals(true, calendarMemoCoverage(memos, "cursor", 2026, 6).currentMonthMayBeIncomplete)
+        assertEquals(true, calendarMemoCoverage(memos, "cursor", 2026, 5).currentMonthMayBeIncomplete)
+    }
+
+    @Test
+    fun calendarCoverageIsCompleteOnlyWhenPaginationIsExhausted() {
+        val exhausted = calendarMemoCoverage(emptyList(), "", 2026, 7)
+        val unknown = calendarMemoCoverage(emptyList(), "cursor", 2026, 7)
+
+        assertEquals(false, exhausted.hasMoreOlderRecords)
+        assertEquals(false, exhausted.currentMonthMayBeIncomplete)
+        assertEquals(true, unknown.hasMoreOlderRecords)
+        assertEquals(true, unknown.currentMonthMayBeIncomplete)
+    }
+
+    @Test
     fun excerptCollapsesWhitespaceAndTruncates() {
         assertEquals("a b c", excerpt(" a\n b\t c "))
         assertEquals("abc…", excerpt("abcdef", max = 3))
@@ -114,6 +137,7 @@ class MemoFiltersTest {
         )
         assertEquals("普通 文字", blocks.last().text)
         assertEquals("/a.png", blocks[3].url)
+        assertEquals("https://example.com", blocks[4].url)
     }
 
     @Test
@@ -268,6 +292,20 @@ class MemoFiltersTest {
             memoMetadataLines(revised),
         )
         assertEquals(emptyList<String>(), memoMetadataLines(null))
+    }
+
+    @Test
+    fun memoSummarySourceCountCountsUniqueNonBlankIds() {
+        assertEquals(2, memoSummarySourceCount("""["memo-1", "memo-2"]"""))
+        assertEquals(1, memoSummarySourceCount("""["memo-1", "memo-1", "", null, 3]"""))
+    }
+
+    @Test
+    fun memoSummarySourceCountSafelyIgnoresMissingOrMalformedData() {
+        assertEquals(null, memoSummarySourceCount(""))
+        assertEquals(null, memoSummarySourceCount("not-json"))
+        assertEquals(null, memoSummarySourceCount("{}"))
+        assertEquals(null, memoSummarySourceCount("[]"))
     }
 
     private fun memo(

@@ -356,7 +356,7 @@ private fun AISettingsHeaderCard(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                "管理总结和 Ask 使用的模型配置。密钥加密保存在本地服务端，不会回显。",
+                "管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )

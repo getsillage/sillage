@@ -330,6 +330,39 @@ describe("AskPage", () => {
     expect(shouldShowLiveUser([], liveUser)).toBe(true);
   });
 
+  it("shows a pending hint while regenerating an answer", async () => {
+    const user = userEvent.setup();
+    let streamHandlers: Parameters<typeof streamAskMessage>[3] | undefined;
+    let finishStream: (() => void) | undefined;
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [
+        message("u1", "user", null, "问题", "1"),
+        message("a1", "assistant", "u1", "原回答", "2"),
+      ],
+    });
+    vi.mocked(streamAskMessage).mockImplementation(
+      async (_token, _conv, _input, handlers) => {
+        streamHandlers = handlers;
+        await new Promise<void>((resolve) => {
+          finishStream = resolve;
+        });
+      },
+    );
+
+    renderAsk();
+    expect(await screen.findByText("原回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重新生成" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("正在整理问答");
+    expect(screen.queryByText("原回答")).not.toBeInTheDocument();
+
+    act(() => streamHandlers?.onDelta?.("新回答"));
+    expect(await screen.findByText("新回答")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    await act(async () => finishStream?.());
+  });
+
   it("switches between regenerated answer variants", async () => {
     const user = userEvent.setup();
     // u1 has two assistant answers; head points at the newer (a1b).

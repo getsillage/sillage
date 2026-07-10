@@ -260,7 +260,7 @@ export function AskPage() {
             </div>
           </>
         ) : null}
-        {busy && !streaming ? (
+        {busy && !streaming && !regeneratingId ? (
           <p
             className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
             role="status"
@@ -408,7 +408,17 @@ function MessageBubble({
 
   return (
     <div className="max-w-[92%] px-1">
-      <Markdown content={content} variant="chat" />
+      {streamingText !== undefined && !streamingText ? (
+        <p
+          className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
+          role="status"
+        >
+          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+          正在整理问答
+        </p>
+      ) : (
+        <Markdown content={content} variant="chat" />
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {message.sourceRefs.map((source) => (
           <Link

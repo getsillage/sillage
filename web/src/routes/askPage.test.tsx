@@ -129,6 +129,35 @@ describe("AskPage", () => {
     expect(screen.getByText("你睡得更好了。")).toBeInTheDocument();
   });
 
+  it("collapses answer sources by default and toggles them", async () => {
+    const user = userEvent.setup();
+    const answer = message("a1", "assistant", "u1", "你睡得更好了。", "2");
+    answer.sourceRefs = [
+      {
+        memoId: "memo-1",
+        entryDate: "2026-07-09",
+        excerpt: "昨晚睡了八小时",
+        rank: 1,
+      },
+    ];
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [message("u1", "user", null, "我最近怎么样？", "1"), answer],
+    });
+
+    renderAsk();
+    const toggle = await screen.findByRole("button", { name: "来源记录 1" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("昨晚睡了八小时")).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("昨晚睡了八小时")).toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("昨晚睡了八小时")).not.toBeInTheDocument();
+  });
+
   it("streams a new answer token by token", async () => {
     const user = userEvent.setup();
     vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });

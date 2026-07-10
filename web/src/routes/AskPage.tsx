@@ -1,6 +1,7 @@
 import {
   BookmarkPlus,
   BookOpen,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -10,7 +11,7 @@ import {
   SendHorizontal,
   Square,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Link,
   useLocation,
@@ -372,6 +373,8 @@ function MessageBubble({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const sourceListId = useId();
   const { message, variants, index } = entry;
 
   if (message.role === "user") {
@@ -420,20 +423,22 @@ function MessageBubble({
         <Markdown content={content} variant="chat" />
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {message.sourceRefs.map((source) => (
-          <Link
-            key={`${message.id}-${source.memoId}-${source.rank}`}
-            to={`/entries/${source.memoId}`}
-            state={{ returnTo }}
-            className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-lg bg-gray-100 px-2.5 text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-gray-500/40"
+        {message.sourceRefs.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setSourcesExpanded((current) => !current)}
+            aria-expanded={sourcesExpanded}
+            aria-controls={sourceListId}
+            className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <BookOpen className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
-            <span className="flex-none">{source.entryDate}</span>
-            <span className="truncate text-gray-500 dark:text-gray-400">
-              {source.excerpt}
-            </span>
-          </Link>
-        ))}
+            来源记录 {message.sourceRefs.length}
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${sourcesExpanded ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        ) : null}
         {hasVariants ? (
           <span className="inline-flex items-center gap-1 text-gray-500 text-xs dark:text-gray-400">
             <button
@@ -481,6 +486,24 @@ function MessageBubble({
           </button>
         ) : null}
       </div>
+      {sourcesExpanded ? (
+        <div id={sourceListId} className="mt-2 flex flex-wrap gap-2">
+          {message.sourceRefs.map((source) => (
+            <Link
+              key={`${message.id}-${source.memoId}-${source.rank}`}
+              to={`/entries/${source.memoId}`}
+              state={{ returnTo }}
+              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-lg bg-gray-100 px-2.5 text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-gray-500/40"
+            >
+              <BookOpen className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+              <span className="flex-none">{source.entryDate}</span>
+              <span className="truncate text-gray-500 dark:text-gray-400">
+                {source.excerpt}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
       {saveError ? (
         <p role="alert" className="mt-2 text-red-600 text-xs dark:text-red-400">
           {saveError}

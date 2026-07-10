@@ -15,6 +15,7 @@ import {
   listMemos,
   patchAISettings,
   searchMemos,
+  setAIAutoSummary,
   setAskHead,
   setMemoArchived,
   setMemoPinned,
@@ -156,9 +157,18 @@ describe("ask + settings + auth api wrappers", () => {
     await getAISettings("t");
     expect(lastCall().path).toBe("/api/v1/settings/ai");
 
-    await patchAISettings("t", { profiles: [], autoSummary: true });
+    await patchAISettings("t", { profiles: [] });
     expect(lastCall().init.method).toBe("PATCH");
-    expect(JSON.parse(lastCall().init.body as string).autoSummary).toBe(true);
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      profiles: [],
+    });
+
+    await setAIAutoSummary("t", false);
+    expect(lastCall().path).toBe("/api/v1/settings/ai:setAutoSummary");
+    expect(lastCall().init.method).toBe("POST");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      autoSummary: false,
+    });
 
     await testAIConnection("t", {
       id: "p1",

@@ -149,6 +149,98 @@ func TestAISettingsGlobalAutoSummaryAndModels(t *testing.T) {
 	}
 }
 
+func TestSetAIAutoSummaryIsIndependentFromProfilePatch(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/settings/ai:setAutoSummary", map[string]any{}, bearer(token))
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), `"code":"invalid_field"`) {
+		t.Fatalf("missing auto summary value status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"autoSummary": false,
+		"profiles": []map[string]any{{
+			"name":      "Default",
+			"provider":  "openai",
+			"model":     "gpt-test",
+			"enabled":   true,
+			"active":    true,
+			"maxTokens": 1000,
+			"apiKey":    "mock-api-key",
+		}},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("initial patch ai settings status/body = %d %s", res.Code, res.Body.String())
+	}
+	var initial struct {
+		Profiles []struct {
+			ID string `json:"id"`
+		} `json:"profiles"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &initial); err != nil || len(initial.Profiles) != 1 {
+		t.Fatalf("decode initial ai settings: err=%v body=%s", err, res.Body.String())
+	}
+	profileID := initial.Profiles[0].ID
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/settings/ai:setAutoSummary", map[string]any{
+		"autoSummary": true,
+	}, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"autoSummary":true`) {
+		t.Fatalf("set auto summary status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	if _, err := srv.Store.GetDriver().GetDB().ExecContext(context.Background(), `
+UPDATE account_setting SET updated_at = 1 WHERE key = 'ai.auto_summary'`); err != nil {
+		t.Fatalf("set account setting timestamp sentinel: %v", err)
+	}
+	res = doJSON(t, srv, http.MethodPatch, "/api/v1/settings/ai", map[string]any{
+		"profiles": []map[string]any{{
+			"id":        profileID,
+			"name":      "Renamed",
+			"provider":  "openai",
+			"model":     "gpt-test",
+			"enabled":   true,
+			"active":    true,
+			"maxTokens": 1000,
+		}},
+	}, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"autoSummary":true`) || !strings.Contains(res.Body.String(), `"hasApiKey":true`) {
+		t.Fatalf("profile-only patch status/body = %d %s", res.Code, res.Body.String())
+	}
+	var settingValue string
+	var settingUpdatedAt int64
+	if err := srv.Store.GetDriver().GetDB().QueryRowContext(context.Background(), `
+SELECT value, updated_at FROM account_setting WHERE key = 'ai.auto_summary'`).Scan(&settingValue, &settingUpdatedAt); err != nil {
+		t.Fatalf("read account setting after profile patch: %v", err)
+	}
+	if settingValue != "true" || settingUpdatedAt != 1 {
+		t.Fatalf("profile-only patch rewrote auto summary setting: value=%q updated_at=%d", settingValue, settingUpdatedAt)
+	}
+
+	var beforeName, beforeEnvelope string
+	var beforeUpdatedAt int64
+	if err := srv.Store.GetDriver().GetDB().QueryRowContext(context.Background(), `
+SELECT name, api_key_envelope, updated_at FROM ai_profile WHERE id = ?`, profileID).Scan(&beforeName, &beforeEnvelope, &beforeUpdatedAt); err != nil {
+		t.Fatalf("read profile before auto summary update: %v", err)
+	}
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/settings/ai:setAutoSummary", map[string]any{
+		"autoSummary": false,
+	}, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"autoSummary":false`) {
+		t.Fatalf("clear auto summary status/body = %d %s", res.Code, res.Body.String())
+	}
+	var afterName, afterEnvelope string
+	var afterUpdatedAt int64
+	if err := srv.Store.GetDriver().GetDB().QueryRowContext(context.Background(), `
+SELECT name, api_key_envelope, updated_at FROM ai_profile WHERE id = ?`, profileID).Scan(&afterName, &afterEnvelope, &afterUpdatedAt); err != nil {
+		t.Fatalf("read profile after auto summary update: %v", err)
+	}
+	if afterName != beforeName || afterEnvelope != beforeEnvelope || afterUpdatedAt != beforeUpdatedAt {
+		t.Fatalf("auto summary update changed profile: before=(%q,%q,%d) after=(%q,%q,%d)", beforeName, beforeEnvelope, beforeUpdatedAt, afterName, afterEnvelope, afterUpdatedAt)
+	}
+}
+
 func TestAISettingsTestsUnsavedProfile(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

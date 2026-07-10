@@ -290,19 +290,24 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseAISettings(execute(request))
     }
 
-    suspend fun patchAISettings(
-        profiles: List<AIProfileInput>,
-        autoSummary: Boolean,
-    ): AISettings {
+    suspend fun patchAISettings(profiles: List<AIProfileInput>): AISettings {
         val payloadProfiles = JSONArray()
         for (profile in profiles) {
             payloadProfiles.put(profile.toJson())
         }
         val request = Request.Builder()
             .url(url("/api/v1/settings/ai"))
-            .patch(JSONObject().put("profiles", payloadProfiles).put("autoSummary", autoSummary).toString().jsonBody())
+            .patch(JSONObject().put("profiles", payloadProfiles).toString().jsonBody())
             .build()
         return parseAISettings(execute(request))
+    }
+
+    suspend fun setAIAutoSummary(enabled: Boolean): Boolean {
+        val request = Request.Builder()
+            .url(url("/api/v1/settings/ai:setAutoSummary"))
+            .post(JSONObject().put("autoSummary", enabled).toString().jsonBody())
+            .build()
+        return execute(request).getBoolean("autoSummary")
     }
 
     suspend fun testAIConnection(profileId: String): String {

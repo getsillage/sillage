@@ -280,6 +280,26 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 		t.Fatal("PatchAISettings response leaked API key")
 	}
 
+	disableAutoSummaryReq := connect.NewRequest(&apiv1.SetAIAutoSummaryRequest{AutoSummary: false})
+	disableAutoSummaryReq.Header().Set("Authorization", "Bearer "+token)
+	disableAutoSummaryRes, err := settingsClient.SetAIAutoSummary(context.Background(), disableAutoSummaryReq)
+	if err != nil {
+		t.Fatalf("SetAIAutoSummary(false) error = %v", err)
+	}
+	if disableAutoSummaryRes.Msg.GetAutoSummary() {
+		t.Fatal("SetAIAutoSummary(false) response remained enabled")
+	}
+
+	enableAutoSummaryReq := connect.NewRequest(&apiv1.SetAIAutoSummaryRequest{AutoSummary: true})
+	enableAutoSummaryReq.Header().Set("Authorization", "Bearer "+token)
+	enableAutoSummaryRes, err := settingsClient.SetAIAutoSummary(context.Background(), enableAutoSummaryReq)
+	if err != nil {
+		t.Fatalf("SetAIAutoSummary(true) error = %v", err)
+	}
+	if !enableAutoSummaryRes.Msg.GetAutoSummary() {
+		t.Fatal("SetAIAutoSummary(true) response remained disabled")
+	}
+
 	getReq := connect.NewRequest(&apiv1.GetAISettingsRequest{})
 	getReq.Header().Set("Authorization", "Bearer "+token)
 	getRes, err := settingsClient.GetAISettings(context.Background(), getReq)

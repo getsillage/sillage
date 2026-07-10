@@ -16,6 +16,10 @@ type aiSettingsRequest struct {
 	AutoSummary *bool              `json:"autoSummary"`
 }
 
+type aiAutoSummaryRequest struct {
+	AutoSummary *bool `json:"autoSummary"`
+}
+
 type aiProfileRequest struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -59,9 +63,30 @@ func (s *Server) handleAISettingsAction(c *echo.Context) error {
 		return s.handleTestAISettings(c)
 	case "/api/v1/settings/ai:models":
 		return s.handleListAIModels(c)
+	case "/api/v1/settings/ai:setAutoSummary":
+		return s.handleSetAIAutoSummary(c)
 	default:
 		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
 	}
+}
+
+func (s *Server) handleSetAIAutoSummary(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req aiAutoSummaryRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	if req.AutoSummary == nil {
+		return apiError(c, http.StatusBadRequest, "invalid_field", "必须明确指定是否开启自动总结")
+	}
+	autoSummary, err := s.setAIAutoSummary(c.Request().Context(), account.ID, *req.AutoSummary)
+	if err != nil {
+		return apiError(c, http.StatusInternalServerError, "internal", "保存自动总结设置失败")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"autoSummary": autoSummary})
 }
 
 func (s *Server) handleTestAISettings(c *echo.Context) error {

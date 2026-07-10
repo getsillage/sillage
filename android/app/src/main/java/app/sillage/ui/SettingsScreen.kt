@@ -119,7 +119,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             AISettingSwitch(
                                 label = "新建记录后自动总结",
                                 checked = state.aiAutoSummary,
-                                onClick = viewModel::toggleAISettingsAutoSummary,
+                                enabled = !state.aiAutoSummarySaving,
+                                onCheckedChange = viewModel::setAISettingsAutoSummary,
                             )
                         }
                     }
@@ -225,7 +226,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 selectedAIProfileIndex = state.aiProfiles.size
                                 viewModel.addAIProfile()
                             },
-                            onSave = viewModel::saveAISettings,
+                            onSave = viewModel::saveAIProfiles,
                         )
                     }
                     if (state.aiProfiles.isEmpty()) {
@@ -375,7 +376,7 @@ private fun AISettingsHeaderCard(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(if (saving) "保存中" else "保存 AI 设置")
+                    Text(if (saving) "保存中" else "保存 AI 档案")
                 }
             }
         }
@@ -742,13 +743,22 @@ private fun AIProfileDetailCard(
 }
 
 @Composable
-private fun AISettingSwitch(label: String, checked: Boolean, onClick: () -> Unit) {
+private fun AISettingSwitch(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
         )
-        Switch(checked = checked, onCheckedChange = { onClick() })
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+        )
     }
 }

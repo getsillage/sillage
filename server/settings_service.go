@@ -60,6 +60,18 @@ func (s *settingsService) PatchAISettings(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(aiSettingsResponsePB(settings)), nil
 }
 
+func (s *settingsService) SetAIAutoSummary(ctx context.Context, req *connect.Request[apiv1.SetAIAutoSummaryRequest]) (*connect.Response[apiv1.SetAIAutoSummaryResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	autoSummary, err := s.server.setAIAutoSummary(ctx, account.ID, req.Msg.GetAutoSummary())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SetAIAutoSummaryResponse{AutoSummary: autoSummary}), nil
+}
+
 func connectOptionalFloat(value float64) *float64 {
 	if value == 0 {
 		return nil

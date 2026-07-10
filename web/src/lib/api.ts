@@ -497,12 +497,25 @@ export async function getAISettings(accessToken: string): Promise<AISettings> {
 
 export async function patchAISettings(
   accessToken: string,
-  input: { profiles: AIProfileInput[]; autoSummary: boolean },
+  input: { profiles: AIProfileInput[]; autoSummary?: boolean },
 ): Promise<AISettings> {
   return request("/api/v1/settings/ai", {
     method: "PATCH",
     headers: authHeaders(accessToken),
     body: JSON.stringify(input),
+  });
+}
+
+export async function setAIAutoSummary(
+  accessToken: string,
+  autoSummary: boolean,
+  signal?: AbortSignal,
+): Promise<{ autoSummary: boolean }> {
+  return request("/api/v1/settings/ai:setAutoSummary", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ autoSummary }),
+    signal,
   });
 }
 

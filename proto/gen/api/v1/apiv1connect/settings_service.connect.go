@@ -39,12 +39,16 @@ const (
 	// SettingsServicePatchAISettingsProcedure is the fully-qualified name of the SettingsService's
 	// PatchAISettings RPC.
 	SettingsServicePatchAISettingsProcedure = "/sillage.api.v1.SettingsService/PatchAISettings"
+	// SettingsServiceSetAIAutoSummaryProcedure is the fully-qualified name of the SettingsService's
+	// SetAIAutoSummary RPC.
+	SettingsServiceSetAIAutoSummaryProcedure = "/sillage.api.v1.SettingsService/SetAIAutoSummary"
 )
 
 // SettingsServiceClient is a client for the sillage.api.v1.SettingsService service.
 type SettingsServiceClient interface {
 	GetAISettings(context.Context, *connect.Request[v1.GetAISettingsRequest]) (*connect.Response[v1.AISettingsResponse], error)
 	PatchAISettings(context.Context, *connect.Request[v1.PatchAISettingsRequest]) (*connect.Response[v1.AISettingsResponse], error)
+	SetAIAutoSummary(context.Context, *connect.Request[v1.SetAIAutoSummaryRequest]) (*connect.Response[v1.SetAIAutoSummaryResponse], error)
 }
 
 // NewSettingsServiceClient constructs a client for the sillage.api.v1.SettingsService service. By
@@ -70,13 +74,20 @@ func NewSettingsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(settingsServiceMethods.ByName("PatchAISettings")),
 			connect.WithClientOptions(opts...),
 		),
+		setAIAutoSummary: connect.NewClient[v1.SetAIAutoSummaryRequest, v1.SetAIAutoSummaryResponse](
+			httpClient,
+			baseURL+SettingsServiceSetAIAutoSummaryProcedure,
+			connect.WithSchema(settingsServiceMethods.ByName("SetAIAutoSummary")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // settingsServiceClient implements SettingsServiceClient.
 type settingsServiceClient struct {
-	getAISettings   *connect.Client[v1.GetAISettingsRequest, v1.AISettingsResponse]
-	patchAISettings *connect.Client[v1.PatchAISettingsRequest, v1.AISettingsResponse]
+	getAISettings    *connect.Client[v1.GetAISettingsRequest, v1.AISettingsResponse]
+	patchAISettings  *connect.Client[v1.PatchAISettingsRequest, v1.AISettingsResponse]
+	setAIAutoSummary *connect.Client[v1.SetAIAutoSummaryRequest, v1.SetAIAutoSummaryResponse]
 }
 
 // GetAISettings calls sillage.api.v1.SettingsService.GetAISettings.
@@ -89,10 +100,16 @@ func (c *settingsServiceClient) PatchAISettings(ctx context.Context, req *connec
 	return c.patchAISettings.CallUnary(ctx, req)
 }
 
+// SetAIAutoSummary calls sillage.api.v1.SettingsService.SetAIAutoSummary.
+func (c *settingsServiceClient) SetAIAutoSummary(ctx context.Context, req *connect.Request[v1.SetAIAutoSummaryRequest]) (*connect.Response[v1.SetAIAutoSummaryResponse], error) {
+	return c.setAIAutoSummary.CallUnary(ctx, req)
+}
+
 // SettingsServiceHandler is an implementation of the sillage.api.v1.SettingsService service.
 type SettingsServiceHandler interface {
 	GetAISettings(context.Context, *connect.Request[v1.GetAISettingsRequest]) (*connect.Response[v1.AISettingsResponse], error)
 	PatchAISettings(context.Context, *connect.Request[v1.PatchAISettingsRequest]) (*connect.Response[v1.AISettingsResponse], error)
+	SetAIAutoSummary(context.Context, *connect.Request[v1.SetAIAutoSummaryRequest]) (*connect.Response[v1.SetAIAutoSummaryResponse], error)
 }
 
 // NewSettingsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +131,20 @@ func NewSettingsServiceHandler(svc SettingsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(settingsServiceMethods.ByName("PatchAISettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	settingsServiceSetAIAutoSummaryHandler := connect.NewUnaryHandler(
+		SettingsServiceSetAIAutoSummaryProcedure,
+		svc.SetAIAutoSummary,
+		connect.WithSchema(settingsServiceMethods.ByName("SetAIAutoSummary")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/sillage.api.v1.SettingsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SettingsServiceGetAISettingsProcedure:
 			settingsServiceGetAISettingsHandler.ServeHTTP(w, r)
 		case SettingsServicePatchAISettingsProcedure:
 			settingsServicePatchAISettingsHandler.ServeHTTP(w, r)
+		case SettingsServiceSetAIAutoSummaryProcedure:
+			settingsServiceSetAIAutoSummaryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +160,8 @@ func (UnimplementedSettingsServiceHandler) GetAISettings(context.Context, *conne
 
 func (UnimplementedSettingsServiceHandler) PatchAISettings(context.Context, *connect.Request[v1.PatchAISettingsRequest]) (*connect.Response[v1.AISettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.SettingsService.PatchAISettings is not implemented"))
+}
+
+func (UnimplementedSettingsServiceHandler) SetAIAutoSummary(context.Context, *connect.Request[v1.SetAIAutoSummaryRequest]) (*connect.Response[v1.SetAIAutoSummaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.SettingsService.SetAIAutoSummary is not implemented"))
 }

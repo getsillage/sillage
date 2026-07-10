@@ -6,6 +6,7 @@ import {
   getAISettings,
   listAIModels,
   patchAISettings,
+  setAIAutoSummary,
   testAIConnection,
 } from "../lib/api";
 import { ThemeToggle } from "./ThemeToggle";
@@ -108,11 +109,8 @@ function normalizeProfilesForSave(
   }));
 }
 
-function settingsFingerprint(
-  profiles: EditableProfile[],
-  autoSummary: boolean,
-): string {
-  return JSON.stringify({ profiles, autoSummary });
+function profilesFingerprint(profiles: EditableProfile[]): string {
+  return JSON.stringify(profiles);
 }
 
 type TestState = { status: "ok" | "error"; message: string };
@@ -147,8 +145,8 @@ function providerLabel(provider: string): string {
 
 async function withTimeout<T>(
   run: (signal: AbortSignal) => Promise<T>,
+  controller = new AbortController(),
 ): Promise<T> {
-  const controller = new AbortController();
   const timeout = window.setTimeout(
     () => controller.abort(),
     ACTION_TIMEOUT_MS,
@@ -170,7 +168,7 @@ function actionErrorMessage(cause: unknown, fallback: string): string {
 export function SettingsWorkspace({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
-  const [savedSettingsFingerprint, setSavedSettingsFingerprint] = useState<
+  const [savedProfilesFingerprint, setSavedProfilesFingerprint] = useState<
     string | null
   >(null);
   const [selectedProfileKey, setSelectedProfileKey] = useState<string | null>(
@@ -181,6 +179,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [loadError, setLoadError] = useState("");
   const loadRequestIdRef = useRef(0);
   const [saving, setSaving] = useState(false);
+  const [autoSummarySaving, setAutoSummarySaving] = useState(false);
+  const autoSummaryMutationRef = useRef(false);
+  const autoSummaryRequestIdRef = useRef(0);
+  const autoSummaryAbortRef = useRef<AbortController | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -191,11 +193,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
     {},
   );
   const dirty =
-    savedSettingsFingerprint !== null &&
-    settingsFingerprint(profiles, autoSummary) !== savedSettingsFingerprint;
-  const mutationBusy = saving || deletingId !== null;
+    savedProfilesFingerprint !== null &&
+    profilesFingerprint(profiles) !== savedProfilesFingerprint;
+  const mutationBusy = saving || autoSummarySaving || deletingId !== null;
 
   const loadSettings = useCallback(async () => {
+    autoSummaryAbortRef.current?.abort();
+    autoSummaryAbortRef.current = null;
+    autoSummaryRequestIdRef.current += 1;
+    autoSummaryMutationRef.current = false;
+    setAutoSummarySaving(false);
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
     setLoading(true);
@@ -210,9 +217,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
         res.autoSummary ?? res.profiles.some((profile) => profile.autoSummary);
       setProfiles(loadedProfiles);
       setAutoSummary(loadedAutoSummary);
-      setSavedSettingsFingerprint(
-        settingsFingerprint(loadedProfiles, loadedAutoSummary),
-      );
+      setSavedProfilesFingerprint(profilesFingerprint(loadedProfiles));
       setLoading(false);
     } catch (cause) {
       if (loadRequestIdRef.current !== requestId) {
@@ -227,6 +232,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
     void loadSettings();
     return () => {
       loadRequestIdRef.current += 1;
+      autoSummaryAbortRef.current?.abort();
+      autoSummaryAbortRef.current = null;
+      autoSummaryRequestIdRef.current += 1;
+      autoSummaryMutationRef.current = false;
     };
   }, [loadSettings]);
 
@@ -299,17 +308,52 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }));
     const res = await patchAISettings(token, {
       profiles: payload,
-      autoSummary,
     });
     const savedProfiles = res.profiles.map(toEditable);
-    const savedAutoSummary = res.autoSummary ?? autoSummary;
     setProfiles(savedProfiles);
-    setAutoSummary(savedAutoSummary);
-    setSavedSettingsFingerprint(
-      settingsFingerprint(savedProfiles, savedAutoSummary),
-    );
+    setSavedProfilesFingerprint(profilesFingerprint(savedProfiles));
     setConfirmDeleteKey(null);
     setNotice(successNotice);
+  }
+
+  async function toggleAutoSummary() {
+    if (mutationBusy || autoSummaryMutationRef.current) {
+      return;
+    }
+    const previousValue = autoSummary;
+    const nextValue = !previousValue;
+    const requestId = autoSummaryRequestIdRef.current + 1;
+    const controller = new AbortController();
+    autoSummaryRequestIdRef.current = requestId;
+    autoSummaryAbortRef.current = controller;
+    autoSummaryMutationRef.current = true;
+    setAutoSummary(nextValue);
+    setAutoSummarySaving(true);
+    setNotice("");
+    setError("");
+    try {
+      const res = await withTimeout(
+        (signal) => setAIAutoSummary(token, nextValue, signal),
+        controller,
+      );
+      if (autoSummaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      setAutoSummary(res.autoSummary);
+      setNotice(res.autoSummary ? "已开启自动总结" : "已关闭自动总结");
+    } catch (cause) {
+      if (autoSummaryRequestIdRef.current !== requestId) {
+        return;
+      }
+      setAutoSummary(previousValue);
+      setError(actionErrorMessage(cause, "保存自动总结设置失败"));
+    } finally {
+      if (autoSummaryRequestIdRef.current === requestId) {
+        autoSummaryAbortRef.current = null;
+        autoSummaryMutationRef.current = false;
+        setAutoSummarySaving(false);
+      }
+    }
   }
 
   async function removeProfile(index: number) {
@@ -577,12 +621,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 type="button"
                 role="switch"
                 aria-checked={autoSummary}
+                aria-busy={autoSummarySaving}
                 aria-label="新建记录后自动总结"
-                onClick={() => {
-                  setNotice("");
-                  setError("");
-                  setAutoSummary((current) => !current);
-                }}
+                onClick={() => void toggleAutoSummary()}
                 className={`relative h-7 w-12 flex-none rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 ${
                   autoSummary
                     ? "bg-gray-900 dark:bg-gray-100"

@@ -123,6 +123,10 @@ class LocalDataStore(context: Context) {
 
     fun autoSummaryEnabled(): Boolean = loadData().autoSummary
 
+    fun saveAutoSummary(enabled: Boolean) {
+        updateData { data -> data.copy(autoSummary = enabled, autoSummaryDefined = true) }
+    }
+
     fun saveAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
         val now = now()
         val currentById = loadData().aiProfiles.associateBy { it.id }
@@ -149,12 +153,6 @@ class LocalDataStore(context: Context) {
         }
         updateData { data -> data.copy(exportedAt = now, aiProfiles = saved) }
         return saved
-    }
-
-    fun saveAISettings(profiles: List<AIProfileDraft>, autoSummary: Boolean): List<AIProfileDraft> {
-        val savedProfiles = saveAIProfiles(profiles)
-        updateData { data -> data.copy(autoSummary = autoSummary, autoSummaryDefined = true) }
-        return savedProfiles
     }
 
     fun activeAIProfile(): AIProfileDraft? {

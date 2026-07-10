@@ -30,6 +30,8 @@ data class SillageUiState(
     val attachmentOpenRequestId: Long = 0,
     val aiProfiles: List<AIProfileDraft> = emptyList(),
     val aiAutoSummary: Boolean = false,
+    val aiAutoSummarySaving: Boolean = false,
+    val aiAutoSummaryRequestId: Long = 0,
     val aiSettingsLoading: Boolean = false,
     val aiSettingsSaving: Boolean = false,
     val aiTestingProfileId: String = "",
@@ -93,6 +95,72 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
     return openingAttachmentPath != null && attachmentOpenRequestId == requestId
+}
+
+internal data class AIAutoSummaryRequest(
+    val requestId: Long,
+    val previousValue: Boolean,
+    val targetValue: Boolean,
+    val appMode: String,
+)
+
+internal fun SillageUiState.nextAIAutoSummaryRequest(targetValue: Boolean): AIAutoSummaryRequest? {
+    if (aiSettingsLoading || aiAutoSummarySaving || targetValue == aiAutoSummary) {
+        return null
+    }
+    return AIAutoSummaryRequest(
+        requestId = aiAutoSummaryRequestId + 1,
+        previousValue = aiAutoSummary,
+        targetValue = targetValue,
+        appMode = appMode,
+    )
+}
+
+internal fun SillageUiState.startAIAutoSummaryRequest(request: AIAutoSummaryRequest): SillageUiState {
+    if (
+        aiSettingsLoading ||
+        aiAutoSummarySaving ||
+        request.requestId != aiAutoSummaryRequestId + 1 ||
+        request.appMode != appMode ||
+        request.previousValue != aiAutoSummary
+    ) {
+        return this
+    }
+    return copy(
+        aiAutoSummary = request.targetValue,
+        aiAutoSummarySaving = true,
+        aiAutoSummaryRequestId = request.requestId,
+    )
+}
+
+internal fun SillageUiState.canApplyAIAutoSummaryRequest(request: AIAutoSummaryRequest): Boolean {
+    return aiAutoSummarySaving &&
+        aiAutoSummaryRequestId == request.requestId &&
+        appMode == request.appMode
+}
+
+internal fun SillageUiState.completeAIAutoSummaryRequest(
+    request: AIAutoSummaryRequest,
+    savedValue: Boolean,
+): SillageUiState {
+    if (!canApplyAIAutoSummaryRequest(request)) {
+        return this
+    }
+    return copy(aiAutoSummary = savedValue, aiAutoSummarySaving = false)
+}
+
+internal fun SillageUiState.failAIAutoSummaryRequest(request: AIAutoSummaryRequest): SillageUiState {
+    if (!canApplyAIAutoSummaryRequest(request)) {
+        return this
+    }
+    return copy(aiAutoSummary = request.previousValue, aiAutoSummarySaving = false)
+}
+
+internal fun SillageUiState.invalidateAIAutoSummaryRequest(): SillageUiState {
+    return copy(
+        aiAutoSummarySaving = false,
+        aiAutoSummaryRequestId = aiAutoSummaryRequestId + 1,
+    )
 }
 
 internal data class MemoPageRequest(

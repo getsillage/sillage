@@ -269,13 +269,7 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 			}
 		}
 	}
-	autoSummary, err := s.resolvePatchAutoSummary(ctx, accountID, input)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.setGlobalAutoSummary(ctx, accountID, autoSummary); err != nil {
-		return nil, err
-	}
+	autoSummaryToSet, shouldSetAutoSummary := resolvePatchAutoSummary(input)
 	keepIDs := make([]string, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		var envelope *string
@@ -318,6 +312,15 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 	if err := s.Store.DeleteAIProfilesExcept(ctx, accountID, keepIDs); err != nil {
 		return nil, err
 	}
+	if shouldSetAutoSummary {
+		if err := s.setGlobalAutoSummary(ctx, accountID, autoSummaryToSet); err != nil {
+			return nil, err
+		}
+	}
+	autoSummary, err := s.getGlobalAutoSummary(ctx, accountID, profiles)
+	if err != nil {
+		return nil, err
+	}
 	return &aiSettingsResult{Profiles: profiles, AutoSummary: autoSummary}, nil
 }
 
@@ -345,23 +348,16 @@ func normalizeAIProfileInputs(profiles []aiProfileInput) []aiProfileInput {
 
 const aiAutoSummarySettingKey = "ai.auto_summary"
 
-func (s *Server) resolvePatchAutoSummary(ctx context.Context, accountID string, input aiSettingsInput) (bool, error) {
+func resolvePatchAutoSummary(input aiSettingsInput) (bool, bool) {
 	if input.AutoSummary != nil {
-		return *input.AutoSummary, nil
+		return *input.AutoSummary, true
 	}
 	for _, profileReq := range input.Profiles {
 		if profileReq.AutoSummary {
-			return true, nil
+			return true, true
 		}
 	}
-	value, ok, err := s.Store.GetAccountSetting(ctx, accountID, aiAutoSummarySettingKey)
-	if err != nil {
-		return false, err
-	}
-	if ok {
-		return value == "true", nil
-	}
-	return false, nil
+	return false, false
 }
 
 func (s *Server) getGlobalAutoSummary(ctx context.Context, accountID string, profiles []*store.AIProfile) (bool, error) {
@@ -386,6 +382,13 @@ func (s *Server) setGlobalAutoSummary(ctx context.Context, accountID string, ena
 		value = "true"
 	}
 	return s.Store.PutAccountSetting(ctx, accountID, aiAutoSummarySettingKey, value)
+}
+
+func (s *Server) setAIAutoSummary(ctx context.Context, accountID string, enabled bool) (bool, error) {
+	if err := s.setGlobalAutoSummary(ctx, accountID, enabled); err != nil {
+		return false, err
+	}
+	return enabled, nil
 }
 
 // testAIConnection makes a minimal call against a saved profile or an unsaved

@@ -61,8 +61,8 @@ func (*GetAISettingsRequest) Descriptor() ([]byte, []int) {
 type PatchAISettingsRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Profiles []*AIProfileInput      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
-	// auto_summary is a global setting. It generates a memo summary in the
-	// background after a memo is created. Best-effort; never blocks the write.
+	// Deprecated for new clients: use SetAIAutoSummary. Kept so older clients can
+	// update the global setting while replacing the profile set.
 	AutoSummary   *bool `protobuf:"varint,2,opt,name=auto_summary,json=autoSummary,proto3,oneof" json:"auto_summary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -112,6 +112,94 @@ func (x *PatchAISettingsRequest) GetAutoSummary() bool {
 	return false
 }
 
+type SetAIAutoSummaryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AutoSummary   bool                   `protobuf:"varint,1,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAIAutoSummaryRequest) Reset() {
+	*x = SetAIAutoSummaryRequest{}
+	mi := &file_api_v1_settings_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAIAutoSummaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAIAutoSummaryRequest) ProtoMessage() {}
+
+func (x *SetAIAutoSummaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_settings_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAIAutoSummaryRequest.ProtoReflect.Descriptor instead.
+func (*SetAIAutoSummaryRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SetAIAutoSummaryRequest) GetAutoSummary() bool {
+	if x != nil {
+		return x.AutoSummary
+	}
+	return false
+}
+
+type SetAIAutoSummaryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AutoSummary   bool                   `protobuf:"varint,1,opt,name=auto_summary,json=autoSummary,proto3" json:"auto_summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAIAutoSummaryResponse) Reset() {
+	*x = SetAIAutoSummaryResponse{}
+	mi := &file_api_v1_settings_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAIAutoSummaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAIAutoSummaryResponse) ProtoMessage() {}
+
+func (x *SetAIAutoSummaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_settings_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAIAutoSummaryResponse.ProtoReflect.Descriptor instead.
+func (*SetAIAutoSummaryResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SetAIAutoSummaryResponse) GetAutoSummary() bool {
+	if x != nil {
+		return x.AutoSummary
+	}
+	return false
+}
+
 // AIProfileInput is the writable shape of a profile. api_key is optional: unset
 // keeps the stored key, empty string clears it.
 type AIProfileInput struct {
@@ -134,7 +222,7 @@ type AIProfileInput struct {
 
 func (x *AIProfileInput) Reset() {
 	*x = AIProfileInput{}
-	mi := &file_api_v1_settings_service_proto_msgTypes[2]
+	mi := &file_api_v1_settings_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +234,7 @@ func (x *AIProfileInput) String() string {
 func (*AIProfileInput) ProtoMessage() {}
 
 func (x *AIProfileInput) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_settings_service_proto_msgTypes[2]
+	mi := &file_api_v1_settings_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +247,7 @@ func (x *AIProfileInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AIProfileInput.ProtoReflect.Descriptor instead.
 func (*AIProfileInput) Descriptor() ([]byte, []int) {
-	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{2}
+	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AIProfileInput) GetId() string {
@@ -249,7 +337,7 @@ type AISettingsResponse struct {
 
 func (x *AISettingsResponse) Reset() {
 	*x = AISettingsResponse{}
-	mi := &file_api_v1_settings_service_proto_msgTypes[3]
+	mi := &file_api_v1_settings_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +349,7 @@ func (x *AISettingsResponse) String() string {
 func (*AISettingsResponse) ProtoMessage() {}
 
 func (x *AISettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_settings_service_proto_msgTypes[3]
+	mi := &file_api_v1_settings_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +362,7 @@ func (x *AISettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AISettingsResponse.ProtoReflect.Descriptor instead.
 func (*AISettingsResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_settings_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AISettingsResponse) GetProfiles() []*AIProfile {
@@ -300,7 +388,11 @@ const file_api_v1_settings_service_proto_rawDesc = "" +
 	"\x16PatchAISettingsRequest\x12:\n" +
 	"\bprofiles\x18\x01 \x03(\v2\x1e.sillage.api.v1.AIProfileInputR\bprofiles\x12&\n" +
 	"\fauto_summary\x18\x02 \x01(\bH\x00R\vautoSummary\x88\x01\x01B\x0f\n" +
-	"\r_auto_summary\"\xc1\x02\n" +
+	"\r_auto_summary\"<\n" +
+	"\x17SetAIAutoSummaryRequest\x12!\n" +
+	"\fauto_summary\x18\x01 \x01(\bR\vautoSummary\"=\n" +
+	"\x18SetAIAutoSummaryResponse\x12!\n" +
+	"\fauto_summary\x18\x01 \x01(\bR\vautoSummary\"\xc1\x02\n" +
 	"\x0eAIProfileInput\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -319,10 +411,11 @@ const file_api_v1_settings_service_proto_rawDesc = "" +
 	"\b_api_key\"n\n" +
 	"\x12AISettingsResponse\x125\n" +
 	"\bprofiles\x18\x01 \x03(\v2\x19.sillage.api.v1.AIProfileR\bprofiles\x12!\n" +
-	"\fauto_summary\x18\x02 \x01(\bR\vautoSummary2\x88\x02\n" +
+	"\fauto_summary\x18\x02 \x01(\bR\vautoSummary2\x9f\x03\n" +
 	"\x0fSettingsService\x12v\n" +
 	"\rGetAISettings\x12$.sillage.api.v1.GetAISettingsRequest\x1a\".sillage.api.v1.AISettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/settings/ai\x12}\n" +
-	"\x0fPatchAISettings\x12&.sillage.api.v1.PatchAISettingsRequest\x1a\".sillage.api.v1.AISettingsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/api/v1/settings/aiB\xba\x01\n" +
+	"\x0fPatchAISettings\x12&.sillage.api.v1.PatchAISettingsRequest\x1a\".sillage.api.v1.AISettingsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*2\x13/api/v1/settings/ai\x12\x94\x01\n" +
+	"\x10SetAIAutoSummary\x12'.sillage.api.v1.SetAIAutoSummaryRequest\x1a(.sillage.api.v1.SetAIAutoSummaryResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/settings/ai:setAutoSummaryB\xba\x01\n" +
 	"\x12com.sillage.api.v1B\x14SettingsServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
@@ -337,23 +430,27 @@ func file_api_v1_settings_service_proto_rawDescGZIP() []byte {
 	return file_api_v1_settings_service_proto_rawDescData
 }
 
-var file_api_v1_settings_service_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_v1_settings_service_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_api_v1_settings_service_proto_goTypes = []any{
-	(*GetAISettingsRequest)(nil),   // 0: sillage.api.v1.GetAISettingsRequest
-	(*PatchAISettingsRequest)(nil), // 1: sillage.api.v1.PatchAISettingsRequest
-	(*AIProfileInput)(nil),         // 2: sillage.api.v1.AIProfileInput
-	(*AISettingsResponse)(nil),     // 3: sillage.api.v1.AISettingsResponse
-	(*AIProfile)(nil),              // 4: sillage.api.v1.AIProfile
+	(*GetAISettingsRequest)(nil),     // 0: sillage.api.v1.GetAISettingsRequest
+	(*PatchAISettingsRequest)(nil),   // 1: sillage.api.v1.PatchAISettingsRequest
+	(*SetAIAutoSummaryRequest)(nil),  // 2: sillage.api.v1.SetAIAutoSummaryRequest
+	(*SetAIAutoSummaryResponse)(nil), // 3: sillage.api.v1.SetAIAutoSummaryResponse
+	(*AIProfileInput)(nil),           // 4: sillage.api.v1.AIProfileInput
+	(*AISettingsResponse)(nil),       // 5: sillage.api.v1.AISettingsResponse
+	(*AIProfile)(nil),                // 6: sillage.api.v1.AIProfile
 }
 var file_api_v1_settings_service_proto_depIdxs = []int32{
-	2, // 0: sillage.api.v1.PatchAISettingsRequest.profiles:type_name -> sillage.api.v1.AIProfileInput
-	4, // 1: sillage.api.v1.AISettingsResponse.profiles:type_name -> sillage.api.v1.AIProfile
+	4, // 0: sillage.api.v1.PatchAISettingsRequest.profiles:type_name -> sillage.api.v1.AIProfileInput
+	6, // 1: sillage.api.v1.AISettingsResponse.profiles:type_name -> sillage.api.v1.AIProfile
 	0, // 2: sillage.api.v1.SettingsService.GetAISettings:input_type -> sillage.api.v1.GetAISettingsRequest
 	1, // 3: sillage.api.v1.SettingsService.PatchAISettings:input_type -> sillage.api.v1.PatchAISettingsRequest
-	3, // 4: sillage.api.v1.SettingsService.GetAISettings:output_type -> sillage.api.v1.AISettingsResponse
-	3, // 5: sillage.api.v1.SettingsService.PatchAISettings:output_type -> sillage.api.v1.AISettingsResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
+	2, // 4: sillage.api.v1.SettingsService.SetAIAutoSummary:input_type -> sillage.api.v1.SetAIAutoSummaryRequest
+	5, // 5: sillage.api.v1.SettingsService.GetAISettings:output_type -> sillage.api.v1.AISettingsResponse
+	5, // 6: sillage.api.v1.SettingsService.PatchAISettings:output_type -> sillage.api.v1.AISettingsResponse
+	3, // 7: sillage.api.v1.SettingsService.SetAIAutoSummary:output_type -> sillage.api.v1.SetAIAutoSummaryResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -366,14 +463,14 @@ func file_api_v1_settings_service_proto_init() {
 	}
 	file_api_v1_common_proto_init()
 	file_api_v1_settings_service_proto_msgTypes[1].OneofWrappers = []any{}
-	file_api_v1_settings_service_proto_msgTypes[2].OneofWrappers = []any{}
+	file_api_v1_settings_service_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_settings_service_proto_rawDesc), len(file_api_v1_settings_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

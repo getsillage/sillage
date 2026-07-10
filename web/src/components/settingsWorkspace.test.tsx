@@ -11,6 +11,7 @@ vi.mock("../lib/api", async (importOriginal) => {
     getAISettings: vi.fn(),
     listAIModels: vi.fn(),
     patchAISettings: vi.fn(),
+    setAIAutoSummary: vi.fn(),
     testAIConnection: vi.fn(),
   };
 });
@@ -24,6 +25,7 @@ import {
   getAISettings,
   listAIModels,
   patchAISettings,
+  setAIAutoSummary,
   testAIConnection,
 } from "../lib/api";
 
@@ -57,6 +59,9 @@ beforeEach(() => {
     profiles: [profile()],
     autoSummary: false,
   });
+  vi.mocked(setAIAutoSummary).mockImplementation(
+    async (_token, autoSummary) => ({ autoSummary }),
+  );
   vi.mocked(listAIModels).mockResolvedValue({
     models: ["claude-opus-4-8", "claude-sonnet-4-5"],
   });
@@ -110,6 +115,9 @@ describe("SettingsWorkspace", () => {
     await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
     expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles[0].name).toBe(
       "工作档案",
+    );
+    expect(vi.mocked(patchAISettings).mock.calls[0][1]).not.toHaveProperty(
+      "autoSummary",
     );
     expect(await screen.findByText("已保存")).toBeInTheDocument();
   });
@@ -216,7 +224,7 @@ describe("SettingsWorkspace", () => {
     expect(screen.getByDisplayValue("保存快照")).toBeEnabled();
   });
 
-  it("tracks auto-summary changes against the loaded value", async () => {
+  it("saves auto-summary immediately without making profiles dirty", async () => {
     const user = userEvent.setup();
     renderSettings();
     await screen.findByRole("button", { name: "配置" });
@@ -231,36 +239,93 @@ describe("SettingsWorkspace", () => {
     ).not.toBeInTheDocument();
     await user.click(autoSummarySwitch);
     expect(autoSummaryThumb).toHaveClass("left-0", "translate-x-6");
-    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "保存设置" }),
-    ).toBeInTheDocument();
-
-    await user.click(autoSummarySwitch);
+    expect(autoSummarySwitch).toHaveAttribute("aria-checked", "true");
+    expect(setAIAutoSummary).toHaveBeenCalledWith(
+      "t",
+      true,
+      expect.any(AbortSignal),
+    );
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(await screen.findByText("已开启自动总结")).toBeInTheDocument();
     expect(screen.queryByText("有未保存更改")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "保存设置" }),
     ).not.toBeInTheDocument();
-    const revertedUnload = new Event("beforeunload", { cancelable: true });
-    expect(window.dispatchEvent(revertedUnload)).toBe(true);
+    const savedUnload = new Event("beforeunload", { cancelable: true });
+    expect(window.dispatchEvent(savedUnload)).toBe(true);
   });
 
-  it("saves auto-summary as a global setting", async () => {
+  it("keeps profile drafts while auto-summary is being saved", async () => {
     const user = userEvent.setup();
+    let finishAutoSummary:
+      | ((value: { autoSummary: boolean }) => void)
+      | undefined;
+    vi.mocked(setAIAutoSummary).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishAutoSummary = resolve;
+        }),
+    );
     renderSettings();
-    await screen.findByRole("button", { name: "配置" });
+    await openDefaultProfile(user);
 
-    const checkbox = screen.getByRole("switch", {
+    const nameInput = screen.getByDisplayValue("默认");
+    await user.clear(nameInput);
+    await user.type(nameInput, "尚未保存的档案");
+
+    const autoSummarySwitch = screen.getByRole("switch", {
       name: "新建记录后自动总结",
     });
-    await user.click(checkbox);
-    expect(checkbox).toHaveAttribute("aria-checked", "true");
-    await user.click(screen.getByRole("button", { name: "保存设置" }));
-    await waitFor(() => expect(patchAISettings).toHaveBeenCalled());
-    expect(vi.mocked(patchAISettings).mock.calls[0][1].autoSummary).toBe(true);
-    expect(
-      vi.mocked(patchAISettings).mock.calls[0][1].profiles[0],
-    ).not.toHaveProperty("autoSummary");
+    await user.click(autoSummarySwitch);
+
+    expect(setAIAutoSummary).toHaveBeenCalledTimes(1);
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(autoSummarySwitch).toBeDisabled();
+    expect(nameInput).toBeDisabled();
+    expect(nameInput).toHaveValue("尚未保存的档案");
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+
+    await user.click(autoSummarySwitch);
+    expect(setAIAutoSummary).toHaveBeenCalledTimes(1);
+    finishAutoSummary?.({ autoSummary: true });
+
+    expect(await screen.findByText("已开启自动总结")).toBeInTheDocument();
+    expect(nameInput).toBeEnabled();
+    expect(nameInput).toHaveValue("尚未保存的档案");
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+  });
+
+  it("rolls auto-summary back after an immediate save fails", async () => {
+    const user = userEvent.setup();
+    let failAutoSummary: ((cause?: unknown) => void) | undefined;
+    vi.mocked(setAIAutoSummary).mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          failAutoSummary = reject;
+        }),
+    );
+    renderSettings();
+    await openDefaultProfile(user);
+
+    const nameInput = screen.getByDisplayValue("默认");
+    await user.type(nameInput, "草稿");
+    const autoSummarySwitch = screen.getByRole("switch", {
+      name: "新建记录后自动总结",
+    });
+    await user.click(autoSummarySwitch);
+
+    expect(autoSummarySwitch).toHaveAttribute("aria-checked", "true");
+    expect(autoSummarySwitch).toBeDisabled();
+    failAutoSummary?.(new Error("自动保存失败：网络异常"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "自动保存失败：网络异常",
+    );
+    expect(autoSummarySwitch).toHaveAttribute("aria-checked", "false");
+    expect(autoSummarySwitch).toBeEnabled();
+    expect(nameInput).toHaveValue("默认草稿");
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    expect(patchAISettings).not.toHaveBeenCalled();
   });
 
   it("tracks and clears a newly saved API key", async () => {

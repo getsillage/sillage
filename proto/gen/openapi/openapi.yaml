@@ -547,6 +547,30 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/settings/ai:setAutoSummary:
+        post:
+            tags:
+                - SettingsService
+            operationId: SettingsService_SetAIAutoSummary
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SetAIAutoSummaryRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SetAIAutoSummaryResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/sync:
         get:
             tags:
@@ -1086,8 +1110,8 @@ components:
                 autoSummary:
                     type: boolean
                     description: |-
-                        auto_summary is a global setting. It generates a memo summary in the
-                         background after a memo is created. Best-effort; never blocks the write.
+                        Deprecated for new clients: use SetAIAutoSummary. Kept so older clients can
+                         update the global setting while replacing the profile set.
         PullSyncResponse:
             type: object
             properties:
@@ -1135,6 +1159,16 @@ components:
         RefreshRequest:
             type: object
             properties: {}
+        SetAIAutoSummaryRequest:
+            type: object
+            properties:
+                autoSummary:
+                    type: boolean
+        SetAIAutoSummaryResponse:
+            type: object
+            properties:
+                autoSummary:
+                    type: boolean
         SetMemoArchivedRequest:
             type: object
             properties:
@@ -1293,8 +1327,9 @@ tags:
          writes derived AI data and therefore does not carry expected_version.
     - name: SettingsService
       description: |-
-        SettingsService manages the user's AI profiles. Get never returns API keys;
-         Patch replaces the full profile set (api_key omitted = keep the stored key).
+        SettingsService manages AI profiles and account-wide AI behavior. Get never
+         returns API keys; Patch replaces the full profile set (api_key omitted = keep
+         the stored key), while SetAIAutoSummary never mutates profiles.
     - name: SyncService
       description: |-
         SyncService is the offline-sync surface for future mobile clients. Pull

@@ -66,6 +66,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
     private var loadMoreMemosJob: Job? = null
+    private var aiAutoSummaryJob: Job? = null
     private val memoPageLock = Any()
     private val _attachmentOpenEvents = Channel<AttachmentOpenEvent>(Channel.BUFFERED)
     private val _state = MutableStateFlow(
@@ -120,10 +121,11 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelMemoPageLoad()
         cancelAskVariant()
         cancelAskStream()
+        cancelAIAutoSummarySave()
         sessionStore.saveBaseUrl(state.value.baseUrl)
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         _state.update {
-            it.copy(
+            it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
@@ -133,6 +135,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
+                aiSettingsLoading = false,
                 askLoading = false,
                 serverReturnScreen = null,
                 searchQuery = "",
@@ -148,9 +151,10 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun useOnlineMode() {
         cancelAskVariant()
         cancelAskStream()
+        cancelAIAutoSummarySave()
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         _state.update {
-            it.copy(
+            it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 screenHistory = emptyList(),
                 memos = emptyList(),
@@ -158,6 +162,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 loadingMoreMemos = false,
                 selectedMemo = null,
                 selectedSummary = null,
+                aiSettingsLoading = false,
                 askLoading = false,
                 searchQuery = "",
                 searchResults = null,
@@ -335,13 +340,14 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelMemoPageLoad()
         cancelAskVariant()
         cancelAskStream()
+        cancelAIAutoSummarySave()
         viewModelScope.launch {
             if (!isOfflineMode()) {
                 runCatching { api.signOut() }
             }
             sessionStore.clearSession()
             _state.update {
-                it.copy(
+                it.invalidateAIAutoSummaryRequest().copy(
                     account = null,
                     memos = emptyList(),
                     memoNextCursor = "",
@@ -1200,12 +1206,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                     notice = null,
                 )
             }
-            runCatching { persistAISettings(nextProfiles, state.value.aiAutoSummary) }
-                .onSuccess { saved ->
+            runCatching { persistAIProfiles(nextProfiles) }
+                .onSuccess { savedProfiles ->
                     _state.update {
                         it.copy(
-                            aiProfiles = saved.profiles,
-                            aiAutoSummary = saved.autoSummary,
+                            aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
@@ -1280,12 +1285,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                     notice = null,
                 )
             }
-            runCatching { persistAISettings(nextProfiles, state.value.aiAutoSummary) }
-                .onSuccess { saved ->
+            runCatching { persistAIProfiles(nextProfiles) }
+                .onSuccess { savedProfiles ->
                     _state.update {
                         it.copy(
-                            aiProfiles = saved.profiles,
-                            aiAutoSummary = saved.autoSummary,
+                            aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
@@ -1305,15 +1309,66 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun toggleAISettingsAutoSummary() {
-        _state.update { it.copy(aiAutoSummary = !it.aiAutoSummary) }
+    fun setAISettingsAutoSummary(enabled: Boolean) {
+        val request = state.value.nextAIAutoSummaryRequest(enabled) ?: return
+        _state.update { current ->
+            val started = current.startAIAutoSummaryRequest(request)
+            if (started.canApplyAIAutoSummaryRequest(request)) {
+                started.copy(error = null, notice = null)
+            } else {
+                current
+            }
+        }
+        if (!state.value.canApplyAIAutoSummaryRequest(request)) {
+            return
+        }
+        aiAutoSummaryJob = viewModelScope.launch {
+            if (!state.value.canApplyAIAutoSummaryRequest(request)) {
+                return@launch
+            }
+            try {
+                val savedValue = persistAIAutoSummary(request)
+                _state.update { current ->
+                    if (current.canApplyAIAutoSummaryRequest(request)) {
+                        current.completeAIAutoSummaryRequest(request, savedValue).copy(
+                            error = null,
+                            notice = if (savedValue) "已开启自动总结" else "已关闭自动总结",
+                        )
+                    } else {
+                        current
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                _state.update { current ->
+                    if (current.canApplyAIAutoSummaryRequest(request)) {
+                        current.failAIAutoSummaryRequest(request).copy(
+                            error = error.readableMessage(),
+                            notice = null,
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
     }
 
     fun loadAISettings() {
+        cancelAIAutoSummarySave()
+        val mode = state.value.appMode
+        val loadRequestId = state.value.aiAutoSummaryRequestId + 1
+        _state.update {
+            it.invalidateAIAutoSummaryRequest().copy(
+                aiSettingsLoading = true,
+                error = null,
+                notice = null,
+            )
+        }
         viewModelScope.launch {
-            _state.update { it.copy(aiSettingsLoading = true, error = null, notice = null) }
             runCatching {
-                if (isOfflineMode()) {
+                if (mode == SessionStore.MODE_OFFLINE) {
                     localDataStore.exportData().let { data ->
                         EditableAISettings(
                             profiles = data.aiProfiles,
@@ -1330,43 +1385,57 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { settings ->
-                    _state.update {
-                        it.copy(
-                            aiProfiles = settings.profiles,
-                            aiAutoSummary = settings.autoSummary,
-                            aiSettingsLoading = false,
-                            aiTestResults = emptyMap(),
-                            aiModelResults = emptyMap(),
-                            error = null,
-                        )
+                    _state.update { current ->
+                        if (
+                            current.appMode == mode &&
+                            current.aiAutoSummaryRequestId == loadRequestId &&
+                            current.aiSettingsLoading
+                        ) {
+                            current.copy(
+                                aiProfiles = settings.profiles,
+                                aiAutoSummary = settings.autoSummary,
+                                aiSettingsLoading = false,
+                                aiTestResults = emptyMap(),
+                                aiModelResults = emptyMap(),
+                                error = null,
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            aiSettingsLoading = false,
-                            error = error.readableMessage(),
-                        )
+                    _state.update { current ->
+                        if (
+                            current.appMode == mode &&
+                            current.aiAutoSummaryRequestId == loadRequestId &&
+                            current.aiSettingsLoading
+                        ) {
+                            current.copy(
+                                aiSettingsLoading = false,
+                                error = error.readableMessage(),
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
         }
     }
 
-    fun saveAISettings() {
+    fun saveAIProfiles() {
         val profiles = normalizedAIProfiles(state.value.aiProfiles)
-        val autoSummary = state.value.aiAutoSummary
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
-            runCatching { persistAISettings(profiles, autoSummary) }
-                .onSuccess { saved ->
+            runCatching { persistAIProfiles(profiles) }
+                .onSuccess { savedProfiles ->
                     _state.update {
                         it.copy(
-                            aiProfiles = saved.profiles,
-                            aiAutoSummary = saved.autoSummary,
+                            aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
-                            notice = "AI 设置已保存",
+                            notice = "AI 档案已保存",
                         )
                     }
                 }
@@ -1381,29 +1450,30 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    private suspend fun persistAISettings(
-        profiles: List<AIProfileDraft>,
-        autoSummary: Boolean,
-    ): EditableAISettings {
+    private suspend fun persistAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
         val normalized = normalizedAIProfiles(profiles)
         return if (isOfflineMode()) {
-            EditableAISettings(
-                profiles = localDataStore.saveAISettings(normalized, autoSummary),
-                autoSummary = autoSummary,
-            )
+            localDataStore.saveAIProfiles(normalized)
         } else {
-            api.patchAISettings(normalized.map { it.toInput() }, autoSummary).let { settings ->
+            api.patchAISettings(normalized.map { it.toInput() }).let { settings ->
                 val localProfiles = mergeSavedAIProfilesForLocalStorage(
                     currentProfiles = localDataStore.listAIProfiles(),
                     remoteProfiles = settings.profiles.map { it.toDraft() },
                     submittedProfiles = normalized,
                 )
-                EditableAISettings(
-                    profiles = localDataStore.saveAISettings(localProfiles, settings.autoSummary),
-                    autoSummary = settings.autoSummary,
-                )
+                localDataStore.saveAIProfiles(localProfiles)
             }
         }
+    }
+
+    private suspend fun persistAIAutoSummary(request: AIAutoSummaryRequest): Boolean {
+        if (request.appMode == SessionStore.MODE_OFFLINE) {
+            localDataStore.saveAutoSummary(request.targetValue)
+            return request.targetValue
+        }
+        val savedValue = api.setAIAutoSummary(request.targetValue)
+        localDataStore.saveAutoSummary(savedValue)
+        return savedValue
     }
 
     private fun normalizedAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
@@ -2396,9 +2466,10 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun enterOfflineMode(notice: String?) {
+        cancelAIAutoSummarySave()
         val memos = activeMemos(localDataStore.listMemos())
         _state.update {
-            it.copy(
+            it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_OFFLINE,
                 initialized = true,
                 account = null,
@@ -2410,6 +2481,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = false,
                 uploadingAttachment = false,
                 aiAutoSummary = localDataStore.autoSummaryEnabled(),
+                aiSettingsLoading = false,
                 askLoading = false,
                 searchQuery = "",
                 searchResults = null,
@@ -2423,6 +2495,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun isOfflineMode(): Boolean = state.value.appMode == SessionStore.MODE_OFFLINE
+
+    private fun cancelAIAutoSummarySave() {
+        aiAutoSummaryJob?.cancel()
+        aiAutoSummaryJob = null
+    }
 
     private fun memoViewModeFromName(value: String): MemoViewMode {
         return runCatching { MemoViewMode.valueOf(value) }.getOrDefault(MemoViewMode.List)

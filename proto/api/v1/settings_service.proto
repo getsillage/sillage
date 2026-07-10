@@ -5,8 +5,9 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
-// SettingsService manages the user's AI profiles. Get never returns API keys;
-// Patch replaces the full profile set (api_key omitted = keep the stored key).
+// SettingsService manages AI profiles and account-wide AI behavior. Get never
+// returns API keys; Patch replaces the full profile set (api_key omitted = keep
+// the stored key), while SetAIAutoSummary never mutates profiles.
 service SettingsService {
   rpc GetAISettings(GetAISettingsRequest) returns (AISettingsResponse) {
     option (google.api.http) = {get: "/api/v1/settings/ai"};
@@ -18,15 +19,30 @@ service SettingsService {
       body: "*"
     };
   }
+
+  rpc SetAIAutoSummary(SetAIAutoSummaryRequest) returns (SetAIAutoSummaryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/settings/ai:setAutoSummary"
+      body: "*"
+    };
+  }
 }
 
 message GetAISettingsRequest {}
 
 message PatchAISettingsRequest {
   repeated AIProfileInput profiles = 1;
-  // auto_summary is a global setting. It generates a memo summary in the
-  // background after a memo is created. Best-effort; never blocks the write.
+  // Deprecated for new clients: use SetAIAutoSummary. Kept so older clients can
+  // update the global setting while replacing the profile set.
   optional bool auto_summary = 2;
+}
+
+message SetAIAutoSummaryRequest {
+  bool auto_summary = 1;
+}
+
+message SetAIAutoSummaryResponse {
+  bool auto_summary = 1;
 }
 
 // AIProfileInput is the writable shape of a profile. api_key is optional: unset

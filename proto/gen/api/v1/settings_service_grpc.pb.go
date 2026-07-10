@@ -19,19 +19,22 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SettingsService_GetAISettings_FullMethodName   = "/sillage.api.v1.SettingsService/GetAISettings"
-	SettingsService_PatchAISettings_FullMethodName = "/sillage.api.v1.SettingsService/PatchAISettings"
+	SettingsService_GetAISettings_FullMethodName    = "/sillage.api.v1.SettingsService/GetAISettings"
+	SettingsService_PatchAISettings_FullMethodName  = "/sillage.api.v1.SettingsService/PatchAISettings"
+	SettingsService_SetAIAutoSummary_FullMethodName = "/sillage.api.v1.SettingsService/SetAIAutoSummary"
 )
 
 // SettingsServiceClient is the client API for SettingsService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// SettingsService manages the user's AI profiles. Get never returns API keys;
-// Patch replaces the full profile set (api_key omitted = keep the stored key).
+// SettingsService manages AI profiles and account-wide AI behavior. Get never
+// returns API keys; Patch replaces the full profile set (api_key omitted = keep
+// the stored key), while SetAIAutoSummary never mutates profiles.
 type SettingsServiceClient interface {
 	GetAISettings(ctx context.Context, in *GetAISettingsRequest, opts ...grpc.CallOption) (*AISettingsResponse, error)
 	PatchAISettings(ctx context.Context, in *PatchAISettingsRequest, opts ...grpc.CallOption) (*AISettingsResponse, error)
+	SetAIAutoSummary(ctx context.Context, in *SetAIAutoSummaryRequest, opts ...grpc.CallOption) (*SetAIAutoSummaryResponse, error)
 }
 
 type settingsServiceClient struct {
@@ -62,15 +65,27 @@ func (c *settingsServiceClient) PatchAISettings(ctx context.Context, in *PatchAI
 	return out, nil
 }
 
+func (c *settingsServiceClient) SetAIAutoSummary(ctx context.Context, in *SetAIAutoSummaryRequest, opts ...grpc.CallOption) (*SetAIAutoSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAIAutoSummaryResponse)
+	err := c.cc.Invoke(ctx, SettingsService_SetAIAutoSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SettingsServiceServer is the server API for SettingsService service.
 // All implementations must embed UnimplementedSettingsServiceServer
 // for forward compatibility.
 //
-// SettingsService manages the user's AI profiles. Get never returns API keys;
-// Patch replaces the full profile set (api_key omitted = keep the stored key).
+// SettingsService manages AI profiles and account-wide AI behavior. Get never
+// returns API keys; Patch replaces the full profile set (api_key omitted = keep
+// the stored key), while SetAIAutoSummary never mutates profiles.
 type SettingsServiceServer interface {
 	GetAISettings(context.Context, *GetAISettingsRequest) (*AISettingsResponse, error)
 	PatchAISettings(context.Context, *PatchAISettingsRequest) (*AISettingsResponse, error)
+	SetAIAutoSummary(context.Context, *SetAIAutoSummaryRequest) (*SetAIAutoSummaryResponse, error)
 	mustEmbedUnimplementedSettingsServiceServer()
 }
 
@@ -86,6 +101,9 @@ func (UnimplementedSettingsServiceServer) GetAISettings(context.Context, *GetAIS
 }
 func (UnimplementedSettingsServiceServer) PatchAISettings(context.Context, *PatchAISettingsRequest) (*AISettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PatchAISettings not implemented")
+}
+func (UnimplementedSettingsServiceServer) SetAIAutoSummary(context.Context, *SetAIAutoSummaryRequest) (*SetAIAutoSummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAIAutoSummary not implemented")
 }
 func (UnimplementedSettingsServiceServer) mustEmbedUnimplementedSettingsServiceServer() {}
 func (UnimplementedSettingsServiceServer) testEmbeddedByValue()                         {}
@@ -144,6 +162,24 @@ func _SettingsService_PatchAISettings_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SettingsService_SetAIAutoSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAIAutoSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SettingsServiceServer).SetAIAutoSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SettingsService_SetAIAutoSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SettingsServiceServer).SetAIAutoSummary(ctx, req.(*SetAIAutoSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SettingsService_ServiceDesc is the grpc.ServiceDesc for SettingsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -158,6 +194,10 @@ var SettingsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PatchAISettings",
 			Handler:    _SettingsService_PatchAISettings_Handler,
+		},
+		{
+			MethodName: "SetAIAutoSummary",
+			Handler:    _SettingsService_SetAIAutoSummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

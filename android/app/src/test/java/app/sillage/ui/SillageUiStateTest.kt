@@ -1,5 +1,6 @@
 package app.sillage.ui
 
+import app.sillage.data.AIProfileDraft
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -82,6 +83,63 @@ class SillageUiStateTest {
         assertFalse(pending.copy(memoPageRequestId = request.requestId + 1).canApplyMemoPage(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyMemoPage(request))
         assertFalse(pending.copy(loadingMoreMemos = false).canApplyMemoPage(request))
+    }
+
+    @Test
+    fun autoSummaryRequestIsSingleFlightAndBoundToItsMode() {
+        val idle = editorState().copy(
+            screen = Screen.AISettings,
+            appMode = SessionStore.MODE_ONLINE,
+            aiAutoSummary = false,
+            aiAutoSummaryRequestId = 4,
+        )
+        val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
+        val pending = idle.startAIAutoSummaryRequest(request)
+
+        assertEquals(5L, request.requestId)
+        assertFalse(request.previousValue)
+        assertTrue(request.targetValue)
+        assertTrue(pending.aiAutoSummary)
+        assertTrue(pending.aiAutoSummarySaving)
+        assertEquals(null, pending.nextAIAutoSummaryRequest(false))
+        assertTrue(pending.canApplyAIAutoSummaryRequest(request))
+        assertFalse(
+            pending.copy(appMode = SessionStore.MODE_OFFLINE)
+                .canApplyAIAutoSummaryRequest(request),
+        )
+
+        val invalidated = pending.invalidateAIAutoSummaryRequest()
+        assertFalse(invalidated.aiAutoSummarySaving)
+        assertEquals(6L, invalidated.aiAutoSummaryRequestId)
+        assertFalse(invalidated.canApplyAIAutoSummaryRequest(request))
+        assertEquals(null, idle.nextAIAutoSummaryRequest(false))
+        assertEquals(null, idle.copy(aiSettingsLoading = true).nextAIAutoSummaryRequest(true))
+    }
+
+    @Test
+    fun autoSummaryCompletionAndFailurePreserveProfileDrafts() {
+        val profiles = listOf(AIProfileDraft(id = "p1", name = "未保存名称"))
+        val idle = editorState().copy(
+            screen = Screen.AISettings,
+            aiProfiles = profiles,
+            aiAutoSummary = false,
+        )
+        val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
+        val pending = idle.startAIAutoSummaryRequest(request)
+
+        val completed = pending.completeAIAutoSummaryRequest(request, savedValue = true)
+        assertTrue(completed.aiAutoSummary)
+        assertFalse(completed.aiAutoSummarySaving)
+        assertEquals(profiles, completed.aiProfiles)
+
+        val failed = pending.failAIAutoSummaryRequest(request)
+        assertFalse(failed.aiAutoSummary)
+        assertFalse(failed.aiAutoSummarySaving)
+        assertEquals(profiles, failed.aiProfiles)
+
+        val invalidated = pending.invalidateAIAutoSummaryRequest()
+        assertEquals(invalidated, invalidated.completeAIAutoSummaryRequest(request, savedValue = true))
+        assertEquals(invalidated, invalidated.failAIAutoSummaryRequest(request))
     }
 
     @Test

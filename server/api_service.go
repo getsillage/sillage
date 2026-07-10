@@ -122,6 +122,12 @@ type askConversationInput struct {
 	ContextScope string
 }
 
+type askConversationListInput struct {
+	Limit    int
+	Query    string
+	Archived bool
+}
+
 type askMessageInput struct {
 	ConversationID string
 	Content        string
@@ -135,12 +141,25 @@ type askCreateMessageResult struct {
 	Messages []*store.AskMessage
 }
 
-func (s *Server) listAskConversations(ctx context.Context, accountID string, limit int) ([]*store.AskConversation, error) {
-	return s.Store.ListAskConversations(ctx, accountID, normalizeLimit(limit, 50))
+func (s *Server) listAskConversations(ctx context.Context, accountID string, input askConversationListInput) ([]*store.AskConversation, error) {
+	return s.Store.ListAskConversations(ctx, &store.ListAskConversationOptions{
+		AccountID: accountID,
+		Limit:     normalizeLimit(input.Limit, 50),
+		Query:     input.Query,
+		Archived:  input.Archived,
+	})
 }
 
 func (s *Server) createAskConversation(ctx context.Context, accountID string, input askConversationInput) (*store.AskConversation, error) {
 	return s.Store.CreateAskConversation(ctx, accountID, input.Title, input.ContextScope)
+}
+
+func (s *Server) getAskConversation(ctx context.Context, accountID, conversationID string) (*store.AskConversation, error) {
+	return s.Store.GetAskConversation(ctx, accountID, conversationID)
+}
+
+func (s *Server) setAskConversationArchived(ctx context.Context, accountID, conversationID string, archived bool) (*store.AskConversation, error) {
+	return s.Store.SetAskConversationArchived(ctx, accountID, conversationID, archived)
 }
 
 func (s *Server) listAskMessages(ctx context.Context, accountID, conversationID string) ([]*store.AskMessage, error) {

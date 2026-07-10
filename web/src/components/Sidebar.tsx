@@ -1,26 +1,32 @@
 import {
-  History,
-  Home,
+  Archive,
+  ArchiveRestore,
+  Library,
   LogOut,
   MessageSquarePlus,
   MoreHorizontal,
+  NotebookPen,
   PanelLeftClose,
+  Search,
   Settings,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, NavLink, useLocation } from "react-router-dom";
-import type { Account } from "../lib/api";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import type { Account, AskConversation } from "../lib/api";
 import { useAsk } from "../state/AskContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { hasUnsavedChanges } from "./UnsavedNavigationGuard";
 import { dangerButtonClass, secondaryButtonClass } from "./ui";
 
 const navItems = [
-  { to: "/", label: "记录", end: true, icon: Home },
-  { to: "/timeline", label: "历史", end: false, icon: History },
+  { to: "/", label: "写记录", end: true, icon: NotebookPen },
+  { to: "/timeline", label: "全部记录", end: false, icon: Library },
 ] as const;
+
+const newAskClass =
+  "flex h-11 w-full items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 font-medium text-gray-800 text-sm shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40";
 
 function navClass({ isActive }: { isActive: boolean }): string {
   const base =
@@ -74,14 +80,192 @@ export function Sidebar({
   onSignOut: () => void;
 }) {
   const location = useLocation();
-  const { conversations, loadingConversations, activeId, startNew } = useAsk();
+  const navigate = useNavigate();
+  const {
+    conversations,
+    loadingConversations,
+    activeId,
+    busy,
+    streaming,
+    selectConversation,
+    startNew,
+    listConversations,
+    setConversationArchived,
+  } = useAsk();
   const onAskPage = location.pathname === "/ask";
+  const controlsDisabled = busy || streaming;
+  const activeIdRef = useRef(activeId);
+  const pathnameRef = useRef(location.pathname);
+  const routeConversationRef = useRef(
+    new URLSearchParams(location.search).get("conversation"),
+  );
   const accountMenuRef = useRef<HTMLDetailsElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const archiveViewButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestRef = useRef(0);
+  const archiveMutationRef = useRef(false);
+  const archiveFocusPendingRef = useRef(false);
   const signOutButtonRef = useRef<HTMLButtonElement>(null);
   const signOutDialogRef = useRef<HTMLDivElement>(null);
   const stayButtonRef = useRef<HTMLButtonElement>(null);
   const signingOutRef = useRef(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [archivedView, setArchivedView] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [remoteConversations, setRemoteConversations] = useState<
+    AskConversation[]
+  >([]);
+  const [loadingRemote, setLoadingRemote] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
+  const [retryGeneration, setRetryGeneration] = useState(0);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const askControlsDisabled = controlsDisabled || archivingId !== null;
+  const trimmedQuery = query.trim();
+  const remoteListActive = archivedView || Boolean(trimmedQuery);
+  const visibleConversations = remoteListActive
+    ? remoteConversations
+    : conversations;
+  const listLoading = remoteListActive ? loadingRemote : loadingConversations;
+  activeIdRef.current = activeId;
+  pathnameRef.current = location.pathname;
+  routeConversationRef.current = new URLSearchParams(location.search).get(
+    "conversation",
+  );
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (archivingId === null && archiveFocusPendingRef.current) {
+      archiveFocusPendingRef.current = false;
+      archiveViewButtonRef.current?.focus();
+    }
+  }, [archivingId]);
+
+  useEffect(() => {
+    void retryGeneration;
+    if (!remoteListActive) {
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
+      searchRequestRef.current += 1;
+      setLoadingRemote(false);
+      setRemoteError("");
+      return;
+    }
+
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setLoadingRemote(true);
+    setRemoteError("");
+    const delay = trimmedQuery ? 300 : 0;
+    const timeout = window.setTimeout(() => {
+      void listConversations(
+        { query: trimmedQuery || undefined, archived: archivedView },
+        controller.signal,
+      )
+        .then((found) => {
+          if (
+            !controller.signal.aborted &&
+            searchRequestRef.current === requestId
+          ) {
+            setRemoteConversations(found);
+          }
+        })
+        .catch((cause) => {
+          if (
+            !controller.signal.aborted &&
+            searchRequestRef.current === requestId
+          ) {
+            setRemoteError(
+              cause instanceof Error ? cause.message : "读取问答失败",
+            );
+          }
+        })
+        .finally(() => {
+          if (
+            !controller.signal.aborted &&
+            searchRequestRef.current === requestId
+          ) {
+            setLoadingRemote(false);
+          }
+        });
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [
+    archivedView,
+    listConversations,
+    remoteListActive,
+    retryGeneration,
+    trimmedQuery,
+  ]);
+
+  useEffect(
+    () => () => {
+      searchRequestRef.current += 1;
+      searchAbortRef.current?.abort();
+    },
+    [],
+  );
+
+  function closeSearch() {
+    setQuery("");
+    setSearchOpen(false);
+    searchButtonRef.current?.focus();
+  }
+
+  async function toggleConversationArchived(conversation: AskConversation) {
+    if (controlsDisabled || archiveMutationRef.current) {
+      return;
+    }
+    const archived = !conversation.archivedAt;
+    archiveMutationRef.current = true;
+    setArchivingId(conversation.id);
+    try {
+      await setConversationArchived(conversation.id, archived);
+      searchRequestRef.current += 1;
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
+      setLoadingRemote(false);
+      setRemoteConversations((current) =>
+        current.filter((item) => item.id !== conversation.id),
+      );
+      if (remoteListActive) {
+        setRetryGeneration((current) => current + 1);
+      }
+      if (
+        archived &&
+        activeIdRef.current === conversation.id &&
+        pathnameRef.current === "/ask" &&
+        (routeConversationRef.current === null ||
+          routeConversationRef.current === conversation.id)
+      ) {
+        activeIdRef.current = "";
+        startNew();
+        navigate("/ask");
+        onNavigate?.();
+      } else {
+        archiveFocusPendingRef.current = true;
+      }
+    } catch {
+      // The context keeps the row intact and presents the server error in a toast.
+    } finally {
+      archiveMutationRef.current = false;
+      setArchivingId(null);
+    }
+  }
 
   // Close the native <details> account menu on outside click or Escape, which
   // it does not do on its own.
@@ -201,17 +385,29 @@ export function Sidebar({
       </div>
 
       <div className="space-y-1">
-        <Link
-          to="/ask"
-          onClick={() => {
-            startNew();
-            onNavigate?.();
-          }}
-          className="flex h-11 items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 font-medium text-gray-800 text-sm shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40"
-        >
-          <MessageSquarePlus className="h-4 w-4" />
-          <span>新问答</span>
-        </Link>
+        {askControlsDisabled ? (
+          <button
+            type="button"
+            disabled
+            className={`${newAskClass} cursor-not-allowed opacity-50`}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            <span>开始问答</span>
+          </button>
+        ) : (
+          <Link
+            to="/ask"
+            onClick={() => {
+              activeIdRef.current = "";
+              startNew();
+              onNavigate?.();
+            }}
+            className={newAskClass}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            <span>开始问答</span>
+          </Link>
+        )}
 
         <nav className="flex flex-col gap-0.5 pt-1">
           {navItems.map((item) => {
@@ -233,39 +429,215 @@ export function Sidebar({
       </div>
 
       <section className="mt-4 flex min-h-0 flex-1 flex-col border-gray-200/80 border-t pt-3 dark:border-gray-800">
-        <h2 className="px-3 font-medium text-gray-500 text-xs dark:text-gray-500">
-          问答
-        </h2>
+        <div className="flex min-h-10 items-center justify-between gap-2 pl-3">
+          <h2 className="font-medium text-gray-500 text-xs dark:text-gray-500">
+            {archivedView ? "已归档问答" : "问答"}
+          </h2>
+          <div className="flex items-center">
+            <button
+              ref={searchButtonRef}
+              type="button"
+              onClick={() => {
+                if (searchOpen) {
+                  closeSearch();
+                } else {
+                  setSearchOpen(true);
+                }
+              }}
+              disabled={askControlsDisabled}
+              aria-label={searchOpen ? "收起问答搜索" : "搜索问答"}
+              aria-expanded={searchOpen}
+              title={searchOpen ? "收起搜索" : "搜索问答"}
+              className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/70 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              ref={archiveViewButtonRef}
+              type="button"
+              onClick={() => {
+                setRemoteConversations([]);
+                setRemoteError("");
+                setArchivedView((current) => !current);
+              }}
+              disabled={askControlsDisabled}
+              aria-label={archivedView ? "返回问答" : "查看已归档问答"}
+              aria-pressed={archivedView}
+              title={archivedView ? "返回问答" : "查看已归档问答"}
+              className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-gray-500/40 ${
+                archivedView
+                  ? "bg-white text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
+                  : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50"
+              }`}
+            >
+              {archivedView ? (
+                <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Archive className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {searchOpen ? (
+          <div className="relative mt-1 px-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400"
+              aria-hidden="true"
+            />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeSearch();
+                }
+              }}
+              disabled={askControlsDisabled}
+              aria-label="搜索问答"
+              placeholder="搜索问答…"
+              className="h-10 w-full rounded-lg border border-gray-200 bg-white pr-10 pl-9 text-gray-900 text-sm transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50 dark:disabled:bg-gray-800"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                disabled={askControlsDisabled}
+                aria-label="清除问答搜索"
+                title="清除搜索"
+                className="absolute top-0 right-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-50"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <nav className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
-          {loadingConversations ? (
+          {listLoading && visibleConversations.length === 0 ? (
             <div className="space-y-2 px-3 py-2" role="status">
-              <span className="sr-only">正在读取对话</span>
+              <span className="sr-only">
+                {trimmedQuery ? "正在搜索问答" : "正在读取问答"}
+              </span>
               <div className="h-3 w-4/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-3/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
             </div>
-          ) : conversations.length === 0 ? (
-            <p className="px-3 py-2 text-gray-400 text-sm">还没有对话。</p>
+          ) : remoteError && visibleConversations.length === 0 ? (
+            <div className="space-y-2 px-3 py-2 text-sm">
+              <p role="alert" className="text-red-600 dark:text-red-400">
+                {remoteError}
+              </p>
+              <button
+                type="button"
+                onClick={() => setRetryGeneration((current) => current + 1)}
+                className="rounded-md text-gray-600 text-xs transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+              >
+                重试
+              </button>
+            </div>
+          ) : visibleConversations.length === 0 ? (
+            <p className="px-3 py-2 text-gray-400 text-sm">
+              {trimmedQuery
+                ? "没有找到相关问答。"
+                : archivedView
+                  ? "还没有已归档问答。"
+                  : "还没有问答。"}
+            </p>
           ) : (
-            conversations.map((conversation) => {
-              const active = onAskPage && activeId === conversation.id;
-              const label = conversation.title || "新的问答";
-              return (
-                <Link
-                  key={conversation.id}
-                  to={`/ask?conversation=${conversation.id}`}
-                  onClick={onNavigate}
-                  aria-current={active ? "page" : undefined}
-                  title={label}
-                  className={`block h-10 truncate rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
-                    active
-                      ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
-                      : "text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-gray-50"
-                  }`}
-                >
-                  {label}
-                </Link>
-              );
-            })
+            <>
+              {remoteError ? (
+                <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs">
+                  <p
+                    role="alert"
+                    className="min-w-0 flex-1 text-red-600 dark:text-red-400"
+                  >
+                    {remoteError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRetryGeneration((current) => current + 1)}
+                    className="flex-none rounded-md text-gray-600 transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+                  >
+                    重试
+                  </button>
+                </div>
+              ) : null}
+              {visibleConversations.map((conversation) => {
+                const active = onAskPage && activeId === conversation.id;
+                const label = conversation.title || "新的问答";
+                const archived = Boolean(conversation.archivedAt);
+                const conversationTargetClass = `h-10 min-w-0 flex-1 truncate rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
+                  active
+                    ? "font-medium text-gray-900 dark:text-gray-50"
+                    : "text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-50"
+                }`;
+                return (
+                  <div
+                    key={conversation.id}
+                    className={`flex min-w-0 items-center rounded-lg transition-colors ${
+                      active
+                        ? "bg-white shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800"
+                        : "hover:bg-white/70 dark:hover:bg-gray-900"
+                    }`}
+                  >
+                    {askControlsDisabled ? (
+                      <button
+                        type="button"
+                        disabled
+                        aria-current={active ? "page" : undefined}
+                        title={label}
+                        className={`${conversationTargetClass} cursor-not-allowed opacity-50`}
+                      >
+                        {label}
+                      </button>
+                    ) : (
+                      <Link
+                        to={`/ask?conversation=${conversation.id}`}
+                        onClick={() => {
+                          activeIdRef.current = conversation.id;
+                          selectConversation(conversation.id, conversation);
+                          onNavigate?.();
+                        }}
+                        aria-current={active ? "page" : undefined}
+                        title={label}
+                        className={conversationTargetClass}
+                      >
+                        {label}
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void toggleConversationArchived(conversation)
+                      }
+                      disabled={askControlsDisabled}
+                      aria-label={`${archived ? "移出归档" : "归档问答"}：${label}`}
+                      title={archived ? "移出归档" : "归档问答"}
+                      className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+                    >
+                      {archived ? (
+                        <ArchiveRestore
+                          className={`h-4 w-4 ${archivingId === conversation.id ? "animate-pulse" : ""}`}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Archive
+                          className={`h-4 w-4 ${archivingId === conversation.id ? "animate-pulse" : ""}`}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </>
           )}
         </nav>
       </section>

@@ -161,7 +161,9 @@ class LocalDataStore(context: Context) {
     }
 
     fun listAskConversations(): List<AskConversation> {
-        return loadData().askConversations.sortedByDescending { it.updatedAt }
+        return loadData().askConversations
+            .filter(AskConversation::isActive)
+            .sortedByDescending { it.updatedAt }
     }
 
     fun listAskMessages(conversationId: String): List<AskMessage> {

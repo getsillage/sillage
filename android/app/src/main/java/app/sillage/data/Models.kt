@@ -141,6 +141,8 @@ data class AskConversation(
     val deletedAt: String?,
 )
 
+fun AskConversation.isActive(): Boolean = archivedAt == null && deletedAt == null
+
 data class AskSourceRef(
     val memoId: String,
     val entryDate: String,

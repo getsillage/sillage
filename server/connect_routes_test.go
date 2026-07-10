@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -436,6 +437,103 @@ func TestConnectAskServiceGroundedMessages(t *testing.T) {
 	}
 	if len(listRes.Msg.GetMessages()) != 2 {
 		t.Fatalf("ListAskMessages len = %d, want 2", len(listRes.Msg.GetMessages()))
+	}
+}
+
+func TestConnectAskServiceSearchAndArchive(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	client := apiv1connect.NewAskServiceClient(httpServer.Client(), httpServer.URL)
+	create := func(title string) *apiv1.AskConversation {
+		t.Helper()
+		req := connect.NewRequest(&apiv1.CreateAskConversationRequest{Title: title})
+		req.Header().Set("Authorization", "Bearer "+token)
+		res, err := client.CreateAskConversation(context.Background(), req)
+		if err != nil {
+			t.Fatalf("CreateAskConversation(%q) error = %v", title, err)
+		}
+		return res.Msg.GetConversation()
+	}
+
+	active := create("Connect 当前问答")
+	archived := create("Connect 归档问答")
+	archiveReq := connect.NewRequest(&apiv1.SetAskConversationArchivedRequest{
+		ConversationId: archived.GetId(),
+		Archived:       true,
+	})
+	archiveReq.Header().Set("Authorization", "Bearer "+token)
+	archiveRes, err := client.SetAskConversationArchived(context.Background(), archiveReq)
+	if err != nil {
+		t.Fatalf("SetAskConversationArchived() error = %v", err)
+	}
+	if archiveRes.Msg.GetConversation().GetArchivedTime() == nil {
+		t.Fatalf("archived conversation = %#v, want archived time", archiveRes.Msg.GetConversation())
+	}
+	getReq := connect.NewRequest(&apiv1.GetAskConversationRequest{ConversationId: archived.GetId()})
+	getReq.Header().Set("Authorization", "Bearer "+token)
+	getRes, err := client.GetAskConversation(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("GetAskConversation(archived) error = %v", err)
+	}
+	if got := getRes.Msg.GetConversation(); got.GetId() != archived.GetId() || got.GetArchivedTime() == nil {
+		t.Fatalf("GetAskConversation(archived) = %#v", got)
+	}
+
+	listReq := connect.NewRequest(&apiv1.ListAskConversationsRequest{Query: "Connect"})
+	listReq.Header().Set("Authorization", "Bearer "+token)
+	listRes, err := client.ListAskConversations(context.Background(), listReq)
+	if err != nil {
+		t.Fatalf("ListAskConversations(default) error = %v", err)
+	}
+	if got := listRes.Msg.GetConversations(); len(got) != 1 || got[0].GetId() != active.GetId() {
+		t.Fatalf("default conversations = %#v, want active only", got)
+	}
+
+	archivedOnly := true
+	listReq = connect.NewRequest(&apiv1.ListAskConversationsRequest{
+		Query:    "归档问答",
+		Archived: &archivedOnly,
+	})
+	listReq.Header().Set("Authorization", "Bearer "+token)
+	listRes, err = client.ListAskConversations(context.Background(), listReq)
+	if err != nil {
+		t.Fatalf("ListAskConversations(archived) error = %v", err)
+	}
+	if got := listRes.Msg.GetConversations(); len(got) != 1 || got[0].GetId() != archived.GetId() {
+		t.Fatalf("archived conversations = %#v, want archived only", got)
+	}
+
+	missingReq := connect.NewRequest(&apiv1.SetAskConversationArchivedRequest{
+		ConversationId: "missing",
+		Archived:       true,
+	})
+	missingReq.Header().Set("Authorization", "Bearer "+token)
+	_, err = client.SetAskConversationArchived(context.Background(), missingReq)
+	connectErr := new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeNotFound {
+		t.Fatalf("SetAskConversationArchived(missing) error = %v, want not found", err)
+	}
+
+	const otherAccountID = "01800000-0000-7000-8000-000000000098"
+	now := time.Now().UTC().UnixMilli()
+	if _, err := srv.Store.GetDriver().GetDB().Exec(`
+INSERT INTO account (id, username, display_name, password_hash, password_algorithm, created_at, updated_at)
+VALUES (?, 'connect-other', 'Other', 'hash', 'test', ?, ?)`, otherAccountID, now, now); err != nil {
+		t.Fatalf("insert second account: %v", err)
+	}
+	otherConversation, err := srv.Store.CreateAskConversation(context.Background(), otherAccountID, "其他账号问答", "all")
+	if err != nil {
+		t.Fatalf("CreateAskConversation(other account) error = %v", err)
+	}
+	getReq = connect.NewRequest(&apiv1.GetAskConversationRequest{ConversationId: otherConversation.ID})
+	getReq.Header().Set("Authorization", "Bearer "+token)
+	_, err = client.GetAskConversation(context.Background(), getReq)
+	connectErr = new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeNotFound {
+		t.Fatalf("GetAskConversation(other account) error = %v, want not found", err)
 	}
 }
 

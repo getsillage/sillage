@@ -17,6 +17,15 @@ paths:
                   schema:
                     type: integer
                     format: int32
+                - name: query
+                  in: query
+                  schema:
+                    type: string
+                - name: archived
+                  in: query
+                  description: When unset, the current (unarchived) conversations are returned.
+                  schema:
+                    type: boolean
             responses:
                 "200":
                     description: OK
@@ -40,6 +49,30 @@ paths:
                         schema:
                             $ref: '#/components/schemas/CreateAskConversationRequest'
                 required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AskConversationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/ask/conversations/{conversationId}:
+        get:
+            tags:
+                - AskService
+            operationId: AskService_GetAskConversation
+            parameters:
+                - name: conversationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
             responses:
                 "200":
                     description: OK
@@ -104,6 +137,36 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/CreateAskMessageResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/ask/conversations/{conversationId}:setArchived:
+        post:
+            tags:
+                - AskService
+            operationId: AskService_SetAskConversationArchived
+            parameters:
+                - name: conversationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SetAskConversationArchivedRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AskConversationResponse'
                 default:
                     description: Default error response
                     content:
@@ -1168,6 +1231,13 @@ components:
             type: object
             properties:
                 autoSummary:
+                    type: boolean
+        SetAskConversationArchivedRequest:
+            type: object
+            properties:
+                conversationId:
+                    type: string
+                archived:
                     type: boolean
         SetMemoArchivedRequest:
             type: object

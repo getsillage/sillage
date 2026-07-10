@@ -23,8 +23,11 @@ const (
 )
 
 type ListAskConversationsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Limit int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Query string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	// When unset, the current (unarchived) conversations are returned.
+	Archived      *bool `protobuf:"varint,3,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -64,6 +67,20 @@ func (x *ListAskConversationsRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListAskConversationsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListAskConversationsRequest) GetArchived() bool {
+	if x != nil && x.Archived != nil {
+		return *x.Archived
+	}
+	return false
 }
 
 type ListAskConversationsResponse struct {
@@ -206,6 +223,102 @@ func (x *AskConversationResponse) GetConversation() *AskConversation {
 	return nil
 }
 
+type GetAskConversationRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetAskConversationRequest) Reset() {
+	*x = GetAskConversationRequest{}
+	mi := &file_api_v1_ask_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAskConversationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAskConversationRequest) ProtoMessage() {}
+
+func (x *GetAskConversationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_ask_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAskConversationRequest.ProtoReflect.Descriptor instead.
+func (*GetAskConversationRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetAskConversationRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+type SetAskConversationArchivedRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Archived       bool                   `protobuf:"varint,2,opt,name=archived,proto3" json:"archived,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetAskConversationArchivedRequest) Reset() {
+	*x = SetAskConversationArchivedRequest{}
+	mi := &file_api_v1_ask_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAskConversationArchivedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAskConversationArchivedRequest) ProtoMessage() {}
+
+func (x *SetAskConversationArchivedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_ask_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAskConversationArchivedRequest.ProtoReflect.Descriptor instead.
+func (*SetAskConversationArchivedRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SetAskConversationArchivedRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *SetAskConversationArchivedRequest) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
 type ListAskMessagesRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -215,7 +328,7 @@ type ListAskMessagesRequest struct {
 
 func (x *ListAskMessagesRequest) Reset() {
 	*x = ListAskMessagesRequest{}
-	mi := &file_api_v1_ask_service_proto_msgTypes[4]
+	mi := &file_api_v1_ask_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -227,7 +340,7 @@ func (x *ListAskMessagesRequest) String() string {
 func (*ListAskMessagesRequest) ProtoMessage() {}
 
 func (x *ListAskMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_ask_service_proto_msgTypes[4]
+	mi := &file_api_v1_ask_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -240,7 +353,7 @@ func (x *ListAskMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAskMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListAskMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListAskMessagesRequest) GetConversationId() string {
@@ -259,7 +372,7 @@ type ListAskMessagesResponse struct {
 
 func (x *ListAskMessagesResponse) Reset() {
 	*x = ListAskMessagesResponse{}
-	mi := &file_api_v1_ask_service_proto_msgTypes[5]
+	mi := &file_api_v1_ask_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -271,7 +384,7 @@ func (x *ListAskMessagesResponse) String() string {
 func (*ListAskMessagesResponse) ProtoMessage() {}
 
 func (x *ListAskMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_ask_service_proto_msgTypes[5]
+	mi := &file_api_v1_ask_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -284,7 +397,7 @@ func (x *ListAskMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAskMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListAskMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListAskMessagesResponse) GetMessages() []*AskMessage {
@@ -316,7 +429,7 @@ type CreateAskMessageRequest struct {
 
 func (x *CreateAskMessageRequest) Reset() {
 	*x = CreateAskMessageRequest{}
-	mi := &file_api_v1_ask_service_proto_msgTypes[6]
+	mi := &file_api_v1_ask_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -328,7 +441,7 @@ func (x *CreateAskMessageRequest) String() string {
 func (*CreateAskMessageRequest) ProtoMessage() {}
 
 func (x *CreateAskMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_ask_service_proto_msgTypes[6]
+	mi := &file_api_v1_ask_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +454,7 @@ func (x *CreateAskMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAskMessageRequest.ProtoReflect.Descriptor instead.
 func (*CreateAskMessageRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateAskMessageRequest) GetConversationId() string {
@@ -395,7 +508,7 @@ type CreateAskMessageResponse struct {
 
 func (x *CreateAskMessageResponse) Reset() {
 	*x = CreateAskMessageResponse{}
-	mi := &file_api_v1_ask_service_proto_msgTypes[7]
+	mi := &file_api_v1_ask_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +520,7 @@ func (x *CreateAskMessageResponse) String() string {
 func (*CreateAskMessageResponse) ProtoMessage() {}
 
 func (x *CreateAskMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_ask_service_proto_msgTypes[7]
+	mi := &file_api_v1_ask_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +533,7 @@ func (x *CreateAskMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAskMessageResponse.ProtoReflect.Descriptor instead.
 func (*CreateAskMessageResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_ask_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateAskMessageResponse) GetMessages() []*AskMessage {
@@ -434,16 +547,24 @@ var File_api_v1_ask_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_ask_service_proto_rawDesc = "" +
 	"\n" +
-	"\x18api/v1/ask_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"3\n" +
+	"\x18api/v1/ask_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"w\n" +
 	"\x1bListAskConversationsRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"e\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\x12\x1f\n" +
+	"\barchived\x18\x03 \x01(\bH\x00R\barchived\x88\x01\x01B\v\n" +
+	"\t_archived\"e\n" +
 	"\x1cListAskConversationsResponse\x12E\n" +
 	"\rconversations\x18\x01 \x03(\v2\x1f.sillage.api.v1.AskConversationR\rconversations\"Y\n" +
 	"\x1cCreateAskConversationRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12#\n" +
 	"\rcontext_scope\x18\x02 \x01(\tR\fcontextScope\"^\n" +
 	"\x17AskConversationResponse\x12C\n" +
-	"\fconversation\x18\x01 \x01(\v2\x1f.sillage.api.v1.AskConversationR\fconversation\"A\n" +
+	"\fconversation\x18\x01 \x01(\v2\x1f.sillage.api.v1.AskConversationR\fconversation\"D\n" +
+	"\x19GetAskConversationRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\"h\n" +
+	"!SetAskConversationArchivedRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x1a\n" +
+	"\barchived\x18\x02 \x01(\bR\barchived\"A\n" +
 	"\x16ListAskMessagesRequest\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\"Q\n" +
 	"\x17ListAskMessagesResponse\x126\n" +
@@ -458,11 +579,13 @@ const file_api_v1_ask_service_proto_rawDesc = "" +
 	"\vsource_kind\x18\x06 \x01(\tR\n" +
 	"sourceKind\"R\n" +
 	"\x18CreateAskMessageResponse\x126\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1a.sillage.api.v1.AskMessageR\bmessages2\x86\x05\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1a.sillage.api.v1.AskMessageR\bmessages2\xe5\a\n" +
 	"\n" +
 	"AskService\x12\x94\x01\n" +
 	"\x14ListAskConversations\x12+.sillage.api.v1.ListAskConversationsRequest\x1a,.sillage.api.v1.ListAskConversationsResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/ask/conversations\x12\x94\x01\n" +
-	"\x15CreateAskConversation\x12,.sillage.api.v1.CreateAskConversationRequest\x1a'.sillage.api.v1.AskConversationResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/ask/conversations\x12\xa0\x01\n" +
+	"\x15CreateAskConversation\x12,.sillage.api.v1.CreateAskConversationRequest\x1a'.sillage.api.v1.AskConversationResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/ask/conversations\x12\x9d\x01\n" +
+	"\x12GetAskConversation\x12).sillage.api.v1.GetAskConversationRequest\x1a'.sillage.api.v1.AskConversationResponse\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/ask/conversations/{conversation_id}\x12\xbc\x01\n" +
+	"\x1aSetAskConversationArchived\x121.sillage.api.v1.SetAskConversationArchivedRequest\x1a'.sillage.api.v1.AskConversationResponse\"B\x82\xd3\xe4\x93\x02<:\x01*\"7/api/v1/ask/conversations/{conversation_id}:setArchived\x12\xa0\x01\n" +
 	"\x0fListAskMessages\x12&.sillage.api.v1.ListAskMessagesRequest\x1a'.sillage.api.v1.ListAskMessagesResponse\"<\x82\xd3\xe4\x93\x026\x124/api/v1/ask/conversations/{conversation_id}/messages\x12\xa6\x01\n" +
 	"\x10CreateAskMessage\x12'.sillage.api.v1.CreateAskMessageRequest\x1a(.sillage.api.v1.CreateAskMessageResponse\"?\x82\xd3\xe4\x93\x029:\x01*\"4/api/v1/ask/conversations/{conversation_id}/messagesB\xb5\x01\n" +
 	"\x12com.sillage.api.v1B\x0fAskServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
@@ -479,37 +602,43 @@ func file_api_v1_ask_service_proto_rawDescGZIP() []byte {
 	return file_api_v1_ask_service_proto_rawDescData
 }
 
-var file_api_v1_ask_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_api_v1_ask_service_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_api_v1_ask_service_proto_goTypes = []any{
-	(*ListAskConversationsRequest)(nil),  // 0: sillage.api.v1.ListAskConversationsRequest
-	(*ListAskConversationsResponse)(nil), // 1: sillage.api.v1.ListAskConversationsResponse
-	(*CreateAskConversationRequest)(nil), // 2: sillage.api.v1.CreateAskConversationRequest
-	(*AskConversationResponse)(nil),      // 3: sillage.api.v1.AskConversationResponse
-	(*ListAskMessagesRequest)(nil),       // 4: sillage.api.v1.ListAskMessagesRequest
-	(*ListAskMessagesResponse)(nil),      // 5: sillage.api.v1.ListAskMessagesResponse
-	(*CreateAskMessageRequest)(nil),      // 6: sillage.api.v1.CreateAskMessageRequest
-	(*CreateAskMessageResponse)(nil),     // 7: sillage.api.v1.CreateAskMessageResponse
-	(*AskConversation)(nil),              // 8: sillage.api.v1.AskConversation
-	(*AskMessage)(nil),                   // 9: sillage.api.v1.AskMessage
+	(*ListAskConversationsRequest)(nil),       // 0: sillage.api.v1.ListAskConversationsRequest
+	(*ListAskConversationsResponse)(nil),      // 1: sillage.api.v1.ListAskConversationsResponse
+	(*CreateAskConversationRequest)(nil),      // 2: sillage.api.v1.CreateAskConversationRequest
+	(*AskConversationResponse)(nil),           // 3: sillage.api.v1.AskConversationResponse
+	(*GetAskConversationRequest)(nil),         // 4: sillage.api.v1.GetAskConversationRequest
+	(*SetAskConversationArchivedRequest)(nil), // 5: sillage.api.v1.SetAskConversationArchivedRequest
+	(*ListAskMessagesRequest)(nil),            // 6: sillage.api.v1.ListAskMessagesRequest
+	(*ListAskMessagesResponse)(nil),           // 7: sillage.api.v1.ListAskMessagesResponse
+	(*CreateAskMessageRequest)(nil),           // 8: sillage.api.v1.CreateAskMessageRequest
+	(*CreateAskMessageResponse)(nil),          // 9: sillage.api.v1.CreateAskMessageResponse
+	(*AskConversation)(nil),                   // 10: sillage.api.v1.AskConversation
+	(*AskMessage)(nil),                        // 11: sillage.api.v1.AskMessage
 }
 var file_api_v1_ask_service_proto_depIdxs = []int32{
-	8, // 0: sillage.api.v1.ListAskConversationsResponse.conversations:type_name -> sillage.api.v1.AskConversation
-	8, // 1: sillage.api.v1.AskConversationResponse.conversation:type_name -> sillage.api.v1.AskConversation
-	9, // 2: sillage.api.v1.ListAskMessagesResponse.messages:type_name -> sillage.api.v1.AskMessage
-	9, // 3: sillage.api.v1.CreateAskMessageResponse.messages:type_name -> sillage.api.v1.AskMessage
-	0, // 4: sillage.api.v1.AskService.ListAskConversations:input_type -> sillage.api.v1.ListAskConversationsRequest
-	2, // 5: sillage.api.v1.AskService.CreateAskConversation:input_type -> sillage.api.v1.CreateAskConversationRequest
-	4, // 6: sillage.api.v1.AskService.ListAskMessages:input_type -> sillage.api.v1.ListAskMessagesRequest
-	6, // 7: sillage.api.v1.AskService.CreateAskMessage:input_type -> sillage.api.v1.CreateAskMessageRequest
-	1, // 8: sillage.api.v1.AskService.ListAskConversations:output_type -> sillage.api.v1.ListAskConversationsResponse
-	3, // 9: sillage.api.v1.AskService.CreateAskConversation:output_type -> sillage.api.v1.AskConversationResponse
-	5, // 10: sillage.api.v1.AskService.ListAskMessages:output_type -> sillage.api.v1.ListAskMessagesResponse
-	7, // 11: sillage.api.v1.AskService.CreateAskMessage:output_type -> sillage.api.v1.CreateAskMessageResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	10, // 0: sillage.api.v1.ListAskConversationsResponse.conversations:type_name -> sillage.api.v1.AskConversation
+	10, // 1: sillage.api.v1.AskConversationResponse.conversation:type_name -> sillage.api.v1.AskConversation
+	11, // 2: sillage.api.v1.ListAskMessagesResponse.messages:type_name -> sillage.api.v1.AskMessage
+	11, // 3: sillage.api.v1.CreateAskMessageResponse.messages:type_name -> sillage.api.v1.AskMessage
+	0,  // 4: sillage.api.v1.AskService.ListAskConversations:input_type -> sillage.api.v1.ListAskConversationsRequest
+	2,  // 5: sillage.api.v1.AskService.CreateAskConversation:input_type -> sillage.api.v1.CreateAskConversationRequest
+	4,  // 6: sillage.api.v1.AskService.GetAskConversation:input_type -> sillage.api.v1.GetAskConversationRequest
+	5,  // 7: sillage.api.v1.AskService.SetAskConversationArchived:input_type -> sillage.api.v1.SetAskConversationArchivedRequest
+	6,  // 8: sillage.api.v1.AskService.ListAskMessages:input_type -> sillage.api.v1.ListAskMessagesRequest
+	8,  // 9: sillage.api.v1.AskService.CreateAskMessage:input_type -> sillage.api.v1.CreateAskMessageRequest
+	1,  // 10: sillage.api.v1.AskService.ListAskConversations:output_type -> sillage.api.v1.ListAskConversationsResponse
+	3,  // 11: sillage.api.v1.AskService.CreateAskConversation:output_type -> sillage.api.v1.AskConversationResponse
+	3,  // 12: sillage.api.v1.AskService.GetAskConversation:output_type -> sillage.api.v1.AskConversationResponse
+	3,  // 13: sillage.api.v1.AskService.SetAskConversationArchived:output_type -> sillage.api.v1.AskConversationResponse
+	7,  // 14: sillage.api.v1.AskService.ListAskMessages:output_type -> sillage.api.v1.ListAskMessagesResponse
+	9,  // 15: sillage.api.v1.AskService.CreateAskMessage:output_type -> sillage.api.v1.CreateAskMessageResponse
+	10, // [10:16] is the sub-list for method output_type
+	4,  // [4:10] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_ask_service_proto_init() }
@@ -518,13 +647,14 @@ func file_api_v1_ask_service_proto_init() {
 		return
 	}
 	file_api_v1_common_proto_init()
+	file_api_v1_ask_service_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_ask_service_proto_rawDesc), len(file_api_v1_ask_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

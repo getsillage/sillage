@@ -35,7 +35,7 @@ import { useMemos } from "../state/MemosContext";
 function ViewToggle({ calendar }: { calendar: boolean }) {
   return (
     <fieldset className={segmentedControlClass}>
-      <legend className="sr-only">历史视图</legend>
+      <legend className="sr-only">全部记录视图</legend>
       <Link
         to="/timeline"
         className={segmentedItemClass(!calendar)}
@@ -67,7 +67,7 @@ export function TimelinePage() {
       <section className={pageSectionClass}>
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className={pageTitleClass}>历史</h1>
+            <h1 className={pageTitleClass}>全部记录</h1>
             <p className={pageLeadClass}>按时间查看所有记录。</p>
           </div>
           <ViewToggle calendar={calendar} />
@@ -236,7 +236,7 @@ function ListView({
             className={segmentedItemClass(!archived)}
             aria-current={!archived ? "page" : undefined}
           >
-            当前记录
+            未归档
           </Link>
           <Link
             to="/timeline?filter=archived"
@@ -257,7 +257,7 @@ function ListView({
               ? `找到 ${list.length} 条记录`
               : listError && list.length === 0
                 ? "记录读取失败"
-                : `${list.length} 条${archived ? "已归档" : "当前"}记录`}
+                : `${list.length} 条${archived ? "已归档" : "未归档"}记录`}
         </p>
       </div>
 
@@ -453,7 +453,7 @@ function CalendarMonth({
       .catch((cause) => {
         if (fullLoadRequestRef.current === request) {
           setFullLoadError(
-            cause instanceof Error ? cause.message : "读取完整历史失败",
+            cause instanceof Error ? cause.message : "读取全部记录失败",
           );
           setFullLoadState("error");
         }
@@ -495,7 +495,7 @@ function CalendarMonth({
       >
         {memos.length > 0
           ? `已读取 ${memos.length} 条，正在继续…`
-          : "正在读取完整历史…"}
+          : "正在读取全部记录…"}
       </div>
     );
   }
@@ -509,7 +509,7 @@ function CalendarMonth({
           className={secondaryButtonClass}
           onClick={retryFullLoad}
         >
-          重新加载完整历史
+          重新加载全部记录
         </button>
       </div>
     );

@@ -7,6 +7,7 @@ import {
   deleteMemo,
   generateMemoSummary,
   getAISettings,
+  getAskConversation,
   getMe,
   initializeAccount,
   listAIModels,
@@ -16,6 +17,7 @@ import {
   patchAISettings,
   searchMemos,
   setAIAutoSummary,
+  setAskConversationArchived,
   setAskHead,
   setMemoArchived,
   setMemoPinned,
@@ -133,6 +135,28 @@ describe("ask + settings + auth api wrappers", () => {
   it("builds the expected requests", async () => {
     await listAskConversations("t");
     expect(lastCall().path).toBe("/api/v1/ask/conversations?limit=50");
+
+    const searchController = new AbortController();
+    await listAskConversations(
+      "t",
+      { query: "  睡眠  ", archived: true },
+      searchController.signal,
+    );
+    expect(lastCall().path).toBe(
+      "/api/v1/ask/conversations?limit=50&query=%E7%9D%A1%E7%9C%A0&archived=true",
+    );
+    expect(lastCall().init.signal).toBe(searchController.signal);
+
+    await getAskConversation("t", "c/1", searchController.signal);
+    expect(lastCall().path).toBe("/api/v1/ask/conversations/c%2F1");
+    expect(lastCall().init.signal).toBe(searchController.signal);
+
+    await setAskConversationArchived("t", "c/1", true);
+    expect(lastCall().path).toBe("/api/v1/ask/conversations/c%2F1:setArchived");
+    expect(lastCall().init.method).toBe("POST");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      archived: true,
+    });
 
     await createAskConversation("t", { contextScope: "all" });
     expect(lastCall().init.method).toBe("POST");

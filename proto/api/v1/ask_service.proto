@@ -19,6 +19,17 @@ service AskService {
     };
   }
 
+  rpc GetAskConversation(GetAskConversationRequest) returns (AskConversationResponse) {
+    option (google.api.http) = {get: "/api/v1/ask/conversations/{conversation_id}"};
+  }
+
+  rpc SetAskConversationArchived(SetAskConversationArchivedRequest) returns (AskConversationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/ask/conversations/{conversation_id}:setArchived"
+      body: "*"
+    };
+  }
+
   rpc ListAskMessages(ListAskMessagesRequest) returns (ListAskMessagesResponse) {
     option (google.api.http) = {get: "/api/v1/ask/conversations/{conversation_id}/messages"};
   }
@@ -36,6 +47,9 @@ service AskService {
 
 message ListAskConversationsRequest {
   int32 limit = 1;
+  string query = 2;
+  // When unset, the current (unarchived) conversations are returned.
+  optional bool archived = 3;
 }
 
 message ListAskConversationsResponse {
@@ -49,6 +63,15 @@ message CreateAskConversationRequest {
 
 message AskConversationResponse {
   AskConversation conversation = 1;
+}
+
+message GetAskConversationRequest {
+  string conversation_id = 1;
+}
+
+message SetAskConversationArchivedRequest {
+  string conversation_id = 1;
+  bool archived = 2;
 }
 
 message ListAskMessagesRequest {

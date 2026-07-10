@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -30,6 +31,10 @@ type askMessageRequest struct {
 	SourceKind   string `json:"sourceKind"`
 }
 
+type askSetArchivedRequest struct {
+	Archived bool `json:"archived"`
+}
+
 type askSourceRef struct {
 	MemoID    string `json:"memoId"`
 	EntryDate string `json:"entryDate"`
@@ -40,6 +45,8 @@ type askSourceRef struct {
 func (s *Server) registerAskRoutes(e *echo.Echo) {
 	e.GET("/api/v1/ask/conversations", s.handleListAskConversations)
 	e.POST("/api/v1/ask/conversations", s.handleCreateAskConversation)
+	e.GET("/api/v1/ask/conversations/:conversation", s.handleGetAskConversation)
+	e.POST("/api/v1/ask/conversations/:conversation", s.handleAskConversationAction)
 	e.GET("/api/v1/ask/conversations/:conversation/messages", s.handleListAskMessages)
 	e.POST("/api/v1/ask/conversations/:conversation/messages", s.handleCreateAskMessage)
 	e.POST("/api/v1/ask/conversations/:conversation/messages:stream", s.handleStreamAskMessage)
@@ -79,11 +86,64 @@ func (s *Server) handleListAskConversations(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	conversations, err := s.listAskConversations(c.Request().Context(), account.ID, parseLimit(c.QueryParam("limit"), 50))
+	query := c.QueryParam("query")
+	if query == "" {
+		query = c.QueryParam("q")
+	}
+	archived := false
+	if raw := c.QueryParam("archived"); raw != "" {
+		archived, err = strconv.ParseBool(raw)
+		if err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_field", "archived 必须是 true 或 false")
+		}
+	}
+	conversations, err := s.listAskConversations(c.Request().Context(), account.ID, askConversationListInput{
+		Limit:    parseLimit(c.QueryParam("limit"), 50),
+		Query:    query,
+		Archived: archived,
+	})
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取问答会话失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversations": askConversationDTOs(conversations)})
+}
+
+func (s *Server) handleGetAskConversation(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	conversation, err := s.getAskConversation(c.Request().Context(), account.ID, c.Param("conversation"))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
+		}
+		return apiError(c, http.StatusInternalServerError, "internal", "读取问答会话失败")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"conversation": askConversationDTO(conversation)})
+}
+
+func (s *Server) handleAskConversationAction(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	conversationID, action, ok := strings.Cut(c.Param("conversation"), ":")
+	if !ok || conversationID == "" || action != "setArchived" {
+		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
+	}
+	var req askSetArchivedRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	conversation, err := s.setAskConversationArchived(c.Request().Context(), account.ID, conversationID, req.Archived)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError(c, http.StatusNotFound, "not_found", "会话不存在")
+		}
+		return apiError(c, http.StatusInternalServerError, "internal", "更新问答会话失败")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"conversation": askConversationDTO(conversation)})
 }
 
 func (s *Server) handleCreateAskConversation(c *echo.Context) error {

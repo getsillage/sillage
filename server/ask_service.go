@@ -17,7 +17,15 @@ func (s *askService) ListAskConversations(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	conversations, err := s.server.listAskConversations(ctx, account.ID, int(req.Msg.GetLimit()))
+	archived := false
+	if req.Msg.Archived != nil {
+		archived = req.Msg.GetArchived()
+	}
+	conversations, err := s.server.listAskConversations(ctx, account.ID, askConversationListInput{
+		Limit:    int(req.Msg.GetLimit()),
+		Query:    req.Msg.GetQuery(),
+		Archived: archived,
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -26,6 +34,30 @@ func (s *askService) ListAskConversations(ctx context.Context, req *connect.Requ
 		res.Conversations = append(res.Conversations, askConversationPB(conversation))
 	}
 	return connect.NewResponse(res), nil
+}
+
+func (s *askService) SetAskConversationArchived(ctx context.Context, req *connect.Request[apiv1.SetAskConversationArchivedRequest]) (*connect.Response[apiv1.AskConversationResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	conversation, err := s.server.setAskConversationArchived(ctx, account.ID, req.Msg.GetConversationId(), req.Msg.GetArchived())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.AskConversationResponse{Conversation: askConversationPB(conversation)}), nil
+}
+
+func (s *askService) GetAskConversation(ctx context.Context, req *connect.Request[apiv1.GetAskConversationRequest]) (*connect.Response[apiv1.AskConversationResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	conversation, err := s.server.getAskConversation(ctx, account.ID, req.Msg.GetConversationId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.AskConversationResponse{Conversation: askConversationPB(conversation)}), nil
 }
 
 func (s *askService) CreateAskConversation(ctx context.Context, req *connect.Request[apiv1.CreateAskConversationRequest]) (*connect.Response[apiv1.AskConversationResponse], error) {

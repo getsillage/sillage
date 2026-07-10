@@ -133,7 +133,7 @@ export function HomePage() {
               loading={loading}
             />
             <EntrySection
-              title="最近历史"
+              title="最近记录"
               entries={recentEntries}
               empty="还没有更早的记录。"
               showAllLink

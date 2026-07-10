@@ -39,6 +39,12 @@ const (
 	// AskServiceCreateAskConversationProcedure is the fully-qualified name of the AskService's
 	// CreateAskConversation RPC.
 	AskServiceCreateAskConversationProcedure = "/sillage.api.v1.AskService/CreateAskConversation"
+	// AskServiceGetAskConversationProcedure is the fully-qualified name of the AskService's
+	// GetAskConversation RPC.
+	AskServiceGetAskConversationProcedure = "/sillage.api.v1.AskService/GetAskConversation"
+	// AskServiceSetAskConversationArchivedProcedure is the fully-qualified name of the AskService's
+	// SetAskConversationArchived RPC.
+	AskServiceSetAskConversationArchivedProcedure = "/sillage.api.v1.AskService/SetAskConversationArchived"
 	// AskServiceListAskMessagesProcedure is the fully-qualified name of the AskService's
 	// ListAskMessages RPC.
 	AskServiceListAskMessagesProcedure = "/sillage.api.v1.AskService/ListAskMessages"
@@ -51,6 +57,8 @@ const (
 type AskServiceClient interface {
 	ListAskConversations(context.Context, *connect.Request[v1.ListAskConversationsRequest]) (*connect.Response[v1.ListAskConversationsResponse], error)
 	CreateAskConversation(context.Context, *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
+	GetAskConversation(context.Context, *connect.Request[v1.GetAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
+	SetAskConversationArchived(context.Context, *connect.Request[v1.SetAskConversationArchivedRequest]) (*connect.Response[v1.AskConversationResponse], error)
 	ListAskMessages(context.Context, *connect.Request[v1.ListAskMessagesRequest]) (*connect.Response[v1.ListAskMessagesResponse], error)
 	// CreateAskMessage posts a question and returns the user message plus the
 	// generated answer. This is the unary path; the REST surface also exposes a
@@ -81,6 +89,18 @@ func NewAskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(askServiceMethods.ByName("CreateAskConversation")),
 			connect.WithClientOptions(opts...),
 		),
+		getAskConversation: connect.NewClient[v1.GetAskConversationRequest, v1.AskConversationResponse](
+			httpClient,
+			baseURL+AskServiceGetAskConversationProcedure,
+			connect.WithSchema(askServiceMethods.ByName("GetAskConversation")),
+			connect.WithClientOptions(opts...),
+		),
+		setAskConversationArchived: connect.NewClient[v1.SetAskConversationArchivedRequest, v1.AskConversationResponse](
+			httpClient,
+			baseURL+AskServiceSetAskConversationArchivedProcedure,
+			connect.WithSchema(askServiceMethods.ByName("SetAskConversationArchived")),
+			connect.WithClientOptions(opts...),
+		),
 		listAskMessages: connect.NewClient[v1.ListAskMessagesRequest, v1.ListAskMessagesResponse](
 			httpClient,
 			baseURL+AskServiceListAskMessagesProcedure,
@@ -98,10 +118,12 @@ func NewAskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // askServiceClient implements AskServiceClient.
 type askServiceClient struct {
-	listAskConversations  *connect.Client[v1.ListAskConversationsRequest, v1.ListAskConversationsResponse]
-	createAskConversation *connect.Client[v1.CreateAskConversationRequest, v1.AskConversationResponse]
-	listAskMessages       *connect.Client[v1.ListAskMessagesRequest, v1.ListAskMessagesResponse]
-	createAskMessage      *connect.Client[v1.CreateAskMessageRequest, v1.CreateAskMessageResponse]
+	listAskConversations       *connect.Client[v1.ListAskConversationsRequest, v1.ListAskConversationsResponse]
+	createAskConversation      *connect.Client[v1.CreateAskConversationRequest, v1.AskConversationResponse]
+	getAskConversation         *connect.Client[v1.GetAskConversationRequest, v1.AskConversationResponse]
+	setAskConversationArchived *connect.Client[v1.SetAskConversationArchivedRequest, v1.AskConversationResponse]
+	listAskMessages            *connect.Client[v1.ListAskMessagesRequest, v1.ListAskMessagesResponse]
+	createAskMessage           *connect.Client[v1.CreateAskMessageRequest, v1.CreateAskMessageResponse]
 }
 
 // ListAskConversations calls sillage.api.v1.AskService.ListAskConversations.
@@ -112,6 +134,16 @@ func (c *askServiceClient) ListAskConversations(ctx context.Context, req *connec
 // CreateAskConversation calls sillage.api.v1.AskService.CreateAskConversation.
 func (c *askServiceClient) CreateAskConversation(ctx context.Context, req *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error) {
 	return c.createAskConversation.CallUnary(ctx, req)
+}
+
+// GetAskConversation calls sillage.api.v1.AskService.GetAskConversation.
+func (c *askServiceClient) GetAskConversation(ctx context.Context, req *connect.Request[v1.GetAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error) {
+	return c.getAskConversation.CallUnary(ctx, req)
+}
+
+// SetAskConversationArchived calls sillage.api.v1.AskService.SetAskConversationArchived.
+func (c *askServiceClient) SetAskConversationArchived(ctx context.Context, req *connect.Request[v1.SetAskConversationArchivedRequest]) (*connect.Response[v1.AskConversationResponse], error) {
+	return c.setAskConversationArchived.CallUnary(ctx, req)
 }
 
 // ListAskMessages calls sillage.api.v1.AskService.ListAskMessages.
@@ -128,6 +160,8 @@ func (c *askServiceClient) CreateAskMessage(ctx context.Context, req *connect.Re
 type AskServiceHandler interface {
 	ListAskConversations(context.Context, *connect.Request[v1.ListAskConversationsRequest]) (*connect.Response[v1.ListAskConversationsResponse], error)
 	CreateAskConversation(context.Context, *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
+	GetAskConversation(context.Context, *connect.Request[v1.GetAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error)
+	SetAskConversationArchived(context.Context, *connect.Request[v1.SetAskConversationArchivedRequest]) (*connect.Response[v1.AskConversationResponse], error)
 	ListAskMessages(context.Context, *connect.Request[v1.ListAskMessagesRequest]) (*connect.Response[v1.ListAskMessagesResponse], error)
 	// CreateAskMessage posts a question and returns the user message plus the
 	// generated answer. This is the unary path; the REST surface also exposes a
@@ -154,6 +188,18 @@ func NewAskServiceHandler(svc AskServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(askServiceMethods.ByName("CreateAskConversation")),
 		connect.WithHandlerOptions(opts...),
 	)
+	askServiceGetAskConversationHandler := connect.NewUnaryHandler(
+		AskServiceGetAskConversationProcedure,
+		svc.GetAskConversation,
+		connect.WithSchema(askServiceMethods.ByName("GetAskConversation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	askServiceSetAskConversationArchivedHandler := connect.NewUnaryHandler(
+		AskServiceSetAskConversationArchivedProcedure,
+		svc.SetAskConversationArchived,
+		connect.WithSchema(askServiceMethods.ByName("SetAskConversationArchived")),
+		connect.WithHandlerOptions(opts...),
+	)
 	askServiceListAskMessagesHandler := connect.NewUnaryHandler(
 		AskServiceListAskMessagesProcedure,
 		svc.ListAskMessages,
@@ -172,6 +218,10 @@ func NewAskServiceHandler(svc AskServiceHandler, opts ...connect.HandlerOption) 
 			askServiceListAskConversationsHandler.ServeHTTP(w, r)
 		case AskServiceCreateAskConversationProcedure:
 			askServiceCreateAskConversationHandler.ServeHTTP(w, r)
+		case AskServiceGetAskConversationProcedure:
+			askServiceGetAskConversationHandler.ServeHTTP(w, r)
+		case AskServiceSetAskConversationArchivedProcedure:
+			askServiceSetAskConversationArchivedHandler.ServeHTTP(w, r)
 		case AskServiceListAskMessagesProcedure:
 			askServiceListAskMessagesHandler.ServeHTTP(w, r)
 		case AskServiceCreateAskMessageProcedure:
@@ -191,6 +241,14 @@ func (UnimplementedAskServiceHandler) ListAskConversations(context.Context, *con
 
 func (UnimplementedAskServiceHandler) CreateAskConversation(context.Context, *connect.Request[v1.CreateAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.AskService.CreateAskConversation is not implemented"))
+}
+
+func (UnimplementedAskServiceHandler) GetAskConversation(context.Context, *connect.Request[v1.GetAskConversationRequest]) (*connect.Response[v1.AskConversationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.AskService.GetAskConversation is not implemented"))
+}
+
+func (UnimplementedAskServiceHandler) SetAskConversationArchived(context.Context, *connect.Request[v1.SetAskConversationArchivedRequest]) (*connect.Response[v1.AskConversationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.AskService.SetAskConversationArchived is not implemented"))
 }
 
 func (UnimplementedAskServiceHandler) ListAskMessages(context.Context, *connect.Request[v1.ListAskMessagesRequest]) (*connect.Response[v1.ListAskMessagesResponse], error) {

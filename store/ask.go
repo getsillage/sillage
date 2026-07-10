@@ -62,13 +62,41 @@ func (s *Store) GetAskConversation(ctx context.Context, accountID, id string) (*
 WHERE id = ? AND creator_id = ? AND deleted_at IS NULL`, id, accountID))
 }
 
-func (s *Store) ListAskConversations(ctx context.Context, accountID string, limit int) ([]*AskConversation, error) {
+type ListAskConversationOptions struct {
+	AccountID string
+	Query     string
+	Archived  bool
+	Limit     int
+}
+
+func (s *Store) ListAskConversations(ctx context.Context, opts *ListAskConversationOptions) ([]*AskConversation, error) {
+	limit := opts.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := s.driver.GetDB().QueryContext(ctx, askConversationSelect()+`
-WHERE creator_id = ? AND deleted_at IS NULL
-ORDER BY pinned_at DESC, updated_at DESC, id DESC LIMIT ?`, accountID, limit)
+	query := askConversationSelect() + `
+WHERE creator_id = ? AND deleted_at IS NULL`
+	args := []any{opts.AccountID}
+	if opts.Archived {
+		query += " AND archived_at IS NOT NULL"
+	} else {
+		query += " AND archived_at IS NULL"
+	}
+	if search := strings.TrimSpace(opts.Query); search != "" {
+		like := "%" + escapeLike(search) + "%"
+		query += `
+  AND (title LIKE ? ESCAPE '\' OR EXISTS (
+    SELECT 1
+    FROM ask_messages
+    WHERE ask_messages.conversation_id = ask_conversations.id
+      AND ask_messages.deleted_at IS NULL
+      AND ask_messages.content LIKE ? ESCAPE '\'
+  ))`
+		args = append(args, like, like)
+	}
+	query += " ORDER BY pinned_at DESC, updated_at DESC, id DESC LIMIT ?"
+	args = append(args, limit)
+	rows, err := s.driver.GetDB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list ask conversations: %w", err)
 	}
@@ -85,6 +113,30 @@ ORDER BY pinned_at DESC, updated_at DESC, id DESC LIMIT ?`, accountID, limit)
 		return nil, fmt.Errorf("iterate ask conversations: %w", err)
 	}
 	return conversations, nil
+}
+
+func (s *Store) SetAskConversationArchived(ctx context.Context, accountID, conversationID string, archived bool) (*AskConversation, error) {
+	now := time.Now().UTC().UnixMilli()
+	stateCondition := "archived_at IS NOT NULL"
+	if archived {
+		stateCondition = "archived_at IS NULL"
+	}
+	result, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE ask_conversations
+SET archived_at = CASE WHEN ? THEN MAX(updated_at + 1, ?) ELSE NULL END,
+    updated_at = MAX(updated_at + 1, ?)
+WHERE id = ? AND creator_id = ? AND deleted_at IS NULL
+  AND `+stateCondition,
+		archived, now, now, conversationID, accountID)
+	if err != nil {
+		return nil, fmt.Errorf("set ask conversation archived: %w", err)
+	}
+	if _, err := result.RowsAffected(); err != nil {
+		return nil, fmt.Errorf("set ask conversation archived rows: %w", err)
+	}
+	// A repeated request is a successful no-op. The scoped read still makes
+	// missing, deleted, and cross-account conversations return not found.
+	return s.GetAskConversation(ctx, accountID, conversationID)
 }
 
 func (s *Store) CreateAskMessage(ctx context.Context, message *AskMessage) (*AskMessage, error) {

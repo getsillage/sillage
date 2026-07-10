@@ -302,10 +302,50 @@ export async function uploadAttachment(
 
 export async function listAskConversations(
   accessToken: string,
+  options: { query?: string; archived?: boolean } = {},
+  signal?: AbortSignal,
 ): Promise<{ conversations: AskConversation[] }> {
-  return request("/api/v1/ask/conversations?limit=50", {
+  const params = new URLSearchParams({ limit: "50" });
+  const query = options.query?.trim();
+  if (query) {
+    params.set("query", query);
+  }
+  if (options.archived !== undefined) {
+    params.set("archived", String(options.archived));
+  }
+  return request(`/api/v1/ask/conversations?${params.toString()}`, {
     headers: authHeaders(accessToken),
+    signal,
   });
+}
+
+export async function getAskConversation(
+  accessToken: string,
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<{ conversation: AskConversation }> {
+  return request(
+    `/api/v1/ask/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      headers: authHeaders(accessToken),
+      signal,
+    },
+  );
+}
+
+export async function setAskConversationArchived(
+  accessToken: string,
+  conversationId: string,
+  archived: boolean,
+): Promise<{ conversation: AskConversation }> {
+  return request(
+    `/api/v1/ask/conversations/${encodeURIComponent(conversationId)}:setArchived`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ archived }),
+    },
+  );
 }
 
 export async function createAskConversation(

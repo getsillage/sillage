@@ -27,6 +27,17 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun activeAskConversationExcludesArchivedAndDeletedEntries() {
+        val active = askConversation(id = "active")
+        val archived = askConversation(id = "archived", archivedAt = "2024-01-02T00:00:00Z")
+        val deleted = askConversation(id = "deleted", deletedAt = "2024-01-03T00:00:00Z")
+
+        assertEquals(true, active.isActive())
+        assertEquals(false, archived.isActive())
+        assertEquals(false, deleted.isActive())
+    }
+
+    @Test
     fun onThisDayReturnsEarlierYearsNewestFirst() {
         val newest = memo(id = "newest", entryDate = "2025-06-27")
         val older = memo(id = "older", entryDate = "2024-06-27")
@@ -339,6 +350,25 @@ class MemoFiltersTest {
             contentType = contentType,
             size = 10,
             sha256 = null,
+        )
+    }
+
+    private fun askConversation(
+        id: String,
+        archivedAt: String? = null,
+        deletedAt: String? = null,
+    ): AskConversation {
+        return AskConversation(
+            id = id,
+            title = id,
+            status = "active",
+            contextScope = "recent_30_days",
+            headMessageId = null,
+            pinnedAt = null,
+            archivedAt = archivedAt,
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-01T00:00:00Z",
+            deletedAt = deletedAt,
         )
     }
 

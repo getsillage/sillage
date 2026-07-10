@@ -19,10 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AskService_ListAskConversations_FullMethodName  = "/sillage.api.v1.AskService/ListAskConversations"
-	AskService_CreateAskConversation_FullMethodName = "/sillage.api.v1.AskService/CreateAskConversation"
-	AskService_ListAskMessages_FullMethodName       = "/sillage.api.v1.AskService/ListAskMessages"
-	AskService_CreateAskMessage_FullMethodName      = "/sillage.api.v1.AskService/CreateAskMessage"
+	AskService_ListAskConversations_FullMethodName       = "/sillage.api.v1.AskService/ListAskConversations"
+	AskService_CreateAskConversation_FullMethodName      = "/sillage.api.v1.AskService/CreateAskConversation"
+	AskService_GetAskConversation_FullMethodName         = "/sillage.api.v1.AskService/GetAskConversation"
+	AskService_SetAskConversationArchived_FullMethodName = "/sillage.api.v1.AskService/SetAskConversationArchived"
+	AskService_ListAskMessages_FullMethodName            = "/sillage.api.v1.AskService/ListAskMessages"
+	AskService_CreateAskMessage_FullMethodName           = "/sillage.api.v1.AskService/CreateAskMessage"
 )
 
 // AskServiceClient is the client API for AskService service.
@@ -34,6 +36,8 @@ const (
 type AskServiceClient interface {
 	ListAskConversations(ctx context.Context, in *ListAskConversationsRequest, opts ...grpc.CallOption) (*ListAskConversationsResponse, error)
 	CreateAskConversation(ctx context.Context, in *CreateAskConversationRequest, opts ...grpc.CallOption) (*AskConversationResponse, error)
+	GetAskConversation(ctx context.Context, in *GetAskConversationRequest, opts ...grpc.CallOption) (*AskConversationResponse, error)
+	SetAskConversationArchived(ctx context.Context, in *SetAskConversationArchivedRequest, opts ...grpc.CallOption) (*AskConversationResponse, error)
 	ListAskMessages(ctx context.Context, in *ListAskMessagesRequest, opts ...grpc.CallOption) (*ListAskMessagesResponse, error)
 	// CreateAskMessage posts a question and returns the user message plus the
 	// generated answer. This is the unary path; the REST surface also exposes a
@@ -69,6 +73,26 @@ func (c *askServiceClient) CreateAskConversation(ctx context.Context, in *Create
 	return out, nil
 }
 
+func (c *askServiceClient) GetAskConversation(ctx context.Context, in *GetAskConversationRequest, opts ...grpc.CallOption) (*AskConversationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AskConversationResponse)
+	err := c.cc.Invoke(ctx, AskService_GetAskConversation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *askServiceClient) SetAskConversationArchived(ctx context.Context, in *SetAskConversationArchivedRequest, opts ...grpc.CallOption) (*AskConversationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AskConversationResponse)
+	err := c.cc.Invoke(ctx, AskService_SetAskConversationArchived_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *askServiceClient) ListAskMessages(ctx context.Context, in *ListAskMessagesRequest, opts ...grpc.CallOption) (*ListAskMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListAskMessagesResponse)
@@ -98,6 +122,8 @@ func (c *askServiceClient) CreateAskMessage(ctx context.Context, in *CreateAskMe
 type AskServiceServer interface {
 	ListAskConversations(context.Context, *ListAskConversationsRequest) (*ListAskConversationsResponse, error)
 	CreateAskConversation(context.Context, *CreateAskConversationRequest) (*AskConversationResponse, error)
+	GetAskConversation(context.Context, *GetAskConversationRequest) (*AskConversationResponse, error)
+	SetAskConversationArchived(context.Context, *SetAskConversationArchivedRequest) (*AskConversationResponse, error)
 	ListAskMessages(context.Context, *ListAskMessagesRequest) (*ListAskMessagesResponse, error)
 	// CreateAskMessage posts a question and returns the user message plus the
 	// generated answer. This is the unary path; the REST surface also exposes a
@@ -118,6 +144,12 @@ func (UnimplementedAskServiceServer) ListAskConversations(context.Context, *List
 }
 func (UnimplementedAskServiceServer) CreateAskConversation(context.Context, *CreateAskConversationRequest) (*AskConversationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateAskConversation not implemented")
+}
+func (UnimplementedAskServiceServer) GetAskConversation(context.Context, *GetAskConversationRequest) (*AskConversationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAskConversation not implemented")
+}
+func (UnimplementedAskServiceServer) SetAskConversationArchived(context.Context, *SetAskConversationArchivedRequest) (*AskConversationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAskConversationArchived not implemented")
 }
 func (UnimplementedAskServiceServer) ListAskMessages(context.Context, *ListAskMessagesRequest) (*ListAskMessagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAskMessages not implemented")
@@ -182,6 +214,42 @@ func _AskService_CreateAskConversation_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AskService_GetAskConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAskConversationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AskServiceServer).GetAskConversation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AskService_GetAskConversation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AskServiceServer).GetAskConversation(ctx, req.(*GetAskConversationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AskService_SetAskConversationArchived_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAskConversationArchivedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AskServiceServer).SetAskConversationArchived(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AskService_SetAskConversationArchived_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AskServiceServer).SetAskConversationArchived(ctx, req.(*SetAskConversationArchivedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AskService_ListAskMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListAskMessagesRequest)
 	if err := dec(in); err != nil {
@@ -232,6 +300,14 @@ var AskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateAskConversation",
 			Handler:    _AskService_CreateAskConversation_Handler,
+		},
+		{
+			MethodName: "GetAskConversation",
+			Handler:    _AskService_GetAskConversation_Handler,
+		},
+		{
+			MethodName: "SetAskConversationArchived",
+			Handler:    _AskService_SetAskConversationArchived_Handler,
 		},
 		{
 			MethodName: "ListAskMessages",

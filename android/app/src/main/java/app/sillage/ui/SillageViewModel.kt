@@ -27,6 +27,7 @@ import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
+import app.sillage.data.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.markdownFormatSnippet
 import app.sillage.data.mergeSavedAIProfilesForLocalStorage
@@ -1581,7 +1582,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     _state.update { current ->
                         if (current.askScreenSessionId == screenSessionId && current.appMode == appMode) {
                             current.copy(
-                                askConversations = conversations.filter { conversation -> conversation.deletedAt == null },
+                                askConversations = conversations.filter(AskConversation::isActive),
                                 askLoading = false,
                                 error = null,
                             )
@@ -2161,7 +2162,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private suspend fun reloadAskConversation(conversationId: String): AskSnapshot {
         val messages = api.listAskMessages(conversationId)
-        val conversations = api.listAskConversations().filter { conversation -> conversation.deletedAt == null }
+        val conversations = api.listAskConversations().filter(AskConversation::isActive)
         val headId = conversations.find { it.id == conversationId }?.headMessageId
         return AskSnapshot(
             messages = messages,
@@ -2406,7 +2407,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     forkOfId = forkOfId,
                 )
                 val refreshedMessages = localDataStore.listAskMessages(conversationId)
-                val conversations = localDataStore.listAskConversations().filter { it.deletedAt == null }
+                val conversations = localDataStore.listAskConversations().filter(AskConversation::isActive)
                 _state.update { currentState ->
                     if (currentState.canApplyAskStream(request)) {
                         currentState.copy(

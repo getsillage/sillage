@@ -51,9 +51,9 @@ function detailReturnLabel(target: string): string {
     return "问答";
   }
   if (target === "/" || target.startsWith("/?")) {
-    return "记录";
+    return "写记录";
   }
-  return "历史";
+  return "全部记录";
 }
 
 export function EntryPage() {

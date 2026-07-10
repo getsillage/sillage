@@ -14,8 +14,10 @@ import {
   type AskMessage,
   type AskSourceKind,
   createAskConversation,
+  getAskConversation,
   listAskConversations,
   listAskMessages,
+  setAskConversationArchived,
   setAskHead,
   streamAskMessage,
 } from "../lib/api";
@@ -44,10 +46,23 @@ interface AskContextValue {
   busy: boolean;
   streaming: boolean;
   error: string;
+  notification: {
+    kind: "success" | "error";
+    message: string;
+  } | null;
   setScope: (scope: AskContextScope) => void;
   setSourceKind: (kind: AskSourceKind) => void;
-  selectConversation: (id: string) => void;
+  selectConversation: (id: string, conversation?: AskConversation) => void;
   startNew: () => void;
+  listConversations: (
+    options: { query?: string; archived: boolean },
+    signal?: AbortSignal,
+  ) => Promise<AskConversation[]>;
+  setConversationArchived: (
+    id: string,
+    archived: boolean,
+  ) => Promise<AskConversation>;
+  dismissNotification: () => void;
   send: (question: string) => Promise<boolean>;
   regenerate: (assistantId: string) => Promise<void>;
   selectVariant: (messageId: string) => Promise<void>;
@@ -67,6 +82,9 @@ export function AskProvider({
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [activeId, setActiveId] = useState("");
+  const [activeSnapshot, setActiveSnapshot] = useState<AskConversation | null>(
+    null,
+  );
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [headId, setHeadId] = useState<string | null>(null);
   const [scope, setScope] = useState<AskContextScope>("recent_30_days");
@@ -74,6 +92,10 @@ export function AskProvider({
   const [busy, setBusy] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
+  const [notification, setNotification] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
   const [liveUser, setLiveUser] = useState<AskMessage | null>(null);
   const [liveAnswer, setLiveAnswer] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -81,30 +103,94 @@ export function AskProvider({
   const operationRef = useRef(false);
   const activeIdRef = useRef(activeId);
   const navigationGenerationRef = useRef(0);
+  const conversationMutationGenerationRef = useRef(0);
+  const metadataRequestRef = useRef(0);
   const scopedConversationRef = useRef("");
   activeIdRef.current = activeId;
 
   useEffect(() => {
-    listAskConversations(token)
-      .then((res) => setConversations(res.conversations))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "读取问答失败"),
-      )
-      .finally(() => setLoadingConversations(false));
+    const controller = new AbortController();
+    const mutationGeneration = conversationMutationGenerationRef.current;
+    setLoadingConversations(true);
+    listAskConversations(token, {}, controller.signal)
+      .then((res) => {
+        if (
+          !controller.signal.aborted &&
+          conversationMutationGenerationRef.current === mutationGeneration
+        ) {
+          setConversations(res.conversations);
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "读取问答失败");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoadingConversations(false);
+        }
+      });
+    return () => controller.abort();
   }, [token]);
 
   useEffect(() => {
     if (!activeId || scopedConversationRef.current === activeId) {
       return;
     }
-    const found = conversations.find((c) => c.id === activeId);
+    const found =
+      conversations.find((conversation) => conversation.id === activeId) ??
+      (activeSnapshot?.id === activeId ? activeSnapshot : undefined);
     if (!found) {
       return;
     }
     scopedConversationRef.current = activeId;
     setScope(found.contextScope);
     setHeadId((current) => current ?? found.headMessageId);
-  }, [activeId, conversations]);
+  }, [activeId, activeSnapshot, conversations]);
+
+  useEffect(() => {
+    if (
+      !activeId ||
+      loadingConversations ||
+      conversations.some((conversation) => conversation.id === activeId) ||
+      activeSnapshot?.id === activeId
+    ) {
+      return;
+    }
+
+    const conversationId = activeId;
+    const requestId = metadataRequestRef.current + 1;
+    metadataRequestRef.current = requestId;
+    const controller = new AbortController();
+    void getAskConversation(token, conversationId, controller.signal)
+      .then(({ conversation }) => {
+        if (
+          !controller.signal.aborted &&
+          metadataRequestRef.current === requestId &&
+          activeIdRef.current === conversationId
+        ) {
+          setActiveSnapshot(conversation);
+          scopedConversationRef.current = conversationId;
+          setScope(conversation.contextScope);
+          setHeadId((current) => current ?? conversation.headMessageId);
+        }
+      })
+      .catch((cause) => {
+        if (
+          !controller.signal.aborted &&
+          metadataRequestRef.current === requestId &&
+          activeIdRef.current === conversationId
+        ) {
+          setError(cause instanceof Error ? cause.message : "读取问答信息失败");
+        }
+      });
+
+    return () => {
+      metadataRequestRef.current += 1;
+      controller.abort();
+    };
+  }, [activeId, activeSnapshot, conversations, loadingConversations, token]);
 
   useEffect(() => {
     if (!activeId) {
@@ -138,14 +224,20 @@ export function AskProvider({
   }, [token, activeId]);
 
   const selectConversation = useCallback(
-    (id: string) => {
+    (id: string, conversation?: AskConversation) => {
       if (id === activeIdRef.current) {
+        if (conversation) {
+          setActiveSnapshot(conversation);
+        }
         return;
       }
       navigationGenerationRef.current += 1;
       abortRef.current?.abort();
       activeIdRef.current = id;
       setActiveId(id);
+      setActiveSnapshot(
+        conversation ?? conversations.find((item) => item.id === id) ?? null,
+      );
       setMessages([]);
       setLoadingMessages(true);
       setHeadId(null);
@@ -170,6 +262,7 @@ export function AskProvider({
     activeIdRef.current = "";
     scopedConversationRef.current = "";
     setActiveId("");
+    setActiveSnapshot(null);
     setMessages([]);
     setHeadId(null);
     setLoadingMessages(false);
@@ -183,16 +276,26 @@ export function AskProvider({
   // active head at the conversation's server-side head (the new leaf).
   const reload = useCallback(
     async (conversationId: string) => {
+      const mutationGeneration = conversationMutationGenerationRef.current;
       const [msgs, convs] = await Promise.all([
         listAskMessages(token, conversationId),
         listAskConversations(token),
       ]);
-      setConversations(convs.conversations);
+      let conversation = convs.conversations.find(
+        (item) => item.id === conversationId,
+      );
+      if (!conversation && activeIdRef.current === conversationId) {
+        const response = await getAskConversation(token, conversationId);
+        conversation = response.conversation;
+      }
+      if (conversationMutationGenerationRef.current === mutationGeneration) {
+        setConversations(convs.conversations);
+      }
       if (activeIdRef.current === conversationId) {
         setMessages(msgs.messages);
-        const conv = convs.conversations.find((c) => c.id === conversationId);
-        if (conv) {
-          setHeadId(conv.headMessageId);
+        if (conversation) {
+          setActiveSnapshot(conversation);
+          setHeadId(conversation.headMessageId);
         }
       }
     },
@@ -287,8 +390,10 @@ export function AskProvider({
           }
           conversationId = created.conversation.id;
           activeIdRef.current = conversationId;
+          conversationMutationGenerationRef.current += 1;
           setConversations((current) => [created.conversation, ...current]);
           setActiveId(conversationId);
+          setActiveSnapshot(created.conversation);
         }
         return await runStream(conversationId, { content: trimmed });
       } catch (cause) {
@@ -341,9 +446,58 @@ export function AskProvider({
     abortRef.current?.abort();
   }, []);
 
+  const listConversations = useCallback(
+    async (
+      options: { query?: string; archived: boolean },
+      signal?: AbortSignal,
+    ) => {
+      const response = await listAskConversations(token, options, signal);
+      return response.conversations;
+    },
+    [token],
+  );
+
+  const setConversationArchived = useCallback(
+    async (id: string, archived: boolean) => {
+      try {
+        const response = await setAskConversationArchived(token, id, archived);
+        conversationMutationGenerationRef.current += 1;
+        setConversations((current) => {
+          const withoutUpdated = current.filter(
+            (conversation) => conversation.id !== id,
+          );
+          return archived
+            ? withoutUpdated
+            : [response.conversation, ...withoutUpdated];
+        });
+        setNotification({
+          kind: "success",
+          message: archived ? "问答已归档" : "问答已移出归档",
+        });
+        return response.conversation;
+      } catch (cause) {
+        setNotification({
+          kind: "error",
+          message:
+            cause instanceof Error
+              ? cause.message
+              : archived
+                ? "归档问答失败"
+                : "移出归档失败",
+        });
+        throw cause;
+      }
+    },
+    [token],
+  );
+
+  const dismissNotification = useCallback(() => setNotification(null), []);
+
   const activeConversation = useMemo(
-    () => conversations.find((c) => c.id === activeId),
-    [conversations, activeId],
+    () =>
+      conversations.find((conversation) => conversation.id === activeId) ??
+      (activeSnapshot?.id === activeId ? activeSnapshot : undefined),
+    [conversations, activeId, activeSnapshot],
   );
   const entries = useMemo(
     () => buildActivePath(messages, headId),
@@ -366,10 +520,14 @@ export function AskProvider({
       busy,
       streaming,
       error,
+      notification,
       setScope,
       setSourceKind,
       selectConversation,
       startNew,
+      listConversations,
+      setConversationArchived,
+      dismissNotification,
       send,
       regenerate,
       selectVariant,
@@ -390,8 +548,12 @@ export function AskProvider({
       busy,
       streaming,
       error,
+      notification,
       selectConversation,
       startNew,
+      listConversations,
+      setConversationArchived,
+      dismissNotification,
       send,
       regenerate,
       selectVariant,

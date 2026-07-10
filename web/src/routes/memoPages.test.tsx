@@ -384,7 +384,7 @@ describe("TimelinePage calendar view", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("读取旧页失败");
     expect(listMemos).toHaveBeenCalledTimes(2);
-    await user.click(screen.getByRole("button", { name: "重新加载完整历史" }));
+    await user.click(screen.getByRole("button", { name: "重新加载全部记录" }));
 
     expect(await screen.findByText("重试后的旧记录")).toBeInTheDocument();
     expect(listMemos).toHaveBeenCalledTimes(4);
@@ -418,7 +418,7 @@ describe("TimelinePage calendar view", () => {
     expect(screen.queryByText("2025年1月")).not.toBeInTheDocument();
     expect(listMemos).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: "重新加载完整历史" }));
+    await user.click(screen.getByRole("button", { name: "重新加载全部记录" }));
 
     expect(await screen.findByText("重试后的完整历史")).toBeInTheDocument();
     expect(listMemos).toHaveBeenCalledTimes(3);
@@ -435,7 +435,7 @@ describe("EntryPage", () => {
       state: { returnTo: "/timeline?filter=archived" },
     });
 
-    const back = await screen.findByRole("link", { name: "历史" });
+    const back = await screen.findByRole("link", { name: "全部记录" });
     expect(back).toHaveAttribute("href", "/timeline?filter=archived");
   });
 

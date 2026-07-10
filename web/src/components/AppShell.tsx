@@ -8,9 +8,11 @@ import {
 import { Outlet, useLocation } from "react-router-dom";
 import type { Account } from "../lib/api";
 import { todayISO } from "../lib/date";
+import { useAsk } from "../state/AskContext";
 import { useMemos } from "../state/MemosContext";
 import { QuickCapture } from "./QuickCapture";
 import { Sidebar, Wordmark } from "./Sidebar";
+import { Toast } from "./Toast";
 
 const SIDEBAR_KEY = "sillage-sidebar";
 const DRAWER_FOCUSABLE_SELECTOR =
@@ -35,6 +37,7 @@ export function AppShell({
   const routeKey = `${location.pathname}?${location.search}`;
   const showQuickCapture = location.pathname !== "/ask";
   const memos = useMemos();
+  const { notification, dismissNotification } = useAsk();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer on any navigation
   useEffect(() => {
@@ -186,6 +189,9 @@ export function AppShell({
         <Outlet />
       </div>
       <QuickCapture visible={showQuickCapture} onCapture={handleCapture} />
+      {notification ? (
+        <Toast toast={notification} onClose={dismissNotification} />
+      ) : null}
     </div>
   );
 }

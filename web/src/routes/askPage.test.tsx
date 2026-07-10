@@ -13,8 +13,10 @@ vi.mock("../lib/api", async (importOriginal) => {
     ...actual,
     listMemos: vi.fn().mockResolvedValue({ memos: [] }),
     listAskConversations: vi.fn(),
+    getAskConversation: vi.fn(),
     createAskConversation: vi.fn(),
     listAskMessages: vi.fn(),
+    setAskConversationArchived: vi.fn(),
     streamAskMessage: vi.fn(),
     setAskHead: vi.fn().mockResolvedValue(undefined),
   };
@@ -22,8 +24,10 @@ vi.mock("../lib/api", async (importOriginal) => {
 
 import {
   createAskConversation,
+  getAskConversation,
   listAskConversations,
   listAskMessages,
+  setAskConversationArchived,
   setAskHead,
   streamAskMessage,
 } from "../lib/api";
@@ -106,6 +110,33 @@ function renderConversationSwitcher() {
   );
 }
 
+function ConversationArchiveHarness() {
+  const { conversations, setConversationArchived } = useAsk();
+  return (
+    <main>
+      <button
+        type="button"
+        onClick={() => void setConversationArchived("c1", false)}
+      >
+        恢复问答
+      </button>
+      {conversations.map((item) => (
+        <span key={item.id}>{item.title}</span>
+      ))}
+    </main>
+  );
+}
+
+function renderArchiveHarness() {
+  return render(
+    <MemoryRouter>
+      <AskProvider token="t">
+        <ConversationArchiveHarness />
+      </AskProvider>
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(listAskConversations).mockResolvedValue({
@@ -114,9 +145,165 @@ beforeEach(() => {
   vi.mocked(createAskConversation).mockResolvedValue({
     conversation: conversation(),
   });
+  vi.mocked(getAskConversation).mockResolvedValue({
+    conversation: conversation(),
+  });
+  vi.mocked(setAskConversationArchived).mockResolvedValue({
+    conversation: conversation(),
+  });
 });
 
 describe("AskPage", () => {
+  it("loads archived conversation metadata when a deep link is refreshed", async () => {
+    const archived = {
+      ...conversation(),
+      title: "归档后的睡眠问答",
+      contextScope: "all" as const,
+      archivedAt: "2026-07-10T09:00:00Z",
+    };
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(getAskConversation).mockResolvedValue({ conversation: archived });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+
+    renderAsk();
+
+    expect(
+      await screen.findByRole("heading", { name: "归档后的睡眠问答" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/范围：全部记录/)).toBeInTheDocument();
+    expect(getAskConversation).toHaveBeenCalledWith(
+      "t",
+      "c1",
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("refreshes the head after continuing an archived conversation", async () => {
+    const user = userEvent.setup();
+    const archived = {
+      ...conversation(),
+      title: "归档后的睡眠问答",
+      archivedAt: "2026-07-10T09:00:00Z",
+    };
+    const continued = { ...archived, headMessageId: "a2" };
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(getAskConversation)
+      .mockResolvedValueOnce({ conversation: archived })
+      .mockResolvedValueOnce({ conversation: continued });
+    vi.mocked(listAskMessages)
+      .mockResolvedValueOnce({
+        messages: [
+          message("u1", "user", null, "之前的问题", "1"),
+          message("a1", "assistant", "u1", "之前的回答", "2"),
+        ],
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          message("u1", "user", null, "之前的问题", "1"),
+          message("a1", "assistant", "u1", "之前的回答", "2"),
+          message("u2", "user", "a1", "继续追问", "3"),
+          message("a2", "assistant", "u2", "新的回答", "4"),
+        ],
+      });
+    vi.mocked(streamAskMessage).mockResolvedValue(undefined);
+
+    renderAsk();
+    expect(
+      await screen.findByRole("heading", { name: "归档后的睡眠问答" }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/根据记录提问/), "继续追问");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText("新的回答")).toBeInTheDocument();
+    expect(getAskConversation).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let the initial list overwrite a restored conversation", async () => {
+    const user = userEvent.setup();
+    let finishInitialList:
+      | ((value: { conversations: AskConversation[] }) => void)
+      | undefined;
+    vi.mocked(listAskConversations).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishInitialList = resolve;
+        }),
+    );
+    vi.mocked(setAskConversationArchived).mockResolvedValue({
+      conversation: { ...conversation(), title: "刚恢复的问答" },
+    });
+    renderArchiveHarness();
+
+    await user.click(screen.getByRole("button", { name: "恢复问答" }));
+    expect(await screen.findByText("刚恢复的问答")).toBeInTheDocument();
+
+    await act(async () => {
+      finishInitialList?.({ conversations: [] });
+    });
+    expect(screen.getByText("刚恢复的问答")).toBeInTheDocument();
+  });
+
+  it("does not let stale conversation metadata override a newer selection", async () => {
+    const user = userEvent.setup();
+    let resolveFirst:
+      | ((value: { conversation: AskConversation }) => void)
+      | undefined;
+    let resolveSecond:
+      | ((value: { conversation: AskConversation }) => void)
+      | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(getAskConversation).mockImplementation(
+      (_token, conversationId) =>
+        new Promise((resolve) => {
+          if (conversationId === "c1") {
+            resolveFirst = resolve;
+          } else {
+            resolveSecond = resolve;
+          }
+        }),
+    );
+    renderConversationSwitcher();
+
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    await waitFor(() =>
+      expect(getAskConversation).toHaveBeenCalledWith(
+        "t",
+        "c1",
+        expect.any(AbortSignal),
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    await waitFor(() =>
+      expect(getAskConversation).toHaveBeenCalledWith(
+        "t",
+        "c2",
+        expect.any(AbortSignal),
+      ),
+    );
+    const firstSignal = vi.mocked(getAskConversation).mock.calls[0][2];
+    expect(firstSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      resolveSecond?.({
+        conversation: {
+          ...conversation(),
+          id: "c2",
+          title: "第二个对话标题",
+        },
+      });
+    });
+    expect(await screen.findByText("第二个对话标题")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst?.({
+        conversation: { ...conversation(), title: "迟到的第一个标题" },
+      });
+    });
+    expect(screen.queryByText("迟到的第一个标题")).not.toBeInTheDocument();
+    expect(screen.getByText("第二个对话标题")).toBeInTheDocument();
+  });
+
   it("renders an existing conversation's active path", async () => {
     vi.mocked(listAskMessages).mockResolvedValue({
       messages: [

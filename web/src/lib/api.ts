@@ -1,5 +1,16 @@
 import { clearAccessToken, setAccessToken } from "./auth";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export type Account = {
   id: string;
   username: string;
@@ -186,9 +197,12 @@ export async function searchMemos(
   accessToken: string,
   query: string,
   limit = 100,
+  archived?: boolean,
 ): Promise<{ memos: Memo[] }> {
+  const archivedParam =
+    archived === undefined ? "" : `&archived=${String(archived)}`;
   return request(
-    `/api/v1/memos?query=${encodeURIComponent(query)}&limit=${limit}`,
+    `/api/v1/memos?query=${encodeURIComponent(query)}&limit=${limit}${archivedParam}`,
     { headers: authHeaders(accessToken) },
   );
 }
@@ -233,13 +247,11 @@ export async function setMemoPinned(
   memo: Memo,
   pinned: boolean,
 ): Promise<{ memo: Memo }> {
-  return request(
-    `/api/v1/memos/${memo.id}:${pinned ? "pin" : "unpin"}?expectedVersion=${memo.version}`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-    },
-  );
+  return request(`/api/v1/memos/${memo.id}:setPinned`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version, pinned }),
+  });
 }
 
 export async function setMemoArchived(
@@ -247,13 +259,11 @@ export async function setMemoArchived(
   memo: Memo,
   archived: boolean,
 ): Promise<{ memo: Memo }> {
-  return request(
-    `/api/v1/memos/${memo.id}:${archived ? "archive" : "unarchive"}?expectedVersion=${memo.version}`,
-    {
-      method: "POST",
-      headers: authHeaders(accessToken),
-    },
-  );
+  return request(`/api/v1/memos/${memo.id}:setArchived`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version, archived }),
+  });
 }
 
 export async function deleteMemo(
@@ -614,9 +624,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
   }
   if (!res.ok) {
-    const payload = await res.json().catch(() => null);
-    const message = payload?.error?.message ?? "请求失败";
-    throw new Error(message);
+    const payload = (await res.json().catch(() => null)) as {
+      error?: { code?: unknown; message?: unknown };
+    } | null;
+    const message =
+      typeof payload?.error?.message === "string"
+        ? payload.error.message
+        : "请求失败";
+    const code =
+      typeof payload?.error?.code === "string" ? payload.error.code : undefined;
+    throw new ApiError(message, res.status, code);
   }
   if (res.status === 204) {
     return undefined as T;

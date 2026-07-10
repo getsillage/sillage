@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskConversation, AskMessage } from "../lib/api";
-import { AskProvider } from "../state/AskContext";
+import { AskProvider, useAsk } from "../state/AskContext";
 import { MemosProvider } from "../state/MemosContext";
 import { AskPage, shouldShowLiveUser } from "./AskPage";
 
@@ -67,12 +67,39 @@ function message(
   };
 }
 
-function renderAsk() {
+function renderAsk(initialEntry = "/ask?conversation=c1") {
   return render(
-    <MemoryRouter initialEntries={["/ask?conversation=c1"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <MemosProvider token="t">
         <AskProvider token="t">
           <AskPage />
+        </AskProvider>
+      </MemosProvider>
+    </MemoryRouter>,
+  );
+}
+
+function ConversationSwitchHarness() {
+  const { selectConversation } = useAsk();
+  return (
+    <>
+      <button type="button" onClick={() => selectConversation("c1")}>
+        打开第一个对话
+      </button>
+      <button type="button" onClick={() => selectConversation("c2")}>
+        打开第二个对话
+      </button>
+      <AskPage />
+    </>
+  );
+}
+
+function renderConversationSwitcher() {
+  return render(
+    <MemoryRouter initialEntries={["/ask"]}>
+      <MemosProvider token="t">
+        <AskProvider token="t">
+          <ConversationSwitchHarness />
         </AskProvider>
       </MemosProvider>
     </MemoryRouter>,
@@ -132,6 +159,76 @@ describe("AskPage", () => {
 
     expect(await screen.findByText("回答片段")).toBeInTheDocument();
     expect(streamAskMessage).toHaveBeenCalled();
+  });
+
+  it("shows an error when a new conversation cannot be created", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(createAskConversation).mockRejectedValue(
+      new Error("创建问答失败：网络异常"),
+    );
+
+    renderAsk("/ask");
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "新的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "创建问答失败：网络异常",
+    );
+    expect(input).toHaveValue("新的问题");
+    expect(streamAskMessage).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
+  });
+
+  it("clears the composer as soon as a question is sent", async () => {
+    const user = userEvent.setup();
+    let finishStream: (() => void) | undefined;
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStream = resolve;
+        }),
+    );
+
+    renderAsk();
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "正在发送的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(input).toHaveValue("");
+    finishStream?.();
+    await waitFor(() => expect(streamAskMessage).toHaveBeenCalled());
+  });
+
+  it("does not start a second stream when Enter is pressed while busy", async () => {
+    const user = userEvent.setup();
+    let finishStream: (() => void) | undefined;
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStream = resolve;
+        }),
+    );
+
+    renderAsk();
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "第一个问题");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(streamAskMessage).toHaveBeenCalledTimes(1));
+
+    await user.type(input, "准备好的下一个问题");
+    await user.keyboard("{Enter}");
+    expect(streamAskMessage).toHaveBeenCalledTimes(1);
+    expect(input).toHaveValue("准备好的下一个问题");
+
+    finishStream?.();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "发送" })).toBeEnabled(),
+    );
   });
 
   it("sends with Enter and keeps Shift+Enter as a newline", async () => {
@@ -234,6 +331,42 @@ describe("AskPage", () => {
     expect(screen.queryByText("第二个回答")).not.toBeInTheDocument();
   });
 
+  it("clears old messages while another conversation is loading", async () => {
+    const user = userEvent.setup();
+    let rejectSecond: ((reason: Error) => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        conversation(),
+        { ...conversation(), id: "c2", title: "第二个对话" },
+      ],
+    });
+    vi.mocked(listAskMessages).mockImplementation((_token, id) => {
+      if (id === "c1") {
+        return Promise.resolve({
+          messages: [message("u1", "user", null, "第一个对话的问题", "1")],
+        });
+      }
+      return new Promise((_, reject) => {
+        rejectSecond = reject;
+      });
+    });
+
+    renderConversationSwitcher();
+    await waitFor(() => expect(listAskConversations).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    expect(await screen.findByText("第一个对话的问题")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(screen.queryByText("第一个对话的问题")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("正在读取对话");
+
+    rejectSecond?.(new Error("第二个对话读取失败"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "第二个对话读取失败",
+    );
+    expect(screen.queryByText("第一个对话的问题")).not.toBeInTheDocument();
+  });
+
   it("keeps the user-selected scope after conversation reload", async () => {
     const user = userEvent.setup();
     vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
@@ -254,5 +387,92 @@ describe("AskPage", () => {
       expect.anything(),
     );
     expect(screen.getByLabelText("范围")).toHaveValue("all");
+  });
+
+  it("does not let a stale conversation creation override navigation", async () => {
+    const user = userEvent.setup();
+    let finishCreate:
+      | ((value: { conversation: AskConversation }) => void)
+      | undefined;
+    const second = { ...conversation(), id: "c2", title: "第二个对话" };
+    const staleCreated = {
+      ...conversation(),
+      id: "stale-created",
+      title: "过期新对话",
+    };
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [conversation(), second],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(createAskConversation).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishCreate = resolve;
+        }),
+    );
+
+    renderConversationSwitcher();
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "不应进入第二个对话的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(createAskConversation).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(
+      await screen.findByRole("heading", { name: "第二个对话" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      finishCreate?.({ conversation: staleCreated });
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "发送" })).toBeDisabled(),
+    );
+    expect(screen.getByLabelText("范围")).toBeInTheDocument();
+    expect(input).toHaveValue("");
+    expect(
+      screen.getByRole("heading", { name: "第二个对话" }),
+    ).toBeInTheDocument();
+    expect(streamAskMessage).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale conversation creation error after navigation", async () => {
+    const user = userEvent.setup();
+    let failCreate: ((reason: Error) => void) | undefined;
+    const second = { ...conversation(), id: "c2", title: "第二个对话" };
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [conversation(), second],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(createAskConversation).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          failCreate = reject;
+        }),
+    );
+
+    renderConversationSwitcher();
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, "不应恢复到第二个对话的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(createAskConversation).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(
+      await screen.findByRole("heading", { name: "第二个对话" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      failCreate?.(new Error("过期创建失败"));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "发送" })).toBeDisabled(),
+    );
+    expect(input).toHaveValue("");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "第二个对话" }),
+    ).toBeInTheDocument();
+    expect(streamAskMessage).not.toHaveBeenCalled();
   });
 });

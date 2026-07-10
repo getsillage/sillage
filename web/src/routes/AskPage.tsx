@@ -1,6 +1,22 @@
-import { SendHorizontal, Square } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  BookmarkPlus,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+  MessageCircleQuestion,
+  RefreshCw,
+  Search,
+  SendHorizontal,
+  Square,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { Markdown } from "../components/Markdown";
 import {
   ghostLinkClass,
@@ -26,6 +42,12 @@ const SOURCE_KIND_OPTIONS: { value: AskSourceKind; label: string }[] = [
   { value: "summaries", label: "记录总结" },
 ];
 
+const QUESTION_SUGGESTIONS = [
+  "最近我反复提到什么？",
+  "这一周有哪些重要内容？",
+  "我最近的状态有什么变化？",
+];
+
 export function AskPage() {
   const [searchParams] = useSearchParams();
   const conversationParam = searchParams.get("conversation");
@@ -33,6 +55,7 @@ export function AskPage() {
     activeConversation,
     activeId,
     entries,
+    loadingMessages,
     liveUser,
     liveAnswer,
     regeneratingId,
@@ -50,6 +73,9 @@ export function AskPage() {
     stop,
   } = useAsk();
   const [question, setQuestion] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const followOutputRef = useRef(true);
   const liveUserMessage = shouldShowLiveUser(entries, liveUser)
     ? liveUser
     : null;
@@ -64,20 +90,47 @@ export function AskPage() {
     }
   }, [conversationParam]);
 
+  useEffect(() => {
+    function updateFollowState() {
+      const remaining =
+        document.documentElement.scrollHeight -
+        window.scrollY -
+        window.innerHeight;
+      followOutputRef.current = remaining < 180;
+    }
+    updateFollowState();
+    window.addEventListener("scroll", updateFollowState, { passive: true });
+    return () => window.removeEventListener("scroll", updateFollowState);
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follow newly rendered chat output while the user stays near the bottom
+  useEffect(() => {
+    if (followOutputRef.current) {
+      endRef.current?.scrollIntoView?.({ block: "end" });
+    }
+  }, [entries.length, liveUser, liveAnswer]);
+
   async function submit() {
+    if (busy) {
+      return;
+    }
     const text = question.trim();
     if (!text) {
       return;
     }
-    await send(text);
     setQuestion("");
+    followOutputRef.current = true;
+    const accepted = await send(text);
+    if (!accepted) {
+      setQuestion((current) => current || text);
+    }
   }
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-4xl flex-col px-4 pt-5 pb-0 sm:px-6 lg:min-h-screen lg:pt-6">
       <header className="flex flex-wrap items-center justify-between gap-3 pb-4">
         <div>
-          <h1 className="font-semibold text-xl text-gray-900 tracking-tight sm:text-2xl dark:text-gray-50">
+          <h1 className="font-semibold text-xl text-gray-900 sm:text-2xl dark:text-gray-50">
             {activeConversation?.title || "根据记录提问"}
           </h1>
           <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
@@ -92,7 +145,7 @@ export function AskPage() {
               onChange={(event) =>
                 setSourceKind(event.target.value as AskSourceKind)
               }
-              className={`${selectClass} mt-0 h-9 w-auto min-w-30 bg-white/80 dark:bg-gray-900/80`}
+              className={`${selectClass} mt-0 w-auto min-w-30 bg-white/80 dark:bg-gray-900/80`}
             >
               {SOURCE_KIND_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -108,7 +161,7 @@ export function AskPage() {
               onChange={(event) =>
                 setScope(event.target.value as AskContextScope)
               }
-              className={`${selectClass} mt-0 h-9 w-auto min-w-32 bg-white/80 dark:bg-gray-900/80`}
+              className={`${selectClass} mt-0 w-auto min-w-32 bg-white/80 dark:bg-gray-900/80`}
             >
               <option value="recent_7_days">最近 7 天</option>
               <option value="recent_30_days">最近 30 天</option>
@@ -119,15 +172,50 @@ export function AskPage() {
       </header>
 
       <div className="flex-1 space-y-7 pt-5 pb-36">
-        {entries.length === 0 && !liveUser ? (
-          <div className="mx-auto flex min-h-[42vh] max-w-xl items-center justify-center text-center">
-            <div className="space-y-3">
-              <p className="font-medium text-gray-900 text-lg dark:text-gray-50">
-                可以根据记录提问
-              </p>
-              <p className="text-gray-500 text-sm dark:text-gray-400">
-                例如「我最近在反复想些什么？」
-              </p>
+        {loadingMessages ? (
+          <p
+            className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
+            role="status"
+          >
+            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            正在读取对话
+          </p>
+        ) : entries.length === 0 && !liveUser ? (
+          <div className="mx-auto flex min-h-[46vh] w-full max-w-xl items-center justify-center">
+            <div className="w-full space-y-5 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <MessageCircleQuestion className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 text-lg dark:text-gray-50">
+                  可以根据记录提问
+                </p>
+                <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
+                  选择一个问题，或写下你想回看的内容。
+                </p>
+              </div>
+              <div className="grid gap-2 text-left sm:grid-cols-3">
+                {QUESTION_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => {
+                      setQuestion(suggestion);
+                      inputRef.current?.focus();
+                    }}
+                    className="min-h-16 rounded-lg border border-gray-200 bg-white/70 px-3 py-2 text-left text-gray-700 text-sm leading-5 transition-colors hover:border-gray-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900/60 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              <Link
+                to="/timeline"
+                className={`${ghostLinkClass} inline-flex h-10 items-center gap-2 px-2 text-sm`}
+              >
+                <Search className="h-4 w-4" aria-hidden="true" />
+                先搜索记录
+              </Link>
             </div>
           </div>
         ) : (
@@ -159,21 +247,33 @@ export function AskPage() {
               {liveAnswer ? (
                 <Markdown content={liveAnswer} variant="chat" />
               ) : (
-                <p className="text-gray-400 text-sm dark:text-gray-500">
-                  正在思考…
+                <p className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
+                  <LoaderCircle
+                    className="h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                  正在整理回答
                 </p>
               )}
             </div>
           </>
         ) : null}
         {busy && !streaming ? (
-          <p className="text-gray-400 text-sm dark:text-gray-500">正在思考…</p>
+          <p
+            className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
+            role="status"
+          >
+            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            正在读取相关记录
+          </p>
         ) : null}
+        <div ref={endRef} aria-hidden="true" />
       </div>
 
       <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-gray-50 via-gray-50 to-gray-50/0 px-4 pt-6 pb-4 sm:-mx-6 sm:px-6 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950/0">
         <div className="space-y-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-xl shadow-gray-900/[0.07] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/25">
           <textarea
+            ref={inputRef}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
@@ -183,15 +283,20 @@ export function AskPage() {
                 !event.nativeEvent.isComposing
               ) {
                 event.preventDefault();
-                void submit();
+                if (!busy) {
+                  void submit();
+                }
               }
             }}
             rows={2}
-            placeholder="根据记录提问…（Enter 发送，Shift + Enter 换行）"
+            placeholder="根据记录提问…"
             className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 focus:ring-0 dark:bg-transparent`}
           />
           {error ? (
-            <p className="px-3 text-red-600 text-sm dark:text-red-400">
+            <p
+              role="alert"
+              className="px-3 text-red-600 text-sm dark:text-red-400"
+            >
               {error}
             </p>
           ) : null}
@@ -214,13 +319,13 @@ export function AskPage() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={busy}
+                disabled={busy || !question.trim()}
                 className={`${primaryButtonClass} h-11 w-11 rounded-full px-0`}
                 aria-label={busy ? "生成中" : "发送"}
                 title={busy ? "生成中" : "发送"}
               >
                 {busy ? (
-                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                  <LoaderCircle className="h-5 w-5 animate-spin" />
                 ) : (
                   <SendHorizontal className="h-5 w-5" />
                 )}
@@ -260,8 +365,11 @@ function MessageBubble({
 }: MessageBubbleProps) {
   const { create } = useMemos();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const { message, variants, index } = entry;
 
   if (message.role === "user") {
@@ -279,15 +387,17 @@ function MessageBubble({
       return;
     }
     setSaving(true);
+    setSaveError("");
     try {
       const memo = await create({
         content: message.content,
         entryDate: todayISO(),
       });
       setSaved(true);
-      navigate(`/entries/${memo.id}`);
-    } catch {
+      navigate(`/entries/${memo.id}`, { state: { returnTo } });
+    } catch (cause) {
       setSaving(false);
+      setSaveError(cause instanceof Error ? cause.message : "保存失败");
     }
   }
 
@@ -302,10 +412,14 @@ function MessageBubble({
           <Link
             key={`${message.id}-${source.memoId}-${source.rank}`}
             to={`/entries/${source.memoId}`}
-            title={source.excerpt}
-            className="inline-flex h-7 items-center gap-1 rounded-full bg-gray-100 px-2.5 text-gray-700 text-xs transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            state={{ returnTo }}
+            className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-lg bg-gray-100 px-2.5 text-gray-700 text-xs transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-gray-500/40"
           >
-            <span>{source.entryDate}</span>
+            <BookOpen className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+            <span className="flex-none">{source.entryDate}</span>
+            <span className="truncate text-gray-500 dark:text-gray-400">
+              {source.excerpt}
+            </span>
           </Link>
         ))}
         {hasVariants ? (
@@ -317,7 +431,7 @@ function MessageBubble({
               onClick={() => onSelectVariant(variants[index - 1].id)}
               className={`${ghostLinkClass} px-1`}
             >
-              ‹
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <span>
               {index + 1}/{variants.length}
@@ -329,7 +443,7 @@ function MessageBubble({
               onClick={() => onSelectVariant(variants[index + 1].id)}
               className={`${ghostLinkClass} px-1`}
             >
-              ›
+              <ChevronRight className="h-4 w-4" />
             </button>
           </span>
         ) : null}
@@ -337,8 +451,9 @@ function MessageBubble({
           <button
             type="button"
             onClick={onRegenerate}
-            className={`${ghostLinkClass} text-xs`}
+            className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             重新生成
           </button>
         ) : null}
@@ -347,12 +462,18 @@ function MessageBubble({
             type="button"
             onClick={saveAsRecord}
             disabled={saving || saved}
-            className={`${ghostLinkClass} text-xs`}
+            className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
+            <BookmarkPlus className="h-3.5 w-3.5" aria-hidden="true" />
             {saved ? "已存为记录" : saving ? "保存中…" : "存为记录"}
           </button>
         ) : null}
       </div>
+      {saveError ? (
+        <p role="alert" className="mt-2 text-red-600 text-xs dark:text-red-400">
+          {saveError}
+        </p>
+      ) : null}
     </div>
   );
 }

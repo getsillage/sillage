@@ -40,7 +40,8 @@ interface MemosContextValue {
   error: string;
   summaries: Record<string, MemoAI>;
   refresh: () => Promise<void>;
-  loadMore: () => Promise<void>;
+  loadMore: () => Promise<boolean>;
+  loadAll: () => Promise<void>;
   getById: (id: string) => Memo | undefined;
   fetchMemo: (id: string) => Promise<Memo>;
   create: (input: { content: string; entryDate: string }) => Promise<Memo>;
@@ -52,7 +53,7 @@ interface MemosContextValue {
   setArchived: (memo: Memo, archived: boolean) => Promise<Memo>;
   remove: (memo: Memo) => Promise<void>;
   summarize: (memo: Memo) => Promise<MemoAI>;
-  search: (query: string) => Promise<Memo[]>;
+  search: (query: string, archived?: boolean) => Promise<Memo[]>;
   upload: (file: File) => Promise<UploadedAttachment>;
 }
 
@@ -74,21 +75,43 @@ export function MemosProvider({
   // Monotonic id so a slow earlier refresh can't overwrite a newer one
   // (e.g. StrictMode's double-invoke, or a manual refresh racing the mount).
   const refreshSeq = useRef(0);
+  // Any canonical detail or mutation response advances this generation. A list
+  // request that started before it must retry instead of replacing newer state.
+  const cacheGenerationRef = useRef(0);
   // Opaque cursor for the next (older) page; empty once the list is exhausted.
   const cursorRef = useRef("");
+  const loadMoreRequestRef = useRef<{
+    id: number;
+    cursor: string;
+    refreshSeq: number;
+    cacheGeneration: number;
+    promise: Promise<boolean>;
+  } | null>(null);
+  const loadMoreRequestSeq = useRef(0);
 
   const refresh = useCallback(async () => {
     const seq = ++refreshSeq.current;
+    loadMoreRequestRef.current = null;
+    cursorRef.current = "";
     setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
     try {
-      const res = await listMemos(token, PAGE_SIZE);
-      if (seq !== refreshSeq.current) {
+      while (seq === refreshSeq.current) {
+        const cacheGeneration = cacheGenerationRef.current;
+        const res = await listMemos(token, PAGE_SIZE);
+        if (seq !== refreshSeq.current) {
+          return;
+        }
+        if (cacheGeneration !== cacheGenerationRef.current) {
+          continue;
+        }
+        setMemos(sortMemos(res.memos));
+        cursorRef.current = res.nextCursor ?? "";
+        setHasMore(Boolean(res.nextCursor));
+        setError("");
         return;
       }
-      setMemos(sortMemos(res.memos));
-      cursorRef.current = res.nextCursor ?? "";
-      setHasMore(Boolean(res.nextCursor));
-      setError("");
     } catch (err) {
       if (seq !== refreshSeq.current) {
         return;
@@ -104,37 +127,83 @@ export function MemosProvider({
   // Appends the next older page. A concurrent refresh (newer seq) discards the
   // result so pages from a stale list never leak into a fresh one.
   const loadMore = useCallback(async () => {
-    if (!cursorRef.current) {
-      return;
-    }
-    const seq = refreshSeq.current;
     const cursor = cursorRef.current;
-    setLoadingMore(true);
-    try {
-      const res = await listMemos(token, PAGE_SIZE, cursor);
-      if (seq !== refreshSeq.current) {
-        return;
-      }
-      setMemos((current) => mergeMemos(current, res.memos));
-      cursorRef.current = res.nextCursor ?? "";
-      setHasMore(Boolean(res.nextCursor));
-    } catch (err) {
-      if (seq !== refreshSeq.current) {
-        return;
-      }
-      setError(err instanceof Error ? err.message : "读取更多记录失败");
-    } finally {
-      if (seq === refreshSeq.current) {
-        setLoadingMore(false);
-      }
+    if (!cursor) {
+      return false;
     }
+    if (loadMoreRequestRef.current) {
+      return loadMoreRequestRef.current.promise;
+    }
+    const request = {
+      id: ++loadMoreRequestSeq.current,
+      cursor,
+      refreshSeq: refreshSeq.current,
+      cacheGeneration: cacheGenerationRef.current,
+      promise: Promise.resolve(false),
+    };
+    loadMoreRequestRef.current = request;
+    request.promise = (async () => {
+      setLoadingMore(true);
+      try {
+        while (loadMoreRequestRef.current?.id === request.id) {
+          const res = await listMemos(token, PAGE_SIZE, cursor);
+          if (
+            loadMoreRequestRef.current?.id !== request.id ||
+            request.refreshSeq !== refreshSeq.current ||
+            cursorRef.current !== request.cursor
+          ) {
+            return Boolean(cursorRef.current);
+          }
+          if (request.cacheGeneration !== cacheGenerationRef.current) {
+            request.cacheGeneration = cacheGenerationRef.current;
+            continue;
+          }
+          setMemos((current) => mergeMemos(current, res.memos));
+          cursorRef.current = res.nextCursor ?? "";
+          setHasMore(Boolean(res.nextCursor));
+          setError("");
+          return Boolean(res.nextCursor);
+        }
+        return Boolean(cursorRef.current);
+      } catch (cause) {
+        if (
+          loadMoreRequestRef.current?.id !== request.id ||
+          request.refreshSeq !== refreshSeq.current
+        ) {
+          return Boolean(cursorRef.current);
+        }
+        const error =
+          cause instanceof Error ? cause : new Error("读取更多记录失败");
+        setError(error.message);
+        throw error;
+      } finally {
+        if (loadMoreRequestRef.current?.id === request.id) {
+          loadMoreRequestRef.current = null;
+          setLoadingMore(false);
+        }
+      }
+    })();
+    return request.promise;
   }, [token]);
+
+  const loadAll = useCallback(async () => {
+    const seenCursors = new Set<string>();
+    while (cursorRef.current) {
+      const cursor = cursorRef.current;
+      if (seenCursors.has(cursor)) {
+        throw new Error("分页游标未前进，请重新加载");
+      }
+      seenCursors.add(cursor);
+      await loadMore();
+    }
+  }, [loadMore]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const apply = useCallback((memo: Memo) => {
+    cacheGenerationRef.current += 1;
     setMemos((current) => sortMemos(upsertMemo(current, memo)));
     return memo;
   }, []);
@@ -193,6 +262,7 @@ export function MemosProvider({
   const remove = useCallback(
     async (memo: Memo) => {
       await apiDelete(token, memo);
+      cacheGenerationRef.current += 1;
       setMemos((current) => current.filter((item) => item.id !== memo.id));
     },
     [token],
@@ -210,8 +280,8 @@ export function MemosProvider({
   // Server-side FTS search. Results are returned to the caller, not merged into
   // the main list, so a search view never disturbs the cached timeline.
   const search = useCallback(
-    async (query: string) => {
-      const res = await apiSearch(token, query);
+    async (query: string, archived?: boolean) => {
+      const res = await apiSearch(token, query, 100, archived);
       return sortMemos(res.memos);
     },
     [token],
@@ -239,6 +309,7 @@ export function MemosProvider({
       summaries,
       refresh,
       loadMore,
+      loadAll,
       getById,
       fetchMemo,
       create,
@@ -259,6 +330,7 @@ export function MemosProvider({
       summaries,
       refresh,
       loadMore,
+      loadAll,
       getById,
       fetchMemo,
       create,

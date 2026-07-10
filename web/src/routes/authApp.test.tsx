@@ -21,6 +21,11 @@ vi.mock("../lib/api", async (importOriginal) => {
   };
 });
 
+vi.mock("../components/UnsavedNavigationGuard", () => ({
+  UnsavedNavigationGuard: () => null,
+  useUnsavedChangesRegistration: () => undefined,
+}));
+
 import {
   getBootstrap,
   getMe,

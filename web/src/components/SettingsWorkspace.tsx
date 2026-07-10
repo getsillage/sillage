@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { BrainCircuit, LoaderCircle, Palette, Plus, Save } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AIProfile,
   type AIProfileInput,
@@ -8,6 +9,7 @@ import {
   testAIConnection,
 } from "../lib/api";
 import { ThemeToggle } from "./ThemeToggle";
+import { UnsavedNavigationGuard } from "./UnsavedNavigationGuard";
 import {
   dangerButtonClass,
   emptyStateClass,
@@ -17,7 +19,10 @@ import {
   panelClass,
   primaryButtonClass,
   secondaryButtonClass,
+  segmentedControlClass,
+  segmentedItemClass,
   selectClass,
+  skeletonClass,
   subtleButtonClass,
 } from "./ui";
 
@@ -103,6 +108,13 @@ function normalizeProfilesForSave(
   }));
 }
 
+function settingsFingerprint(
+  profiles: EditableProfile[],
+  autoSummary: boolean,
+): string {
+  return JSON.stringify({ profiles, autoSummary });
+}
+
 type TestState = { status: "ok" | "error"; message: string };
 type ModelState = {
   loading: boolean;
@@ -113,9 +125,13 @@ type ModelState = {
 type SettingsTab = "ai" | "appearance";
 
 const ACTION_TIMEOUT_MS = 65_000;
-const SETTINGS_TABS: { value: SettingsTab; label: string }[] = [
-  { value: "ai", label: "AI" },
-  { value: "appearance", label: "外观" },
+const SETTINGS_TABS: {
+  value: SettingsTab;
+  label: string;
+  icon: typeof BrainCircuit;
+}[] = [
+  { value: "ai", label: "AI", icon: BrainCircuit },
+  { value: "appearance", label: "外观", icon: Palette },
 ];
 
 function profileKey(profile: EditableProfile, index: number): string {
@@ -154,11 +170,16 @@ function actionErrorMessage(cause: unknown, fallback: string): string {
 export function SettingsWorkspace({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
+  const [savedSettingsFingerprint, setSavedSettingsFingerprint] = useState<
+    string | null
+  >(null);
   const [selectedProfileKey, setSelectedProfileKey] = useState<string | null>(
     null,
   );
   const [autoSummary, setAutoSummary] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const loadRequestIdRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -169,33 +190,62 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [modelResults, setModelResults] = useState<Record<string, ModelState>>(
     {},
   );
+  const dirty =
+    savedSettingsFingerprint !== null &&
+    settingsFingerprint(profiles, autoSummary) !== savedSettingsFingerprint;
+  const mutationBusy = saving || deletingId !== null;
+
+  const loadSettings = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+    setLoading(true);
+    setLoadError("");
+    try {
+      const res = await getAISettings(token);
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+      const loadedProfiles = res.profiles.map(toEditable);
+      const loadedAutoSummary =
+        res.autoSummary ?? res.profiles.some((profile) => profile.autoSummary);
+      setProfiles(loadedProfiles);
+      setAutoSummary(loadedAutoSummary);
+      setSavedSettingsFingerprint(
+        settingsFingerprint(loadedProfiles, loadedAutoSummary),
+      );
+      setLoading(false);
+    } catch (cause) {
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+      setLoadError(cause instanceof Error ? cause.message : "读取 AI 设置失败");
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
-    let cancelled = false;
-    getAISettings(token)
-      .then((res) => {
-        if (!cancelled) {
-          setProfiles(res.profiles.map(toEditable));
-          setAutoSummary(
-            res.autoSummary ??
-              res.profiles.some((profile) => profile.autoSummary),
-          );
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "读取 AI 设置失败");
-          setLoading(false);
-        }
-      });
+    void loadSettings();
     return () => {
-      cancelled = true;
+      loadRequestIdRef.current += 1;
     };
-  }, [token]);
+  }, [loadSettings]);
+
+  useEffect(() => {
+    if (!dirty) {
+      return;
+    }
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty]);
 
   function updateProfile(index: number, patch: Partial<EditableProfile>) {
     setConfirmDeleteKey(null);
+    setNotice("");
+    setError("");
     setProfiles((current) =>
       current.map((profile, i) =>
         i === index ? { ...profile, ...patch } : profile,
@@ -204,6 +254,14 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }
 
   function setDefaultProfile(index: number) {
+    if (mutationBusy) {
+      return;
+    }
+    if (dirty) {
+      setNotice("请先保存当前更改，再设置默认档案。");
+      setError("");
+      return;
+    }
     const nextProfiles = profiles.map((profile, i) => ({
       ...profile,
       enabled: true,
@@ -243,8 +301,13 @@ export function SettingsWorkspace({ token }: { token: string }) {
       profiles: payload,
       autoSummary,
     });
-    setProfiles(res.profiles.map(toEditable));
-    setAutoSummary(res.autoSummary ?? autoSummary);
+    const savedProfiles = res.profiles.map(toEditable);
+    const savedAutoSummary = res.autoSummary ?? autoSummary;
+    setProfiles(savedProfiles);
+    setAutoSummary(savedAutoSummary);
+    setSavedSettingsFingerprint(
+      settingsFingerprint(savedProfiles, savedAutoSummary),
+    );
     setConfirmDeleteKey(null);
     setNotice(successNotice);
   }
@@ -253,6 +316,15 @@ export function SettingsWorkspace({ token }: { token: string }) {
     const profile = profiles[index];
     const key = profile ? profileKey(profile, index) : null;
     if (!profile) {
+      return;
+    }
+    if (mutationBusy) {
+      return;
+    }
+    if (profile.id && dirty) {
+      setConfirmDeleteKey(null);
+      setNotice("请先保存当前更改，再删除档案。");
+      setError("");
       return;
     }
     if (confirmDeleteKey !== key) {
@@ -291,6 +363,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }
 
   async function save() {
+    if (mutationBusy || !dirty) {
+      return;
+    }
     setSaving(true);
     setNotice("");
     setError("");
@@ -391,29 +466,60 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   if (loading) {
     return (
-      <p className="text-gray-400 text-sm dark:text-gray-500">正在读取设置…</p>
+      <div className="space-y-4" role="status">
+        <span className="sr-only">正在读取设置</span>
+        <div className={`${skeletonClass} h-10 w-40`} />
+        <div className={`${skeletonClass} h-24 w-full`} />
+        <div className={`${skeletonClass} h-40 w-full`} />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <section className={`${panelClass} p-4 sm:p-5`}>
+        <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
+          无法读取 AI 设置
+        </h2>
+        <p role="alert" className="mt-2 text-red-600 text-sm dark:text-red-400">
+          {loadError}
+        </p>
+        <button
+          type="button"
+          className={`${secondaryButtonClass} mt-4`}
+          onClick={() => void loadSettings()}
+        >
+          重新加载
+        </button>
+      </section>
     );
   }
 
   return (
     <div className="space-y-5">
-      <div className="inline-flex gap-0.5 rounded-lg border border-gray-200 bg-gray-100/70 p-0.5 dark:border-gray-800 dark:bg-gray-950">
-        {SETTINGS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setActiveTab(tab.value)}
-            className={`h-8 rounded-md px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
-              activeTab === tab.value
-                ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
-                : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100"
-            }`}
-            aria-current={activeTab === tab.value ? "page" : undefined}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <UnsavedNavigationGuard
+        when={dirty}
+        title="设置尚未保存"
+        description="离开后，当前设置修改会丢失。"
+      />
+      <fieldset className={segmentedControlClass}>
+        <legend className="sr-only">设置分类</legend>
+        {SETTINGS_TABS.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setActiveTab(tab.value)}
+              className={segmentedItemClass(activeTab === tab.value)}
+              aria-current={activeTab === tab.value ? "page" : undefined}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </fieldset>
 
       {activeTab === "appearance" ? (
         <section className={`${panelClass} p-4 sm:p-5`}>
@@ -430,7 +536,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
       ) : null}
 
       {activeTab === "ai" ? (
-        <>
+        <fieldset
+          disabled={mutationBusy}
+          className="m-0 min-w-0 space-y-5 border-0 p-0"
+        >
+          <legend className="sr-only">AI 设置</legend>
           <div className="flex items-center justify-between gap-3">
             <p className={helperTextClass}>
               密钥加密保存在本地服务端，不会回显。
@@ -438,6 +548,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => {
+                setNotice("");
+                setError("");
                 setSelectedProfileKey(`new-${profiles.length}`);
                 setProfiles((current) => [
                   ...current,
@@ -446,20 +558,44 @@ export function SettingsWorkspace({ token }: { token: string }) {
               }}
               className={secondaryButtonClass}
             >
+              <Plus className="h-4 w-4" aria-hidden="true" />
               新增档案
             </button>
           </div>
 
           <section className={`${panelClass} p-4 sm:p-5`}>
-            <label className="inline-flex items-center gap-2 text-gray-700 text-sm dark:text-gray-300">
-              <input
-                type="checkbox"
-                className="accent-gray-900 dark:accent-gray-100"
-                checked={autoSummary}
-                onChange={(event) => setAutoSummary(event.target.checked)}
-              />
-              新建记录后自动总结
-            </label>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="font-medium text-gray-800 text-sm dark:text-gray-100">
+                  新建记录后自动总结
+                </h2>
+                <p className={helperTextClass}>
+                  使用默认 AI 档案，在记录保存后生成简短总结。
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoSummary}
+                aria-label="新建记录后自动总结"
+                onClick={() => {
+                  setNotice("");
+                  setError("");
+                  setAutoSummary((current) => !current);
+                }}
+                className={`relative h-7 w-12 flex-none rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 ${
+                  autoSummary
+                    ? "bg-gray-900 dark:bg-gray-100"
+                    : "bg-gray-300 dark:bg-gray-700"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-950 ${
+                    autoSummary ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </section>
 
           {profiles.length === 0 ? (
@@ -566,12 +702,14 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             className={inputClass}
                             value={profile.name}
                             onChange={(event) =>
-                              updateProfile(index, { name: event.target.value })
+                              updateProfile(index, {
+                                name: event.target.value,
+                              })
                             }
                           />
                         </label>
                         <label className="block">
-                          <span className={labelClass}>Provider</span>
+                          <span className={labelClass}>服务商</span>
                           <select
                             className={selectClass}
                             value={profile.provider}
@@ -596,7 +734,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           </select>
                         </label>
                         <label className="block">
-                          <span className={labelClass}>Base URL</span>
+                          <span className={labelClass}>接口地址</span>
                           <input
                             className={inputClass}
                             value={profile.baseUrl}
@@ -683,7 +821,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                         </label>
                         <label className="block">
-                          <span className={labelClass}>最大 Tokens</span>
+                          <span className={labelClass}>最大输出长度</span>
                           <input
                             className={inputClass}
                             type="number"
@@ -725,7 +863,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-200/70 border-t pt-3 dark:border-gray-800">
                         <p className={helperTextClass}>
                           {profile.active
-                            ? "当前默认档案会用于 AI 总结和 Ask。"
+                            ? "当前默认档案会用于 AI 总结和问答。"
                             : "可在上方档案卡片中设为默认。"}
                         </p>
                         <div className="flex items-center gap-2">
@@ -772,28 +910,53 @@ export function SettingsWorkspace({ token }: { token: string }) {
               )}
             </div>
           )}
+        </fieldset>
+      ) : null}
 
-          <div className="flex flex-wrap items-center justify-end gap-3">
+      {dirty || saving || error || notice ? (
+        <div className="sticky bottom-3 z-10 mr-14 flex flex-wrap items-center justify-end gap-3 rounded-lg border border-gray-200/80 bg-white/90 p-2 shadow-lg shadow-gray-900/[0.06] backdrop-blur-xl sm:mr-0 dark:border-gray-800 dark:bg-gray-900/90 dark:shadow-black/20">
+          <div className="mr-auto min-w-0 space-y-0.5">
+            {dirty ? (
+              <p
+                role="status"
+                className="font-medium text-gray-700 text-sm dark:text-gray-200"
+              >
+                有未保存更改
+              </p>
+            ) : null}
             {error ? (
-              <p className="mr-auto text-red-600 text-sm dark:text-red-400">
+              <p
+                role="alert"
+                className="text-red-600 text-sm dark:text-red-400"
+              >
                 {error}
               </p>
             ) : null}
             {notice ? (
-              <p className="mr-auto text-gray-500 text-sm dark:text-gray-400">
+              <p
+                role="status"
+                className="text-gray-500 text-sm dark:text-gray-400"
+              >
                 {notice}
               </p>
             ) : null}
+          </div>
+          {dirty || saving ? (
             <button
               type="button"
-              disabled={saving}
+              disabled={mutationBusy}
               onClick={save}
               className={primaryButtonClass}
             >
+              {saving ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               {saving ? "保存中…" : "保存设置"}
             </button>
-          </div>
-        </>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   daysInMonth,
   firstWeekday,
+  formatEntryDate,
+  formatShortDate,
   monthGrid,
   normalizeYearMonth,
   pad2,
@@ -21,6 +23,24 @@ describe("toLocalISODate", () => {
     // Construct via local components to avoid timezone ambiguity.
     expect(toLocalISODate(new Date(2026, 0, 5))).toBe("2026-01-05");
     expect(toLocalISODate(new Date(2026, 11, 31))).toBe("2026-12-31");
+  });
+});
+
+describe("entry date labels", () => {
+  it("uses relative labels for today and yesterday", () => {
+    expect(formatEntryDate("2026-07-10", "2026-07-10")).toBe(
+      "今天，7月10日 周五",
+    );
+    expect(formatEntryDate("2026-07-09", "2026-07-10")).toBe(
+      "昨天，7月9日 周四",
+    );
+  });
+
+  it("keeps the year when it differs from the reference", () => {
+    expect(formatEntryDate("2025-07-10", "2026-07-10")).toBe(
+      "2025年7月10日 周四",
+    );
+    expect(formatShortDate("2025-07-10", "2026-07-10")).toBe("2025年7月10日");
   });
 });
 

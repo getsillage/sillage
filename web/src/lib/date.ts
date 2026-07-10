@@ -8,6 +8,67 @@ export function todayISO(): string {
   return toLocalISODate(new Date());
 }
 
+const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+function parseISODate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Human-friendly label for a stored YYYY-MM-DD entry date. */
+export function formatEntryDate(value: string, reference = todayISO()): string {
+  const date = parseISODate(value);
+  const referenceDate = parseISODate(reference);
+  if (!date || !referenceDate) {
+    return value;
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const dateDay = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const referenceDay = Date.UTC(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate(),
+  );
+  const daysAgo = Math.round((referenceDay - dateDay) / dayMs);
+  const monthDay = `${date.getMonth() + 1}月${date.getDate()}日`;
+  const year =
+    date.getFullYear() === referenceDate.getFullYear()
+      ? ""
+      : `${date.getFullYear()}年`;
+  const calendarLabel = `${year}${monthDay} ${WEEKDAYS[date.getDay()]}`;
+
+  if (daysAgo === 0) {
+    return `今天，${calendarLabel}`;
+  }
+  if (daysAgo === 1) {
+    return `昨天，${calendarLabel}`;
+  }
+  return calendarLabel;
+}
+
+/** Compact YYYY-MM-DD label for inline metadata. */
+export function formatShortDate(value: string, reference = todayISO()): string {
+  const date = parseISODate(value);
+  const referenceDate = parseISODate(reference);
+  if (!date || !referenceDate) {
+    return value;
+  }
+  const year =
+    date.getFullYear() === referenceDate.getFullYear()
+      ? ""
+      : `${date.getFullYear()}年`;
+  return `${year}${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 /** Number of days in a 1-indexed month (month: 1-12). */
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();

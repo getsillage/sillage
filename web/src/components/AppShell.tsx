@@ -1,5 +1,10 @@
 import { Menu, PanelLeftOpen } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import type { Account } from "../lib/api";
 import { todayISO } from "../lib/date";
@@ -8,6 +13,8 @@ import { QuickCapture } from "./QuickCapture";
 import { Sidebar, Wordmark } from "./Sidebar";
 
 const SIDEBAR_KEY = "sillage-sidebar";
+const DRAWER_FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 function readSidebarOpen(): boolean {
   return window.localStorage.getItem(SIDEBAR_KEY) !== "collapsed";
@@ -22,6 +29,8 @@ export function AppShell({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(readSidebarOpen);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
   const routeKey = `${location.pathname}?${location.search}`;
   const showQuickCapture = location.pathname !== "/ask";
@@ -43,14 +52,63 @@ export function AppShell({
     if (!drawerOpen) {
       return;
     }
-    function onKeyDown(event: KeyboardEvent) {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawerRef.current
+      ?.querySelector<HTMLElement>("[data-drawer-initial-focus]")
+      ?.focus();
+
+    function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
+        const visibleAlertDialog = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '[role="alertdialog"][aria-modal="true"]',
+          ),
+        ).some(
+          (dialog) =>
+            !dialog.hidden && dialog.getAttribute("aria-hidden") !== "true",
+        );
+        if (visibleAlertDialog) {
+          return;
+        }
         setDrawerOpen(false);
       }
     }
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      menuButtonRef.current?.focus();
+    };
   }, [drawerOpen]);
+
+  function handleDrawerKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Tab" || !drawerRef.current) {
+      return;
+    }
+    const focusable = Array.from(
+      drawerRef.current.querySelectorAll<HTMLElement>(
+        DRAWER_FOCUSABLE_SELECTOR,
+      ),
+    ).filter((element) => {
+      const closedDetails = element.closest("details:not([open])");
+      return !closedDetails || element.tagName === "SUMMARY";
+    });
+    if (focusable.length === 0) {
+      event.preventDefault();
+      drawerRef.current.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   async function handleCapture(body: string) {
     await memos.create({ content: body, entryDate: todayISO() });
@@ -71,18 +129,20 @@ export function AppShell({
           aria-label="展开侧栏"
           title="展开侧栏"
           onClick={() => setDesktopOpen(true)}
-          className="fixed top-3 left-3 z-30 hidden h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm shadow-gray-900/[0.03] transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+          className="fixed top-3 left-3 z-30 hidden h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
       )}
 
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-gray-200/80 border-b bg-gray-50/90 px-3 backdrop-blur-xl lg:hidden dark:border-gray-800 dark:bg-gray-950/90">
-        <Wordmark />
+      <header className="sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-gray-200/80 border-b bg-gray-50/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden dark:border-gray-800 dark:bg-gray-950/90">
+        <Wordmark compact />
         <button
+          ref={menuButtonRef}
           type="button"
           aria-label="打开导航"
           aria-expanded={drawerOpen}
+          aria-controls="mobile-navigation-dialog"
           className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           onClick={() => setDrawerOpen(true)}
         >
@@ -94,19 +154,25 @@ export function AppShell({
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="关闭导航"
+            aria-label="关闭导航遮罩"
+            tabIndex={-1}
             className="absolute inset-0 h-full w-full bg-gray-950/30 dark:bg-gray-950/60"
             onClick={() => setDrawerOpen(false)}
           />
           <div
+            ref={drawerRef}
+            id="mobile-navigation-dialog"
             role="dialog"
             aria-modal="true"
             aria-label="导航"
+            tabIndex={-1}
+            onKeyDown={handleDrawerKeyDown}
             className="absolute inset-y-0 left-0 w-[18rem] max-w-[88vw] shadow-xl shadow-gray-950/10"
           >
             <Sidebar
               className="h-full w-full"
               onNavigate={() => setDrawerOpen(false)}
+              onClose={() => setDrawerOpen(false)}
               account={account}
               onSignOut={onSignOut}
             />
@@ -114,12 +180,12 @@ export function AppShell({
         </div>
       ) : null}
 
-      <main
-        className={`transition-[padding] duration-200 ${desktopOpen ? "lg:pl-[18rem]" : "lg:pl-0"}`}
+      <div
+        className={`transition-[padding] duration-200 ${showQuickCapture ? "pb-20 lg:pb-0" : ""} ${desktopOpen ? "lg:pl-[18rem]" : "lg:pl-0"}`}
       >
         <Outlet />
-      </main>
-      {showQuickCapture ? <QuickCapture onCapture={handleCapture} /> : null}
+      </div>
+      <QuickCapture visible={showQuickCapture} onCapture={handleCapture} />
     </div>
   );
 }

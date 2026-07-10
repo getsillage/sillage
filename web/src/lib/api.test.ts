@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getBootstrap, listMemos, signIn } from "./api";
+import { ApiError, getBootstrap, listMemos, signIn } from "./api";
 
 // auth side-effects are observed via these spies.
 const clearAccessToken = vi.fn();
@@ -79,8 +79,11 @@ describe("request 401 refresh-and-retry", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(signIn({ username: "a", password: "b" })).rejects.toThrow(
-      "用户名或密码错误",
-    );
+    const request = signIn({ username: "a", password: "b" });
+    await expect(request).rejects.toThrow("用户名或密码错误");
+    await request.catch((error: unknown) => {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(400);
+    });
   });
 });

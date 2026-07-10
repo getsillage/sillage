@@ -43,6 +43,7 @@ html.dark {
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh;
 }
 
 /* Respect users who opt out of motion (vestibular comfort). */
@@ -64,12 +65,70 @@ textarea {
   font: inherit;
 }
 
+button,
+summary,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button,
+a,
+summary {
+  touch-action: manipulation;
+}
+
 ::selection {
   background: rgb(0 0 0 / 0.08);
 }
 
 .dark ::selection {
   background: rgb(255 255 255 / 0.16);
+}
+
+.surface-enter {
+  animation: surface-enter 180ms ease-out both;
+}
+
+.drawer-enter {
+  animation: drawer-enter 180ms ease-out both;
+}
+
+@keyframes surface-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-enter {
+  from {
+    transform: translateX(-12px);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 ::-webkit-calendar-picker-indicator {

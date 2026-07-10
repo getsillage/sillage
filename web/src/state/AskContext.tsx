@@ -27,6 +27,8 @@ import {
 
 interface AskContextValue {
   conversations: AskConversation[];
+  loadingConversations: boolean;
+  loadingMessages: boolean;
   activeId: string;
   activeConversation: AskConversation | undefined;
   /** The active conversation path (one branch of the message tree). */
@@ -46,7 +48,7 @@ interface AskContextValue {
   setSourceKind: (kind: AskSourceKind) => void;
   selectConversation: (id: string) => void;
   startNew: () => void;
-  send: (question: string) => Promise<void>;
+  send: (question: string) => Promise<boolean>;
   regenerate: (assistantId: string) => Promise<void>;
   selectVariant: (messageId: string) => Promise<void>;
   stop: () => void;
@@ -62,6 +64,8 @@ export function AskProvider({
   children: ReactNode;
 }) {
   const [conversations, setConversations] = useState<AskConversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [headId, setHeadId] = useState<string | null>(null);
@@ -74,14 +78,19 @@ export function AskProvider({
   const [liveAnswer, setLiveAnswer] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const operationRef = useRef(false);
+  const activeIdRef = useRef(activeId);
+  const navigationGenerationRef = useRef(0);
   const scopedConversationRef = useRef("");
+  activeIdRef.current = activeId;
 
   useEffect(() => {
     listAskConversations(token)
       .then((res) => setConversations(res.conversations))
       .catch((err) =>
         setError(err instanceof Error ? err.message : "读取问答失败"),
-      );
+      )
+      .finally(() => setLoadingConversations(false));
   }, [token]);
 
   useEffect(() => {
@@ -101,9 +110,12 @@ export function AskProvider({
     if (!activeId) {
       setMessages([]);
       setHeadId(null);
+      setLoadingMessages(false);
       return;
     }
     let cancelled = false;
+    setMessages([]);
+    setLoadingMessages(true);
     listAskMessages(token, activeId)
       .then((res) => {
         if (!cancelled) {
@@ -114,6 +126,11 @@ export function AskProvider({
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "读取消息失败");
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingMessages(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -122,8 +139,20 @@ export function AskProvider({
 
   const selectConversation = useCallback(
     (id: string) => {
+      if (id === activeIdRef.current) {
+        return;
+      }
+      navigationGenerationRef.current += 1;
+      abortRef.current?.abort();
+      activeIdRef.current = id;
       setActiveId(id);
+      setMessages([]);
+      setLoadingMessages(true);
       setHeadId(null);
+      setLiveUser(null);
+      setLiveAnswer("");
+      setRegeneratingId(null);
+      setError("");
       scopedConversationRef.current = "";
       const found = conversations.find((c) => c.id === id);
       if (found) {
@@ -136,10 +165,17 @@ export function AskProvider({
   );
 
   const startNew = useCallback(() => {
+    navigationGenerationRef.current += 1;
+    abortRef.current?.abort();
+    activeIdRef.current = "";
     scopedConversationRef.current = "";
     setActiveId("");
     setMessages([]);
     setHeadId(null);
+    setLoadingMessages(false);
+    setLiveUser(null);
+    setLiveAnswer("");
+    setRegeneratingId(null);
     setError("");
   }, []);
 
@@ -151,11 +187,13 @@ export function AskProvider({
         listAskMessages(token, conversationId),
         listAskConversations(token),
       ]);
-      setMessages(msgs.messages);
       setConversations(convs.conversations);
-      const conv = convs.conversations.find((c) => c.id === conversationId);
-      if (conv) {
-        setHeadId(conv.headMessageId);
+      if (activeIdRef.current === conversationId) {
+        setMessages(msgs.messages);
+        const conv = convs.conversations.find((c) => c.id === conversationId);
+        if (conv) {
+          setHeadId(conv.headMessageId);
+        }
       }
     },
     [token],
@@ -165,8 +203,9 @@ export function AskProvider({
     async (
       conversationId: string,
       input: { content: string; forkOfId?: string },
-    ) => {
+    ): Promise<boolean> => {
       const controller = new AbortController();
+      let started = false;
       abortRef.current = controller;
       try {
         await streamAskMessage(
@@ -180,6 +219,7 @@ export function AskProvider({
           },
           {
             onStart: ({ userMessage, regenerate }) => {
+              started = true;
               setStreaming(true);
               setLiveAnswer("");
               if (!regenerate) {
@@ -192,14 +232,20 @@ export function AskProvider({
           controller.signal,
         );
         await reload(conversationId);
+        return true;
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "生成回答失败");
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : "生成回答失败");
+        }
+        return started;
       } finally {
         setStreaming(false);
         setLiveUser(null);
         setLiveAnswer("");
         setRegeneratingId(null);
-        abortRef.current = null;
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
       }
     },
     [token, scope, sourceKind, reload],
@@ -210,22 +256,46 @@ export function AskProvider({
       const trimmed = question.trim();
       if (!trimmed) {
         setError("先写下要问的问题");
-        return;
+        return false;
       }
+      if (operationRef.current) {
+        return false;
+      }
+      operationRef.current = true;
       setBusy(true);
       setError("");
       try {
         let conversationId = activeId;
         if (!conversationId) {
-          const created = await createAskConversation(token, {
-            contextScope: scope,
-          });
+          const navigationGeneration = navigationGenerationRef.current;
+          let created: { conversation: AskConversation };
+          try {
+            created = await createAskConversation(token, {
+              contextScope: scope,
+            });
+          } catch (cause) {
+            if (navigationGeneration !== navigationGenerationRef.current) {
+              return true;
+            }
+            throw cause;
+          }
+          if (navigationGeneration !== navigationGenerationRef.current) {
+            // The user intentionally moved elsewhere while creation was pending.
+            // Treat the old question as consumed so AskPage does not restore it
+            // into the newly selected conversation's composer.
+            return true;
+          }
           conversationId = created.conversation.id;
+          activeIdRef.current = conversationId;
           setConversations((current) => [created.conversation, ...current]);
           setActiveId(conversationId);
         }
-        await runStream(conversationId, { content: trimmed });
+        return await runStream(conversationId, { content: trimmed });
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "发送问题失败");
+        return false;
       } finally {
+        operationRef.current = false;
         setBusy(false);
       }
     },
@@ -234,15 +304,17 @@ export function AskProvider({
 
   const regenerate = useCallback(
     async (assistantId: string) => {
-      if (!activeId || busy) {
+      if (!activeId || busy || operationRef.current) {
         return;
       }
+      operationRef.current = true;
       setBusy(true);
       setError("");
       setRegeneratingId(assistantId);
       try {
         await runStream(activeId, { content: "", forkOfId: assistantId });
       } finally {
+        operationRef.current = false;
         setBusy(false);
       }
     },
@@ -251,7 +323,7 @@ export function AskProvider({
 
   const selectVariant = useCallback(
     async (messageId: string) => {
-      if (!activeId) {
+      if (!activeId || operationRef.current) {
         return;
       }
       const leaf = branchLeafId(messages, messageId);
@@ -281,6 +353,8 @@ export function AskProvider({
   const value = useMemo<AskContextValue>(
     () => ({
       conversations,
+      loadingConversations,
+      loadingMessages,
       activeId,
       activeConversation,
       entries,
@@ -303,6 +377,8 @@ export function AskProvider({
     }),
     [
       conversations,
+      loadingConversations,
+      loadingMessages,
       activeId,
       activeConversation,
       entries,

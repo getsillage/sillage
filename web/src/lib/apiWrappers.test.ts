@@ -77,6 +77,11 @@ describe("memo api wrappers", () => {
       "/api/v1/memos?query=%E7%88%AC%20%E5%B1%B1&limit=5",
     );
 
+    await searchMemos("t", "归档", 5, true);
+    expect(lastCall().path).toBe(
+      "/api/v1/memos?query=%E5%BD%92%E6%A1%A3&limit=5&archived=true",
+    );
+
     await createMemo("t", { content: "hi", entryDate: "2026-06-27" });
     expect(lastCall().init.method).toBe("POST");
 
@@ -86,13 +91,27 @@ describe("memo api wrappers", () => {
     expect(JSON.parse(upd.init.body as string).expectedVersion).toBe(3);
 
     await setMemoPinned("t", memo, true);
-    expect(lastCall().path).toContain(":pin?expectedVersion=3");
+    expect(lastCall().path).toBe("/api/v1/memos/m1:setPinned");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      expectedVersion: 3,
+      pinned: true,
+    });
     await setMemoPinned("t", memo, false);
-    expect(lastCall().path).toContain(":unpin?");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      expectedVersion: 3,
+      pinned: false,
+    });
     await setMemoArchived("t", memo, true);
-    expect(lastCall().path).toContain(":archive?");
+    expect(lastCall().path).toBe("/api/v1/memos/m1:setArchived");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      expectedVersion: 3,
+      archived: true,
+    });
     await setMemoArchived("t", memo, false);
-    expect(lastCall().path).toContain(":unarchive?");
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({
+      expectedVersion: 3,
+      archived: false,
+    });
 
     await deleteMemo("t", memo);
     expect(lastCall().init.method).toBe("DELETE");

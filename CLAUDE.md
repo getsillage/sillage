@@ -68,6 +68,13 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 
 完整命令和人工验收范围见 `CONTRIBUTING.md`。
 
+## 指导维护
+
+- 本文件是项目代理规则的唯一来源，`AGENTS.md` 只负责引导读取。
+- 只记录稳定边界和反复出现的问题；版本、命令和实现事实放在对应工程文档或代码中。
+- 推送、部署、删除外部资源和轮换密钥必须由用户明确要求。
+- 可由测试、lint 或 CI 强制的规则，不在本文重复描述。
+
 <!-- headroom:rtk-instructions -->
 # RTK (Rust Token Killer) - Token-Optimized Commands
 

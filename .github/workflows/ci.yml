@@ -42,6 +42,18 @@ jobs:
       - name: Lint
         uses: bufbuild/buf-lint-action@v1
 
+      - name: Generate
+        run: buf generate
+
+      - name: Verify generated files
+        run: |
+          changes="$(git status --porcelain=v1 --untracked-files=all -- proto/gen)"
+          if [ -n "$changes" ]; then
+            printf '%s\n' "$changes"
+            git diff -- proto/gen
+            exit 1
+          fi
+
   web:
     name: Web
     runs-on: ubuntu-latest
@@ -78,6 +90,31 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Verify embedded assets
+        working-directory: .
+        run: |
+          changes="$(git status --porcelain=v1 --untracked-files=all -- server/router/frontend/dist)"
+          if [ -n "$changes" ]; then
+            printf '%s\n' "$changes"
+            git diff -- server/router/frontend/dist
+            exit 1
+          fi
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check Markdown links
+        run: node scripts/check-markdown-links.mjs
 
   android:
     name: Android

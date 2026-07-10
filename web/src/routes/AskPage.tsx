@@ -236,13 +236,15 @@ export function AskPage() {
             />
           ))
         )}
-        {liveUserMessage ? (
+        {liveUser ? (
           <>
-            <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
-              <p className="whitespace-pre-wrap text-[15px] leading-7">
-                {liveUserMessage.content}
-              </p>
-            </div>
+            {liveUserMessage ? (
+              <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+                <p className="whitespace-pre-wrap text-[15px] leading-7">
+                  {liveUserMessage.content}
+                </p>
+              </div>
+            ) : null}
             <div className="max-w-[92%] px-1">
               {liveAnswer ? (
                 <Markdown content={liveAnswer} variant="chat" />
@@ -252,7 +254,7 @@ export function AskPage() {
                     className="h-4 w-4 animate-spin"
                     aria-hidden="true"
                   />
-                  正在整理回答
+                  正在整理问答
                 </p>
               )}
             </div>

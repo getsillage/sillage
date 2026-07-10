@@ -161,6 +161,59 @@ describe("AskPage", () => {
     expect(streamAskMessage).toHaveBeenCalled();
   });
 
+  it("keeps the first answer's pending state after its user message loads", async () => {
+    const user = userEvent.setup();
+    let finishStream: (() => void) | undefined;
+    let finishMessageLoad:
+      | ((value: { messages: AskMessage[] }) => void)
+      | undefined;
+    const firstQuestion = message("u-first", "user", null, "第一条问题", "1");
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(createAskConversation).mockResolvedValue({
+      conversation: { ...conversation(), headMessageId: null },
+    });
+    vi.mocked(listAskMessages)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishMessageLoad = resolve;
+          }),
+      )
+      .mockResolvedValue({
+        messages: [
+          firstQuestion,
+          message("a-first", "assistant", firstQuestion.id, "第一条回答", "2"),
+        ],
+      });
+    vi.mocked(streamAskMessage).mockImplementation(
+      async (_token, _conv, _input, handlers) => {
+        handlers.onStart?.({ userMessage: firstQuestion, sources: [] });
+        await new Promise<void>((resolve) => {
+          finishStream = resolve;
+        });
+      },
+    );
+
+    renderAsk("/ask");
+    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    await user.type(input, firstQuestion.content);
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText("正在整理问答")).toBeInTheDocument();
+    await act(async () => {
+      finishMessageLoad?.({ messages: [firstQuestion] });
+    });
+    await waitFor(() =>
+      expect(screen.getAllByText(firstQuestion.content)).toHaveLength(1),
+    );
+    expect(screen.getByText("正在整理问答")).toBeInTheDocument();
+
+    await act(async () => {
+      finishStream?.();
+    });
+    await screen.findByRole("button", { name: "发送" });
+  });
+
   it("shows an error when a new conversation cannot be created", async () => {
     const user = userEvent.setup();
     vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });

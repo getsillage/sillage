@@ -224,10 +224,13 @@ describe("SettingsWorkspace", () => {
     const autoSummarySwitch = screen.getByRole("switch", {
       name: "新建记录后自动总结",
     });
+    const autoSummaryThumb = autoSummarySwitch.querySelector("span");
+    expect(autoSummaryThumb).toHaveClass("left-0", "translate-x-1");
     expect(
       screen.queryByRole("button", { name: "保存设置" }),
     ).not.toBeInTheDocument();
     await user.click(autoSummarySwitch);
+    expect(autoSummaryThumb).toHaveClass("left-0", "translate-x-6");
     expect(screen.getByText("有未保存更改")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "保存设置" }),

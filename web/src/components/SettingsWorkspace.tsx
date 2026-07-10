@@ -590,7 +590,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 }`}
               >
                 <span
-                  className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-950 ${
+                  className={`absolute top-1 left-0 h-5 w-5 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-950 ${
                     autoSummary ? "translate-x-6" : "translate-x-1"
                   }`}
                 />

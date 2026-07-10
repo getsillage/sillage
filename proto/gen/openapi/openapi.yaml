@@ -678,9 +678,9 @@ paths:
             tags:
                 - SyncService
             description: |-
-                PushSync applies a batch of client mutations. Each is keyed by mutation_id
-                 for idempotent retries; a stale base_version yields a conflict result
-                 rather than an error.
+                PushSync applies a batch of client mutations. Each is keyed by mutation_id;
+                 a stored prior result can be replayed, while a stale base_version yields a
+                 conflict result rather than an error.
             operationId: SyncService_PushSync
             requestBody:
                 content:
@@ -869,7 +869,9 @@ components:
                          the same parent as the referenced message.
                 status:
                     type: string
-                    description: status is one of "pending" | "ready" | "failed".
+                    description: |-
+                        status is the message lifecycle marker; persisted messages currently use
+                         "complete".
                 sourceRefs:
                     type: array
                     items:
@@ -929,7 +931,7 @@ components:
                     type: string
                 status:
                     type: string
-                    description: status is the lifecycle marker (e.g. "ready"); reserved for future states.
+                    description: status is the lifecycle marker; stored local attachments use "stored".
                 createdTime:
                     type: string
                     format: date-time
@@ -1011,7 +1013,9 @@ components:
             properties:
                 id:
                     type: string
-                    description: id is client-supplied so creation is idempotent across retries/offline sync.
+                    description: |-
+                        id may be client-supplied so an offline memo keeps the same identity after
+                         sync. A duplicate id is not itself an idempotency key.
                 content:
                     type: string
                 entryDate:
@@ -1131,7 +1135,9 @@ components:
                     description: source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
                 status:
                     type: string
-                    description: status is one of "pending" | "ready" | "failed".
+                    description: |-
+                        status is the generation lifecycle marker; successful summaries use
+                         "complete".
                 errorCode:
                     type: string
                     description: error_code explains a "failed"/degraded status, e.g. "key_unavailable".
@@ -1205,7 +1211,9 @@ components:
                         $ref: '#/components/schemas/AskMessage'
                 cursor:
                     type: string
-                    description: cursor echoes the request cursor; next_cursor is the position to pass next.
+                    description: |-
+                        cursor and next_cursor are the server position after this page. Clients
+                         should persist next_cursor only after applying the returned resources.
                 nextCursor:
                     type: string
                 hasMore:
@@ -1293,7 +1301,7 @@ components:
             properties:
                 mutationId:
                     type: string
-                    description: mutation_id is a client-generated unique id used for idempotency.
+                    description: mutation_id is a client-generated unique key used to find a stored result.
                 resourceType:
                     type: string
                 resourceId:
@@ -1340,7 +1348,7 @@ components:
                     type: string
                 status:
                     type: string
-                    description: status is "applied" | "conflict" | "invalid".
+                    description: status is "applied" | "conflict" | "rejected".
                 reason:
                     type: string
                     description: reason is a machine code complementing a non-applied status.
@@ -1401,8 +1409,10 @@ tags:
         MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
          favoriting, and archiving carry expected_version for optimistic concurrency;
          a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
-         Creation is idempotent by caller-supplied id, while summary generation only
-         writes derived AI data and therefore does not carry expected_version.
+         Creation may use a caller-supplied id for offline identity. SyncService uses
+         mutation_id to correlate retries and replay a previously stored result.
+         Summary generation only writes derived AI data and carries no
+         expected_version.
     - name: SettingsService
       description: |-
         SettingsService manages AI profiles and account-wide AI behavior. Get never
@@ -1410,6 +1420,6 @@ tags:
          the stored key), while SetAIAutoSummary never mutates profiles.
     - name: SyncService
       description: |-
-        SyncService is the offline-sync surface for future mobile clients. Pull
+        SyncService is the offline-sync surface used by mobile clients. Pull
          streams server changes since a cursor; push applies client mutations with
-         per-mutation idempotency and version-based conflict detection.
+         stored-result replay and version-based conflict detection.

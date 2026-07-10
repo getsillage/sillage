@@ -1,299 +1,72 @@
 # CLAUDE.md
 
-本文件为本仓库的编码代理与维护者提供项目指导。
+本文件只记录编码代理的协作约束。开发流程、架构和运维规则使用下方事实源，不在这里重复维护。
 
 ## 协作约定
 
 - 直接提交到 `main` 分支，不创建新分支，也不走 PR 流程。
 - 与用户交流一律使用简体中文。
 - 本文件除下方 `# RTK (Rust Token Killer)` 部分保留英文原文外，统一使用简体中文。
-- 所有 shell 命令必须加 `rtk` 前缀。
-- 文档代码块保留面向普通开发者的标准命令即可；`rtk` 只约束代理实际执行的 shell 命令。
-
-## 行为规范
-
-整体倾向谨慎而非速度；琐碎任务可以自行判断。
-
-### 1. 编码前思考
-
-- 明确说明假设；不确定就问，不要猜。
-- 有多种理解时摆出来，不要默默选一个。
-- 用户不是技术专家。需求本身有风险或不符合当前产品边界时，先指出问题，给出更规范的做法与权衡。
-- 不清楚就停下来，说清困惑再继续。
-
-### 2. 简洁优先
-
-- 不加要求之外的功能。
-- 不为一次性代码造抽象。
-- 不加没有实际需求的灵活配置。
-- 沿用现有 Go store/service、Echo route、Vite web、proto 生成物的组织方式。
-
-### 3. 精准修改
-
-- 只碰必须碰的文件。
-- 不顺手重构无关代码。
-- 看到无关死代码先提，不要直接删。
-- 因本次改动产生的孤儿 import、变量、函数要清理。
-
-### 4. 目标驱动执行
-
-- 把任务转成可验证目标。
-- 多步任务先给简短计划。
-- 每次提交前按风险运行对应验证命令。
-- 功能、命令、架构、API 契约变化要同步更新 `README.md`、`CLAUDE.md` 或 `docs/`。
-
-## Commit 规范
-
-提交遵循 Conventional Commits：
-
-```text
-<type>(<scope>): <subject>
-```
-
-常用类型：
-
-- `feat`：新功能或新增资料
-- `fix`：修复问题
-- `docs`：文档变更
-- `style`：格式调整
-- `refactor`：结构整理或重构
-- `perf`：性能优化
-- `test`：添加或修改测试
-- `chore`：构建过程、辅助工具或仓库维护变更
-- `ci`：CI 配置变更
-- `revert`：回滚提交
-
-示例：
-
-```text
-feat(api): add sync push conflict result
-fix(auth): reject second account initialization
-docs(sync): document mutation id semantics
-chore(cleanup): remove legacy workers runtime
-```
-
-## 项目
-
-Sillage 是单人私密记录与 AI 反思工具。当前主架构是 memos 风格 Go 自托管单体：
-
-- Go 后端：`cmd/sillage`、`server/`、`store/`、`internal/`
-- SQLite 文件数据库：`store/migration/sqlite/LATEST.sql`
-- 本地附件目录：`$SILLAGE_DATA/assets/attachments/`
-- React + TypeScript + Vite 前端：`web/`
-- Kotlin + Jetpack Compose Android 客户端：`android/`
-- Protobuf API 契约：`proto/api/v1/`
-- Docker 部署：`scripts/Dockerfile`、`scripts/compose.yaml`
-
-产品边界：
-
-- 后端、数据库、proto 和 API 使用 `memo` / `Ask` 命名；中文 UI 固定显示“记录 / 问答 / 总结”，不要向用户暴露 `memo` 或英文 `Ask`。
-- 保持单人私密空间，不引入多用户、成员管理、公开分享、公开探索、RSS、sitemap、标签、reaction、relation、社交 feed、知识库、任务系统或复杂网盘能力。
-- 不迁移旧 Cloudflare 数据；新 SQLite 数据库从空库初始化。
-- 不提供内置备份、备份 UI、定时备份、服务端备份下载 API 或备份/导出 CLI；认证附件下载和客户端本地数据导入导出不在此禁区。
-- Docker 是主部署方式，所有持久状态收敛到 `/var/opt/sillage`。
-- Android 客户端放在同仓库 `android/` 下，共用根目录 `proto/`；当前阶段为原生 Kotlin + Jetpack Compose 客户端，支持在线和离线模式、记录列表/日历/搜索、新建/编辑/删除、收藏/归档、在线附件上传与认证打开、AI 设置、记录总结、问答、导入导出，以及手动与服务器双向同步。离线附件字节与 metadata 的完整同步仍未实现。
-
-产品指导见 `docs/development/product-guidance.md`，同步契约见 `docs/development/api/sync.md`，迁移计划见 `docs/archive/migration/memos-style-self-hosted-plan.md`。
-
-## 常用命令
-
-```bash
-go test -count=1 ./...
-go vet ./...
-go build ./cmd/sillage
-
-pnpm --dir web install
-pnpm --dir web typecheck
-pnpm --dir web lint
-pnpm --dir web test
-pnpm --dir web build
-
-cd android && ./gradlew :app:assembleDebug
-cd android && ./gradlew :app:testDebugUnitTest
-cd android && ./gradlew :app:lintDebug
-
-buf lint
-buf generate
-
-SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage
-```
-
-Web 构建会覆盖 `server/router/frontend/dist`。改动前端后必须先运行 `pnpm --dir web build`，再重编译或重启 Go 服务；源码与最新嵌入产物应在同一提交中。
-
-Docker 构建：
-
-```bash
-docker build -t sillage:latest -f scripts/Dockerfile .
-docker compose -f scripts/compose.yaml up -d --build sillage
-```
-
-如果网络不稳定，可按用户提示使用本机 `7897` 代理端口，例如：
-
-```bash
-docker build --network=host \
-  --build-arg HTTP_PROXY=http://127.0.0.1:7897 \
-  --build-arg HTTPS_PROXY=http://127.0.0.1:7897 \
-  --build-arg NO_PROXY=localhost,127.0.0.1 \
-  --build-arg NPM_CONFIG_REGISTRY=https://registry.npmmirror.com \
-  --build-arg GOPROXY=https://goproxy.cn,direct \
-  -t sillage:latest -f scripts/Dockerfile .
-```
-
-## 运行时配置
-
-常用环境变量：
-
-```text
-SILLAGE_ADDR=
-SILLAGE_PORT=5231
-SILLAGE_DATA=/var/opt/sillage
-SILLAGE_DSN=/var/opt/sillage/sillage.db
-SILLAGE_MAX_UPLOAD_MB=30
-SILLAGE_INSTANCE_URL=
-SILLAGE_LOG_FORMAT=json
-SILLAGE_LOG_LEVEL=info
-SESSION_SECRET=
-ENCRYPTION_SECRET=
-```
-
-`SESSION_SECRET` 和 `ENCRYPTION_SECRET` 可省略；首次启动会生成到 `$SILLAGE_DATA/runtime/secrets.json`。也支持 `SILLAGE_DSN_FILE`、`SESSION_SECRET_FILE`、`ENCRYPTION_SECRET_FILE` 文件注入。
-
-数据目录布局：
-
-```text
-/var/opt/sillage/sillage.db
-/var/opt/sillage/assets/attachments/
-/var/opt/sillage/.thumbnail_cache/
-/var/opt/sillage/runtime/
-```
-
-## 架构说明
-
-启动链路：
-
-- `cmd/sillage/main.go` 读取 flag/env，创建 profile。
-- `internal/profile` 规范化端口、数据目录、DSN 和运行目录。
-- `store/db/sqlite` 使用 `modernc.org/sqlite` 打开 SQLite。
-- `store/migrator.go` 对新库应用 `LATEST.sql`。
-- `server.New` 创建 Echo server，注册健康检查、REST、Connect、附件下载和前端静态资源。
-
-存储层：
-
-- `store.Store` 聚合 account、session、memo、attachment、AI profile、memo AI、Ask、sync、runtime KV 等操作。
-- `memo` 是唯一内容单位，包含 `entry_date`、`version`、`favorited_at`、`archived_at`、`deleted_at`。
-- 删除使用 tombstone；可同步聚合必须保留 `updated_at` 与 `deleted_at`。
-- AI 派生数据写入独立表，不 bump memo `updated_at` 或 `version`。
-- 普通记录列表按 `entry_date`、`created_at`、`id` 倒序；`archived` / `favorited` 条件必须在分页 `LIMIT` 前过滤，未归档、已归档、收藏三个客户端视图互斥。
-- 搜索使用 SQLite FTS5，中文短语和长查询使用 `LIKE` fallback；归档与收藏条件必须在 `LIMIT` 前过滤，tombstone 永不出现在结果中。
-
-认证：
-
-- 首次无账号时进入唯一账号初始化流程。
-- 初始化后不允许创建第二个账号。
-- 登录返回 access token，并设置 HttpOnly refresh cookie。
-- refresh token 存服务端哈希，登出时失效。
-- 登录失败限流保留在服务端。
-
-API：
-
-- REST v1 路径使用 `/api/v1/*`。
-- Connect v1 路径形如 `/sillage.api.v1.MemoService/ListMemos`。
-- REST 和 Connect 共用 `server/api_service.go` 里的业务方法，避免两套行为。
-- Protobuf 源在 `proto/api/v1/`，Go 与 OpenAPI 生成物不得手改；契约变化后运行 `buf lint`、`buf generate`，生成物必须提交入库，并同时覆盖 REST 与 Connect 测试。
-- 更新、删除、收藏和归档都必须携带大于 0 的 `expectedVersion`。缺失、0 或非法值返回 REST 400 / Connect `invalid_argument`；过期版本返回 REST 409 `version_conflict` / Connect `aborted`，客户端必须刷新或显式处理，不能盲重试。
-- 客户端使用 `:setFavorited` / `:setArchived` canonical 动作，并在 JSON body 中传显式 `true` 或 `false`。
-- 普通列表默认每页 50、最大 500，使用服务端生成的版本化不透明 cursor；客户端只能原样回传。调整 cursor 格式时必须继续兼容旧日期及置顶分桶 cursor。搜索不分页、忽略 cursor。服务端内部仅允许 `pageSize + 1` lookahead 判断是否还有下一页。
-- `/api/v1/sync` 和 `/api/v1/sync:push` 支持 Android 手动同步和后续更完整的离线同步阶段，支持 tombstone、mutation id 幂等、冲突返回和附件 metadata 同步。
-- sync memo payload 使用 `favorited` 作为规范收藏字段；服务端兼容读取已弃用的 `pinned`，两者同时出现时以 `favorited` 为准。
-- sync 默认及最大页长为 200；memos、attachments、memo AI、Ask conversations、Ask messages 五路资源分别使用 200+1 lookahead 和独立 `(updated_at, id)` 位置，`hasMore` / `nextCursor` 必须能完整遍历每一路。
-
-附件：
-
-- 字节写入 `$SILLAGE_DATA/assets/attachments/`，下载路径为 `/file/attachments/{uid}/{filename}`。
-- 文件下载需要登录，不直接暴露宿主目录。
-- 文件名必须清理，禁止路径穿越。
-- 默认上传上限为 30MB，可通过 `SILLAGE_MAX_UPLOAD_MB` 调整。
-
-AI 与 Ask：
-
-- AI profile 保存在 SQLite。
-- API key 使用 `ENCRYPTION_SECRET` 经 HKDF 派生 AES-256-GCM key 后加密为 envelope。
-- key 解不开时标记 `key_unavailable`，服务不能崩溃。
-- 当前单条 memo 总结和 Ask 回答由配置的 AI 档案生成，必须基于来源 memo，不编造没有记录支撑的分析。
-- Ask 默认上下文范围推荐最近 30 天，不默认读取全量历史。
-
-前端：
-
-- `web/` 使用 pnpm、Vite、React、TypeScript、Tailwind。
-- `pnpm --dir web build` 输出到 `server/router/frontend/dist`，由 Go embed 提供静态资源。
-- Web 视觉与交互规范见 `docs/development/design/README.md`、`docs/development/design/design-system.md` 和 `docs/development/design/checklist.md`；`web/src/styles/app.css` 的主题令牌与 `web/src/components/ui.ts` 是代码事实来源。复用 Lucide、共享令牌、明暗主题和现有响应式外壳。
-- Web 首屏是可用应用界面，不做营销落地页。
-- UI 文案使用“记录”，不要把 `memo` 暴露给中文用户。
-- 新建与编辑草稿按记录隔离，速记使用全局草稿。dirty 状态必须同时保护站内导航、`beforeunload` 和手动退出；编辑草稿保留 `baseVersion`，版本不一致时由用户明确选择。保存或上传期间锁定所有冲突控件。
-- 发送、保存等入口用同步 ref 单飞；列表、详情、问答与设置用 abort、request id 或 generation 隔离迟到响应，旧响应不得覆盖 canonical mutation 后的状态。临时失败应保留已加载内容并提供手动重试，不得伪装成空态或不存在。
-- 历史列表同一 cursor 只允许一个分页请求；刷新或 canonical mutation 使旧页失效。日历补齐全部分页后再显示结果，失败后停下等待手动重试。问答的新会话创建、流式回答与重新生成必须隔离旧会话。
-
-Android：
-
-- `android/` 是独立 Gradle 工程，使用 Kotlin、Jetpack Compose、Material 3 和 OkHttp。
-- Android 客户端支持在线模式与本地离线模式，包含服务器地址配置、初始化/登录、记录列表/日历/搜索、新建/编辑/删除、收藏/归档、在线附件上传与认证打开、AI 设置、记录总结、问答、导入导出，以及手动从实例拉取、向实例推送或双向同步。
-- Android 走 REST v1 包装层，暂不从 `proto/` 生成 Android 客户端；当前离线数据保存在加密本地存储中，不使用 Room/WorkManager 后台同步。
-- 401 refresh 使用 `Mutex` single-flight 且每个请求最多重试一次；旧 access token 的失败不得清掉已刷新的会话。协程取消必须取消底层 OkHttp Call，尤其是 SSE 和附件下载。
-- 上传、来源详情、问答流与最终刷新、列表分页都要校验编辑/页面/会话/运行模式/request id；迟到回调不得改写当前页面，失败或取消必须清理临时文件和进行中状态。
-- Markdown 普通 `http(s)` 外链交给系统；同源 `/file/attachments/{uid}/{filename}` 必须由 App 携带认证下载、清理文件名与 MIME，再通过 FileProvider 只读 URI 打开。拒绝危险协议、跨源伪附件与路径穿越。打开缓存当前按 24 小时 TTL、至少 1 小时外部读取窗口和最多 8 项回收。
-- 不提交 APK/AAB、keystore、`local.properties`、设备本地数据库、附件缓存或真实密钥。
-
-## 测试与验收
-
-提交前按改动范围运行：
-
-```bash
-go test -count=1 ./...
-go vet ./...
-go build ./cmd/sillage
-buf lint
-buf generate
-pnpm --dir web lint
-pnpm --dir web typecheck
-pnpm --dir web test
-pnpm --dir web build
-
-cd android && ./gradlew :app:assembleDebug
-cd android && ./gradlew :app:testDebugUnitTest
-cd android && ./gradlew :app:lintDebug
-
-git diff --check
-```
-
-前端测试用 Vitest + @testing-library（jsdom）；E2E 用 Playwright（`pnpm --dir web test:e2e`，需先
-`pnpm --dir web exec playwright install` 安装浏览器，并有可访问的运行实例）。
-
-大型 Web UI 改动除 smoke 外，还要覆盖浅色/深色 × 桌面/移动的记录、历史、问答、设置、初始化与登录页面；检查横向溢出、每页单一 `<main>`、console/page error、图标可访问名称，以及顶层对话框的 Esc 分层和焦点恢复。临时 Playwright 用例与截图不提交入库。
-
-Android 单测、assemble 和 lint 不能替代真机或模拟器验收。影响编辑、附件或网络状态时，至少检查软键盘、慢网络取消、系统返回，以及第三方 PDF/图片 chooser 的交接。
-
-影响部署时还要验证 Docker 镜像可构建，必要时使用 compose 启动后访问 `http://localhost:5231`。
-
-关键验收点：
-
-- 首次访问进入创建唯一账号页面。
-- 初始化、登录、新建记录、编辑记录、附件上传下载、AI 设置、AI 总结、问答和 `/api/v1/sync` 可用。
-- 旧备份页面和接口不可访问。
-- 业务代码中不再出现 Cloudflare Workers、D1、R2、KV 或 Wrangler 运行时依赖。
-
-## 部署说明
-
-Sillage 自身只提供 HTTP 服务。TLS 由 Cloudflare Tunnel、Nginx、Caddy 或平台层负责。外层代理应转发：
-
-```text
-X-Forwarded-Proto
-X-Forwarded-Host
-X-Forwarded-For
-```
-
-需要固定外部地址时设置 `SILLAGE_INSTANCE_URL`。
-
-当前版本没有内置备份能力。运维侧需要停止容器后复制整个 `/var/opt/sillage`，不要只复制 `sillage.db`，因为同一目录还包含 SQLite WAL/SHM、附件、缩略图缓存和运行时 secret。
+- 所有实际 shell 命令必须加 `rtk` 前缀；文档代码块保留普通开发者使用的标准命令。
+- 工作树可能包含用户改动。保留无关变更，不执行破坏性 Git 命令，不提交真实数据或密钥。
+
+## 工作方式
+
+1. 先确认目标、影响范围和代码事实；旧文档不能替代代码核验。
+2. 采用现有 Go store/service、Echo route、Vite Web、Android 和 Proto 组织方式。
+3. 只修改完成目标所需的文件，不顺手重构或扩展产品范围。
+4. 按风险补测试并运行对应门禁；失败要定位，不能用降低标准规避。
+5. 功能、配置、命令、契约或架构变化必须在同一提交更新主文档。
+
+## 项目边界
+
+Sillage 是自托管的单人私密记录与 AI 反思工具：
+
+- Go + Echo 后端，SQLite 与本地附件存储；
+- React + TypeScript + Vite Web，构建产物嵌入 Go；
+- Kotlin + Jetpack Compose Android 客户端；
+- Protobuf 契约，同时提供 REST v1 与 Connect v1；
+- Docker 是主要部署方式，持久状态收敛在单一数据目录。
+
+必须保持：
+
+- 一个实例只有一个账号；
+- `memo` 是唯一内容单位，中文 UI 使用“记录”；
+- AI 总结和回答以来源记录为依据；
+- 不引入多人、公开分享、社交、标签、任务、知识库或复杂网盘能力；
+- 不增加内置备份 UI、服务端备份 API 或备份 CLI；
+- Android 同步由用户手动触发，离线附件完整同步尚未实现。
+
+## 事实来源
+
+| 主题 | 入口 |
+| --- | --- |
+| 开发环境、生成物、验证、提交 | `CONTRIBUTING.md` |
+| 模块职责、数据/API 边界 | `docs/development/architecture.md` |
+| 产品范围、术语、AI 行为 | `docs/development/product-guidance.md` |
+| 同步、幂等、冲突 | `docs/development/api/sync.md` |
+| Web 视觉与交互 | `docs/development/design/README.md` |
+| 部署与有效配置 | `docs/user/deployment.md` |
+| 数据、备份与恢复 | `docs/user/data.md` |
+
+文档与实现冲突时，以对应代码事实源为准，并修正文档：
+
+- 运行配置：`cmd/sillage/main.go`、`internal/profile/profile.go`
+- 数据库：`store/migration/sqlite/LATEST.sql`、`store/migrator.go`
+- API：`proto/api/v1/`、`server/*_routes.go`、`server/api_service.go`
+- Web 样式：`web/src/styles/app.css`、`web/src/components/ui.ts`
+- CI 与容器：`.github/workflows/ci.yml`、`scripts/`
+
+## 改动契约
+
+- Proto 变化：运行 `buf lint`、`buf generate`，提交生成物，并同步 REST、Web、Android 与测试。
+- 数据库变化：同时更新新库 `LATEST.sql`、已存在数据库兼容迁移和迁移测试。
+- Web 变化：运行 Web lint/typecheck/test/build，提交最新 `server/router/frontend/dist/`。
+- 写操作：继续使用版本检查、tombstone 和同步幂等规则，不引入静默覆盖。
+- UI 异步流程：隔离迟到响应，进行中状态锁定冲突操作，失败保留用户输入并允许重试。
+- 部署或数据变化：先核对安全绑定、代理信任边界和可回滚的数据操作。
+
+完整命令和人工验收范围见 `CONTRIBUTING.md`。
 
 <!-- headroom:rtk-instructions -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

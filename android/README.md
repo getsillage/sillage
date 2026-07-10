@@ -1,46 +1,29 @@
 # Sillage Android
 
-Sillage Android 是 Sillage 的原生手机客户端。它可以连接自托管 Sillage 实例，也可以在本机离线保存记录；适合在手机上记录、搜索、回看历史，并使用 AI 总结和问答功能。
+原生 Android 客户端支持 Android 8.0 及以上版本，可以连接自托管实例，也可以在设备上离线记录。
 
-## 使用前准备
+## 连接实例
 
-先确保你的 Sillage 服务已经启动，并且手机可以访问到服务地址。
+先启动 Sillage 服务，并确保手机可以访问服务地址：
 
-如果后端运行在本机 Docker：
+- 模拟器访问本机：`http://10.0.2.2:5231`
+- 真机访问局域网主机：例如 `http://192.168.1.10:5231`
+- 公网实例：使用 HTTPS 反向代理或 Tunnel 地址
 
-- Android 模拟器填写 `http://10.0.2.2:5231`
-- 真机填写电脑在局域网内的地址，例如 `http://192.168.1.10:5231`
+在线与离线模式都支持记录、日历、搜索、收藏、归档、AI 设置、总结和问答。在线模式另外支持初始化/登录、附件上传与认证下载；本地数据可以导入导出，并可手动拉取、推送或双向同步。
 
-如果通过公网域名、反向代理或 Cloudflare Tunnel 访问，填写对应的 HTTPS 地址。
+当前不提供后台自动同步或推送，离线附件字节与元数据也不会完整同步。Android 导出文件不能替代服务端整目录备份。
 
-## 当前功能
+## 构建与测试
 
-- 选择在线模式或离线模式。
-- 在线模式下配置服务器地址，初始化唯一账号或登录已有账号。
-- 查看、搜索、新建、编辑、删除记录，并按列表或日历回看。
-- 收藏、取消收藏、归档、取消归档记录，并在未归档、已归档、收藏视图间切换。
-- 在线模式上传附件并插入记录内容。
-- 切换浅色或深色主题。
-- 管理 AI 档案、获取模型列表、测试连接，并独立设置新建记录后自动总结。
-- 离线模式下可使用本机已保存的 AI 档案进行记录总结和 Ask。
-- 查看和生成记录总结。
-- 使用 Ask 问答，查看来源记录、重新生成分支、切换回答版本，并把回答保存为记录。
-- 导出/导入完整本地数据。
-- 在线模式下把服务端数据同步到本地、把本机离线记录推送到云端，或执行双向同步。
-- 退出登录。
-
-当前版本不提供后台自动同步或推送通知；同步需要在设置中手动触发。
-
-## 安装调试版
-
-如果你从源码构建，需要准备 JDK 17 和 Android SDK。
+需要 JDK 17 和 Android SDK 35：
 
 ```bash
 cd android
-./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-APK 输出位置：
+调试 APK 位于：
 
 ```text
 android/app/build/outputs/apk/debug/app-debug.apk
@@ -53,23 +36,9 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## 构建发布版
+## 发布签名
 
-Android 应用包名固定为：
-
-```text
-app.sillage
-```
-
-发布版 APK 使用本地 release keystore 签名。签名文件不提交到仓库，需要在 `android/`
-目录下准备：
-
-```text
-release.keystore
-signing.properties
-```
-
-`signing.properties` 格式：
+应用包名为 `app.sillage`。签名文件不提交仓库；在 `android/` 下准备 `release.keystore` 和 `signing.properties`：
 
 ```properties
 storeFile=release.keystore
@@ -78,34 +47,21 @@ keyAlias=sillage-release
 keyPassword=...
 ```
 
-构建 release APK：
+构建并校验 release APK：
 
 ```bash
 cd android
 ./gradlew :app:assembleRelease
-```
-
-APK 输出位置：
-
-```text
-android/app/build/outputs/apk/release/app-release.apk
-```
-
-发布前建议校验签名和 zipalign：
-
-```bash
 apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 zipalign -c -v 4 app/build/outputs/apk/release/app-release.apk
 ```
 
-GitHub Release 附件建议命名为：
+只有本地签名配置存在时 release 构建才会使用该 keystore。不要发布未校验签名的产物，也不要提交 APK/AAB、keystore、`signing.properties` 或 `local.properties`。
 
-```text
-Sillage-vX.Y.Z.apk
-```
+## 安全边界
 
-## 安全建议
+应用允许明文 HTTP，便于局域网和模拟器开发；生产实例应只使用 HTTPS。登录会话和离线数据通过 Android Keystore 保护，但导出的 JSON 是明文敏感数据，应限制分享和保存位置。
 
-本地调试允许 HTTP 明文连接。生产使用建议通过 HTTPS 反向代理或 Cloudflare Tunnel 访问 Sillage。
+附件链接只接受普通 `http(s)` 外链或同源 `/file/attachments/...`。受保护附件由 App 携带认证下载到缓存，再通过只读 FileProvider URI 交给系统查看器。
 
-Android 会保存 access token、refresh cookie 和离线数据。当前实现使用 Android Keystore 加密本地会话与离线数据；退出登录会请求服务端注销会话，并清理本地在线会话。
+完整开发门禁见[贡献指南](../CONTRIBUTING.md)，服务端部署与数据安全见[部署说明](../docs/user/deployment.md)和[数据与备份](../docs/user/data.md)。

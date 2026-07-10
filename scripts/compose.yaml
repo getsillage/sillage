@@ -7,7 +7,7 @@ services:
     container_name: sillage
     restart: unless-stopped
     ports:
-      - "${SILLAGE_HOST_PORT:-5231}:5231"
+      - "${SILLAGE_HOST_PORT:-127.0.0.1:5231}:5231"
     volumes:
       - ~/.sillage:/var/opt/sillage
     environment:

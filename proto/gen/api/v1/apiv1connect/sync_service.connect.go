@@ -44,9 +44,9 @@ type SyncServiceClient interface {
 	// PullSync returns changes after the given cursor, including tombstones, in
 	// pages. Attachments are pull-only (metadata).
 	PullSync(context.Context, *connect.Request[v1.PullSyncRequest]) (*connect.Response[v1.PullSyncResponse], error)
-	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
-	// for idempotent retries; a stale base_version yields a conflict result
-	// rather than an error.
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id;
+	// a stored prior result can be replayed, while a stale base_version yields a
+	// conflict result rather than an error.
 	PushSync(context.Context, *connect.Request[v1.PushSyncRequest]) (*connect.Response[v1.PushSyncResponse], error)
 }
 
@@ -97,9 +97,9 @@ type SyncServiceHandler interface {
 	// PullSync returns changes after the given cursor, including tombstones, in
 	// pages. Attachments are pull-only (metadata).
 	PullSync(context.Context, *connect.Request[v1.PullSyncRequest]) (*connect.Response[v1.PullSyncResponse], error)
-	// PushSync applies a batch of client mutations. Each is keyed by mutation_id
-	// for idempotent retries; a stale base_version yields a conflict result
-	// rather than an error.
+	// PushSync applies a batch of client mutations. Each is keyed by mutation_id;
+	// a stored prior result can be replayed, while a stale base_version yields a
+	// conflict result rather than an error.
 	PushSync(context.Context, *connect.Request[v1.PushSyncRequest]) (*connect.Response[v1.PushSyncResponse], error)
 }
 

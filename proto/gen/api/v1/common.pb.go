@@ -231,7 +231,7 @@ type Attachment struct {
 	Sha256      string                 `protobuf:"bytes,8,opt,name=sha256,proto3" json:"sha256,omitempty"`
 	Width       int64                  `protobuf:"varint,9,opt,name=width,proto3" json:"width,omitempty"`
 	Height      int64                  `protobuf:"varint,10,opt,name=height,proto3" json:"height,omitempty"`
-	// status is the lifecycle marker (e.g. "ready"); reserved for future states.
+	// status is the lifecycle marker; stored local attachments use "stored".
 	Status        string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
 	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
 	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
@@ -382,7 +382,8 @@ type MemoAI struct {
 	PromptVersion string                 `protobuf:"bytes,7,opt,name=prompt_version,json=promptVersion,proto3" json:"prompt_version,omitempty"`
 	// source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
 	SourceMemoIds string `protobuf:"bytes,8,opt,name=source_memo_ids,json=sourceMemoIds,proto3" json:"source_memo_ids,omitempty"`
-	// status is one of "pending" | "ready" | "failed".
+	// status is the generation lifecycle marker; successful summaries use
+	// "complete".
 	Status string `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
 	// error_code explains a "failed"/degraded status, e.g. "key_unavailable".
 	ErrorCode     string                 `protobuf:"bytes,10,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
@@ -909,7 +910,8 @@ type AskMessage struct {
 	// fork_of_id, when set, marks this as an alternative (regenerated) answer to
 	// the same parent as the referenced message.
 	ForkOfId string `protobuf:"bytes,6,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
-	// status is one of "pending" | "ready" | "failed".
+	// status is the message lifecycle marker; persisted messages currently use
+	// "complete".
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	SourceRefs    []*AskSourceRef        `protobuf:"bytes,8,rep,name=source_refs,json=sourceRefs,proto3" json:"source_refs,omitempty"`
 	Model         string                 `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`

@@ -51,7 +51,7 @@ message Attachment {
   string sha256 = 8;
   int64 width = 9;
   int64 height = 10;
-  // status is the lifecycle marker (e.g. "ready"); reserved for future states.
+  // status is the lifecycle marker; stored local attachments use "stored".
   string status = 11;
   google.protobuf.Timestamp created_time = 12;
   google.protobuf.Timestamp updated_time = 13;
@@ -71,7 +71,8 @@ message MemoAI {
   string prompt_version = 7;
   // source_memo_ids is a JSON array of the memo IDs the summary is grounded in.
   string source_memo_ids = 8;
-  // status is one of "pending" | "ready" | "failed".
+  // status is the generation lifecycle marker; successful summaries use
+  // "complete".
   string status = 9;
   // error_code explains a "failed"/degraded status, e.g. "key_unavailable".
   string error_code = 10;
@@ -151,7 +152,8 @@ message AskMessage {
   // fork_of_id, when set, marks this as an alternative (regenerated) answer to
   // the same parent as the referenced message.
   string fork_of_id = 6;
-  // status is one of "pending" | "ready" | "failed".
+  // status is the message lifecycle marker; persisted messages currently use
+  // "complete".
   string status = 7;
   repeated AskSourceRef source_refs = 8;
   string model = 9;

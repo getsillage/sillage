@@ -36,8 +36,10 @@ const (
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
 // favoriting, and archiving carry expected_version for optimistic concurrency;
 // a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
-// Creation is idempotent by caller-supplied id, while summary generation only
-// writes derived AI data and therefore does not carry expected_version.
+// Creation may use a caller-supplied id for offline identity. SyncService uses
+// mutation_id to correlate retries and replay a previously stored result.
+// Summary generation only writes derived AI data and carries no
+// expected_version.
 type MemoServiceClient interface {
 	ListMemos(ctx context.Context, in *ListMemosRequest, opts ...grpc.CallOption) (*ListMemosResponse, error)
 	CreateMemo(ctx context.Context, in *CreateMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
@@ -144,8 +146,10 @@ func (c *memoServiceClient) GenerateMemoSummary(ctx context.Context, in *Generat
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
 // favoriting, and archiving carry expected_version for optimistic concurrency;
 // a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
-// Creation is idempotent by caller-supplied id, while summary generation only
-// writes derived AI data and therefore does not carry expected_version.
+// Creation may use a caller-supplied id for offline identity. SyncService uses
+// mutation_id to correlate retries and replay a previously stored result.
+// Summary generation only writes derived AI data and carries no
+// expected_version.
 type MemoServiceServer interface {
 	ListMemos(context.Context, *ListMemosRequest) (*ListMemosResponse, error)
 	CreateMemo(context.Context, *CreateMemoRequest) (*MemoResponse, error)

@@ -161,7 +161,8 @@ func (x *ListMemosResponse) GetNextCursor() string {
 
 type CreateMemoRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// id is client-supplied so creation is idempotent across retries/offline sync.
+	// id may be client-supplied so an offline memo keeps the same identity after
+	// sync. A duplicate id is not itself an idempotency key.
 	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	EntryDate     string `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`

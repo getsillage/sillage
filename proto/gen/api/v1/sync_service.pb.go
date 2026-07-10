@@ -83,7 +83,8 @@ type PullSyncResponse struct {
 	MemoAi           []*MemoAI              `protobuf:"bytes,3,rep,name=memo_ai,json=memoAi,proto3" json:"memo_ai,omitempty"`
 	AskConversations []*AskConversation     `protobuf:"bytes,4,rep,name=ask_conversations,json=askConversations,proto3" json:"ask_conversations,omitempty"`
 	AskMessages      []*AskMessage          `protobuf:"bytes,5,rep,name=ask_messages,json=askMessages,proto3" json:"ask_messages,omitempty"`
-	// cursor echoes the request cursor; next_cursor is the position to pass next.
+	// cursor and next_cursor are the server position after this page. Clients
+	// should persist next_cursor only after applying the returned resources.
 	Cursor        string `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	NextCursor    string `protobuf:"bytes,7,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	HasMore       bool   `protobuf:"varint,8,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
@@ -225,7 +226,7 @@ func (x *PushSyncRequest) GetChanges() []*SyncChange {
 // push today.
 type SyncChange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// mutation_id is a client-generated unique id used for idempotency.
+	// mutation_id is a client-generated unique key used to find a stored result.
 	MutationId   string `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
 	ResourceType string `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
 	ResourceId   string `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
@@ -457,7 +458,7 @@ type SyncResult struct {
 	MutationId   string                 `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
 	ResourceType string                 `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
 	ResourceId   string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	// status is "applied" | "conflict" | "invalid".
+	// status is "applied" | "conflict" | "rejected".
 	Status string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	// reason is a machine code complementing a non-applied status.
 	Reason  string `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`

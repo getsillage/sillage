@@ -27,10 +27,10 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	var memos []*store.Memo
 	var nextCursor string
 	if query := req.Msg.GetQuery(); query != "" {
-		memos, err = s.server.searchMemos(ctx, account.ID, query, req.Msg.Archived, limit)
+		memos, err = s.server.searchMemos(ctx, account.ID, query, req.Msg.Archived, req.Msg.Favorited, limit)
 	} else {
 		var page *memoListPage
-		page, err = s.server.listMemos(ctx, account.ID, limit, req.Msg.GetCursor())
+		page, err = s.server.listMemos(ctx, account.ID, req.Msg.Archived, req.Msg.Favorited, limit, req.Msg.GetCursor())
 		if page != nil {
 			memos = page.Memos
 			nextCursor = page.NextCursor
@@ -93,7 +93,7 @@ func (s *memoService) UpdateMemo(ctx context.Context, req *connect.Request[apiv1
 		ExpectedVersion: req.Msg.GetExpectedVersion(),
 		Content:         req.Msg.Content,
 		EntryDate:       req.Msg.EntryDate,
-		Pinned:          req.Msg.Pinned,
+		Favorited:       req.Msg.Favorited,
 		Archived:        req.Msg.Archived,
 	})
 	if err != nil {
@@ -114,8 +114,8 @@ func (s *memoService) DeleteMemo(ctx context.Context, req *connect.Request[apiv1
 	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
 }
 
-func (s *memoService) SetMemoPinned(ctx context.Context, req *connect.Request[apiv1.SetMemoPinnedRequest]) (*connect.Response[apiv1.MemoResponse], error) {
-	return s.updateMemoBool(ctx, req.Header(), req.Msg.GetId(), req.Msg.GetExpectedVersion(), &req.Msg.Pinned, nil)
+func (s *memoService) SetMemoFavorited(ctx context.Context, req *connect.Request[apiv1.SetMemoFavoritedRequest]) (*connect.Response[apiv1.MemoResponse], error) {
+	return s.updateMemoBool(ctx, req.Header(), req.Msg.GetId(), req.Msg.GetExpectedVersion(), &req.Msg.Favorited, nil)
 }
 
 func (s *memoService) SetMemoArchived(ctx context.Context, req *connect.Request[apiv1.SetMemoArchivedRequest]) (*connect.Response[apiv1.MemoResponse], error) {
@@ -139,7 +139,7 @@ func (s *memoService) updateMemoBool(
 	header http.Header,
 	id string,
 	expectedVersion int64,
-	pinned *bool,
+	favorited *bool,
 	archived *bool,
 ) (*connect.Response[apiv1.MemoResponse], error) {
 	account, err := s.server.accountFromConnect(ctx, header)
@@ -149,7 +149,7 @@ func (s *memoService) updateMemoBool(
 	memo, err := s.server.updateMemo(ctx, account.ID, memoUpdateInput{
 		ID:              id,
 		ExpectedVersion: expectedVersion,
-		Pinned:          pinned,
+		Favorited:       favorited,
 		Archived:        archived,
 	})
 	if err != nil {

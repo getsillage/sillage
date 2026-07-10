@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -59,6 +60,58 @@ class SillageExportCodecTest {
         assertEquals("默认", decoded.aiProfiles.single().name)
         assertEquals("会话", decoded.askConversations.single().title)
         assertEquals("回答", decoded.askMessages.single().content)
+    }
+
+    @Test
+    fun legacyPinnedMemoImportsAsFavoriteAndNewJsonUsesFavoritedAt() {
+        val legacy = JSONObject()
+            .put("id", "legacy")
+            .put("content", "旧记录")
+            .put("entryDate", "2026-06-27")
+            .put("version", 2)
+            .put("createdAt", "2026-06-27T00:00:00Z")
+            .put("updatedAt", "2026-06-28T00:00:00Z")
+            .put("pinnedAt", "2026-06-28T00:00:00Z")
+
+        val decoded = jsonToMemo(legacy)
+        val encoded = memoToJson(decoded)
+
+        assertEquals("2026-06-28T00:00:00Z", decoded.favoritedAt)
+        assertEquals("2026-06-28T00:00:00Z", encoded.getString("favoritedAt"))
+        assertFalse(encoded.has("pinnedAt"))
+    }
+
+    @Test
+    fun syncCreateAndUpdatePayloadsAlwaysIncludeFavoriteState() {
+        val create = pendingMemoSyncToJson(
+            PendingMemoSync(
+                memo = memo(
+                    favoritedAt = "2026-06-28T00:00:00Z",
+                    archivedAt = "2026-06-28T00:00:00Z",
+                ),
+                baseVersion = null,
+                mutationId = "mutation-create",
+            ),
+        )
+        val update = pendingMemoSyncToJson(
+            PendingMemoSync(
+                memo = memo(),
+                baseVersion = 3,
+                mutationId = "mutation-update",
+            ),
+        )
+
+        assertEquals("mutation-create", create.getString("mutationId"))
+        assertEquals("create", create.getString("action"))
+        assertEquals(true, create.getJSONObject("memo").getBoolean("favorited"))
+        assertEquals(true, create.getJSONObject("memo").getBoolean("pinned"))
+        assertEquals(true, create.getJSONObject("memo").getBoolean("archived"))
+        assertEquals("mutation-update", update.getString("mutationId"))
+        assertEquals("update", update.getString("action"))
+        assertEquals(false, update.getJSONObject("memo").getBoolean("favorited"))
+        assertEquals(false, update.getJSONObject("memo").getBoolean("pinned"))
+        assertEquals(false, update.getJSONObject("memo").getBoolean("archived"))
+        assertEquals(3L, update.getLong("baseVersion"))
     }
 
     @Test
@@ -150,7 +203,11 @@ class SillageExportCodecTest {
         assertEquals("默认", decoded.aiProfiles.single().name)
     }
 
-    private fun memo(content: String = "content"): Memo {
+    private fun memo(
+        content: String = "content",
+        favoritedAt: String? = null,
+        archivedAt: String? = null,
+    ): Memo {
         return Memo(
             id = "m1",
             content = content,
@@ -158,8 +215,8 @@ class SillageExportCodecTest {
             version = 1,
             createdAt = "2026-06-27T00:00:00Z",
             updatedAt = "2026-06-27T00:00:00Z",
-            pinnedAt = null,
-            archivedAt = null,
+            favoritedAt = favoritedAt,
+            archivedAt = archivedAt,
             deletedAt = null,
         )
     }

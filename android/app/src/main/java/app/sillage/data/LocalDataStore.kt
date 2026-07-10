@@ -15,16 +15,16 @@ class LocalDataStore(context: Context) {
     fun listMemos(): List<Memo> = loadData().memos
 
     fun pendingCloudMemos(): List<PendingMemoSync> {
-        val cloudVersions = cloudMemoVersions()
-        return loadData().memos.mapNotNull { memo ->
-            val cloudVersion = cloudVersions[memo.id]
-            when {
-                cloudVersion == null && memo.deletedAt != null -> null
-                cloudVersion == null -> PendingMemoSync(memo = memo, baseVersion = null)
-                memo.version > cloudVersion -> PendingMemoSync(memo = memo, baseVersion = cloudVersion)
-                else -> null
-            }
+        val currentMutations = pendingMemoMutations()
+        val resolved = resolvePendingMemoSyncs(
+            memos = loadData().memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = currentMutations,
+        )
+        if (resolved.pendingMutations != currentMutations) {
+            savePendingMemoMutations(resolved.pendingMutations)
         }
+        return resolved.pending
     }
 
     fun markCloudSynced(memos: List<Memo>) {
@@ -33,7 +33,49 @@ class LocalDataStore(context: Context) {
         }
         val versions = cloudMemoVersions().toMutableMap()
         memos.forEach { memo -> versions[memo.id] = memo.version }
-        saveCloudMemoVersions(versions)
+        val syncedIds = memos.mapTo(mutableSetOf(), Memo::id)
+        val mutations = pendingMemoMutations().filterKeys { it !in syncedIds }
+        val editor = prefs.edit()
+        securePrefs.putString(
+            editor,
+            KEY_CLOUD_MEMO_VERSIONS,
+            cloudMemoVersionsJson(versions),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_PENDING_MEMO_MUTATIONS,
+            pendingMemoMutationsJson(mutations),
+        ).apply()
+    }
+
+    fun applyCloudSyncedMemos(appliedMemos: List<AppliedMemoSync>) {
+        if (appliedMemos.isEmpty()) {
+            return
+        }
+        val currentData = loadData()
+        val merged = mergeAppliedCloudMemos(
+            localMemos = currentData.memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = pendingMemoMutations(),
+            appliedMemos = appliedMemos,
+        )
+        val data = currentData.copy(memos = merged.memos).normalizedForLocalStorage()
+        val editor = prefs.edit()
+        securePrefs.putString(
+            editor,
+            KEY_DATA,
+            SillageExportCodec.toLocalJson(data),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_CLOUD_MEMO_VERSIONS,
+            cloudMemoVersionsJson(merged.cloudVersions),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_PENDING_MEMO_MUTATIONS,
+            pendingMemoMutationsJson(merged.pendingMutations),
+        ).apply()
     }
 
     fun searchMemos(query: String): List<Memo> {
@@ -64,11 +106,11 @@ class LocalDataStore(context: Context) {
             version = 1,
             createdAt = now,
             updatedAt = now,
-            pinnedAt = null,
+            favoritedAt = null,
             archivedAt = null,
             deletedAt = null,
         )
-        updateData { it.copy(memos = it.memos + memo) }
+        saveLocalMemoMutation(memo, append = true)
         return memo
     }
 
@@ -93,11 +135,11 @@ class LocalDataStore(context: Context) {
         return deleted
     }
 
-    fun setMemoPinned(memo: Memo, pinned: Boolean): Memo {
+    fun setMemoFavorited(memo: Memo, favorited: Boolean): Memo {
         val updated = memo.copy(
             version = memo.version + 1,
             updatedAt = now(),
-            pinnedAt = if (pinned) now() else null,
+            favoritedAt = if (favorited) now() else null,
         )
         replaceMemo(updated)
         return updated
@@ -284,14 +326,56 @@ class LocalDataStore(context: Context) {
 
     fun mergeFromServer(data: SillageExportData) {
         val normalized = data.normalizedForLocalStorage()
-        saveData(mergeData(loadData(), normalized))
-        markCloudSynced(normalized.memos)
+        val currentData = loadData()
+        val mergedMemos = mergePulledCloudMemos(
+            localMemos = currentData.memos,
+            pulledMemos = normalized.memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = pendingMemoMutations(),
+        )
+        val mergedData = mergeData(currentData, normalized).copy(memos = mergedMemos.memos)
+        val editor = prefs.edit()
+        securePrefs.putString(
+            editor,
+            KEY_DATA,
+            SillageExportCodec.toLocalJson(mergedData),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_CLOUD_MEMO_VERSIONS,
+            cloudMemoVersionsJson(mergedMemos.cloudVersions),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_PENDING_MEMO_MUTATIONS,
+            pendingMemoMutationsJson(mergedMemos.pendingMutations),
+        ).apply()
     }
 
     private fun replaceMemo(memo: Memo) {
-        updateData { data ->
-            data.copy(memos = data.memos.map { if (it.id == memo.id) memo else it })
+        saveLocalMemoMutation(memo, append = false)
+    }
+
+    private fun saveLocalMemoMutation(memo: Memo, append: Boolean) {
+        val currentData = loadData()
+        val memos = if (append) {
+            currentData.memos + memo
+        } else {
+            currentData.memos.map { if (it.id == memo.id) memo else it }
         }
+        val mutations = pendingMemoMutations().toMutableMap()
+        mutations[memo.id] = newPendingMemoMutation(memo)
+        val editor = prefs.edit()
+        securePrefs.putString(
+            editor,
+            KEY_DATA,
+            SillageExportCodec.toLocalJson(currentData.copy(memos = memos)),
+        )
+        securePrefs.putString(
+            editor,
+            KEY_PENDING_MEMO_MUTATIONS,
+            pendingMemoMutationsJson(mutations),
+        ).apply()
     }
 
     private fun loadData(): SillageExportData {
@@ -367,6 +451,7 @@ class LocalDataStore(context: Context) {
     companion object {
         private const val KEY_DATA = "data"
         private const val KEY_CLOUD_MEMO_VERSIONS = "cloud_memo_versions"
+        private const val KEY_PENDING_MEMO_MUTATIONS = "pending_memo_mutations"
     }
 
     private fun cloudMemoVersions(): Map<String, Long> {
@@ -379,16 +464,205 @@ class LocalDataStore(context: Context) {
         }
     }
 
-    private fun saveCloudMemoVersions(versions: Map<String, Long>) {
-        val body = JSONObject()
-        versions.forEach { (id, version) -> body.put(id, version) }
-        securePrefs.putString(prefs.edit(), KEY_CLOUD_MEMO_VERSIONS, body.toString()).apply()
+    private fun pendingMemoMutations(): Map<String, PendingMemoMutation> {
+        val raw = securePrefs.getString(KEY_PENDING_MEMO_MUTATIONS, "{}") ?: "{}"
+        val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
+        return buildMap {
+            body.keys().forEach { id ->
+                val item = body.optJSONObject(id) ?: return@forEach
+                val mutationId = item.optString("mutationId")
+                val memoVersion = item.optLong("memoVersion", 0)
+                val memoUpdatedAt = item.optString("memoUpdatedAt")
+                if (mutationId.isNotBlank() && memoVersion > 0 && memoUpdatedAt.isNotBlank()) {
+                    put(
+                        id,
+                        PendingMemoMutation(
+                            mutationId = mutationId,
+                            memoVersion = memoVersion,
+                            memoUpdatedAt = memoUpdatedAt,
+                        ),
+                    )
+                }
+            }
+        }
     }
+
+    private fun savePendingMemoMutations(mutations: Map<String, PendingMemoMutation>) {
+        securePrefs.putString(
+            prefs.edit(),
+            KEY_PENDING_MEMO_MUTATIONS,
+            pendingMemoMutationsJson(mutations),
+        ).apply()
+    }
+}
+
+internal data class AppliedCloudMemoMerge(
+    val memos: List<Memo>,
+    val cloudVersions: Map<String, Long>,
+    val pendingMutations: Map<String, PendingMemoMutation>,
+)
+
+internal data class PulledCloudMemoMerge(
+    val memos: List<Memo>,
+    val cloudVersions: Map<String, Long>,
+    val pendingMutations: Map<String, PendingMemoMutation>,
+)
+
+internal fun mergePulledCloudMemos(
+    localMemos: List<Memo>,
+    pulledMemos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+): PulledCloudMemoMerge {
+    val mergedMemos = linkedMapOf<String, Memo>()
+    localMemos.forEach { memo -> mergedMemos[memo.id] = memo }
+    val mergedVersions = cloudVersions.toMutableMap()
+    val mergedMutations = pendingMutations.toMutableMap()
+    pulledMemos.forEach { memo ->
+        if (mergedMemos[memo.id] != null && mergedMutations[memo.id] != null) {
+            return@forEach
+        }
+        mergedMemos[memo.id] = memo
+        mergedVersions[memo.id] = memo.version
+        mergedMutations.remove(memo.id)
+    }
+    return PulledCloudMemoMerge(
+        memos = mergedMemos.values.toList(),
+        cloudVersions = mergedVersions,
+        pendingMutations = mergedMutations,
+    )
+}
+
+internal fun mergeAppliedCloudMemos(
+    localMemos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    appliedMemos: List<AppliedMemoSync>,
+): AppliedCloudMemoMerge {
+    val mergedMemos = linkedMapOf<String, Memo>()
+    localMemos.forEach { memo -> mergedMemos[memo.id] = memo }
+    val mergedVersions = cloudVersions.toMutableMap()
+    val mergedMutations = pendingMutations.toMutableMap()
+    appliedMemos.forEach { applied ->
+        val memo = applied.memo
+        val localMemo = mergedMemos[memo.id]
+        val pendingMutation = mergedMutations[memo.id]
+        val stillCurrent = pendingMutation?.mutationId == applied.mutationId &&
+            localMemo != null &&
+            pendingMutation.matches(localMemo)
+        if (stillCurrent) {
+            mergedMemos[memo.id] = memo
+            mergedVersions[memo.id] = memo.version
+            mergedMutations.remove(memo.id)
+        } else {
+            mergedVersions[memo.id] = maxOf(mergedVersions[memo.id] ?: Long.MIN_VALUE, memo.version)
+        }
+    }
+    return AppliedCloudMemoMerge(
+        memos = mergedMemos.values.toList(),
+        cloudVersions = mergedVersions,
+        pendingMutations = mergedMutations,
+    )
+}
+
+internal data class PendingMemoMutation(
+    val mutationId: String,
+    val memoVersion: Long,
+    val memoUpdatedAt: String,
+) {
+    fun matches(memo: Memo): Boolean {
+        return memoVersion == memo.version && memoUpdatedAt == memo.updatedAt
+    }
+}
+
+internal data class PendingMemoSyncResolution(
+    val pending: List<PendingMemoSync>,
+    val pendingMutations: Map<String, PendingMemoMutation>,
+)
+
+internal fun resolvePendingMemoSyncs(
+    memos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    newMutationId: () -> String = ::newMemoMutationId,
+): PendingMemoSyncResolution {
+    val resolvedMutations = pendingMutations.toMutableMap()
+    val pending = memos.mapNotNull { memo ->
+        val cloudVersion = cloudVersions[memo.id]
+        val baseVersion = when {
+            cloudVersion == null && memo.deletedAt != null -> null
+            cloudVersion == null -> null
+            memo.version > cloudVersion -> cloudVersion
+            else -> {
+                resolvedMutations.remove(memo.id)
+                return@mapNotNull null
+            }
+        }
+        if (cloudVersion == null && memo.deletedAt != null) {
+            resolvedMutations.remove(memo.id)
+            return@mapNotNull null
+        }
+        val mutation = resolvedMutations[memo.id]
+            ?.takeIf { it.matches(memo) }
+            ?: newPendingMemoMutation(memo, newMutationId()).also {
+                resolvedMutations[memo.id] = it
+            }
+        PendingMemoSync(
+            memo = memo,
+            baseVersion = baseVersion,
+            mutationId = mutation.mutationId,
+        )
+    }
+    val memoIds = memos.mapTo(mutableSetOf(), Memo::id)
+    resolvedMutations.keys.retainAll(memoIds)
+    return PendingMemoSyncResolution(
+        pending = pending,
+        pendingMutations = resolvedMutations,
+    )
+}
+
+private fun newPendingMemoMutation(
+    memo: Memo,
+    mutationId: String = newMemoMutationId(),
+): PendingMemoMutation {
+    return PendingMemoMutation(
+        mutationId = mutationId,
+        memoVersion = memo.version,
+        memoUpdatedAt = memo.updatedAt,
+    )
+}
+
+private fun newMemoMutationId(): String = "android-${UUID.randomUUID()}"
+
+private fun cloudMemoVersionsJson(versions: Map<String, Long>): String {
+    val body = JSONObject()
+    versions.forEach { (id, version) -> body.put(id, version) }
+    return body.toString()
+}
+
+private fun pendingMemoMutationsJson(mutations: Map<String, PendingMemoMutation>): String {
+    val body = JSONObject()
+    mutations.forEach { (id, mutation) ->
+        body.put(
+            id,
+            JSONObject()
+                .put("mutationId", mutation.mutationId)
+                .put("memoVersion", mutation.memoVersion)
+                .put("memoUpdatedAt", mutation.memoUpdatedAt),
+        )
+    }
+    return body.toString()
 }
 
 data class PendingMemoSync(
     val memo: Memo,
     val baseVersion: Long?,
+    val mutationId: String,
+)
+
+data class AppliedMemoSync(
+    val mutationId: String,
+    val memo: Memo,
 )
 
 data class SillageExportData(

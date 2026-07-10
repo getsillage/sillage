@@ -90,12 +90,21 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseAccount(execute(request).getJSONObject("account"))
     }
 
-    suspend fun listMemos(limit: Int = 200, cursor: String = ""): MemoPage {
-        val suffix = if (cursor.isBlank()) {
-            "?limit=$limit"
-        } else {
-            "?limit=$limit&cursor=${cursor.queryParam()}"
+    suspend fun listMemos(
+        limit: Int = 200,
+        cursor: String = "",
+        archived: Boolean? = false,
+        favorited: Boolean = false,
+    ): MemoPage {
+        val params = buildList {
+            add("limit=$limit")
+            archived?.let { add("archived=$it") }
+            add("favorited=$favorited")
+            if (cursor.isNotBlank()) {
+                add("cursor=${cursor.queryParam()}")
+            }
         }
+        val suffix = "?${params.joinToString("&")}"
         val request = Request.Builder().url(url("/api/v1/memos$suffix")).get().build()
         val body = execute(request)
         return MemoPage(
@@ -144,34 +153,43 @@ class SillageApi(private val sessionStore: SessionStore) {
         var applied = 0
         var conflict = 0
         var rejected = 0
-        val appliedIds = mutableSetOf<String>()
+        val appliedMemoSyncs = mutableListOf<AppliedMemoSync>()
         for (chunk in items.chunked(200)) {
             val changes = JSONArray()
             for (item in chunk) {
-                changes.put(item.toSyncChange())
+                changes.put(pendingMemoSyncToJson(item))
             }
             val request = Request.Builder()
                 .url(url("/api/v1/sync:push"))
                 .post(JSONObject().put("changes", changes).toString().jsonBody())
                 .build()
             val results = execute(request).optJSONArray("results") ?: JSONArray()
-            for (index in 0 until results.length()) {
-                when (results.getJSONObject(index).optString("status")) {
-                    "applied" -> {
-                        applied += 1
-                        appliedIds += results.getJSONObject(index).optString("resourceId")
-                    }
-                    "conflict" -> conflict += 1
-                    else -> rejected += 1
-                }
-            }
+            val chunkSummary = syncPushSummaryFromResults(results)
+            applied += chunkSummary.applied
+            conflict += chunkSummary.conflict
+            rejected += chunkSummary.rejected
+            appliedMemoSyncs += chunkSummary.appliedMemoSyncs
         }
-        return SyncPushSummary(applied = applied, conflict = conflict, rejected = rejected, appliedIds = appliedIds)
+        return SyncPushSummary(
+            applied = applied,
+            conflict = conflict,
+            rejected = rejected,
+            appliedMemoSyncs = appliedMemoSyncs,
+        )
     }
 
-    suspend fun searchMemos(query: String, limit: Int = 100): List<Memo> {
+    suspend fun searchMemos(
+        query: String,
+        limit: Int = 100,
+        archived: Boolean? = false,
+        favorited: Boolean = false,
+    ): List<Memo> {
+        val filter = buildList {
+            archived?.let { add("archived=$it") }
+            add("favorited=$favorited")
+        }.joinToString("&")
         val request = Request.Builder()
-            .url(url("/api/v1/memos?query=${query.queryParam()}&limit=$limit"))
+            .url(url("/api/v1/memos?query=${query.queryParam()}&limit=$limit&$filter"))
             .get()
             .build()
         val memos = execute(request).getJSONArray("memos")
@@ -221,12 +239,12 @@ class SillageApi(private val sessionStore: SessionStore) {
         return parseMemo(execute(request).getJSONObject("memo"))
     }
 
-    suspend fun setMemoPinned(memo: Memo, pinned: Boolean): Memo {
+    suspend fun setMemoFavorited(memo: Memo, favorited: Boolean): Memo {
         val payload = JSONObject()
             .put("expectedVersion", memo.version)
-            .put("pinned", pinned)
+            .put("favorited", favorited)
         val request = Request.Builder()
-            .url(url("/api/v1/memos/${memo.id.pathSegment()}:setPinned"))
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:setFavorited"))
             .post(payload.toString().jsonBody())
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
@@ -707,19 +725,7 @@ class SillageApi(private val sessionStore: SessionStore) {
         }
     }
 
-    private fun parseMemo(body: JSONObject): Memo {
-        return Memo(
-            id = body.getString("id"),
-            content = body.getString("content"),
-            entryDate = body.getString("entryDate"),
-            version = body.getLong("version"),
-            createdAt = body.getString("createdAt"),
-            updatedAt = body.getString("updatedAt"),
-            pinnedAt = body.nullableString("pinnedAt"),
-            archivedAt = body.nullableString("archivedAt"),
-            deletedAt = body.nullableString("deletedAt"),
-        )
-    }
+    private fun parseMemo(body: JSONObject): Memo = apiMemoFromJson(body)
 
     private fun parseMemoAI(body: JSONObject): MemoAI {
         return MemoAI(
@@ -877,34 +883,6 @@ class SillageApi(private val sessionStore: SessionStore) {
         return if (isNull(name)) null else optString(name)
     }
 
-    private fun PendingMemoSync.toSyncChange(): JSONObject {
-        val itemMemo = memo
-        val action = when {
-            itemMemo.deletedAt != null -> "delete"
-            baseVersion == null -> "create"
-            else -> "update"
-        }
-        val memoPayload = JSONObject()
-            .put("id", itemMemo.id)
-            .put("content", itemMemo.content)
-            .put("entryDate", itemMemo.entryDate)
-        if (action != "create") {
-            memoPayload
-                .put("pinned", itemMemo.pinnedAt != null)
-                .put("archived", itemMemo.archivedAt != null)
-        }
-        val change = JSONObject()
-            .put("mutationId", "android-${itemMemo.id}-${itemMemo.version}-$action")
-            .put("resourceType", "memo")
-            .put("resourceId", itemMemo.id)
-            .put("action", action)
-            .put("memo", memoPayload)
-        if (action != "create") {
-            change.put("baseVersion", baseVersion)
-        }
-        return change
-    }
-
     private class StoredCookieJar(private val sessionStore: SessionStore) : CookieJar {
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
             val now = System.currentTimeMillis()
@@ -932,6 +910,37 @@ class SillageApi(private val sessionStore: SessionStore) {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(JSON)
     }
+}
+
+internal fun pendingMemoSyncToJson(pending: PendingMemoSync): JSONObject {
+    val memo = pending.memo
+    val action = when {
+        memo.deletedAt != null -> "delete"
+        pending.baseVersion == null -> "create"
+        else -> "update"
+    }
+    val memoPayload = JSONObject()
+        .put("id", memo.id)
+        .put("content", memo.content)
+        .put("entryDate", memo.entryDate)
+    if (action != "delete") {
+        val favorited = memo.favoritedAt != null
+        memoPayload
+            .put("favorited", favorited)
+            .put("pinned", favorited)
+            .put("archived", memo.archivedAt != null)
+    }
+    return JSONObject()
+        .put("mutationId", pending.mutationId)
+        .put("resourceType", "memo")
+        .put("resourceId", memo.id)
+        .put("action", action)
+        .put("memo", memoPayload)
+        .apply {
+            if (action != "create") {
+                put("baseVersion", pending.baseVersion)
+            }
+        }
 }
 
 internal class SessionRefreshCoordinator(
@@ -966,5 +975,50 @@ data class SyncPushSummary(
     val applied: Int,
     val conflict: Int,
     val rejected: Int,
-    val appliedIds: Set<String> = emptySet(),
+    val appliedMemoSyncs: List<AppliedMemoSync> = emptyList(),
 )
+
+internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {
+    var applied = 0
+    var conflict = 0
+    var rejected = 0
+    val appliedMemoSyncs = mutableListOf<AppliedMemoSync>()
+    for (index in 0 until results.length()) {
+        val result = results.getJSONObject(index)
+        when (result.optString("status")) {
+            "applied" -> {
+                applied += 1
+                appliedMemoSyncs += AppliedMemoSync(
+                    mutationId = result.getString("mutationId"),
+                    memo = apiMemoFromJson(result.getJSONObject("resource")),
+                )
+            }
+            "conflict" -> conflict += 1
+            else -> rejected += 1
+        }
+    }
+    return SyncPushSummary(
+        applied = applied,
+        conflict = conflict,
+        rejected = rejected,
+        appliedMemoSyncs = appliedMemoSyncs,
+    )
+}
+
+internal fun apiMemoFromJson(body: JSONObject): Memo {
+    return Memo(
+        id = body.getString("id"),
+        content = body.getString("content"),
+        entryDate = body.getString("entryDate"),
+        version = body.getLong("version"),
+        createdAt = body.getString("createdAt"),
+        updatedAt = body.getString("updatedAt"),
+        favoritedAt = body.apiNullableString("favoritedAt") ?: body.apiNullableString("pinnedAt"),
+        archivedAt = body.apiNullableString("archivedAt"),
+        deletedAt = body.apiNullableString("deletedAt"),
+    )
+}
+
+private fun JSONObject.apiNullableString(name: String): String? {
+    return if (isNull(name)) null else optString(name)
+}

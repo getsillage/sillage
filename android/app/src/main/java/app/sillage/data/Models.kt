@@ -24,7 +24,7 @@ data class Memo(
     val version: Long,
     val createdAt: String,
     val updatedAt: String,
-    val pinnedAt: String?,
+    val favoritedAt: String?,
     val archivedAt: String?,
     val deletedAt: String?,
 )
@@ -196,16 +196,36 @@ class ApiException(message: String) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
 
+enum class MemoListFilter {
+    Unarchived,
+    Archived,
+    Favorited,
+}
+
+fun Memo.matchesListFilter(filter: MemoListFilter): Boolean {
+    if (deletedAt != null) {
+        return false
+    }
+    return when (filter) {
+        MemoListFilter.Unarchived -> archivedAt == null && favoritedAt == null
+        MemoListFilter.Archived -> archivedAt != null && favoritedAt == null
+        MemoListFilter.Favorited -> favoritedAt != null
+    }
+}
+
 fun sortMemos(memos: List<Memo>): List<Memo> {
     return memos.sortedWith(
-        compareByDescending<Memo> { if (it.pinnedAt != null) 1 else 0 }
-            .thenByDescending { it.entryDate }
+        compareByDescending<Memo> { it.entryDate }
             .thenByDescending { it.createdAt },
     )
 }
 
 fun activeMemos(memos: List<Memo>): List<Memo> {
-    return sortMemos(memos.filter { it.isActive() })
+    return memosForFilter(memos, MemoListFilter.Unarchived)
+}
+
+fun memosForFilter(memos: List<Memo>, filter: MemoListFilter): List<Memo> {
+    return sortMemos(memos.filter { it.matchesListFilter(filter) })
 }
 
 fun excerpt(body: String, max: Int = 120): String {
@@ -218,7 +238,7 @@ fun onThisDay(memos: List<Memo>, todayISO: String): List<Memo> {
     val year = todayISO.take(4)
     return memos
         .filter {
-            it.isActive() &&
+            it.matchesListFilter(MemoListFilter.Unarchived) &&
                 it.entryDate.drop(5) == monthDay &&
                 it.entryDate.take(4) < year
         }
@@ -230,7 +250,7 @@ fun yearsBetween(fromISO: String, toISO: String): Int {
 }
 
 fun entryDateCounts(memos: List<Memo>): Map<String, Int> {
-    return memos.filter { it.isActive() }
+    return memos.filter { it.matchesListFilter(MemoListFilter.Unarchived) }
         .groupingBy { it.entryDate }
         .eachCount()
 }
@@ -279,7 +299,7 @@ fun calendarMemoCoverage(
     val viewedMonth = YearMonth.of(year, month)
     val oldestLoadedMonth = memos
         .asSequence()
-        .filter { it.isActive() }
+        .filter { it.matchesListFilter(MemoListFilter.Unarchived) }
         .mapNotNull { memo ->
             runCatching { YearMonth.parse(memo.entryDate.take(7)) }.getOrNull()
         }

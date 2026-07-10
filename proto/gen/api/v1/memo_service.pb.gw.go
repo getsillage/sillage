@@ -234,9 +234,9 @@ func local_request_MemoService_DeleteMemo_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 }
 
-func request_MemoService_SetMemoPinned_0(ctx context.Context, marshaler runtime.Marshaler, client MemoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_MemoService_SetMemoFavorited_0(ctx context.Context, marshaler runtime.Marshaler, client MemoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetMemoPinnedRequest
+		protoReq SetMemoFavoritedRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -254,13 +254,13 @@ func request_MemoService_SetMemoPinned_0(ctx context.Context, marshaler runtime.
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
-	msg, err := client.SetMemoPinned(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.SetMemoFavorited(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 }
 
-func local_request_MemoService_SetMemoPinned_0(ctx context.Context, marshaler runtime.Marshaler, server MemoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_MemoService_SetMemoFavorited_0(ctx context.Context, marshaler runtime.Marshaler, server MemoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetMemoPinnedRequest
+		protoReq SetMemoFavoritedRequest
 		metadata runtime.ServerMetadata
 		err      error
 	)
@@ -275,7 +275,7 @@ func local_request_MemoService_SetMemoPinned_0(ctx context.Context, marshaler ru
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
 	}
-	msg, err := server.SetMemoPinned(ctx, &protoReq)
+	msg, err := server.SetMemoFavorited(ctx, &protoReq)
 	return msg, metadata, err
 }
 
@@ -475,25 +475,25 @@ func RegisterMemoServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_MemoService_DeleteMemo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoPinned_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoFavorited_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/sillage.api.v1.MemoService/SetMemoPinned", runtime.WithHTTPPathPattern("/api/v1/memos/{id}:setPinned"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/sillage.api.v1.MemoService/SetMemoFavorited", runtime.WithHTTPPathPattern("/api/v1/memos/{id}:setFavorited"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_MemoService_SetMemoPinned_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_MemoService_SetMemoFavorited_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_MemoService_SetMemoPinned_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_MemoService_SetMemoFavorited_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoArchived_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -660,22 +660,22 @@ func RegisterMemoServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_MemoService_DeleteMemo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoPinned_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoFavorited_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/sillage.api.v1.MemoService/SetMemoPinned", runtime.WithHTTPPathPattern("/api/v1/memos/{id}:setPinned"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/sillage.api.v1.MemoService/SetMemoFavorited", runtime.WithHTTPPathPattern("/api/v1/memos/{id}:setFavorited"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_MemoService_SetMemoPinned_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_MemoService_SetMemoFavorited_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_MemoService_SetMemoPinned_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_MemoService_SetMemoFavorited_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_MemoService_SetMemoArchived_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -720,7 +720,7 @@ var (
 	pattern_MemoService_GetMemo_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, ""))
 	pattern_MemoService_UpdateMemo_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, ""))
 	pattern_MemoService_DeleteMemo_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, ""))
-	pattern_MemoService_SetMemoPinned_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, "setPinned"))
+	pattern_MemoService_SetMemoFavorited_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, "setFavorited"))
 	pattern_MemoService_SetMemoArchived_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, "setArchived"))
 	pattern_MemoService_GenerateMemoSummary_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "memos", "id"}, "generate-summary"))
 )
@@ -731,7 +731,7 @@ var (
 	forward_MemoService_GetMemo_0             = runtime.ForwardResponseMessage
 	forward_MemoService_UpdateMemo_0          = runtime.ForwardResponseMessage
 	forward_MemoService_DeleteMemo_0          = runtime.ForwardResponseMessage
-	forward_MemoService_SetMemoPinned_0       = runtime.ForwardResponseMessage
+	forward_MemoService_SetMemoFavorited_0    = runtime.ForwardResponseMessage
 	forward_MemoService_SetMemoArchived_0     = runtime.ForwardResponseMessage
 	forward_MemoService_GenerateMemoSummary_0 = runtime.ForwardResponseMessage
 )

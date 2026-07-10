@@ -58,7 +58,7 @@ CREATE TABLE memo (
   content TEXT NOT NULL DEFAULT '',
   entry_date TEXT NOT NULL,
   version INTEGER NOT NULL DEFAULT 1,
-  pinned_at INTEGER,
+  favorited_at INTEGER,
   archived_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -69,7 +69,7 @@ CREATE INDEX idx_memo_updated_id ON memo (updated_at, id);
 CREATE INDEX idx_memo_entry_date ON memo (entry_date);
 CREATE INDEX idx_memo_deleted_at ON memo (deleted_at);
 CREATE INDEX idx_memo_archived_at ON memo (archived_at);
-CREATE INDEX idx_memo_pinned_at ON memo (pinned_at);
+CREATE INDEX idx_memo_favorited_at ON memo (favorited_at);
 
 CREATE TABLE attachments (
   id TEXT PRIMARY KEY,

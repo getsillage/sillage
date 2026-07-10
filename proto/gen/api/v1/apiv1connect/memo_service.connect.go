@@ -43,9 +43,9 @@ const (
 	MemoServiceUpdateMemoProcedure = "/sillage.api.v1.MemoService/UpdateMemo"
 	// MemoServiceDeleteMemoProcedure is the fully-qualified name of the MemoService's DeleteMemo RPC.
 	MemoServiceDeleteMemoProcedure = "/sillage.api.v1.MemoService/DeleteMemo"
-	// MemoServiceSetMemoPinnedProcedure is the fully-qualified name of the MemoService's SetMemoPinned
-	// RPC.
-	MemoServiceSetMemoPinnedProcedure = "/sillage.api.v1.MemoService/SetMemoPinned"
+	// MemoServiceSetMemoFavoritedProcedure is the fully-qualified name of the MemoService's
+	// SetMemoFavorited RPC.
+	MemoServiceSetMemoFavoritedProcedure = "/sillage.api.v1.MemoService/SetMemoFavorited"
 	// MemoServiceSetMemoArchivedProcedure is the fully-qualified name of the MemoService's
 	// SetMemoArchived RPC.
 	MemoServiceSetMemoArchivedProcedure = "/sillage.api.v1.MemoService/SetMemoArchived"
@@ -61,7 +61,7 @@ type MemoServiceClient interface {
 	GetMemo(context.Context, *connect.Request[v1.GetMemoRequest]) (*connect.Response[v1.MemoResponse], error)
 	UpdateMemo(context.Context, *connect.Request[v1.UpdateMemoRequest]) (*connect.Response[v1.MemoResponse], error)
 	DeleteMemo(context.Context, *connect.Request[v1.DeleteMemoRequest]) (*connect.Response[v1.MemoResponse], error)
-	SetMemoPinned(context.Context, *connect.Request[v1.SetMemoPinnedRequest]) (*connect.Response[v1.MemoResponse], error)
+	SetMemoFavorited(context.Context, *connect.Request[v1.SetMemoFavoritedRequest]) (*connect.Response[v1.MemoResponse], error)
 	SetMemoArchived(context.Context, *connect.Request[v1.SetMemoArchivedRequest]) (*connect.Response[v1.MemoResponse], error)
 	GenerateMemoSummary(context.Context, *connect.Request[v1.GenerateMemoSummaryRequest]) (*connect.Response[v1.GenerateMemoSummaryResponse], error)
 }
@@ -107,10 +107,10 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(memoServiceMethods.ByName("DeleteMemo")),
 			connect.WithClientOptions(opts...),
 		),
-		setMemoPinned: connect.NewClient[v1.SetMemoPinnedRequest, v1.MemoResponse](
+		setMemoFavorited: connect.NewClient[v1.SetMemoFavoritedRequest, v1.MemoResponse](
 			httpClient,
-			baseURL+MemoServiceSetMemoPinnedProcedure,
-			connect.WithSchema(memoServiceMethods.ByName("SetMemoPinned")),
+			baseURL+MemoServiceSetMemoFavoritedProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("SetMemoFavorited")),
 			connect.WithClientOptions(opts...),
 		),
 		setMemoArchived: connect.NewClient[v1.SetMemoArchivedRequest, v1.MemoResponse](
@@ -135,7 +135,7 @@ type memoServiceClient struct {
 	getMemo             *connect.Client[v1.GetMemoRequest, v1.MemoResponse]
 	updateMemo          *connect.Client[v1.UpdateMemoRequest, v1.MemoResponse]
 	deleteMemo          *connect.Client[v1.DeleteMemoRequest, v1.MemoResponse]
-	setMemoPinned       *connect.Client[v1.SetMemoPinnedRequest, v1.MemoResponse]
+	setMemoFavorited    *connect.Client[v1.SetMemoFavoritedRequest, v1.MemoResponse]
 	setMemoArchived     *connect.Client[v1.SetMemoArchivedRequest, v1.MemoResponse]
 	generateMemoSummary *connect.Client[v1.GenerateMemoSummaryRequest, v1.GenerateMemoSummaryResponse]
 }
@@ -165,9 +165,9 @@ func (c *memoServiceClient) DeleteMemo(ctx context.Context, req *connect.Request
 	return c.deleteMemo.CallUnary(ctx, req)
 }
 
-// SetMemoPinned calls sillage.api.v1.MemoService.SetMemoPinned.
-func (c *memoServiceClient) SetMemoPinned(ctx context.Context, req *connect.Request[v1.SetMemoPinnedRequest]) (*connect.Response[v1.MemoResponse], error) {
-	return c.setMemoPinned.CallUnary(ctx, req)
+// SetMemoFavorited calls sillage.api.v1.MemoService.SetMemoFavorited.
+func (c *memoServiceClient) SetMemoFavorited(ctx context.Context, req *connect.Request[v1.SetMemoFavoritedRequest]) (*connect.Response[v1.MemoResponse], error) {
+	return c.setMemoFavorited.CallUnary(ctx, req)
 }
 
 // SetMemoArchived calls sillage.api.v1.MemoService.SetMemoArchived.
@@ -187,7 +187,7 @@ type MemoServiceHandler interface {
 	GetMemo(context.Context, *connect.Request[v1.GetMemoRequest]) (*connect.Response[v1.MemoResponse], error)
 	UpdateMemo(context.Context, *connect.Request[v1.UpdateMemoRequest]) (*connect.Response[v1.MemoResponse], error)
 	DeleteMemo(context.Context, *connect.Request[v1.DeleteMemoRequest]) (*connect.Response[v1.MemoResponse], error)
-	SetMemoPinned(context.Context, *connect.Request[v1.SetMemoPinnedRequest]) (*connect.Response[v1.MemoResponse], error)
+	SetMemoFavorited(context.Context, *connect.Request[v1.SetMemoFavoritedRequest]) (*connect.Response[v1.MemoResponse], error)
 	SetMemoArchived(context.Context, *connect.Request[v1.SetMemoArchivedRequest]) (*connect.Response[v1.MemoResponse], error)
 	GenerateMemoSummary(context.Context, *connect.Request[v1.GenerateMemoSummaryRequest]) (*connect.Response[v1.GenerateMemoSummaryResponse], error)
 }
@@ -229,10 +229,10 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(memoServiceMethods.ByName("DeleteMemo")),
 		connect.WithHandlerOptions(opts...),
 	)
-	memoServiceSetMemoPinnedHandler := connect.NewUnaryHandler(
-		MemoServiceSetMemoPinnedProcedure,
-		svc.SetMemoPinned,
-		connect.WithSchema(memoServiceMethods.ByName("SetMemoPinned")),
+	memoServiceSetMemoFavoritedHandler := connect.NewUnaryHandler(
+		MemoServiceSetMemoFavoritedProcedure,
+		svc.SetMemoFavorited,
+		connect.WithSchema(memoServiceMethods.ByName("SetMemoFavorited")),
 		connect.WithHandlerOptions(opts...),
 	)
 	memoServiceSetMemoArchivedHandler := connect.NewUnaryHandler(
@@ -259,8 +259,8 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 			memoServiceUpdateMemoHandler.ServeHTTP(w, r)
 		case MemoServiceDeleteMemoProcedure:
 			memoServiceDeleteMemoHandler.ServeHTTP(w, r)
-		case MemoServiceSetMemoPinnedProcedure:
-			memoServiceSetMemoPinnedHandler.ServeHTTP(w, r)
+		case MemoServiceSetMemoFavoritedProcedure:
+			memoServiceSetMemoFavoritedHandler.ServeHTTP(w, r)
 		case MemoServiceSetMemoArchivedProcedure:
 			memoServiceSetMemoArchivedHandler.ServeHTTP(w, r)
 		case MemoServiceGenerateMemoSummaryProcedure:
@@ -294,8 +294,8 @@ func (UnimplementedMemoServiceHandler) DeleteMemo(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.MemoService.DeleteMemo is not implemented"))
 }
 
-func (UnimplementedMemoServiceHandler) SetMemoPinned(context.Context, *connect.Request[v1.SetMemoPinnedRequest]) (*connect.Response[v1.MemoResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.MemoService.SetMemoPinned is not implemented"))
+func (UnimplementedMemoServiceHandler) SetMemoFavorited(context.Context, *connect.Request[v1.SetMemoFavoritedRequest]) (*connect.Response[v1.MemoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.MemoService.SetMemoFavorited is not implemented"))
 }
 
 func (UnimplementedMemoServiceHandler) SetMemoArchived(context.Context, *connect.Request[v1.SetMemoArchivedRequest]) (*connect.Response[v1.MemoResponse], error) {

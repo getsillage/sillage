@@ -50,7 +50,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
       "content": "今天开始写新的 memo",
       "entryDate": "2026-06-26",
       "version": 1,
-      "pinnedAt": null,
+      "favoritedAt": null,
       "archivedAt": null,
       "createdAt": "2026-06-26T11:15:07Z",
       "updatedAt": "2026-06-26T11:15:07Z",
@@ -160,7 +160,7 @@ POST /api/v1/sync:push
         "id": "019f03a4-0121-7aaf-8b0a-7af8dc1bf0c7",
         "content": "更新后的内容",
         "entryDate": "2026-06-26",
-        "pinned": false,
+        "favorited": false,
         "archived": false
       }
     }
@@ -190,13 +190,19 @@ POST /api/v1/sync:push
 - `conflict`：版本冲突，返回 `serverResource`、`clientVersion`、`serverVersion`。
 - `rejected`：字段非法、资源不存在、动作不支持等，返回稳定 `reason`。
 
-同一账号下重复提交相同 `mutationId` 会返回第一次处理结果，并带 `idempotent: true`。
+同一账号下重复提交相同 `mutationId` 会返回第一次处理结果，并带 `idempotent: true`。客户端重试同一次
+逻辑修改时必须复用原 `mutationId`；产生后续逻辑修改时必须生成新的 `mutationId`，不能从可能回退的
+资源版本号派生。
+
+`memo.favorited` 是收藏状态的规范字段。为兼容升级前的 Android 同步数据，服务端仍接受已弃用的
+`memo.pinned` 别名；两者同时出现时以 `favorited` 为准。新客户端发送 `favorited`，Android 在过渡期会同时
+发送同值的 `pinned`，以便与尚未升级的服务端同步而不静默丢失状态。
 
 ## Memo 语义
 
 - 后端/API/数据库使用 `memo` 命名；中文 UI 显示“记录”。
 - `entryDate` 是用户语义日期，格式为 `YYYY-MM-DD`。
-- `version` 是 CAS 字段。正文、日期、置顶、归档、删除都必须带客户端已知版本；过期版本返回 `conflict`。
+- `version` 是 CAS 字段。正文、日期、收藏、归档、删除都必须带客户端已知版本；过期版本返回 `conflict`。
 - `deletedAt != null` 表示 tombstone。首版不清理 tombstone。
 - Android 当前离线模式可预生成 memo UUID，并通过 `sync:push` 创建；在线模式直接创建 memo，使用普通 `POST /api/v1/memos`。
 
@@ -205,9 +211,14 @@ POST /api/v1/sync:push
 ```http
 GET /api/v1/memos?limit=50
 GET /api/v1/memos?limit=50&cursor=<opaque>
+GET /api/v1/memos?limit=50&archived=false&favorited=false
+GET /api/v1/memos?limit=50&archived=true&favorited=false
+GET /api/v1/memos?limit=50&favorited=true
 ```
 
-普通列表先返回全部置顶记录；置顶与非置顶两个分组内都按 `entryDate`、`createdAt`、`id` 倒序返回。首次请求不传 `cursor`；后续请求原样传入上一页的
+普通列表按 `entryDate`、`createdAt`、`id` 倒序返回。`archived` 与 `favorited` 是可选状态条件，并在分页
+`limit` 前应用；未归档页传 `archived=false&favorited=false`，归档页传 `archived=true&favorited=false`，
+收藏页只传 `favorited=true`，因此已归档的收藏记录仍只进入收藏页。首次请求不传 `cursor`；后续请求原样传入上一页的
 `nextCursor`，返回空值表示已到末页。REST 使用 JSON 字段 `nextCursor`，Connect/proto 对应
 `ListMemosRequest.cursor` 与 `ListMemosResponse.next_cursor`。`cursor` 是不透明值，客户端不能解析或自行构造。
 
@@ -217,22 +228,23 @@ GET /api/v1/memos?limit=50&cursor=<opaque>
 
 ```http
 GET /api/v1/memos?query=<keyword>&limit=50
-GET /api/v1/memos?query=<keyword>&limit=50&archived=true
+GET /api/v1/memos?query=<keyword>&limit=50&archived=false&favorited=false
+GET /api/v1/memos?query=<keyword>&limit=50&favorited=true
 ```
 
 搜索首选 SQLite FTS5，范围包括 memo Markdown 正文和 memo AI summary。中文短语、长自然语言查询或 FTS
-不可用时会降级到 `LIKE` fallback。搜索时可选传 `archived=true` 只查归档记录，或传 `archived=false`
-只查当前记录；未传时兼容原有行为，同时搜索两种状态。状态条件在 `limit` 前应用，删除 tombstone 始终不会
+不可用时会降级到 `LIKE` fallback。搜索与普通列表使用相同的 `archived` / `favorited` 条件；未传时
+兼容原有行为，同时搜索各种状态。状态条件在 `limit` 前应用，删除 tombstone 始终不会
 出现在搜索结果中。搜索索引是本地派生数据，不进入 sync payload，也不会修改 `memo.updatedAt` 或
-`version`。`query` 为空时返回按时间倒序的最近记录，并忽略 `archived`。
+`version`。`query` 为空时返回按时间倒序的最近记录，并继续应用状态条件。
 
 ## Memo 动作接口（REST）
 
-除创建 / 更新 / 删除外，memo 的状态变更和总结生成走以下动作端点。置顶与归档修改 memo 本身，必须带
+除创建 / 更新 / 删除外，memo 的状态变更和总结生成走以下动作端点。收藏与归档修改 memo 本身，必须带
 `expectedVersion`；总结生成只写派生 AI 数据，不带 `expectedVersion`：
 
 ```http
-POST /api/v1/memos/{id}:setPinned        # body: { expectedVersion, pinned }
+POST /api/v1/memos/{id}:setFavorited     # body: { expectedVersion, favorited }
 POST /api/v1/memos/{id}:setArchived      # body: { expectedVersion, archived }
 POST /api/v1/memos/{id}:generate-summary # 生成 / 重新生成单条记录总结
 ```

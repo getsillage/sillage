@@ -1,4 +1,4 @@
-import { ChevronRight, Pin } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { Memo } from "../lib/api";
@@ -35,10 +35,11 @@ export function EntryCard({
   const showEntryDate = memo.entryDate !== createdDate;
   const detailPath = `/entries/${memo.id}`;
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
+  const detailState = { returnTo, memoSnapshot: { ...memo } };
   const preview = excerpt(memo.content) || "空白记录";
 
   function openDetail() {
-    navigate(detailPath, { state: { returnTo } });
+    navigate(detailPath, { state: detailState });
   }
 
   function handleCardClick(event: MouseEvent<HTMLElement>) {
@@ -87,10 +88,10 @@ export function EntryCard({
                 归属 {formatShortDate(memo.entryDate)}
               </time>
             ) : null}
-            {memo.pinnedAt ? (
+            {memo.favoritedAt ? (
               <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300">
-                <Pin className="h-3 w-3" aria-hidden="true" />
-                置顶
+                <Star className="h-3 w-3 fill-current" aria-hidden="true" />
+                收藏
               </span>
             ) : null}
             {memo.version > 1 ? (
@@ -107,7 +108,7 @@ export function EntryCard({
             ) : (
               <Link
                 to={detailPath}
-                state={{ returnTo }}
+                state={detailState}
                 className="hover:underline"
               >
                 {preview}

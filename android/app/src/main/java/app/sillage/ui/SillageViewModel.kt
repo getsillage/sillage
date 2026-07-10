@@ -17,12 +17,12 @@ import app.sillage.data.LocalDataStore
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
+import app.sillage.data.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
 import app.sillage.data.SyncPushSummary
-import app.sillage.data.activeMemos
 import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
@@ -30,6 +30,7 @@ import app.sillage.data.buildAskActivePath
 import app.sillage.data.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.markdownFormatSnippet
+import app.sillage.data.memosForFilter
 import app.sillage.data.mergeSavedAIProfilesForLocalStorage
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
@@ -133,6 +134,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 memos = emptyList(),
                 memoNextCursor = "",
                 loadingMoreMemos = false,
+                memoListLoadStatus = MemoListLoadStatus.Idle,
                 selectedSummary = null,
                 summaryLoading = false,
                 uploadingAttachment = false,
@@ -161,6 +163,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 memos = emptyList(),
                 memoNextCursor = "",
                 loadingMoreMemos = false,
+                memoListLoadStatus = MemoListLoadStatus.Idle,
                 selectedMemo = null,
                 selectedSummary = null,
                 aiSettingsLoading = false,
@@ -288,7 +291,14 @@ class SillageViewModel(context: Context) : ViewModel() {
                 return@launchBusy
             }
             val verified = api.me()
-            _state.update { it.copy(screen = Screen.Memos, initialized = true, account = verified) }
+            _state.update {
+                it.copy(
+                    screen = Screen.Memos,
+                    initialized = true,
+                    account = verified,
+                    memoListLoadStatus = MemoListLoadStatus.Loading,
+                )
+            }
             refreshMemos()
         }
     }
@@ -312,6 +322,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
+                    memoListLoadStatus = MemoListLoadStatus.Loading,
                 )
             }
             refreshMemos()
@@ -330,6 +341,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
+                    memoListLoadStatus = MemoListLoadStatus.Loading,
                 )
             }
             refreshMemos()
@@ -353,6 +365,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     memos = emptyList(),
                     memoNextCursor = "",
                     loadingMoreMemos = false,
+                    memoListLoadStatus = MemoListLoadStatus.Idle,
                     selectedMemo = null,
                     selectedSummary = null,
                     summaryLoading = false,
@@ -391,15 +404,27 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun refreshMemos() {
         cancelMemoPageLoad()
+        val request = state.value.memoRefreshRequest()
+        _state.update { current ->
+            if (current.canApplyMemoRefresh(request)) {
+                current.copy(
+                    memoListLoadStatus = MemoListLoadStatus.Loading,
+                    error = null,
+                    notice = null,
+                )
+            } else {
+                current
+            }
+        }
         viewModelScope.launch {
             runCatching {
-                if (isOfflineMode()) {
+                if (request.appMode == SessionStore.MODE_OFFLINE) {
                     MemoListSnapshot(
                         memos = localDataStore.listMemos(),
                         nextCursor = "",
                     )
                 } else {
-                    api.listMemos().let { page ->
+                    listOnlineMemos(request.filter).let { page ->
                         MemoListSnapshot(
                             memos = page.memos,
                             nextCursor = page.nextCursor,
@@ -408,17 +433,32 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { snapshot ->
-                    _state.update {
-                        it.copy(
-                            memos = activeMemos(snapshot.memos),
-                            memoNextCursor = snapshot.nextCursor,
-                            loadingMoreMemos = false,
-                            error = null,
-                        )
+                    _state.update { current ->
+                        if (current.canApplyMemoRefresh(request)) {
+                            current.copy(
+                                memos = memosForFilter(snapshot.memos, request.filter),
+                                memoNextCursor = snapshot.nextCursor,
+                                loadingMoreMemos = false,
+                                memoListLoadStatus = MemoListLoadStatus.Idle,
+                                error = null,
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(loadingMoreMemos = false, error = error.readableMessage()) }
+                    _state.update { current ->
+                        if (current.canApplyMemoRefresh(request)) {
+                            current.copy(
+                                loadingMoreMemos = false,
+                                memoListLoadStatus = MemoListLoadStatus.Failed,
+                                error = error.readableMessage(),
+                            )
+                        } else {
+                            current
+                        }
+                    }
                 }
         }
     }
@@ -445,12 +485,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                 return
             }
             viewModelScope.launch(start = CoroutineStart.LAZY) {
-                runCatching { api.listMemos(cursor = request.cursor) }
+                runCatching { listOnlineMemos(request.filter, cursor = request.cursor) }
                 .onSuccess { page ->
                     _state.update { current ->
                         if (current.canApplyMemoPage(request)) {
                             current.copy(
-                                memos = activeMemos(current.memos + page.memos),
+                                memos = memosForFilter(current.memos + page.memos, request.filter),
                                 memoNextCursor = page.nextCursor,
                                 loadingMoreMemos = false,
                             )
@@ -527,6 +567,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun editSelectedMemo() {
         val memo = state.value.selectedMemo ?: return
         openEditorForMemo(memo)
+        fetchSelectedMemoDetail(memo.id)
     }
 
     fun duplicateMemoDraft(memo: Memo) {
@@ -590,25 +631,34 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun searchMemos() {
         searchJob?.cancel()
-        val query = state.value.searchQuery.trim()
-        if (query.isBlank()) {
+        val request = state.value.memoSearchRequest()
+        if (request == null) {
             clearSearch()
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(searching = true, error = null, notice = null) }
+        _state.update { current ->
+            if (current.memoSearchRequest() == request) {
+                current.copy(searching = true, error = null, notice = null)
+            } else {
+                current
+            }
+        }
+        if (!state.value.canApplyMemoSearch(request)) {
+            return
+        }
+        searchJob = viewModelScope.launch {
             runCatching {
-                if (isOfflineMode()) {
-                    localDataStore.searchMemos(query)
+                if (request.appMode == SessionStore.MODE_OFFLINE) {
+                    localDataStore.searchMemos(request.query)
                 } else {
-                    api.searchMemos(query)
+                    searchOnlineMemos(request.query, request.filter)
                 }
             }
                 .onSuccess { memos ->
                     _state.update { current ->
-                        if (current.searchQuery.trim() == query) {
+                        if (current.canApplyMemoSearch(request)) {
                             current.copy(
-                                searchResults = activeMemos(memos),
+                                searchResults = memosForFilter(memos, request.filter),
                                 searching = false,
                                 error = null,
                             )
@@ -619,15 +669,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
                 .onFailure { error ->
                     _state.update { current ->
-                        if (current.searchQuery.trim() == query) {
-                            current.copy(
-                                searchResults = emptyList(),
-                                searching = false,
-                                error = error.readableMessage(),
-                            )
-                        } else {
-                            current
-                        }
+                        current.failMemoSearch(request, error.readableMessage())
                     }
                 }
         }
@@ -784,11 +826,26 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.askVariantLoading) {
             return
         }
+        val resetFilter = mode == MemoViewMode.Calendar &&
+            state.value.memoListFilter != MemoListFilter.Unarchived
         _state.update {
             it.copy(
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
                 memoViewMode = mode,
+                memoListFilter = if (mode == MemoViewMode.Calendar) {
+                    MemoListFilter.Unarchived
+                } else {
+                    it.memoListFilter
+                },
+                memos = if (resetFilter) emptyList() else it.memos,
+                memoNextCursor = if (resetFilter) "" else it.memoNextCursor,
+                loadingMoreMemos = if (resetFilter) false else it.loadingMoreMemos,
+                memoListLoadStatus = if (resetFilter) {
+                    MemoListLoadStatus.Loading
+                } else {
+                    it.memoListLoadStatus
+                },
                 searchQuery = if (mode == MemoViewMode.Calendar) "" else it.searchQuery,
                 searchResults = if (mode == MemoViewMode.Calendar) null else it.searchResults,
                 searching = if (mode == MemoViewMode.Calendar) false else it.searching,
@@ -797,6 +854,33 @@ class SillageViewModel(context: Context) : ViewModel() {
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
         }
+        if (resetFilter) {
+            refreshMemos()
+        }
+    }
+
+    fun updateMemoListFilter(filter: MemoListFilter) {
+        if (state.value.memoListFilter == filter || state.value.askVariantLoading) {
+            return
+        }
+        searchJob?.cancel()
+        _state.update {
+            it.copy(
+                memoListFilter = filter,
+                memos = emptyList(),
+                memoNextCursor = "",
+                loadingMoreMemos = false,
+                memoListLoadStatus = MemoListLoadStatus.Loading,
+                searchQuery = "",
+                searchResults = null,
+                searching = false,
+                selectedMemo = null,
+                selectedSummary = null,
+                error = null,
+                notice = null,
+            )
+        }
+        refreshMemos()
     }
 
     fun changeCalendarMonth(delta: Int) {
@@ -897,7 +981,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun toggleSelectedMemoPinned() {
+    fun toggleSelectedMemoFavorited() {
         val current = state.value
         if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
@@ -905,13 +989,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         val memo = current.selectedMemo ?: return
         launchBusy {
             val updated = if (isOfflineMode()) {
-                localDataStore.setMemoPinned(memo, memo.pinnedAt == null)
+                localDataStore.setMemoFavorited(memo, memo.favoritedAt == null)
             } else {
-                api.setMemoPinned(memo, memo.pinnedAt == null)
+                api.setMemoFavorited(memo, memo.favoritedAt == null)
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.pinnedAt == null) "已取消置顶" else "已置顶")
+                it.copy(notice = if (updated.favoritedAt == null) "已取消收藏" else "已收藏")
             }
         }
     }
@@ -935,16 +1019,16 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun toggleMemoPinned(memo: Memo) {
+    fun toggleMemoFavorited(memo: Memo) {
         launchBusy {
             val updated = if (isOfflineMode()) {
-                localDataStore.setMemoPinned(memo, memo.pinnedAt == null)
+                localDataStore.setMemoFavorited(memo, memo.favoritedAt == null)
             } else {
-                api.setMemoPinned(memo, memo.pinnedAt == null)
+                api.setMemoFavorited(memo, memo.favoritedAt == null)
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.pinnedAt == null) "已取消置顶" else "已置顶")
+                it.copy(notice = if (updated.favoritedAt == null) "已取消收藏" else "已收藏")
             }
         }
     }
@@ -1843,9 +1927,15 @@ class SillageViewModel(context: Context) : ViewModel() {
                                 current
                             }
                         } else {
-                            val cached = activeMemos(current.memos.filter { it.id != detail.memo.id } + detail.memo)
+                            val cached = memosForFilter(
+                                current.memos.filter { it.id != detail.memo.id } + detail.memo,
+                                current.memoListFilter,
+                            )
                             val searched = current.searchResults?.let { results ->
-                                activeMemos(results.filter { it.id != detail.memo.id } + detail.memo)
+                                memosForFilter(
+                                    results.filter { it.id != detail.memo.id } + detail.memo,
+                                    current.memoListFilter,
+                                )
                             }
                             current.copy(
                                 screen = Screen.MemoDetail,
@@ -2124,37 +2214,25 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun fetchSelectedMemoDetail(memoId: String) {
+        val request = state.value.nextMemoDetailRequest(memoId) ?: return
+        _state.update { current -> current.startMemoDetailRequest(request) }
+        if (state.value.memoDetailRequestId != request.requestId) {
+            return
+        }
         viewModelScope.launch {
             runCatching {
-                if (isOfflineMode()) {
+                if (request.appMode == SessionStore.MODE_OFFLINE) {
                     localDataStore.getMemo(memoId)
                 } else {
                     api.getMemo(memoId)
                 }
             }
                 .onSuccess { detail ->
-                    applyMemo(detail.memo)
-                    _state.update { current ->
-                        if (current.selectedMemo?.id == memoId) {
-                            current.copy(
-                                selectedSummary = detail.ai,
-                                summaryLoading = false,
-                            )
-                        } else {
-                            current
-                        }
-                    }
+                    _state.update { current -> current.completeMemoDetailRequest(request, detail) }
                 }
                 .onFailure { error ->
                     _state.update { current ->
-                        if (current.selectedMemo?.id == memoId) {
-                            current.copy(
-                                summaryLoading = false,
-                                error = error.readableMessage(),
-                            )
-                        } else {
-                            current
-                        }
+                        current.failMemoDetailRequest(request, error.readableMessage())
                     }
                 }
         }
@@ -2184,9 +2262,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return SyncPushSummary(applied = 0, conflict = 0, rejected = 0)
         }
         val summary = api.pushMemos(pending)
-        if (summary.applied > 0) {
-            localDataStore.markCloudSynced(pending.filter { it.memo.id in summary.appliedIds }.map { it.memo })
-        }
+        localDataStore.applyCloudSyncedMemos(summary.appliedMemoSyncs)
         return summary
     }
 
@@ -2468,7 +2544,8 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private fun enterOfflineMode(notice: String?) {
         cancelAIAutoSummarySave()
-        val memos = activeMemos(localDataStore.listMemos())
+        val filter = state.value.memoListFilter
+        val memos = memosForFilter(localDataStore.listMemos(), filter)
         _state.update {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_OFFLINE,
@@ -2477,6 +2554,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 memos = memos,
                 memoNextCursor = "",
                 loadingMoreMemos = false,
+                memoListLoadStatus = MemoListLoadStatus.Idle,
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
@@ -2507,18 +2585,34 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun applyMemo(memo: Memo) {
-        _state.update { current ->
-            val cached = activeMemos(current.memos.filter { it.id != memo.id } + memo)
-            val searched = current.searchResults?.let { results ->
-                activeMemos(results.filter { it.id != memo.id } + memo)
-            }
-            current.copy(
-                memos = cached,
-                searchResults = searched,
-                selectedMemo = if (current.selectedMemo?.id == memo.id) memo else current.selectedMemo,
+        synchronized(memoPageLock) {
+            loadMoreMemosJob?.cancel()
+            loadMoreMemosJob = null
+        }
+        searchJob?.cancel()
+        searchJob = null
+        _state.update { current -> current.applyMemoToCache(memo) }
+    }
+
+    private suspend fun listOnlineMemos(
+        filter: MemoListFilter,
+        cursor: String = "",
+    ) = filter.apiQuery().let { query ->
+        api.listMemos(
+            cursor = cursor,
+            archived = query.archived,
+            favorited = query.favorited,
+        )
+    }
+
+    private suspend fun searchOnlineMemos(query: String, filter: MemoListFilter) =
+        filter.apiQuery().let { apiQuery ->
+            api.searchMemos(
+                query = query,
+                archived = apiQuery.archived,
+                favorited = apiQuery.favorited,
             )
         }
-    }
 
     private fun openEditorForMemo(memo: Memo) {
         _state.update {
@@ -2585,3 +2679,14 @@ private data class MemoListSnapshot(
     val memos: List<Memo>,
     val nextCursor: String,
 )
+
+internal data class MemoApiQuery(
+    val archived: Boolean?,
+    val favorited: Boolean,
+)
+
+internal fun MemoListFilter.apiQuery(): MemoApiQuery = when (this) {
+    MemoListFilter.Unarchived -> MemoApiQuery(archived = false, favorited = false)
+    MemoListFilter.Archived -> MemoApiQuery(archived = true, favorited = false)
+    MemoListFilter.Favorited -> MemoApiQuery(archived = null, favorited = true)
+}

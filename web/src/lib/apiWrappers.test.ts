@@ -20,7 +20,7 @@ import {
   setAskConversationArchived,
   setAskHead,
   setMemoArchived,
-  setMemoPinned,
+  setMemoFavorited,
   signOut,
   testAIConnection,
   updateMemo,
@@ -53,7 +53,7 @@ const memo: Memo = {
   content: "x",
   entryDate: "2026-06-27",
   version: 3,
-  pinnedAt: null,
+  favoritedAt: null,
   archivedAt: null,
   createdAt: "1",
   updatedAt: "1",
@@ -75,14 +75,30 @@ describe("memo api wrappers", () => {
     await listMemos("t", 10);
     expect(lastCall().path).toBe("/api/v1/memos?limit=10");
 
-    await searchMemos("t", "爬 山", 5);
+    await listMemos("t", 10, "next", {
+      archived: false,
+      favorited: false,
+    });
     expect(lastCall().path).toBe(
-      "/api/v1/memos?query=%E7%88%AC%20%E5%B1%B1&limit=5",
+      "/api/v1/memos?limit=10&cursor=next&archived=false&favorited=false",
     );
 
-    await searchMemos("t", "归档", 5, true);
+    await searchMemos("t", "爬 山", 5);
     expect(lastCall().path).toBe(
-      "/api/v1/memos?query=%E5%BD%92%E6%A1%A3&limit=5&archived=true",
+      "/api/v1/memos?query=%E7%88%AC+%E5%B1%B1&limit=5",
+    );
+
+    await searchMemos("t", "归档", 5, {
+      archived: true,
+      favorited: false,
+    });
+    expect(lastCall().path).toBe(
+      "/api/v1/memos?query=%E5%BD%92%E6%A1%A3&limit=5&archived=true&favorited=false",
+    );
+
+    await searchMemos("t", "收藏", 5, { favorited: true });
+    expect(lastCall().path).toBe(
+      "/api/v1/memos?query=%E6%94%B6%E8%97%8F&limit=5&favorited=true",
     );
 
     await createMemo("t", { content: "hi", entryDate: "2026-06-27" });
@@ -93,16 +109,16 @@ describe("memo api wrappers", () => {
     expect(upd.path).toBe("/api/v1/memos/m1");
     expect(JSON.parse(upd.init.body as string).expectedVersion).toBe(3);
 
-    await setMemoPinned("t", memo, true);
-    expect(lastCall().path).toBe("/api/v1/memos/m1:setPinned");
+    await setMemoFavorited("t", memo, true);
+    expect(lastCall().path).toBe("/api/v1/memos/m1:setFavorited");
     expect(JSON.parse(lastCall().init.body as string)).toEqual({
       expectedVersion: 3,
-      pinned: true,
+      favorited: true,
     });
-    await setMemoPinned("t", memo, false);
+    await setMemoFavorited("t", memo, false);
     expect(JSON.parse(lastCall().init.body as string)).toEqual({
       expectedVersion: 3,
-      pinned: false,
+      favorited: false,
     });
     await setMemoArchived("t", memo, true);
     expect(lastCall().path).toBe("/api/v1/memos/m1:setArchived");

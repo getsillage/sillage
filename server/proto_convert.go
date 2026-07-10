@@ -14,15 +14,15 @@ func memoPB(memo *store.Memo) *apiv1.Memo {
 		return nil
 	}
 	return &apiv1.Memo{
-		Id:           memo.ID,
-		Content:      memo.Content,
-		EntryDate:    memo.EntryDate,
-		Version:      memo.Version,
-		PinnedTime:   timestampPB(memo.PinnedAt),
-		ArchivedTime: timestampPB(memo.ArchivedAt),
-		CreatedTime:  timestamppb.New(unixMilliTime(memo.CreatedAt)),
-		UpdatedTime:  timestamppb.New(unixMilliTime(memo.UpdatedAt)),
-		DeletedTime:  timestampPB(memo.DeletedAt),
+		Id:            memo.ID,
+		Content:       memo.Content,
+		EntryDate:     memo.EntryDate,
+		Version:       memo.Version,
+		FavoritedTime: timestampPB(memo.FavoritedAt),
+		ArchivedTime:  timestampPB(memo.ArchivedAt),
+		CreatedTime:   timestamppb.New(unixMilliTime(memo.CreatedAt)),
+		UpdatedTime:   timestamppb.New(unixMilliTime(memo.UpdatedAt)),
+		DeletedTime:   timestampPB(memo.DeletedAt),
 	}
 }
 

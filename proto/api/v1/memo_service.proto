@@ -6,8 +6,8 @@ import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
-// pinning, and archiving carry expected_version for optimistic concurrency; a
-// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// favoriting, and archiving carry expected_version for optimistic concurrency;
+// a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
 // Creation is idempotent by caller-supplied id, while summary generation only
 // writes derived AI data and therefore does not carry expected_version.
 service MemoService {
@@ -37,9 +37,9 @@ service MemoService {
     option (google.api.http) = {delete: "/api/v1/memos/{id}"};
   }
 
-  rpc SetMemoPinned(SetMemoPinnedRequest) returns (MemoResponse) {
+  rpc SetMemoFavorited(SetMemoFavoritedRequest) returns (MemoResponse) {
     option (google.api.http) = {
-      post: "/api/v1/memos/{id}:setPinned"
+      post: "/api/v1/memos/{id}:setFavorited"
       body: "*"
     };
   }
@@ -64,14 +64,15 @@ message ListMemosRequest {
   // query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
   // instead of returning the recent list.
   string query = 2;
-  // archived filters search results before limit is applied. It is ignored
-  // when query is empty; when unset, search includes both current and archived
-  // memos for backward compatibility.
+  // archived filters both recent-list and search results before limit is
+  // applied. When unset, both current and archived memos are included.
   optional bool archived = 3;
-  // cursor continues the pinned-first recent list; each pinned bucket remains
-  // reverse-chronological. Search requests ignore it because search results are
-  // not paginated.
+  // cursor continues the reverse-chronological recent list. Search requests
+  // ignore it because search results are not paginated.
   string cursor = 4;
+  // favorited filters both recent-list and search results before limit is
+  // applied. When unset, both favorited and non-favorited memos are included.
+  optional bool favorited = 5;
 }
 
 message ListMemosResponse {
@@ -94,12 +95,15 @@ message GetMemoRequest {
 // UpdateMemo applies a partial update guarded by expected_version. Unset
 // optional fields are left unchanged.
 message UpdateMemoRequest {
+  reserved 5;
+  reserved "pinned";
+
   string id = 1;
   int64 expected_version = 2;
   optional string content = 3;
   optional string entry_date = 4;
-  optional bool pinned = 5;
   optional bool archived = 6;
+  optional bool favorited = 7;
 }
 
 message DeleteMemoRequest {
@@ -107,10 +111,10 @@ message DeleteMemoRequest {
   int64 expected_version = 2;
 }
 
-message SetMemoPinnedRequest {
+message SetMemoFavoritedRequest {
   string id = 1;
   int64 expected_version = 2;
-  bool pinned = 3;
+  bool favorited = 3;
 }
 
 message SetMemoArchivedRequest {

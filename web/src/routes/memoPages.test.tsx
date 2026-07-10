@@ -23,7 +23,7 @@ vi.mock("../lib/api", async (importOriginal) => {
     createMemo: vi.fn(),
     updateMemo: vi.fn(),
     deleteMemo: vi.fn(),
-    setMemoPinned: vi.fn(),
+    setMemoFavorited: vi.fn(),
     setMemoArchived: vi.fn(),
     generateMemoSummary: vi.fn(),
     uploadAttachment: vi.fn(),
@@ -42,6 +42,7 @@ import {
   getMemo,
   listMemos,
   searchMemos,
+  setMemoFavorited,
   updateMemo,
 } from "../lib/api";
 
@@ -51,7 +52,7 @@ function memo(overrides: Partial<Memo> = {}): Memo {
     content: "今天的记录内容",
     entryDate: "2026-06-27",
     version: 1,
-    pinnedAt: null,
+    favoritedAt: null,
     archivedAt: null,
     createdAt: "2026-06-27T08:00:00Z",
     updatedAt: "2026-06-27T08:00:00Z",
@@ -90,6 +91,19 @@ function renderWithMemos(ui: React.ReactNode, initialPath: InitialEntry = "/") {
           <Route path="/" element={ui} />
           <Route path="/timeline" element={ui} />
           <Route path="/entries/:id" element={ui} />
+        </Routes>
+      </MemosProvider>
+    </MemoryRouter>,
+  );
+}
+
+function renderTimelineWithEntry(initialPath: InitialEntry) {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <MemosProvider token="t">
+        <Routes>
+          <Route path="/timeline" element={<TimelinePage />} />
+          <Route path="/entries/:id" element={<EntryPage />} />
         </Routes>
       </MemosProvider>
     </MemoryRouter>,
@@ -215,8 +229,50 @@ describe("TimelinePage", () => {
     await waitFor(() => expect(searchMemos).toHaveBeenCalled(), {
       timeout: 2000,
     });
-    expect(searchMemos).toHaveBeenCalledWith("t", "命中", 100, false);
+    expect(searchMemos).toHaveBeenCalledWith("t", "命中", 100, {
+      archived: false,
+      favorited: false,
+    });
     expect(await screen.findByText("搜索命中的记录")).toBeInTheDocument();
+  });
+
+  it("keeps the last successful search results when a later search fails", async () => {
+    const user = userEvent.setup();
+    let rejectSearch: ((reason?: unknown) => void) | undefined;
+    vi.mocked(searchMemos)
+      .mockResolvedValueOnce({
+        memos: [memo({ id: "previous-result", content: "上一次成功结果" })],
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectSearch = reject;
+          }),
+      );
+    renderWithMemos(<TimelinePage />, "/timeline");
+
+    const input = screen.getByPlaceholderText("搜索记录…");
+    await user.type(input, "命中");
+    expect(await screen.findByText("上一次成功结果")).toBeInTheDocument();
+
+    await user.type(input, "失败");
+    await waitFor(() => expect(searchMemos).toHaveBeenCalledTimes(2), {
+      timeout: 2000,
+    });
+    expect(screen.getByText("上一次成功结果")).toBeInTheDocument();
+
+    await act(async () => {
+      rejectSearch?.(new Error("搜索服务暂时不可用"));
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "搜索服务暂时不可用",
+    );
+    expect(screen.getByText("上一次成功结果")).toBeInTheDocument();
+    expect(screen.getByText("保留 1 条上次结果")).toBeInTheDocument();
+    expect(
+      screen.queryByText("没有匹配的记录。换一个词试试。"),
+    ).not.toBeInTheDocument();
   });
 
   it("passes the archived state to server-side search", async () => {
@@ -235,53 +291,66 @@ describe("TimelinePage", () => {
     await user.type(screen.getByPlaceholderText("搜索记录…"), "归档命中");
     await waitFor(
       () =>
-        expect(searchMemos).toHaveBeenCalledWith("t", "归档命中", 100, true),
+        expect(searchMemos).toHaveBeenCalledWith("t", "归档命中", 100, {
+          archived: true,
+          favorited: false,
+        }),
       { timeout: 2000 },
     );
     expect(await screen.findByText("归档搜索命中的记录")).toBeInTheDocument();
   });
 
-  it("keeps archived records discoverable", async () => {
+  it("keeps active, archived, and favorite views mutually exclusive", async () => {
     const user = userEvent.setup();
-    vi.mocked(listMemos).mockResolvedValue({
-      memos: [
-        memo(),
-        memo({
-          id: "archived",
-          content: "已经归档的记录",
-          archivedAt: "2026-06-28T08:00:00Z",
-        }),
-      ],
+    const active = memo({ id: "active", content: "未归档普通记录" });
+    const archived = memo({
+      id: "archived",
+      content: "已经归档的记录",
+      archivedAt: "2026-06-28T08:00:00Z",
     });
+    const favorite = memo({
+      id: "favorite",
+      content: "只在收藏页的记录",
+      archivedAt: "2026-06-28T08:00:00Z",
+      favoritedAt: "2026-06-29T08:00:00Z",
+    });
+    vi.mocked(listMemos).mockImplementation(
+      async (_token, _limit, _cursor, options = {}) => {
+        if (options.favorited) {
+          return { memos: [favorite] };
+        }
+        return { memos: options.archived ? [archived] : [active] };
+      },
+    );
     renderWithMemos(<TimelinePage />, "/timeline");
 
-    await screen.findByText("今天的记录内容");
+    await screen.findByText("未归档普通记录");
     expect(screen.queryByText("已经归档的记录")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("link", { name: /已归档 1/ }));
+    expect(screen.queryByText("只在收藏页的记录")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "已归档" }));
     expect(await screen.findByText("已经归档的记录")).toBeInTheDocument();
-  });
+    expect(screen.queryByText("未归档普通记录")).not.toBeInTheDocument();
+    expect(screen.queryByText("只在收藏页的记录")).not.toBeInTheDocument();
 
-  it("renders older pinned records in a dedicated first group", async () => {
-    vi.mocked(listMemos).mockResolvedValue({
-      memos: [
-        memo({ id: "recent", content: "最近普通记录" }),
-        memo({
-          id: "old-pinned",
-          content: "旧日期置顶记录",
-          entryDate: "2025-01-02",
-          pinnedAt: "2026-06-28T08:00:00Z",
-        }),
-      ],
+    await user.click(screen.getByRole("link", { name: "收藏" }));
+    const favoriteContent = await screen.findByText("只在收藏页的记录");
+    expect(favoriteContent).toBeInTheDocument();
+    expect(favoriteContent.closest("article")).toHaveTextContent("收藏");
+    expect(screen.queryByText("未归档普通记录")).not.toBeInTheDocument();
+    expect(screen.queryByText("已经归档的记录")).not.toBeInTheDocument();
+
+    expect(listMemos).toHaveBeenCalledWith("t", 200, undefined, {
+      archived: false,
+      favorited: false,
     });
-    renderWithMemos(<TimelinePage />, "/timeline");
-
-    const pinned = await screen.findByText("旧日期置顶记录");
-    const recent = screen.getByText("最近普通记录");
-    expect(screen.getByRole("heading", { name: "置顶" })).toBeInTheDocument();
-    expect(
-      pinned.compareDocumentPosition(recent) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(pinned.closest("article")).toHaveTextContent("归属");
+    expect(listMemos).toHaveBeenCalledWith("t", 200, undefined, {
+      archived: true,
+      favorited: false,
+    });
+    expect(listMemos).toHaveBeenCalledWith("t", 200, undefined, {
+      favorited: true,
+    });
   });
 });
 
@@ -452,6 +521,65 @@ describe("EntryPage", () => {
     await waitFor(() => expect(generateMemoSummary).toHaveBeenCalledTimes(1));
   });
 
+  it("favorites a record from its detail page", async () => {
+    const user = userEvent.setup();
+    const favorite = memo({
+      version: 2,
+      favoritedAt: "2026-06-28T08:00:00Z",
+    });
+    vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
+    vi.mocked(setMemoFavorited).mockResolvedValue({ memo: favorite });
+    renderWithMemos(<EntryPage />, "/entries/m1");
+
+    const button = await screen.findByRole("button", { name: "收藏" });
+    await user.click(button);
+
+    await waitFor(() =>
+      expect(setMemoFavorited).toHaveBeenCalledWith(
+        "t",
+        expect.any(Object),
+        true,
+      ),
+    );
+    expect(
+      await screen.findByRole("button", { name: "取消收藏" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("已收藏")).toBeInTheDocument();
+  });
+
+  it("keeps a favorite detail while the active-list refresh finishes", async () => {
+    let finishInitialList:
+      | ((value: { memos: Memo[]; nextCursor?: string }) => void)
+      | undefined;
+    const favorite = memo({
+      content: "直接打开的收藏记录",
+      favoritedAt: "2026-06-28T08:00:00Z",
+    });
+    vi.mocked(listMemos)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishInitialList = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        memos: [memo({ id: "active", content: "未归档列表记录" })],
+      });
+    vi.mocked(getMemo).mockResolvedValue({ memo: favorite });
+    renderWithMemos(<EntryPage />, "/entries/m1");
+
+    expect(await screen.findByText("直接打开的收藏记录")).toBeInTheDocument();
+    await act(async () => {
+      finishInitialList?.({ memos: [] });
+    });
+
+    await waitFor(() => expect(listMemos).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("直接打开的收藏记录")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "取消收藏" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows a not-found message when the record is missing", async () => {
     vi.mocked(getMemo).mockRejectedValue(
       new ApiError("记录不存在", 404, "not_found"),
@@ -517,6 +645,96 @@ describe("EntryPage", () => {
     await user.click(screen.getByRole("button", { name: "重新加载" }));
     expect(await screen.findByText("重试后的正文")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑" })).toBeEnabled();
+  });
+
+  it("keeps the favorite-list snapshot when detail loading temporarily fails", async () => {
+    const user = userEvent.setup();
+    const favorite = memo({
+      id: "favorite",
+      content: "收藏列表中的完整正文",
+      favoritedAt: "2026-06-28T08:00:00Z",
+    });
+    vi.mocked(listMemos).mockImplementation(
+      async (_token, _limit, _cursor, options = {}) => ({
+        memos: options.favorited ? [favorite] : [],
+      }),
+    );
+    vi.mocked(getMemo)
+      .mockRejectedValueOnce(new ApiError("网络暂时不可用", 503, "unavailable"))
+      .mockResolvedValueOnce({
+        memo: memo({
+          ...favorite,
+          content: "服务器重试后的最新正文",
+          version: 2,
+        }),
+      });
+    renderTimelineWithEntry("/timeline?filter=favorite");
+
+    await user.click(
+      await screen.findByRole("link", {
+        name: "查看收藏列表中的完整正文详情",
+      }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "最新内容读取失败：网络暂时不可用",
+    );
+    expect(screen.getByText("收藏列表中的完整正文")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "取消收藏" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "全部记录" })).toHaveAttribute(
+      "href",
+      "/timeline?filter=favorite",
+    );
+
+    await user.click(screen.getByRole("button", { name: "重新加载" }));
+
+    expect(
+      await screen.findByText("服务器重试后的最新正文"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑" })).toBeEnabled();
+  });
+
+  it("prefers a newer route snapshot over stale cached content after a transient detail failure", async () => {
+    const cached = memo({ content: "缓存中的旧正文", version: 1 });
+    const snapshot = memo({ content: "收藏列表中的新正文", version: 2 });
+    vi.mocked(listMemos).mockResolvedValue({ memos: [cached] });
+    vi.mocked(getMemo).mockRejectedValue(
+      new ApiError("网络暂时不可用", 503, "unavailable"),
+    );
+    renderWithMemos(<EntryPage />, {
+      pathname: "/entries/m1",
+      state: {
+        returnTo: "/timeline?filter=favorite",
+        memoSnapshot: snapshot,
+      },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "最新内容读取失败：网络暂时不可用",
+    );
+    expect(screen.getByText("收藏列表中的新正文")).toBeInTheDocument();
+    expect(screen.queryByText("缓存中的旧正文")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑" })).toBeDisabled();
+  });
+
+  it("shows not found when a route snapshot receives a 404", async () => {
+    vi.mocked(listMemos).mockResolvedValue({ memos: [] });
+    vi.mocked(getMemo).mockRejectedValue(
+      new ApiError("记录不存在", 404, "not_found"),
+    );
+    renderWithMemos(<EntryPage />, {
+      pathname: "/entries/m1",
+      state: {
+        returnTo: "/timeline?filter=favorite",
+        memoSnapshot: memo({ content: "已经删除的收藏正文" }),
+      },
+    });
+
+    expect(
+      await screen.findByText("这条记录不存在或已被删除。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("已经删除的收藏正文")).not.toBeInTheDocument();
   });
 
   it("requires a second click before deleting a record", async () => {

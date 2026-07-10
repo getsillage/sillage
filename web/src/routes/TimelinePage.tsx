@@ -1,4 +1,4 @@
-import { Archive, CalendarDays, List, Search, X } from "lucide-react";
+import { Archive, CalendarDays, List, Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarView } from "../components/CalendarView";
@@ -17,7 +17,7 @@ import {
   skeletonClass,
   wideShellClass,
 } from "../components/ui";
-import type { Memo } from "../lib/api";
+import type { Memo, MemoListOptions } from "../lib/api";
 import {
   formatEntryDate,
   monthGrid,
@@ -28,9 +28,27 @@ import {
   entriesByDate,
   entryDateCounts,
   isActive,
+  mergeMemos,
   onThisDay,
 } from "../lib/memos";
 import { useMemos } from "../state/MemosContext";
+
+type TimelineFilter = "active" | "archived" | "favorite";
+
+function timelineFilter(searchParams: URLSearchParams): TimelineFilter {
+  const filter = searchParams.get("filter");
+  return filter === "archived" || filter === "favorite" ? filter : "active";
+}
+
+function listOptionsFor(filter: TimelineFilter): MemoListOptions {
+  if (filter === "favorite") {
+    return { favorited: true };
+  }
+  return {
+    archived: filter === "archived",
+    favorited: false,
+  };
+}
 
 function ViewToggle({ calendar }: { calendar: boolean }) {
   return (
@@ -61,6 +79,7 @@ export function TimelinePage() {
   const { memos, loading, error, refresh, loadAll } = useMemos();
   const today = todayISO();
   const calendar = searchParams.get("view") === "calendar";
+  const filter = timelineFilter(searchParams);
 
   return (
     <main className={wideShellClass}>
@@ -84,42 +103,153 @@ export function TimelinePage() {
             loadAll={loadAll}
           />
         ) : (
-          <ListView
-            memos={memos}
-            today={today}
-            loading={loading}
-            archived={searchParams.get("filter") === "archived"}
-          />
+          <ListView key={filter} today={today} filter={filter} />
         )}
       </section>
     </main>
   );
 }
 
+function useTimelineMemoList(filter: TimelineFilter) {
+  const context = useMemos();
+  const { listPage } = context;
+  const options = useMemo(() => listOptionsFor(filter), [filter]);
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState("");
+  const requestSeqRef = useRef(0);
+  const cursorRef = useRef("");
+  const loadMoreRequestRef = useRef<Promise<boolean> | null>(null);
+
+  const refresh = useCallback(async () => {
+    const request = ++requestSeqRef.current;
+    loadMoreRequestRef.current = null;
+    cursorRef.current = "";
+    setMemos([]);
+    setLoading(true);
+    setLoadingMore(false);
+    setHasMore(false);
+    setError("");
+    try {
+      const res = await listPage(options);
+      if (request !== requestSeqRef.current) {
+        return;
+      }
+      setMemos(res.memos);
+      cursorRef.current = res.nextCursor ?? "";
+      setHasMore(Boolean(res.nextCursor));
+    } catch (cause) {
+      if (request === requestSeqRef.current) {
+        setError(cause instanceof Error ? cause.message : "读取记录失败");
+      }
+    } finally {
+      if (request === requestSeqRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [listPage, options]);
+
+  useEffect(() => {
+    if (filter === "active") {
+      requestSeqRef.current += 1;
+      loadMoreRequestRef.current = null;
+      return;
+    }
+    void refresh();
+    return () => {
+      requestSeqRef.current += 1;
+      loadMoreRequestRef.current = null;
+    };
+  }, [filter, refresh]);
+
+  const loadMore = useCallback((): Promise<boolean> => {
+    const cursor = cursorRef.current;
+    if (!cursor) {
+      return Promise.resolve(false);
+    }
+    if (loadMoreRequestRef.current) {
+      return loadMoreRequestRef.current;
+    }
+    const request = requestSeqRef.current;
+    setLoadingMore(true);
+    let promise: Promise<boolean>;
+    promise = listPage(options, cursor)
+      .then((res) => {
+        if (request !== requestSeqRef.current || cursor !== cursorRef.current) {
+          return Boolean(cursorRef.current);
+        }
+        setMemos((current) => mergeMemos(current, res.memos));
+        cursorRef.current = res.nextCursor ?? "";
+        setHasMore(Boolean(res.nextCursor));
+        setError("");
+        return Boolean(res.nextCursor);
+      })
+      .catch((cause) => {
+        if (request !== requestSeqRef.current) {
+          return Boolean(cursorRef.current);
+        }
+        const nextError =
+          cause instanceof Error ? cause : new Error("读取更多记录失败");
+        setError(nextError.message);
+        throw nextError;
+      })
+      .finally(() => {
+        if (loadMoreRequestRef.current === promise) {
+          loadMoreRequestRef.current = null;
+          setLoadingMore(false);
+        }
+      });
+    loadMoreRequestRef.current = promise;
+    return promise;
+  }, [listPage, options]);
+
+  const activeMemos = useMemo(
+    () => context.memos.filter(isActive),
+    [context.memos],
+  );
+
+  if (filter === "active") {
+    return {
+      memos: activeMemos,
+      loading: context.loading,
+      loadingMore: context.loadingMore,
+      hasMore: context.hasMore,
+      error: context.error,
+      refresh: context.refresh,
+      loadMore: context.loadMore,
+    };
+  }
+
+  return {
+    memos,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    refresh,
+    loadMore,
+  };
+}
+
 function ListView({
-  memos,
   today,
-  loading,
-  archived,
+  filter,
 }: {
-  memos: Memo[];
   today: string;
-  loading: boolean;
-  archived: boolean;
+  filter: TimelineFilter;
 }) {
-  const { error, refresh, search, loadMore, hasMore, loadingMore } = useMemos();
+  const { search } = useMemos();
+  const { memos, loading, error, refresh, loadMore, hasMore, loadingMore } =
+    useTimelineMemoList(filter);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Memo[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const trimmed = query.trim();
-  const visibleMemos = memos.filter((memo) =>
-    archived ? Boolean(memo.archivedAt && !memo.deletedAt) : isActive(memo),
-  );
   const memories = onThisDay(memos, today);
-  const archivedCount = memos.filter(
-    (memo) => memo.archivedAt && !memo.deletedAt,
-  ).length;
+  const options = useMemo(() => listOptionsFor(filter), [filter]);
 
   // Debounced server-side FTS search; empty query falls back to the recent list.
   useEffect(() => {
@@ -131,24 +261,17 @@ function ListView({
     }
     let cancelled = false;
     setSearching(true);
-    setResults(null);
+    setSearchError("");
     const handle = setTimeout(() => {
-      search(trimmed, archived)
+      search(trimmed, options)
         .then((found) => {
           if (!cancelled) {
-            setResults(
-              found.filter((memo) =>
-                archived
-                  ? Boolean(memo.archivedAt && !memo.deletedAt)
-                  : isActive(memo),
-              ),
-            );
+            setResults(found);
             setSearchError("");
           }
         })
         .catch((cause) => {
           if (!cancelled) {
-            setResults([]);
             setSearchError(cause instanceof Error ? cause.message : "搜索失败");
           }
         })
@@ -162,11 +285,11 @@ function ListView({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [trimmed, search, archived]);
+  }, [trimmed, search, options]);
 
   // The full loaded set in reverse-chronological order; older pages stream in
   // via the infinite-scroll sentinel below. Search results bypass pagination.
-  const list = trimmed ? (results ?? []) : visibleMemos;
+  const list = trimmed ? (results ?? []) : memos;
   const groups = useMemo(() => groupEntries(list), [list]);
   const showLoadMore = !trimmed && hasMore;
   const listError = !trimmed ? error : "";
@@ -233,18 +356,26 @@ function ListView({
           <legend className="sr-only">记录状态</legend>
           <Link
             to="/timeline"
-            className={segmentedItemClass(!archived)}
-            aria-current={!archived ? "page" : undefined}
+            className={segmentedItemClass(filter === "active")}
+            aria-current={filter === "active" ? "page" : undefined}
           >
             未归档
           </Link>
           <Link
             to="/timeline?filter=archived"
-            className={segmentedItemClass(archived)}
-            aria-current={archived ? "page" : undefined}
+            className={segmentedItemClass(filter === "archived")}
+            aria-current={filter === "archived" ? "page" : undefined}
           >
             <Archive className="h-4 w-4" aria-hidden="true" />
-            已归档{archivedCount > 0 ? ` ${archivedCount}` : ""}
+            已归档
+          </Link>
+          <Link
+            to="/timeline?filter=favorite"
+            className={segmentedItemClass(filter === "favorite")}
+            aria-current={filter === "favorite" ? "page" : undefined}
+          >
+            <Star className="h-4 w-4" aria-hidden="true" />
+            收藏
           </Link>
         </fieldset>
         <p
@@ -254,14 +385,18 @@ function ListView({
           {searching
             ? "正在搜索"
             : trimmed
-              ? `找到 ${list.length} 条记录`
+              ? searchError
+                ? list.length > 0
+                  ? `保留 ${list.length} 条上次结果`
+                  : "搜索失败"
+                : `找到 ${list.length} 条记录`
               : listError && list.length === 0
                 ? "记录读取失败"
-                : `${list.length} 条${archived ? "已归档" : "未归档"}记录`}
+                : `${list.length} 条${filter === "active" ? "未归档" : filter === "archived" ? "已归档" : "收藏"}记录`}
         </p>
       </div>
 
-      {!archived && !trimmed && memories.length > 0 ? (
+      {filter === "active" && !trimmed && memories.length > 0 ? (
         <OnThisDay entries={memories} today={today} />
       ) : null}
       {searchError ? (
@@ -272,13 +407,15 @@ function ListView({
       <section className="min-w-0 pr-14 sm:pr-0">
         {(loading && !trimmed) || (searching && results === null) ? (
           <TimelineSkeleton />
-        ) : groups.length === 0 && !listError ? (
+        ) : groups.length === 0 && !listError && !searchError ? (
           <div className={emptyStateClass}>
             {trimmed
               ? "没有匹配的记录。换一个词试试。"
-              : archived
+              : filter === "archived"
                 ? "还没有归档记录。"
-                : "还没有记录。可以先写一条记录。"}
+                : filter === "favorite"
+                  ? "还没有收藏记录。"
+                  : "还没有记录。可以先写一条记录。"}
           </div>
         ) : (
           <div className="space-y-7">
@@ -292,7 +429,7 @@ function ListView({
                     id={`memo-group-${group.key}`}
                     className="font-medium text-gray-800 text-sm dark:text-gray-200"
                   >
-                    {group.date ? formatEntryDate(group.date, today) : "置顶"}
+                    {formatEntryDate(group.date, today)}
                   </h2>
                   <span className="text-gray-400 text-xs dark:text-gray-500">
                     {group.entries.length} 条
@@ -301,11 +438,7 @@ function ListView({
                 <ul className="divide-y divide-gray-200/70 rounded-lg border border-gray-200/80 bg-white/70 p-1 shadow-sm shadow-gray-900/[0.02] dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/45">
                   {group.entries.map((memo) => (
                     <li key={memo.id}>
-                      <EntryCard
-                        memo={memo}
-                        openOnCardClick
-                        grouped={Boolean(group.date)}
-                      />
+                      <EntryCard memo={memo} openOnCardClick grouped />
                     </li>
                   ))}
                 </ul>
@@ -363,7 +496,7 @@ function ListView({
 
 interface MemoGroup {
   key: string;
-  date: string | null;
+  date: string;
   entries: Memo[];
 }
 
@@ -377,12 +510,7 @@ function chronologicalMemos(memos: Memo[]): Memo[] {
 }
 
 function groupEntries(memos: Memo[]): MemoGroup[] {
-  const pinned = chronologicalMemos(
-    memos.filter((memo) => Boolean(memo.pinnedAt)),
-  );
-  const chronological = chronologicalMemos(
-    memos.filter((memo) => !memo.pinnedAt),
-  );
+  const chronological = chronologicalMemos(memos);
   const groups = new Map<string, Memo[]>();
   for (const memo of chronological) {
     const entries = groups.get(memo.entryDate) ?? [];
@@ -394,9 +522,7 @@ function groupEntries(memos: Memo[]): MemoGroup[] {
     date,
     entries,
   }));
-  return pinned.length > 0
-    ? [{ key: "pinned", date: null, entries: pinned }, ...dateGroups]
-    : dateGroups;
+  return dateGroups;
 }
 
 function TimelineSkeleton() {

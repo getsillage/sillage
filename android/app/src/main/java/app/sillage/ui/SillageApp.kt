@@ -66,12 +66,13 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material3.AlertDialog
@@ -127,6 +128,7 @@ import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
+import app.sillage.data.MemoListFilter
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.data.calendarMemoCoverage
@@ -486,7 +488,10 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refreshMemos, enabled = !state.loading) {
+                    IconButton(
+                        onClick = viewModel::refreshMemos,
+                        enabled = !state.loading && state.memoListLoadStatus != MemoListLoadStatus.Loading,
+                    ) {
                         Icon(Icons.Rounded.Refresh, contentDescription = "刷新记录")
                     }
                 },
@@ -512,15 +517,26 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             if (state.memoViewMode == MemoViewMode.List) {
+                MemoListFilterTabs(
+                    selected = state.memoListFilter,
+                    onSelect = viewModel::updateMemoListFilter,
+                )
                 SearchBlock(state = state, viewModel = viewModel)
                 SearchStatusBlock(state = state)
             }
-            if (state.loading && state.memos.isEmpty()) {
+            if (
+                (state.loading || state.memoListLoadStatus == MemoListLoadStatus.Loading) &&
+                visibleMemos.isEmpty()
+            ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else if (state.memoViewMode == MemoViewMode.Calendar) {
                 CalendarMemoView(state = state, viewModel = viewModel)
+            } else if (state.shouldShowMemoListLoadFailure()) {
+                EmptyState("记录加载失败，请点击右上角刷新重试。", Icons.Rounded.Refresh)
+            } else if (state.shouldShowMemoSearchFailure()) {
+                EmptyState("搜索失败，请检查网络后重试。", Icons.Rounded.Refresh)
             } else {
                 MemoListView(
                     visibleMemos = visibleMemos,
@@ -534,9 +550,10 @@ private fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     onMemoClick = viewModel::openMemoDetail,
                     onMemoEdit = viewModel::editMemo,
                     onMemoDuplicate = viewModel::duplicateMemoDraft,
-                    onMemoTogglePin = viewModel::toggleMemoPinned,
+                    onMemoToggleFavorite = viewModel::toggleMemoFavorited,
                     onMemoToggleArchive = viewModel::toggleMemoArchived,
                     onMemoDelete = viewModel::deleteMemo,
+                    filter = state.memoListFilter,
                 )
             }
         }
@@ -585,6 +602,37 @@ private fun memoListSubtitle(state: SillageUiState): String {
         state.account?.displayName ?: state.baseUrl.ifBlank { "在线" }
     }
     return "$mode · ${state.memos.size} 条记录"
+}
+
+@Composable
+private fun MemoListFilterTabs(
+    selected: MemoListFilter,
+    onSelect: (MemoListFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MemoListFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = selected == filter,
+                onClick = { onSelect(filter) },
+                label = {
+                    Text(
+                        when (filter) {
+                            MemoListFilter.Unarchived -> "未归档"
+                            MemoListFilter.Archived -> "归档"
+                            MemoListFilter.Favorited -> "收藏"
+                        },
+                        maxLines = 1,
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
 }
 
 @Composable
@@ -641,9 +689,10 @@ private fun MemoListView(
     onMemoClick: (Memo) -> Unit,
     onMemoEdit: (Memo) -> Unit,
     onMemoDuplicate: (Memo) -> Unit,
-    onMemoTogglePin: (Memo) -> Unit,
+    onMemoToggleFavorite: (Memo) -> Unit,
     onMemoToggleArchive: (Memo) -> Unit,
     onMemoDelete: (Memo) -> Unit,
+    filter: MemoListFilter,
 ) {
     if (searching && visibleMemos.isEmpty()) {
         EmptyState("正在搜索…", Icons.Rounded.Search)
@@ -651,7 +700,15 @@ private fun MemoListView(
     }
     if (visibleMemos.isEmpty()) {
         EmptyState(
-            if (showingSearchResults) "没有匹配的记录。" else "还没有记录。点右下角加号写第一条。",
+            if (showingSearchResults) {
+                "没有匹配的记录。"
+            } else {
+                when (filter) {
+                    MemoListFilter.Unarchived -> "还没有未归档记录。点右下角加号写第一条。"
+                    MemoListFilter.Archived -> "还没有归档记录。"
+                    MemoListFilter.Favorited -> "还没有收藏记录。"
+                }
+            },
             if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
         )
         return
@@ -680,7 +737,7 @@ private fun MemoListView(
                 onClick = { onMemoClick(memo) },
                 onEdit = { onMemoEdit(memo) },
                 onDuplicate = { onMemoDuplicate(memo) },
-                onTogglePin = { onMemoTogglePin(memo) },
+                onToggleFavorite = { onMemoToggleFavorite(memo) },
                 onToggleArchive = { onMemoToggleArchive(memo) },
                 onDelete = { onMemoDelete(memo) },
             )
@@ -887,7 +944,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onClick = { viewModel.openMemoDetail(memo) },
                 onEdit = { viewModel.editMemo(memo) },
                 onDuplicate = { viewModel.duplicateMemoDraft(memo) },
-                onTogglePin = { viewModel.toggleMemoPinned(memo) },
+                onToggleFavorite = { viewModel.toggleMemoFavorited(memo) },
                 onToggleArchive = { viewModel.toggleMemoArchived(memo) },
                 onDelete = { viewModel.deleteMemo(memo) },
             )
@@ -1089,7 +1146,7 @@ private fun MemoSwipeRow(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onTogglePin: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onToggleArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1138,9 +1195,9 @@ private fun MemoSwipeRow(
                 showActions = false
                 onDuplicate()
             },
-            onTogglePin = {
+            onToggleFavorite = {
                 showActions = false
-                onTogglePin()
+                onToggleFavorite()
             },
             onToggleArchive = {
                 showActions = false
@@ -1161,7 +1218,7 @@ private fun MemoSwipeRow(
             memo = memo,
             actionWidth = actionWidth,
             revealedOffset = offsetX,
-            onTogglePin = { runAction(onTogglePin) },
+            onToggleFavorite = { runAction(onToggleFavorite) },
             onToggleArchive = { runAction(onToggleArchive) },
             modifier = Modifier.matchParentSize(),
         )
@@ -1192,7 +1249,7 @@ private fun MemoSwipeActionPane(
     memo: Memo,
     actionWidth: androidx.compose.ui.unit.Dp,
     revealedOffset: Float,
-    onTogglePin: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onToggleArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1201,11 +1258,11 @@ private fun MemoSwipeActionPane(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         SwipeActionButton(
-            icon = Icons.Rounded.PushPin,
-            label = if (memo.pinnedAt == null) "置顶" else "取消",
+            icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
+            label = if (memo.favoritedAt == null) "收藏" else "取消",
             visible = revealedOffset > 0f,
             color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = onTogglePin,
+            onClick = onToggleFavorite,
             modifier = Modifier
                 .fillMaxHeight()
                 .width(actionWidth),
@@ -1259,7 +1316,7 @@ private fun MemoQuickActionsSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onTogglePin: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onToggleArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1296,10 +1353,16 @@ private fun MemoQuickActionsSheet(
                 onClick = onDuplicate,
             )
             QuickActionRow(
-                icon = Icons.Rounded.PushPin,
-                title = if (memo.pinnedAt == null) "置顶" else "取消置顶",
-                supporting = if (memo.pinnedAt == null) "保留在列表顶部。" else "恢复到时间顺序。",
-                onClick = onTogglePin,
+                icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
+                title = if (memo.favoritedAt == null) "收藏" else "取消收藏",
+                supporting = if (memo.favoritedAt == null) {
+                    "移到收藏页面。"
+                } else if (memo.archivedAt == null) {
+                    "移回未归档页面。"
+                } else {
+                    "移回归档页面。"
+                },
+                onClick = onToggleFavorite,
             )
             QuickActionRow(
                 icon = Icons.Rounded.Archive,
@@ -1430,8 +1493,8 @@ private fun MemoRow(
 @Composable
 private fun MemoStatusPills(memo: Memo?) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (memo?.pinnedAt != null) {
-            StatusPill("置顶")
+        if (memo?.favoritedAt != null) {
+            StatusPill("收藏")
         }
         if (memo?.archivedAt != null) {
             StatusPill("归档")
@@ -1511,11 +1574,16 @@ private fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel)
                         ) {
                             if (memo != null) {
                                 DropdownMenuItem(
-                                    text = { Text(if (memo.pinnedAt == null) "置顶" else "取消置顶") },
-                                    leadingIcon = { Icon(Icons.Rounded.PushPin, contentDescription = null) },
+                                    text = { Text(if (memo.favoritedAt == null) "收藏" else "取消收藏") },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
+                                            contentDescription = null,
+                                        )
+                                    },
                                     onClick = {
                                         menuExpanded = false
-                                        viewModel.toggleSelectedMemoPinned()
+                                        viewModel.toggleSelectedMemoFavorited()
                                     },
                                 )
                                 DropdownMenuItem(
@@ -1846,12 +1914,17 @@ private fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel)
                                 onDismissRequest = { menuExpanded = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text(if (selected.pinnedAt == null) "置顶" else "取消置顶") },
-                                    leadingIcon = { Icon(Icons.Rounded.PushPin, contentDescription = null) },
+                                    text = { Text(if (selected.favoritedAt == null) "收藏" else "取消收藏") },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (selected.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
+                                            contentDescription = null,
+                                        )
+                                    },
                                     enabled = editorActionsEnabled,
                                     onClick = {
                                         menuExpanded = false
-                                        viewModel.toggleSelectedMemoPinned()
+                                        viewModel.toggleSelectedMemoFavorited()
                                     },
                                 )
                                 DropdownMenuItem(
@@ -2170,7 +2243,7 @@ private fun MarkdownLinkText(
 @Composable
 private fun MemoStatusLine(memo: Memo?) {
     val flags = listOfNotNull(
-        if (memo?.pinnedAt != null) "置顶" else null,
+        if (memo?.favoritedAt != null) "已收藏" else null,
         if (memo?.archivedAt != null) "已归档" else null,
     )
     if (flags.isEmpty()) {

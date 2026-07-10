@@ -89,7 +89,7 @@ func TestConnectMemoServicePaginates(t *testing.T) {
 	}
 }
 
-func TestConnectMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
+func TestConnectMemoListAndSearchThreePartitions(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 	httpServer := httptest.NewServer(srv)
@@ -110,8 +110,22 @@ func TestConnectMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
 		return res.Msg.GetMemo()
 	}
 
-	current := create("2026-06-27")
-	archivedMemo := create("2026-06-26")
+	favoritedMemo := create("2026-06-28")
+	archivedMemo := create("2026-06-27")
+	current := create("2026-06-26")
+	favoriteReq := connect.NewRequest(&apiv1.SetMemoFavoritedRequest{
+		Id:              favoritedMemo.GetId(),
+		ExpectedVersion: favoritedMemo.GetVersion(),
+		Favorited:       true,
+	})
+	favoriteReq.Header().Set("Authorization", "Bearer "+token)
+	favoriteRes, err := client.SetMemoFavorited(context.Background(), favoriteReq)
+	if err != nil {
+		t.Fatalf("SetMemoFavorited() error = %v", err)
+	}
+	if favoriteRes.Msg.GetMemo().GetFavoritedTime() == nil {
+		t.Fatalf("favorited memo = %#v, want favorited time", favoriteRes.Msg.GetMemo())
+	}
 	archiveReq := connect.NewRequest(&apiv1.SetMemoArchivedRequest{
 		Id:              archivedMemo.GetId(),
 		ExpectedVersion: archivedMemo.GetVersion(),
@@ -122,29 +136,37 @@ func TestConnectMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
 		t.Fatalf("SetMemoArchived() error = %v", err)
 	}
 
-	assertSearchID := func(archived bool, wantID string) {
+	trueValue := true
+	falseValue := false
+	assertListID := func(query string, archived, favorited *bool, wantID string) {
 		t.Helper()
 		req := connect.NewRequest(&apiv1.ListMemosRequest{
-			Limit:    1,
-			Query:    "Connect",
-			Archived: &archived,
-			Cursor:   "ignored-for-search",
+			Limit:     1,
+			Query:     query,
+			Archived:  archived,
+			Favorited: favorited,
 		})
+		if query != "" {
+			req.Msg.Cursor = "ignored-for-search"
+		}
 		req.Header().Set("Authorization", "Bearer "+token)
 		res, err := client.ListMemos(context.Background(), req)
 		if err != nil {
-			t.Fatalf("ListMemos(archived=%t) error = %v", archived, err)
+			t.Fatalf("ListMemos(query=%q archived=%v favorited=%v) error = %v", query, archived, favorited, err)
 		}
 		if len(res.Msg.GetMemos()) != 1 || res.Msg.GetMemos()[0].GetId() != wantID {
-			t.Fatalf("ListMemos(archived=%t) = %#v, want %s", archived, res.Msg.GetMemos(), wantID)
+			t.Fatalf("ListMemos(query=%q archived=%v favorited=%v) = %#v, want %s", query, archived, favorited, res.Msg.GetMemos(), wantID)
 		}
-		if res.Msg.GetNextCursor() != "" {
+		if query != "" && res.Msg.GetNextCursor() != "" {
 			t.Fatalf("search next cursor = %q, want empty", res.Msg.GetNextCursor())
 		}
 	}
 
-	assertSearchID(true, archivedMemo.GetId())
-	assertSearchID(false, current.GetId())
+	for _, query := range []string{"", "Connect"} {
+		assertListID(query, &falseValue, &falseValue, current.GetId())
+		assertListID(query, &trueValue, &falseValue, archivedMemo.GetId())
+		assertListID(query, nil, &trueValue, favoritedMemo.GetId())
+	}
 }
 
 func TestConnectMemoMutationRequiresExpectedVersion(t *testing.T) {
@@ -164,21 +186,47 @@ func TestConnectMemoMutationRequiresExpectedVersion(t *testing.T) {
 		t.Fatalf("CreateMemo() error = %v", err)
 	}
 
-	updateReq := connect.NewRequest(&apiv1.SetMemoPinnedRequest{
-		Id:     createRes.Msg.GetMemo().GetId(),
-		Pinned: true,
+	updateReq := connect.NewRequest(&apiv1.SetMemoFavoritedRequest{
+		Id:        createRes.Msg.GetMemo().GetId(),
+		Favorited: true,
 	})
 	updateReq.Header().Set("Authorization", "Bearer "+token)
-	_, err = client.SetMemoPinned(context.Background(), updateReq)
+	_, err = client.SetMemoFavorited(context.Background(), updateReq)
 	if err == nil {
-		t.Fatal("SetMemoPinned() error = nil, want invalid argument")
+		t.Fatal("SetMemoFavorited() error = nil, want invalid argument")
 	}
 	connectErr := new(connect.Error)
 	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
-		t.Fatalf("SetMemoPinned() error = %v, want invalid argument", err)
+		t.Fatalf("SetMemoFavorited() error = %v, want invalid argument", err)
 	}
 	if !strings.Contains(connectErr.Message(), "expectedVersion") {
-		t.Fatalf("SetMemoPinned() message = %q", connectErr.Message())
+		t.Fatalf("SetMemoFavorited() message = %q", connectErr.Message())
+	}
+
+	updateReq = connect.NewRequest(&apiv1.SetMemoFavoritedRequest{
+		Id:              createRes.Msg.GetMemo().GetId(),
+		ExpectedVersion: 1,
+		Favorited:       true,
+	})
+	updateReq.Header().Set("Authorization", "Bearer "+token)
+	updateRes, err := client.SetMemoFavorited(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("SetMemoFavorited() error = %v", err)
+	}
+	if updateRes.Msg.GetMemo().GetVersion() != 2 || updateRes.Msg.GetMemo().GetFavoritedTime() == nil {
+		t.Fatalf("favorited memo = %#v", updateRes.Msg.GetMemo())
+	}
+
+	staleReq := connect.NewRequest(&apiv1.SetMemoFavoritedRequest{
+		Id:              createRes.Msg.GetMemo().GetId(),
+		ExpectedVersion: 1,
+		Favorited:       false,
+	})
+	staleReq.Header().Set("Authorization", "Bearer "+token)
+	_, err = client.SetMemoFavorited(context.Background(), staleReq)
+	connectErr = new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeAborted {
+		t.Fatalf("SetMemoFavorited(stale) error = %v, want aborted", err)
 	}
 
 	getReq := connect.NewRequest(&apiv1.GetMemoRequest{Id: createRes.Msg.GetMemo().GetId()})
@@ -187,8 +235,8 @@ func TestConnectMemoMutationRequiresExpectedVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMemo() error = %v", err)
 	}
-	if getRes.Msg.GetMemo().GetVersion() != 1 || getRes.Msg.GetMemo().GetPinnedTime() != nil {
-		t.Fatalf("memo changed after rejected mutation: %#v", getRes.Msg.GetMemo())
+	if getRes.Msg.GetMemo().GetVersion() != 2 || getRes.Msg.GetMemo().GetFavoritedTime() == nil {
+		t.Fatalf("memo changed after stale mutation: %#v", getRes.Msg.GetMemo())
 	}
 }
 
@@ -342,6 +390,7 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	t.Cleanup(httpServer.Close)
 
 	client := apiv1connect.NewSyncServiceClient(httpServer.Client(), httpServer.URL)
+	favorited := true
 	pushReq := connect.NewRequest(&apiv1.PushSyncRequest{
 		Changes: []*apiv1.SyncChange{{
 			MutationId:   "connect-create-1",
@@ -352,6 +401,7 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 				Id:        "01800000-0000-7000-8000-000000000101",
 				Content:   "Connect 同步创建的记录",
 				EntryDate: "2026-06-26",
+				Favorited: &favorited,
 			},
 		}},
 	})
@@ -362,6 +412,9 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	}
 	if got := pushRes.Msg.GetResults()[0].GetStatus(); got != "applied" {
 		t.Fatalf("PushSync status = %q, want applied", got)
+	}
+	if got := pushRes.Msg.GetResults()[0].GetResource(); got.GetFavoritedTime() == nil || got.GetVersion() != 1 {
+		t.Fatalf("PushSync resource = %#v, want favorited time at version 1", got)
 	}
 
 	pushReq = connect.NewRequest(pushReq.Msg)
@@ -382,6 +435,9 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	}
 	if len(pullRes.Msg.GetMemos()) != 1 {
 		t.Fatalf("PullSync memos len = %d, want 1", len(pullRes.Msg.GetMemos()))
+	}
+	if pullRes.Msg.GetMemos()[0].GetFavoritedTime() == nil {
+		t.Fatalf("PullSync memo = %#v, want favorited time", pullRes.Msg.GetMemos()[0])
 	}
 	if pullRes.Msg.GetCursor() == "" || pullRes.Msg.GetHasMore() {
 		t.Fatalf("unexpected PullSync cursor/hasMore: cursor=%q hasMore=%v", pullRes.Msg.GetCursor(), pullRes.Msg.GetHasMore())

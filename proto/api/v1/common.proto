@@ -18,6 +18,9 @@ message Account {
 // Deletion is a tombstone: deleted_time is set while the row is retained so
 // sync clients can converge.
 message Memo {
+  reserved 5;
+  reserved "pinned_time";
+
   string id = 1;
   string content = 2;
   // entry_date is the user-chosen calendar day in YYYY-MM-DD form; it is
@@ -26,12 +29,12 @@ message Memo {
   // version is bumped on every content/state mutation and drives optimistic
   // concurrency: writes carry the expected_version they read.
   int64 version = 4;
-  google.protobuf.Timestamp pinned_time = 5;
   google.protobuf.Timestamp archived_time = 6;
   google.protobuf.Timestamp created_time = 7;
   google.protobuf.Timestamp updated_time = 8;
   // deleted_time set => the memo is tombstoned (soft-deleted).
   google.protobuf.Timestamp deleted_time = 9;
+  google.protobuf.Timestamp favorited_time = 10 [json_name = "favoritedAt"];
 }
 
 // Attachment is a file stored alongside a memo. Bytes live on disk; this

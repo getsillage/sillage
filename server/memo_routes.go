@@ -18,7 +18,7 @@ type memoRequest struct {
 	Content         *string `json:"content"`
 	EntryDate       *string `json:"entryDate"`
 	ExpectedVersion int64   `json:"expectedVersion"`
-	Pinned          *bool   `json:"pinned"`
+	Favorited       *bool   `json:"favorited"`
 	Archived        *bool   `json:"archived"`
 }
 
@@ -45,22 +45,22 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 	if query == "" {
 		query = c.QueryParam("q")
 	}
+	archived, err := parseMemoBoolFilter(c.QueryParam("archived"), "archived")
+	if err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+	}
+	favorited, err := parseMemoBoolFilter(c.QueryParam("favorited"), "favorited")
+	if err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+	}
 	if query != "" {
-		var archived *bool
-		if raw := c.QueryParam("archived"); raw != "" {
-			value, parseErr := strconv.ParseBool(raw)
-			if parseErr != nil {
-				return apiError(c, http.StatusBadRequest, "invalid_field", "archived 必须是 true 或 false")
-			}
-			archived = &value
-		}
-		memos, err := s.searchMemos(ctx, account.ID, query, archived, limit)
+		memos, err := s.searchMemos(ctx, account.ID, query, archived, favorited, limit)
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 		}
 		return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})
 	}
-	page, err := s.listMemos(ctx, account.ID, limit, c.QueryParam("cursor"))
+	page, err := s.listMemos(ctx, account.ID, archived, favorited, limit, c.QueryParam("cursor"))
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
@@ -136,7 +136,7 @@ func (s *Server) handleUpdateMemo(c *echo.Context) error {
 		ExpectedVersion: req.ExpectedVersion,
 		Content:         req.Content,
 		EntryDate:       req.EntryDate,
-		Pinned:          req.Pinned,
+		Favorited:       req.Favorited,
 		Archived:        req.Archived,
 	})
 	return s.writeMemoMutationResult(c, memo, err)
@@ -178,17 +178,23 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		if err := c.Bind(&req); err != nil {
 			return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 		}
-		value := req.Archived != nil && *req.Archived
+		if req.Archived == nil {
+			return apiError(c, http.StatusBadRequest, "invalid_field", "archived 必须是 true 或 false")
+		}
+		value := *req.Archived
 		update.ExpectedVersion = req.ExpectedVersion
 		update.Archived = &value
-	case "setPinned":
+	case "setFavorited":
 		var req memoRequest
 		if err := c.Bind(&req); err != nil {
 			return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 		}
-		value := req.Pinned != nil && *req.Pinned
+		if req.Favorited == nil {
+			return apiError(c, http.StatusBadRequest, "invalid_field", "favorited 必须是 true 或 false")
+		}
+		value := *req.Favorited
 		update.ExpectedVersion = req.ExpectedVersion
-		update.Pinned = &value
+		update.Favorited = &value
 	case "archive":
 		value := true
 		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
@@ -197,14 +203,6 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		value := false
 		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 		update.Archived = &value
-	case "pin":
-		value := true
-		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-		update.Pinned = &value
-	case "unpin":
-		value := false
-		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-		update.Pinned = &value
 	default:
 		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
 	}
@@ -290,6 +288,17 @@ func parseLimit(raw string, fallback int) int {
 	return normalizeLimit(limit, fallback)
 }
 
+func parseMemoBoolFilter(raw, field string) (*bool, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return nil, errors.New(field + " 必须是 true 或 false")
+	}
+	return &value, nil
+}
+
 func stringValue(value *string) string {
 	if value == nil {
 		return ""
@@ -310,15 +319,15 @@ func memoDTO(memo *store.Memo) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":         memo.ID,
-		"content":    memo.Content,
-		"entryDate":  memo.EntryDate,
-		"version":    memo.Version,
-		"pinnedAt":   optionalTime(memo.PinnedAt),
-		"archivedAt": optionalTime(memo.ArchivedAt),
-		"createdAt":  time.UnixMilli(memo.CreatedAt).UTC().Format(time.RFC3339),
-		"updatedAt":  time.UnixMilli(memo.UpdatedAt).UTC().Format(time.RFC3339),
-		"deletedAt":  optionalTime(memo.DeletedAt),
+		"id":          memo.ID,
+		"content":     memo.Content,
+		"entryDate":   memo.EntryDate,
+		"version":     memo.Version,
+		"favoritedAt": optionalTime(memo.FavoritedAt),
+		"archivedAt":  optionalTime(memo.ArchivedAt),
+		"createdAt":   time.UnixMilli(memo.CreatedAt).UTC().Format(time.RFC3339),
+		"updatedAt":   time.UnixMilli(memo.UpdatedAt).UTC().Format(time.RFC3339),
+		"deletedAt":   optionalTime(memo.DeletedAt),
 	}
 }
 

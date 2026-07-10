@@ -30,11 +30,16 @@ export type Memo = {
   content: string;
   entryDate: string;
   version: number;
-  pinnedAt: string | null;
+  favoritedAt: string | null;
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+};
+
+export type MemoListOptions = {
+  archived?: boolean;
+  favorited?: boolean;
 };
 
 export type Attachment = {
@@ -183,10 +188,17 @@ export async function listMemos(
   accessToken: string,
   limit = 200,
   cursor?: string,
+  options: MemoListOptions = {},
 ): Promise<{ memos: Memo[]; nextCursor?: string }> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) {
     params.set("cursor", cursor);
+  }
+  if (options.archived !== undefined) {
+    params.set("archived", String(options.archived));
+  }
+  if (options.favorited !== undefined) {
+    params.set("favorited", String(options.favorited));
   }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
@@ -197,14 +209,18 @@ export async function searchMemos(
   accessToken: string,
   query: string,
   limit = 100,
-  archived?: boolean,
+  options: MemoListOptions = {},
 ): Promise<{ memos: Memo[] }> {
-  const archivedParam =
-    archived === undefined ? "" : `&archived=${String(archived)}`;
-  return request(
-    `/api/v1/memos?query=${encodeURIComponent(query)}&limit=${limit}${archivedParam}`,
-    { headers: authHeaders(accessToken) },
-  );
+  const params = new URLSearchParams({ query, limit: String(limit) });
+  if (options.archived !== undefined) {
+    params.set("archived", String(options.archived));
+  }
+  if (options.favorited !== undefined) {
+    params.set("favorited", String(options.favorited));
+  }
+  return request(`/api/v1/memos?${params.toString()}`, {
+    headers: authHeaders(accessToken),
+  });
 }
 
 export async function getMemo(
@@ -242,15 +258,15 @@ export async function updateMemo(
   });
 }
 
-export async function setMemoPinned(
+export async function setMemoFavorited(
   accessToken: string,
   memo: Memo,
-  pinned: boolean,
+  favorited: boolean,
 ): Promise<{ memo: Memo }> {
-  return request(`/api/v1/memos/${memo.id}:setPinned`, {
+  return request(`/api/v1/memos/${memo.id}:setFavorited`, {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ expectedVersion: memo.version, pinned }),
+    body: JSON.stringify({ expectedVersion: memo.version, favorited }),
   });
 }
 

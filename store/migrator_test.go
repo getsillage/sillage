@@ -37,6 +37,12 @@ func TestMigrateFreshInstall(t *testing.T) {
 	if version == "" {
 		t.Fatal("schema version is empty")
 	}
+	if !columnExists(t, s, "memo", "favorited_at") {
+		t.Fatal("fresh memo schema is missing favorited_at")
+	}
+	if columnExists(t, s, "memo", "pinned_at") {
+		t.Fatal("fresh memo schema must not include legacy pinned_at")
+	}
 
 	for _, table := range []string{
 		"system_setting",
@@ -142,9 +148,23 @@ CREATE TABLE ai_profile (
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER
 );
+CREATE TABLE memo (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT,
+  content TEXT NOT NULL DEFAULT '',
+  entry_date TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  pinned_at INTEGER,
+  archived_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
 INSERT INTO system_setting (key, value, created_at, updated_at) VALUES ('schema_version', '0.1.0', ?, ?);
-INSERT INTO account (id, username, password_hash, created_at, updated_at) VALUES ('a1', 'felix', 'hash', ?, ?);`,
-		now, now, now, now); err != nil {
+INSERT INTO account (id, username, password_hash, created_at, updated_at) VALUES ('a1', 'felix', 'hash', ?, ?);
+INSERT INTO memo (id, creator_id, content, entry_date, version, pinned_at, created_at, updated_at)
+VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
+		now, now, now, now, now, now, now); err != nil {
 		t.Fatalf("seed old schema: %v", err)
 	}
 	if err := seedDB.Close(); err != nil {
@@ -166,6 +186,42 @@ INSERT INTO account (id, username, password_hash, created_at, updated_at) VALUES
 	}
 	if !columnExists(t, s, "ai_profile", "auto_summary") {
 		t.Fatal("ai_profile auto_summary column was not added")
+	}
+	if !columnExists(t, s, "memo", "favorited_at") {
+		t.Fatal("memo favorited_at column was not added")
+	}
+	memo, err := s.GetMemo(ctx, "a1", "m1", false)
+	if err != nil {
+		t.Fatalf("GetMemo() after compat migration error = %v", err)
+	}
+	if !memo.FavoritedAt.Valid || memo.FavoritedAt.Int64 != now {
+		t.Fatalf("legacy pinned_at was not migrated: %+v", memo.FavoritedAt)
+	}
+	var legacyPinned sql.NullInt64
+	if err := s.GetDriver().GetDB().QueryRowContext(ctx, "SELECT pinned_at FROM memo WHERE id = 'm1'").Scan(&legacyPinned); err != nil {
+		t.Fatalf("read legacy pinned_at after migration: %v", err)
+	}
+	if legacyPinned.Valid {
+		t.Fatalf("legacy pinned_at was not cleared: %+v", legacyPinned)
+	}
+	favorited := false
+	if _, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID:              memo.ID,
+		CreatorID:       "a1",
+		ExpectedVersion: memo.Version,
+		Favorited:       &favorited,
+	}); err != nil {
+		t.Fatalf("cancel favorite after compat migration: %v", err)
+	}
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("second Migrate() error = %v", err)
+	}
+	memo, err = s.GetMemo(ctx, "a1", "m1", false)
+	if err != nil {
+		t.Fatalf("GetMemo() after second migration error = %v", err)
+	}
+	if memo.FavoritedAt.Valid {
+		t.Fatalf("cancelled favorite was restored after restart: %+v", memo.FavoritedAt)
 	}
 	if err := s.PutAccountSetting(ctx, "a1", "ai.auto_summary", "true"); err != nil {
 		t.Fatalf("PutAccountSetting() after compat migration error = %v", err)

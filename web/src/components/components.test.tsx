@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Memo } from "../lib/api";
 import { EntryCard } from "./EntryCard";
@@ -35,7 +35,7 @@ function memo(overrides: Partial<Memo> = {}): Memo {
     content: "记录正文内容",
     entryDate: "2026-06-27",
     version: 1,
-    pinnedAt: null,
+    favoritedAt: null,
     archivedAt: null,
     createdAt: "2026-06-27T08:00:00Z",
     updatedAt: "2026-06-27T08:00:00Z",
@@ -46,6 +46,23 @@ function memo(overrides: Partial<Memo> = {}): Memo {
 
 function renderEntryComposer(element: ReactElement) {
   return render(element);
+}
+
+function EntryDetailProbe() {
+  const location = useLocation();
+  const state = location.state as {
+    returnTo?: string;
+    memoSnapshot?: Memo;
+  } | null;
+  return (
+    <div>
+      <span>详情页</span>
+      <span data-testid="detail-return-to">{state?.returnTo}</span>
+      <span data-testid="detail-memo-snapshot">
+        {state?.memoSnapshot?.content}
+      </span>
+    </div>
+  );
 }
 
 describe("Markdown", () => {
@@ -80,13 +97,17 @@ describe("EntryCard", () => {
             path="/"
             element={<EntryCard memo={memo()} openOnCardClick />}
           />
-          <Route path="/entries/:id" element={<div>详情页</div>} />
+          <Route path="/entries/:id" element={<EntryDetailProbe />} />
         </Routes>
       </MemoryRouter>,
     );
     expect(screen.getByText("记录正文内容")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: /查看.*详情/ }));
     expect(screen.getByText("详情页")).toBeInTheDocument();
+    expect(screen.getByTestId("detail-return-to")).toHaveTextContent("/");
+    expect(screen.getByTestId("detail-memo-snapshot")).toHaveTextContent(
+      "记录正文内容",
+    );
   });
 
   it("renders a blank-record placeholder for empty content", () => {
@@ -96,6 +117,17 @@ describe("EntryCard", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText("空白记录")).toBeInTheDocument();
+  });
+
+  it("shows the favorite state without pin terminology", () => {
+    render(
+      <MemoryRouter>
+        <EntryCard memo={memo({ favoritedAt: "2026-06-28T08:00:00Z" })} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("收藏")).toBeInTheDocument();
+    expect(screen.queryByText("置顶")).not.toBeInTheDocument();
   });
 });
 

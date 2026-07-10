@@ -36,7 +36,7 @@ internal fun memoToJson(memo: Memo): JSONObject {
         .put("version", memo.version)
         .put("createdAt", memo.createdAt)
         .put("updatedAt", memo.updatedAt)
-        .putNullable("pinnedAt", memo.pinnedAt)
+        .putNullable("favoritedAt", memo.favoritedAt)
         .putNullable("archivedAt", memo.archivedAt)
         .putNullable("deletedAt", memo.deletedAt)
 }
@@ -49,7 +49,7 @@ internal fun jsonToMemo(body: JSONObject): Memo {
         version = body.optLong("version", 1),
         createdAt = body.optString("createdAt"),
         updatedAt = body.optString("updatedAt"),
-        pinnedAt = body.nullableString("pinnedAt"),
+        favoritedAt = body.nullableString("favoritedAt") ?: body.nullableString("pinnedAt"),
         archivedAt = body.nullableString("archivedAt"),
         deletedAt = body.nullableString("deletedAt"),
     )

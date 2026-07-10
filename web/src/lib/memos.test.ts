@@ -16,7 +16,7 @@ function memo(overrides: Partial<Memo> = {}): Memo {
     content: "hello",
     entryDate: "2026-06-27",
     version: 1,
-    pinnedAt: null,
+    favoritedAt: null,
     archivedAt: null,
     createdAt: "2026-06-27T08:00:00Z",
     updatedAt: "2026-06-27T08:00:00Z",
@@ -34,16 +34,16 @@ describe("excerpt", () => {
 });
 
 describe("sortMemos", () => {
-  it("orders pinned first, then by entry date desc, then created desc", () => {
+  it("orders by entry date desc, then created desc", () => {
     const a = memo({ id: "a", entryDate: "2026-06-20" });
     const b = memo({ id: "b", entryDate: "2026-06-27" });
-    const pinned = memo({
-      id: "p",
+    const favorite = memo({
+      id: "f",
       entryDate: "2026-01-01",
-      pinnedAt: "2026-06-27T00:00:00Z",
+      favoritedAt: "2026-06-27T00:00:00Z",
     });
-    const sorted = sortMemos([a, b, pinned]);
-    expect(sorted.map((m) => m.id)).toEqual(["p", "b", "a"]);
+    const sorted = sortMemos([a, b, favorite]);
+    expect(sorted.map((m) => m.id)).toEqual(["b", "a", "f"]);
   });
 
   it("does not mutate the input", () => {
@@ -68,9 +68,10 @@ describe("upsertMemo", () => {
 });
 
 describe("isActive", () => {
-  it("excludes archived and deleted", () => {
+  it("excludes archived, favorited, and deleted records", () => {
     expect(isActive(memo())).toBe(true);
     expect(isActive(memo({ archivedAt: "x" }))).toBe(false);
+    expect(isActive(memo({ favoritedAt: "x" }))).toBe(false);
     expect(isActive(memo({ deletedAt: "x" }))).toBe(false);
   });
 });

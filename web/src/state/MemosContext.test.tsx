@@ -10,11 +10,11 @@ vi.mock("../lib/api", async (importOriginal) => {
     ...actual,
     createMemo: vi.fn(),
     listMemos: vi.fn(),
-    setMemoPinned: vi.fn(),
+    setMemoFavorited: vi.fn(),
   };
 });
 
-import { createMemo, listMemos, setMemoPinned } from "../lib/api";
+import { createMemo, listMemos, setMemoFavorited } from "../lib/api";
 
 function memo(id: string, content: string): Memo {
   return {
@@ -22,7 +22,7 @@ function memo(id: string, content: string): Memo {
     content,
     entryDate: "2026-07-10",
     version: 1,
-    pinnedAt: null,
+    favoritedAt: null,
     archivedAt: null,
     createdAt: "2026-07-10T08:00:00Z",
     updatedAt: "2026-07-10T08:00:00Z",
@@ -39,7 +39,7 @@ function Harness() {
     loadAll,
     refresh,
     create,
-    setPinned,
+    setFavorited,
   } = useMemos();
   return (
     <div>
@@ -48,7 +48,7 @@ function Harness() {
       </p>
       <p>{hasMore ? "还有更多" : "没有更多"}</p>
       <p>{loadingMore ? "加载中" : "空闲"}</p>
-      <p>{memos[0]?.pinnedAt ? "首条已置顶" : "首条未置顶"}</p>
+      <p>{memos[0]?.favoritedAt ? "首条已收藏" : "首条未收藏"}</p>
       <button
         type="button"
         onClick={() => {
@@ -76,11 +76,11 @@ function Harness() {
         type="button"
         onClick={() => {
           if (memos[0]) {
-            void setPinned(memos[0], true);
+            void setFavorited(memos[0], true);
           }
         }}
       >
-        置顶首条
+        收藏首条
       </button>
     </div>
   );
@@ -162,8 +162,14 @@ describe("MemosProvider pagination", () => {
 
     await user.click(screen.getByRole("button", { name: "加载完整历史" }));
     expect(await screen.findByText("第一页|第二页|第三页")).toBeInTheDocument();
-    expect(listMemos).toHaveBeenNthCalledWith(2, "t", 200, "cursor-2");
-    expect(listMemos).toHaveBeenNthCalledWith(3, "t", 200, "cursor-3");
+    expect(listMemos).toHaveBeenNthCalledWith(2, "t", 200, "cursor-2", {
+      archived: false,
+      favorited: false,
+    });
+    expect(listMemos).toHaveBeenNthCalledWith(3, "t", 200, "cursor-3", {
+      archived: false,
+      favorited: false,
+    });
     expect(screen.getByText("没有更多")).toBeInTheDocument();
   });
 
@@ -205,16 +211,16 @@ describe("MemosProvider pagination", () => {
     );
   });
 
-  it("restarts a stale page after a canonical pin response", async () => {
+  it("restarts a stale page after a canonical favorite response", async () => {
     const user = userEvent.setup();
     let finishStalePage:
       | ((value: { memos: Memo[]; nextCursor?: string }) => void)
       | undefined;
     const initial = memo("m1", "边界记录");
-    const pinned = {
+    const favorited = {
       ...initial,
       version: 2,
-      pinnedAt: "2026-07-10T09:00:00Z",
+      favoritedAt: "2026-07-10T09:00:00Z",
     };
     vi.mocked(listMemos)
       .mockResolvedValueOnce({ memos: [initial], nextCursor: "older" })
@@ -225,9 +231,9 @@ describe("MemosProvider pagination", () => {
           }),
       )
       .mockResolvedValueOnce({
-        memos: [pinned, memo("m2", "更早记录")],
+        memos: [favorited, memo("m2", "更早记录")],
       });
-    vi.mocked(setMemoPinned).mockResolvedValue({ memo: pinned });
+    vi.mocked(setMemoFavorited).mockResolvedValue({ memo: favorited });
 
     render(
       <MemosProvider token="t">
@@ -236,14 +242,14 @@ describe("MemosProvider pagination", () => {
     );
     expect(await screen.findByText("边界记录")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "连续加载" }));
-    await user.click(screen.getByRole("button", { name: "置顶首条" }));
-    expect(await screen.findByText("首条已置顶")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "收藏首条" }));
+    expect(await screen.findByText("首条已收藏")).toBeInTheDocument();
 
     await act(async () => {
       finishStalePage?.({ memos: [initial, memo("m2", "更早记录")] });
     });
     await waitFor(() => expect(listMemos).toHaveBeenCalledTimes(3));
-    expect(screen.getByText("首条已置顶")).toBeInTheDocument();
+    expect(screen.getByText("首条已收藏")).toBeInTheDocument();
     expect(screen.getByTestId("memo-list")).toHaveTextContent("更早记录");
     expect(screen.getByText("没有更多")).toBeInTheDocument();
   });

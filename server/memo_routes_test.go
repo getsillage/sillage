@@ -44,17 +44,23 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 	}
 	version = int64(updated["version"].(float64))
 
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":pin?expectedVersion=2", nil, bearer(token))
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":setFavorited", map[string]any{
+		"expectedVersion": version,
+		"favorited":       true,
+	}, bearer(token))
 	if res.Code != http.StatusOK {
-		t.Fatalf("pin memo status = %d body=%s", res.Code, res.Body.String())
+		t.Fatalf("favorite memo status = %d body=%s", res.Code, res.Body.String())
 	}
-	pinned := decodeMemoResponse(t, res.Body.Bytes())
-	if pinned["pinnedAt"] == nil {
-		t.Fatal("pinned memo must include pinnedAt")
+	favorited := decodeMemoResponse(t, res.Body.Bytes())
+	if favorited["favoritedAt"] == nil {
+		t.Fatal("favorited memo must include favoritedAt")
 	}
-	version = int64(pinned["version"].(float64))
+	version = int64(favorited["version"].(float64))
 
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":archive?expectedVersion=3", nil, bearer(token))
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":setArchived", map[string]any{
+		"expectedVersion": version,
+		"archived":        true,
+	}, bearer(token))
 	if res.Code != http.StatusOK {
 		t.Fatalf("archive memo status = %d body=%s", res.Code, res.Body.String())
 	}
@@ -115,7 +121,7 @@ func TestMemoCanonicalBoolActionsUseBodyAndCAS(t *testing.T) {
 		field     string
 		timestamp string
 	}{
-		{name: "pinned", action: "setPinned", field: "pinned", timestamp: "pinnedAt"},
+		{name: "favorited", action: "setFavorited", field: "favorited", timestamp: "favoritedAt"},
 		{name: "archived", action: "setArchived", field: "archived", timestamp: "archivedAt"},
 	}
 
@@ -194,12 +200,11 @@ func TestMemoMutationsRequirePositiveExpectedVersion(t *testing.T) {
 		{name: "delete missing", method: http.MethodDelete, path: basePath},
 		{name: "delete zero", method: http.MethodDelete, path: basePath + "?expectedVersion=0"},
 		{name: "delete invalid", method: http.MethodDelete, path: basePath + "?expectedVersion=invalid"},
-		{name: "canonical missing", method: http.MethodPost, path: basePath + ":setPinned", body: map[string]any{"pinned": true}},
-		{name: "canonical zero", method: http.MethodPost, path: basePath + ":setPinned", body: map[string]any{"pinned": true, "expectedVersion": 0}},
-		{name: "canonical invalid", method: http.MethodPost, path: basePath + ":setPinned", body: map[string]any{"pinned": true, "expectedVersion": "invalid"}},
-		{name: "legacy missing", method: http.MethodPost, path: basePath + ":pin"},
-		{name: "legacy zero", method: http.MethodPost, path: basePath + ":pin?expectedVersion=0"},
-		{name: "legacy invalid", method: http.MethodPost, path: basePath + ":pin?expectedVersion=invalid"},
+		{name: "canonical missing", method: http.MethodPost, path: basePath + ":setFavorited", body: map[string]any{"favorited": true}},
+		{name: "canonical zero", method: http.MethodPost, path: basePath + ":setFavorited", body: map[string]any{"favorited": true, "expectedVersion": 0}},
+		{name: "canonical invalid", method: http.MethodPost, path: basePath + ":setFavorited", body: map[string]any{"favorited": true, "expectedVersion": "invalid"}},
+		{name: "favorite value missing", method: http.MethodPost, path: basePath + ":setFavorited", body: map[string]any{"expectedVersion": 1}},
+		{name: "archive value missing", method: http.MethodPost, path: basePath + ":setArchived", body: map[string]any{"expectedVersion": 1}},
 	}
 
 	for _, tt := range tests {
@@ -216,8 +221,30 @@ func TestMemoMutationsRequirePositiveExpectedVersion(t *testing.T) {
 		t.Fatalf("get memo status = %d body=%s", res.Code, res.Body.String())
 	}
 	unchanged := decodeMemoResponse(t, res.Body.Bytes())
-	if unchanged["content"] != "version guarded memo" || int64(unchanged["version"].(float64)) != 1 || unchanged["pinnedAt"] != nil {
+	if unchanged["content"] != "version guarded memo" || int64(unchanged["version"].(float64)) != 1 || unchanged["favoritedAt"] != nil {
 		t.Fatalf("memo changed after rejected mutations: %#v", unchanged)
+	}
+}
+
+func TestMemoPinActionsAreRemoved(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
+		"content":   "memo without pin actions",
+		"entryDate": "2026-06-26",
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("create memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	memoID := decodeMemoResponse(t, res.Body.Bytes())["id"].(string)
+	for _, action := range []string{"setPinned", "pin", "unpin"} {
+		res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":"+action, map[string]any{
+			"expectedVersion": 1,
+			"pinned":          true,
+		}, bearer(token))
+		if res.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d, want 404; body=%s", action, res.Code, res.Body.String())
+		}
 	}
 }
 
@@ -314,7 +341,7 @@ func TestMemoListAndSyncMaxLimitLookahead(t *testing.T) {
 	}
 }
 
-func TestMemoListPinsGloballyAndAcceptsLegacyCursor(t *testing.T) {
+func TestMemoListIsChronologicalAndAcceptsLegacyCursors(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 	ctx := context.Background()
@@ -335,19 +362,6 @@ func TestMemoListPinsGloballyAndAcceptsLegacyCursor(t *testing.T) {
 		}
 		byDate[entryDate] = memo
 	}
-	pinned := true
-	for _, entryDate := range []string{"2026-01-01", "2026-01-02"} {
-		memo := byDate[entryDate]
-		if _, err := srv.Store.UpdateMemo(ctx, &store.UpdateMemo{
-			ID:              memo.ID,
-			CreatorID:       account.ID,
-			ExpectedVersion: memo.Version,
-			Pinned:          &pinned,
-		}); err != nil {
-			t.Fatalf("pin memo %s: %v", entryDate, err)
-		}
-	}
-
 	type listPayload struct {
 		Memos []struct {
 			ID string `json:"id"`
@@ -384,13 +398,13 @@ func TestMemoListPinsGloballyAndAcceptsLegacyCursor(t *testing.T) {
 				t.Fatalf("decode next cursor: %v", err)
 			}
 			var marker struct {
-				Version int   `json:"version"`
-				Pinned  *bool `json:"pinned"`
+				Version int             `json:"version"`
+				Pinned  json.RawMessage `json:"pinned"`
 			}
 			if err := json.Unmarshal(decoded, &marker); err != nil {
 				t.Fatalf("decode cursor JSON: %v", err)
 			}
-			if marker.Version != 1 || marker.Pinned == nil || !*marker.Pinned {
+			if marker.Version != 2 || marker.Pinned != nil {
 				t.Fatalf("new cursor marker = %#v", marker)
 			}
 		}
@@ -400,38 +414,94 @@ func TestMemoListPinsGloballyAndAcceptsLegacyCursor(t *testing.T) {
 		}
 	}
 	want := []string{
-		byDate["2026-01-02"].ID,
-		byDate["2026-01-01"].ID,
 		byDate["2026-01-05"].ID,
 		byDate["2026-01-04"].ID,
 		byDate["2026-01-03"].ID,
+		byDate["2026-01-02"].ID,
+		byDate["2026-01-01"].ID,
 	}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("paged ids = %v, want %v", got, want)
 	}
 
-	legacyLast := byDate["2026-01-04"]
+	legacyDateLast := byDate["2026-01-04"]
+	wantLegacyDate := []string{
+		byDate["2026-01-03"].ID,
+		byDate["2026-01-02"].ID,
+		byDate["2026-01-01"].ID,
+	}
+	legacyDateJSON, err := json.Marshal(map[string]any{
+		"entryDate": legacyDateLast.EntryDate,
+		"createdAt": legacyDateLast.CreatedAt,
+		"id":        legacyDateLast.ID,
+	})
+	if err != nil {
+		t.Fatalf("encode legacy date cursor: %v", err)
+	}
+	legacyDatePage := readPage("/api/v1/memos?limit=10&cursor=" + url.QueryEscape(base64.RawURLEncoding.EncodeToString(legacyDateJSON)))
+	legacyDateIDs := make([]string, 0, len(legacyDatePage.Memos))
+	for _, memo := range legacyDatePage.Memos {
+		legacyDateIDs = append(legacyDateIDs, memo.ID)
+	}
+	if strings.Join(legacyDateIDs, ",") != strings.Join(wantLegacyDate, ",") {
+		t.Fatalf("legacy date cursor ids = %v, want %v", legacyDateIDs, wantLegacyDate)
+	}
+
+	favorited := true
+	for _, entryDate := range []string{"2026-01-01", "2026-01-02"} {
+		memo := byDate[entryDate]
+		updated, err := srv.Store.UpdateMemo(ctx, &store.UpdateMemo{
+			ID:              memo.ID,
+			CreatorID:       account.ID,
+			ExpectedVersion: memo.Version,
+			Favorited:       &favorited,
+		})
+		if err != nil {
+			t.Fatalf("favorite memo %s: %v", entryDate, err)
+		}
+		byDate[entryDate] = updated
+	}
+	legacyLast := byDate["2026-01-02"]
 	legacyJSON, err := json.Marshal(map[string]any{
+		"version":   1,
+		"pinned":    true,
 		"entryDate": legacyLast.EntryDate,
 		"createdAt": legacyLast.CreatedAt,
 		"id":        legacyLast.ID,
 	})
 	if err != nil {
-		t.Fatalf("encode legacy cursor: %v", err)
+		t.Fatalf("encode legacy pinned cursor: %v", err)
 	}
 	legacyCursor := base64.RawURLEncoding.EncodeToString(legacyJSON)
-	legacyPage := readPage("/api/v1/memos?limit=10&cursor=" + url.QueryEscape(legacyCursor))
-	legacyIDs := make([]string, 0, len(legacyPage.Memos))
-	for _, memo := range legacyPage.Memos {
-		legacyIDs = append(legacyIDs, memo.ID)
+	var legacyIDs []string
+	for legacyCursor != "" {
+		page := readPage("/api/v1/memos?limit=2&cursor=" + url.QueryEscape(legacyCursor))
+		for _, memo := range page.Memos {
+			legacyIDs = append(legacyIDs, memo.ID)
+		}
+		if page.NextCursor != "" {
+			payload, decodeErr := base64.RawURLEncoding.DecodeString(page.NextCursor)
+			if decodeErr != nil {
+				t.Fatalf("decode continued v1 cursor: %v", decodeErr)
+			}
+			var marker struct {
+				Version int   `json:"version"`
+				Pinned  *bool `json:"pinned"`
+			}
+			if err := json.Unmarshal(payload, &marker); err != nil || marker.Version != 1 || marker.Pinned == nil {
+				t.Fatalf("continued cursor = %#v, error = %v", marker, err)
+			}
+		}
+		legacyCursor = page.NextCursor
 	}
 	wantLegacy := []string{
-		byDate["2026-01-02"].ID,
 		byDate["2026-01-01"].ID,
+		byDate["2026-01-05"].ID,
+		byDate["2026-01-04"].ID,
 		byDate["2026-01-03"].ID,
 	}
 	if strings.Join(legacyIDs, ",") != strings.Join(wantLegacy, ",") {
-		t.Fatalf("legacy cursor ids = %v, want %v", legacyIDs, wantLegacy)
+		t.Fatalf("legacy pinned cursor ids = %v, want %v", legacyIDs, wantLegacy)
 	}
 }
 
@@ -449,11 +519,12 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 				"id":        "01800000-0000-7000-8000-000000000001",
 				"content":   "离线创建的记录",
 				"entryDate": "2026-06-26",
+				"pinned":    true,
 			},
 		}},
 	}
 	res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushCreate, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"applied"`) {
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"applied"`) || !strings.Contains(res.Body.String(), `"favoritedAt":`) {
 		t.Fatalf("sync create status/body = %d %s", res.Code, res.Body.String())
 	}
 
@@ -519,6 +590,47 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 	}
 }
 
+func TestSyncPushFavoritedOverridesLegacyPinned(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", map[string]any{
+		"changes": []map[string]any{{
+			"mutationId":   "m-favorite-precedence",
+			"resourceType": "memo",
+			"resourceId":   "01800000-0000-7000-8000-000000000002",
+			"action":       "create",
+			"memo": map[string]any{
+				"id":        "01800000-0000-7000-8000-000000000002",
+				"content":   "规范收藏字段优先",
+				"entryDate": "2026-06-27",
+				"pinned":    true,
+				"favorited": false,
+			},
+		}},
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("sync create status = %d body=%s", res.Code, res.Body.String())
+	}
+	var body struct {
+		Results []struct {
+			Status   string `json:"status"`
+			Resource struct {
+				FavoritedAt *string `json:"favoritedAt"`
+			} `json:"resource"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Results) != 1 || body.Results[0].Status != "applied" {
+		t.Fatalf("sync results = %+v, want one applied result", body.Results)
+	}
+	if body.Results[0].Resource.FavoritedAt != nil {
+		t.Fatalf("favoritedAt = %q, want nil because canonical favorited=false overrides pinned=true", *body.Results[0].Resource.FavoritedAt)
+	}
+}
+
 func TestMemoSearchChineseSummaryAndTombstone(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
@@ -574,7 +686,7 @@ func TestMemoSearchChineseSummaryAndTombstone(t *testing.T) {
 	}
 }
 
-func TestMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
+func TestMemoListAndSearchThreePartitions(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 
@@ -590,44 +702,71 @@ func TestMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
 		return decodeMemoResponse(t, res.Body.Bytes())
 	}
 
-	current := create("2026-06-27")
-	archived := create("2026-06-26")
+	favorited := create("2026-06-28")
+	archived := create("2026-06-27")
+	current := create("2026-06-26")
 	res := doJSON(
 		t,
 		srv,
 		http.MethodPost,
-		"/api/v1/memos/"+archived["id"].(string)+":archive?expectedVersion=1",
-		nil,
+		"/api/v1/memos/"+favorited["id"].(string)+":setFavorited",
+		map[string]any{"expectedVersion": 1, "favorited": true},
+		bearer(token),
+	)
+	if res.Code != http.StatusOK {
+		t.Fatalf("favorite memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	res = doJSON(
+		t,
+		srv,
+		http.MethodPost,
+		"/api/v1/memos/"+archived["id"].(string)+":setArchived",
+		map[string]any{"expectedVersion": 1, "archived": true},
 		bearer(token),
 	)
 	if res.Code != http.StatusOK {
 		t.Fatalf("archive memo status = %d body=%s", res.Code, res.Body.String())
 	}
 
-	assertSearchID := func(filter string, wantID string) {
-		t.Helper()
-		res := doJSON(
-			t,
-			srv,
-			http.MethodGet,
-			"/api/v1/memos?query=filterable&limit=1&archived="+filter,
-			nil,
-			bearer(token),
-		)
-		if res.Code != http.StatusOK {
-			t.Fatalf("search archived=%s status = %d body=%s", filter, res.Code, res.Body.String())
-		}
-		var payload map[string][]map[string]any
-		if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
-			t.Fatalf("decode search response: %v", err)
-		}
-		if len(payload["memos"]) != 1 || payload["memos"][0]["id"] != wantID {
-			t.Fatalf("search archived=%s memos = %#v, want %s", filter, payload["memos"], wantID)
-		}
+	tests := []struct {
+		name   string
+		filter string
+		wantID string
+	}{
+		{name: "unarchived", filter: "archived=false&favorited=false", wantID: current["id"].(string)},
+		{name: "archived", filter: "archived=true&favorited=false", wantID: archived["id"].(string)},
+		{name: "favorited", filter: "favorited=true", wantID: favorited["id"].(string)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, query := range []string{"", "query=filterable&"} {
+				path := "/api/v1/memos?" + query + "limit=1&" + tt.filter
+				res := doJSON(t, srv, http.MethodGet, path, nil, bearer(token))
+				if res.Code != http.StatusOK {
+					t.Fatalf("GET %s status = %d body=%s", path, res.Code, res.Body.String())
+				}
+				var payload struct {
+					Memos []map[string]any `json:"memos"`
+				}
+				if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+					t.Fatalf("decode list response: %v", err)
+				}
+				if len(payload.Memos) != 1 || payload.Memos[0]["id"] != tt.wantID {
+					t.Fatalf("GET %s memos = %#v, want %s", path, payload.Memos, tt.wantID)
+				}
+			}
+		})
 	}
 
-	assertSearchID("true", archived["id"].(string))
-	assertSearchID("false", current["id"].(string))
+	for _, path := range []string{
+		"/api/v1/memos?archived=invalid",
+		"/api/v1/memos?query=filterable&favorited=invalid",
+	} {
+		res := doJSON(t, srv, http.MethodGet, path, nil, bearer(token))
+		if res.Code != http.StatusBadRequest {
+			t.Fatalf("GET %s status = %d, want 400; body=%s", path, res.Code, res.Body.String())
+		}
+	}
 }
 
 func initializeAndToken(t *testing.T, srv interface {

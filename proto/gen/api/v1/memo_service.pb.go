@@ -28,14 +28,15 @@ type ListMemosRequest struct {
 	// query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
 	// instead of returning the recent list.
 	Query string `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
-	// archived filters search results before limit is applied. It is ignored
-	// when query is empty; when unset, search includes both current and archived
-	// memos for backward compatibility.
+	// archived filters both recent-list and search results before limit is
+	// applied. When unset, both current and archived memos are included.
 	Archived *bool `protobuf:"varint,3,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
-	// cursor continues the pinned-first recent list; each pinned bucket remains
-	// reverse-chronological. Search requests ignore it because search results are
-	// not paginated.
-	Cursor        string `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// cursor continues the reverse-chronological recent list. Search requests
+	// ignore it because search results are not paginated.
+	Cursor string `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// favorited filters both recent-list and search results before limit is
+	// applied. When unset, both favorited and non-favorited memos are included.
+	Favorited     *bool `protobuf:"varint,5,opt,name=favorited,proto3,oneof" json:"favorited,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -96,6 +97,13 @@ func (x *ListMemosRequest) GetCursor() string {
 		return x.Cursor
 	}
 	return ""
+}
+
+func (x *ListMemosRequest) GetFavorited() bool {
+	if x != nil && x.Favorited != nil {
+		return *x.Favorited
+	}
+	return false
 }
 
 type ListMemosResponse struct {
@@ -264,8 +272,8 @@ type UpdateMemoRequest struct {
 	ExpectedVersion int64                  `protobuf:"varint,2,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
 	Content         *string                `protobuf:"bytes,3,opt,name=content,proto3,oneof" json:"content,omitempty"`
 	EntryDate       *string                `protobuf:"bytes,4,opt,name=entry_date,json=entryDate,proto3,oneof" json:"entry_date,omitempty"`
-	Pinned          *bool                  `protobuf:"varint,5,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
 	Archived        *bool                  `protobuf:"varint,6,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	Favorited       *bool                  `protobuf:"varint,7,opt,name=favorited,proto3,oneof" json:"favorited,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -328,16 +336,16 @@ func (x *UpdateMemoRequest) GetEntryDate() string {
 	return ""
 }
 
-func (x *UpdateMemoRequest) GetPinned() bool {
-	if x != nil && x.Pinned != nil {
-		return *x.Pinned
+func (x *UpdateMemoRequest) GetArchived() bool {
+	if x != nil && x.Archived != nil {
+		return *x.Archived
 	}
 	return false
 }
 
-func (x *UpdateMemoRequest) GetArchived() bool {
-	if x != nil && x.Archived != nil {
-		return *x.Archived
+func (x *UpdateMemoRequest) GetFavorited() bool {
+	if x != nil && x.Favorited != nil {
+		return *x.Favorited
 	}
 	return false
 }
@@ -394,29 +402,29 @@ func (x *DeleteMemoRequest) GetExpectedVersion() int64 {
 	return 0
 }
 
-type SetMemoPinnedRequest struct {
+type SetMemoFavoritedRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ExpectedVersion int64                  `protobuf:"varint,2,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
-	Pinned          bool                   `protobuf:"varint,3,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Favorited       bool                   `protobuf:"varint,3,opt,name=favorited,proto3" json:"favorited,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *SetMemoPinnedRequest) Reset() {
-	*x = SetMemoPinnedRequest{}
+func (x *SetMemoFavoritedRequest) Reset() {
+	*x = SetMemoFavoritedRequest{}
 	mi := &file_api_v1_memo_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetMemoPinnedRequest) String() string {
+func (x *SetMemoFavoritedRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetMemoPinnedRequest) ProtoMessage() {}
+func (*SetMemoFavoritedRequest) ProtoMessage() {}
 
-func (x *SetMemoPinnedRequest) ProtoReflect() protoreflect.Message {
+func (x *SetMemoFavoritedRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_api_v1_memo_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -428,28 +436,28 @@ func (x *SetMemoPinnedRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetMemoPinnedRequest.ProtoReflect.Descriptor instead.
-func (*SetMemoPinnedRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetMemoFavoritedRequest.ProtoReflect.Descriptor instead.
+func (*SetMemoFavoritedRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *SetMemoPinnedRequest) GetId() string {
+func (x *SetMemoFavoritedRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *SetMemoPinnedRequest) GetExpectedVersion() int64 {
+func (x *SetMemoFavoritedRequest) GetExpectedVersion() int64 {
 	if x != nil {
 		return x.ExpectedVersion
 	}
 	return 0
 }
 
-func (x *SetMemoPinnedRequest) GetPinned() bool {
+func (x *SetMemoFavoritedRequest) GetFavorited() bool {
 	if x != nil {
-		return x.Pinned
+		return x.Favorited
 	}
 	return false
 }
@@ -660,13 +668,16 @@ var File_api_v1_memo_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\x84\x01\n" +
+	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\xb5\x01\n" +
 	"\x10ListMemosRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x1f\n" +
 	"\barchived\x18\x03 \x01(\bH\x00R\barchived\x88\x01\x01\x12\x16\n" +
-	"\x06cursor\x18\x04 \x01(\tR\x06cursorB\v\n" +
-	"\t_archived\"`\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\x12!\n" +
+	"\tfavorited\x18\x05 \x01(\bH\x01R\tfavorited\x88\x01\x01B\v\n" +
+	"\t_archivedB\f\n" +
+	"\n" +
+	"_favorited\"`\n" +
 	"\x11ListMemosResponse\x12*\n" +
 	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
@@ -677,27 +688,28 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
 	"entry_date\x18\x03 \x01(\tR\tentryDate\" \n" +
 	"\x0eGetMemoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x82\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x99\x02\n" +
 	"\x11UpdateMemoRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\x12\x1d\n" +
 	"\acontent\x18\x03 \x01(\tH\x00R\acontent\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"entry_date\x18\x04 \x01(\tH\x01R\tentryDate\x88\x01\x01\x12\x1b\n" +
-	"\x06pinned\x18\x05 \x01(\bH\x02R\x06pinned\x88\x01\x01\x12\x1f\n" +
-	"\barchived\x18\x06 \x01(\bH\x03R\barchived\x88\x01\x01B\n" +
+	"entry_date\x18\x04 \x01(\tH\x01R\tentryDate\x88\x01\x01\x12\x1f\n" +
+	"\barchived\x18\x06 \x01(\bH\x02R\barchived\x88\x01\x01\x12!\n" +
+	"\tfavorited\x18\a \x01(\bH\x03R\tfavorited\x88\x01\x01B\n" +
 	"\n" +
 	"\b_contentB\r\n" +
-	"\v_entry_dateB\t\n" +
-	"\a_pinnedB\v\n" +
-	"\t_archived\"N\n" +
+	"\v_entry_dateB\v\n" +
+	"\t_archivedB\f\n" +
+	"\n" +
+	"_favoritedJ\x04\b\x05\x10\x06R\x06pinned\"N\n" +
 	"\x11DeleteMemoRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\"i\n" +
-	"\x14SetMemoPinnedRequest\x12\x0e\n" +
+	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\"r\n" +
+	"\x17SetMemoFavoritedRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\x12\x16\n" +
-	"\x06pinned\x18\x03 \x01(\bR\x06pinned\"o\n" +
+	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\x12\x1c\n" +
+	"\tfavorited\x18\x03 \x01(\bR\tfavorited\"o\n" +
 	"\x16SetMemoArchivedRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\x12\x1a\n" +
@@ -708,7 +720,7 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\x02ai\x18\x01 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai\"`\n" +
 	"\fMemoResponse\x12(\n" +
 	"\x04memo\x18\x01 \x01(\v2\x14.sillage.api.v1.MemoR\x04memo\x12&\n" +
-	"\x02ai\x18\x02 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai2\xc1\a\n" +
+	"\x02ai\x18\x02 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai2\xcb\a\n" +
 	"\vMemoService\x12g\n" +
 	"\tListMemos\x12 .sillage.api.v1.ListMemosRequest\x1a!.sillage.api.v1.ListMemosResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/v1/memos\x12g\n" +
 	"\n" +
@@ -717,8 +729,8 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
 	"UpdateMemo\x12!.sillage.api.v1.UpdateMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*2\x12/api/v1/memos/{id}\x12i\n" +
 	"\n" +
-	"DeleteMemo\x12!.sillage.api.v1.DeleteMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/memos/{id}\x12|\n" +
-	"\rSetMemoPinned\x12$.sillage.api.v1.SetMemoPinnedRequest\x1a\x1c.sillage.api.v1.MemoResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/memos/{id}:setPinned\x12\x82\x01\n" +
+	"DeleteMemo\x12!.sillage.api.v1.DeleteMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/memos/{id}\x12\x85\x01\n" +
+	"\x10SetMemoFavorited\x12'.sillage.api.v1.SetMemoFavoritedRequest\x1a\x1c.sillage.api.v1.MemoResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/memos/{id}:setFavorited\x12\x82\x01\n" +
 	"\x0fSetMemoArchived\x12&.sillage.api.v1.SetMemoArchivedRequest\x1a\x1c.sillage.api.v1.MemoResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/memos/{id}:setArchived\x12\x9e\x01\n" +
 	"\x13GenerateMemoSummary\x12*.sillage.api.v1.GenerateMemoSummaryRequest\x1a+.sillage.api.v1.GenerateMemoSummaryResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/memos/{id}:generate-summaryB\xb6\x01\n" +
 	"\x12com.sillage.api.v1B\x10MemoServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
@@ -743,7 +755,7 @@ var file_api_v1_memo_service_proto_goTypes = []any{
 	(*GetMemoRequest)(nil),              // 3: sillage.api.v1.GetMemoRequest
 	(*UpdateMemoRequest)(nil),           // 4: sillage.api.v1.UpdateMemoRequest
 	(*DeleteMemoRequest)(nil),           // 5: sillage.api.v1.DeleteMemoRequest
-	(*SetMemoPinnedRequest)(nil),        // 6: sillage.api.v1.SetMemoPinnedRequest
+	(*SetMemoFavoritedRequest)(nil),     // 6: sillage.api.v1.SetMemoFavoritedRequest
 	(*SetMemoArchivedRequest)(nil),      // 7: sillage.api.v1.SetMemoArchivedRequest
 	(*GenerateMemoSummaryRequest)(nil),  // 8: sillage.api.v1.GenerateMemoSummaryRequest
 	(*GenerateMemoSummaryResponse)(nil), // 9: sillage.api.v1.GenerateMemoSummaryResponse
@@ -761,7 +773,7 @@ var file_api_v1_memo_service_proto_depIdxs = []int32{
 	3,  // 6: sillage.api.v1.MemoService.GetMemo:input_type -> sillage.api.v1.GetMemoRequest
 	4,  // 7: sillage.api.v1.MemoService.UpdateMemo:input_type -> sillage.api.v1.UpdateMemoRequest
 	5,  // 8: sillage.api.v1.MemoService.DeleteMemo:input_type -> sillage.api.v1.DeleteMemoRequest
-	6,  // 9: sillage.api.v1.MemoService.SetMemoPinned:input_type -> sillage.api.v1.SetMemoPinnedRequest
+	6,  // 9: sillage.api.v1.MemoService.SetMemoFavorited:input_type -> sillage.api.v1.SetMemoFavoritedRequest
 	7,  // 10: sillage.api.v1.MemoService.SetMemoArchived:input_type -> sillage.api.v1.SetMemoArchivedRequest
 	8,  // 11: sillage.api.v1.MemoService.GenerateMemoSummary:input_type -> sillage.api.v1.GenerateMemoSummaryRequest
 	1,  // 12: sillage.api.v1.MemoService.ListMemos:output_type -> sillage.api.v1.ListMemosResponse
@@ -769,7 +781,7 @@ var file_api_v1_memo_service_proto_depIdxs = []int32{
 	10, // 14: sillage.api.v1.MemoService.GetMemo:output_type -> sillage.api.v1.MemoResponse
 	10, // 15: sillage.api.v1.MemoService.UpdateMemo:output_type -> sillage.api.v1.MemoResponse
 	10, // 16: sillage.api.v1.MemoService.DeleteMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 17: sillage.api.v1.MemoService.SetMemoPinned:output_type -> sillage.api.v1.MemoResponse
+	10, // 17: sillage.api.v1.MemoService.SetMemoFavorited:output_type -> sillage.api.v1.MemoResponse
 	10, // 18: sillage.api.v1.MemoService.SetMemoArchived:output_type -> sillage.api.v1.MemoResponse
 	9,  // 19: sillage.api.v1.MemoService.GenerateMemoSummary:output_type -> sillage.api.v1.GenerateMemoSummaryResponse
 	12, // [12:20] is the sub-list for method output_type

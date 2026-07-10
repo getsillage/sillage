@@ -67,6 +67,57 @@ func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	if err := s.ensureAIProfileCompat(ctx); err != nil {
 		return err
 	}
+	if err := s.ensureMemoFavoritedCompat(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) ensureMemoFavoritedCompat(ctx context.Context) error {
+	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin memo favorite compat migration: %w", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			slog.Warn("failed to rollback memo favorite compat migration", "error", rollbackErr)
+		}
+	}()
+
+	exists, err := tableExists(ctx, tx, "memo")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return tx.Commit()
+	}
+	hasFavorited, err := tableColumnExists(ctx, tx, "memo", "favorited_at")
+	if err != nil {
+		return err
+	}
+	if !hasFavorited {
+		if _, err := tx.ExecContext(ctx, "ALTER TABLE memo ADD COLUMN favorited_at INTEGER"); err != nil {
+			return fmt.Errorf("ensure memo favorited_at column: %w", err)
+		}
+	}
+	hasPinned, err := tableColumnExists(ctx, tx, "memo", "pinned_at")
+	if err != nil {
+		return err
+	}
+	if hasPinned {
+		if _, err := tx.ExecContext(ctx, `
+UPDATE memo
+SET favorited_at = COALESCE(favorited_at, pinned_at), pinned_at = NULL
+WHERE pinned_at IS NOT NULL`); err != nil {
+			return fmt.Errorf("migrate pinned memos to favorites: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_memo_favorited_at ON memo (favorited_at)"); err != nil {
+		return fmt.Errorf("ensure memo favorited index: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit memo favorite compat migration: %w", err)
+	}
 	return nil
 }
 

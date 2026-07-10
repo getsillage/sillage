@@ -14,17 +14,22 @@ import {
   getMemo as apiGetMemo,
   searchMemos as apiSearch,
   setMemoArchived as apiSetArchived,
-  setMemoPinned as apiSetPinned,
+  setMemoFavorited as apiSetFavorited,
   generateMemoSummary as apiSummary,
   updateMemo as apiUpdate,
   listMemos,
   type Memo,
   type MemoAI,
+  type MemoListOptions,
   uploadAttachment,
 } from "../lib/api";
-import { mergeMemos, sortMemos, upsertMemo } from "../lib/memos";
+import { isActive, mergeMemos, sortMemos, upsertMemo } from "../lib/memos";
 
 const PAGE_SIZE = 200;
+const ACTIVE_LIST_OPTIONS: MemoListOptions = {
+  archived: false,
+  favorited: false,
+};
 
 export interface UploadedAttachment {
   url: string;
@@ -49,11 +54,15 @@ interface MemosContextValue {
     memo: Memo,
     input: { content?: string; entryDate?: string },
   ) => Promise<Memo>;
-  setPinned: (memo: Memo, pinned: boolean) => Promise<Memo>;
+  setFavorited: (memo: Memo, favorited: boolean) => Promise<Memo>;
   setArchived: (memo: Memo, archived: boolean) => Promise<Memo>;
   remove: (memo: Memo) => Promise<void>;
   summarize: (memo: Memo) => Promise<MemoAI>;
-  search: (query: string, archived?: boolean) => Promise<Memo[]>;
+  listPage: (
+    options: MemoListOptions,
+    cursor?: string,
+  ) => Promise<{ memos: Memo[]; nextCursor?: string }>;
+  search: (query: string, options?: MemoListOptions) => Promise<Memo[]>;
   upload: (file: File) => Promise<UploadedAttachment>;
 }
 
@@ -99,14 +108,24 @@ export function MemosProvider({
     try {
       while (seq === refreshSeq.current) {
         const cacheGeneration = cacheGenerationRef.current;
-        const res = await listMemos(token, PAGE_SIZE);
+        const res = await listMemos(
+          token,
+          PAGE_SIZE,
+          undefined,
+          ACTIVE_LIST_OPTIONS,
+        );
         if (seq !== refreshSeq.current) {
           return;
         }
         if (cacheGeneration !== cacheGenerationRef.current) {
           continue;
         }
-        setMemos(sortMemos(res.memos));
+        setMemos((current) =>
+          mergeMemos(
+            current.filter((memo) => !isActive(memo)),
+            res.memos,
+          ),
+        );
         cursorRef.current = res.nextCursor ?? "";
         setHasMore(Boolean(res.nextCursor));
         setError("");
@@ -146,7 +165,12 @@ export function MemosProvider({
       setLoadingMore(true);
       try {
         while (loadMoreRequestRef.current?.id === request.id) {
-          const res = await listMemos(token, PAGE_SIZE, cursor);
+          const res = await listMemos(
+            token,
+            PAGE_SIZE,
+            cursor,
+            ACTIVE_LIST_OPTIONS,
+          );
           if (
             loadMoreRequestRef.current?.id !== request.id ||
             request.refreshSeq !== refreshSeq.current ||
@@ -243,9 +267,9 @@ export function MemosProvider({
     [token, apply],
   );
 
-  const setPinned = useCallback(
-    async (memo: Memo, pinned: boolean) => {
-      const res = await apiSetPinned(token, memo, pinned);
+  const setFavorited = useCallback(
+    async (memo: Memo, favorited: boolean) => {
+      const res = await apiSetFavorited(token, memo, favorited);
       return apply(res.memo);
     },
     [token, apply],
@@ -277,11 +301,19 @@ export function MemosProvider({
     [token],
   );
 
+  const listPage = useCallback(
+    async (options: MemoListOptions, cursor?: string) => {
+      const res = await listMemos(token, PAGE_SIZE, cursor, options);
+      return { ...res, memos: sortMemos(res.memos) };
+    },
+    [token],
+  );
+
   // Server-side FTS search. Results are returned to the caller, not merged into
   // the main list, so a search view never disturbs the cached timeline.
   const search = useCallback(
-    async (query: string, archived?: boolean) => {
-      const res = await apiSearch(token, query, 100, archived);
+    async (query: string, options: MemoListOptions = {}) => {
+      const res = await apiSearch(token, query, 100, options);
       return sortMemos(res.memos);
     },
     [token],
@@ -314,10 +346,11 @@ export function MemosProvider({
       fetchMemo,
       create,
       update,
-      setPinned,
+      setFavorited,
       setArchived,
       remove,
       summarize,
+      listPage,
       search,
       upload,
     }),
@@ -335,10 +368,11 @@ export function MemosProvider({
       fetchMemo,
       create,
       update,
-      setPinned,
+      setFavorited,
       setArchived,
       remove,
       summarize,
+      listPage,
       search,
       upload,
     ],

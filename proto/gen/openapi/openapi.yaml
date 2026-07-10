@@ -350,19 +350,24 @@ paths:
                 - name: archived
                   in: query
                   description: |-
-                    archived filters search results before limit is applied. It is ignored
-                     when query is empty; when unset, search includes both current and archived
-                     memos for backward compatibility.
+                    archived filters both recent-list and search results before limit is
+                     applied. When unset, both current and archived memos are included.
                   schema:
                     type: boolean
                 - name: cursor
                   in: query
                   description: |-
-                    cursor continues the pinned-first recent list; each pinned bucket remains
-                     reverse-chronological. Search requests ignore it because search results are
-                     not paginated.
+                    cursor continues the reverse-chronological recent list. Search requests
+                     ignore it because search results are not paginated.
                   schema:
                     type: string
+                - name: favorited
+                  in: query
+                  description: |-
+                    favorited filters both recent-list and search results before limit is
+                     applied. When unset, both favorited and non-favorited memos are included.
+                  schema:
+                    type: boolean
             responses:
                 "200":
                     description: OK
@@ -539,11 +544,11 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-    /api/v1/memos/{id}:setPinned:
+    /api/v1/memos/{id}:setFavorited:
         post:
             tags:
                 - MemoService
-            operationId: MemoService_SetMemoPinned
+            operationId: MemoService_SetMemoFavorited
             parameters:
                 - name: id
                   in: path
@@ -554,7 +559,7 @@ paths:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/SetMemoPinnedRequest'
+                            $ref: '#/components/schemas/SetMemoFavoritedRequest'
                 required: true
             responses:
                 "200":
@@ -1084,9 +1089,6 @@ components:
                     description: |-
                         version is bumped on every content/state mutation and drives optimistic
                          concurrency: writes carry the expected_version they read.
-                pinnedTime:
-                    type: string
-                    format: date-time
                 archivedTime:
                     type: string
                     format: date-time
@@ -1099,6 +1101,9 @@ components:
                 deletedTime:
                     type: string
                     description: deleted_time set => the memo is tombstoned (soft-deleted).
+                    format: date-time
+                favoritedAt:
+                    type: string
                     format: date-time
             description: |-
                 Memo is the only content unit in Sillage (shown as "记录" in the UI).
@@ -1248,14 +1253,14 @@ components:
                     type: string
                 archived:
                     type: boolean
-        SetMemoPinnedRequest:
+        SetMemoFavoritedRequest:
             type: object
             properties:
                 id:
                     type: string
                 expectedVersion:
                     type: string
-                pinned:
+                favorited:
                     type: boolean
         SignInRequest:
             type: object
@@ -1319,7 +1324,10 @@ components:
                     type: string
                 pinned:
                     type: boolean
+                    description: Deprecated compatibility alias for clients released before favorites.
                 archived:
+                    type: boolean
+                favorited:
                     type: boolean
         SyncResult:
             type: object
@@ -1367,9 +1375,9 @@ components:
                     type: string
                 entryDate:
                     type: string
-                pinned:
-                    type: boolean
                 archived:
+                    type: boolean
+                favorited:
                     type: boolean
             description: |-
                 UpdateMemo applies a partial update guarded by expected_version. Unset
@@ -1391,8 +1399,8 @@ tags:
     - name: MemoService
       description: |-
         MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
-         pinning, and archiving carry expected_version for optimistic concurrency; a
-         stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+         favoriting, and archiving carry expected_version for optimistic concurrency;
+         a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
          Creation is idempotent by caller-supplied id, while summary generation only
          writes derived AI data and therefore does not carry expected_version.
     - name: SettingsService

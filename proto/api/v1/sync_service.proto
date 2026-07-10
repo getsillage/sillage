@@ -69,8 +69,10 @@ message SyncMemoPayload {
   string id = 1;
   string content = 2;
   string entry_date = 3;
-  optional bool pinned = 4;
+  // Deprecated compatibility alias for clients released before favorites.
+  optional bool pinned = 4 [deprecated = true];
   optional bool archived = 5;
+  optional bool favorited = 6;
 }
 
 message PushSyncResponse {

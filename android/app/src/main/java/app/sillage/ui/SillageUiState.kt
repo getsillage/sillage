@@ -6,7 +6,10 @@ import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
+import app.sillage.data.MemoDetail
+import app.sillage.data.MemoListFilter
 import app.sillage.data.SessionStore
+import app.sillage.data.memosForFilter
 import java.time.LocalDate
 
 data class SillageUiState(
@@ -21,7 +24,10 @@ data class SillageUiState(
     val memos: List<Memo> = emptyList(),
     val memoNextCursor: String = "",
     val loadingMoreMemos: Boolean = false,
+    val memoListLoadStatus: MemoListLoadStatus = MemoListLoadStatus.Idle,
     val memoPageRequestId: Long = 0,
+    val memoCacheGeneration: Long = 0,
+    val memoDetailRequestId: Long = 0,
     val selectedMemo: Memo? = null,
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,
@@ -67,6 +73,7 @@ data class SillageUiState(
     val searchResults: List<Memo>? = null,
     val searching: Boolean = false,
     val memoViewMode: MemoViewMode = MemoViewMode.List,
+    val memoListFilter: MemoListFilter = MemoListFilter.Unarchived,
     val calendarYear: Int = LocalDate.now().year,
     val calendarMonth: Int = LocalDate.now().monthValue,
     val selectedCalendarDate: String? = null,
@@ -95,6 +102,88 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
     return openingAttachmentPath != null && attachmentOpenRequestId == requestId
+}
+
+internal data class MemoDetailRequest(
+    val requestId: Long,
+    val memoId: String,
+    val memoVersion: Long,
+    val appMode: String,
+    val screen: Screen,
+    val editorSessionId: Long,
+    val cacheGeneration: Long,
+)
+
+internal fun SillageUiState.nextMemoDetailRequest(memoId: String): MemoDetailRequest? {
+    val selected = selectedMemo ?: return null
+    if (selected.id != memoId || (screen != Screen.MemoDetail && screen != Screen.Editor)) {
+        return null
+    }
+    return MemoDetailRequest(
+        requestId = memoDetailRequestId + 1,
+        memoId = memoId,
+        memoVersion = selected.version,
+        appMode = appMode,
+        screen = screen,
+        editorSessionId = editorSessionId,
+        cacheGeneration = memoCacheGeneration,
+    )
+}
+
+internal fun SillageUiState.startMemoDetailRequest(request: MemoDetailRequest): SillageUiState {
+    if (nextMemoDetailRequest(request.memoId) != request) {
+        return this
+    }
+    return copy(
+        memoDetailRequestId = request.requestId,
+        summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+    )
+}
+
+private fun SillageUiState.matchesMemoDetailRequest(request: MemoDetailRequest): Boolean {
+    return memoDetailRequestId == request.requestId &&
+        selectedMemo?.id == request.memoId &&
+        appMode == request.appMode &&
+        screen == request.screen &&
+        (request.screen != Screen.Editor || editorSessionId == request.editorSessionId)
+}
+
+internal fun SillageUiState.completeMemoDetailRequest(
+    request: MemoDetailRequest,
+    detail: MemoDetail,
+): SillageUiState {
+    if (!matchesMemoDetailRequest(request)) {
+        return this
+    }
+    val currentVersion = selectedMemo?.version ?: return copy(summaryLoading = false)
+    if (
+        memoCacheGeneration != request.cacheGeneration ||
+        detail.memo.id != request.memoId ||
+        detail.memo.version < request.memoVersion ||
+        detail.memo.version < currentVersion
+    ) {
+        return copy(summaryLoading = false)
+    }
+    return applyMemoToCache(detail.memo).copy(
+        selectedSummary = detail.ai,
+        summaryLoading = false,
+    )
+}
+
+internal fun SillageUiState.failMemoDetailRequest(
+    request: MemoDetailRequest,
+    message: String,
+): SillageUiState {
+    if (!matchesMemoDetailRequest(request)) {
+        return this
+    }
+    val superseded = memoCacheGeneration != request.cacheGeneration ||
+        (selectedMemo?.version ?: Long.MIN_VALUE) > request.memoVersion
+    return if (superseded) {
+        copy(summaryLoading = false)
+    } else {
+        copy(summaryLoading = false, error = message)
+    }
 }
 
 internal data class AIAutoSummaryRequest(
@@ -167,6 +256,8 @@ internal data class MemoPageRequest(
     val requestId: Long,
     val cursor: String,
     val appMode: String,
+    val filter: MemoListFilter,
+    val cacheGeneration: Long,
 )
 
 internal fun SillageUiState.nextMemoPageRequest(): MemoPageRequest? {
@@ -177,6 +268,8 @@ internal fun SillageUiState.nextMemoPageRequest(): MemoPageRequest? {
         requestId = memoPageRequestId + 1,
         cursor = memoNextCursor,
         appMode = appMode,
+        filter = memoListFilter,
+        cacheGeneration = memoCacheGeneration,
     )
 }
 
@@ -184,7 +277,108 @@ internal fun SillageUiState.canApplyMemoPage(request: MemoPageRequest): Boolean 
     return loadingMoreMemos &&
         memoPageRequestId == request.requestId &&
         memoNextCursor == request.cursor &&
-        appMode == request.appMode
+        appMode == request.appMode &&
+        memoListFilter == request.filter &&
+        memoCacheGeneration == request.cacheGeneration
+}
+
+internal data class MemoRefreshRequest(
+    val pageRequestId: Long,
+    val appMode: String,
+    val filter: MemoListFilter,
+    val cacheGeneration: Long,
+)
+
+internal fun SillageUiState.memoRefreshRequest(): MemoRefreshRequest {
+    return MemoRefreshRequest(
+        pageRequestId = memoPageRequestId,
+        appMode = appMode,
+        filter = memoListFilter,
+        cacheGeneration = memoCacheGeneration,
+    )
+}
+
+internal fun SillageUiState.canApplyMemoRefresh(request: MemoRefreshRequest): Boolean {
+    return memoPageRequestId == request.pageRequestId &&
+        appMode == request.appMode &&
+        memoListFilter == request.filter &&
+        memoCacheGeneration == request.cacheGeneration
+}
+
+internal data class MemoSearchRequest(
+    val query: String,
+    val appMode: String,
+    val filter: MemoListFilter,
+    val cacheGeneration: Long,
+)
+
+internal fun SillageUiState.memoSearchRequest(): MemoSearchRequest? {
+    val query = searchQuery.trim()
+    if (query.isBlank()) {
+        return null
+    }
+    return MemoSearchRequest(
+        query = query,
+        appMode = appMode,
+        filter = memoListFilter,
+        cacheGeneration = memoCacheGeneration,
+    )
+}
+
+internal fun SillageUiState.canApplyMemoSearch(request: MemoSearchRequest): Boolean {
+    return searching &&
+        searchQuery.trim() == request.query &&
+        appMode == request.appMode &&
+        memoListFilter == request.filter &&
+        memoCacheGeneration == request.cacheGeneration
+}
+
+internal fun SillageUiState.failMemoSearch(
+    request: MemoSearchRequest,
+    message: String,
+): SillageUiState {
+    if (!canApplyMemoSearch(request)) {
+        return this
+    }
+    return copy(searching = false, error = message)
+}
+
+internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
+    val cached = memosForFilter(
+        memos.filter { it.id != memo.id } + memo,
+        memoListFilter,
+    )
+    val searched = searchResults?.let { results ->
+        memosForFilter(
+            results.filter { it.id != memo.id } + memo,
+            memoListFilter,
+        )
+    }
+    return copy(
+        memos = cached,
+        searchResults = searched,
+        searching = false,
+        loadingMoreMemos = false,
+        memoListLoadStatus = MemoListLoadStatus.Idle,
+        memoPageRequestId = memoPageRequestId + 1,
+        memoCacheGeneration = memoCacheGeneration + 1,
+        selectedMemo = if (selectedMemo?.id == memo.id) memo else selectedMemo,
+    )
+}
+
+internal fun SillageUiState.shouldShowMemoListLoadFailure(): Boolean {
+    return memoViewMode == MemoViewMode.List &&
+        memoListLoadStatus == MemoListLoadStatus.Failed &&
+        memos.isEmpty() &&
+        searchResults == null
+}
+
+internal fun SillageUiState.shouldShowMemoSearchFailure(): Boolean {
+    return memoViewMode == MemoViewMode.List &&
+        searchQuery.isNotBlank() &&
+        searchResults?.isEmpty() == true &&
+        !searching &&
+        error != null
 }
 
 internal data class AskStreamRequest(
@@ -312,6 +506,12 @@ internal fun SillageUiState.backNavigation(fallback: Screen): BackNavigation {
 enum class MemoViewMode {
     List,
     Calendar,
+}
+
+enum class MemoListLoadStatus {
+    Idle,
+    Loading,
+    Failed,
 }
 
 enum class Screen {

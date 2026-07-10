@@ -71,6 +71,8 @@ type memoCreateInput struct {
 	ID        string
 	Content   string
 	EntryDate string
+	Favorited bool
+	Archived  bool
 }
 
 type aiSettingsInput struct {
@@ -548,7 +550,7 @@ type memoUpdateInput struct {
 	ExpectedVersion int64
 	Content         *string
 	EntryDate       *string
-	Pinned          *bool
+	Favorited       *bool
 	Archived        *bool
 	Deleted         *bool
 }
@@ -558,17 +560,24 @@ type memoListPage struct {
 	NextCursor string
 }
 
-// listMemos returns one pinned-first, reverse-chronological page plus an opaque
-// cursor for the next page. An empty NextCursor means the list is exhausted.
-func (s *Server) listMemos(ctx context.Context, accountID string, limit int, rawCursor string) (*memoListPage, error) {
+// listMemos returns one reverse-chronological page plus an opaque cursor for
+// the next page. An empty NextCursor means the list is exhausted.
+func (s *Server) listMemos(ctx context.Context, accountID string, archived, favorited *bool, limit int, rawCursor string) (*memoListPage, error) {
 	pageSize := normalizeLimit(limit, 50)
 	opts := &store.ListMemoOptions{
 		AccountID:         accountID,
 		Limit:             pageSize + 1,
 		LookaheadPageSize: pageSize,
+		Archived:          archived,
+		Favorited:         favorited,
 	}
+	legacyV1 := false
 	if cur, ok := decodeMemoListCursor(rawCursor); ok {
-		opts.BeforePinned = cur.Pinned
+		if cur.Version == 1 {
+			legacyV1 = true
+			opts.LegacyFavoritedFirst = true
+			opts.BeforeFavorited = cur.Pinned
+		}
 		opts.BeforeEntryDate = cur.EntryDate
 		opts.BeforeCreatedAt = cur.CreatedAt
 		opts.BeforeID = cur.ID
@@ -581,19 +590,23 @@ func (s *Server) listMemos(ctx context.Context, accountID string, limit int, raw
 	if len(memos) > pageSize {
 		memos = memos[:pageSize]
 		last := memos[len(memos)-1]
-		pinned := last.PinnedAt.Valid
-		next = encodeMemoListCursor(memoListCursor{
+		nextCursor := memoListCursor{
 			Version:   memoListCursorVersion,
-			Pinned:    &pinned,
 			EntryDate: last.EntryDate,
 			CreatedAt: last.CreatedAt,
 			ID:        last.ID,
-		})
+		}
+		if legacyV1 {
+			favorited := last.FavoritedAt.Valid
+			nextCursor.Version = 1
+			nextCursor.Pinned = &favorited
+		}
+		next = encodeMemoListCursor(nextCursor)
 	}
 	return &memoListPage{Memos: memos, NextCursor: next}, nil
 }
 
-const memoListCursorVersion = 1
+const memoListCursorVersion = 2
 
 type memoListCursor struct {
 	Version   int    `json:"version,omitempty"`
@@ -616,10 +629,8 @@ func decodeMemoListCursor(raw string) (memoListCursor, bool) {
 		return memoListCursor{}, false
 	}
 	switch cur.Version {
-	case 0:
-		// Cursors issued before pinned-first pagination only carry the date tuple.
-		cur.Pinned = nil
-	case memoListCursorVersion:
+	case 0, memoListCursorVersion:
+	case 1:
 		if cur.Pinned == nil {
 			return memoListCursor{}, false
 		}
@@ -637,12 +648,13 @@ func encodeMemoListCursor(cur memoListCursor) string {
 	return base64.RawURLEncoding.EncodeToString(payload)
 }
 
-func (s *Server) searchMemos(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*store.Memo, error) {
+func (s *Server) searchMemos(ctx context.Context, accountID, query string, archived, favorited *bool, limit int) ([]*store.Memo, error) {
 	return s.Store.SearchMemos(ctx, &store.SearchMemoOptions{
 		AccountID: accountID,
 		Query:     query,
 		Limit:     normalizeLimit(limit, 50),
 		Archived:  archived,
+		Favorited: favorited,
 	})
 }
 
@@ -655,6 +667,8 @@ func (s *Server) createMemo(ctx context.Context, accountID string, input memoCre
 		CreatorID: accountID,
 		Content:   input.Content,
 		EntryDate: input.EntryDate,
+		Favorited: input.Favorited,
+		Archived:  input.Archived,
 	})
 	if err != nil {
 		return nil, err
@@ -710,7 +724,7 @@ func (s *Server) updateMemo(ctx context.Context, accountID string, input memoUpd
 		ExpectedVersion: input.ExpectedVersion,
 		Content:         input.Content,
 		EntryDate:       input.EntryDate,
-		Pinned:          input.Pinned,
+		Favorited:       input.Favorited,
 		Archived:        input.Archived,
 		Deleted:         input.Deleted,
 	})
@@ -789,6 +803,14 @@ type syncMemoPayload struct {
 	EntryDate string `json:"entryDate"`
 	Pinned    *bool  `json:"pinned"`
 	Archived  *bool  `json:"archived"`
+	Favorited *bool  `json:"favorited"`
+}
+
+func (p syncMemoPayload) favoritedValue() *bool {
+	if p.Favorited != nil {
+		return p.Favorited
+	}
+	return p.Pinned
 }
 
 type syncPullResult struct {
@@ -966,12 +988,15 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 
 	var memo *store.Memo
 	var err error
+	favorited := payload.favoritedValue()
 	switch change.Action {
 	case "create":
 		memo, err = s.createMemo(ctx, accountID, memoCreateInput{
 			ID:        payload.ID,
 			Content:   payload.Content,
 			EntryDate: payload.EntryDate,
+			Favorited: favorited != nil && *favorited,
+			Archived:  payload.Archived != nil && *payload.Archived,
 		})
 	case "update":
 		if change.BaseVersion <= 0 {
@@ -985,7 +1010,7 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 			ExpectedVersion: change.BaseVersion,
 			Content:         &payload.Content,
 			EntryDate:       &payload.EntryDate,
-			Pinned:          payload.Pinned,
+			Favorited:       favorited,
 			Archived:        payload.Archived,
 		})
 	case "delete":

@@ -320,12 +320,16 @@ func (x *SyncChange) GetMemo() *SyncMemoPayload {
 }
 
 type SyncMemoPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	EntryDate     string                 `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
-	Pinned        *bool                  `protobuf:"varint,4,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
-	Archived      *bool                  `protobuf:"varint,5,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Content   string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	EntryDate string                 `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
+	// Deprecated compatibility alias for clients released before favorites.
+	//
+	// Deprecated: Marked as deprecated in api/v1/sync_service.proto.
+	Pinned        *bool `protobuf:"varint,4,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
+	Archived      *bool `protobuf:"varint,5,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	Favorited     *bool `protobuf:"varint,6,opt,name=favorited,proto3,oneof" json:"favorited,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +385,7 @@ func (x *SyncMemoPayload) GetEntryDate() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in api/v1/sync_service.proto.
 func (x *SyncMemoPayload) GetPinned() bool {
 	if x != nil && x.Pinned != nil {
 		return *x.Pinned
@@ -391,6 +396,13 @@ func (x *SyncMemoPayload) GetPinned() bool {
 func (x *SyncMemoPayload) GetArchived() bool {
 	if x != nil && x.Archived != nil {
 		return *x.Archived
+	}
+	return false
+}
+
+func (x *SyncMemoPayload) GetFavorited() bool {
+	if x != nil && x.Favorited != nil {
+		return *x.Favorited
 	}
 	return false
 }
@@ -600,16 +612,19 @@ const file_api_v1_sync_service_proto_rawDesc = "" +
 	"\x06action\x18\x04 \x01(\tR\x06action\x12!\n" +
 	"\fbase_version\x18\x05 \x01(\x03R\vbaseVersion\x12(\n" +
 	"\x10local_changed_at\x18\x06 \x01(\tR\x0elocalChangedAt\x123\n" +
-	"\x04memo\x18\a \x01(\v2\x1f.sillage.api.v1.SyncMemoPayloadR\x04memo\"\xb0\x01\n" +
+	"\x04memo\x18\a \x01(\v2\x1f.sillage.api.v1.SyncMemoPayloadR\x04memo\"\xe5\x01\n" +
 	"\x0fSyncMemoPayload\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
-	"entry_date\x18\x03 \x01(\tR\tentryDate\x12\x1b\n" +
-	"\x06pinned\x18\x04 \x01(\bH\x00R\x06pinned\x88\x01\x01\x12\x1f\n" +
-	"\barchived\x18\x05 \x01(\bH\x01R\barchived\x88\x01\x01B\t\n" +
+	"entry_date\x18\x03 \x01(\tR\tentryDate\x12\x1f\n" +
+	"\x06pinned\x18\x04 \x01(\bB\x02\x18\x01H\x00R\x06pinned\x88\x01\x01\x12\x1f\n" +
+	"\barchived\x18\x05 \x01(\bH\x01R\barchived\x88\x01\x01\x12!\n" +
+	"\tfavorited\x18\x06 \x01(\bH\x02R\tfavorited\x88\x01\x01B\t\n" +
 	"\a_pinnedB\v\n" +
-	"\t_archived\"H\n" +
+	"\t_archivedB\f\n" +
+	"\n" +
+	"_favorited\"H\n" +
 	"\x10PushSyncResponse\x124\n" +
 	"\aresults\x18\x01 \x03(\v2\x1a.sillage.api.v1.SyncResultR\aresults\"\x9c\x03\n" +
 	"\n" +

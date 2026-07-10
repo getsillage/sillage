@@ -3,8 +3,8 @@ import {
   ArrowLeft,
   LoaderCircle,
   Pencil,
-  Pin,
   Sparkles,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -46,6 +46,30 @@ function detailReturnTarget(state: unknown): string {
     : "/timeline";
 }
 
+function detailMemoSnapshot(state: unknown, id: string): Memo | undefined {
+  const candidate = (state as { memoSnapshot?: unknown } | null)?.memoSnapshot;
+  if (!candidate || typeof candidate !== "object") {
+    return undefined;
+  }
+  const snapshot = candidate as Partial<Memo>;
+  const isNullableString = (value: unknown) =>
+    value === null || typeof value === "string";
+  if (
+    snapshot.id !== id ||
+    typeof snapshot.content !== "string" ||
+    typeof snapshot.entryDate !== "string" ||
+    typeof snapshot.version !== "number" ||
+    !isNullableString(snapshot.favoritedAt) ||
+    !isNullableString(snapshot.archivedAt) ||
+    typeof snapshot.createdAt !== "string" ||
+    typeof snapshot.updatedAt !== "string" ||
+    !isNullableString(snapshot.deletedAt)
+  ) {
+    return undefined;
+  }
+  return snapshot as Memo;
+}
+
 function detailReturnLabel(target: string): string {
   if (target.startsWith("/ask")) {
     return "问答";
@@ -64,7 +88,12 @@ export function EntryPage() {
   const returnLabel = detailReturnLabel(returnTarget);
   const memos = useMemos();
   const { fetchMemo } = memos;
-  const memo = memos.getById(id);
+  const cachedMemo = memos.getById(id);
+  const routeSnapshot = detailMemoSnapshot(location.state, id);
+  const memo =
+    routeSnapshot && (!cachedMemo || routeSnapshot.version > cachedMemo.version)
+      ? routeSnapshot
+      : cachedMemo;
   const summary = memos.summaries[id];
   const [editorMemo, setEditorMemo] = useState<Memo | null>(null);
   const [detailAttempt, setDetailAttempt] = useState(0);
@@ -212,7 +241,7 @@ export function EntryPage() {
     );
   }
 
-  async function runAction(action: "pin" | "archive" | "delete") {
+  async function runAction(action: "favorite" | "archive" | "delete") {
     if (!memo || !detailReady || actionPendingRef.current) {
       return;
     }
@@ -221,8 +250,8 @@ export function EntryPage() {
     setError("");
     setConfirmingDelete(false);
     try {
-      if (action === "pin") {
-        await memos.setPinned(memo, !memo.pinnedAt);
+      if (action === "favorite") {
+        await memos.setFavorited(memo, !memo.favoritedAt);
       } else if (action === "archive") {
         await memos.setArchived(memo, !memo.archivedAt);
       } else {
@@ -292,17 +321,17 @@ export function EntryPage() {
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => runAction("pin")}
+            onClick={() => runAction("favorite")}
             disabled={Boolean(busy) || !detailReady}
             className={iconButtonClass}
-            aria-label={memo.pinnedAt ? "取消置顶" : "置顶"}
-            title={memo.pinnedAt ? "取消置顶" : "置顶"}
+            aria-label={memo.favoritedAt ? "取消收藏" : "收藏"}
+            title={memo.favoritedAt ? "取消收藏" : "收藏"}
           >
-            {busy === "pin" ? (
+            {busy === "favorite" ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
             ) : (
-              <Pin
-                className={`h-4 w-4 ${memo.pinnedAt ? "fill-current" : ""}`}
+              <Star
+                className={`h-4 w-4 ${memo.favoritedAt ? "fill-current" : ""}`}
               />
             )}
           </button>
@@ -352,10 +381,10 @@ export function EntryPage() {
           <time dateTime={memo.entryDate}>
             {formatEntryDate(memo.entryDate, todayISO())}
           </time>
-          {memo.pinnedAt ? (
+          {memo.favoritedAt ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-              <Pin className="h-3 w-3 fill-current" aria-hidden="true" />
-              已置顶
+              <Star className="h-3 w-3 fill-current" aria-hidden="true" />
+              已收藏
             </span>
           ) : null}
           {memo.archivedAt ? (

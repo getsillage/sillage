@@ -79,6 +79,7 @@ func syncChangesFromPB(changes []*apiv1.SyncChange) []syncChange {
 				EntryDate: pbMemo.GetEntryDate(),
 				Pinned:    pbMemo.Pinned,
 				Archived:  pbMemo.Archived,
+				Favorited: pbMemo.Favorited,
 			}
 		}
 		items = append(items, syncChange{

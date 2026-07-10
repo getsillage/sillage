@@ -24,7 +24,7 @@ const (
 	MemoService_GetMemo_FullMethodName             = "/sillage.api.v1.MemoService/GetMemo"
 	MemoService_UpdateMemo_FullMethodName          = "/sillage.api.v1.MemoService/UpdateMemo"
 	MemoService_DeleteMemo_FullMethodName          = "/sillage.api.v1.MemoService/DeleteMemo"
-	MemoService_SetMemoPinned_FullMethodName       = "/sillage.api.v1.MemoService/SetMemoPinned"
+	MemoService_SetMemoFavorited_FullMethodName    = "/sillage.api.v1.MemoService/SetMemoFavorited"
 	MemoService_SetMemoArchived_FullMethodName     = "/sillage.api.v1.MemoService/SetMemoArchived"
 	MemoService_GenerateMemoSummary_FullMethodName = "/sillage.api.v1.MemoService/GenerateMemoSummary"
 )
@@ -34,8 +34,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
-// pinning, and archiving carry expected_version for optimistic concurrency; a
-// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// favoriting, and archiving carry expected_version for optimistic concurrency;
+// a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
 // Creation is idempotent by caller-supplied id, while summary generation only
 // writes derived AI data and therefore does not carry expected_version.
 type MemoServiceClient interface {
@@ -44,7 +44,7 @@ type MemoServiceClient interface {
 	GetMemo(ctx context.Context, in *GetMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	UpdateMemo(ctx context.Context, in *UpdateMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	DeleteMemo(ctx context.Context, in *DeleteMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
-	SetMemoPinned(ctx context.Context, in *SetMemoPinnedRequest, opts ...grpc.CallOption) (*MemoResponse, error)
+	SetMemoFavorited(ctx context.Context, in *SetMemoFavoritedRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	SetMemoArchived(ctx context.Context, in *SetMemoArchivedRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	GenerateMemoSummary(ctx context.Context, in *GenerateMemoSummaryRequest, opts ...grpc.CallOption) (*GenerateMemoSummaryResponse, error)
 }
@@ -107,10 +107,10 @@ func (c *memoServiceClient) DeleteMemo(ctx context.Context, in *DeleteMemoReques
 	return out, nil
 }
 
-func (c *memoServiceClient) SetMemoPinned(ctx context.Context, in *SetMemoPinnedRequest, opts ...grpc.CallOption) (*MemoResponse, error) {
+func (c *memoServiceClient) SetMemoFavorited(ctx context.Context, in *SetMemoFavoritedRequest, opts ...grpc.CallOption) (*MemoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MemoResponse)
-	err := c.cc.Invoke(ctx, MemoService_SetMemoPinned_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, MemoService_SetMemoFavorited_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +142,8 @@ func (c *memoServiceClient) GenerateMemoSummary(ctx context.Context, in *Generat
 // for forward compatibility.
 //
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
-// pinning, and archiving carry expected_version for optimistic concurrency; a
-// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// favoriting, and archiving carry expected_version for optimistic concurrency;
+// a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
 // Creation is idempotent by caller-supplied id, while summary generation only
 // writes derived AI data and therefore does not carry expected_version.
 type MemoServiceServer interface {
@@ -152,7 +152,7 @@ type MemoServiceServer interface {
 	GetMemo(context.Context, *GetMemoRequest) (*MemoResponse, error)
 	UpdateMemo(context.Context, *UpdateMemoRequest) (*MemoResponse, error)
 	DeleteMemo(context.Context, *DeleteMemoRequest) (*MemoResponse, error)
-	SetMemoPinned(context.Context, *SetMemoPinnedRequest) (*MemoResponse, error)
+	SetMemoFavorited(context.Context, *SetMemoFavoritedRequest) (*MemoResponse, error)
 	SetMemoArchived(context.Context, *SetMemoArchivedRequest) (*MemoResponse, error)
 	GenerateMemoSummary(context.Context, *GenerateMemoSummaryRequest) (*GenerateMemoSummaryResponse, error)
 	mustEmbedUnimplementedMemoServiceServer()
@@ -180,8 +180,8 @@ func (UnimplementedMemoServiceServer) UpdateMemo(context.Context, *UpdateMemoReq
 func (UnimplementedMemoServiceServer) DeleteMemo(context.Context, *DeleteMemoRequest) (*MemoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteMemo not implemented")
 }
-func (UnimplementedMemoServiceServer) SetMemoPinned(context.Context, *SetMemoPinnedRequest) (*MemoResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SetMemoPinned not implemented")
+func (UnimplementedMemoServiceServer) SetMemoFavorited(context.Context, *SetMemoFavoritedRequest) (*MemoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetMemoFavorited not implemented")
 }
 func (UnimplementedMemoServiceServer) SetMemoArchived(context.Context, *SetMemoArchivedRequest) (*MemoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetMemoArchived not implemented")
@@ -300,20 +300,20 @@ func _MemoService_DeleteMemo_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MemoService_SetMemoPinned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetMemoPinnedRequest)
+func _MemoService_SetMemoFavorited_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMemoFavoritedRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MemoServiceServer).SetMemoPinned(ctx, in)
+		return srv.(MemoServiceServer).SetMemoFavorited(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MemoService_SetMemoPinned_FullMethodName,
+		FullMethod: MemoService_SetMemoFavorited_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MemoServiceServer).SetMemoPinned(ctx, req.(*SetMemoPinnedRequest))
+		return srv.(MemoServiceServer).SetMemoFavorited(ctx, req.(*SetMemoFavoritedRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -382,8 +382,8 @@ var MemoService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MemoService_DeleteMemo_Handler,
 		},
 		{
-			MethodName: "SetMemoPinned",
-			Handler:    _MemoService_SetMemoPinned_Handler,
+			MethodName: "SetMemoFavorited",
+			Handler:    _MemoService_SetMemoFavorited_Handler,
 		},
 		{
 			MethodName: "SetMemoArchived",

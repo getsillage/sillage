@@ -14,16 +14,16 @@ import (
 var ErrVersionConflict = errors.New("memo version conflict")
 
 type Memo struct {
-	ID         string
-	CreatorID  sql.NullString
-	Content    string
-	EntryDate  string
-	Version    int64
-	PinnedAt   sql.NullInt64
-	ArchivedAt sql.NullInt64
-	CreatedAt  int64
-	UpdatedAt  int64
-	DeletedAt  sql.NullInt64
+	ID          string
+	CreatorID   sql.NullString
+	Content     string
+	EntryDate   string
+	Version     int64
+	FavoritedAt sql.NullInt64
+	ArchivedAt  sql.NullInt64
+	CreatedAt   int64
+	UpdatedAt   int64
+	DeletedAt   sql.NullInt64
 }
 
 type CreateMemo struct {
@@ -31,6 +31,8 @@ type CreateMemo struct {
 	CreatorID string
 	Content   string
 	EntryDate string
+	Favorited bool
+	Archived  bool
 }
 
 type UpdateMemo struct {
@@ -39,7 +41,7 @@ type UpdateMemo struct {
 	ExpectedVersion int64
 	Content         *string
 	EntryDate       *string
-	Pinned          *bool
+	Favorited       *bool
 	Archived        *bool
 	Deleted         *bool
 }
@@ -75,14 +77,22 @@ func (s *Store) CreateMemo(ctx context.Context, create *CreateMemo) (*Memo, erro
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	if create.Favorited {
+		memo.FavoritedAt = sql.NullInt64{Int64: now, Valid: true}
+	}
+	if create.Archived {
+		memo.ArchivedAt = sql.NullInt64{Int64: now, Valid: true}
+	}
 	if _, err := s.driver.GetDB().ExecContext(ctx, `
-INSERT INTO memo (id, creator_id, content, entry_date, version, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO memo (id, creator_id, content, entry_date, version, favorited_at, archived_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		memo.ID,
 		nullString(create.CreatorID),
 		memo.Content,
 		memo.EntryDate,
 		memo.Version,
+		nullableInt(memo.FavoritedAt),
+		nullableInt(memo.ArchivedAt),
 		memo.CreatedAt,
 		memo.UpdatedAt,
 	); err != nil {
@@ -93,7 +103,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`,
 
 func (s *Store) GetMemo(ctx context.Context, accountID, id string, includeDeleted bool) (*Memo, error) {
 	query := `
-SELECT id, creator_id, content, entry_date, version, pinned_at, archived_at, created_at, updated_at, deleted_at
+SELECT id, creator_id, content, entry_date, version, favorited_at, archived_at, created_at, updated_at, deleted_at
 FROM memo
 WHERE id = ? AND creator_id = ?`
 	args := []any{id, accountID}
@@ -112,17 +122,20 @@ type ListMemoOptions struct {
 	LookaheadPageSize int
 	IncludeDeleted    bool
 	// Sync selects the forward updated_at walk (oldest first) used by sync pull
-	// and the Ask candidate scan. Without it, listing is pinned-first and then
-	// reverse-chronological by entry date.
+	// and the Ask candidate scan. Without it, listing is reverse-chronological
+	// by entry date.
 	Sync           bool
 	UpdatedAfter   int64
 	UpdatedAfterID string
-	// Pinned-first keyset cursor for "load older" pages. BeforePinned is nil for
-	// legacy cursors, which retain the old date-tuple-only predicate.
-	BeforePinned    *bool
-	BeforeEntryDate string
-	BeforeCreatedAt int64
-	BeforeID        string
+	Archived       *bool
+	Favorited      *bool
+	// LegacyFavoritedFirst continues a v1 pinned-first cursor after pinned_at
+	// has been migrated to favorited_at. New list requests leave it false.
+	LegacyFavoritedFirst bool
+	BeforeFavorited      *bool
+	BeforeEntryDate      string
+	BeforeCreatedAt      int64
+	BeforeID             string
 }
 
 // MaxMemoListLimit caps a single memo page. Clients paginate with the cursor
@@ -134,6 +147,7 @@ type SearchMemoOptions struct {
 	Query     string
 	Limit     int
 	Archived  *bool
+	Favorited *bool
 }
 
 func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, error) {
@@ -145,7 +159,7 @@ func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, 
 		limit = MaxMemoListLimit
 	}
 	query := `
-SELECT id, creator_id, content, entry_date, version, pinned_at, archived_at, created_at, updated_at, deleted_at
+SELECT id, creator_id, content, entry_date, version, favorited_at, archived_at, created_at, updated_at, deleted_at
 FROM memo
 WHERE creator_id = ?`
 	args := []any{opts.AccountID}
@@ -159,22 +173,23 @@ WHERE creator_id = ?`
 		}
 		query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
 	} else {
+		query += memoStateFilterClause("", opts.Archived, opts.Favorited)
 		if opts.BeforeID != "" {
-			if opts.BeforePinned != nil {
-				beforePinned := 0
-				if *opts.BeforePinned {
-					beforePinned = 1
+			if opts.LegacyFavoritedFirst && opts.BeforeFavorited != nil {
+				beforeFavorited := 0
+				if *opts.BeforeFavorited {
+					beforeFavorited = 1
 				}
 				query += ` AND (
-  CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END < ?
-  OR (CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END = ? AND (
+  CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END < ?
+  OR (CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END = ? AND (
     entry_date < ?
 	OR (entry_date = ? AND created_at < ?)
 	OR (entry_date = ? AND created_at = ? AND id < ?)
   ))
 )`
 				args = append(args,
-					beforePinned, beforePinned,
+					beforeFavorited, beforeFavorited,
 					opts.BeforeEntryDate,
 					opts.BeforeEntryDate, opts.BeforeCreatedAt,
 					opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
@@ -190,8 +205,12 @@ WHERE creator_id = ?`
 				)
 			}
 		}
-		query += ` ORDER BY CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END DESC,
+		if opts.LegacyFavoritedFirst {
+			query += ` ORDER BY CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END DESC,
   entry_date DESC, created_at DESC, id DESC LIMIT ?`
+		} else {
+			query += " ORDER BY entry_date DESC, created_at DESC, id DESC LIMIT ?"
+		}
 	}
 	args = append(args, limit)
 
@@ -212,11 +231,11 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, opts.Archived, limit)
+	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, opts.Archived, opts.Favorited, limit)
 	if err == nil && len(memos) > 0 {
 		return memos, nil
 	}
-	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, opts.Archived, limit)
+	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, opts.Archived, opts.Favorited, limit)
 	if fallbackErr != nil {
 		if err != nil {
 			return nil, err
@@ -226,13 +245,13 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 	return fallback, nil
 }
 
-func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*Memo, error) {
+func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, archived, favorited *bool, limit int) ([]*Memo, error) {
 	sqlQuery := `
 SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
-  memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
+  memo.favorited_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
 FROM memo_fts
 JOIN memo ON memo.id = memo_fts.memo_id
-WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoArchivedSearchClause(archived) + `
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoStateFilterClause("memo.", archived, favorited) + `
   AND memo_fts MATCH ?
 ORDER BY rank, memo.entry_date DESC, memo.created_at DESC, memo.id DESC
 LIMIT ?`
@@ -244,14 +263,14 @@ LIMIT ?`
 	return scanMemos(rows)
 }
 
-func (s *Store) searchMemosLike(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*Memo, error) {
+func (s *Store) searchMemosLike(ctx context.Context, accountID, query string, archived, favorited *bool, limit int) ([]*Memo, error) {
 	like := "%" + escapeLike(query) + "%"
 	sqlQuery := `
 SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
-  memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
+  memo.favorited_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
 FROM memo
 LEFT JOIN memo_ai ON memo_ai.memo_id = memo.id AND memo_ai.deleted_at IS NULL
-WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoArchivedSearchClause(archived) + `
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoStateFilterClause("memo.", archived, favorited) + `
   AND (memo.content LIKE ? ESCAPE '\' OR memo_ai.summary LIKE ? ESCAPE '\')
 ORDER BY memo.entry_date DESC, memo.created_at DESC, memo.id DESC
 LIMIT ?`
@@ -263,14 +282,23 @@ LIMIT ?`
 	return scanMemos(rows)
 }
 
-func memoArchivedSearchClause(archived *bool) string {
-	if archived == nil {
-		return ""
+func memoStateFilterClause(prefix string, archived, favorited *bool) string {
+	clause := ""
+	if archived != nil {
+		if *archived {
+			clause += " AND " + prefix + "archived_at IS NOT NULL"
+		} else {
+			clause += " AND " + prefix + "archived_at IS NULL"
+		}
 	}
-	if *archived {
-		return " AND memo.archived_at IS NOT NULL"
+	if favorited != nil {
+		if *favorited {
+			clause += " AND " + prefix + "favorited_at IS NOT NULL"
+		} else {
+			clause += " AND " + prefix + "favorited_at IS NULL"
+		}
 	}
-	return " AND memo.archived_at IS NULL"
+	return clause
 }
 
 func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, error) {
@@ -293,12 +321,12 @@ func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, erro
 	if update.EntryDate != nil {
 		entryDate = *update.EntryDate
 	}
-	pinnedAt := current.PinnedAt
-	if update.Pinned != nil {
-		if *update.Pinned {
-			pinnedAt = sql.NullInt64{Int64: time.Now().UTC().UnixMilli(), Valid: true}
+	favoritedAt := current.FavoritedAt
+	if update.Favorited != nil {
+		if *update.Favorited {
+			favoritedAt = sql.NullInt64{Int64: time.Now().UTC().UnixMilli(), Valid: true}
 		} else {
-			pinnedAt = sql.NullInt64{}
+			favoritedAt = sql.NullInt64{}
 		}
 	}
 	archivedAt := current.ArchivedAt
@@ -325,12 +353,12 @@ func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, erro
 	// changes WHERE version, leaving RowsAffected == 0 instead of clobbering it.
 	result, err := s.driver.GetDB().ExecContext(ctx, `
 UPDATE memo
-SET content = ?, entry_date = ?, version = ?, pinned_at = ?, archived_at = ?, deleted_at = ?, updated_at = ?
+SET content = ?, entry_date = ?, version = ?, favorited_at = ?, archived_at = ?, deleted_at = ?, updated_at = ?
 WHERE id = ? AND creator_id = ? AND version = ?`,
 		content,
 		entryDate,
 		newVersion,
-		nullableInt(pinnedAt),
+		nullableInt(favoritedAt),
 		nullableInt(archivedAt),
 		nullableInt(deletedAt),
 		now,
@@ -367,7 +395,7 @@ func scanMemo(row interface {
 		&memo.Content,
 		&memo.EntryDate,
 		&memo.Version,
-		&memo.PinnedAt,
+		&memo.FavoritedAt,
 		&memo.ArchivedAt,
 		&memo.CreatedAt,
 		&memo.UpdatedAt,

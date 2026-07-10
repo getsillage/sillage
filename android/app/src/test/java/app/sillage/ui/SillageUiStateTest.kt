@@ -1,6 +1,9 @@
 package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
+import app.sillage.data.Memo
+import app.sillage.data.MemoDetail
+import app.sillage.data.MemoListFilter
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -77,12 +80,197 @@ class SillageUiStateTest {
         )
 
         assertEquals("cursor-1", request.cursor)
+        assertEquals(MemoListFilter.Unarchived, request.filter)
         assertEquals(null, pending.nextMemoPageRequest())
         assertTrue(pending.canApplyMemoPage(request))
         assertFalse(pending.copy(memoNextCursor = "cursor-2").canApplyMemoPage(request))
         assertFalse(pending.copy(memoPageRequestId = request.requestId + 1).canApplyMemoPage(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyMemoPage(request))
+        assertFalse(pending.copy(memoListFilter = MemoListFilter.Archived).canApplyMemoPage(request))
+        assertFalse(pending.copy(memoCacheGeneration = 1).canApplyMemoPage(request))
         assertFalse(pending.copy(loadingMoreMemos = false).canApplyMemoPage(request))
+    }
+
+    @Test
+    fun canonicalMemoInvalidatesEarlierRefreshAndSearchRequests() {
+        val original = memo()
+        val pending = editorState().copy(
+            screen = Screen.Memos,
+            appMode = SessionStore.MODE_ONLINE,
+            memos = listOf(original),
+            searchQuery = "记录",
+            searchResults = listOf(original),
+            searching = true,
+        )
+        val refresh = pending.memoRefreshRequest()
+        val search = requireNotNull(pending.memoSearchRequest())
+
+        assertTrue(pending.canApplyMemoRefresh(refresh))
+        assertTrue(pending.canApplyMemoSearch(search))
+
+        val canonical = original.copy(
+            version = 2,
+            updatedAt = "2026-07-10T02:00:00Z",
+            favoritedAt = "2026-07-10T02:00:00Z",
+        )
+        val updated = pending.applyMemoToCache(canonical)
+
+        assertEquals(1L, updated.memoCacheGeneration)
+        assertFalse(updated.canApplyMemoRefresh(refresh))
+        assertFalse(updated.canApplyMemoSearch(search))
+        assertTrue(updated.memos.isEmpty())
+        assertEquals(emptyList<Memo>(), updated.searchResults)
+        assertFalse(updated.searching)
+    }
+
+    @Test
+    fun lateMemoDetailDoesNotOverwriteCanonicalMutationAndStopsLoading() {
+        val original = memo()
+        val initial = editorState().copy(
+            screen = Screen.MemoDetail,
+            appMode = SessionStore.MODE_ONLINE,
+            memos = listOf(original),
+            selectedMemo = original,
+            summaryLoading = true,
+        )
+        val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
+        val pending = initial.startMemoDetailRequest(request)
+        val canonical = original.copy(
+            version = 2,
+            updatedAt = "2026-07-10T02:00:00Z",
+            favoritedAt = "2026-07-10T02:00:00Z",
+        )
+        val mutated = pending.applyMemoToCache(canonical)
+
+        val completed = mutated.completeMemoDetailRequest(
+            request,
+            MemoDetail(memo = original, ai = null),
+        )
+
+        assertEquals(canonical, completed.selectedMemo)
+        assertTrue(completed.memos.isEmpty())
+        assertEquals(mutated.memoCacheGeneration, completed.memoCacheGeneration)
+        assertFalse(completed.summaryLoading)
+    }
+
+    @Test
+    fun currentMemoDetailAppliesMemoAndSummaryInOneStateTransition() {
+        val original = memo()
+        val initial = editorState().copy(
+            screen = Screen.MemoDetail,
+            appMode = SessionStore.MODE_ONLINE,
+            memos = listOf(original),
+            selectedMemo = original,
+        )
+        val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
+        val pending = initial.startMemoDetailRequest(request)
+        val canonical = original.copy(
+            version = 2,
+            updatedAt = "2026-07-10T02:00:00Z",
+            archivedAt = "2026-07-10T02:00:00Z",
+        )
+
+        val completed = pending.completeMemoDetailRequest(
+            request,
+            MemoDetail(memo = canonical, ai = null),
+        )
+
+        assertEquals(canonical, completed.selectedMemo)
+        assertTrue(completed.memos.isEmpty())
+        assertEquals(pending.memoCacheGeneration + 1, completed.memoCacheGeneration)
+        assertFalse(completed.summaryLoading)
+    }
+
+    @Test
+    fun supersededMemoDetailFailureOnlyStopsItsLoadingState() {
+        val original = memo()
+        val initial = editorState().copy(
+            screen = Screen.MemoDetail,
+            appMode = SessionStore.MODE_ONLINE,
+            selectedMemo = original,
+        )
+        val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
+        val pending = initial.startMemoDetailRequest(request)
+        val canonical = original.copy(
+            version = 2,
+            updatedAt = "2026-07-10T02:00:00Z",
+            favoritedAt = "2026-07-10T02:00:00Z",
+        )
+        val mutated = pending.applyMemoToCache(canonical)
+
+        val failed = mutated.failMemoDetailRequest(request, "旧请求失败")
+
+        assertEquals(canonical, failed.selectedMemo)
+        assertEquals(null, failed.error)
+        assertFalse(failed.summaryLoading)
+    }
+
+    @Test
+    fun searchFailureKeepsLoadedResultsAndCanBeRetried() {
+        val loaded = listOf(memo())
+        val pending = editorState().copy(
+            screen = Screen.Memos,
+            searchQuery = "记录",
+            searchResults = loaded,
+            searching = true,
+        )
+        val request = requireNotNull(pending.memoSearchRequest())
+
+        val failed = pending.failMemoSearch(request, "网络错误")
+
+        assertEquals(loaded, failed.searchResults)
+        assertFalse(failed.searching)
+        assertEquals("网络错误", failed.error)
+        assertEquals(request, failed.memoSearchRequest())
+        assertFalse(failed.canApplyMemoSearch(request))
+    }
+
+    @Test
+    fun failedSearchWithPreviousEmptyResultsUsesFailureState() {
+        val failed = editorState().copy(
+            screen = Screen.Memos,
+            searchQuery = "新查询",
+            searchResults = emptyList(),
+            searching = false,
+            error = "网络错误",
+        )
+
+        assertTrue(failed.shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(error = null).shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(searching = true).shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(searchResults = listOf(memo())).shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(searchQuery = "").shouldShowMemoSearchFailure())
+    }
+
+    @Test
+    fun memoListFiltersMapToMutuallyExclusiveApiQueries() {
+        assertEquals(
+            MemoApiQuery(archived = false, favorited = false),
+            MemoListFilter.Unarchived.apiQuery(),
+        )
+        assertEquals(
+            MemoApiQuery(archived = true, favorited = false),
+            MemoListFilter.Archived.apiQuery(),
+        )
+        assertEquals(
+            MemoApiQuery(archived = null, favorited = true),
+            MemoListFilter.Favorited.apiQuery(),
+        )
+    }
+
+    @Test
+    fun failedEmptyMemoLoadUsesFailureStateInsteadOfBusinessEmptyState() {
+        val failed = editorState().copy(
+            screen = Screen.Memos,
+            memos = emptyList(),
+            memoListLoadStatus = MemoListLoadStatus.Failed,
+        )
+
+        assertTrue(failed.shouldShowMemoListLoadFailure())
+        assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Loading).shouldShowMemoListLoadFailure())
+        assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Idle).shouldShowMemoListLoadFailure())
+        assertFalse(failed.copy(memos = listOf(memo())).shouldShowMemoListLoadFailure())
+        assertFalse(failed.copy(searchResults = emptyList()).shouldShowMemoListLoadFailure())
     }
 
     @Test
@@ -280,6 +468,20 @@ class SillageUiStateTest {
             draftEntryDate = draftEntryDate,
             initialDraftContent = initialDraftContent,
             initialDraftEntryDate = initialDraftEntryDate,
+        )
+    }
+
+    private fun memo(): Memo {
+        return Memo(
+            id = "memo-1",
+            content = "记录",
+            entryDate = "2026-07-10",
+            version = 1,
+            createdAt = "2026-07-10T01:00:00Z",
+            updatedAt = "2026-07-10T01:00:00Z",
+            favoritedAt = null,
+            archivedAt = null,
+            deletedAt = null,
         )
     }
 }

@@ -5,25 +5,71 @@ import org.junit.Test
 
 class MemoFiltersTest {
     @Test
-    fun sortMemosPinsFirstThenNewestEntryDate() {
-        val oldPinned = memo(id = "old-pinned", entryDate = "2024-01-01", pinnedAt = "2024-01-04T00:00:00Z")
+    fun sortMemosUsesNewestEntryDateWithoutPrioritizingFavorites() {
+        val oldFavorite = memo(
+            id = "old-favorite",
+            entryDate = "2024-01-01",
+            favoritedAt = "2024-01-04T00:00:00Z",
+        )
         val newest = memo(id = "newest", entryDate = "2024-01-03")
         val older = memo(id = "older", entryDate = "2024-01-02")
 
-        val sorted = sortMemos(listOf(older, newest, oldPinned))
+        val sorted = sortMemos(listOf(older, newest, oldFavorite))
 
-        assertEquals(listOf("old-pinned", "newest", "older"), sorted.map { it.id })
+        assertEquals(listOf("newest", "older", "old-favorite"), sorted.map { it.id })
     }
 
     @Test
-    fun activeMemosExcludesArchivedAndDeletedEntries() {
+    fun activeMemosExcludesArchivedFavoritedAndDeletedEntries() {
         val active = memo(id = "active")
         val archived = memo(id = "archived", archivedAt = "2024-01-02T00:00:00Z")
+        val favorited = memo(id = "favorited", favoritedAt = "2024-01-02T00:00:00Z")
         val deleted = memo(id = "deleted", deletedAt = "2024-01-03T00:00:00Z")
 
-        val filtered = activeMemos(listOf(archived, deleted, active))
+        val filtered = activeMemos(listOf(archived, favorited, deleted, active))
 
         assertEquals(listOf("active"), filtered.map { it.id })
+    }
+
+    @Test
+    fun memoListFiltersAreMutuallyExclusiveAndFavoritesIncludeArchivedRecords() {
+        val unarchived = memo(id = "unarchived", entryDate = "2024-01-01")
+        val archived = memo(
+            id = "archived",
+            entryDate = "2024-01-02",
+            archivedAt = "2024-01-03T00:00:00Z",
+        )
+        val favorited = memo(
+            id = "favorited",
+            entryDate = "2024-01-03",
+            favoritedAt = "2024-01-04T00:00:00Z",
+        )
+        val archivedFavorite = memo(
+            id = "archived-favorite",
+            entryDate = "2024-01-04",
+            favoritedAt = "2024-01-05T00:00:00Z",
+            archivedAt = "2024-01-05T00:00:00Z",
+        )
+        val deletedFavorite = memo(
+            id = "deleted-favorite",
+            entryDate = "2024-01-05",
+            favoritedAt = "2024-01-06T00:00:00Z",
+            deletedAt = "2024-01-06T00:00:00Z",
+        )
+        val memos = listOf(unarchived, archived, favorited, archivedFavorite, deletedFavorite)
+
+        assertEquals(
+            listOf("unarchived"),
+            memosForFilter(memos, MemoListFilter.Unarchived).map { it.id },
+        )
+        assertEquals(
+            listOf("archived"),
+            memosForFilter(memos, MemoListFilter.Archived).map { it.id },
+        )
+        assertEquals(
+            listOf("archived-favorite", "favorited"),
+            memosForFilter(memos, MemoListFilter.Favorited).map { it.id },
+        )
     }
 
     @Test
@@ -44,8 +90,12 @@ class MemoFiltersTest {
         val today = memo(id = "today", entryDate = "2026-06-27")
         val otherDay = memo(id = "other-day", entryDate = "2025-06-26")
         val archived = memo(id = "archived", entryDate = "2023-06-27", archivedAt = "x")
+        val favorited = memo(id = "favorited", entryDate = "2022-06-27", favoritedAt = "x")
 
-        val memories = onThisDay(listOf(older, today, newest, archived, otherDay), "2026-06-27")
+        val memories = onThisDay(
+            listOf(older, today, newest, archived, favorited, otherDay),
+            "2026-06-27",
+        )
 
         assertEquals(listOf("newest", "older"), memories.map { it.id })
     }
@@ -55,9 +105,10 @@ class MemoFiltersTest {
         val first = memo(id = "first", entryDate = "2026-06-27", createdAt = "2026-06-27T00:00:00Z")
         val second = memo(id = "second", entryDate = "2026-06-27", createdAt = "2026-06-27T00:01:00Z")
         val archived = memo(id = "archived", entryDate = "2026-06-27", archivedAt = "x")
+        val favorited = memo(id = "favorited", entryDate = "2026-06-27", favoritedAt = "x")
         val other = memo(id = "other", entryDate = "2026-06-28")
 
-        val memos = listOf(first, second, archived, other)
+        val memos = listOf(first, second, archived, favorited, other)
 
         assertEquals(2, entryDateCounts(memos)["2026-06-27"])
         assertEquals(listOf("second", "first"), entriesByDate(memos, "2026-06-27").map { it.id })
@@ -325,7 +376,7 @@ class MemoFiltersTest {
         createdAt: String = "${entryDate}T00:00:00Z",
         updatedAt: String = "${entryDate}T00:00:00Z",
         version: Long = 1,
-        pinnedAt: String? = null,
+        favoritedAt: String? = null,
         archivedAt: String? = null,
         deletedAt: String? = null,
     ): Memo {
@@ -336,7 +387,7 @@ class MemoFiltersTest {
             version = version,
             createdAt = createdAt,
             updatedAt = updatedAt,
-            pinnedAt = pinnedAt,
+            favoritedAt = favoritedAt,
             archivedAt = archivedAt,
             deletedAt = deletedAt,
         )

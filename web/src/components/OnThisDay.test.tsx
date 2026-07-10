@@ -10,7 +10,7 @@ function memo(overrides: Partial<Memo> = {}): Memo {
     content: "去年的记录内容",
     entryDate: "2025-06-27",
     version: 1,
-    pinnedAt: null,
+    favoritedAt: null,
     archivedAt: null,
     createdAt: "2025-06-27T08:00:00Z",
     updatedAt: "2025-06-27T08:00:00Z",

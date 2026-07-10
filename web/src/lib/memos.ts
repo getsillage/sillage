@@ -6,15 +6,9 @@ export function excerpt(body: string, max = 120): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-/** Pinned first, then by entry date desc, then created desc — matches server order. */
+/** Entry date desc, then creation time desc — matches server order. */
 export function sortMemos(memos: readonly Memo[]): Memo[] {
   return [...memos].sort((a, b) => {
-    if (a.pinnedAt && !b.pinnedAt) {
-      return -1;
-    }
-    if (!a.pinnedAt && b.pinnedAt) {
-      return 1;
-    }
     if (a.entryDate !== b.entryDate) {
       return b.entryDate.localeCompare(a.entryDate);
     }
@@ -39,9 +33,9 @@ export function mergeMemos(
   return sortMemos([...byId.values()]);
 }
 
-/** Active = not archived and not soft-deleted. */
+/** Active = neither archived nor favorited, and not soft-deleted. */
 export function isActive(memo: Memo): boolean {
-  return !memo.archivedAt && !memo.deletedAt;
+  return !memo.archivedAt && !memo.favoritedAt && !memo.deletedAt;
 }
 
 /** Memos written on this same month/day in earlier years, newest year first. */

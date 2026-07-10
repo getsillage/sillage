@@ -113,12 +113,12 @@ type Memo struct {
 	// version is bumped on every content/state mutation and drives optimistic
 	// concurrency: writes carry the expected_version they read.
 	Version      int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
-	PinnedTime   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pinned_time,json=pinnedTime,proto3" json:"pinned_time,omitempty"`
 	ArchivedTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=archived_time,json=archivedTime,proto3" json:"archived_time,omitempty"`
 	CreatedTime  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
 	UpdatedTime  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
 	// deleted_time set => the memo is tombstoned (soft-deleted).
 	DeletedTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
+	FavoritedTime *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=favorited_time,json=favoritedAt,proto3" json:"favorited_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,13 +181,6 @@ func (x *Memo) GetVersion() int64 {
 	return 0
 }
 
-func (x *Memo) GetPinnedTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.PinnedTime
-	}
-	return nil
-}
-
 func (x *Memo) GetArchivedTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ArchivedTime
@@ -212,6 +205,13 @@ func (x *Memo) GetUpdatedTime() *timestamppb.Timestamp {
 func (x *Memo) GetDeletedTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.DeletedTime
+	}
+	return nil
+}
+
+func (x *Memo) GetFavoritedTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FavoritedTime
 	}
 	return nil
 }
@@ -1044,19 +1044,19 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12=\n" +
 	"\fcreated_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
-	"\fupdated_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xa4\x03\n" +
+	"\fupdated_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xbb\x03\n" +
 	"\x04Memo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
 	"entry_date\x18\x03 \x01(\tR\tentryDate\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\x03R\aversion\x12;\n" +
-	"\vpinned_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"pinnedTime\x12?\n" +
+	"\aversion\x18\x04 \x01(\x03R\aversion\x12?\n" +
 	"\rarchived_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\farchivedTime\x12=\n" +
 	"\fcreated_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
 	"\fupdated_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12=\n" +
-	"\fdeleted_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\"\xc7\x03\n" +
+	"\fdeleted_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\x12?\n" +
+	"\x0efavorited_time\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\vfavoritedAtJ\x04\b\x05\x10\x06R\vpinned_time\"\xc7\x03\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
@@ -1177,11 +1177,11 @@ var file_api_v1_common_proto_goTypes = []any{
 var file_api_v1_common_proto_depIdxs = []int32{
 	8,  // 0: sillage.api.v1.Account.created_time:type_name -> google.protobuf.Timestamp
 	8,  // 1: sillage.api.v1.Account.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 2: sillage.api.v1.Memo.pinned_time:type_name -> google.protobuf.Timestamp
-	8,  // 3: sillage.api.v1.Memo.archived_time:type_name -> google.protobuf.Timestamp
-	8,  // 4: sillage.api.v1.Memo.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 5: sillage.api.v1.Memo.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 6: sillage.api.v1.Memo.deleted_time:type_name -> google.protobuf.Timestamp
+	8,  // 2: sillage.api.v1.Memo.archived_time:type_name -> google.protobuf.Timestamp
+	8,  // 3: sillage.api.v1.Memo.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 4: sillage.api.v1.Memo.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 5: sillage.api.v1.Memo.deleted_time:type_name -> google.protobuf.Timestamp
+	8,  // 6: sillage.api.v1.Memo.favorited_time:type_name -> google.protobuf.Timestamp
 	8,  // 7: sillage.api.v1.Attachment.created_time:type_name -> google.protobuf.Timestamp
 	8,  // 8: sillage.api.v1.Attachment.updated_time:type_name -> google.protobuf.Timestamp
 	8,  // 9: sillage.api.v1.Attachment.deleted_time:type_name -> google.protobuf.Timestamp

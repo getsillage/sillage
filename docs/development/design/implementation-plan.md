@@ -32,7 +32,7 @@
 - 编辑器的「取消」在草稿有变化时显示「继续编辑 / 放弃修改」确认；明确放弃会同时删除对应本地草稿。附件上传期间 `EntryComposer` 禁用保存与取消；站内导航与 `beforeunload` 同时受保护。上传完成、Markdown 已插入后才允许保存。
 - [`web/src/routes/EntryPage.tsx`](../../../web/src/routes/EntryPage.tsx) 在详情请求返回前禁用编辑与版本动作；编辑器正文和 `expectedVersion` 固定来自同一个最新详情快照，避免用缓存正文覆盖新版本。只有 404 显示记录不存在；网络或服务端错误保留已缓存正文并提供重试。首页、全部记录页筛选、日历与问答来源进入详情时通过 `returnTo` 回到原视图。
 - [`web/src/components/SettingsWorkspace.tsx`](../../../web/src/components/SettingsWorkspace.tsx) 用服务端最近一次读取或保存成功的 AI 设置生成基线指纹；偏离基线时同时启用站内导航确认与 `beforeunload`，但不把设置表单持久化为可恢复草稿。保存或删除期间通过 disabled `fieldset` 锁定 AI 表单；已有档案删除需二次点击确认，存在其他 dirty 修改时先拒绝删除并提示保存。
-- [`web/src/routes/TimelinePage.tsx`](../../../web/src/routes/TimelinePage.tsx) 的列表视图以分段控件提供「未归档 / 已归档」，置顶记录放在独立首组，其余记录按日期分组。日历进入时串行读取完整分页，显示已读取数量，失败后停下并提供重试。搜索把 `archived=true/false` 传给服务端；记录详情提供归档 / 取消归档图标动作。
+- [`web/src/routes/TimelinePage.tsx`](../../../web/src/routes/TimelinePage.tsx) 的列表视图以分段控件提供「未归档 / 已归档 / 收藏」，三类记录互斥并继续按日期分组。日历进入时串行读取完整分页，显示已读取数量，失败后停下并提供重试。列表与搜索把 `archived` / `favorited` 状态传给服务端；记录详情提供收藏 / 取消收藏与归档 / 取消归档图标动作。
 
 ### 1.5 单飞提交
 

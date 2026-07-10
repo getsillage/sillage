@@ -45,6 +45,152 @@ func TestConnectMemoServiceCreateAndList(t *testing.T) {
 	}
 }
 
+func TestConnectMemoServicePaginates(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	client := apiv1connect.NewMemoServiceClient(httpServer.Client(), httpServer.URL)
+	for _, entryDate := range []string{"2026-06-24", "2026-06-25", "2026-06-26"} {
+		req := connect.NewRequest(&apiv1.CreateMemoRequest{
+			Content:   "page " + entryDate,
+			EntryDate: entryDate,
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		if _, err := client.CreateMemo(context.Background(), req); err != nil {
+			t.Fatalf("CreateMemo(%s) error = %v", entryDate, err)
+		}
+	}
+
+	list := func(cursor string) *apiv1.ListMemosResponse {
+		t.Helper()
+		req := connect.NewRequest(&apiv1.ListMemosRequest{Limit: 2, Cursor: cursor})
+		req.Header().Set("Authorization", "Bearer "+token)
+		res, err := client.ListMemos(context.Background(), req)
+		if err != nil {
+			t.Fatalf("ListMemos(cursor=%q) error = %v", cursor, err)
+		}
+		return res.Msg
+	}
+
+	first := list("")
+	if len(first.GetMemos()) != 2 || first.GetNextCursor() == "" {
+		t.Fatalf("first page = %#v", first)
+	}
+	if first.GetMemos()[0].GetEntryDate() != "2026-06-26" || first.GetMemos()[1].GetEntryDate() != "2026-06-25" {
+		t.Fatalf("first page dates = %q, %q", first.GetMemos()[0].GetEntryDate(), first.GetMemos()[1].GetEntryDate())
+	}
+
+	second := list(first.GetNextCursor())
+	if len(second.GetMemos()) != 1 || second.GetMemos()[0].GetEntryDate() != "2026-06-24" || second.GetNextCursor() != "" {
+		t.Fatalf("second page = %#v", second)
+	}
+}
+
+func TestConnectMemoSearchFiltersArchivedBeforeLimit(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	client := apiv1connect.NewMemoServiceClient(httpServer.Client(), httpServer.URL)
+	create := func(entryDate string) *apiv1.Memo {
+		t.Helper()
+		req := connect.NewRequest(&apiv1.CreateMemoRequest{
+			Content:   "shared Connect filter content",
+			EntryDate: entryDate,
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		res, err := client.CreateMemo(context.Background(), req)
+		if err != nil {
+			t.Fatalf("CreateMemo() error = %v", err)
+		}
+		return res.Msg.GetMemo()
+	}
+
+	current := create("2026-06-27")
+	archivedMemo := create("2026-06-26")
+	archiveReq := connect.NewRequest(&apiv1.SetMemoArchivedRequest{
+		Id:              archivedMemo.GetId(),
+		ExpectedVersion: archivedMemo.GetVersion(),
+		Archived:        true,
+	})
+	archiveReq.Header().Set("Authorization", "Bearer "+token)
+	if _, err := client.SetMemoArchived(context.Background(), archiveReq); err != nil {
+		t.Fatalf("SetMemoArchived() error = %v", err)
+	}
+
+	assertSearchID := func(archived bool, wantID string) {
+		t.Helper()
+		req := connect.NewRequest(&apiv1.ListMemosRequest{
+			Limit:    1,
+			Query:    "Connect",
+			Archived: &archived,
+			Cursor:   "ignored-for-search",
+		})
+		req.Header().Set("Authorization", "Bearer "+token)
+		res, err := client.ListMemos(context.Background(), req)
+		if err != nil {
+			t.Fatalf("ListMemos(archived=%t) error = %v", archived, err)
+		}
+		if len(res.Msg.GetMemos()) != 1 || res.Msg.GetMemos()[0].GetId() != wantID {
+			t.Fatalf("ListMemos(archived=%t) = %#v, want %s", archived, res.Msg.GetMemos(), wantID)
+		}
+		if res.Msg.GetNextCursor() != "" {
+			t.Fatalf("search next cursor = %q, want empty", res.Msg.GetNextCursor())
+		}
+	}
+
+	assertSearchID(true, archivedMemo.GetId())
+	assertSearchID(false, current.GetId())
+}
+
+func TestConnectMemoMutationRequiresExpectedVersion(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	httpServer := httptest.NewServer(srv)
+	t.Cleanup(httpServer.Close)
+
+	client := apiv1connect.NewMemoServiceClient(httpServer.Client(), httpServer.URL)
+	createReq := connect.NewRequest(&apiv1.CreateMemoRequest{
+		Content:   "version guarded Connect memo",
+		EntryDate: "2026-06-26",
+	})
+	createReq.Header().Set("Authorization", "Bearer "+token)
+	createRes, err := client.CreateMemo(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("CreateMemo() error = %v", err)
+	}
+
+	updateReq := connect.NewRequest(&apiv1.SetMemoPinnedRequest{
+		Id:     createRes.Msg.GetMemo().GetId(),
+		Pinned: true,
+	})
+	updateReq.Header().Set("Authorization", "Bearer "+token)
+	_, err = client.SetMemoPinned(context.Background(), updateReq)
+	if err == nil {
+		t.Fatal("SetMemoPinned() error = nil, want invalid argument")
+	}
+	connectErr := new(connect.Error)
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("SetMemoPinned() error = %v, want invalid argument", err)
+	}
+	if !strings.Contains(connectErr.Message(), "expectedVersion") {
+		t.Fatalf("SetMemoPinned() message = %q", connectErr.Message())
+	}
+
+	getReq := connect.NewRequest(&apiv1.GetMemoRequest{Id: createRes.Msg.GetMemo().GetId()})
+	getReq.Header().Set("Authorization", "Bearer "+token)
+	getRes, err := client.GetMemo(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("GetMemo() error = %v", err)
+	}
+	if getRes.Msg.GetMemo().GetVersion() != 1 || getRes.Msg.GetMemo().GetPinnedTime() != nil {
+		t.Fatalf("memo changed after rejected mutation: %#v", getRes.Msg.GetMemo())
+	}
+}
+
 func TestConnectMemoServiceRequiresAuth(t *testing.T) {
 	srv := newTestServer(t)
 	httpServer := httptest.NewServer(srv)

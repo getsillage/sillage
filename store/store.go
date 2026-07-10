@@ -12,6 +12,9 @@ type Store struct {
 	profile *profile.Profile
 }
 
+// MaxSyncPageLimit caps each resource stream returned by one sync pull.
+const MaxSyncPageLimit = 200
+
 func New(driver Driver, profile *profile.Profile) *Store {
 	return &Store{driver: driver, profile: profile}
 }
@@ -34,4 +37,8 @@ func (s *Store) Ready(ctx context.Context) error {
 
 func (s *Store) Close() error {
 	return s.driver.Close()
+}
+
+func isPageLookahead(limit, pageSize, maxPageSize int) bool {
+	return pageSize > 0 && pageSize <= maxPageSize && limit == pageSize+1
 }

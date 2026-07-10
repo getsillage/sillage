@@ -25,19 +25,24 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	}
 	limit := int(req.Msg.GetLimit())
 	var memos []*store.Memo
+	var nextCursor string
 	if query := req.Msg.GetQuery(); query != "" {
-		memos, err = s.server.searchMemos(ctx, account.ID, query, limit)
+		memos, err = s.server.searchMemos(ctx, account.ID, query, req.Msg.Archived, limit)
 	} else {
 		var page *memoListPage
-		page, err = s.server.listMemos(ctx, account.ID, limit, "")
+		page, err = s.server.listMemos(ctx, account.ID, limit, req.Msg.GetCursor())
 		if page != nil {
 			memos = page.Memos
+			nextCursor = page.NextCursor
 		}
 	}
 	if err != nil {
 		return nil, connectError(err)
 	}
-	res := &apiv1.ListMemosResponse{Memos: make([]*apiv1.Memo, 0, len(memos))}
+	res := &apiv1.ListMemosResponse{
+		Memos:      make([]*apiv1.Memo, 0, len(memos)),
+		NextCursor: nextCursor,
+	}
 	for _, memo := range memos {
 		res.Memos = append(res.Memos, memoPB(memo))
 	}

@@ -105,18 +105,21 @@ WHERE id = ? AND creator_id = ?`
 }
 
 type ListMemoOptions struct {
-	AccountID      string
-	Limit          int
-	IncludeDeleted bool
+	AccountID string
+	Limit     int
+	// LookaheadPageSize permits exactly one extra internal row for has-more
+	// detection without raising the public page limit.
+	LookaheadPageSize int
+	IncludeDeleted    bool
 	// Sync selects the forward updated_at walk (oldest first) used by sync pull
-	// and the Ask candidate scan. Without it, listing is reverse-chronological
-	// by entry date — what the timeline and home screens actually want.
+	// and the Ask candidate scan. Without it, listing is pinned-first and then
+	// reverse-chronological by entry date.
 	Sync           bool
 	UpdatedAfter   int64
 	UpdatedAfterID string
-	// Reverse-chronological keyset cursor for "load older" pages. BeforeID being
-	// set activates the predicate; the three fields together identify the last
-	// row of the previous page.
+	// Pinned-first keyset cursor for "load older" pages. BeforePinned is nil for
+	// legacy cursors, which retain the old date-tuple-only predicate.
+	BeforePinned    *bool
 	BeforeEntryDate string
 	BeforeCreatedAt int64
 	BeforeID        string
@@ -130,6 +133,7 @@ type SearchMemoOptions struct {
 	AccountID string
 	Query     string
 	Limit     int
+	Archived  *bool
 }
 
 func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, error) {
@@ -137,7 +141,7 @@ func (s *Store) ListMemos(ctx context.Context, opts *ListMemoOptions) ([]*Memo, 
 	if limit <= 0 {
 		limit = 50
 	}
-	if limit > MaxMemoListLimit {
+	if limit > MaxMemoListLimit && !isPageLookahead(limit, opts.LookaheadPageSize, MaxMemoListLimit) {
 		limit = MaxMemoListLimit
 	}
 	query := `
@@ -156,16 +160,38 @@ WHERE creator_id = ?`
 		query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
 	} else {
 		if opts.BeforeID != "" {
-			query += ` AND (entry_date < ?
-  OR (entry_date = ? AND created_at < ?)
-  OR (entry_date = ? AND created_at = ? AND id < ?))`
-			args = append(args,
-				opts.BeforeEntryDate,
-				opts.BeforeEntryDate, opts.BeforeCreatedAt,
-				opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
-			)
+			if opts.BeforePinned != nil {
+				beforePinned := 0
+				if *opts.BeforePinned {
+					beforePinned = 1
+				}
+				query += ` AND (
+  CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END < ?
+  OR (CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END = ? AND (
+    entry_date < ?
+	OR (entry_date = ? AND created_at < ?)
+	OR (entry_date = ? AND created_at = ? AND id < ?)
+  ))
+)`
+				args = append(args,
+					beforePinned, beforePinned,
+					opts.BeforeEntryDate,
+					opts.BeforeEntryDate, opts.BeforeCreatedAt,
+					opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
+				)
+			} else {
+				query += ` AND (entry_date < ?
+	  OR (entry_date = ? AND created_at < ?)
+	  OR (entry_date = ? AND created_at = ? AND id < ?))`
+				args = append(args,
+					opts.BeforeEntryDate,
+					opts.BeforeEntryDate, opts.BeforeCreatedAt,
+					opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
+				)
+			}
 		}
-		query += " ORDER BY entry_date DESC, created_at DESC, id DESC LIMIT ?"
+		query += ` ORDER BY CASE WHEN pinned_at IS NOT NULL THEN 1 ELSE 0 END DESC,
+  entry_date DESC, created_at DESC, id DESC LIMIT ?`
 	}
 	args = append(args, limit)
 
@@ -186,11 +212,11 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, limit)
+	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, opts.Archived, limit)
 	if err == nil && len(memos) > 0 {
 		return memos, nil
 	}
-	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, limit)
+	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, opts.Archived, limit)
 	if fallbackErr != nil {
 		if err != nil {
 			return nil, err
@@ -200,15 +226,17 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 	return fallback, nil
 }
 
-func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, limit int) ([]*Memo, error) {
-	rows, err := s.driver.GetDB().QueryContext(ctx, `
+func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*Memo, error) {
+	sqlQuery := `
 SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
   memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
 FROM memo_fts
 JOIN memo ON memo.id = memo_fts.memo_id
-WHERE memo.creator_id = ? AND memo.deleted_at IS NULL AND memo_fts MATCH ?
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoArchivedSearchClause(archived) + `
+  AND memo_fts MATCH ?
 ORDER BY rank, memo.entry_date DESC, memo.created_at DESC, memo.id DESC
-LIMIT ?`, accountID, ftsQuery(query), limit)
+LIMIT ?`
+	rows, err := s.driver.GetDB().QueryContext(ctx, sqlQuery, accountID, ftsQuery(query), limit)
 	if err != nil {
 		return nil, fmt.Errorf("search memos fts: %w", err)
 	}
@@ -216,22 +244,33 @@ LIMIT ?`, accountID, ftsQuery(query), limit)
 	return scanMemos(rows)
 }
 
-func (s *Store) searchMemosLike(ctx context.Context, accountID, query string, limit int) ([]*Memo, error) {
+func (s *Store) searchMemosLike(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*Memo, error) {
 	like := "%" + escapeLike(query) + "%"
-	rows, err := s.driver.GetDB().QueryContext(ctx, `
+	sqlQuery := `
 SELECT memo.id, memo.creator_id, memo.content, memo.entry_date, memo.version,
   memo.pinned_at, memo.archived_at, memo.created_at, memo.updated_at, memo.deleted_at
 FROM memo
 LEFT JOIN memo_ai ON memo_ai.memo_id = memo.id AND memo_ai.deleted_at IS NULL
-WHERE memo.creator_id = ? AND memo.deleted_at IS NULL
+WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoArchivedSearchClause(archived) + `
   AND (memo.content LIKE ? ESCAPE '\' OR memo_ai.summary LIKE ? ESCAPE '\')
 ORDER BY memo.entry_date DESC, memo.created_at DESC, memo.id DESC
-LIMIT ?`, accountID, like, like, limit)
+LIMIT ?`
+	rows, err := s.driver.GetDB().QueryContext(ctx, sqlQuery, accountID, like, like, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search memos like: %w", err)
 	}
 	defer rows.Close()
 	return scanMemos(rows)
+}
+
+func memoArchivedSearchClause(archived *bool) string {
+	if archived == nil {
+		return ""
+	}
+	if *archived {
+		return " AND memo.archived_at IS NOT NULL"
+	}
+	return " AND memo.archived_at IS NULL"
 }
 
 func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, error) {

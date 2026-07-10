@@ -181,10 +181,11 @@ ORDER BY created_at ASC, id ASC`, conversationID)
 }
 
 type ListAskSyncOptions struct {
-	AccountID      string
-	Limit          int
-	UpdatedAfter   int64
-	UpdatedAfterID string
+	AccountID         string
+	Limit             int
+	LookaheadPageSize int
+	UpdatedAfter      int64
+	UpdatedAfterID    string
 }
 
 func (s *Store) ListAskConversationsForSync(ctx context.Context, opts *ListAskSyncOptions) ([]*AskConversation, error) {
@@ -193,7 +194,7 @@ func (s *Store) ListAskConversationsForSync(ctx context.Context, opts *ListAskSy
 
 func (s *Store) ListAskMessagesForSync(ctx context.Context, opts *ListAskSyncOptions) ([]*AskMessage, error) {
 	limit := opts.Limit
-	if limit <= 0 || limit > 200 {
+	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
 		limit = 50
 	}
 	query := askMessageSelect() + `
@@ -224,7 +225,7 @@ WHERE ask_conversations.creator_id = ?`
 
 func (s *Store) listAskConversationsByUpdated(ctx context.Context, opts *ListAskSyncOptions) ([]*AskConversation, error) {
 	limit := opts.Limit
-	if limit <= 0 || limit > 200 {
+	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
 		limit = 50
 	}
 	query := askConversationSelect() + " WHERE creator_id = ?"

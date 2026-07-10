@@ -5,9 +5,11 @@ package sillage.api.v1;
 import "api/v1/common.proto";
 import "google/api/annotations.proto";
 
-// MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
-// carries expected_version for optimistic concurrency; a stale version is
-// rejected as a conflict (HTTP 409 / Connect Aborted).
+// MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
+// pinning, and archiving carry expected_version for optimistic concurrency; a
+// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// Creation is idempotent by caller-supplied id, while summary generation only
+// writes derived AI data and therefore does not carry expected_version.
 service MemoService {
   rpc ListMemos(ListMemosRequest) returns (ListMemosResponse) {
     option (google.api.http) = {get: "/api/v1/memos"};
@@ -62,10 +64,20 @@ message ListMemosRequest {
   // query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
   // instead of returning the recent list.
   string query = 2;
+  // archived filters search results before limit is applied. It is ignored
+  // when query is empty; when unset, search includes both current and archived
+  // memos for backward compatibility.
+  optional bool archived = 3;
+  // cursor continues the pinned-first recent list; each pinned bucket remains
+  // reverse-chronological. Search requests ignore it because search results are
+  // not paginated.
+  string cursor = 4;
 }
 
 message ListMemosResponse {
   repeated Memo memos = 1;
+  // next_cursor is empty when the recent list is exhausted and for searches.
+  string next_cursor = 2;
 }
 
 message CreateMemoRequest {

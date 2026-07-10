@@ -27,7 +27,15 @@ type ListMemosRequest struct {
 	Limit int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// query, when non-empty, runs a full-text search (FTS5 with a LIKE fallback)
 	// instead of returning the recent list.
-	Query         string `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Query string `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	// archived filters search results before limit is applied. It is ignored
+	// when query is empty; when unset, search includes both current and archived
+	// memos for backward compatibility.
+	Archived *bool `protobuf:"varint,3,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	// cursor continues the pinned-first recent list; each pinned bucket remains
+	// reverse-chronological. Search requests ignore it because search results are
+	// not paginated.
+	Cursor        string `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,9 +84,25 @@ func (x *ListMemosRequest) GetQuery() string {
 	return ""
 }
 
+func (x *ListMemosRequest) GetArchived() bool {
+	if x != nil && x.Archived != nil {
+		return *x.Archived
+	}
+	return false
+}
+
+func (x *ListMemosRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 type ListMemosResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Memos         []*Memo                `protobuf:"bytes,1,rep,name=memos,proto3" json:"memos,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Memos []*Memo                `protobuf:"bytes,1,rep,name=memos,proto3" json:"memos,omitempty"`
+	// next_cursor is empty when the recent list is exhausted and for searches.
+	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -118,6 +142,13 @@ func (x *ListMemosResponse) GetMemos() []*Memo {
 		return x.Memos
 	}
 	return nil
+}
+
+func (x *ListMemosResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
 }
 
 type CreateMemoRequest struct {
@@ -629,12 +660,17 @@ var File_api_v1_memo_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\">\n" +
+	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\x84\x01\n" +
 	"\x10ListMemosRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
-	"\x05query\x18\x02 \x01(\tR\x05query\"?\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\x12\x1f\n" +
+	"\barchived\x18\x03 \x01(\bH\x00R\barchived\x88\x01\x01\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursorB\v\n" +
+	"\t_archived\"`\n" +
 	"\x11ListMemosResponse\x12*\n" +
-	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\"\\\n" +
+	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\\\n" +
 	"\x11CreateMemoRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
@@ -749,6 +785,7 @@ func file_api_v1_memo_service_proto_init() {
 		return
 	}
 	file_api_v1_common_proto_init()
+	file_api_v1_memo_service_proto_msgTypes[0].OneofWrappers = []any{}
 	file_api_v1_memo_service_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

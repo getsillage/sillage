@@ -33,9 +33,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
-// carries expected_version for optimistic concurrency; a stale version is
-// rejected as a conflict (HTTP 409 / Connect Aborted).
+// MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
+// pinning, and archiving carry expected_version for optimistic concurrency; a
+// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// Creation is idempotent by caller-supplied id, while summary generation only
+// writes derived AI data and therefore does not carry expected_version.
 type MemoServiceClient interface {
 	ListMemos(ctx context.Context, in *ListMemosRequest, opts ...grpc.CallOption) (*ListMemosResponse, error)
 	CreateMemo(ctx context.Context, in *CreateMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
@@ -139,9 +141,11 @@ func (c *memoServiceClient) GenerateMemoSummary(ctx context.Context, in *Generat
 // All implementations must embed UnimplementedMemoServiceServer
 // for forward compatibility.
 //
-// MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
-// carries expected_version for optimistic concurrency; a stale version is
-// rejected as a conflict (HTTP 409 / Connect Aborted).
+// MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
+// pinning, and archiving carry expected_version for optimistic concurrency; a
+// stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+// Creation is idempotent by caller-supplied id, while summary generation only
+// writes derived AI data and therefore does not carry expected_version.
 type MemoServiceServer interface {
 	ListMemos(context.Context, *ListMemosRequest) (*ListMemosResponse, error)
 	CreateMemo(context.Context, *CreateMemoRequest) (*MemoResponse, error)

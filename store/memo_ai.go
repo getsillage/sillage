@@ -109,14 +109,15 @@ WHERE memo_id = ? AND deleted_at IS NULL`, memoID))
 }
 
 type ListMemoAIOptions struct {
-	Limit          int
-	UpdatedAfter   int64
-	UpdatedAfterID string
+	Limit             int
+	LookaheadPageSize int
+	UpdatedAfter      int64
+	UpdatedAfterID    string
 }
 
 func (s *Store) ListMemoAI(ctx context.Context, opts *ListMemoAIOptions) ([]*MemoAI, error) {
 	limit := opts.Limit
-	if limit <= 0 || limit > 200 {
+	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
 		limit = 50
 	}
 	query := memoAISelect() + " WHERE 1 = 1"

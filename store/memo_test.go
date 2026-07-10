@@ -105,10 +105,81 @@ func TestSearchMemosMatchesAndExcludesTombstones(t *testing.T) {
 	}
 }
 
-// TestListMemosNewestFirstAndPaginates proves the default list is
-// reverse-chronological by entry date (the pre-pagination query returned the
-// OLDEST rows first) and that the keyset cursor walks every page without gaps
-// or overlap.
+func TestSearchMemosFiltersArchivedBeforeLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		query   string
+		content string
+	}{
+		{name: "fts", query: "needle", content: "shared needle content"},
+		{name: "like fallback", query: "共同短语", content: "前缀共同短语后缀"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestStore(t)
+			ctx := context.Background()
+			account := newTestAccount(t, s)
+
+			current, err := s.CreateMemo(ctx, &store.CreateMemo{
+				CreatorID: account,
+				Content:   tt.content,
+				EntryDate: "2026-06-27",
+			})
+			if err != nil {
+				t.Fatalf("CreateMemo(current) error = %v", err)
+			}
+			archivedMemo, err := s.CreateMemo(ctx, &store.CreateMemo{
+				CreatorID: account,
+				Content:   tt.content,
+				EntryDate: "2026-06-26",
+			})
+			if err != nil {
+				t.Fatalf("CreateMemo(archived) error = %v", err)
+			}
+			archived := true
+			if _, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+				ID:              archivedMemo.ID,
+				CreatorID:       account,
+				ExpectedVersion: archivedMemo.Version,
+				Archived:        &archived,
+			}); err != nil {
+				t.Fatalf("archive memo error = %v", err)
+			}
+
+			got, err := s.SearchMemos(ctx, &store.SearchMemoOptions{
+				AccountID: account,
+				Query:     tt.query,
+				Limit:     1,
+				Archived:  &archived,
+			})
+			if err != nil {
+				t.Fatalf("SearchMemos(archived) error = %v", err)
+			}
+			if len(got) != 1 || got[0].ID != archivedMemo.ID {
+				t.Fatalf("archived search = %#v, want memo %s", got, archivedMemo.ID)
+			}
+
+			archived = false
+			got, err = s.SearchMemos(ctx, &store.SearchMemoOptions{
+				AccountID: account,
+				Query:     tt.query,
+				Limit:     1,
+				Archived:  &archived,
+			})
+			if err != nil {
+				t.Fatalf("SearchMemos(current) error = %v", err)
+			}
+			if len(got) != 1 || got[0].ID != current.ID {
+				t.Fatalf("current search = %#v, want memo %s", got, current.ID)
+			}
+		})
+	}
+}
+
+// TestListMemosNewestFirstAndPaginates proves an unpinned list is
+// reverse-chronological by entry date and that its keyset cursor walks every
+// page without gaps or overlap.
 func TestListMemosNewestFirstAndPaginates(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -151,6 +222,121 @@ func TestListMemosNewestFirstAndPaginates(t *testing.T) {
 	want := "2026-01-05,2026-01-04,2026-01-03,2026-01-02,2026-01-01"
 	if strings.Join(got, ",") != want {
 		t.Fatalf("paged entry dates = %v, want %s", got, want)
+	}
+}
+
+func TestListMemosPinnedBucketPaginatesWithoutGaps(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	byDate := make(map[string]*store.Memo)
+	for _, entryDate := range []string{"2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"} {
+		memo, err := s.CreateMemo(ctx, &store.CreateMemo{
+			CreatorID: account,
+			Content:   "entry " + entryDate,
+			EntryDate: entryDate,
+		})
+		if err != nil {
+			t.Fatalf("CreateMemo(%s) error = %v", entryDate, err)
+		}
+		byDate[entryDate] = memo
+	}
+	pinned := true
+	for _, entryDate := range []string{"2026-01-01", "2026-01-02"} {
+		memo := byDate[entryDate]
+		if _, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+			ID:              memo.ID,
+			CreatorID:       account,
+			ExpectedVersion: memo.Version,
+			Pinned:          &pinned,
+		}); err != nil {
+			t.Fatalf("pin memo %s: %v", entryDate, err)
+		}
+	}
+
+	var got []string
+	opts := &store.ListMemoOptions{AccountID: account, Limit: 2}
+	for {
+		page, err := s.ListMemos(ctx, opts)
+		if err != nil {
+			t.Fatalf("ListMemos() error = %v", err)
+		}
+		for _, memo := range page {
+			got = append(got, memo.ID)
+		}
+		if len(page) < opts.Limit {
+			break
+		}
+		last := page[len(page)-1]
+		beforePinned := last.PinnedAt.Valid
+		opts = &store.ListMemoOptions{
+			AccountID:       account,
+			Limit:           2,
+			BeforePinned:    &beforePinned,
+			BeforeEntryDate: last.EntryDate,
+			BeforeCreatedAt: last.CreatedAt,
+			BeforeID:        last.ID,
+		}
+	}
+
+	want := []string{
+		byDate["2026-01-02"].ID,
+		byDate["2026-01-01"].ID,
+		byDate["2026-01-05"].ID,
+		byDate["2026-01-04"].ID,
+		byDate["2026-01-03"].ID,
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("paged ids = %v, want %v", got, want)
+	}
+}
+
+func TestListMemosLegacyCursorKeepsDateTuplePredicate(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	byDate := make(map[string]*store.Memo)
+	for _, entryDate := range []string{"2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"} {
+		memo, err := s.CreateMemo(ctx, &store.CreateMemo{
+			CreatorID: account,
+			Content:   "entry " + entryDate,
+			EntryDate: entryDate,
+		})
+		if err != nil {
+			t.Fatalf("CreateMemo(%s) error = %v", entryDate, err)
+		}
+		byDate[entryDate] = memo
+	}
+	pinned := true
+	if _, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID:              byDate["2026-01-02"].ID,
+		CreatorID:       account,
+		ExpectedVersion: byDate["2026-01-02"].Version,
+		Pinned:          &pinned,
+	}); err != nil {
+		t.Fatalf("pin legacy-page memo: %v", err)
+	}
+
+	legacyLast := byDate["2026-01-04"]
+	page, err := s.ListMemos(ctx, &store.ListMemoOptions{
+		AccountID:       account,
+		Limit:           10,
+		BeforeEntryDate: legacyLast.EntryDate,
+		BeforeCreatedAt: legacyLast.CreatedAt,
+		BeforeID:        legacyLast.ID,
+	})
+	if err != nil {
+		t.Fatalf("ListMemos() error = %v", err)
+	}
+	got := make([]string, 0, len(page))
+	for _, memo := range page {
+		got = append(got, memo.ID)
+	}
+	want := []string{byDate["2026-01-02"].ID, byDate["2026-01-03"].ID}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("legacy cursor ids = %v, want %v", got, want)
 	}
 }
 

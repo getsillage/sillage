@@ -46,7 +46,15 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		query = c.QueryParam("q")
 	}
 	if query != "" {
-		memos, err := s.searchMemos(ctx, account.ID, query, limit)
+		var archived *bool
+		if raw := c.QueryParam("archived"); raw != "" {
+			value, parseErr := strconv.ParseBool(raw)
+			if parseErr != nil {
+				return apiError(c, http.StatusBadRequest, "invalid_field", "archived 必须是 true 或 false")
+			}
+			archived = &value
+		}
+		memos, err := s.searchMemos(ctx, account.ID, query, archived, limit)
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 		}
@@ -163,23 +171,39 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})
 	}
 
-	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-	update := memoUpdateInput{
-		ID:              memoID,
-		ExpectedVersion: expectedVersion,
-	}
+	update := memoUpdateInput{ID: memoID}
 	switch action {
-	case "archive", "setArchived":
+	case "setArchived":
+		var req memoRequest
+		if err := c.Bind(&req); err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+		}
+		value := req.Archived != nil && *req.Archived
+		update.ExpectedVersion = req.ExpectedVersion
+		update.Archived = &value
+	case "setPinned":
+		var req memoRequest
+		if err := c.Bind(&req); err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+		}
+		value := req.Pinned != nil && *req.Pinned
+		update.ExpectedVersion = req.ExpectedVersion
+		update.Pinned = &value
+	case "archive":
 		value := true
+		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 		update.Archived = &value
 	case "unarchive":
 		value := false
+		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 		update.Archived = &value
-	case "pin", "setPinned":
+	case "pin":
 		value := true
+		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 		update.Pinned = &value
 	case "unpin":
 		value := false
+		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
 		update.Pinned = &value
 	default:
 		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")

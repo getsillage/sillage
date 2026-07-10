@@ -284,6 +284,22 @@ paths:
                      instead of returning the recent list.
                   schema:
                     type: string
+                - name: archived
+                  in: query
+                  description: |-
+                    archived filters search results before limit is applied. It is ignored
+                     when query is empty; when unset, search includes both current and archived
+                     memos for backward compatibility.
+                  schema:
+                    type: boolean
+                - name: cursor
+                  in: query
+                  description: |-
+                    cursor continues the pinned-first recent list; each pinned bucket remains
+                     reverse-chronological. Search requests ignore it because search results are
+                     not paginated.
+                  schema:
+                    type: string
             responses:
                 "200":
                     description: OK
@@ -956,6 +972,9 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/Memo'
+                nextCursor:
+                    type: string
+                    description: next_cursor is empty when the recent list is exhausted and for searches.
         MeResponse:
             type: object
             properties:
@@ -1267,9 +1286,11 @@ tags:
          rejected (no second account).
     - name: MemoService
       description: |-
-        MemoService is the CRUD + lifecycle surface for memos. Every mutating RPC
-         carries expected_version for optimistic concurrency; a stale version is
-         rejected as a conflict (HTTP 409 / Connect Aborted).
+        MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
+         pinning, and archiving carry expected_version for optimistic concurrency; a
+         stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
+         Creation is idempotent by caller-supplied id, while summary generation only
+         writes derived AI data and therefore does not carry expected_version.
     - name: SettingsService
       description: |-
         SettingsService manages the user's AI profiles. Get never returns API keys;

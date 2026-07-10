@@ -536,15 +536,17 @@ type memoListPage struct {
 	NextCursor string
 }
 
-// listMemos returns one reverse-chronological page plus an opaque cursor for the
-// next (older) page. An empty NextCursor means the list is exhausted.
+// listMemos returns one pinned-first, reverse-chronological page plus an opaque
+// cursor for the next page. An empty NextCursor means the list is exhausted.
 func (s *Server) listMemos(ctx context.Context, accountID string, limit int, rawCursor string) (*memoListPage, error) {
 	pageSize := normalizeLimit(limit, 50)
 	opts := &store.ListMemoOptions{
-		AccountID: accountID,
-		Limit:     pageSize + 1,
+		AccountID:         accountID,
+		Limit:             pageSize + 1,
+		LookaheadPageSize: pageSize,
 	}
 	if cur, ok := decodeMemoListCursor(rawCursor); ok {
+		opts.BeforePinned = cur.Pinned
 		opts.BeforeEntryDate = cur.EntryDate
 		opts.BeforeCreatedAt = cur.CreatedAt
 		opts.BeforeID = cur.ID
@@ -557,7 +559,10 @@ func (s *Server) listMemos(ctx context.Context, accountID string, limit int, raw
 	if len(memos) > pageSize {
 		memos = memos[:pageSize]
 		last := memos[len(memos)-1]
+		pinned := last.PinnedAt.Valid
 		next = encodeMemoListCursor(memoListCursor{
+			Version:   memoListCursorVersion,
+			Pinned:    &pinned,
 			EntryDate: last.EntryDate,
 			CreatedAt: last.CreatedAt,
 			ID:        last.ID,
@@ -566,7 +571,11 @@ func (s *Server) listMemos(ctx context.Context, accountID string, limit int, raw
 	return &memoListPage{Memos: memos, NextCursor: next}, nil
 }
 
+const memoListCursorVersion = 1
+
 type memoListCursor struct {
+	Version   int    `json:"version,omitempty"`
+	Pinned    *bool  `json:"pinned,omitempty"`
 	EntryDate string `json:"entryDate"`
 	CreatedAt int64  `json:"createdAt"`
 	ID        string `json:"id"`
@@ -584,6 +593,17 @@ func decodeMemoListCursor(raw string) (memoListCursor, bool) {
 	if err := json.Unmarshal(payload, &cur); err != nil || cur.ID == "" {
 		return memoListCursor{}, false
 	}
+	switch cur.Version {
+	case 0:
+		// Cursors issued before pinned-first pagination only carry the date tuple.
+		cur.Pinned = nil
+	case memoListCursorVersion:
+		if cur.Pinned == nil {
+			return memoListCursor{}, false
+		}
+	default:
+		return memoListCursor{}, false
+	}
 	return cur, true
 }
 
@@ -595,11 +615,12 @@ func encodeMemoListCursor(cur memoListCursor) string {
 	return base64.RawURLEncoding.EncodeToString(payload)
 }
 
-func (s *Server) searchMemos(ctx context.Context, accountID, query string, limit int) ([]*store.Memo, error) {
+func (s *Server) searchMemos(ctx context.Context, accountID, query string, archived *bool, limit int) ([]*store.Memo, error) {
 	return s.Store.SearchMemos(ctx, &store.SearchMemoOptions{
 		AccountID: accountID,
 		Query:     query,
 		Limit:     normalizeLimit(limit, 50),
+		Archived:  archived,
 	})
 }
 
@@ -650,6 +671,9 @@ func (s *Server) getMemo(ctx context.Context, accountID, id string) (*store.Memo
 }
 
 func (s *Server) updateMemo(ctx context.Context, accountID string, input memoUpdateInput) (*store.Memo, error) {
+	if input.ExpectedVersion <= 0 {
+		return nil, validationError{message: "expectedVersion 必须大于 0"}
+	}
 	if input.Content != nil && *input.Content == "" {
 		return nil, validationError{message: "记录内容不能为空"}
 	}
@@ -772,51 +796,56 @@ type syncResult struct {
 
 func (s *Server) pullSync(ctx context.Context, accountID, rawCursor string, limit int) (*syncPullResult, error) {
 	cursor := decodeSyncCursor(rawCursor)
-	limit = normalizeLimit(limit, 200)
+	limit = normalizeSyncPageLimit(limit)
 
 	memos, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
-		AccountID:      accountID,
-		Limit:          limit + 1,
-		IncludeDeleted: true,
-		Sync:           true,
-		UpdatedAfter:   cursor.Memo.UpdatedAt,
-		UpdatedAfterID: cursor.Memo.ID,
+		AccountID:         accountID,
+		Limit:             limit + 1,
+		LookaheadPageSize: limit,
+		IncludeDeleted:    true,
+		Sync:              true,
+		UpdatedAfter:      cursor.Memo.UpdatedAt,
+		UpdatedAfterID:    cursor.Memo.ID,
 	})
 	if err != nil {
 		return nil, err
 	}
 	attachments, err := s.Store.ListAttachments(ctx, &store.ListAttachmentOptions{
-		AccountID:      accountID,
-		Limit:          limit + 1,
-		IncludeDeleted: true,
-		UpdatedAfter:   cursor.Attachment.UpdatedAt,
-		UpdatedAfterID: cursor.Attachment.ID,
+		AccountID:         accountID,
+		Limit:             limit + 1,
+		LookaheadPageSize: limit,
+		IncludeDeleted:    true,
+		UpdatedAfter:      cursor.Attachment.UpdatedAt,
+		UpdatedAfterID:    cursor.Attachment.ID,
 	})
 	if err != nil {
 		return nil, err
 	}
 	memoAI, err := s.Store.ListMemoAI(ctx, &store.ListMemoAIOptions{
-		Limit:          limit + 1,
-		UpdatedAfter:   cursor.MemoAI.UpdatedAt,
-		UpdatedAfterID: cursor.MemoAI.ID,
+		Limit:             limit + 1,
+		LookaheadPageSize: limit,
+		UpdatedAfter:      cursor.MemoAI.UpdatedAt,
+		UpdatedAfterID:    cursor.MemoAI.ID,
 	})
 	if err != nil {
 		return nil, err
 	}
 	askConversations, err := s.Store.ListAskConversationsForSync(ctx, &store.ListAskSyncOptions{
-		AccountID:      accountID,
-		Limit:          limit + 1,
-		UpdatedAfter:   cursor.AskConversation.UpdatedAt,
-		UpdatedAfterID: cursor.AskConversation.ID,
+		AccountID:         accountID,
+		Limit:             limit + 1,
+		LookaheadPageSize: limit,
+		UpdatedAfter:      cursor.AskConversation.UpdatedAt,
+		UpdatedAfterID:    cursor.AskConversation.ID,
 	})
 	if err != nil {
 		return nil, err
 	}
 	askMessages, err := s.Store.ListAskMessagesForSync(ctx, &store.ListAskSyncOptions{
-		AccountID:      accountID,
-		Limit:          limit + 1,
-		UpdatedAfter:   cursor.AskMessage.UpdatedAt,
-		UpdatedAfterID: cursor.AskMessage.ID,
+		AccountID:         accountID,
+		Limit:             limit + 1,
+		LookaheadPageSize: limit,
+		UpdatedAfter:      cursor.AskMessage.UpdatedAt,
+		UpdatedAfterID:    cursor.AskMessage.ID,
 	})
 	if err != nil {
 		return nil, err
@@ -1093,6 +1122,13 @@ func normalizeLimit(limit, fallback int) int {
 	}
 	if limit > store.MaxMemoListLimit {
 		return store.MaxMemoListLimit
+	}
+	return limit
+}
+
+func normalizeSyncPageLimit(limit int) int {
+	if limit <= 0 || limit > store.MaxSyncPageLimit {
+		return store.MaxSyncPageLimit
 	}
 	return limit
 }

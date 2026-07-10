@@ -145,16 +145,17 @@ WHERE creator_id = ? AND idempotency_key = ?`, accountID, key))
 }
 
 type ListAttachmentOptions struct {
-	AccountID      string
-	Limit          int
-	IncludeDeleted bool
-	UpdatedAfter   int64
-	UpdatedAfterID string
+	AccountID         string
+	Limit             int
+	LookaheadPageSize int
+	IncludeDeleted    bool
+	UpdatedAfter      int64
+	UpdatedAfterID    string
 }
 
 func (s *Store) ListAttachments(ctx context.Context, opts *ListAttachmentOptions) ([]*Attachment, error) {
 	limit := opts.Limit
-	if limit <= 0 || limit > 200 {
+	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
 		limit = 50
 	}
 	query := attachmentSelectBase() + " WHERE creator_id = ?"

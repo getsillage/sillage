@@ -58,8 +58,10 @@ Compose、反向代理、环境变量和公网部署见[部署说明](docs/user/
 | --- | --- |
 | 部署实例 | [部署说明](docs/user/deployment.md) |
 | 备份、恢复和迁移数据 | [数据与备份](docs/user/data.md) |
+| 配置 AI 并了解外部数据 | [AI 使用与隐私](docs/user/ai.md) |
 | 参与开发 | [贡献指南](CONTRIBUTING.md) |
 | 理解系统边界 | [架构说明](docs/development/architecture.md) |
+| 修改认证、附件或密钥 | [安全开发边界](docs/development/security.md) |
 | 修改同步客户端 | [同步 API](docs/development/api/sync.md) |
 | 修改产品或界面 | [产品指导](docs/development/product-guidance.md) / [Web 设计规范](docs/development/design/README.md) |
 | 构建 Android | [Android 说明](android/README.md) |

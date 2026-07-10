@@ -44,10 +44,12 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 | 开发环境、生成物、验证、提交 | `CONTRIBUTING.md` |
 | 模块职责、数据/API 边界 | `docs/development/architecture.md` |
 | 产品范围、术语、AI 行为 | `docs/development/product-guidance.md` |
+| 安全、认证与外部请求 | `docs/development/security.md` |
 | 同步、幂等、冲突 | `docs/development/api/sync.md` |
 | Web 视觉与交互 | `docs/development/design/README.md` |
 | 部署与有效配置 | `docs/user/deployment.md` |
 | 数据、备份与恢复 | `docs/user/data.md` |
+| AI 使用与外部数据 | `docs/user/ai.md` |
 
 文档与实现冲突时，以对应代码事实源为准，并修正文档：
 
@@ -55,6 +57,7 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 - 数据库：`store/migration/sqlite/LATEST.sql`、`store/migrator.go`
 - API：`proto/api/v1/`、`server/*_routes.go`、`server/api_service.go`
 - Web 样式：`web/src/styles/app.css`、`web/src/components/ui.ts`
+- 安全与密钥：`server/auth/`、`server/auth_routes.go`、`server/attachment_routes.go`、`internal/secret/`
 - CI 与容器：`.github/workflows/ci.yml`、`scripts/`
 
 ## 改动契约
@@ -64,6 +67,8 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 - Web 变化：运行 Web lint/typecheck/test/build，提交最新 `server/router/frontend/dist/`。
 - 写操作：继续使用版本检查、tombstone 和同步幂等规则，不引入静默覆盖。
 - UI 异步流程：隔离迟到响应，进行中状态锁定冲突操作，失败保留用户输入并允许重试。
+- 认证、附件、密钥或外部数据流变化：先读安全开发边界，补泄漏、越权或迁移测试，并同步用户文档。
+- AI Prompt 或来源选择变化：同步服务端与 Android；语义变化更新 `promptVersion`，并测试来源约束和信息不足分支。
 - 部署或数据变化：先核对安全绑定、代理信任边界和可回滚的数据操作。
 
 完整命令和人工验收范围见 `CONTRIBUTING.md`。
@@ -72,6 +77,7 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 
 - 本文件是项目代理规则的唯一来源，`AGENTS.md` 只负责引导读取。
 - 只记录稳定边界和反复出现的问题；版本、命令和实现事实放在对应工程文档或代码中。
+- 用户纠正若揭示稳定、反复的问题，更新对应事实文档或测试；一次性要求不持久化。
 - 推送、部署、删除外部资源和轮换密钥必须由用户明确要求。
 - 可由测试、lint 或 CI 强制的规则，不在本文重复描述。
 

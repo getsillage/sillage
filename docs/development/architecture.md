@@ -48,7 +48,7 @@ Connect client -- Connect ----------┘                                         
 - 附件下载必须鉴权，文件名必须清理；附件字节不进入同步 payload。
 - AI API key 只以加密 envelope 保存，接口和同步不得返回明文。
 
-详细分页、幂等和冲突规则见[同步 API](api/sync.md)。产品范围见[产品指导](product-guidance.md)。
+详细分页、幂等和冲突规则见[同步 API](api/sync.md)。产品范围见[产品指导](product-guidance.md)，认证、附件、密钥和外部请求约束见[安全开发边界](security.md)。
 
 ## 数据与生成物
 

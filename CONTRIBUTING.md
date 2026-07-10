@@ -96,6 +96,16 @@ pnpm --dir web test:e2e
 
 涉及 UI 的改动还要按 [Web 设计规范](docs/development/design/README.md)做明暗主题与桌面/移动端人工检查。Android 的编辑、附件和网络状态改动必须在模拟器或真机检查系统返回、软键盘、慢网络取消和外部文件查看器。
 
+## 发布
+
+GitHub Releases 是用户可见变更记录的唯一来源，不另行维护 `CHANGELOG.md`。发布从已通过 CI 的 `main` 提交进行：
+
+1. 整理用户可见变化，并明确数据库、配置、同步或数据格式的兼容性影响；需要特殊升级步骤时同步更新部署与数据文档。
+2. 发布 Android APK 时递增 `android/app/build.gradle.kts` 的 `versionCode`，并让 `versionName` 与 `vX.Y.Z` tag 一致。
+3. 运行“验证”章节的对应门禁和 Docker 构建。Android release 还要按 [Android 说明](android/README.md)完成签名、`apksigner` 与 `zipalign` 校验。
+4. 提交发布准备后创建带说明的 `vX.Y.Z` tag，再从该 tag 创建 GitHub Release；附加签名 APK 时同时记录 SHA-256。
+5. 发布说明至少包含主要变化、已知限制和升级/回滚要求；存在可下载产物时还要包含校验值。不得提交 keystore、签名配置或构建产物。
+
 ## 提交
 
 提交信息遵循 Conventional Commits：

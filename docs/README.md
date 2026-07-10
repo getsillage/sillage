@@ -6,9 +6,11 @@
 | --- | --- |
 | 运行和配置实例 | [部署说明](user/deployment.md) |
 | 备份、恢复和迁移 | [数据与备份](user/data.md) |
+| 配置 AI 并了解外部数据 | [AI 使用与隐私](user/ai.md) |
 | 建立开发环境和验证改动 | [贡献指南](../CONTRIBUTING.md) |
 | 理解模块、数据和契约边界 | [架构说明](development/architecture.md) |
 | 修改产品语义 | [产品指导](development/product-guidance.md) |
+| 修改认证、附件、密钥或外部请求 | [安全开发边界](development/security.md) |
 | 修改同步行为 | [同步 API](development/api/sync.md) |
 | 修改 Web 界面 | [Web 设计规范](development/design/README.md) |
 | 构建 Android | [Android 说明](../android/README.md) |

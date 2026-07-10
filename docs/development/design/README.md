@@ -4,7 +4,7 @@
 > 阅读顺序：本文（方向 / 决策 / 约束）→ [`design-system.md`](./design-system.md)（令牌：配色 / 字体 / 宽度 / 组件）→ [`implementation-plan.md`](./implementation-plan.md)（外壳与令牌现状 + 维护约定）。
 > 配套：[`checklist.md`](./checklist.md)（验收清单）。
 > 产品语义以 [`../product-guidance.md`](../product-guidance.md) 为准；本文只描述「外观与外壳」，不改数据模型与产品功能。
-> 本目录只覆盖 Web 客户端；其中“移动端”指 Web 响应式布局。原生 Android 初版见 [`../../../android/README.md`](../../../android/README.md)。
+> 本目录只覆盖 Web 客户端；其中“移动端”指 Web 响应式布局。原生 Android 客户端的现状见 [`../../../android/README.md`](../../../android/README.md)，跨客户端产品原则见 [`../product-guidance.md`](../product-guidance.md)。
 > 事实来源是代码：`web/src/styles/app.css` 与 `web/src/components/ui.ts`。文档与代码冲突以代码为准。
 
 ## 背景与动机
@@ -17,9 +17,9 @@
 
 这 5 条是当前实现的方向，实施时不要偏离：
 
-1. **配色 —— 纯中性灰**：中性灰单色阶，**不引入任何彩色强调色**。强调用近黑（浅色）/ 近白（深色）。
+1. **配色 —— 中性灰为主**：品牌、导航、选中态与常规反馈只用中性灰；强调用近黑（浅色）/ 近白（深色）。唯一的色相例外是错误与删除、退出等破坏性操作使用语义红，红色不作为品牌强调色或装饰色。
 2. **字体 —— 全站无衬线**：只用 `--font-sans`（system / PingFang），靠字重区分层次。**没有宋体 / serif。**
-3. **布局 —— 可折叠左侧栏 + 居中窄阅读栏**：导航在左侧栏（桌面可折叠、移动端抽屉）；内容收进居中阅读栏（`max-w-3xl` / `max-w-5xl`）。
+3. **布局 —— 可折叠左侧栏 + 居中内容栏**：导航在左侧栏（桌面可折叠、移动端抽屉）；记录详情使用 `max-w-3xl` 阅读栏，问答使用 `max-w-4xl` 对话栏，历史与设置使用 `max-w-6xl` 宽栏。
 4. **聊天的边界**：**问答（Ask）是真聊天**（含流式回答）；**记录 / 历史 / 设置 借的是外壳气质，不做成聊天气泡。**
 5. **图标 —— `lucide-react`**：统一图标库，`currentColor` + `aria-label`。
 
@@ -30,6 +30,8 @@
 - 主导航：**记录 `/`** · **历史 `/timeline`**。
 - 问答通过左侧栏的 **「新问答」按钮** 与 **「对话」列表** 进入（`/ask`），不作为主导航项重复。
 - 设置在左侧栏底部**用户卡片的展开菜单**中（`/settings`），不作为主导航项。
+- 主题切换快捷按钮位于侧栏底部、用户卡片旁；「设置 → 外观」同时提供带文字入口，两处共享同一偏好。
+- 历史列表通过「当前记录 / 已归档」分段控件进入归档记录；记录详情提供归档 / 取消归档动作。
 - 全局：除问答页外，任意页面都有**速记**入口（右下角悬浮按钮 / ⌘·Ctrl+J）。
 - 旧路径 `/review` 重定向到 `/ask`。
 
@@ -39,7 +41,7 @@
 
 - **Tailwind v4**（无 `tailwind.config`），主题集中在 [`web/src/styles/app.css`](../../../web/src/styles/app.css) 的 `@theme`：`--font-sans` + 重定义的 `--color-gray-*` + `@custom-variant dark` + `@plugin "@tailwindcss/typography"`。
 - **暗色**：class 策略（`.dark`）。[`web/public/theme-init.js`](../../../web/public/theme-init.js) 首屏前应用，storage key `sillage-theme`，支持 `light` / `dark` / `system`。
-- **共享样式**集中在 [`web/src/components/ui.ts`](../../../web/src/components/ui.ts)；页面也会内联 `gray-*` 工具类，高频模式逐步收敛为令牌。
+- **共享样式**集中在 [`web/src/components/ui.ts`](../../../web/src/components/ui.ts)；页面也会内联 `gray-*` 工具类，高频模式已收敛为按钮、图标按钮、分段控件、骨架屏、空状态等令牌。
 - **外壳**：[`web/src/components/AppShell.tsx`](../../../web/src/components/AppShell.tsx)（桌面可折叠侧栏 + 移动抽屉 + QuickCapture 挂载）与 [`web/src/components/Sidebar.tsx`](../../../web/src/components/Sidebar.tsx)。
 - **Markdown**：`react-markdown` + `remark-gfm` + `remark-breaks` + `@tailwindcss/typography`（非富文本所见即所得编辑器）。
 

@@ -29,6 +29,7 @@ web/.playwright/
 *.db
 *.db-shm
 *.db-wal
+*.db.bak-*
 
 # Android
 android/.gradle/

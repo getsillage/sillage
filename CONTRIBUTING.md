@@ -64,7 +64,7 @@ OpenAPI 只覆盖 Proto 声明的接口；手写的上传和 SSE 等扩展以 `s
 
 ## 验证
 
-按影响范围至少运行对应命令。CI 会运行 Go test/vet/build、Buf lint/generate、Web lint/typecheck/test/build、Android test/lint/build，并检查 Proto/Web 生成物与 Markdown 链接；E2E、Docker 与人工验收仍是本地门禁。
+按影响范围至少运行对应命令。CI 会运行 Go test/vet/build、Buf lint/generate、Web lint/typecheck/test/build、Android test/lint/build，并检查 Proto/Web 生成物与 Markdown 链接；E2E、Docker 与人工验收仍是本地门禁。Docker 构建前必须先检查上下文策略，确保 Git 忽略的本地数据、密钥和构建产物不会发送给构建器。
 
 | 范围 | 命令 |
 | --- | --- |
@@ -73,7 +73,7 @@ OpenAPI 只覆盖 Proto 声明的接口；手写的上传和 SSE 等扩展以 `s
 | Proto | `buf lint`、`buf generate`，然后检查生成物 diff |
 | Android | `cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` |
 | 文档与收尾 | `node scripts/check-markdown-links.mjs`、`git diff --check` |
-| 部署 | `docker build -t sillage:latest -f scripts/Dockerfile .` |
+| 部署 | `node scripts/check-docker-context.mjs`、`docker build -t sillage:latest -f scripts/Dockerfile .` |
 
 Web E2E 针对已运行的实例执行。先准备浏览器和嵌入产物：
 

@@ -1,19 +1,68 @@
+# Source control / OS / editor
 .git
 .github
 .vscode
+.DS_Store
+**/.DS_Store
 
-node_modules
-web/node_modules
-web/dist
-web/tsconfig.tsbuildinfo
-
+# Environment files and local tooling state
+.env
+.env.*
+**/.env
+**/.env.*
 .dev.vars
-.wrangler
-.sillage
-tmp
+.wrangler/
+/.claude/
+/.thumbnail_cache/
 
-sillage
+# Node / web outputs
+node_modules/
+web/node_modules/
+**/node_modules/
+coverage/
+**/coverage/
+*.tsbuildinfo
+**/*.tsbuildinfo
+web/test-results/
+web/playwright-report/
+web/.playwright/
+web/dist/
+server/router/frontend/dist/
+
+# Local runtime data
+/assets/attachments/
+/runtime/
+/.sillage/
+/.data-dev/
+tmp/
+
+# App binary / databases
+/sillage
 *.db
 *.db-shm
 *.db-wal
-coverage
+*.db.bak-*
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.db.bak-*
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/signing.properties
+android/.idea/
+*.apk
+*.aab
+*.keystore
+*.keystore.bak-*
+*.jks
+*.jks.bak-*
+**/*.apk
+**/*.aab
+**/*.keystore
+**/*.keystore.bak-*
+**/*.jks
+**/*.jks.bak-*

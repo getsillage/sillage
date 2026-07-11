@@ -21,7 +21,12 @@ ENV GOPROXY=$GOPROXY
 RUN apk add --no-cache ca-certificates git
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
+COPY cmd ./cmd
+COPY internal ./internal
+COPY proto/gen ./proto/gen
+COPY server ./server
+COPY store ./store
+COPY scripts/entrypoint.sh ./scripts/entrypoint.sh
 COPY --from=frontend /src/server/router/frontend/dist ./server/router/frontend/dist
 ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \

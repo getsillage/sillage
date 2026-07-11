@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"net/http"
 	"strings"
 
@@ -11,6 +9,7 @@ import (
 
 	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
 	"github.com/getsillage/sillage/server/auth"
+	memoapp "github.com/getsillage/sillage/server/memo"
 	"github.com/getsillage/sillage/store"
 )
 
@@ -27,10 +26,20 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 	var memos []*store.Memo
 	var nextCursor string
 	if query := req.Msg.GetQuery(); query != "" {
-		memos, err = s.server.searchMemos(ctx, account.ID, query, req.Msg.Archived, req.Msg.Favorited, limit)
+		memos, err = s.server.memos.Search(ctx, account.ID, memoapp.SearchInput{
+			Query:     query,
+			Archived:  req.Msg.Archived,
+			Favorited: req.Msg.Favorited,
+			Limit:     limit,
+		})
 	} else {
-		var page *memoListPage
-		page, err = s.server.listMemos(ctx, account.ID, req.Msg.Archived, req.Msg.Favorited, limit, req.Msg.GetCursor())
+		var page *memoapp.Page
+		page, err = s.server.memos.List(ctx, account.ID, memoapp.ListInput{
+			Archived:  req.Msg.Archived,
+			Favorited: req.Msg.Favorited,
+			Limit:     limit,
+			Cursor:    req.Msg.GetCursor(),
+		})
 		if page != nil {
 			memos = page.Memos
 			nextCursor = page.NextCursor
@@ -54,7 +63,7 @@ func (s *memoService) CreateMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.createMemo(ctx, account.ID, memoCreateInput{
+	memo, err := s.server.memos.Create(ctx, account.ID, memoapp.CreateInput{
 		ID:        req.Msg.GetId(),
 		Content:   req.Msg.GetContent(),
 		EntryDate: req.Msg.GetEntryDate(),
@@ -70,16 +79,11 @@ func (s *memoService) GetMemo(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.getMemo(ctx, account.ID, req.Msg.GetId())
+	detail, err := s.server.memos.Get(ctx, account.ID, req.Msg.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	res := &apiv1.MemoResponse{Memo: memoPB(memo)}
-	if ai, aiErr := s.server.Store.GetMemoAI(ctx, memo.ID); aiErr == nil {
-		res.Ai = memoAIPB(ai)
-	} else if !errors.Is(aiErr, sql.ErrNoRows) {
-		return nil, connectError(aiErr)
-	}
+	res := &apiv1.MemoResponse{Memo: memoPB(detail.Memo), Ai: memoAIPB(detail.AI)}
 	return connect.NewResponse(res), nil
 }
 
@@ -88,7 +92,7 @@ func (s *memoService) UpdateMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.updateMemo(ctx, account.ID, memoUpdateInput{
+	memo, err := s.server.memos.Update(ctx, account.ID, memoapp.UpdateInput{
 		ID:              req.Msg.GetId(),
 		ExpectedVersion: req.Msg.GetExpectedVersion(),
 		Content:         req.Msg.Content,
@@ -107,7 +111,7 @@ func (s *memoService) DeleteMemo(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.deleteMemo(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
+	memo, err := s.server.memos.Delete(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -146,7 +150,7 @@ func (s *memoService) updateMemoBool(
 	if err != nil {
 		return nil, err
 	}
-	memo, err := s.server.updateMemo(ctx, account.ID, memoUpdateInput{
+	memo, err := s.server.memos.Update(ctx, account.ID, memoapp.UpdateInput{
 		ID:              id,
 		ExpectedVersion: expectedVersion,
 		Favorited:       favorited,

@@ -14,6 +14,7 @@ import (
 
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server/auth"
+	memoapp "github.com/getsillage/sillage/server/memo"
 	"github.com/getsillage/sillage/store"
 )
 
@@ -67,12 +68,8 @@ func (e validationError) Unwrap() error {
 	return errValidation
 }
 
-type memoCreateInput struct {
-	ID        string
-	Content   string
-	EntryDate string
-	Favorited bool
-	Archived  bool
+func isValidationError(err error) bool {
+	return errors.Is(err, errValidation) || errors.Is(err, memoapp.ErrValidation)
 }
 
 type aiSettingsInput struct {
@@ -545,138 +542,6 @@ func (s *Server) getAttachment(ctx context.Context, accountID, uid string) (*sto
 	return s.Store.GetAttachmentByUID(ctx, accountID, uid, false)
 }
 
-type memoUpdateInput struct {
-	ID              string
-	ExpectedVersion int64
-	Content         *string
-	EntryDate       *string
-	Favorited       *bool
-	Archived        *bool
-	Deleted         *bool
-}
-
-type memoListPage struct {
-	Memos      []*store.Memo
-	NextCursor string
-}
-
-// listMemos returns one reverse-chronological page plus an opaque cursor for
-// the next page. An empty NextCursor means the list is exhausted.
-func (s *Server) listMemos(ctx context.Context, accountID string, archived, favorited *bool, limit int, rawCursor string) (*memoListPage, error) {
-	pageSize := normalizeLimit(limit, 50)
-	opts := &store.ListMemoOptions{
-		AccountID:         accountID,
-		Limit:             pageSize + 1,
-		LookaheadPageSize: pageSize,
-		Archived:          archived,
-		Favorited:         favorited,
-	}
-	legacyV1 := false
-	if cur, ok := decodeMemoListCursor(rawCursor); ok {
-		if cur.Version == 1 {
-			legacyV1 = true
-			opts.LegacyFavoritedFirst = true
-			opts.BeforeFavorited = cur.Pinned
-		}
-		opts.BeforeEntryDate = cur.EntryDate
-		opts.BeforeCreatedAt = cur.CreatedAt
-		opts.BeforeID = cur.ID
-	}
-	memos, err := s.Store.ListMemos(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-	next := ""
-	if len(memos) > pageSize {
-		memos = memos[:pageSize]
-		last := memos[len(memos)-1]
-		nextCursor := memoListCursor{
-			Version:   memoListCursorVersion,
-			EntryDate: last.EntryDate,
-			CreatedAt: last.CreatedAt,
-			ID:        last.ID,
-		}
-		if legacyV1 {
-			favorited := last.FavoritedAt.Valid
-			nextCursor.Version = 1
-			nextCursor.Pinned = &favorited
-		}
-		next = encodeMemoListCursor(nextCursor)
-	}
-	return &memoListPage{Memos: memos, NextCursor: next}, nil
-}
-
-const memoListCursorVersion = 2
-
-type memoListCursor struct {
-	Version   int    `json:"version,omitempty"`
-	Pinned    *bool  `json:"pinned,omitempty"`
-	EntryDate string `json:"entryDate"`
-	CreatedAt int64  `json:"createdAt"`
-	ID        string `json:"id"`
-}
-
-func decodeMemoListCursor(raw string) (memoListCursor, bool) {
-	if raw == "" {
-		return memoListCursor{}, false
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil {
-		return memoListCursor{}, false
-	}
-	var cur memoListCursor
-	if err := json.Unmarshal(payload, &cur); err != nil || cur.ID == "" {
-		return memoListCursor{}, false
-	}
-	switch cur.Version {
-	case 0, memoListCursorVersion:
-	case 1:
-		if cur.Pinned == nil {
-			return memoListCursor{}, false
-		}
-	default:
-		return memoListCursor{}, false
-	}
-	return cur, true
-}
-
-func encodeMemoListCursor(cur memoListCursor) string {
-	payload, err := json.Marshal(cur)
-	if err != nil {
-		return ""
-	}
-	return base64.RawURLEncoding.EncodeToString(payload)
-}
-
-func (s *Server) searchMemos(ctx context.Context, accountID, query string, archived, favorited *bool, limit int) ([]*store.Memo, error) {
-	return s.Store.SearchMemos(ctx, &store.SearchMemoOptions{
-		AccountID: accountID,
-		Query:     query,
-		Limit:     normalizeLimit(limit, 50),
-		Archived:  archived,
-		Favorited: favorited,
-	})
-}
-
-func (s *Server) createMemo(ctx context.Context, accountID string, input memoCreateInput) (*store.Memo, error) {
-	if err := validateMemoFields(input.Content, input.EntryDate); err != nil {
-		return nil, validationError{message: err.Error()}
-	}
-	memo, err := s.Store.CreateMemo(ctx, &store.CreateMemo{
-		ID:        input.ID,
-		CreatorID: accountID,
-		Content:   input.Content,
-		EntryDate: input.EntryDate,
-		Favorited: input.Favorited,
-		Archived:  input.Archived,
-	})
-	if err != nil {
-		return nil, err
-	}
-	s.maybeScheduleAutoSummary(accountID, memo.ID)
-	return memo, nil
-}
-
 // maybeScheduleAutoSummary generates a summary in the background when the global
 // auto summary setting is on. It is best-effort: it runs off the request
 // path with its own timeout and never blocks or fails the memo write.
@@ -700,43 +565,6 @@ func (s *Server) maybeScheduleAutoSummary(accountID, memoID string) {
 			slog.Warn("auto summary failed", "memo", memoID, "error", err)
 		}
 	}()
-}
-
-func (s *Server) getMemo(ctx context.Context, accountID, id string) (*store.Memo, error) {
-	return s.Store.GetMemo(ctx, accountID, id, false)
-}
-
-func (s *Server) updateMemo(ctx context.Context, accountID string, input memoUpdateInput) (*store.Memo, error) {
-	if input.ExpectedVersion <= 0 {
-		return nil, validationError{message: "expectedVersion 必须大于 0"}
-	}
-	if input.Content != nil && *input.Content == "" {
-		return nil, validationError{message: "记录内容不能为空"}
-	}
-	if input.EntryDate != nil {
-		if err := validateMemoFields("placeholder", *input.EntryDate); err != nil {
-			return nil, validationError{message: "记录日期必须是 YYYY-MM-DD"}
-		}
-	}
-	return s.Store.UpdateMemo(ctx, &store.UpdateMemo{
-		ID:              input.ID,
-		CreatorID:       accountID,
-		ExpectedVersion: input.ExpectedVersion,
-		Content:         input.Content,
-		EntryDate:       input.EntryDate,
-		Favorited:       input.Favorited,
-		Archived:        input.Archived,
-		Deleted:         input.Deleted,
-	})
-}
-
-func (s *Server) deleteMemo(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
-	deleted := true
-	return s.updateMemo(ctx, accountID, memoUpdateInput{
-		ID:              id,
-		ExpectedVersion: expectedVersion,
-		Deleted:         &deleted,
-	})
 }
 
 func (s *Server) generateMemoSummary(ctx context.Context, accountID, id string) (*store.MemoAI, error) {
@@ -991,7 +819,7 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	favorited := payload.favoritedValue()
 	switch change.Action {
 	case "create":
-		memo, err = s.createMemo(ctx, accountID, memoCreateInput{
+		memo, err = s.memos.Create(ctx, accountID, memoapp.CreateInput{
 			ID:        payload.ID,
 			Content:   payload.Content,
 			EntryDate: payload.EntryDate,
@@ -1002,10 +830,10 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 		if change.BaseVersion <= 0 {
 			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "missing_base_version", "baseVersion 必须大于 0"))
 		}
-		if validateErr := validateMemoFields(payload.Content, payload.EntryDate); validateErr != nil {
+		if validateErr := memoapp.ValidateFields(payload.Content, payload.EntryDate); validateErr != nil {
 			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "invalid_field", validateErr.Error()))
 		}
-		memo, err = s.updateMemo(ctx, accountID, memoUpdateInput{
+		memo, err = s.memos.Update(ctx, accountID, memoapp.UpdateInput{
 			ID:              payload.ID,
 			ExpectedVersion: change.BaseVersion,
 			Content:         &payload.Content,
@@ -1017,7 +845,7 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 		if change.BaseVersion <= 0 {
 			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "missing_base_version", "baseVersion 必须大于 0"))
 		}
-		memo, err = s.deleteMemo(ctx, accountID, payload.ID, change.BaseVersion)
+		memo, err = s.memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
 	default:
 		return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "unsupported_action", "暂不支持该同步动作"))
 	}
@@ -1027,7 +855,7 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	switch {
 	case errors.As(err, &conflict):
 		result = syncConflict(change, conflict.ServerMemo)
-	case errors.Is(err, errValidation):
+	case isValidationError(err):
 		result = syncRejected(change, "invalid_field", err.Error())
 	case err != nil:
 		result = syncRejected(change, "rejected", err.Error())
@@ -1183,7 +1011,7 @@ func normalizeSyncPageLimit(limit int) int {
 func memoHTTPStatus(err error) (int, string, string) {
 	var conflict *store.MemoConflictError
 	switch {
-	case errors.Is(err, errValidation):
+	case isValidationError(err):
 		return 400, "invalid_field", err.Error()
 	case errors.Is(err, errAINotConfigured):
 		return 400, "ai_not_configured", "请先配置一个默认 AI 档案"

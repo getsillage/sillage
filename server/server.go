@@ -17,6 +17,7 @@ import (
 	"github.com/getsillage/sillage/internal/profile"
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server/auth"
+	memoapp "github.com/getsillage/sillage/server/memo"
 	"github.com/getsillage/sillage/server/router/frontend"
 	"github.com/getsillage/sillage/store"
 )
@@ -31,6 +32,7 @@ type Server struct {
 	echoServer *echo.Echo
 	httpServer *http.Server
 	auth       *auth.Service
+	memos      *memoapp.Service
 	memoAIJobs chan struct{}
 	askAIJobs  chan struct{}
 }
@@ -50,6 +52,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 		memoAIJobs: make(chan struct{}, 2),
 		askAIJobs:  make(chan struct{}, 2),
 	}
+	server.memos = memoapp.NewService(s, server.maybeScheduleAutoSummary)
 
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})

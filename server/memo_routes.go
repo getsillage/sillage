@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 
+	memoapp "github.com/getsillage/sillage/server/memo"
 	"github.com/getsillage/sillage/store"
 )
 
@@ -54,13 +55,23 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	}
 	if query != "" {
-		memos, err := s.searchMemos(ctx, account.ID, query, archived, favorited, limit)
+		memos, err := s.memos.Search(ctx, account.ID, memoapp.SearchInput{
+			Query:     query,
+			Archived:  archived,
+			Favorited: favorited,
+			Limit:     limit,
+		})
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 		}
 		return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})
 	}
-	page, err := s.listMemos(ctx, account.ID, archived, favorited, limit, c.QueryParam("cursor"))
+	page, err := s.memos.List(ctx, account.ID, memoapp.ListInput{
+		Archived:  archived,
+		Favorited: favorited,
+		Limit:     limit,
+		Cursor:    c.QueryParam("cursor"),
+	})
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
@@ -81,16 +92,13 @@ func (s *Server) handleCreateMemo(c *echo.Context) error {
 	}
 	content := stringValue(req.Content)
 	entryDate := stringValue(req.EntryDate)
-	if err := validateMemoFields(content, entryDate); err != nil {
-		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
-	}
-	memo, err := s.createMemo(c.Request().Context(), account.ID, memoCreateInput{
+	memo, err := s.memos.Create(c.Request().Context(), account.ID, memoapp.CreateInput{
 		ID:        req.ID,
 		Content:   content,
 		EntryDate: entryDate,
 	})
 	if err != nil {
-		if errors.Is(err, errValidation) {
+		if isValidationError(err) {
 			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "保存记录失败")
@@ -104,20 +112,19 @@ func (s *Server) handleGetMemo(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	ctx := c.Request().Context()
-	memo, err := s.getMemo(ctx, account.ID, c.Param("memo"))
+	detail, err := s.memos.Get(ctx, account.ID, c.Param("memo"))
 	if err != nil {
+		if errors.Is(err, memoapp.ErrSummaryRead) {
+			return apiError(c, http.StatusInternalServerError, "internal", "读取总结失败")
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
 		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
-	body := map[string]any{"memo": memoDTO(memo)}
-	// Inline the stored summary (if any) so clients render it without
-	// regenerating. A missing row is not an error.
-	if ai, aiErr := s.Store.GetMemoAI(ctx, memo.ID); aiErr == nil {
-		body["ai"] = memoAIDTO(ai)
-	} else if !errors.Is(aiErr, sql.ErrNoRows) {
-		return apiError(c, http.StatusInternalServerError, "internal", "读取总结失败")
+	body := map[string]any{"memo": memoDTO(detail.Memo)}
+	if detail.AI != nil {
+		body["ai"] = memoAIDTO(detail.AI)
 	}
 	return c.JSON(http.StatusOK, body)
 }
@@ -131,7 +138,7 @@ func (s *Server) handleUpdateMemo(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
 	}
-	memo, err := s.updateMemo(c.Request().Context(), account.ID, memoUpdateInput{
+	memo, err := s.memos.Update(c.Request().Context(), account.ID, memoapp.UpdateInput{
 		ID:              memoParam(c),
 		ExpectedVersion: req.ExpectedVersion,
 		Content:         req.Content,
@@ -148,7 +155,7 @@ func (s *Server) handleDeleteMemo(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
-	memo, err := s.deleteMemo(c.Request().Context(), account.ID, memoParam(c), expectedVersion)
+	memo, err := s.memos.Delete(c.Request().Context(), account.ID, memoParam(c), expectedVersion)
 	return s.writeMemoMutationResult(c, memo, err)
 }
 
@@ -171,7 +178,7 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})
 	}
 
-	update := memoUpdateInput{ID: memoID}
+	update := memoapp.UpdateInput{ID: memoID}
 	switch action {
 	case "setArchived":
 		var req memoRequest
@@ -206,7 +213,7 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 	default:
 		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
 	}
-	memo, err := s.updateMemo(c.Request().Context(), account.ID, update)
+	memo, err := s.memos.Update(c.Request().Context(), account.ID, update)
 	return s.writeMemoMutationResult(c, memo, err)
 }
 
@@ -227,21 +234,11 @@ func (s *Server) writeMemoMutationResult(c *echo.Context, memo *store.Memo, err 
 		})
 	case errors.Is(err, sql.ErrNoRows):
 		return apiError(c, http.StatusNotFound, "not_found", "记录不存在")
-	case errors.Is(err, errValidation):
+	case isValidationError(err):
 		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	default:
 		return apiError(c, http.StatusInternalServerError, "internal", "保存记录失败")
 	}
-}
-
-func validateMemoFields(content, entryDate string) error {
-	if content == "" {
-		return errors.New("记录内容不能为空")
-	}
-	if _, err := time.Parse("2006-01-02", entryDate); err != nil {
-		return errors.New("记录日期必须是 YYYY-MM-DD")
-	}
-	return nil
 }
 
 func memoParam(c *echo.Context) string {

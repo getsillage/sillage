@@ -24,8 +24,8 @@ func connectError(err error) error {
 	switch {
 	case errors.As(err, &conflict):
 		return connect.NewError(connect.CodeAborted, errors.New("数据已被更新，请刷新后重试"))
-	case errors.Is(err, errValidation):
-		// validationError carries a vetted, user-facing message.
+	case isValidationError(err):
+		// Domain validation errors carry vetted, user-facing messages.
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, errTooManyChanges):
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("一次提交的变更过多"))

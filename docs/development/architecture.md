@@ -39,6 +39,20 @@ REST 与 Connect 适配器复用同一业务服务。记录的校验、分页、
 | `android/` | Kotlin/Compose 客户端与本地离线数据 |
 | `scripts/` | 容器构建、启动和 Compose |
 
+### Web 内部边界
+
+| 路径 | 职责 |
+| --- | --- |
+| `web/src/app/` | 应用启动、路由装配、Provider 顺序和全局导航壳 |
+| `web/src/features/auth/` | 初始化与登录界面 |
+| `web/src/features/memos/` | 记录列表、详情、编辑、筛选和记录状态 |
+| `web/src/features/ask/` | 问答会话、消息树和流式回答状态 |
+| `web/src/features/settings/` | AI 档案与界面设置 |
+| `web/src/components/` | 跨特性复用的展示与交互组件 |
+| `web/src/lib/` | API、认证 token 和日期等底层能力 |
+
+`app/` 负责组合各特性；特性可以依赖共享 `components/`、`lib/`，问答可调用记录特性保存回答，但记录特性不反向依赖问答。`web/src/lib/api.ts` 暂时维持统一的传输客户端，目录整理不改变 API、路由或浏览器存储契约。
+
 ## 核心不变量
 
 - 一个实例只有一个账号；初始化后拒绝创建第二个账号。

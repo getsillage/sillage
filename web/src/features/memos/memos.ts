@@ -1,0 +1,71 @@
+import type { Memo } from "../../lib/api";
+
+/** Collapses whitespace and truncates a memo body to a single-line preview. */
+export function excerpt(body: string, max = 120): string {
+  const text = body.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/** Entry date desc, then creation time desc — matches server order. */
+export function sortMemos(memos: readonly Memo[]): Memo[] {
+  return [...memos].sort((a, b) => {
+    if (a.entryDate !== b.entryDate) {
+      return b.entryDate.localeCompare(a.entryDate);
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
+/** Returns a new list with `memo` inserted or replaced by id. */
+export function upsertMemo(memos: readonly Memo[], memo: Memo): Memo[] {
+  return [...memos.filter((item) => item.id !== memo.id), memo];
+}
+
+/** Merges a freshly loaded page into the cache, replacing by id and re-sorting. */
+export function mergeMemos(
+  existing: readonly Memo[],
+  incoming: readonly Memo[],
+): Memo[] {
+  const byId = new Map(existing.map((memo) => [memo.id, memo]));
+  for (const memo of incoming) {
+    byId.set(memo.id, memo);
+  }
+  return sortMemos([...byId.values()]);
+}
+
+/** Active = neither archived nor favorited, and not soft-deleted. */
+export function isActive(memo: Memo): boolean {
+  return !memo.archivedAt && !memo.favoritedAt && !memo.deletedAt;
+}
+
+/** Memos written on this same month/day in earlier years, newest year first. */
+export function onThisDay(memos: readonly Memo[], todayISO: string): Memo[] {
+  const monthDay = todayISO.slice(5);
+  const year = todayISO.slice(0, 4);
+  return memos
+    .filter(
+      (memo) =>
+        isActive(memo) &&
+        memo.entryDate.slice(5) === monthDay &&
+        memo.entryDate.slice(0, 4) < year,
+    )
+    .sort((a, b) => b.entryDate.localeCompare(a.entryDate));
+}
+
+/** Counts active memos per entry date (YYYY-MM-DD). */
+export function entryDateCounts(
+  memos: readonly Memo[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const memo of memos) {
+    if (isActive(memo)) {
+      counts[memo.entryDate] = (counts[memo.entryDate] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/** Active memos written on a specific entry date. */
+export function entriesByDate(memos: readonly Memo[], date: string): Memo[] {
+  return memos.filter((memo) => isActive(memo) && memo.entryDate === date);
+}

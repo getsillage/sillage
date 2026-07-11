@@ -1,4 +1,4 @@
-package app.sillage.ui
+package app.sillage.ui.ask
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

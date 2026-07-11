@@ -53,6 +53,21 @@ REST 与 Connect 适配器复用同一业务服务。记录的校验、分页、
 
 `app/` 负责组合各特性；特性可以依赖共享 `components/`、`lib/`，问答可调用记录特性保存回答，但记录特性不反向依赖问答。`web/src/lib/api.ts` 暂时维持统一的传输客户端，目录整理不改变 API、路由或浏览器存储契约。
 
+### Android 内部边界
+
+| 路径 | 职责 |
+| --- | --- |
+| `android/app/src/main/java/app/sillage/ui/` | 应用壳、共享界面状态、ViewModel 和附件缓存生命周期 |
+| `android/app/src/main/java/app/sillage/ui/auth/` | 使用模式选择、服务连接、初始化与登录界面 |
+| `android/app/src/main/java/app/sillage/ui/memos/` | 记录列表、详情、编辑和 Markdown 展示 |
+| `android/app/src/main/java/app/sillage/ui/ask/` | 问答会话与流式回答界面 |
+| `android/app/src/main/java/app/sillage/ui/settings/` | AI、外观、数据和同步设置界面 |
+| `android/app/src/main/java/app/sillage/ui/common/` | 跨特性复用的展示组件 |
+| `android/app/src/main/java/app/sillage/ui/navigation/` | 主导航组件 |
+| `android/app/src/main/java/app/sillage/data/` | REST 客户端、会话、本地存储和数据模型 |
+
+`SillageApp` 只组合界面并处理附件查看器交接；特性界面依赖根 `SillageUiState`、`SillageViewModel` 和共享 UI，状态与数据层不反向依赖特性界面。目录整理不改变手动同步、导航历史、请求 ID 或在线与离线模式语义。
+
 ## 核心不变量
 
 - 一个实例只有一个账号；初始化后拒绝创建第二个账号。

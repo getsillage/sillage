@@ -1,4 +1,4 @@
-package app.sillage.ui
+package app.sillage.ui.ask
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.scrollBy
@@ -76,6 +76,10 @@ import app.sillage.data.AskSourceRef
 import app.sillage.data.askSourceLabel
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.lastAssistantMessageId
+import app.sillage.ui.SillageUiState
+import app.sillage.ui.SillageViewModel
+import app.sillage.ui.common.MessageBlock
+import app.sillage.ui.navigation.MainNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

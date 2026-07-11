@@ -1,4 +1,4 @@
-package app.sillage.ui
+package app.sillage.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,6 +63,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.SessionStore
+import app.sillage.ui.SillageUiState
+import app.sillage.ui.SillageViewModel
+import app.sillage.ui.common.MessageBlock
+import app.sillage.ui.navigation.MainNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

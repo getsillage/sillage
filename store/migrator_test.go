@@ -34,8 +34,8 @@ func TestMigrateFreshInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version == "" {
-		t.Fatal("schema version is empty")
+	if version != "0.1.3" {
+		t.Fatalf("schema version = %q, want 0.1.3", version)
 	}
 	if !columnExists(t, s, "memo", "favorited_at") {
 		t.Fatal("fresh memo schema is missing favorited_at")
@@ -216,6 +216,13 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	if err := s.Migrate(ctx); err != nil {
 		t.Fatalf("second Migrate() error = %v", err)
 	}
+	version, err := s.GetSchemaVersion(ctx)
+	if err != nil {
+		t.Fatalf("GetSchemaVersion() after compat migration error = %v", err)
+	}
+	if version != "0.1.3" {
+		t.Fatalf("schema version after compat migration = %q, want 0.1.3", version)
+	}
 	memo, err = s.GetMemo(ctx, "a1", "m1", false)
 	if err != nil {
 		t.Fatalf("GetMemo() after second migration error = %v", err)
@@ -229,6 +236,32 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	value, ok, err := s.GetAccountSetting(ctx, "a1", "ai.auto_summary")
 	if err != nil || !ok || value != "true" {
 		t.Fatalf("GetAccountSetting() = %q, %v, %v; want true, true, nil", value, ok, err)
+	}
+}
+
+func TestMigrateRejectsNewerSchemaVersion(t *testing.T) {
+	ctx := context.Background()
+	p := &profile.Profile{Data: t.TempDir()}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	driver, err := db.NewDBDriver(p)
+	if err != nil {
+		t.Fatalf("NewDBDriver() error = %v", err)
+	}
+	s := store.New(driver, p)
+	defer s.Close()
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("initial Migrate() error = %v", err)
+	}
+	if _, err := s.GetDriver().GetDB().ExecContext(ctx, `
+UPDATE system_setting
+SET value = '9.0.0'
+WHERE key = 'schema_version'`); err != nil {
+		t.Fatalf("set future schema version: %v", err)
+	}
+	if err := s.Migrate(ctx); err == nil {
+		t.Fatal("Migrate() error = nil, want unsupported future version error")
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,7 +17,8 @@ var migrationFS embed.FS
 
 const (
 	latestSchemaFileName = "migration/sqlite/LATEST.sql"
-	currentSchemaVersion = "0.1.0"
+	minimumSchemaVersion = "0.1.0"
+	currentSchemaVersion = "0.1.3"
 	schemaVersionKey     = "schema_version"
 )
 
@@ -26,10 +29,24 @@ func (s *Store) Migrate(ctx context.Context) error {
 		return fmt.Errorf("check database initialization: %w", err)
 	}
 	if initialized {
-		if _, err := s.GetSchemaVersion(ctx); err != nil {
+		version, err := s.GetSchemaVersion(ctx)
+		if err != nil {
 			return fmt.Errorf("read schema version: %w", err)
 		}
-		return s.EnsureCompatSchema(ctx)
+		if err := validateSchemaVersion(version); err != nil {
+			return err
+		}
+		if err := s.EnsureCompatSchema(ctx); err != nil {
+			return err
+		}
+		if version == currentSchemaVersion {
+			return nil
+		}
+		if err := s.setSchemaVersion(ctx, currentSchemaVersion); err != nil {
+			return err
+		}
+		slog.Info("database migrated", "from_schema_version", version, "to_schema_version", currentSchemaVersion)
+		return nil
 	}
 
 	stmt, err := migrationFS.ReadFile(latestSchemaFileName)
@@ -60,6 +77,60 @@ func (s *Store) Migrate(ctx context.Context) error {
 	return nil
 }
 
+func validateSchemaVersion(version string) error {
+	minimum, err := compareSchemaVersions(version, minimumSchemaVersion)
+	if err != nil {
+		return fmt.Errorf("parse schema version %q: %w", version, err)
+	}
+	if minimum < 0 {
+		return fmt.Errorf("schema version %q is older than the minimum supported version %s", version, minimumSchemaVersion)
+	}
+	maximum, err := compareSchemaVersions(version, currentSchemaVersion)
+	if err != nil {
+		return fmt.Errorf("parse schema version %q: %w", version, err)
+	}
+	if maximum > 0 {
+		return fmt.Errorf("schema version %q is newer than this binary supports (%s)", version, currentSchemaVersion)
+	}
+	return nil
+}
+
+func compareSchemaVersions(left, right string) (int, error) {
+	leftParts, err := parseSchemaVersion(left)
+	if err != nil {
+		return 0, err
+	}
+	rightParts, err := parseSchemaVersion(right)
+	if err != nil {
+		return 0, err
+	}
+	for index := range leftParts {
+		if leftParts[index] < rightParts[index] {
+			return -1, nil
+		}
+		if leftParts[index] > rightParts[index] {
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
+func parseSchemaVersion(version string) ([3]int, error) {
+	var parsed [3]int
+	parts := strings.Split(version, ".")
+	if len(parts) != len(parsed) {
+		return parsed, fmt.Errorf("expected major.minor.patch")
+	}
+	for index, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil || value < 0 {
+			return parsed, fmt.Errorf("invalid component %q", part)
+		}
+		parsed[index] = value
+	}
+	return parsed, nil
+}
+
 func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	if err := s.ensureAccountSettingTable(ctx); err != nil {
 		return err
@@ -69,6 +140,25 @@ func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	}
 	if err := s.ensureMemoFavoritedCompat(ctx); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *Store) setSchemaVersion(ctx context.Context, version string) error {
+	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin schema version update: %w", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			slog.Warn("failed to rollback schema version update", "error", rollbackErr)
+		}
+	}()
+	if err := upsertSchemaVersion(ctx, tx, version); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit schema version update: %w", err)
 	}
 	return nil
 }

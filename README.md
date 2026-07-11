@@ -19,14 +19,23 @@ Sillage 不提供多人协作、公开主页、社交分享、后台自动同步
 
 ## 快速开始
 
-从源码构建并只在本机开放服务：
+稳定部署应从 [GitHub Releases](https://github.com/getsillage/sillage/releases) 选择发布 tag，而不是直接构建 `main`。以下示例从发布源码构建，并只在本机开放服务：
 
 ```bash
-docker build -t sillage:latest -f scripts/Dockerfile .
+git clone https://github.com/getsillage/sillage.git
+cd sillage
+git checkout vX.Y.Z
+VERSION="$(git describe --tags --exact-match)"
+REVISION="$(git rev-parse HEAD)"
+docker build \
+  --build-arg VERSION="$VERSION" \
+  --build-arg REVISION="$REVISION" \
+  -t "sillage:$VERSION" \
+  -f scripts/Dockerfile .
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  sillage:latest
+  "sillage:$VERSION"
 ```
 
 打开 `http://localhost:5231`，按页面提示创建唯一账号。
@@ -65,12 +74,13 @@ Compose、反向代理、环境变量和公网部署见[部署说明](docs/user/
 | 修改同步客户端 | [同步 API](docs/development/api/sync.md) |
 | 修改产品或界面 | [产品指导](docs/development/product-guidance.md) / [Web 设计规范](docs/development/design/README.md) |
 | 构建 Android | [Android 说明](android/README.md) |
+| 下载版本与查看变更 | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 
 完整索引见[文档中心](docs/README.md)。安全问题请按[安全策略](SECURITY.md)私下报告。
 
 ## 开发
 
-后端需要 Go 1.25，Web 推荐 Node.js 24 与 pnpm 11；Android 需要 JDK 17 和 Android SDK。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
+后端需要 Go 1.25，Web 推荐 Node.js 24 与 pnpm 11.9；Android 需要 JDK 17 和 Android SDK。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
 
 ## 许可证
 

@@ -6,6 +6,7 @@
 - [产品指导](product-guidance.md)：产品范围、术语和 AI 行为边界。
 - [安全开发边界](security.md)：认证、附件、密钥、外部请求和敏感数据约束。
 - [同步 API](api/sync.md)：离线同步、幂等和冲突语义。
+- [REST API 说明](api/README.md)：REST 认证、错误模型、路由边界和版本规则。
 - [Web 设计规范](design/README.md)：界面方向、组件约束和验收底线。
 
 部署、数据维护和 AI 外部数据属于使用者文档，分别见[部署说明](../user/deployment.md)、[数据与备份](../user/data.md)和[AI 使用与隐私](../user/ai.md)。

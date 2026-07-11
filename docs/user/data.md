@@ -1,6 +1,6 @@
 # 数据与备份
 
-默认配置下，Sillage 的持久化单元是完整的数据目录。Docker 示例把容器内 `/var/opt/sillage` 映射到宿主机 `$HOME/.sillage`。显式配置的外置 DSN 或 secret 文件也属于同一个恢复点。
+默认配置下，服务端的持久化单元是完整的数据目录。Docker 示例把容器内 `/var/opt/sillage` 映射到宿主机 `$HOME/.sillage`。显式配置的外置 DSN 或 secret 文件也属于同一个恢复点；浏览器草稿不在其中，见下文。
 
 ## 目录内容
 
@@ -22,9 +22,17 @@ runtime/secrets.json
 
 显式设置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 或对应 `_FILE` 时，实际运行值不保证回写到 `runtime/secrets.json`。这些外部 secret 必须单独安全保存并随数据恢复；更换 `SESSION_SECRET` 会使会话失效，更换 `ENCRYPTION_SECRET` 会使已有 AI API key 无法解密。
 
+## 删除与浏览器草稿
+
+记录删除采用 tombstone，以便离线客户端收敛：服务端 SQLite 会保留已删除记录的正文、相关 AI 派生数据和删除时间。删除 AI 档案会清空当前服务端保存的加密 API key envelope，但旧备份仍可能包含它。当前没有记录或 AI 历史的自动清理、单项永久清除流程，因此这些内容会继续存在于服务端数据目录和由其生成的备份中。
+
+Web 为恢复未保存的记录和速记，会把草稿正文、日期和基线版本明文保存在浏览器 `localStorage`。草稿不进入服务端备份，退出登录后也可能继续保留在同一浏览器 profile。共用设备应避免使用 Web，或在离开前保存/放弃草稿并清除该站点的浏览器数据。
+
+账号密码没有内置的修改、重置或数据保留式恢复流程。请使用密码管理器保存密码；忘记密码时不要删除数据目录以尝试重新初始化，否则会破坏既有数据与账号关系。
+
 ## 备份
 
-下面的脚本适用于 Compose。若使用 `docker run`、systemd 或本机二进制，必须换成对应的停止/启动命令，并确认没有进程继续写 SQLite。脚本任一步失败都会中止并保持服务停止。
+下面的脚本适用于 Compose。若使用 `docker run`、systemd 或本机二进制，必须换成对应的停止/启动命令，并确认没有进程继续写 SQLite。预检失败时服务仍在运行；`docker compose stop` 成功后的后续步骤失败会中止并保持服务停止。
 
 ```bash
 sh -eu <<'SH'

@@ -12,8 +12,10 @@
 | 修改产品语义 | [产品指导](development/product-guidance.md) |
 | 修改认证、附件、密钥或外部请求 | [安全开发边界](development/security.md) |
 | 修改同步行为 | [同步 API](development/api/sync.md) |
+| 修改 REST 路由或客户端 | [REST API 说明](development/api/README.md) |
 | 修改 Web 界面 | [Web 设计规范](development/design/README.md) |
 | 构建 Android | [Android 说明](../android/README.md) |
+| 下载发布版本与查看变更 | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 | 报告安全问题 | [安全策略](../SECURITY.md) |
 
 ## 维护原则

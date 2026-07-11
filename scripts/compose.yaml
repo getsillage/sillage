@@ -1,9 +1,12 @@
 services:
   sillage:
-    image: sillage:latest
+    image: ${SILLAGE_IMAGE:-sillage:latest}
     build:
       context: ..
       dockerfile: scripts/Dockerfile
+      args:
+        VERSION: ${SILLAGE_VERSION:-dev}
+        REVISION: ${SILLAGE_REVISION:-unknown}
     container_name: sillage
     restart: unless-stopped
     ports:
@@ -19,10 +22,17 @@ services:
       SILLAGE_LOG_LEVEL: "info"
       # SESSION_SECRET and ENCRYPTION_SECRET are optional.
       # When omitted, Sillage generates and persists them on first start.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5231/api/v1/auth/bootstrap | grep -q '\"initialized\":true'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:latest@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
     profiles: ["tunnel"]
     command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-}
     depends_on:
-      - sillage
+      sillage:
+        condition: service_healthy

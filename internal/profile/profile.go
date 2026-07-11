@@ -24,7 +24,6 @@ type Profile struct {
 	Driver      string
 	DSN         string
 	MaxUploadMB int
-	InstanceURL string
 	LogFormat   string
 	LogLevel    string
 }

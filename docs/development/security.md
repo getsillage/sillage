@@ -17,6 +17,7 @@ Sillage 自身只提供 HTTP。公网 TLS、转发头清理和后端端口隔离
 ## 认证与会话
 
 - 一个实例只能创建一个未删除账号；初始化检查与写入必须保持在同一事务中。
+- 初始化接口在实例未建号前无需认证。部署文档必须要求先在回环地址初始化、确认 bootstrap 状态后，再开放代理、Tunnel 或局域网端口；不能把未初始化实例直接暴露到公网。
 - 密码只保存派生后的 hash，不得写入日志、响应或同步数据。
 - access token 由服务端签名并在 15 分钟后过期；refresh token 只以 hash 保存、有效期 30 天并在刷新时轮换。退出登录撤销 refresh session，但已签发的 access token 仍可使用到过期。
 - Cookie 必须保持 `HttpOnly` 和 `SameSite=Lax`。TLS 或可信 `X-Forwarded-Proto: https` 下还必须设置 `Secure`。
@@ -29,6 +30,7 @@ Sillage 自身只提供 HTTP。公网 TLS、转发头清理和后端端口隔离
 - AI API key 只以加密 envelope 写入 SQLite；REST、Connect、同步、日志和导出不得返回明文。
 - `runtime/secrets.json` 不是缓存。密钥轮换或存储格式变化必须提供兼容或明确的迁移、备份和回滚说明。
 - 数据库、附件与备份没有整体静态加密。不要把字段级 API key 加密描述成完整数据加密。
+- AI 档案删除必须清空当前数据库行中的 API key envelope；历史备份、记录 tombstone 与 AI 派生数据的保留语义必须在用户数据文档中明确。
 
 ## 附件与内容
 
@@ -50,6 +52,7 @@ Sillage 自身只提供 HTTP。公网 TLS、转发头清理和后端端口隔离
 - 请求日志只记录请求 ID、方法、路径、状态、耗时和客户端 IP，不记录 header、body、Cookie、token 或记录内容。
 - `/healthz` 和 `/readyz` 无需认证；`readyz` 当前还返回依赖错误文本。不得让错误链新增密钥、账号、记录内容或其他敏感配置，公开部署前应评估是否需要收敛诊断信息。
 - 新增错误日志前先确认错误链不会携带密钥、私密正文或 Provider 请求 payload。
+- Web 草稿会保存在浏览器 `localStorage`，不进入服务端备份且可能跨退出登录保留。修改草稿或退出登录流程时必须保持这一边界可见，并避免在共享设备上误导用户。
 
 ## Android
 

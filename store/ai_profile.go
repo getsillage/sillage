@@ -181,7 +181,7 @@ func (s *Store) DeleteAIProfilesExcept(ctx context.Context, accountID string, ke
 	now := time.Now().UTC().UnixMilli()
 	query := `
 UPDATE ai_profile
-SET deleted_at = ?, updated_at = ?, active = 0
+SET deleted_at = ?, updated_at = ?, active = 0, api_key_envelope = NULL, key_unavailable = 0
 WHERE account_id = ? AND deleted_at IS NULL`
 	args := []any{now, now, accountID}
 	if len(keepIDs) > 0 {

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev:lan": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "biome check .",
@@ -11,8 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
-    "release": "pnpm build"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",

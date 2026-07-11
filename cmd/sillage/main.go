@@ -22,6 +22,11 @@ import (
 	"github.com/getsillage/sillage/store/db"
 )
 
+var (
+	version  = "dev"
+	revision = "unknown"
+)
+
 func main() {
 	if err := newRootCommand().Execute(); err != nil {
 		os.Exit(1)
@@ -30,8 +35,9 @@ func main() {
 
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "sillage",
-		Short: "Self-hosted private memo and AI reflection tool",
+		Use:     "sillage",
+		Short:   "Self-hosted private memo and AI reflection tool",
+		Version: version,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return run()
 		},
@@ -43,7 +49,6 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentFlags().String("dsn", "", "SQLite database path")
 	cmd.PersistentFlags().String("driver", profile.DriverSQLite, "database driver")
 	cmd.PersistentFlags().Int("max-upload-mb", 30, "maximum upload size in MiB")
-	cmd.PersistentFlags().String("instance-url", "", "external instance URL")
 	cmd.PersistentFlags().String("log-format", "json", "log format: json or text")
 	cmd.PersistentFlags().String("log-level", "info", "log level: debug, info, warn, or error")
 
@@ -53,7 +58,6 @@ func newRootCommand() *cobra.Command {
 	mustBindFlag(cmd, "dsn")
 	mustBindFlag(cmd, "driver")
 	mustBindFlag(cmd, "max-upload-mb")
-	mustBindFlag(cmd, "instance-url")
 	mustBindFlag(cmd, "log-format")
 	mustBindFlag(cmd, "log-level")
 
@@ -85,7 +89,6 @@ func run() error {
 		Driver:      viper.GetString("driver"),
 		DSN:         viper.GetString("dsn"),
 		MaxUploadMB: viper.GetInt("max-upload-mb"),
-		InstanceURL: viper.GetString("instance-url"),
 		LogFormat:   viper.GetString("log-format"),
 		LogLevel:    viper.GetString("log-level"),
 	}
@@ -93,6 +96,7 @@ func run() error {
 		return fmt.Errorf("validate profile: %w", err)
 	}
 	configureLogger(instanceProfile)
+	slog.Info("starting Sillage", "version", version, "revision", revision)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -185,7 +189,7 @@ func configureLogger(p *profile.Profile) {
 }
 
 func printGreetings(p *profile.Profile) {
-	fmt.Println("Sillage started successfully.")
+	fmt.Printf("Sillage %s (%s) started successfully.\n", version, revision)
 	fmt.Printf("Data directory: %s\n", p.Data)
 	fmt.Printf("Database driver: %s\n", p.Driver)
 	fmt.Printf("Database: %s\n", p.DSN)

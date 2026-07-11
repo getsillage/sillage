@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/getsillage/sillage/store"
@@ -58,5 +59,34 @@ func TestUpsertAIProfilePersistsAutoSummary(t *testing.T) {
 	}
 	if got.AutoSummary {
 		t.Fatalf("reloaded AutoSummary = true, want false")
+	}
+}
+
+func TestDeleteAIProfilesExceptClearsKeyEnvelope(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+	key := "encrypted-envelope"
+	profile, err := s.UpsertAIProfile(ctx, &store.UpsertAIProfile{
+		AccountID:      account,
+		Name:           "默认",
+		Provider:       "openai",
+		Enabled:        true,
+		Active:         true,
+		APIKeyEnvelope: &key,
+	})
+	if err != nil {
+		t.Fatalf("UpsertAIProfile() error = %v", err)
+	}
+	if err := s.DeleteAIProfilesExcept(ctx, account, nil); err != nil {
+		t.Fatalf("DeleteAIProfilesExcept() error = %v", err)
+	}
+	var envelope sql.NullString
+	if err := s.GetDriver().GetDB().QueryRowContext(ctx, `
+SELECT api_key_envelope FROM ai_profile WHERE id = ?`, profile.ID).Scan(&envelope); err != nil {
+		t.Fatalf("read deleted profile envelope: %v", err)
+	}
+	if envelope.Valid {
+		t.Fatalf("deleted profile envelope = %q, want NULL", envelope.String)
 	}
 }

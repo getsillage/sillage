@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Buf
         uses: bufbuild/buf-setup-action@v1
@@ -46,6 +48,14 @@ jobs:
 
       - name: Lint
         uses: bufbuild/buf-lint-action@v1
+
+      - name: Check breaking changes against pull request base
+        if: github.event_name == 'pull_request'
+        run: buf breaking --against ".git#branch=${{ github.base_ref }}"
+
+      - name: Check breaking changes against previous main commit
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: buf breaking --against ".git#ref=${{ github.event.before }}"
 
       - name: Generate
         run: buf generate
@@ -135,6 +145,65 @@ jobs:
           else
             git diff-tree --check --root --no-commit-id -r "$GITHUB_SHA"
           fi
+
+  container:
+    name: Container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --build-arg VERSION=ci --build-arg REVISION="$GITHUB_SHA" -t sillage:ci -f scripts/Dockerfile .
+
+      - name: Validate Compose configuration
+        run: docker compose -f scripts/compose.yaml config
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install Web dependencies
+        run: pnpm --dir web install --frozen-lockfile
+
+      - name: Install browser
+        run: pnpm --dir web exec playwright install --with-deps chromium
+
+      - name: Run fresh-instance E2E
+        run: |
+          pnpm --dir web build
+          SILLAGE_DATA="$(mktemp -d)" SILLAGE_ADDR=127.0.0.1 go run ./cmd/sillage > /tmp/sillage.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"; wait "$server_pid" || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null
+          E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
 
   android:
     name: Android

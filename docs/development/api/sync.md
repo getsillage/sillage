@@ -6,7 +6,7 @@
 
 - 请求使用 `Authorization: Bearer <access_token>`。
 - cursor 是服务端生成的不透明字符串，客户端只能原样保存和回传。
-- 删除以 `deletedAt` tombstone 同步，不立即物理清除。
+- 删除以 `deletedAt` tombstone 同步，不立即物理清除。当前服务端不自动清理 tombstone 或已保存的 `mutationId` 结果，因此 cursor 没有固定过期时间；改变保留策略前必须定义客户端全量重置协议。
 - 推送按变更逐条处理，一条失败不会回滚整批。
 - `mutationId` 标识一次逻辑修改并关联已保存的处理结果；资源 `version` 用于检测并发冲突。
 - 当前只有 memo 支持推送；附件、AI 派生数据和 Ask 数据只支持拉取。
@@ -53,7 +53,7 @@ GET /api/v1/sync?cursor=<opaque>&limit=200
 }
 ```
 
-客户端应先把一页内的资源和 tombstone 原子合并到本地，再持久化 `nextCursor`。不能在资源写入失败后单独推进 cursor。
+增量客户端应先把一页内的资源和 tombstone 原子合并到本地，再持久化 `nextCursor`。不能在资源写入失败后单独推进 cursor。当前 Android 为降低本地 cursor 迁移复杂度，每次从空 cursor 完整拉取后再合并；它不是增量客户端实现示例。
 
 ## 推送
 
@@ -102,7 +102,7 @@ Content-Type: application/json
 - `favorited` 是规范收藏字段。服务端仅为旧客户端兼容读取已弃用的 `pinned`；两者同时出现时以 `favorited` 为准。
 - AI 总结不改变 memo 的 `version` 或 `updatedAt`。
 
-遇到 `conflict` 时，客户端应保留本地修改并展示服务端资源，由用户合并、放弃或基于新版本重新提交；不能自动覆盖或对旧 `baseVersion` 无限重试。
+遇到 `conflict` 时，客户端应保留本地修改并展示服务端资源，由用户合并、放弃或基于新版本重新提交；不能自动覆盖或对旧 `baseVersion` 无限重试。当前 Android 只保留本地 pending 修改并显示冲突数量，尚未提供应用内的服务端资源查看和合并入口；这是已知限制，不能将其视为自动解决冲突。
 
 ## 附件边界
 

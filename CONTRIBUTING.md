@@ -8,7 +8,7 @@
 | --- | --- |
 | Go | Go 1.25 |
 | Web | Node.js 24、pnpm 11 |
-| Proto | Buf CLI |
+| Proto | Buf CLI 1.71 |
 | Android | JDK 17、Android SDK 35 |
 | 容器 | Docker；Compose 可选 |
 
@@ -64,11 +64,11 @@ OpenAPI 只覆盖 Proto 声明的接口；手写的上传和 SSE 等扩展以 `s
 
 ## 验证
 
-按影响范围至少运行对应命令。CI 会运行 Go test/vet/build、Buf lint/generate、Web lint/typecheck/test/build、Android test/lint/build，并检查 Proto/Web 生成物与 Markdown 链接；E2E、Docker 与人工验收仍是本地门禁。Docker 构建前必须先检查上下文策略，确保 Git 忽略的本地数据、密钥和构建产物不会发送给构建器。
+按影响范围至少运行对应命令。CI 会运行 Go test/vet/build、Buf lint/generate、Web lint/typecheck/test/build、Android test/lint/build，并检查依赖元数据、Docker 上下文策略、Proto/Web 生成物、Markdown 链接和提交范围空白；E2E、完整 Docker 构建与人工验收仍是本地门禁。Docker 构建前必须先检查上下文策略，确保 Git 忽略的本地数据、密钥和构建产物不会发送给构建器。
 
 | 范围 | 命令 |
 | --- | --- |
-| Go | `go test -count=1 ./...`、`go vet ./...`、`go build ./cmd/sillage` |
+| Go | `go mod tidy -diff`、`go test -count=1 ./...`、`go vet ./...`、`go build ./cmd/sillage` |
 | Web | `pnpm --dir web lint`、`pnpm --dir web typecheck`、`pnpm --dir web test`、`pnpm --dir web build` |
 | Proto | `buf lint`、`buf generate`，然后检查生成物 diff |
 | Android | `cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` |

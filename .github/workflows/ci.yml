@@ -20,8 +20,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Verify dependency metadata
+        run: go mod tidy -diff
+
       - name: Test
-        run: go test ./...
+        run: go test -count=1 ./...
 
       - name: Vet
         run: go vet ./...
@@ -38,6 +41,8 @@ jobs:
 
       - name: Set up Buf
         uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.71.0
 
       - name: Lint
         uses: bufbuild/buf-lint-action@v1
@@ -107,14 +112,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
+      - name: Check Docker context policy
+        run: node scripts/check-docker-context.mjs
+
       - name: Check Markdown links
         run: node scripts/check-markdown-links.mjs
+
+      - name: Check whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$BASE_SHA" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git diff --check "$BASE_SHA" "$GITHUB_SHA"
+          else
+            git diff-tree --check --root --no-commit-id -r "$GITHUB_SHA"
+          fi
 
   android:
     name: Android

@@ -1,5 +1,6 @@
 package app.sillage.ui
 
+import app.sillage.R
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -27,6 +28,7 @@ import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
+import app.sillage.data.firstBlankAIProfileNameIndex
 import app.sillage.data.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.markdownFormatSnippet
@@ -77,6 +79,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             baseUrl = sessionStore.baseUrl(),
             account = sessionStore.account(),
             themeMode = sessionStore.themeMode(),
+            languageMode = sessionStore.languageMode(),
             appMode = sessionStore.appMode(),
         ),
     )
@@ -116,7 +119,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun saveServer() {
         val normalized = SessionStore.normalizeBaseUrl(state.value.baseUrl)
         if (normalized.isBlank()) {
-            _state.update { it.copy(error = "请先填写服务器地址", notice = null) }
+            _state.update { it.copy(error = uiString(R.string.error_server_required), notice = null) }
             return
         }
         cancelAttachmentOpen()
@@ -183,7 +186,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAskVariant()
         cancelAskStream()
         sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
-        enterOfflineMode(notice = "已切换到离线模式")
+        enterOfflineMode(notice = uiString(R.string.notice_offline_enabled))
     }
 
     fun openServerSettings() {
@@ -261,6 +264,35 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         sessionStore.saveThemeMode(next)
         _state.update { it.copy(themeMode = next) }
+    }
+
+    fun setLanguageMode(value: String) {
+        val next = SessionStore.normalizeLanguageMode(value)
+        if (state.value.languageMode == next) {
+            return
+        }
+        sessionStore.saveLanguageMode(next)
+        _state.update {
+            it.copy(
+                languageMode = next,
+                error = null,
+                notice = null,
+            )
+        }
+    }
+
+    fun toggleLanguageMode() {
+        setLanguageMode(
+            if (state.value.languageMode == SessionStore.LANGUAGE_ZH_CN) {
+                SessionStore.LANGUAGE_EN
+            } else {
+                SessionStore.LANGUAGE_ZH_CN
+            },
+        )
+    }
+
+    private fun uiString(resourceId: Int, vararg formatArgs: Any): String {
+        return appContext.localizedString(state.value.languageMode, resourceId, *formatArgs)
     }
 
     fun connect() {
@@ -395,7 +427,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                     searching = false,
                     screen = if (isOfflineMode()) Screen.Memos else Screen.Login,
                     screenHistory = emptyList(),
-                    notice = if (isOfflineMode()) "已清除在线登录信息" else "已退出登录",
+                    notice = uiString(
+                        if (isOfflineMode()) R.string.notice_online_session_cleared else R.string.notice_signed_out,
+                    ),
                     error = null,
                 )
             }
@@ -601,7 +635,15 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun appendMarkdownFormat(style: MarkdownFormatStyle) {
-        val snippet = markdownFormatSnippet(style)
+        val sampleResource = when (style) {
+            MarkdownFormatStyle.Heading -> R.string.markdown_sample_heading
+            MarkdownFormatStyle.Bold -> R.string.markdown_sample_bold
+            MarkdownFormatStyle.Italic -> R.string.markdown_sample_italic
+            MarkdownFormatStyle.Code -> R.string.markdown_sample_code
+            MarkdownFormatStyle.List -> R.string.markdown_sample_list
+            MarkdownFormatStyle.Quote -> R.string.markdown_sample_quote
+        }
+        val snippet = markdownFormatSnippet(style, uiString(sampleResource))
         _state.update {
             val separator = if (it.draftContent.isBlank() || snippet.startsWith("\n")) "" else " "
             it.copy(
@@ -699,11 +741,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                 withContext(Dispatchers.IO) {
                     appContext.contentResolver.openOutputStream(uri)?.use { output ->
                         output.write(json.toByteArray(Charsets.UTF_8))
-                    } ?: throw IllegalArgumentException("无法写入导出文件")
+                    } ?: throw IllegalArgumentException(uiString(R.string.error_export_write))
                 }
             }
                 .onSuccess {
-                    _state.update { it.copy(notice = "完整数据已导出") }
+                    _state.update { it.copy(notice = uiString(R.string.notice_exported)) }
                 }
                 .onFailure { error ->
                     _state.update { it.copy(error = error.readableMessage()) }
@@ -719,7 +761,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 val raw = withContext(Dispatchers.IO) {
                     appContext.contentResolver.openInputStream(uri)?.use { input ->
                         input.readBytes().toString(Charsets.UTF_8)
-                    } ?: throw IllegalArgumentException("无法读取导入文件")
+                    } ?: throw IllegalArgumentException(uiString(R.string.error_import_read))
                 }
                 val data = SillageExportCodec.fromJson(raw)
                 localDataStore.mergeWith(data)
@@ -748,7 +790,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             searchQuery = "",
                             searchResults = null,
                             searching = false,
-                            notice = "完整数据已导入",
+                            notice = uiString(R.string.notice_imported),
                         )
                     }
                     refreshMemos()
@@ -762,7 +804,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun syncFromServer() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
             return
         }
         viewModelScope.launch {
@@ -772,7 +814,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 localDataStore.mergeFromServer(data)
             }
                 .onSuccess {
-                    _state.update { it.copy(notice = "已同步到本地") }
+                    _state.update { it.copy(notice = uiString(R.string.notice_synced_local)) }
                 }
                 .onFailure { error ->
                     _state.update { it.copy(error = error.readableMessage()) }
@@ -783,7 +825,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun syncToServer() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
             return
         }
         viewModelScope.launch {
@@ -801,7 +843,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun syncBothWays() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "同步需要在线模式", notice = null) }
+            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
             return
         }
         viewModelScope.launch {
@@ -812,7 +854,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 push
             }
                 .onSuccess { summary ->
-                    _state.update { it.copy(notice = "双向同步完成。${syncPushNotice(summary)}") }
+                    _state.update { it.copy(notice = uiString(R.string.notice_sync_both, syncPushNotice(summary))) }
                     refreshMemos()
                 }
                 .onFailure { error ->
@@ -904,7 +946,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (current.draftContent.isBlank()) {
-            _state.update { it.copy(error = "记录内容不能为空") }
+            _state.update { it.copy(error = uiString(R.string.error_record_empty)) }
             return
         }
         launchBusy {
@@ -940,7 +982,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     initialDraftEntryDate = LocalDate.now().toString(),
                     searchQuery = "",
                     searchResults = null,
-                    notice = "已保存",
+                    notice = uiString(R.string.notice_saved),
                 )
             }
             fetchSelectedMemoDetail(saved.id)
@@ -974,7 +1016,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     initialDraftEntryDate = LocalDate.now().toString(),
                     searchQuery = "",
                     searchResults = null,
-                    notice = "已删除",
+                    notice = uiString(R.string.notice_deleted),
                 )
             }
             refreshMemos()
@@ -995,7 +1037,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.favoritedAt == null) "已取消收藏" else "已收藏")
+                it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
             }
         }
     }
@@ -1014,7 +1056,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
+                it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
             }
         }
     }
@@ -1028,7 +1070,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.favoritedAt == null) "已取消收藏" else "已收藏")
+                it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
             }
         }
     }
@@ -1042,7 +1084,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             applyMemo(updated)
             _state.update {
-                it.copy(notice = if (updated.archivedAt == null) "已取消归档" else "已归档")
+                it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
             }
         }
     }
@@ -1059,7 +1101,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 it.copy(
                     selectedMemo = if (it.selectedMemo?.id == memo.id) null else it.selectedMemo,
                     selectedSummary = if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
-                    notice = "已删除",
+                    notice = uiString(R.string.notice_deleted),
                 )
             }
             refreshMemos()
@@ -1076,10 +1118,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             viewModelScope.launch {
                 _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
                 try {
-                    val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置一个默认 AI 档案")
+                    val profile = localDataStore.activeAIProfile()
+                        ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
                     val ai = localAiClient.summarizeMemo(profile, memo)
                     localDataStore.saveMemoAI(ai)
-                    _state.update { it.copy(selectedSummary = ai, summaryLoading = false, notice = "已生成总结") }
+                    _state.update {
+                        it.copy(selectedSummary = ai, summaryLoading = false, notice = uiString(R.string.notice_summary_generated))
+                    }
                 } catch (error: Throwable) {
                     _state.update { it.copy(summaryLoading = false, error = error.readableMessage()) }
                 }
@@ -1096,7 +1141,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             current.copy(
                                 selectedSummary = ai,
                                 summaryLoading = false,
-                                notice = "已生成总结",
+                                notice = uiString(R.string.notice_summary_generated),
                             )
                         } else {
                             current
@@ -1127,7 +1172,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "附件上传需要在线模式") }
+            _state.update { it.copy(error = uiString(R.string.error_attachment_online_required)) }
             return
         }
         val editorSessionId = current.editorSessionId
@@ -1157,7 +1202,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             it.copy(
                                 draftContent = it.draftContent + snippets,
                                 uploadingAttachment = false,
-                                notice = "附件已插入",
+                                notice = uiString(R.string.notice_attachment_inserted),
                             )
                         } else {
                             it
@@ -1181,7 +1226,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun openProtectedAttachment(target: MarkdownLinkTarget.ProtectedAttachment) {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = "打开附件需要在线模式", notice = null) }
+            _state.update { it.copy(error = uiString(R.string.error_attachment_open_online_required), notice = null) }
             return
         }
         val current = state.value
@@ -1224,7 +1269,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 if (state.value.canHandleAttachmentOpen(requestId)) {
                     val result = _attachmentOpenEvents.trySend(event)
                     if (result.isFailure) {
-                        throw IllegalStateException("无法准备附件")
+                        throw IllegalStateException(uiString(R.string.error_attachment_prepare))
                     }
                     requestDirectory = null
                 }
@@ -1272,7 +1317,9 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun addAIProfile() {
         _state.update {
-            it.copy(aiProfiles = it.aiProfiles + AIProfileDraft(active = it.aiProfiles.isEmpty()))
+            it.copy(
+                aiProfiles = it.aiProfiles + AIProfileDraft(active = it.aiProfiles.isEmpty()),
+            )
         }
     }
 
@@ -1299,7 +1346,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
-                            notice = "AI 档案已删除",
+                            notice = uiString(R.string.notice_ai_profile_deleted),
                         )
                     }
                 }
@@ -1378,7 +1425,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
-                            notice = "已设为默认",
+                            notice = uiString(R.string.notice_ai_default_set),
                         )
                     }
                 }
@@ -1417,7 +1464,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                     if (current.canApplyAIAutoSummaryRequest(request)) {
                         current.completeAIAutoSummaryRequest(request, savedValue).copy(
                             error = null,
-                            notice = if (savedValue) "已开启自动总结" else "已关闭自动总结",
+                            notice = uiString(
+                                if (savedValue) R.string.notice_auto_summary_on else R.string.notice_auto_summary_off,
+                            ),
                         )
                     } else {
                         current
@@ -1509,7 +1558,18 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun saveAIProfiles() {
-        val profiles = normalizedAIProfiles(state.value.aiProfiles)
+        val draftProfiles = state.value.aiProfiles
+        val blankNameIndex = firstBlankAIProfileNameIndex(draftProfiles)
+        if (blankNameIndex != null) {
+            _state.update {
+                it.copy(
+                    error = uiString(R.string.error_ai_profile_name_required, blankNameIndex + 1),
+                    notice = null,
+                )
+            }
+            return
+        }
+        val profiles = normalizedAIProfiles(draftProfiles)
         viewModelScope.launch {
             _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
             runCatching { persistAIProfiles(profiles) }
@@ -1520,7 +1580,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             aiSettingsSaving = false,
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
-                            notice = "AI 档案已保存",
+                            notice = uiString(R.string.notice_ai_profiles_saved),
                         )
                     }
                 }
@@ -1536,6 +1596,12 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private suspend fun persistAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+        val blankNameIndex = firstBlankAIProfileNameIndex(profiles)
+        if (blankNameIndex != null) {
+            throw IllegalArgumentException(
+                uiString(R.string.error_ai_profile_name_required, blankNameIndex + 1),
+            )
+        }
         val normalized = normalizedAIProfiles(profiles)
         return if (isOfflineMode()) {
             localDataStore.saveAIProfiles(normalized)
@@ -1587,7 +1653,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 _state.update {
                     it.copy(
                         aiTestingProfileId = "",
-                        aiTestResults = it.aiTestResults + (key to "连接成功（$model）"),
+                        aiTestResults = it.aiTestResults + (key to uiString(R.string.ai_test_success, model)),
                     )
                 }
             } catch (error: Throwable) {
@@ -1605,7 +1671,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val profile = state.value.aiProfiles.getOrNull(index) ?: return
         val key = profile.uiKey(index)
         if (isOfflineMode()) {
-            _state.update { it.copy(aiTestResults = it.aiTestResults + (key to "离线模式无法获取云端模型列表")) }
+            _state.update { it.copy(aiTestResults = it.aiTestResults + (key to uiString(R.string.ai_models_offline))) }
             return
         }
         viewModelScope.launch {
@@ -1616,7 +1682,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                         it.copy(
                             aiLoadingModelsProfileId = "",
                             aiModelResults = it.aiModelResults + (key to models),
-                            aiTestResults = it.aiTestResults + (key to if (models.isEmpty()) "没有可用模型" else "已获取模型列表"),
+                            aiTestResults = it.aiTestResults + (
+                                key to uiString(if (models.isEmpty()) R.string.ai_models_empty else R.string.ai_models_loaded)
+                            ),
                         )
                     }
                 }
@@ -1792,7 +1860,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun sendAskQuestion() {
         val question = state.value.askQuestion.trim()
         if (question.isBlank()) {
-            _state.update { it.copy(error = "先写下要问的问题") }
+            _state.update { it.copy(error = uiString(R.string.error_ask_question_required)) }
             return
         }
         startAskStream(content = question, forkOfId = null)
@@ -1880,7 +1948,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                             summaryLoading = !isOfflineMode(),
                             uploadingAttachment = false,
                             markdownPreview = false,
-                            notice = "已存为记录",
+                            notice = uiString(R.string.notice_ask_saved_record),
                         )
                     }
                     fetchSelectedMemoDetail(memo.id)
@@ -2030,7 +2098,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val filename = displayName(uri).ifBlank { uri.lastPathSegment ?: "attachment" }
         val contentType = resolver.getType(uri) ?: "application/octet-stream"
         val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: throw IllegalArgumentException("无法读取附件")
+            ?: throw IllegalArgumentException(uiString(R.string.error_attachment_read))
         AttachmentUpload(
             filename = filename,
             contentType = contentType,
@@ -2042,17 +2110,17 @@ class SillageViewModel(context: Context) : ViewModel() {
         requestDirectory: File,
     ): File = withContext(Dispatchers.IO) {
         val cacheRoot = requestDirectory.parentFile
-            ?: throw IllegalStateException("无法创建附件缓存")
+            ?: throw IllegalStateException(uiString(R.string.error_attachment_cache))
         if (!cacheRoot.isDirectory && !cacheRoot.mkdirs()) {
-            throw IllegalStateException("无法创建附件缓存")
+            throw IllegalStateException(uiString(R.string.error_attachment_cache))
         }
         if (!requestDirectory.mkdir()) {
-            throw IllegalStateException("无法创建附件缓存")
+            throw IllegalStateException(uiString(R.string.error_attachment_cache))
         }
         try {
             File(requestDirectory, ATTACHMENT_DOWNLOAD_TEMP_FILENAME).also { tempFile ->
                 if (!tempFile.createNewFile()) {
-                    throw IllegalStateException("无法创建附件缓存")
+                    throw IllegalStateException(uiString(R.string.error_attachment_cache))
                 }
             }
         } catch (error: Throwable) {
@@ -2073,7 +2141,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         )
         val mimeType = resolveAttachmentMimeType(download.contentType, filename)
         val requestDirectory = tempFile.parentFile
-            ?: throw IllegalStateException("无法准备附件")
+            ?: throw IllegalStateException(uiString(R.string.error_attachment_prepare))
         val file = File(requestDirectory, filename)
         moveAttachmentTempFile(tempFile, file)
         AttachmentOpenEvent(
@@ -2268,9 +2336,9 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private fun syncPushNotice(summary: SyncPushSummary): String {
         return if (summary.applied == 0 && summary.conflict == 0 && summary.rejected == 0) {
-            "没有需要同步到云端的记录"
+            uiString(R.string.sync_none)
         } else {
-            "同步到云端：成功 ${summary.applied}，冲突 ${summary.conflict}，失败 ${summary.rejected}"
+            uiString(R.string.sync_summary, summary.applied, summary.conflict, summary.rejected)
         }
     }
 
@@ -2362,7 +2430,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     onError = { message ->
                         _state.update { currentState ->
                             if (currentState.canApplyAskStream(request)) {
-                                currentState.copy(error = message)
+                                currentState.copy(error = IllegalStateException(message).readableMessage())
                             } else {
                                 currentState
                             }
@@ -2462,9 +2530,10 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }.orEmpty()
                 }
                 if (question.isBlank()) {
-                    throw IllegalArgumentException("找不到要重新生成的问题")
+                    throw IllegalArgumentException(uiString(R.string.error_ask_regenerate_missing))
                 }
-                val profile = localDataStore.activeAIProfile() ?: throw IllegalArgumentException("请先配置一个默认 AI 档案")
+                val profile = localDataStore.activeAIProfile()
+                    ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
                 val history = buildAskActivePath(messages, parentId).map { it.message }
                 val answer = localAiClient.answerQuestion(
                     profile = profile,
@@ -2472,6 +2541,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     scope = contextScope,
                     memos = localDataStore.listMemos(),
                     history = history,
+                    emptySourcesAnswer = uiString(R.string.ask_insufficient_local),
                 )
                 localDataStore.appendAskTurn(
                     conversationId = conversationId,
@@ -2636,7 +2706,42 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun Throwable.readableMessage(): String {
-        return message?.takeIf { it.isNotBlank() } ?: "操作失败"
+        val raw = message?.trim().orEmpty()
+        val normalized = raw.trimEnd('。')
+        val resourceId = when (normalized) {
+            "请求失败" -> R.string.error_request_failed
+            "操作失败" -> R.string.error_operation_failed
+            "请先登录" -> R.string.error_login_required
+            "记录不存在" -> R.string.error_record_missing
+            "会话不存在" -> R.string.error_conversation_missing
+            "不支持的数据格式版本" -> R.string.error_data_version_unsupported
+            "请先配置 AI API 密钥" -> R.string.error_ai_key_required
+            "请先配置 AI 模型" -> R.string.error_ai_model_required
+            "AI 返回为空" -> R.string.error_ai_empty
+            "附件地址无效" -> R.string.error_attachment_address_invalid
+            "附件下载失败" -> R.string.error_attachment_download
+            "附件内容为空" -> R.string.error_attachment_empty
+            "生成回答失败" -> R.string.error_answer_generation
+            "无法读取附件" -> R.string.error_attachment_read
+            "无法创建附件缓存" -> R.string.error_attachment_cache
+            "无法准备附件" -> R.string.error_attachment_prepare
+            else -> null
+        }
+        if (resourceId != null) {
+            return uiString(resourceId)
+        }
+        if (normalized.startsWith("AI 请求失败：")) {
+            return uiString(R.string.error_ai_request, normalized.substringAfter("AI 请求失败："))
+        }
+        if (raw.isBlank()) {
+            return uiString(R.string.error_operation_failed)
+        }
+        val containsHan = HAN_CHARACTER.containsMatchIn(raw)
+        return if (state.value.languageMode == SessionStore.LANGUAGE_EN && containsHan) {
+            uiString(R.string.error_operation_failed)
+        } else {
+            raw
+        }
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
@@ -2662,6 +2767,7 @@ internal data class AttachmentOpenEvent(
 
 private const val OPEN_ATTACHMENTS_CACHE_DIRECTORY = "open_attachments"
 private const val ATTACHMENT_DOWNLOAD_TEMP_FILENAME = "download.tmp"
+private val HAN_CHARACTER = Regex("[\\u4E00-\\u9FFF]")
 
 private data class ImportedDataResult(
     val themeMode: String,

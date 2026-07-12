@@ -23,10 +23,12 @@ import {
   skeletonClass,
   subtleButtonClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/messages";
 import { ApiError, type Memo, type MemoAI } from "../../lib/api";
 import { formatEntryDate, todayISO } from "../../lib/date";
 import { EntryComposer } from "./EntryComposer";
-import { LocalDateTime } from "./LocalDateTime";
+import { formatLocalDateTime } from "./LocalDateTime";
 import { useMemos } from "./MemosContext";
 
 /** Number of source memos a summary was grounded in (>=1). */
@@ -70,22 +72,23 @@ function detailMemoSnapshot(state: unknown, id: string): Memo | undefined {
   return snapshot as Memo;
 }
 
-function detailReturnLabel(target: string): string {
+function detailReturnLabelKey(target: string): TranslationKey {
   if (target.startsWith("/ask")) {
-    return "问答";
+    return "ask.section";
   }
   if (target === "/" || target.startsWith("/?")) {
-    return "写记录";
+    return "nav.writeRecord";
   }
-  return "全部记录";
+  return "nav.allRecords";
 }
 
 export function EntryPage() {
+  const { locale, t } = useI18n();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTarget = detailReturnTarget(location.state);
-  const returnLabel = detailReturnLabel(returnTarget);
+  const returnLabel = t(detailReturnLabelKey(returnTarget));
   const memos = useMemos();
   const { fetchMemo } = memos;
   const cachedMemo = memos.getById(id);
@@ -108,6 +111,20 @@ export function EntryPage() {
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const restoreDeleteFocusRef = useRef(false);
   const actionPendingRef = useRef(false);
+  const feedbackLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setError("");
+    setDetailState((current) =>
+      current.status === "error"
+        ? { ...current, error: t("records.loadFailed") }
+        : current,
+    );
+  }, [locale, t]);
 
   useEffect(() => {
     if (!confirmingDelete && restoreDeleteFocusRef.current) {
@@ -144,13 +161,14 @@ export function EntryPage() {
         setDetailState({
           id,
           status: "error",
-          error: cause instanceof Error ? cause.message : "读取记录失败",
+          error:
+            cause instanceof Error ? cause.message : t("records.loadFailed"),
         });
       });
     return () => {
       cancelled = true;
     };
-  }, [id, fetchMemo, detailAttempt]);
+  }, [id, fetchMemo, detailAttempt, t]);
 
   const currentDetailState =
     detailState.id === id
@@ -161,13 +179,13 @@ export function EntryPage() {
   if (currentDetailState.status === "missing") {
     return (
       <main className={readingShellClass}>
-        <p className={mutedTextClass}>这条记录不存在或已被删除。</p>
+        <p className={mutedTextClass}>{t("entry.missing")}</p>
         <Link
           to={returnTarget}
           className={`${ghostLinkClass} mt-3 inline-flex h-10 items-center gap-2 px-2 text-sm`}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          回到{returnLabel}
+          {t("entry.backTo", { returnLabel })}
         </Link>
       </main>
     );
@@ -177,7 +195,7 @@ export function EntryPage() {
     if (currentDetailState.status === "error") {
       return (
         <main className={readingShellClass}>
-          <h1 className={pageTitleClass}>暂时无法打开记录</h1>
+          <h1 className={pageTitleClass}>{t("entry.openFailedTitle")}</h1>
           <p
             role="alert"
             className="mt-2 text-red-600 text-sm dark:text-red-400"
@@ -190,14 +208,14 @@ export function EntryPage() {
               className={secondaryButtonClass}
               onClick={() => setDetailAttempt((current) => current + 1)}
             >
-              重新加载
+              {t("common.reload")}
             </button>
             <Link
               to={returnTarget}
               className={`${ghostLinkClass} inline-flex h-10 items-center gap-2 px-2 text-sm`}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              回到{returnLabel}
+              {t("entry.backTo", { returnLabel })}
             </Link>
           </div>
         </main>
@@ -206,7 +224,7 @@ export function EntryPage() {
     return (
       <main className={readingShellClass}>
         <div className="space-y-5" role="status">
-          <span className="sr-only">正在打开记录</span>
+          <span className="sr-only">{t("entry.opening")}</span>
           <div className={`${skeletonClass} h-4 w-32`} />
           <div className={`${skeletonClass} h-40 w-full`} />
         </div>
@@ -218,14 +236,14 @@ export function EntryPage() {
     return (
       <main className={readingShellClass}>
         <div className="mb-6">
-          <h1 className={pageTitleClass}>编辑记录</h1>
+          <h1 className={pageTitleClass}>{t("entry.editTitle")}</h1>
         </div>
-        <section aria-label="编辑记录正文">
+        <section aria-label={t("entry.editBody")}>
           <EntryComposer
             key={`memo:${editorMemo.id}`}
             draftKey={`memo:${editorMemo.id}`}
             mode="edit"
-            submitLabel="更新"
+            submitLabel={t("entry.update")}
             initialContent={editorMemo.content}
             initialEntryDate={editorMemo.entryDate}
             initialVersion={editorMemo.version}
@@ -259,7 +277,9 @@ export function EntryPage() {
         navigate("/");
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "操作失败");
+      setError(
+        cause instanceof Error ? cause.message : t("entry.actionFailed"),
+      );
     } finally {
       actionPendingRef.current = false;
       setBusy("");
@@ -276,7 +296,9 @@ export function EntryPage() {
     try {
       await memos.summarize(memo);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "生成总结失败");
+      setError(
+        cause instanceof Error ? cause.message : t("entry.summaryFailed"),
+      );
     } finally {
       actionPendingRef.current = false;
       setBusy("");
@@ -291,7 +313,7 @@ export function EntryPage() {
           className="mb-3 inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
         >
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          正在获取最新内容
+          {t("entry.loadingLatest")}
         </p>
       ) : currentDetailState.status === "error" ? (
         <div
@@ -299,14 +321,14 @@ export function EntryPage() {
           className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50/70 p-3 text-red-700 text-sm dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300"
         >
           <span className="min-w-0 flex-1">
-            最新内容读取失败：{currentDetailState.error}
+            {t("entry.latestFailed", { error: currentDetailState.error })}
           </span>
           <button
             type="button"
             className={subtleButtonClass}
             onClick={() => setDetailAttempt((current) => current + 1)}
           >
-            重新加载
+            {t("common.reload")}
           </button>
         </div>
       ) : null}
@@ -324,8 +346,12 @@ export function EntryPage() {
             onClick={() => runAction("favorite")}
             disabled={Boolean(busy) || !detailReady}
             className={iconButtonClass}
-            aria-label={memo.favoritedAt ? "取消收藏" : "收藏"}
-            title={memo.favoritedAt ? "取消收藏" : "收藏"}
+            aria-label={t(
+              memo.favoritedAt ? "records.unfavorite" : "records.favorite",
+            )}
+            title={t(
+              memo.favoritedAt ? "records.unfavorite" : "records.favorite",
+            )}
           >
             {busy === "favorite" ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -340,8 +366,10 @@ export function EntryPage() {
             onClick={() => runAction("archive")}
             disabled={Boolean(busy) || !detailReady}
             className={iconButtonClass}
-            aria-label={memo.archivedAt ? "取消归档" : "归档"}
-            title={memo.archivedAt ? "取消归档" : "归档"}
+            aria-label={t(
+              memo.archivedAt ? "records.unarchive" : "records.archive",
+            )}
+            title={t(memo.archivedAt ? "records.unarchive" : "records.archive")}
           >
             {busy === "archive" ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -354,8 +382,8 @@ export function EntryPage() {
             onClick={() => setEditorMemo(memo)}
             disabled={Boolean(busy) || !detailReady}
             className={iconButtonClass}
-            aria-label="编辑"
-            title="编辑"
+            aria-label={t("common.edit")}
+            title={t("common.edit")}
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -368,8 +396,8 @@ export function EntryPage() {
             }}
             disabled={Boolean(busy) || !detailReady}
             className={`${iconButtonClass} text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300`}
-            aria-label="删除"
-            title="删除"
+            aria-label={t("common.delete")}
+            title={t("common.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -379,18 +407,18 @@ export function EntryPage() {
       <article className="min-w-0">
         <header className="flex flex-wrap items-center gap-2 border-gray-200/80 border-b pb-4 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
           <time dateTime={memo.entryDate}>
-            {formatEntryDate(memo.entryDate, todayISO())}
+            {formatEntryDate(memo.entryDate, todayISO(), locale)}
           </time>
           {memo.favoritedAt ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
               <Star className="h-3 w-3 fill-current" aria-hidden="true" />
-              已收藏
+              {t("records.favorited")}
             </span>
           ) : null}
           {memo.archivedAt ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
               <Archive className="h-3 w-3" aria-hidden="true" />
-              已归档
+              {t("records.archived")}
             </span>
           ) : null}
         </header>
@@ -399,7 +427,9 @@ export function EntryPage() {
           {memo.content.trim() ? (
             <Markdown content={memo.content} />
           ) : (
-            <p className="text-gray-400 dark:text-gray-500">空白记录</p>
+            <p className="text-gray-400 dark:text-gray-500">
+              {t("records.blank")}
+            </p>
           )}
         </div>
       </article>
@@ -407,7 +437,7 @@ export function EntryPage() {
       <section className="mt-6 border-gray-200/80 border-t pt-5 dark:border-gray-800">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold text-gray-900 dark:text-gray-50">
-            总结
+            {t("entry.summary")}
           </h2>
           <button
             type="button"
@@ -417,37 +447,55 @@ export function EntryPage() {
           >
             <Sparkles className="h-4 w-4" />
             {busy === "summarize"
-              ? "总结中…"
+              ? t("entry.summarizing")
               : summary
-                ? "重新总结"
-                : "生成总结"}
+                ? t("entry.resummarize")
+                : t("entry.generateSummary")}
           </button>
         </div>
         {summary ? (
           <div className="mt-3 rounded-lg bg-gray-100/70 p-4 dark:bg-gray-900/70">
             <Markdown
-              content={summary.summary || "（暂无总结内容）"}
+              content={summary.summary || t("entry.emptySummary")}
               variant="chat"
             />
             <p className={`mt-3 text-xs ${mutedTextClass}`}>
-              基于 {summarySourceCount(summary)} 条记录生成
+              {t(
+                summarySourceCount(summary) === 1
+                  ? "entry.summarySourceOne"
+                  : "entry.summarySourceMany",
+                { count: summarySourceCount(summary) },
+              )}
             </p>
           </div>
         ) : (
           <p className="mt-2 text-gray-400 text-sm dark:text-gray-500">
-            让 AI 基于这条记录生成一段简短的总结。
+            {t("entry.summaryHint")}
           </p>
         )}
       </section>
 
       <section className="mt-5 border-gray-200/80 border-t pt-4 text-gray-500 text-sm dark:border-gray-800 dark:text-gray-400">
         <p>
-          创建于 <LocalDateTime value={memo.createdAt} />
+          {t("entry.createdAt", {
+            date: formatLocalDateTime(new Date(memo.createdAt), "full", locale),
+          })}
         </p>
         {memo.version > 1 ? (
           <p className="mt-1">
-            最近修改 <LocalDateTime value={memo.updatedAt} />
-            ，共修改 {memo.version - 1} 次
+            {t(
+              memo.version - 1 === 1
+                ? "entry.modifiedSummaryOne"
+                : "entry.modifiedSummaryMany",
+              {
+                date: formatLocalDateTime(
+                  new Date(memo.updatedAt),
+                  "full",
+                  locale,
+                ),
+                count: memo.version - 1,
+              },
+            )}
           </p>
         ) : null}
       </section>
@@ -484,6 +532,7 @@ function DeleteDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -528,7 +577,7 @@ function DeleteDialog({
       <button
         type="button"
         className="absolute inset-0 h-full w-full bg-gray-950/35 dark:bg-gray-950/65"
-        aria-label="取消删除"
+        aria-label={t("entry.cancelDelete")}
         tabIndex={-1}
         onClick={onCancel}
         disabled={busy}
@@ -548,13 +597,13 @@ function DeleteDialog({
               id="delete-title"
               className="font-semibold text-gray-900 dark:text-gray-50"
             >
-              删除这条记录？
+              {t("entry.deleteTitle")}
             </h2>
             <p
               id="delete-description"
               className="mt-1 text-gray-500 text-sm leading-6 dark:text-gray-400"
             >
-              删除后将无法在 Sillage 中恢复。
+              {t("entry.deleteDescription")}
             </p>
           </div>
           <button
@@ -562,7 +611,7 @@ function DeleteDialog({
             onClick={onCancel}
             disabled={busy}
             className={iconButtonClass}
-            aria-label="关闭"
+            aria-label={t("common.close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -575,7 +624,7 @@ function DeleteDialog({
             disabled={busy}
             className={secondaryButtonClass}
           >
-            取消
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -584,7 +633,7 @@ function DeleteDialog({
             className={`${dangerButtonClass} h-10 bg-red-600 px-4 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-500`}
           >
             {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-            {busy ? "删除中…" : "确认删除"}
+            {t(busy ? "common.deleting" : "common.confirmDelete")}
           </button>
         </div>
       </div>

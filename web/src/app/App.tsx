@@ -12,6 +12,7 @@ import { HomePage } from "../features/memos/HomePage";
 import { MemosProvider } from "../features/memos/MemosContext";
 import { TimelinePage } from "../features/memos/TimelinePage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { useI18n } from "../i18n/I18nProvider";
 import { type Account, getBootstrap, getMe, signOut } from "../lib/api";
 import {
   clearAccessToken,
@@ -42,6 +43,7 @@ function AuthedArea({
 }
 
 export function App() {
+  const { t } = useI18n();
   const [bootstrap, setBootstrap] = useState<BootstrapState>("loading");
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState(() => getAccessToken());
@@ -117,7 +119,7 @@ export function App() {
   }
 
   if (bootstrap === "loading" || (bootstrap === "ready" && !authResolved)) {
-    return <FullPageState text="正在打开 Sillage" />;
+    return <FullPageState text={t("app.opening")} />;
   }
 
   const needsInit = bootstrap === "needs-init";

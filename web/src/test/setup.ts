@@ -1,10 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
+import { setActiveLocale } from "../i18n/messages";
 
 // React Testing Library does not auto-clean between tests under Vitest.
 afterEach(() => {
   cleanup();
+  setActiveLocale("zh-CN");
+  document.documentElement.lang = "zh-CN";
 });
 
 // This jsdom build does not expose Web Storage; provide a minimal in-memory

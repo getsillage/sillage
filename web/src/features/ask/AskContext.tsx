@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import {
   type AskContextScope,
   type AskConversation,
@@ -74,6 +75,7 @@ export function AskProvider({
   token: string;
   children: ReactNode;
 }) {
+  const { locale, t } = useI18n();
   const [conversations, setConversations] = useState<AskConversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -105,6 +107,12 @@ export function AskProvider({
   activeIdRef.current = activeId;
 
   useEffect(() => {
+    void locale;
+    setError("");
+    setNotification(null);
+  }, [locale]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const mutationGeneration = conversationMutationGenerationRef.current;
     setLoadingConversations(true);
@@ -119,7 +127,7 @@ export function AskProvider({
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : "读取问答失败");
+          setError(err instanceof Error ? err.message : t("ask.loadFailed"));
         }
       })
       .finally(() => {
@@ -128,7 +136,7 @@ export function AskProvider({
         }
       });
     return () => controller.abort();
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     if (!activeId || scopedConversationRef.current === activeId) {
@@ -178,7 +186,9 @@ export function AskProvider({
           metadataRequestRef.current === requestId &&
           activeIdRef.current === conversationId
         ) {
-          setError(cause instanceof Error ? cause.message : "读取问答信息失败");
+          setError(
+            cause instanceof Error ? cause.message : t("ask.metadataFailed"),
+          );
         }
       });
 
@@ -186,7 +196,7 @@ export function AskProvider({
       metadataRequestRef.current += 1;
       controller.abort();
     };
-  }, [activeId, activeSnapshot, conversations, loadingConversations, token]);
+  }, [activeId, activeSnapshot, conversations, loadingConversations, token, t]);
 
   useEffect(() => {
     if (!activeId) {
@@ -206,7 +216,9 @@ export function AskProvider({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "读取消息失败");
+          setError(
+            err instanceof Error ? err.message : t("ask.messagesFailed"),
+          );
         }
       })
       .finally(() => {
@@ -217,7 +229,7 @@ export function AskProvider({
     return () => {
       cancelled = true;
     };
-  }, [token, activeId]);
+  }, [token, activeId, t]);
 
   const selectConversation = useCallback(
     (id: string, conversation?: AskConversation) => {
@@ -334,7 +346,9 @@ export function AskProvider({
         return true;
       } catch (cause) {
         if (!controller.signal.aborted) {
-          setError(cause instanceof Error ? cause.message : "生成回答失败");
+          setError(
+            cause instanceof Error ? cause.message : t("ask.generateFailed"),
+          );
         }
         return started;
       } finally {
@@ -347,14 +361,14 @@ export function AskProvider({
         }
       }
     },
-    [token, scope, sourceKind, reload],
+    [token, scope, sourceKind, reload, t],
   );
 
   const send = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
       if (!trimmed) {
-        setError("先写下要问的问题");
+        setError(t("ask.questionRequired"));
         return false;
       }
       if (operationRef.current) {
@@ -393,14 +407,14 @@ export function AskProvider({
         }
         return await runStream(conversationId, { content: trimmed });
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "发送问题失败");
+        setError(cause instanceof Error ? cause.message : t("ask.sendFailed"));
         return false;
       } finally {
         operationRef.current = false;
         setBusy(false);
       }
     },
-    [token, activeId, scope, runStream],
+    [token, activeId, scope, runStream, t],
   );
 
   const regenerate = useCallback(
@@ -432,10 +446,12 @@ export function AskProvider({
       try {
         await setAskHead(token, activeId, leaf);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "切换分支失败");
+        setError(
+          cause instanceof Error ? cause.message : t("ask.switchBranchFailed"),
+        );
       }
     },
-    [token, activeId, messages],
+    [token, activeId, messages, t],
   );
 
   const stop = useCallback(() => {
@@ -468,7 +484,7 @@ export function AskProvider({
         });
         setNotification({
           kind: "success",
-          message: archived ? "问答已归档" : "问答已移出归档",
+          message: t(archived ? "ask.archived" : "ask.unarchived"),
         });
         return response.conversation;
       } catch (cause) {
@@ -478,13 +494,13 @@ export function AskProvider({
             cause instanceof Error
               ? cause.message
               : archived
-                ? "归档问答失败"
-                : "移出归档失败",
+                ? t("ask.archiveFailed")
+                : t("ask.unarchiveFailed"),
         });
         throw cause;
       }
     },
-    [token],
+    [token, t],
   );
 
   const dismissNotification = useCallback(() => setNotification(null), []);

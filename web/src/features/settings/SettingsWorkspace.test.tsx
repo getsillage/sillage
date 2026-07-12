@@ -122,6 +122,20 @@ describe("SettingsWorkspace", () => {
     expect(await screen.findByText("已保存")).toBeInTheDocument();
   });
 
+  it("keeps a new unnamed profile as a draft until it has a name", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.click(await screen.findByRole("button", { name: "新增档案" }));
+    expect(screen.getByRole("textbox", { name: "名称" })).toHaveValue("");
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("请输入档案名称。");
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "名称" })).toHaveValue("");
+  });
+
   it("keeps the save bar available after switching to appearance", async () => {
     const user = userEvent.setup();
     vi.mocked(patchAISettings).mockResolvedValue({
@@ -546,6 +560,7 @@ describe("SettingsWorkspace", () => {
     await screen.findByText(/还没有 AI 档案/);
 
     await user.click(screen.getByRole("button", { name: "新增档案" }));
+    expect(screen.getByLabelText("名称")).toHaveValue("");
     await user.type(screen.getByLabelText("接口地址"), "https://ai.example/v1");
     await user.type(screen.getByRole("textbox", { name: "模型" }), "gpt-test");
     await user.type(screen.getByLabelText("API 密钥"), "sk-test");

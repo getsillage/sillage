@@ -26,30 +26,36 @@ import {
   selectClass,
   textareaClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/messages";
 import type { AskContextScope, AskSourceKind } from "../../lib/api";
 import { todayISO } from "../../lib/date";
 import { useMemos } from "../memos/MemosContext";
 import { useAsk } from "./AskContext";
 import type { ActiveEntry } from "./askTree";
 
-const SCOPE_LABELS: Record<AskContextScope, string> = {
-  recent_7_days: "最近 7 天",
-  recent_30_days: "最近 30 天",
-  all: "全部记录",
+const SCOPE_LABEL_KEYS: Record<AskContextScope, TranslationKey> = {
+  recent_7_days: "ask.scope7",
+  recent_30_days: "ask.scope30",
+  all: "ask.scopeAll",
 };
 
-const SOURCE_KIND_OPTIONS: { value: AskSourceKind; label: string }[] = [
-  { value: "records", label: "原始记录" },
-  { value: "summaries", label: "记录总结" },
+const SOURCE_KIND_OPTIONS: {
+  value: AskSourceKind;
+  labelKey: TranslationKey;
+}[] = [
+  { value: "records", labelKey: "ask.sourceRecords" },
+  { value: "summaries", labelKey: "ask.sourceSummaries" },
 ];
 
-const QUESTION_SUGGESTIONS = [
-  "最近我反复提到什么？",
-  "这一周有哪些重要内容？",
-  "我最近的状态有什么变化？",
+const QUESTION_SUGGESTION_KEYS: TranslationKey[] = [
+  "ask.suggestionRecurring",
+  "ask.suggestionWeek",
+  "ask.suggestionState",
 ];
 
 export function AskPage() {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const conversationParam = searchParams.get("conversation");
   const {
@@ -132,15 +138,15 @@ export function AskPage() {
       <header className="flex flex-wrap items-center justify-between gap-3 pb-4">
         <div>
           <h1 className="font-semibold text-xl text-gray-900 sm:text-2xl dark:text-gray-50">
-            {activeConversation?.title || "根据记录提问"}
+            {activeConversation?.title || t("ask.defaultTitle")}
           </h1>
           <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
-            基于你的记录回答，范围：{SCOPE_LABELS[scope]}
+            {t("ask.subtitle", { scope: t(SCOPE_LABEL_KEYS[scope]) })}
           </p>
         </div>
-        <div className="-mx-1 flex max-w-full items-center gap-2 overflow-x-auto px-1">
+        <div className="-mx-1 flex max-w-full flex-wrap items-center gap-2 px-1">
           <label className="flex shrink-0 items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
-            <span className="whitespace-nowrap">来源</span>
+            <span className="whitespace-nowrap">{t("ask.source")}</span>
             <select
               value={sourceKind}
               onChange={(event) =>
@@ -150,13 +156,13 @@ export function AskPage() {
             >
               {SOURCE_KIND_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </option>
               ))}
             </select>
           </label>
           <label className="flex shrink-0 items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
-            <span className="whitespace-nowrap">范围</span>
+            <span className="whitespace-nowrap">{t("ask.range")}</span>
             <select
               value={scope}
               onChange={(event) =>
@@ -164,9 +170,9 @@ export function AskPage() {
               }
               className={`${selectClass} mt-0 w-auto min-w-32 bg-white/80 dark:bg-gray-900/80`}
             >
-              <option value="recent_7_days">最近 7 天</option>
-              <option value="recent_30_days">最近 30 天</option>
-              <option value="all">全部记录</option>
+              <option value="recent_7_days">{t("ask.scope7")}</option>
+              <option value="recent_30_days">{t("ask.scope30")}</option>
+              <option value="all">{t("ask.scopeAll")}</option>
             </select>
           </label>
         </div>
@@ -179,43 +185,46 @@ export function AskPage() {
             role="status"
           >
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            正在读取对话
+            {t("ask.loadingConversation")}
           </p>
         ) : entries.length === 0 && !liveUser ? (
           <div className="mx-auto flex min-h-[46vh] w-full max-w-xl items-center justify-center">
-            <div className="w-full space-y-5 text-center">
+            <div className="w-full space-y-3 text-center sm:space-y-5">
               <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <MessageCircleQuestion className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <p className="font-medium text-gray-900 text-lg dark:text-gray-50">
-                  可以根据记录提问
+                  {t("ask.emptyTitle")}
                 </p>
                 <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
-                  选择一个问题，或写下你想回看的内容。
+                  {t("ask.emptyDescription")}
                 </p>
               </div>
               <div className="grid gap-2 text-left sm:grid-cols-3">
-                {QUESTION_SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => {
-                      setQuestion(suggestion);
-                      inputRef.current?.focus();
-                    }}
-                    className="min-h-16 rounded-lg border border-gray-200 bg-white/70 px-3 py-2 text-left text-gray-700 text-sm leading-5 transition-colors hover:border-gray-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900/60 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+                {QUESTION_SUGGESTION_KEYS.map((key) => {
+                  const suggestion = t(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setQuestion(suggestion);
+                        inputRef.current?.focus();
+                      }}
+                      className="min-h-14 rounded-lg border border-gray-200 bg-white/70 px-3 py-2 text-left text-gray-700 text-sm leading-5 transition-colors hover:border-gray-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 sm:min-h-16 dark:border-gray-800 dark:bg-gray-900/60 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40"
+                    >
+                      {suggestion}
+                    </button>
+                  );
+                })}
               </div>
               <Link
                 to="/timeline"
                 className={`${ghostLinkClass} inline-flex h-10 items-center gap-2 px-2 text-sm`}
               >
                 <Search className="h-4 w-4" aria-hidden="true" />
-                先搜索记录
+                {t("ask.searchRecordsFirst")}
               </Link>
             </div>
           </div>
@@ -255,7 +264,7 @@ export function AskPage() {
                     className="h-4 w-4 animate-spin"
                     aria-hidden="true"
                   />
-                  正在整理问答
+                  {t("ask.organizing")}
                 </p>
               )}
             </div>
@@ -267,7 +276,7 @@ export function AskPage() {
             role="status"
           >
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            正在读取相关记录
+            {t("ask.loadingSources")}
           </p>
         ) : null}
         <div ref={endRef} aria-hidden="true" />
@@ -292,7 +301,7 @@ export function AskPage() {
               }
             }}
             rows={2}
-            placeholder="根据记录提问…"
+            placeholder={t("ask.placeholder")}
             className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 focus:ring-0 dark:bg-transparent`}
           />
           {error ? (
@@ -305,7 +314,7 @@ export function AskPage() {
           ) : null}
           <div className="flex items-center justify-between gap-2 px-1 pb-1">
             <p className="px-2 text-gray-400 text-xs dark:text-gray-500">
-              AI 只基于选定范围内的记录回答
+              {t("ask.sourceConstraint")}
             </p>
             <div className="flex items-center gap-2">
               {streaming ? (
@@ -313,8 +322,8 @@ export function AskPage() {
                   type="button"
                   onClick={stop}
                   className={`${secondaryButtonClass} h-11 w-11 rounded-full px-0`}
-                  aria-label="停止生成"
-                  title="停止生成"
+                  aria-label={t("ask.stop")}
+                  title={t("ask.stop")}
                 >
                   <Square className="h-5 w-5" />
                 </button>
@@ -324,8 +333,8 @@ export function AskPage() {
                 onClick={submit}
                 disabled={busy || !question.trim()}
                 className={`${primaryButtonClass} h-11 w-11 rounded-full px-0`}
-                aria-label={busy ? "生成中" : "发送"}
-                title={busy ? "生成中" : "发送"}
+                aria-label={t(busy ? "ask.generating" : "ask.send")}
+                title={t(busy ? "ask.generating" : "ask.send")}
               >
                 {busy ? (
                   <LoaderCircle className="h-5 w-5 animate-spin" />
@@ -366,6 +375,7 @@ function MessageBubble({
   onRegenerate,
   onSelectVariant,
 }: MessageBubbleProps) {
+  const { locale, t } = useI18n();
   const { create } = useMemos();
   const navigate = useNavigate();
   const location = useLocation();
@@ -375,7 +385,16 @@ function MessageBubble({
   const [saveError, setSaveError] = useState("");
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const sourceListId = useId();
+  const feedbackLocaleRef = useRef(locale);
   const { message, variants, index } = entry;
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setSaveError("");
+  }, [locale]);
 
   if (message.role === "user") {
     return (
@@ -402,7 +421,9 @@ function MessageBubble({
       navigate(`/entries/${memo.id}`, { state: { returnTo } });
     } catch (cause) {
       setSaving(false);
-      setSaveError(cause instanceof Error ? cause.message : "保存失败");
+      setSaveError(
+        cause instanceof Error ? cause.message : t("ask.saveFailed"),
+      );
     }
   }
 
@@ -417,7 +438,7 @@ function MessageBubble({
           role="status"
         >
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          正在整理问答
+          {t("ask.organizing")}
         </p>
       ) : (
         <Markdown content={content} variant="chat" />
@@ -432,7 +453,12 @@ function MessageBubble({
             className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <BookOpen className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
-            来源记录 {message.sourceRefs.length}
+            {t(
+              message.sourceRefs.length === 1
+                ? "ask.sourceCountOne"
+                : "ask.sourceCountMany",
+              { count: message.sourceRefs.length },
+            )}
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${sourcesExpanded ? "rotate-180" : ""}`}
               aria-hidden="true"
@@ -443,7 +469,7 @@ function MessageBubble({
           <span className="inline-flex items-center gap-1 text-gray-500 text-xs dark:text-gray-400">
             <button
               type="button"
-              aria-label="上一个回答"
+              aria-label={t("ask.previousAnswer")}
               disabled={index <= 0}
               onClick={() => onSelectVariant(variants[index - 1].id)}
               className={`${ghostLinkClass} px-1`}
@@ -455,7 +481,7 @@ function MessageBubble({
             </span>
             <button
               type="button"
-              aria-label="下一个回答"
+              aria-label={t("ask.nextAnswer")}
               disabled={index >= variants.length - 1}
               onClick={() => onSelectVariant(variants[index + 1].id)}
               className={`${ghostLinkClass} px-1`}
@@ -471,7 +497,7 @@ function MessageBubble({
             className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            重新生成
+            {t("ask.regenerate")}
           </button>
         ) : null}
         {message.content.trim() ? (
@@ -482,7 +508,13 @@ function MessageBubble({
             className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <BookmarkPlus className="h-3.5 w-3.5" aria-hidden="true" />
-            {saved ? "已存为记录" : saving ? "保存中…" : "存为记录"}
+            {t(
+              saved
+                ? "ask.savedAsRecord"
+                : saving
+                  ? "common.saving"
+                  : "ask.saveAsRecord",
+            )}
           </button>
         ) : null}
       </div>

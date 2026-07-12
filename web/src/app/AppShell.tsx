@@ -10,6 +10,7 @@ import { Toast } from "../components/Toast";
 import { useAsk } from "../features/ask/AskContext";
 import { useMemos } from "../features/memos/MemosContext";
 import { QuickCapture } from "../features/memos/QuickCapture";
+import { useI18n } from "../i18n/I18nProvider";
 import type { Account } from "../lib/api";
 import { todayISO } from "../lib/date";
 import { Sidebar, Wordmark } from "./Sidebar";
@@ -29,6 +30,7 @@ export function AppShell({
   account: Account;
   onSignOut: () => void;
 }) {
+  const { t } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(readSidebarOpen);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -129,8 +131,8 @@ export function AppShell({
       ) : (
         <button
           type="button"
-          aria-label="展开侧栏"
-          title="展开侧栏"
+          aria-label={t("nav.expandSidebar")}
+          title={t("nav.expandSidebar")}
           onClick={() => setDesktopOpen(true)}
           className="fixed top-3 left-3 z-30 hidden h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
         >
@@ -143,7 +145,7 @@ export function AppShell({
         <button
           ref={menuButtonRef}
           type="button"
-          aria-label="打开导航"
+          aria-label={t("nav.open")}
           aria-expanded={drawerOpen}
           aria-controls="mobile-navigation-dialog"
           className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
@@ -157,7 +159,7 @@ export function AppShell({
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="关闭导航遮罩"
+            aria-label={t("nav.closeBackdrop")}
             tabIndex={-1}
             className="absolute inset-0 h-full w-full bg-gray-950/30 dark:bg-gray-950/60"
             onClick={() => setDrawerOpen(false)}
@@ -167,7 +169,7 @@ export function AppShell({
             id="mobile-navigation-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="导航"
+            aria-label={t("nav.navigation")}
             tabIndex={-1}
             onKeyDown={handleDrawerKeyDown}
             className="absolute inset-y-0 left-0 w-[18rem] max-w-[88vw] shadow-xl shadow-gray-950/10"

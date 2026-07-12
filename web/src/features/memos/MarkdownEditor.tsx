@@ -1,7 +1,8 @@
 import { Paperclip } from "lucide-react";
-import { type DragEvent, useRef, useState } from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 import { Markdown } from "../../components/Markdown";
 import { subtleButtonClass, textareaClass } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { UploadedAttachment } from "./MemosContext";
 
 interface MarkdownEditorProps {
@@ -30,9 +31,10 @@ export function MarkdownEditor({
   onChange,
   onUpload,
   onUploadingChange,
-  placeholder = "写下想记录的内容…",
+  placeholder,
   disabled = false,
 }: MarkdownEditorProps) {
+  const { locale, t } = useI18n();
   const [preview, setPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -41,7 +43,16 @@ export function MarkdownEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const latestValueRef = useRef(value);
   const uploadingRef = useRef(false);
+  const feedbackLocaleRef = useRef(locale);
   latestValueRef.current = value;
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setError(null);
+  }, [locale]);
 
   function insertAtCursor(snippet: string) {
     const textarea = textareaRef.current;
@@ -74,7 +85,9 @@ export function MarkdownEditor({
         insertAtCursor(appended);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "上传失败");
+      setError(
+        cause instanceof Error ? cause.message : t("editor.uploadFailed"),
+      );
     } finally {
       uploadingRef.current = false;
       setUploading(false);
@@ -111,14 +124,14 @@ export function MarkdownEditor({
           disabled={disabled}
           onClick={() => setPreview(false)}
         >
-          编辑
+          {t("editor.edit")}
         </TabButton>
         <TabButton
           active={preview}
           disabled={disabled}
           onClick={() => setPreview(true)}
         >
-          预览
+          {t("editor.preview")}
         </TabButton>
         <div className="ml-auto pr-0.5">
           <button
@@ -126,12 +139,14 @@ export function MarkdownEditor({
             onClick={() => fileRef.current?.click()}
             disabled={disabled || uploading}
             className={subtleButtonClass}
-            aria-label={uploading ? "上传中" : "添加附件"}
-            title={uploading ? "上传中" : "添加附件"}
+            aria-label={t(
+              uploading ? "editor.uploading" : "editor.addAttachment",
+            )}
+            title={t(uploading ? "editor.uploading" : "editor.addAttachment")}
           >
             <Paperclip className="h-4 w-4" />
             <span className="hidden sm:inline">
-              {uploading ? "上传中…" : "附件"}
+              {t(uploading ? "editor.uploadingEllipsis" : "editor.attachment")}
             </span>
           </button>
           <input
@@ -166,7 +181,7 @@ export function MarkdownEditor({
         }}
         onDragLeave={() => setDragging(false)}
         onDragOver={(event) => event.preventDefault()}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("editor.placeholder")}
         rows={8}
         className={`${textareaClass} min-h-44 rounded-t-none border-0 bg-white text-[15px] leading-7 focus:ring-0 sm:min-h-56 dark:bg-gray-950 ${preview ? "hidden" : ""}`}
       />
@@ -176,7 +191,7 @@ export function MarkdownEditor({
             <Markdown content={value} />
           ) : (
             <p className="text-gray-400 text-sm dark:text-gray-500">
-              没有可预览的内容
+              {t("editor.noPreview")}
             </p>
           )}
         </div>

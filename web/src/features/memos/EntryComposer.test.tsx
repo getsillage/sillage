@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { I18nProvider } from "../../i18n/I18nProvider";
 import { EntryComposer } from "./EntryComposer";
 
 vi.mock("../../components/UnsavedNavigationGuard", () => ({
@@ -37,6 +39,50 @@ describe("EntryComposer", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0][0].content).toBe("今天写点东西");
+  });
+
+  it("clears stale feedback on language changes without losing the draft", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockRejectedValue(new Error("保存失败"));
+    window.localStorage.setItem(
+      "sillage.entry-draft.memo:new",
+      JSON.stringify({
+        version: 2,
+        content: "保留的草稿",
+        entryDate: "2026-07-12",
+        baseVersion: null,
+      }),
+    );
+
+    renderEntryComposer(
+      <I18nProvider>
+        <LanguageSwitcher compact />
+        <EntryComposer
+          draftKey="memo:new"
+          onSubmit={onSubmit}
+          onUpload={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveValue("保留的草稿");
+    expect(screen.getByText("已恢复上次未保存的草稿")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(
+      screen.queryByText("已恢复上次未保存的草稿"),
+    ).not.toBeInTheDocument();
+    expect(editor).toHaveValue("保留的草稿");
+
+    await user.click(screen.getByRole("button", { name: "中文" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByText("保存失败")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.queryByText("保存失败")).not.toBeInTheDocument();
+    expect(editor).toHaveValue("保留的草稿");
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it("restores only the draft stored for the same record", async () => {

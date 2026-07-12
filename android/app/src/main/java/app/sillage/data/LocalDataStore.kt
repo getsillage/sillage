@@ -218,7 +218,7 @@ class LocalDataStore(context: Context) {
         val now = now()
         val conversation = AskConversation(
             id = UUID.randomUUID().toString(),
-            title = "新会话",
+            title = "",
             status = "active",
             contextScope = contextScope,
             headMessageId = null,
@@ -285,7 +285,13 @@ class LocalDataStore(context: Context) {
             val updatedConversations = data.askConversations.map { conversation ->
                 if (conversation.id == conversationId) {
                     conversation.copy(
-                        title = if (conversation.title == "新会话") question.take(30) else conversation.title,
+                        title = if (
+                            conversation.title.isBlank() || conversation.title == LEGACY_NEW_CONVERSATION_TITLE
+                        ) {
+                            question.take(30)
+                        } else {
+                            conversation.title
+                        },
                         headMessageId = assistant.id,
                         updatedAt = now,
                     ).also { updatedConversation = it }
@@ -449,6 +455,7 @@ class LocalDataStore(context: Context) {
     }
 
     companion object {
+        private const val LEGACY_NEW_CONVERSATION_TITLE = "新会话"
         private const val KEY_DATA = "data"
         private const val KEY_CLOUD_MEMO_VERSIONS = "cloud_memo_versions"
         private const val KEY_PENDING_MEMO_MUTATIONS = "pending_memo_mutations"

@@ -49,6 +49,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `web/src/features/ask/` | Ask conversations, message trees, and streaming-answer state |
 | `web/src/features/settings/` | AI profiles and interface settings |
 | `web/src/components/` | Presentation and interaction components shared across features |
+| `web/src/i18n/` | English and Simplified Chinese interface catalogs, language persistence, and locale-aware formatting state |
 | `web/src/lib/` | Low-level capabilities such as API access, authentication tokens, and dates |
 
 `app/` composes the features. Features may depend on shared `components/` and `lib/`; Ask may call the records feature to save an answer, but the records feature must not depend on Ask. `web/src/lib/api.ts` is the single transport client. API, routing, and browser-storage contracts may change only through explicit contract changes.
@@ -65,6 +66,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `android/app/src/main/java/app/sillage/ui/common/` | Presentation components shared across features |
 | `android/app/src/main/java/app/sillage/ui/navigation/` | Primary navigation components |
 | `android/app/src/main/java/app/sillage/data/` | REST client, sessions, local storage, and data models |
+| `android/app/src/main/res/values*/` | English and Simplified Chinese interface resources |
 
 `SillageApp` only composes the UI and hands attachments to external viewers. Feature screens depend on the root `SillageUiState`, `SillageViewModel`, and shared UI, while the state and data layers must not depend on feature screens. Manual sync, navigation history, request IDs, and online/offline modes are behavior contracts that span these directories and must be preserved.
 
@@ -122,5 +124,6 @@ Contract changes must update Proto, generated artifacts, affected REST/Connect a
 | Connect / OpenAPI projection | `proto/api/v1/`, `proto/gen/openapi/openapi.yaml` |
 | REST contract | `docs/development/api/README.md`, `server/*_routes.go`, REST behavior tests |
 | Web theme and component styles | `web/src/styles/app.css`, `web/src/components/ui.ts` |
+| Interface language catalogs | `web/src/i18n/messages.ts`, `android/app/src/main/res/values*/strings.xml` |
 | Automated quality gates | `.github/workflows/ci.yml` |
 | Container behavior | `scripts/Dockerfile`, `scripts/entrypoint.sh`, `scripts/compose.yaml` |

@@ -53,11 +53,12 @@ class LocalAiClient {
         scope: String,
         memos: List<Memo>,
         history: List<AskMessage>,
+        emptySourcesAnswer: String,
     ): LocalAskAnswer = withContext(Dispatchers.IO) {
         val sources = selectLocalAskSources(question, memos, scope)
         if (sources.isEmpty()) {
             return@withContext LocalAskAnswer(
-                answer = "现有记录不足以判断。当前范围内没有可引用的记录。",
+                answer = emptySourcesAnswer,
                 sourceRefs = emptyList(),
                 model = profile.model,
             )

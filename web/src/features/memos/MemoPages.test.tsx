@@ -7,6 +7,8 @@ import {
   Routes,
 } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { I18nProvider } from "../../i18n/I18nProvider";
 import { ApiError, type Memo, type MemoAI } from "../../lib/api";
 import { EntryPage } from "./EntryPage";
 import { HomePage } from "./HomePage";
@@ -94,6 +96,25 @@ function renderWithMemos(ui: React.ReactNode, initialPath: InitialEntry = "/") {
         </Routes>
       </MemosProvider>
     </MemoryRouter>,
+  );
+}
+
+function renderLocalizedWithMemos(
+  ui: React.ReactNode,
+  initialPath: InitialEntry,
+) {
+  return render(
+    <I18nProvider>
+      <LanguageSwitcher compact />
+      <MemoryRouter initialEntries={[initialPath]}>
+        <MemosProvider token="t">
+          <Routes>
+            <Route path="/timeline" element={ui} />
+            <Route path="/entries/:id" element={ui} />
+          </Routes>
+        </MemosProvider>
+      </MemoryRouter>
+    </I18nProvider>,
   );
 }
 
@@ -787,5 +808,46 @@ describe("EntryCard meta via HomePage", () => {
     expect(
       within(card.closest("article") as HTMLElement).getByText(/归属/),
     ).toBeInTheDocument();
+  });
+});
+
+describe("localized memo feedback", () => {
+  it("relocalizes a search error without changing the query or repeating the search", async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchMemos).mockRejectedValue(new Error("搜索失败"));
+    renderLocalizedWithMemos(<TimelinePage />, "/timeline");
+
+    await screen.findByText("今天的记录内容");
+    const searchInput = screen.getByPlaceholderText("搜索记录…");
+    await user.type(searchInput, "睡眠");
+    expect(await screen.findByRole("alert")).toHaveTextContent("搜索失败");
+    expect(searchMemos).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Search failed");
+    expect(searchInput).toHaveValue("睡眠");
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    expect(searchMemos).toHaveBeenCalledTimes(1);
+  });
+
+  it("relocalizes a detail error without reloading or dropping cached content", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMemo).mockRejectedValue(new Error("详情读取失败"));
+    renderLocalizedWithMemos(<EntryPage />, "/entries/m1");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "最新内容读取失败：详情读取失败",
+    );
+    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
+    expect(getMemo).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Could not load the latest version: Could not load records",
+    );
+    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
+    expect(getMemo).toHaveBeenCalledTimes(1);
   });
 });

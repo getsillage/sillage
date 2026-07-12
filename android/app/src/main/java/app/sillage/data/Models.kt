@@ -98,7 +98,7 @@ data class AISettings(
 
 data class AIProfileDraft(
     val id: String = "",
-    val name: String = "新档案",
+    val name: String = "",
     val provider: String = "anthropic",
     val baseUrl: String = "",
     val model: String = "",
@@ -243,9 +243,13 @@ fun entriesByDate(memos: List<Memo>, date: String): List<Memo> {
     return activeMemos(memos.filter { it.entryDate == date })
 }
 
-fun monthGrid(year: Int, month: Int): List<List<String?>> {
+fun monthGrid(
+    year: Int,
+    month: Int,
+    firstDayOfWeek: DayOfWeek = DayOfWeek.SUNDAY,
+): List<List<String?>> {
     val ym = YearMonth.of(year, month)
-    val lead = firstWeekday(ym.atDay(1).dayOfWeek)
+    val lead = firstWeekday(ym.atDay(1).dayOfWeek, firstDayOfWeek)
     val cells = mutableListOf<String?>()
     repeat(lead) { cells += null }
     for (day in 1..ym.lengthOfMonth()) {
@@ -294,8 +298,8 @@ fun calendarMemoCoverage(
     )
 }
 
-private fun firstWeekday(day: DayOfWeek): Int {
-    return day.value % 7
+private fun firstWeekday(day: DayOfWeek, firstDayOfWeek: DayOfWeek): Int {
+    return (day.value - firstDayOfWeek.value + 7) % 7
 }
 
 fun attachmentMarkdown(attachment: Attachment): String {
@@ -314,18 +318,6 @@ fun askSourceLabel(source: AskSourceRef): String {
     return "${source.entryDate} · ${source.excerpt}"
 }
 
-fun memoMetadataLines(memo: Memo?): List<String> {
-    if (memo == null) {
-        return emptyList()
-    }
-    return buildList {
-        add("创建于 ${memo.createdAt}")
-        if (memo.version > 1) {
-            add("最近修改 ${memo.updatedAt}，共修改 ${memo.version - 1} 次")
-        }
-    }
-}
-
 fun memoSummarySourceCount(sourceMemoIds: String): Int? {
     val ids = runCatching { JSONArray(sourceMemoIds) }.getOrNull() ?: return null
     val uniqueIds = buildSet {
@@ -339,14 +331,14 @@ fun memoSummarySourceCount(sourceMemoIds: String): Int? {
     return uniqueIds.size.takeIf { it > 0 }
 }
 
-fun markdownFormatSnippet(style: MarkdownFormatStyle): String {
+fun markdownFormatSnippet(style: MarkdownFormatStyle, sample: String): String {
     return when (style) {
-        MarkdownFormatStyle.Heading -> "\n# 标题\n"
-        MarkdownFormatStyle.Bold -> "**加粗**"
-        MarkdownFormatStyle.Italic -> "*斜体*"
-        MarkdownFormatStyle.Code -> "`代码`"
-        MarkdownFormatStyle.List -> "\n- 列表项\n"
-        MarkdownFormatStyle.Quote -> "\n> 引用\n"
+        MarkdownFormatStyle.Heading -> "\n# $sample\n"
+        MarkdownFormatStyle.Bold -> "**$sample**"
+        MarkdownFormatStyle.Italic -> "*$sample*"
+        MarkdownFormatStyle.Code -> "`$sample`"
+        MarkdownFormatStyle.List -> "\n- $sample\n"
+        MarkdownFormatStyle.Quote -> "\n> $sample\n"
     }
 }
 
@@ -391,6 +383,10 @@ fun AIProfileDraft.toInput(): AIProfileInput {
         active = active,
         apiKey = trimmedKey.takeIf { it.isNotBlank() },
     )
+}
+
+fun firstBlankAIProfileNameIndex(profiles: List<AIProfileDraft>): Int? {
+    return profiles.indexOfFirst { it.name.isBlank() }.takeIf { it >= 0 }
 }
 
 fun mergeSavedAIProfilesForLocalStorage(

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import {
   createMemo as apiCreate,
   deleteMemo as apiDelete,
@@ -75,6 +76,7 @@ export function MemosProvider({
   token: string;
   children: ReactNode;
 }) {
+  const { locale, t } = useI18n();
   const [memos, setMemos] = useState<Memo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -97,6 +99,11 @@ export function MemosProvider({
     promise: Promise<boolean>;
   } | null>(null);
   const loadMoreRequestSeq = useRef(0);
+
+  useEffect(() => {
+    void locale;
+    setError((current) => (current ? t("records.loadFailed") : current));
+  }, [locale, t]);
 
   const refresh = useCallback(async () => {
     const seq = ++refreshSeq.current;
@@ -135,13 +142,13 @@ export function MemosProvider({
       if (seq !== refreshSeq.current) {
         return;
       }
-      setError(err instanceof Error ? err.message : "读取记录失败");
+      setError(err instanceof Error ? err.message : t("records.loadFailed"));
     } finally {
       if (seq === refreshSeq.current) {
         setLoading(false);
       }
     }
-  }, [token]);
+  }, [token, t]);
 
   // Appends the next older page. A concurrent refresh (newer seq) discards the
   // result so pages from a stale list never leak into a fresh one.
@@ -197,7 +204,9 @@ export function MemosProvider({
           return Boolean(cursorRef.current);
         }
         const error =
-          cause instanceof Error ? cause : new Error("读取更多记录失败");
+          cause instanceof Error
+            ? cause
+            : new Error(t("records.loadMoreFailed"));
         setError(error.message);
         throw error;
       } finally {
@@ -208,19 +217,19 @@ export function MemosProvider({
       }
     })();
     return request.promise;
-  }, [token]);
+  }, [token, t]);
 
   const loadAll = useCallback(async () => {
     const seenCursors = new Set<string>();
     while (cursorRef.current) {
       const cursor = cursorRef.current;
       if (seenCursors.has(cursor)) {
-        throw new Error("分页游标未前进，请重新加载");
+        throw new Error(t("records.paginationFailed"));
       }
       seenCursors.add(cursor);
       await loadMore();
     }
-  }, [loadMore]);
+  }, [loadMore, t]);
 
   useEffect(() => {
     void refresh();

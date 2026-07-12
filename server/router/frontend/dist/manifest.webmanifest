@@ -1,6 +1,7 @@
 {
   "name": "Sillage",
   "short_name": "Sillage",
+  "lang": "zh-CN",
   "description": "个人记录、历史回看与基于记录的问答空间。",
   "start_url": "/",
   "display": "standalone",

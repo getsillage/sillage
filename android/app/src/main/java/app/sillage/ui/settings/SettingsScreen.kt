@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SettingsEthernet
@@ -48,6 +49,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -66,8 +70,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sillage.data.AIProfileDraft
+import app.sillage.R
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
@@ -98,7 +105,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
+                title = { Text(stringResource(R.string.settings_title)) },
             )
         },
         bottomBar = {
@@ -129,11 +136,11 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         SettingsOverviewCard(state)
                     }
                     item {
-                        SettingsSectionCard(title = "AI") {
+                        SettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
                             SettingsSwitchRow(
                                 icon = Icons.Rounded.AutoAwesome,
-                                title = "自动总结",
-                                supporting = "新建记录后自动生成摘要。",
+                                title = stringResource(R.string.settings_auto_summary),
+                                supporting = stringResource(R.string.settings_auto_summary_supporting),
                                 checked = state.aiAutoSummary,
                                 enabled = !state.aiAutoSummarySaving && !state.loading,
                                 onCheckedChange = viewModel::setAISettingsAutoSummary,
@@ -141,34 +148,45 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = "外观") {
+                        SettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
                             SettingsSwitchRow(
                                 icon = Icons.Rounded.DarkMode,
-                                title = "深色模式",
+                                title = stringResource(R.string.settings_dark_mode),
                                 supporting = if (state.themeMode == SessionStore.THEME_DARK) {
-                                    "当前使用深色主题。"
+                                    stringResource(R.string.settings_dark_mode_on)
                                 } else {
-                                    "当前使用浅色主题。"
+                                    stringResource(R.string.settings_dark_mode_off)
                                 },
                                 checked = state.themeMode == SessionStore.THEME_DARK,
                                 enabled = !aiProfileOperationInProgress,
                                 onCheckedChange = { viewModel.toggleThemeMode() },
                             )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 50.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            SettingsLanguageRow(
+                                languageMode = state.languageMode,
+                                enabled = !aiProfileOperationInProgress,
+                                onLanguageChange = viewModel::setLanguageMode,
+                            )
                         }
                     }
                     item {
-                        SettingsSectionCard(title = "服务与同步") {
+                        SettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
                             SettingsActionRow(
                                 icon = Icons.Rounded.Refresh,
-                                title = "刷新记录",
-                                supporting = "重新读取当前模式下的记录列表。",
+                                title = stringResource(R.string.settings_refresh_records),
+                                supporting = stringResource(R.string.settings_refresh_records_supporting),
                                 onClick = viewModel::refreshMemos,
                                 enabled = !state.loading,
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.CloudSync,
-                                title = if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式",
-                                supporting = state.baseUrl.ifBlank { "未配置服务器地址" },
+                                title = stringResource(
+                                    if (state.appMode == SessionStore.MODE_ONLINE) R.string.settings_online_current else R.string.settings_online_switch,
+                                ),
+                                supporting = state.baseUrl.ifBlank { stringResource(R.string.settings_server_not_configured) },
                                 onClick = viewModel::useOnlineMode,
                                 enabled = state.appMode != SessionStore.MODE_ONLINE && !aiProfileOperationInProgress,
                                 selected = state.appMode == SessionStore.MODE_ONLINE,
@@ -176,8 +194,10 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.Storage,
-                                title = if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式",
-                                supporting = "记录保存在当前设备。",
+                                title = stringResource(
+                                    if (state.appMode == SessionStore.MODE_OFFLINE) R.string.settings_offline_current else R.string.settings_offline_switch,
+                                ),
+                                supporting = stringResource(R.string.settings_offline_supporting),
                                 onClick = viewModel::useOfflineMode,
                                 enabled = state.appMode != SessionStore.MODE_OFFLINE && !aiProfileOperationInProgress,
                                 selected = state.appMode == SessionStore.MODE_OFFLINE,
@@ -186,32 +206,32 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             if (state.appMode == SessionStore.MODE_ONLINE) {
                                 SettingsActionRow(
                                     icon = Icons.Rounded.SettingsEthernet,
-                                    title = "服务器设置",
-                                    supporting = "修改服务地址和重新连接。",
+                                    title = stringResource(R.string.settings_server),
+                                    supporting = stringResource(R.string.settings_server_supporting),
                                     onClick = viewModel::openServerSettings,
                                     enabled = !aiProfileOperationInProgress,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.Download,
-                                    title = "同步到本地",
-                                    supporting = "把服务端数据保存到本机离线库。",
+                                    title = stringResource(R.string.settings_sync_local),
+                                    supporting = stringResource(R.string.settings_sync_local_supporting),
                                     onClick = viewModel::syncFromServer,
                                     enabled = !aiProfileOperationInProgress,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.UploadFile,
-                                    title = "同步到云端",
-                                    supporting = "把本机离线记录推送到服务端。",
+                                    title = stringResource(R.string.settings_sync_cloud),
+                                    supporting = stringResource(R.string.settings_sync_cloud_supporting),
                                     onClick = viewModel::syncToServer,
                                     enabled = !aiProfileOperationInProgress,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.CloudSync,
-                                    title = "双向同步",
-                                    supporting = "先推送本地更改，再拉取服务端数据。",
+                                    title = stringResource(R.string.settings_sync_both),
+                                    supporting = stringResource(R.string.settings_sync_both_supporting),
                                     onClick = viewModel::syncBothWays,
                                     enabled = !aiProfileOperationInProgress,
                                     showDivider = true,
@@ -220,18 +240,18 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = "数据") {
+                        SettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
                             SettingsActionRow(
                                 icon = Icons.Rounded.Download,
-                                title = "导出完整数据",
-                                supporting = "导出记录、AI 设置和问答数据。",
+                                title = stringResource(R.string.settings_export),
+                                supporting = stringResource(R.string.settings_export_supporting),
                                 onClick = { exportLauncher.launch("sillage-data.json") },
                                 enabled = !aiProfileOperationInProgress,
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.UploadFile,
-                                title = "导入完整数据",
-                                supporting = "从 JSON 文件恢复或合并数据。",
+                                title = stringResource(R.string.settings_import),
+                                supporting = stringResource(R.string.settings_import_supporting),
                                 onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
                                 enabled = !aiProfileOperationInProgress,
                                 showDivider = true,
@@ -240,10 +260,10 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     if (state.appMode == SessionStore.MODE_ONLINE) {
                         item {
-                            SettingsSectionCard(title = "账号") {
+                            SettingsSectionCard(title = stringResource(R.string.settings_section_account)) {
                                 SettingsActionRow(
                                     icon = Icons.AutoMirrored.Rounded.Logout,
-                                    title = "退出登录",
+                                    title = stringResource(R.string.settings_sign_out),
                                     supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
                                     onClick = viewModel::signOut,
                                     enabled = !aiProfileOperationInProgress,
@@ -264,7 +284,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     if (state.aiProfiles.isEmpty()) {
                         item {
-                            EmptySettingsCard("还没有 AI 档案。可以在上方新增一个档案。")
+                            EmptySettingsCard(stringResource(R.string.settings_no_ai_profiles))
                         }
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].id.ifBlank { "new-$index" } }) { index ->
@@ -314,7 +334,7 @@ private fun SettingsOverviewCard(state: SillageUiState) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                "当前状态",
+                stringResource(R.string.settings_status_title),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -322,22 +342,22 @@ private fun SettingsOverviewCard(state: SillageUiState) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OverviewItem(
-                    label = if (state.appMode == SessionStore.MODE_ONLINE) "在线" else "离线",
+                    label = stringResource(if (state.appMode == SessionStore.MODE_ONLINE) R.string.status_online else R.string.status_offline),
                     value = if (state.appMode == SessionStore.MODE_ONLINE) {
-                        state.baseUrl.ifBlank { "未配置" }
+                        state.baseUrl.ifBlank { stringResource(R.string.settings_not_configured) }
                     } else {
-                        "${state.memos.size} 条记录"
+                        pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size)
                     },
                     modifier = Modifier.weight(1f),
                 )
                 OverviewItem(
-                    label = "主题",
-                    value = if (state.themeMode == SessionStore.THEME_DARK) "深色" else "浅色",
+                    label = stringResource(R.string.settings_theme_label),
+                    value = stringResource(if (state.themeMode == SessionStore.THEME_DARK) R.string.settings_theme_dark else R.string.settings_theme_light),
                     modifier = Modifier.weight(1f),
                 )
                 OverviewItem(
-                    label = "AI",
-                    value = if (state.aiAutoSummary) "自动总结" else "手动",
+                    label = stringResource(R.string.settings_section_ai),
+                    value = stringResource(if (state.aiAutoSummary) R.string.settings_auto_summary else R.string.settings_summary_manual),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -375,7 +395,7 @@ private fun AISettingsHeaderCard(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "AI 档案",
+            stringResource(R.string.settings_ai_profiles),
             modifier = Modifier.padding(horizontal = 4.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelLarge,
@@ -392,7 +412,7 @@ private fun AISettingsHeaderCard(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。",
+                    stringResource(R.string.settings_ai_profiles_supporting),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -406,7 +426,7 @@ private fun AISettingsHeaderCard(
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("新建")
+                        Text(stringResource(R.string.action_new))
                     }
                     Button(
                         onClick = onSave,
@@ -425,7 +445,7 @@ private fun AISettingsHeaderCard(
                             Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (saving) "保存中" else "保存")
+                        Text(stringResource(if (saving) R.string.action_saving else R.string.action_save))
                     }
                 }
             }
@@ -589,6 +609,72 @@ private fun SettingsSwitchRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsLanguageRow(
+    languageMode: String,
+    enabled: Boolean,
+    onLanguageChange: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Rounded.Language,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = if (enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                },
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.settings_language),
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(R.string.settings_language_supporting),
+                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        val languages = listOf(
+            SessionStore.LANGUAGE_ZH_CN to stringResource(R.string.language_chinese),
+            SessionStore.LANGUAGE_EN to stringResource(R.string.language_english),
+        )
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 34.dp, top = 10.dp),
+        ) {
+            languages.forEachIndexed { index, (language, label) ->
+                SegmentedButton(
+                    selected = languageMode == language,
+                    onClick = { onLanguageChange(language) },
+                    enabled = enabled,
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp),
+                    label = {
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun EmptySettingsCard(text: String) {
     Surface(
@@ -640,14 +726,14 @@ private fun AIProfileSummaryCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        profile.name.ifBlank { "未命名档案" },
+                        profile.name.ifBlank { stringResource(R.string.settings_profile_unnamed) },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        profile.provider.ifBlank { "未设置 Provider" },
+                        profile.provider.ifBlank { stringResource(R.string.settings_provider_unset) },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
@@ -657,13 +743,13 @@ private fun AIProfileSummaryCard(
                 if (profile.active) {
                     AssistChip(
                         onClick = onConfigure,
-                        label = { Text("默认") },
+                        label = { Text(stringResource(R.string.settings_default)) },
                         enabled = !saving,
                     )
                 }
             }
             Text(
-                profile.model.ifBlank { "未设置模型" },
+                profile.model.ifBlank { stringResource(R.string.settings_model_unset) },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
@@ -674,13 +760,15 @@ private fun AIProfileSummaryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) "有密钥" else "无密钥",
+                    stringResource(
+                        if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) R.string.settings_key_present else R.string.settings_key_missing,
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
                 if (profile.keyUnavailable) {
                     Text(
-                        "密钥异常",
+                        stringResource(R.string.settings_key_error),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelMedium,
                     )
@@ -701,14 +789,14 @@ private fun AIProfileSummaryCard(
                     enabled = !saving,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) {
-                    Text("配置")
+                    Text(stringResource(R.string.action_configure))
                 }
                 TextButton(
                     onClick = onSetDefault,
                     enabled = !profile.active && !saving,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) {
-                    Text(if (profile.active) "当前默认" else "设为默认")
+                    Text(stringResource(if (profile.active) R.string.settings_default_current else R.string.settings_set_default))
                 }
             }
         }
@@ -742,18 +830,18 @@ private fun AIProfileDetailCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "详细配置",
+                        stringResource(R.string.settings_profile_details),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "修改当前档案后保存生效。",
+                        stringResource(R.string.settings_profile_details_supporting),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
                 TextButton(onClick = onClose) {
-                    Text("收起")
+                    Text(stringResource(R.string.action_collapse))
                 }
             }
             OutlinedTextField(
@@ -761,7 +849,7 @@ private fun AIProfileDetailCard(
                 onValueChange = { viewModel.updateAIProfileName(index, it) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("名称") },
+                label = { Text(stringResource(R.string.settings_profile_name)) },
                 enabled = controlsEnabled,
             )
             OutlinedTextField(
@@ -769,8 +857,8 @@ private fun AIProfileDetailCard(
                 onValueChange = { viewModel.updateAIProfileProvider(index, it) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Provider") },
-                placeholder = { Text("anthropic / openai / workers-ai") },
+                label = { Text(stringResource(R.string.settings_provider)) },
+                placeholder = { Text(stringResource(R.string.settings_provider_placeholder)) },
                 enabled = controlsEnabled,
             )
             OutlinedTextField(
@@ -778,7 +866,7 @@ private fun AIProfileDetailCard(
                 onValueChange = { viewModel.updateAIProfileBaseUrl(index, it) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Base URL") },
+                label = { Text(stringResource(R.string.settings_base_url)) },
                 enabled = controlsEnabled,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -787,14 +875,14 @@ private fun AIProfileDetailCard(
                     onValueChange = { viewModel.updateAIProfileModel(index, it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    label = { Text("模型") },
+                    label = { Text(stringResource(R.string.settings_model)) },
                     enabled = controlsEnabled,
                 )
                 TextButton(
                     onClick = { viewModel.loadAIModels(index) },
                     enabled = controlsEnabled,
                 ) {
-                    Text(if (loadingModels) "获取中" else "获取模型")
+                    Text(stringResource(if (loadingModels) R.string.settings_models_loading else R.string.settings_models_get))
                 }
             }
             if (modelOptions.isNotEmpty()) {
@@ -817,7 +905,7 @@ private fun AIProfileDetailCard(
                     onValueChange = { viewModel.updateAIProfileTemperature(index, it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    label = { Text("温度") },
+                    label = { Text(stringResource(R.string.settings_temperature)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     enabled = controlsEnabled,
                 )
@@ -826,7 +914,7 @@ private fun AIProfileDetailCard(
                     onValueChange = { viewModel.updateAIProfileMaxTokens(index, it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    label = { Text("最大 Tokens") },
+                    label = { Text(stringResource(R.string.settings_max_tokens)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     enabled = controlsEnabled,
                 )
@@ -836,21 +924,23 @@ private fun AIProfileDetailCard(
                 onValueChange = { viewModel.updateAIProfileApiKey(index, it) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("API 密钥") },
-                placeholder = { Text(if (profile.hasApiKey) "已配置，留空保持不变" else "未配置") },
+                label = { Text(stringResource(R.string.settings_api_key)) },
+                placeholder = {
+                    Text(stringResource(if (profile.hasApiKey) R.string.settings_key_keep else R.string.settings_key_not_configured))
+                },
                 visualTransformation = PasswordVisualTransformation(),
                 enabled = controlsEnabled,
             )
             if (profile.keyUnavailable) {
                 Text(
-                    "当前密钥无法解密，请重新填写。",
+                    stringResource(R.string.settings_key_decrypt_error),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { viewModel.testAIProfile(index) }, enabled = controlsEnabled) {
-                    Text(if (testing) "测试中" else "测试连接")
+                    Text(stringResource(if (testing) R.string.settings_test_testing else R.string.settings_test_connection))
                 }
                 TextButton(
                     onClick = {
@@ -864,7 +954,7 @@ private fun AIProfileDetailCard(
                     },
                     enabled = controlsEnabled,
                 ) {
-                    Text(if (confirmingDelete) "确认删除" else "删除")
+                    Text(stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete))
                 }
             }
             if (testResult != null) {

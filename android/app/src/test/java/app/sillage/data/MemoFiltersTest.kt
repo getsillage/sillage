@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import java.time.DayOfWeek
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -125,6 +126,14 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun monthGridRespectsLocaleFirstDayOfWeek() {
+        val grid = monthGrid(2026, 6, DayOfWeek.MONDAY)
+
+        assertEquals("2026-06-01", grid.first().first())
+        assertEquals("2026-06-07", grid.first().last())
+    }
+
+    @Test
     fun adjacentMonthCrossesYears() {
         assertEquals(2025 to 12, adjacentMonth(2026, 1, -1))
         assertEquals(2027 to 1, adjacentMonth(2026, 12, 1))
@@ -175,9 +184,9 @@ class MemoFiltersTest {
 
     @Test
     fun markdownFormatSnippetReturnsExpectedMarkup() {
-        assertEquals("**加粗**", markdownFormatSnippet(MarkdownFormatStyle.Bold))
-        assertEquals("\n# 标题\n", markdownFormatSnippet(MarkdownFormatStyle.Heading))
-        assertEquals("\n- 列表项\n", markdownFormatSnippet(MarkdownFormatStyle.List))
+        assertEquals("**加粗**", markdownFormatSnippet(MarkdownFormatStyle.Bold, "加粗"))
+        assertEquals("\n# Heading\n", markdownFormatSnippet(MarkdownFormatStyle.Heading, "Heading"))
+        assertEquals("\n- List item\n", markdownFormatSnippet(MarkdownFormatStyle.List, "List item"))
     }
 
     @Test
@@ -204,6 +213,32 @@ class MemoFiltersTest {
     }
 
     @Test
+    fun firstBlankAIProfileNameIndexRejectsEmptyAndWhitespaceNames() {
+        assertEquals(
+            1,
+            firstBlankAIProfileNameIndex(
+                listOf(
+                    AIProfileDraft(name = "Primary"),
+                    AIProfileDraft(name = "   "),
+                    AIProfileDraft(name = "Secondary"),
+                ),
+            ),
+        )
+        assertEquals(0, firstBlankAIProfileNameIndex(listOf(AIProfileDraft(name = ""))))
+    }
+
+    @Test
+    fun firstBlankAIProfileNameIndexAllowsNamedOrEmptyProfileLists() {
+        assertEquals(
+            null,
+            firstBlankAIProfileNameIndex(
+                listOf(AIProfileDraft(name = "Primary"), AIProfileDraft(name = " Secondary ")),
+            ),
+        )
+        assertEquals(null, firstBlankAIProfileNameIndex(emptyList()))
+    }
+
+    @Test
     fun localAskQueryTermsAddsChineseBigrams() {
         val terms = localAskQueryTerms("最近睡眠怎样")
 
@@ -216,6 +251,19 @@ class MemoFiltersTest {
         assertEquals(SessionStore.THEME_DARK, SessionStore.normalizeThemeMode("dark"))
         assertEquals(SessionStore.THEME_LIGHT, SessionStore.normalizeThemeMode("light"))
         assertEquals(SessionStore.THEME_LIGHT, SessionStore.normalizeThemeMode("system"))
+    }
+
+    @Test
+    fun normalizeLanguageModeDefaultsToSimplifiedChinese() {
+        assertEquals(SessionStore.LANGUAGE_EN, SessionStore.normalizeLanguageMode("en"))
+        assertEquals(SessionStore.LANGUAGE_EN, SessionStore.normalizeLanguageMode("en-US"))
+        assertEquals(SessionStore.LANGUAGE_ZH_CN, SessionStore.normalizeLanguageMode("zh-CN"))
+        assertEquals(SessionStore.LANGUAGE_ZH_CN, SessionStore.normalizeLanguageMode("fr"))
+    }
+
+    @Test
+    fun newAIProfileDraftKeepsThePersistedNameLanguageNeutral() {
+        assertEquals("", AIProfileDraft().name)
     }
 
     @Test
@@ -299,32 +347,6 @@ class MemoFiltersTest {
         )
 
         assertEquals("2026-06-27 · 来源摘要", askSourceLabel(source))
-    }
-
-    @Test
-    fun memoMetadataLinesShowsCreationAndRevisionCount() {
-        val firstVersion = memo(
-            id = "first",
-            createdAt = "2026-06-27T01:00:00Z",
-            updatedAt = "2026-06-27T01:00:00Z",
-            version = 1,
-        )
-        val revised = memo(
-            id = "revised",
-            createdAt = "2026-06-27T01:00:00Z",
-            updatedAt = "2026-06-28T02:00:00Z",
-            version = 3,
-        )
-
-        assertEquals(listOf("创建于 2026-06-27T01:00:00Z"), memoMetadataLines(firstVersion))
-        assertEquals(
-            listOf(
-                "创建于 2026-06-27T01:00:00Z",
-                "最近修改 2026-06-28T02:00:00Z，共修改 2 次",
-            ),
-            memoMetadataLines(revised),
-        )
-        assertEquals(emptyList<String>(), memoMetadataLines(null))
     }
 
     @Test

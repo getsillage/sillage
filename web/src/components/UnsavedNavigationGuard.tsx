@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { type BlockerFunction, useBlocker } from "react-router-dom";
+import { useI18n } from "../i18n/I18nProvider";
 import { dangerButtonClass, secondaryButtonClass } from "./ui";
 
 const activeUnsavedGuards = new Set<symbol>();
@@ -33,6 +34,7 @@ export function UnsavedNavigationGuard({
   title,
   description,
 }: UnsavedNavigationGuardProps) {
+  const { t } = useI18n();
   const shouldBlock = useCallback<BlockerFunction>(
     ({ currentLocation, nextLocation }) =>
       when &&
@@ -109,7 +111,7 @@ export function UnsavedNavigationGuard({
     <div className="fixed inset-0 z-[70] grid place-items-center px-4">
       <button
         type="button"
-        aria-label="留在当前页面"
+        aria-label={t("unsaved.stay")}
         className="absolute inset-0 h-full w-full bg-gray-950/35 dark:bg-gray-950/70"
         onClick={() => blocker.reset?.()}
       />
@@ -140,7 +142,7 @@ export function UnsavedNavigationGuard({
             className={secondaryButtonClass}
             onClick={() => blocker.reset?.()}
           >
-            继续编辑
+            {t("unsaved.keepEditing")}
           </button>
           <button
             type="button"
@@ -150,7 +152,7 @@ export function UnsavedNavigationGuard({
               blocker.proceed?.();
             }}
           >
-            离开此页
+            {t("unsaved.leave")}
           </button>
         </div>
       </div>

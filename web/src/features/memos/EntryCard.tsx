@@ -2,9 +2,10 @@ import { ChevronRight, Star } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { rowLinkClass } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo } from "../../lib/api";
 import { formatShortDate, toLocalISODate } from "../../lib/date";
-import { LocalDateTime } from "./LocalDateTime";
+import { formatLocalDateTime, LocalDateTime } from "./LocalDateTime";
 import { excerpt } from "./memos";
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
@@ -26,6 +27,7 @@ export function EntryCard({
   openOnCardClick?: boolean;
   grouped?: boolean;
 }) {
+  const { locale, t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const createdAt = new Date(memo.createdAt);
@@ -36,7 +38,7 @@ export function EntryCard({
   const detailPath = `/entries/${memo.id}`;
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
   const detailState = { returnTo, memoSnapshot: { ...memo } };
-  const preview = excerpt(memo.content) || "空白记录";
+  const preview = excerpt(memo.content) || t("records.blank");
 
   function openDetail() {
     navigate(detailPath, { state: detailState });
@@ -64,7 +66,9 @@ export function EntryCard({
       className={`${rowLinkClass}${openOnCardClick ? " group cursor-pointer" : ""}`}
       role={openOnCardClick ? "link" : undefined}
       tabIndex={openOnCardClick ? 0 : undefined}
-      aria-label={openOnCardClick ? `查看${preview}详情` : undefined}
+      aria-label={
+        openOnCardClick ? t("records.viewDetails", { preview }) : undefined
+      }
       onClick={openOnCardClick ? handleCardClick : undefined}
       onKeyDown={openOnCardClick ? handleCardKeyDown : undefined}
     >
@@ -74,8 +78,9 @@ export function EntryCard({
             {grouped ? (
               showEntryDate ? (
                 <span>
-                  记录于{" "}
-                  <LocalDateTime value={memo.createdAt} variant="short" />
+                  {t("records.recordedAt", {
+                    date: formatLocalDateTime(createdAt, "short", locale),
+                  })}
                 </span>
               ) : (
                 <LocalDateTime value={memo.createdAt} variant="time" />
@@ -85,18 +90,26 @@ export function EntryCard({
             )}
             {!grouped && showEntryDate ? (
               <time dateTime={memo.entryDate}>
-                归属 {formatShortDate(memo.entryDate)}
+                {t("records.belongsTo", {
+                  date: formatShortDate(memo.entryDate, undefined, locale),
+                })}
               </time>
             ) : null}
             {memo.favoritedAt ? (
               <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-300">
                 <Star className="h-3 w-3 fill-current" aria-hidden="true" />
-                收藏
+                {t("records.favorite")}
               </span>
             ) : null}
             {memo.version > 1 ? (
               <span>
-                改于 <LocalDateTime value={memo.updatedAt} variant="short" />
+                {t("records.modifiedAt", {
+                  date: formatLocalDateTime(
+                    new Date(memo.updatedAt),
+                    "short",
+                    locale,
+                  ),
+                })}
               </span>
             ) : null}
           </div>

@@ -72,6 +72,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -89,6 +93,7 @@ import app.sillage.data.excerpt
 import app.sillage.data.monthGrid
 import app.sillage.data.onThisDay
 import app.sillage.data.yearsBetween
+import app.sillage.R
 import app.sillage.ui.MemoListLoadStatus
 import app.sillage.ui.MemoViewMode
 import app.sillage.ui.SillageUiState
@@ -97,7 +102,12 @@ import app.sillage.ui.common.MessageBlock
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
+import app.sillage.ui.localizedDate
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.temporal.WeekFields
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -114,7 +124,7 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                 title = {
                     Column {
                         Text(
-                            if (state.memoViewMode == MemoViewMode.Calendar) "日历" else "记录",
+                            stringResource(if (state.memoViewMode == MemoViewMode.Calendar) R.string.nav_calendar else R.string.records_title),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -132,14 +142,14 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                         onClick = viewModel::refreshMemos,
                         enabled = !state.loading && state.memoListLoadStatus != MemoListLoadStatus.Loading,
                     ) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "刷新记录")
+                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.records_refresh))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = viewModel::startNewMemo) {
-                Icon(Icons.Rounded.Add, contentDescription = "新建记录")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.records_new))
             }
         },
         bottomBar = {
@@ -174,9 +184,9 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
             } else if (state.memoViewMode == MemoViewMode.Calendar) {
                 CalendarMemoView(state = state, viewModel = viewModel)
             } else if (state.shouldShowMemoListLoadFailure()) {
-                EmptyState("记录加载失败，请点击右上角刷新重试。", Icons.Rounded.Refresh)
+                EmptyState(stringResource(R.string.records_load_failed), Icons.Rounded.Refresh)
             } else if (state.shouldShowMemoSearchFailure()) {
-                EmptyState("搜索失败，请检查网络后重试。", Icons.Rounded.Refresh)
+                EmptyState(stringResource(R.string.records_search_failed), Icons.Rounded.Refresh)
             } else {
                 MemoListView(
                     visibleMemos = visibleMemos,
@@ -200,13 +210,18 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
     }
 }
 
+@Composable
 private fun memoListSubtitle(state: SillageUiState): String {
     val mode = if (state.appMode == SessionStore.MODE_OFFLINE) {
-        "离线"
+        stringResource(R.string.status_offline)
     } else {
-        state.account?.displayName ?: state.baseUrl.ifBlank { "在线" }
+        state.account?.displayName ?: state.baseUrl.ifBlank { stringResource(R.string.status_online) }
     }
-    return "$mode · ${state.memos.size} 条记录"
+    return stringResource(
+        R.string.quantity_joiner,
+        mode,
+        pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size),
+    )
 }
 
 @Composable
@@ -251,9 +266,9 @@ private fun MemoListFilterTabs(
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 when (filter) {
-                                    MemoListFilter.Unarchived -> "未归档"
-                                    MemoListFilter.Archived -> "归档"
-                                    MemoListFilter.Favorited -> "收藏"
+                                    MemoListFilter.Unarchived -> stringResource(R.string.filter_unarchived)
+                                    MemoListFilter.Archived -> stringResource(R.string.filter_archived)
+                                    MemoListFilter.Favorited -> stringResource(R.string.filter_favorited)
                                 },
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.onSurface
@@ -292,7 +307,11 @@ private fun SearchStatusBlock(state: SillageUiState) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            "“$query” · ${results.size} 条结果",
+            stringResource(
+                R.string.search_results_summary,
+                query,
+                pluralStringResource(R.plurals.quantity_results, results.size, results.size),
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
@@ -320,18 +339,18 @@ private fun MemoListView(
     filter: MemoListFilter,
 ) {
     if (searching && visibleMemos.isEmpty()) {
-        EmptyState("正在搜索…", Icons.Rounded.Search)
+        EmptyState(stringResource(R.string.searching), Icons.Rounded.Search)
         return
     }
     if (visibleMemos.isEmpty()) {
         EmptyState(
             if (showingSearchResults) {
-                "没有匹配的记录。"
+                stringResource(R.string.search_no_matches)
             } else {
                 when (filter) {
-                    MemoListFilter.Unarchived -> "还没有未归档记录。点右下角加号写第一条。"
-                    MemoListFilter.Archived -> "还没有归档记录。"
-                    MemoListFilter.Favorited -> "还没有收藏记录。"
+                    MemoListFilter.Unarchived -> stringResource(R.string.empty_unarchived)
+                    MemoListFilter.Archived -> stringResource(R.string.empty_archived)
+                    MemoListFilter.Favorited -> stringResource(R.string.empty_favorited)
                 }
             },
             if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
@@ -366,7 +385,7 @@ private fun MemoListView(
                     enabled = !loadingMore,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (loadingMore) "正在加载…" else "加载更多")
+                    Text(stringResource(if (loadingMore) R.string.loading_more else R.string.load_more))
                 }
             }
         }
@@ -385,7 +404,7 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
             onValueChange = viewModel::updateSearchQuery,
             modifier = Modifier.weight(1f),
             singleLine = true,
-            placeholder = { Text("搜索记录") },
+            placeholder = { Text(stringResource(R.string.search_records)) },
             leadingIcon = {
                 if (state.searching) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -396,7 +415,7 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
             trailingIcon = {
                 if (state.searchQuery.isNotBlank() || state.searchResults != null) {
                     IconButton(onClick = viewModel::clearSearch) {
-                        Icon(Icons.Rounded.Close, contentDescription = "清除搜索")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.search_clear))
                     }
                 }
             },
@@ -407,7 +426,7 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
             onClick = viewModel::searchMemos,
             enabled = !state.searching && state.searchQuery.isNotBlank(),
         ) {
-            Icon(Icons.Rounded.Search, contentDescription = "搜索")
+            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
         }
     }
 }
@@ -473,7 +492,7 @@ private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo
                     }
                 }
                 Text(
-                    "那年今日",
+                    stringResource(R.string.on_this_day),
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
@@ -482,7 +501,15 @@ private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
                 Text(
-                    "${yearsBetween(memo.entryDate, today)}年前 · ${excerpt(memo.content, 56).ifBlank { "空白记录" }}",
+                    stringResource(
+                        R.string.years_ago_record,
+                        pluralStringResource(
+                            R.plurals.quantity_years_ago,
+                            yearsBetween(memo.entryDate, today),
+                            yearsBetween(memo.entryDate, today),
+                        ),
+                        excerpt(memo.content, 56).ifBlank { stringResource(R.string.blank_record) },
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onMemoClick(memo) }
@@ -500,8 +527,10 @@ private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo
 @Composable
 private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel) {
     val today = remember { LocalDate.now().toString() }
-    val weeks = remember(state.calendarYear, state.calendarMonth) {
-        monthGrid(state.calendarYear, state.calendarMonth)
+    val locale = LocalConfiguration.current.locales[0]
+    val firstDayOfWeek = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
+    val weeks = remember(state.calendarYear, state.calendarMonth, firstDayOfWeek) {
+        monthGrid(state.calendarYear, state.calendarMonth, firstDayOfWeek)
     }
     val counts = remember(state.memos) { entryDateCounts(state.memos) }
     val selectedEntries = remember(state.memos, state.selectedCalendarDate) {
@@ -534,6 +563,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 counts = counts,
                 today = today,
                 selectedDate = state.selectedCalendarDate,
+                firstDayOfWeek = firstDayOfWeek,
                 onSelectDate = viewModel::selectCalendarDate,
             )
         }
@@ -549,7 +579,8 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         }
         item {
             Text(
-                state.selectedCalendarDate ?: "选择一天查看当天记录。",
+                state.selectedCalendarDate?.let { localizedDate(it) }
+                    ?: stringResource(R.string.calendar_select_day),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -592,9 +623,12 @@ private fun CalendarCoverageNotice(
         ) {
             Text(
                 if (currentMonthMayBeIncomplete) {
-                    "当前月份可能未完整显示。已加载 $loadedCount 条记录，仍有更早记录。"
+                    stringResource(
+                        R.string.calendar_partial_month,
+                        pluralStringResource(R.plurals.quantity_records, loadedCount, loadedCount),
+                    )
                 } else {
-                    "当前月份已完整显示，仍有更早记录尚未加载。"
+                    stringResource(R.string.calendar_complete_month)
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
@@ -611,7 +645,7 @@ private fun CalendarCoverageNotice(
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                 }
-                Text(if (loading) "正在加载更早记录" else "加载更早记录")
+                Text(stringResource(if (loading) R.string.calendar_loading_earlier else R.string.calendar_load_earlier))
             }
         }
     }
@@ -621,6 +655,9 @@ private fun CalendarCoverageNotice(
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
     val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
     val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
+    val previousLabel = localizedMonth(previous.first, previous.second)
+    val currentLabel = localizedMonth(state.calendarYear, state.calendarMonth)
+    val nextLabel = localizedMonth(next.first, next.second)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -628,7 +665,7 @@ private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
         IconButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
             Icon(
                 Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = "${previous.first}年${previous.second}月",
+                contentDescription = previousLabel,
             )
         }
         Column(
@@ -636,13 +673,13 @@ private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "${state.calendarYear}年${state.calendarMonth}月",
+                currentLabel,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
             )
             Text(
-                "按日期回看记录",
+                stringResource(R.string.calendar_browse_by_date),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -650,9 +687,18 @@ private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
         IconButton(onClick = { viewModel.changeCalendarMonth(1) }) {
             Icon(
                 Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = "${next.first}年${next.second}月",
+                contentDescription = nextLabel,
             )
         }
+    }
+}
+
+@Composable
+private fun localizedMonth(year: Int, month: Int): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val pattern = stringResource(R.string.calendar_month_pattern)
+    return remember(year, month, locale, pattern) {
+        YearMonth.of(year, month).format(DateTimeFormatter.ofPattern(pattern, locale))
     }
 }
 
@@ -662,9 +708,12 @@ private fun CalendarGrid(
     counts: Map<String, Int>,
     today: String,
     selectedDate: String?,
+    firstDayOfWeek: DayOfWeek,
     onSelectDate: (String) -> Unit,
 ) {
-    val weekdays = listOf("日", "一", "二", "三", "四", "五", "六")
+    val sundayFirst = stringArrayResource(R.array.calendar_weekdays_short).toList()
+    val firstIndex = if (firstDayOfWeek == DayOfWeek.SUNDAY) 0 else firstDayOfWeek.value
+    val weekdays = sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             weekdays.forEach { day ->
@@ -759,9 +808,9 @@ private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
     ) {
         Text(
             if (mayBeIncomplete) {
-                "已加载的记录中，这一天暂无内容；继续加载后可能出现更早记录。"
+                stringResource(R.string.calendar_day_maybe_incomplete)
             } else {
-                "这一天没有记录。"
+                stringResource(R.string.calendar_day_empty)
             },
             modifier = Modifier.padding(14.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -889,7 +938,7 @@ private fun MemoSwipeActionPane(
     ) {
         SwipeActionButton(
             icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-            label = if (memo.favoritedAt == null) "收藏" else "取消",
+            label = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
             visible = revealedOffset > 0f,
             color = MaterialTheme.colorScheme.primaryContainer,
             onClick = onToggleFavorite,
@@ -899,7 +948,7 @@ private fun MemoSwipeActionPane(
         )
         SwipeActionButton(
             icon = Icons.Rounded.Archive,
-            label = if (memo.archivedAt == null) "归档" else "恢复",
+            label = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_restore),
             visible = revealedOffset < 0f,
             color = MaterialTheme.colorScheme.secondaryContainer,
             onClick = onToggleArchive,
@@ -958,14 +1007,14 @@ private fun MemoQuickActionsSheet(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
             Text(
-                excerpt(memo.content, 64).ifBlank { "空白记录" },
+                excerpt(memo.content, 64).ifBlank { stringResource(R.string.blank_record) },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "${memo.entryDate} · 快捷操作",
+                stringResource(R.string.quick_actions_description, localizedDate(memo.entryDate)),
                 modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
@@ -973,42 +1022,44 @@ private fun MemoQuickActionsSheet(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
             QuickActionRow(
                 icon = Icons.Rounded.Edit,
-                title = "编辑",
-                supporting = "直接进入编辑器。",
+                title = stringResource(R.string.action_edit),
+                supporting = stringResource(R.string.quick_edit_supporting),
                 onClick = onEdit,
             )
             QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.ContentCopy,
-                title = "复制为新记录",
-                supporting = "保留正文，日期使用今天。",
+                title = stringResource(R.string.quick_copy_title),
+                supporting = stringResource(R.string.quick_copy_supporting),
                 onClick = onDuplicate,
             )
             QuickActionDivider()
             QuickActionRow(
                 icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-                title = if (memo.favoritedAt == null) "收藏" else "取消收藏",
+                title = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
                 supporting = if (memo.favoritedAt == null) {
-                    "移到收藏页面。"
+                    stringResource(R.string.quick_favorite_supporting)
                 } else if (memo.archivedAt == null) {
-                    "移回未归档页面。"
+                    stringResource(R.string.quick_unfavorite_to_records)
                 } else {
-                    "移回归档页面。"
+                    stringResource(R.string.quick_unfavorite_to_archive)
                 },
                 onClick = onToggleFavorite,
             )
             QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.Archive,
-                title = if (memo.archivedAt == null) "归档" else "取消归档",
-                supporting = if (memo.archivedAt == null) "从主列表移除。" else "回到主列表。",
+                title = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_unarchive),
+                supporting = stringResource(if (memo.archivedAt == null) R.string.quick_archive_supporting else R.string.quick_unarchive_supporting),
                 onClick = onToggleArchive,
             )
             QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.Delete,
-                title = if (confirmingDelete) "确认删除" else "删除",
-                supporting = if (confirmingDelete) "此操作会从当前列表移除。" else "从当前列表移除。",
+                title = stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete),
+                supporting = stringResource(
+                    if (confirmingDelete) R.string.quick_delete_confirm_supporting else R.string.quick_delete_supporting,
+                ),
                 destructive = true,
                 onClick = {
                     if (confirmingDelete) {
@@ -1106,7 +1157,7 @@ private fun MemoRow(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                memo.content.ifBlank { "空白记录" },
+                memo.content.ifBlank { stringResource(R.string.blank_record) },
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
@@ -1117,7 +1168,7 @@ private fun MemoRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    memo.entryDate,
+                    localizedDate(memo.entryDate),
                     modifier = Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,

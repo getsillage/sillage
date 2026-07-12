@@ -23,6 +23,7 @@ Hard constraints:
 - Extract a shared token only after the same style appears at least three times, and update this document at the same time. Do not scatter hex values, introduce a second component library, or hand-draw SVG icons.
 - Reuse the existing typography styles for rendered Markdown instead of creating another rich-text presentation.
 - Keep icon buttons at a stable touch size. Use segmented controls for view selection and switches or checkboxes for binary settings.
+- Keep the language selector in Appearance as a compact segmented control. Authentication screens may expose the same choice as a quiet utility control so language can be changed before sign-in.
 
 Page headings and control labels must match the scale of their containers. Narrow screens must not have horizontal overflow, and text must not cover adjacent content.
 
@@ -51,6 +52,7 @@ Page headings and control labels must match the scale of their containers. Narro
 See the [Contributing Guide](../../../CONTRIBUTING.md) for automated quality gates. Interaction or visual changes must also be checked across:
 
 - light and dark themes on desktop and mobile;
+- English and Simplified Chinese on desktop and mobile, including long English labels and client-formatted dates;
 - Write a Record, All Records, record detail, Ask, settings, initialization, and sign-in views;
 - narrow-screen overflow, keyboard navigation, focus restoration, layered Escape behavior, and dialog semantics;
 - loading, empty, failure, retry, unsaved, version-conflict, and in-progress states;

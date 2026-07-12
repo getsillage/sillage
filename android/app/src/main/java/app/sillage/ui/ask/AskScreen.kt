@@ -1,6 +1,7 @@
 package app.sillage.ui.ask
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -65,6 +67,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,12 +77,13 @@ import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
 import app.sillage.data.AskPathEntry
 import app.sillage.data.AskSourceRef
-import app.sillage.data.askSourceLabel
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.lastAssistantMessageId
+import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.common.MessageBlock
+import app.sillage.ui.localizedDate
 import app.sillage.ui.navigation.MainNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -159,7 +164,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 title = {
                     Column {
                         Text(
-                            "问答",
+                            stringResource(R.string.ask_title),
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -178,19 +183,19 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onClick = { showConversations = true },
                         enabled = contextControlsEnabled,
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.List, contentDescription = "会话")
+                        Icon(Icons.AutoMirrored.Rounded.List, contentDescription = stringResource(R.string.ask_conversations_description))
                     }
                     IconButton(
                         onClick = { showOptions = true },
                         enabled = contextControlsEnabled,
                     ) {
-                        Icon(Icons.Rounded.Tune, contentDescription = "上下文")
+                        Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.ask_context_description))
                     }
                     IconButton(
                         onClick = viewModel::startNewAsk,
                         enabled = contextControlsEnabled,
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "新会话")
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ask_new_conversation_description))
                     }
                 },
             )
@@ -320,14 +325,17 @@ internal fun isAskListNearBottom(
     return lastVisibleEnd - viewportEnd <= thresholdPx.coerceAtLeast(0)
 }
 
+@Composable
 private fun askContextLabel(state: SillageUiState): String {
     val scope = when (state.askScope) {
-        "recent_7_days" -> "最近 7 天"
-        "all" -> "全部记录"
-        else -> "最近 30 天"
+        "recent_7_days" -> stringResource(R.string.ask_scope_7_days)
+        "all" -> stringResource(R.string.ask_scope_all)
+        else -> stringResource(R.string.ask_scope_30_days)
     }
-    val source = if (state.askSourceKind == "summaries") "记录总结" else "原始记录"
-    return "$scope · $source"
+    val source = stringResource(
+        if (state.askSourceKind == "summaries") R.string.ask_source_summaries else R.string.ask_source_records,
+    )
+    return stringResource(R.string.quantity_joiner, scope, source)
 }
 
 @Composable
@@ -357,13 +365,13 @@ private fun AskEmptyPrompt() {
                     }
                 }
                 Text(
-                    "根据记录提问",
+                    stringResource(R.string.ask_prompt_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
             Text(
-                "例如「我最近在反复想些什么？」或「这周有什么值得继续做？」",
+                stringResource(R.string.ask_prompt_example),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -399,7 +407,11 @@ private fun AskComposer(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    "${state.askQuestion.trim().length} 字",
+                    pluralStringResource(
+                        R.plurals.quantity_characters,
+                        state.askQuestion.trim().length,
+                        state.askQuestion.trim().length,
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                 )
@@ -414,7 +426,7 @@ private fun AskComposer(
                     modifier = Modifier.weight(1f),
                     minLines = 1,
                     maxLines = 3,
-                    placeholder = { Text("根据记录提问") },
+                    placeholder = { Text(stringResource(R.string.ask_question_placeholder)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
@@ -435,7 +447,7 @@ private fun AskComposer(
                         onClick = viewModel::stopAskStreaming,
                         modifier = Modifier.size(48.dp),
                     ) {
-                        Icon(Icons.Rounded.StopCircle, contentDescription = "停止生成")
+                        Icon(Icons.Rounded.StopCircle, contentDescription = stringResource(R.string.ask_stop_generation))
                     }
                 } else {
                     FilledIconButton(
@@ -447,7 +459,7 @@ private fun AskComposer(
                             state.askQuestion.isNotBlank(),
                         modifier = Modifier.size(48.dp),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送")
+                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(R.string.ask_send))
                     }
                 }
             }
@@ -471,7 +483,7 @@ private fun AskConversationSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "问答会话",
+                    stringResource(R.string.ask_conversations_title),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
@@ -480,7 +492,7 @@ private fun AskConversationSheet(
                     onClick = viewModel::loadAskConversations,
                     enabled = !state.askLoading && !state.askSending && !state.askVariantLoading,
                 ) {
-                    Text("刷新")
+                    Text(stringResource(R.string.action_refresh))
                 }
             }
             AskConversationList(
@@ -516,7 +528,7 @@ private fun AskOptionsSheet(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "上下文",
+                stringResource(R.string.ask_context_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -534,31 +546,37 @@ private fun AskOptions(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            "时间范围",
+            stringResource(R.string.ask_time_range),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            AskOptionButton("7 天", state.askScope == "recent_7_days", enabled) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            AskOptionButton(stringResource(R.string.ask_scope_7_days_short), state.askScope == "recent_7_days", enabled) {
                 viewModel.updateAskScope("recent_7_days")
             }
-            AskOptionButton("30 天", state.askScope == "recent_30_days", enabled) {
+            AskOptionButton(stringResource(R.string.ask_scope_30_days_short), state.askScope == "recent_30_days", enabled) {
                 viewModel.updateAskScope("recent_30_days")
             }
-            AskOptionButton("全部", state.askScope == "all", enabled) {
+            AskOptionButton(stringResource(R.string.ask_scope_all_short), state.askScope == "all", enabled) {
                 viewModel.updateAskScope("all")
             }
         }
         Text(
-            "来源",
+            stringResource(R.string.ask_source_title),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            AskOptionButton("原始记录", state.askSourceKind == "records", enabled) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            AskOptionButton(stringResource(R.string.ask_source_records), state.askSourceKind == "records", enabled) {
                 viewModel.updateAskSourceKind("records")
             }
-            AskOptionButton("记录总结", state.askSourceKind == "summaries", enabled) {
+            AskOptionButton(stringResource(R.string.ask_source_summaries), state.askSourceKind == "summaries", enabled) {
                 viewModel.updateAskSourceKind("summaries")
             }
         }
@@ -589,7 +607,7 @@ private fun AskConversationList(
 ) {
     if (conversations.isEmpty()) {
         Text(
-            "暂无问答会话。",
+            stringResource(R.string.ask_no_conversations),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -626,7 +644,14 @@ private fun AskConversationList(
                 ),
             ) {
                 Text(
-                    if (conversation.id == activeId) "当前 · ${conversation.title}" else conversation.title,
+                    if (conversation.id == activeId) {
+                        stringResource(
+                            R.string.ask_current_conversation,
+                            conversation.title.ifBlank { stringResource(R.string.ask_untitled_conversation) },
+                        )
+                    } else {
+                        conversation.title.ifBlank { stringResource(R.string.ask_untitled_conversation) }
+                    },
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodySmall,
@@ -693,7 +718,7 @@ private fun AskMessageCard(
                 Text(
                     when {
                         streamingText != null && streamingText.isNotBlank() -> streamingText
-                        regenerating -> "正在重新生成…"
+                        regenerating -> stringResource(R.string.ask_regenerating)
                         else -> message.content
                     },
                     color = textColor,
@@ -737,13 +762,13 @@ private fun AskSourceRefs(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
         ) {
             Text(
-                "来源 ${sources.size}",
+                pluralStringResource(R.plurals.quantity_sources, sources.size, sources.size),
                 style = MaterialTheme.typography.labelSmall,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                contentDescription = if (expanded) "隐藏来源" else "显示来源",
+                contentDescription = stringResource(if (expanded) R.string.ask_hide_sources else R.string.ask_show_sources),
                 modifier = Modifier.size(16.dp),
             )
         }
@@ -758,7 +783,7 @@ private fun AskSourceRefs(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                 ) {
                     Text(
-                        askSourceLabel(source),
+                        stringResource(R.string.quantity_joiner, localizedDate(source.entryDate), source.excerpt),
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -804,7 +829,7 @@ private fun AskLiveAnswerCard(answer: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                answer.ifBlank { "正在思考…" },
+                answer.ifBlank { stringResource(R.string.ask_thinking) },
                 color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -842,7 +867,7 @@ private fun AskMessageActions(
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                    contentDescription = "上一条",
+                    contentDescription = stringResource(R.string.ask_previous_variant),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -866,7 +891,7 @@ private fun AskMessageActions(
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = "下一条",
+                    contentDescription = stringResource(R.string.ask_next_variant),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -879,7 +904,7 @@ private fun AskMessageActions(
             ) {
                 Icon(
                     Icons.Rounded.Refresh,
-                    contentDescription = if (regenerating) "生成中" else "重新生成",
+                    contentDescription = stringResource(if (regenerating) R.string.ask_generating else R.string.ask_regenerate),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -890,7 +915,7 @@ private fun AskMessageActions(
                 enabled = !savingDisabled && !regenerating,
                 modifier = Modifier.size(48.dp),
             ) {
-                Icon(Icons.Rounded.Save, contentDescription = "存为记录", modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.Save, contentDescription = stringResource(R.string.ask_save_as_record), modifier = Modifier.size(20.dp))
             }
         }
     }

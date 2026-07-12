@@ -82,7 +82,7 @@ class MarkdownRendererTest {
         )
 
         assertTrue(rendered.toString().contains("前文 外链 后文"))
-        assertTrue(rendered.toString().contains("图片：附件"))
+        assertTrue(rendered.toString().contains("Image: 附件"))
         assertTrue(rendered.toString().contains("危险链接"))
         val links = rendered.spans<LinkSpan>()
         assertEquals(
@@ -103,7 +103,7 @@ class MarkdownRendererTest {
             isLinkOpening = { rawUrl -> rawUrl == attachmentPath },
         ).toMarkdown("[附件]($attachmentPath)")
 
-        assertTrue(rendered.toString().contains("附件（正在打开）"))
+        assertTrue(rendered.toString().contains("附件 (opening)"))
         assertTrue(rendered.spans<LinkSpan>().isEmpty())
     }
 

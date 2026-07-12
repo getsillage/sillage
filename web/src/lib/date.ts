@@ -1,3 +1,5 @@
+import { type Locale, translate } from "../i18n/messages";
+
 /** Formats a Date as a YYYY-MM-DD calendar date in the viewer's local zone. */
 export function toLocalISODate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
@@ -7,8 +9,6 @@ export function toLocalISODate(date: Date): string {
 export function todayISO(): string {
   return toLocalISODate(new Date());
 }
-
-const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function parseISODate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -24,7 +24,11 @@ function parseISODate(value: string): Date | null {
 }
 
 /** Human-friendly label for a stored YYYY-MM-DD entry date. */
-export function formatEntryDate(value: string, reference = todayISO()): string {
+export function formatEntryDate(
+  value: string,
+  reference = todayISO(),
+  locale: Locale = "zh-CN",
+): string {
   const date = parseISODate(value);
   const referenceDate = parseISODate(reference);
   if (!date || !referenceDate) {
@@ -39,34 +43,69 @@ export function formatEntryDate(value: string, reference = todayISO()): string {
     referenceDate.getDate(),
   );
   const daysAgo = Math.round((referenceDay - dateDay) / dayMs);
-  const monthDay = `${date.getMonth() + 1}月${date.getDate()}日`;
-  const year =
-    date.getFullYear() === referenceDate.getFullYear()
-      ? ""
-      : `${date.getFullYear()}年`;
-  const calendarLabel = `${year}${monthDay} ${WEEKDAYS[date.getDay()]}`;
+  const includeYear = date.getFullYear() !== referenceDate.getFullYear();
+  const calendarLabel =
+    locale === "zh-CN"
+      ? `${new Intl.DateTimeFormat(locale, {
+          month: "long",
+          day: "numeric",
+          year: includeYear ? "numeric" : undefined,
+        }).format(date)} ${new Intl.DateTimeFormat(locale, {
+          weekday: "short",
+        }).format(date)}`
+      : new Intl.DateTimeFormat(locale, {
+          weekday: "short",
+          month: "long",
+          day: "numeric",
+          year: includeYear ? "numeric" : undefined,
+        }).format(date);
 
   if (daysAgo === 0) {
-    return `今天，${calendarLabel}`;
+    return `${translate(locale, "date.today")}${locale === "zh-CN" ? "，" : ", "}${calendarLabel}`;
   }
   if (daysAgo === 1) {
-    return `昨天，${calendarLabel}`;
+    return `${translate(locale, "date.yesterday")}${locale === "zh-CN" ? "，" : ", "}${calendarLabel}`;
   }
   return calendarLabel;
 }
 
 /** Compact YYYY-MM-DD label for inline metadata. */
-export function formatShortDate(value: string, reference = todayISO()): string {
+export function formatShortDate(
+  value: string,
+  reference = todayISO(),
+  locale: Locale = "zh-CN",
+): string {
   const date = parseISODate(value);
   const referenceDate = parseISODate(reference);
   if (!date || !referenceDate) {
     return value;
   }
-  const year =
-    date.getFullYear() === referenceDate.getFullYear()
-      ? ""
-      : `${date.getFullYear()}年`;
-  return `${year}${date.getMonth() + 1}月${date.getDate()}日`;
+  const includeYear = date.getFullYear() !== referenceDate.getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    day: "numeric",
+    year: includeYear ? "numeric" : undefined,
+  }).format(date);
+}
+
+export function formatMonth(
+  year: number,
+  month: number,
+  locale: Locale = "zh-CN",
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+  }).format(new Date(year, month - 1, 1));
+}
+
+export function formatWeekday(
+  weekday: number,
+  locale: Locale = "zh-CN",
+): string {
+  return new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(
+    new Date(2024, 0, 7 + weekday),
+  );
 }
 
 /** Number of days in a 1-indexed month (month: 1-12). */

@@ -7,6 +7,7 @@ import {
   secondaryButtonClass,
   skeletonClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo } from "../../lib/api";
 import { formatEntryDate, todayISO } from "../../lib/date";
 import { EntryCard } from "./EntryCard";
@@ -28,6 +29,7 @@ function EntrySection({
   showAllLink?: boolean;
   loading?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <section className="min-w-0 pr-16 sm:pr-0">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -36,7 +38,7 @@ function EntrySection({
         </h2>
         {showAllLink ? (
           <Link to="/timeline" className={`${ghostLinkClass} text-xs`}>
-            查看全部
+            {t("records.viewAll")}
           </Link>
         ) : null}
       </div>
@@ -45,7 +47,9 @@ function EntrySection({
           className="space-y-4 rounded-lg border border-gray-200/70 bg-white/50 p-4 dark:border-gray-800 dark:bg-gray-900/40"
           role="status"
         >
-          <span className="sr-only">正在读取{title}</span>
+          <span className="sr-only">
+            {t("records.loadingSection", { section: title })}
+          </span>
           <div className={`${skeletonClass} h-3 w-24`} />
           <div className={`${skeletonClass} h-5 w-4/5`} />
         </div>
@@ -65,6 +69,7 @@ function EntrySection({
 }
 
 export function HomePage() {
+  const { locale, t } = useI18n();
   const { memos, loading, error, refresh, create, upload } = useMemos();
   const today = todayISO();
   const { todayEntries, recentEntries, memories } = useMemo(() => {
@@ -88,17 +93,17 @@ export function HomePage() {
       <div className="space-y-7">
         <header>
           <p className="text-gray-500 text-xs dark:text-gray-400">
-            {formatEntryDate(today, today)}
+            {formatEntryDate(today, today, locale)}
           </p>
           <h1 className="mt-1 font-semibold text-2xl text-gray-900 sm:text-[1.75rem] dark:text-gray-50">
-            今天想记录什么？
+            {t("records.todayQuestion")}
           </h1>
         </header>
 
-        <section aria-label="新建记录">
+        <section aria-label={t("records.new")}>
           <EntryComposer
             draftKey="memo:new"
-            submitLabel="保存"
+            submitLabel={t("common.save")}
             onSubmit={async (input) => {
               await create(input);
             }}
@@ -119,7 +124,7 @@ export function HomePage() {
               disabled={loading}
               onClick={() => void refresh()}
             >
-              {loading ? "正在重新加载…" : "重新加载记录"}
+              {loading ? t("records.reloading") : t("records.reload")}
             </button>
           </div>
         ) : null}
@@ -127,15 +132,15 @@ export function HomePage() {
         {loading || memos.length > 0 || !error ? (
           <>
             <EntrySection
-              title="今天的记录"
+              title={t("records.today")}
               entries={todayEntries}
-              empty="今天还没有记录。可以先写下第一条。"
+              empty={t("records.emptyToday")}
               loading={loading}
             />
             <EntrySection
-              title="最近记录"
+              title={t("records.recent")}
               entries={recentEntries}
-              empty="还没有更早的记录。"
+              empty={t("records.emptyRecent")}
               showAllLink
               loading={loading}
             />

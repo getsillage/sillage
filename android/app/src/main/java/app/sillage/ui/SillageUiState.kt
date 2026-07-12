@@ -19,6 +19,7 @@ data class SillageUiState(
     val appMode: String = SessionStore.MODE_ONLINE,
     val serverReturnScreen: Screen? = null,
     val themeMode: String = SessionStore.THEME_LIGHT,
+    val languageMode: String = SessionStore.LANGUAGE_ZH_CN,
     val initialized: Boolean? = null,
     val account: Account? = null,
     val memos: List<Memo> = emptyList(),

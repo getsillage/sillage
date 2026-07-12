@@ -1,3 +1,4 @@
+import { localizeServerMessage } from "../i18n/messages";
 import { clearAccessToken, setAccessToken } from "./auth";
 
 export class ApiError extends Error {
@@ -467,8 +468,16 @@ export async function streamAskMessage(
     }
   }
   if (!res.ok || !res.body) {
-    const payload = await res.json().catch(() => null);
-    throw new Error(payload?.error?.message ?? "生成回答失败");
+    const payload = (await res.json().catch(() => null)) as {
+      error?: { code?: string; message?: string };
+    } | null;
+    throw new Error(
+      localizeServerMessage(
+        payload?.error?.message,
+        payload?.error?.code,
+        "ask.generateFailed",
+      ),
+    );
   }
   await consumeAskStream(res.body, handlers);
 }
@@ -540,7 +549,13 @@ function dispatchAskEvent(block: string, handlers: AskStreamHandlers): void {
       handlers.onDone?.((parsed as { message: AskMessage }).message);
       break;
     case "error":
-      handlers.onError?.((parsed as { message: string }).message);
+      handlers.onError?.(
+        localizeServerMessage(
+          (parsed as { message: string }).message,
+          undefined,
+          "ask.generateFailed",
+        ),
+      );
       break;
   }
 }
@@ -696,13 +711,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const payload = (await res.json().catch(() => null)) as {
       error?: { code?: unknown; message?: unknown };
     } | null;
-    const message =
+    const serverMessage =
       typeof payload?.error?.message === "string"
         ? payload.error.message
-        : "请求失败";
+        : undefined;
     const code =
       typeof payload?.error?.code === "string" ? payload.error.code : undefined;
-    throw new ApiError(message, res.status, code);
+    throw new ApiError(
+      localizeServerMessage(serverMessage, code, "errors.requestFailed"),
+      res.status,
+      code,
+    );
   }
   if (res.status === 204) {
     return undefined as T;

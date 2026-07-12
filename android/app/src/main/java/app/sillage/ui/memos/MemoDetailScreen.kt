@@ -43,17 +43,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
-import app.sillage.data.memoMetadataLines
 import app.sillage.data.memoSummarySourceCount
+import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.common.MessageBlock
+import app.sillage.ui.localizedDate
+import app.sillage.ui.localizedTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,8 +69,8 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
     if (confirmDelete && memo != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("删除记录？") },
-            text = { Text("删除后会从当前列表移除。") },
+            title = { Text(stringResource(R.string.delete_record_title)) },
+            text = { Text(stringResource(R.string.delete_record_supporting)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -75,12 +79,12 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     },
                     enabled = !state.loading,
                 ) {
-                    Text("确认删除")
+                    Text(stringResource(R.string.action_confirm_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }, enabled = !state.loading) {
-                    Text("取消")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -88,10 +92,10 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("记录详情", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(stringResource(R.string.record_detail_title), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = viewModel::closeMemoDetail) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -99,11 +103,11 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                         onClick = viewModel::editSelectedMemo,
                         enabled = memo != null && !state.loading,
                     ) {
-                        Icon(Icons.Rounded.Edit, contentDescription = "编辑记录")
+                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.record_edit_description))
                     }
                     Box {
                         IconButton(onClick = { menuExpanded = true }, enabled = memo != null && !state.loading) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
+                            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
                         }
                         DropdownMenu(
                             expanded = menuExpanded,
@@ -111,7 +115,9 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                         ) {
                             if (memo != null) {
                                 DropdownMenuItem(
-                                    text = { Text(if (memo.favoritedAt == null) "收藏" else "取消收藏") },
+                                    text = {
+                                        Text(stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite))
+                                    },
                                     leadingIcon = {
                                         Icon(
                                             if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
@@ -124,7 +130,9 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (memo.archivedAt == null) "归档" else "取消归档") },
+                                    text = {
+                                        Text(stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_unarchive))
+                                    },
                                     leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
@@ -132,7 +140,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("删除") },
+                                    text = { Text(stringResource(R.string.action_delete)) },
                                     leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
@@ -153,7 +161,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("这条记录不存在或已被删除。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.record_missing), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -227,7 +235,7 @@ private fun MemoDetailCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                memo.entryDate,
+                localizedDate(memo.entryDate),
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
@@ -237,7 +245,7 @@ private fun MemoDetailCard(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
         if (memo.content.trim().isBlank()) {
             Text(
-                "空白记录",
+                stringResource(R.string.blank_record),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -255,8 +263,8 @@ private fun MemoDetailCard(
 @Composable
 internal fun MemoStatusLine(memo: Memo?) {
     val flags = listOfNotNull(
-        if (memo?.favoritedAt != null) "已收藏" else null,
-        if (memo?.archivedAt != null) "已归档" else null,
+        if (memo?.favoritedAt != null) stringResource(R.string.record_favorited) else null,
+        if (memo?.archivedAt != null) stringResource(R.string.record_archived) else null,
     )
     if (flags.isEmpty()) {
         return
@@ -270,10 +278,12 @@ internal fun MemoStatusLine(memo: Memo?) {
 
 @Composable
 internal fun MemoMetadataBlock(memo: Memo?, modifier: Modifier = Modifier) {
-    val lines = memoMetadataLines(memo)
-    if (lines.isEmpty()) {
+    if (memo == null) {
         return
     }
+    val created = localizedTimestamp(memo.createdAt)
+    val updated = localizedTimestamp(memo.updatedAt)
+    val revisions = (memo.version - 1).coerceAtLeast(0).toInt()
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -282,9 +292,18 @@ internal fun MemoMetadataBlock(memo: Memo?, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(bottom = 8.dp),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
         )
-        lines.forEach { line ->
+        Text(
+            stringResource(R.string.metadata_created, created),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        if (revisions > 0) {
             Text(
-                line,
+                stringResource(
+                    R.string.metadata_updated,
+                    updated,
+                    pluralStringResource(R.plurals.quantity_revisions, revisions, revisions),
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
@@ -315,7 +334,7 @@ internal fun MemoSummarySection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "总结",
+                    stringResource(R.string.summary_title),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
@@ -328,10 +347,10 @@ internal fun MemoSummarySection(
                 ) {
                     Text(
                         when {
-                            loading && summary == null -> "读取中"
-                            loading -> "总结中"
-                            summary == null -> "生成总结"
-                            else -> "重新总结"
+                            loading && summary == null -> stringResource(R.string.summary_reading)
+                            loading -> stringResource(R.string.summary_generating)
+                            summary == null -> stringResource(R.string.summary_generate)
+                            else -> stringResource(R.string.summary_regenerate)
                         },
                     )
                 }
@@ -345,7 +364,7 @@ internal fun MemoSummarySection(
                 SummaryMeta(summary)
             } else {
                 Text(
-                    if (loading) "正在读取总结…" else "让 AI 基于这条记录生成一段简短的总结。",
+                    stringResource(if (loading) R.string.summary_loading_body else R.string.summary_empty_body),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -365,7 +384,7 @@ private fun SummaryMeta(summary: MemoAI) {
             add(model)
         }
         if (summary.totalTokens > 0) {
-            add("${summary.totalTokens} tokens")
+            add(pluralStringResource(R.plurals.quantity_tokens, summary.totalTokens.toInt(), summary.totalTokens))
         }
     }.joinToString(" · ")
     if (sourceCount == null && technicalDetails.isBlank()) {
@@ -374,7 +393,7 @@ private fun SummaryMeta(summary: MemoAI) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (sourceCount != null) {
             Text(
-                "基于 $sourceCount 条记录生成",
+                pluralStringResource(R.plurals.quantity_source_records, sourceCount, sourceCount),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )

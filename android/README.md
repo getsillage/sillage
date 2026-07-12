@@ -14,6 +14,8 @@ Start the Sillage service and make sure the phone can reach its address:
 
 Both online and offline modes support records, calendar, search, favorites, archives, AI settings, summaries, and Ask. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
 
+The interface supports English and Simplified Chinese. Simplified Chinese is used by default; change the language in Settings under Appearance. The choice is stored on this device and does not translate or modify existing records, summaries, or Ask content.
+
 The record editor supports Markdown editing and preview. The preview supports core CommonMark syntax, strikethrough, tables, task lists, and single line breaks. Raw HTML is not executed; image syntax is displayed as an attachment or external link that can be opened safely.
 
 The app currently provides neither automatic background sync nor push notifications, and offline attachment bytes and metadata are not fully synchronized. An Android export is not a substitute for a complete backup of the server's data directory.

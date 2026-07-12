@@ -9,6 +9,7 @@ import {
   secondaryButtonClass,
   subtleButtonClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 import { todayISO } from "../../lib/date";
 import { MarkdownEditor } from "./MarkdownEditor";
 import type { UploadedAttachment } from "./MemosContext";
@@ -122,11 +123,12 @@ export function EntryComposer({
   initialContent = "",
   initialEntryDate,
   initialVersion,
-  submitLabel = "保存",
+  submitLabel,
   onSubmit,
   onUpload,
   onCancel,
 }: EntryComposerProps) {
+  const { locale, t } = useI18n();
   const startingEntryDate = initialEntryDate ?? todayISO();
   const storageKey = storageKeyFor(draftKey);
   const baselineVersionRef = useRef(initialVersion ?? null);
@@ -158,12 +160,23 @@ export function EntryComposer({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(
-    restoredDraft ? "已恢复上次未保存的草稿" : "",
+    restoredDraft ? t("composer.restoredDraft") : "",
   );
+  const effectiveSubmitLabel = submitLabel ?? t("common.save");
   const dirty =
     content !== baseline.content || entryDate !== baseline.entryDate;
   const submittingRef = useRef(false);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const feedbackLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setError("");
+    setNotice("");
+  }, [locale]);
 
   useEffect(() => {
     if (conflictingDraft) {
@@ -198,7 +211,7 @@ export function EntryComposer({
       return;
     }
     if (!content.trim()) {
-      setError("先写下要保存的内容");
+      setError(t("composer.submitRequired"));
       return;
     }
     submittingRef.current = true;
@@ -216,9 +229,11 @@ export function EntryComposer({
       } else {
         setBaseline({ content, entryDate });
       }
-      setNotice("已保存");
+      setNotice(t("composer.saved"));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "保存失败");
+      setError(
+        cause instanceof Error ? cause.message : t("composer.saveFailed"),
+      );
     } finally {
       submittingRef.current = false;
       setBusy(false);
@@ -248,11 +263,13 @@ export function EntryComposer({
     <div className="space-y-3">
       <UnsavedNavigationGuard
         when={dirty || uploading || Boolean(conflictingDraft)}
-        title={uploading ? "附件仍在上传" : "记录尚未保存"}
+        title={t(
+          uploading ? "composer.uploadUnsavedTitle" : "composer.unsavedTitle",
+        )}
         description={
           uploading
-            ? "请等待附件上传完成后再离开，以免附件没有写入记录。"
-            : "本地草稿会保留，但当前修改还没有写入记录。"
+            ? t("composer.uploadUnsavedDescription")
+            : t("composer.unsavedDescription")
         }
       />
       {confirmingCancel ? (
@@ -264,7 +281,7 @@ export function EntryComposer({
       ) : null}
       <label className="block text-sm text-gray-500 dark:text-gray-400">
         <span className="font-medium text-gray-700 dark:text-gray-300">
-          日期
+          {t("composer.date")}
         </span>
         <input
           type="date"
@@ -295,10 +312,10 @@ export function EntryComposer({
           className="rounded-lg border border-gray-300 bg-gray-100/70 p-3 dark:border-gray-700 dark:bg-gray-900"
         >
           <p className="font-medium text-gray-900 text-sm dark:text-gray-50">
-            这条记录已在其他位置更新
+            {t("composer.conflictTitle")}
           </p>
           <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
-            当前显示服务器上的最新内容。你可以恢复本地草稿，再确认如何合并。
+            {t("composer.conflictDescription")}
           </p>
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             <button
@@ -307,10 +324,10 @@ export function EntryComposer({
               onClick={() => {
                 removeStoredDraft(storageKey);
                 setConflictingDraft(null);
-                setNotice("已保留服务器上的最新内容");
+                setNotice(t("composer.keptServer"));
               }}
             >
-              保留最新内容
+              {t("composer.keepServer")}
             </button>
             <button
               type="button"
@@ -319,10 +336,10 @@ export function EntryComposer({
                 setContent(conflictingDraft.content);
                 setEntryDate(conflictingDraft.entryDate);
                 setConflictingDraft(null);
-                setNotice("已恢复本地草稿，请确认后保存");
+                setNotice(t("composer.restoredConflictDraft"));
               }}
             >
-              恢复我的草稿
+              {t("composer.restoreDraft")}
             </button>
           </div>
         </div>
@@ -350,7 +367,7 @@ export function EntryComposer({
             disabled={busy || uploading}
             className={subtleButtonClass}
           >
-            取消
+            {t("common.cancel")}
           </button>
         ) : null}
         <button
@@ -360,7 +377,11 @@ export function EntryComposer({
           className={`${primaryButtonClass} w-full sm:w-auto`}
         >
           <Save className="h-4 w-4" />
-          {uploading ? "附件上传中…" : busy ? "保存中…" : submitLabel}
+          {uploading
+            ? t("composer.attachmentUploading")
+            : busy
+              ? t("common.saving")
+              : effectiveSubmitLabel}
         </button>
       </div>
     </div>
@@ -376,6 +397,7 @@ function DiscardDraftDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const stayButtonRef = useRef<HTMLButtonElement>(null);
   const discardingRef = useRef(false);
@@ -425,7 +447,7 @@ function DiscardDraftDialog({
     <div className="fixed inset-0 z-[70] grid place-items-center px-4">
       <button
         type="button"
-        aria-label="留在编辑页"
+        aria-label={t("composer.stayEditor")}
         tabIndex={-1}
         className="absolute inset-0 h-full w-full bg-gray-950/35 dark:bg-gray-950/70"
         onClick={onCancel}
@@ -443,13 +465,13 @@ function DiscardDraftDialog({
           id="discard-draft-title"
           className="font-semibold text-gray-900 text-lg dark:text-gray-50"
         >
-          放弃未保存的修改？
+          {t("composer.discardTitle")}
         </h2>
         <p
           id="discard-draft-description"
           className="mt-2 text-gray-500 text-sm leading-6 dark:text-gray-400"
         >
-          本地草稿也会删除，且无法恢复。
+          {t("composer.discardDescription")}
         </p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
@@ -458,7 +480,7 @@ function DiscardDraftDialog({
             className={secondaryButtonClass}
             onClick={onCancel}
           >
-            继续编辑
+            {t("unsaved.keepEditing")}
           </button>
           <button
             type="button"
@@ -468,7 +490,7 @@ function DiscardDraftDialog({
               onConfirm();
             }}
           >
-            放弃修改
+            {t("composer.discard")}
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import {
   primaryButtonClass,
   textareaClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 
 interface QuickCaptureProps {
   onCapture: (body: string) => Promise<void>;
@@ -41,6 +42,7 @@ function writeDraft(body: string): void {
  * current view. "写得更完整" jumps to 记录 for the full editor.
  */
 export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState(readDraft);
   const [busy, setBusy] = useState(false);
@@ -54,6 +56,11 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
   const dialogOpen = visible && open;
 
   useUnsavedChangesRegistration(hasDraft);
+
+  useEffect(() => {
+    void locale;
+    setError((current) => (current ? t("composer.saveFailed") : current));
+  }, [locale, t]);
 
   useEffect(() => {
     writeDraft(body);
@@ -140,7 +147,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
     }
     const trimmed = body.trim();
     if (!trimmed) {
-      setError("想记录什么？");
+      setError(t("quick.prompt"));
       return;
     }
     submittingRef.current = true;
@@ -152,7 +159,9 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
       setBody("");
       setOpen(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "保存失败");
+      setError(
+        cause instanceof Error ? cause.message : t("composer.saveFailed"),
+      );
     } finally {
       submittingRef.current = false;
       setBusy(false);
@@ -171,8 +180,8 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
             }
           }}
           disabled={busy}
-          aria-label="速记"
-          title="速记（⌘/Ctrl + J）"
+          aria-label={t("quick.title")}
+          title={t("quick.shortcutTitle")}
           className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-white shadow-xl shadow-gray-900/15 transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 disabled:cursor-not-allowed disabled:opacity-60 sm:right-5 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white dark:focus-visible:ring-gray-500/40"
         >
           <Plus
@@ -187,7 +196,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
         <div className="fixed inset-0 z-40">
           <button
             type="button"
-            aria-label="关闭速记"
+            aria-label={t("quick.close")}
             onClick={() => {
               if (!submittingRef.current) {
                 setOpen(false);
@@ -199,22 +208,22 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-label="速记"
+            aria-label={t("quick.title")}
             onKeyDown={onDialogKeyDown}
             className="surface-enter absolute right-3 bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] left-3 rounded-xl border border-gray-200/80 bg-white/95 p-3 shadow-xl shadow-gray-900/10 backdrop-blur-xl sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/30"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3 px-1">
                 <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
-                  速记
+                  {t("quick.title")}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   disabled={busy}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
-                  aria-label="关闭速记"
-                  title="关闭"
+                  aria-label={t("quick.close")}
+                  title={t("common.close")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -234,7 +243,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   }
                 }}
                 rows={4}
-                placeholder="想记录什么？"
+                placeholder={t("quick.prompt")}
                 className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 focus:ring-0 dark:bg-gray-950`}
               />
               {error ? (
@@ -258,7 +267,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   }}
                   className={`${ghostLinkClass} text-xs`}
                 >
-                  写得更完整
+                  {t("quick.writeMore")}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
                 <button
@@ -268,7 +277,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   className={`${primaryButtonClass} w-full sm:w-auto`}
                 >
                   <Save className="h-4 w-4" aria-hidden="true" />
-                  {busy ? "保存中…" : "保存"}
+                  {t(busy ? "common.saving" : "common.save")}
                 </button>
               </div>
             </div>

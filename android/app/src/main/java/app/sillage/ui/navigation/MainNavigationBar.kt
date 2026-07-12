@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ import app.sillage.ui.MemoViewMode
 import app.sillage.ui.Screen
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.R
 
 private val NavigationContentHeight = 60.dp
 private val NavigationIndicatorWidth = 40.dp
@@ -70,28 +72,28 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
                     onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
                     enabled = enabled,
                     icon = Icons.Rounded.Home,
-                    label = "记录",
+                    label = stringResource(R.string.nav_records),
                 )
                 MainNavigationItem(
                     selected = state.screen == Screen.Memos && state.memoViewMode == MemoViewMode.Calendar,
                     onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
                     enabled = enabled,
                     icon = Icons.Rounded.CalendarMonth,
-                    label = "日历",
+                    label = stringResource(R.string.nav_calendar),
                 )
                 MainNavigationItem(
                     selected = state.screen == Screen.Ask,
                     onClick = viewModel::openAsk,
                     enabled = enabled,
                     icon = Icons.Rounded.QuestionAnswer,
-                    label = "问答",
+                    label = stringResource(R.string.nav_ask),
                 )
                 MainNavigationItem(
                     selected = state.screen == Screen.AISettings,
                     onClick = viewModel::openAISettings,
                     enabled = enabled,
                     icon = Icons.Rounded.Settings,
-                    label = "设置",
+                    label = stringResource(R.string.nav_settings),
                 )
             }
         }
@@ -168,7 +170,7 @@ private fun RowScope.MainNavigationItem(
                 letterSpacing = 0.sp,
             ),
             maxLines = 1,
-            overflow = TextOverflow.Clip,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

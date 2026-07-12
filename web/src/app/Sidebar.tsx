@@ -18,12 +18,24 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { hasUnsavedChanges } from "../components/UnsavedNavigationGuard";
 import { dangerButtonClass, secondaryButtonClass } from "../components/ui";
 import { useAsk } from "../features/ask/AskContext";
+import { useI18n } from "../i18n/I18nProvider";
+import type { TranslationKey } from "../i18n/messages";
 import type { Account, AskConversation } from "../lib/api";
 
 const navItems = [
-  { to: "/", label: "写记录", end: true, icon: NotebookPen },
-  { to: "/timeline", label: "全部记录", end: false, icon: Library },
-] as const;
+  { to: "/", labelKey: "nav.writeRecord", end: true, icon: NotebookPen },
+  {
+    to: "/timeline",
+    labelKey: "nav.allRecords",
+    end: false,
+    icon: Library,
+  },
+] as const satisfies readonly {
+  to: string;
+  labelKey: TranslationKey;
+  end: boolean;
+  icon: typeof NotebookPen;
+}[];
 
 const newAskClass =
   "flex h-11 w-full items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 font-medium text-gray-800 text-sm shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/40";
@@ -43,6 +55,7 @@ export function Wordmark({
   onClick?: () => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Link
       to="/"
@@ -56,7 +69,7 @@ export function Wordmark({
         </span>
         {compact ? null : (
           <span className="block text-[11px] text-gray-500 dark:text-gray-400">
-            个人记录
+            {t("app.personalRecords")}
           </span>
         )}
       </span>
@@ -79,6 +92,7 @@ export function Sidebar({
   account: Account;
   onSignOut: () => void;
 }) {
+  const { locale, t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const {
@@ -136,6 +150,11 @@ export function Sidebar({
   );
 
   useEffect(() => {
+    void locale;
+    setRemoteError((current) => (current ? t("ask.loadFailed") : current));
+  }, [locale, t]);
+
+  useEffect(() => {
     if (searchOpen) {
       searchInputRef.current?.focus();
     }
@@ -186,7 +205,7 @@ export function Sidebar({
             searchRequestRef.current === requestId
           ) {
             setRemoteError(
-              cause instanceof Error ? cause.message : "读取问答失败",
+              cause instanceof Error ? cause.message : t("ask.loadFailed"),
             );
           }
         })
@@ -209,6 +228,7 @@ export function Sidebar({
     listConversations,
     remoteListActive,
     retryGeneration,
+    t,
     trimmedQuery,
   ]);
 
@@ -364,8 +384,8 @@ export function Sidebar({
           <button
             type="button"
             onClick={onClose}
-            aria-label="关闭导航"
-            title="关闭导航"
+            aria-label={t("nav.close")}
+            title={t("nav.close")}
             data-drawer-initial-focus
             className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           >
@@ -375,8 +395,8 @@ export function Sidebar({
           <button
             type="button"
             onClick={onCollapse}
-            aria-label="收起侧栏"
-            title="收起侧栏"
+            aria-label={t("nav.collapseSidebar")}
+            title={t("nav.collapseSidebar")}
             className="hidden h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           >
             <PanelLeftClose className="h-4 w-4" />
@@ -392,7 +412,7 @@ export function Sidebar({
             className={`${newAskClass} cursor-not-allowed opacity-50`}
           >
             <MessageSquarePlus className="h-4 w-4" />
-            <span>开始问答</span>
+            <span>{t("ask.start")}</span>
           </button>
         ) : (
           <Link
@@ -405,7 +425,7 @@ export function Sidebar({
             className={newAskClass}
           >
             <MessageSquarePlus className="h-4 w-4" />
-            <span>开始问答</span>
+            <span>{t("ask.start")}</span>
           </Link>
         )}
 
@@ -421,7 +441,7 @@ export function Sidebar({
                 onClick={onNavigate}
               >
                 <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </NavLink>
             );
           })}
@@ -431,7 +451,7 @@ export function Sidebar({
       <section className="mt-4 flex min-h-0 flex-1 flex-col border-gray-200/80 border-t pt-3 dark:border-gray-800">
         <div className="flex min-h-10 items-center justify-between gap-2 pl-3">
           <h2 className="font-medium text-gray-500 text-xs dark:text-gray-500">
-            {archivedView ? "已归档问答" : "问答"}
+            {t(archivedView ? "ask.archivedSection" : "ask.section")}
           </h2>
           <div className="flex items-center">
             <button
@@ -445,9 +465,9 @@ export function Sidebar({
                 }
               }}
               disabled={askControlsDisabled}
-              aria-label={searchOpen ? "收起问答搜索" : "搜索问答"}
+              aria-label={t(searchOpen ? "ask.collapseSearch" : "ask.search")}
               aria-expanded={searchOpen}
-              title={searchOpen ? "收起搜索" : "搜索问答"}
+              title={t(searchOpen ? "ask.collapseSearchTitle" : "ask.search")}
               className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/70 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
@@ -461,9 +481,11 @@ export function Sidebar({
                 setArchivedView((current) => !current);
               }}
               disabled={askControlsDisabled}
-              aria-label={archivedView ? "返回问答" : "查看已归档问答"}
+              aria-label={t(
+                archivedView ? "ask.backToAsk" : "ask.viewArchived",
+              )}
               aria-pressed={archivedView}
-              title={archivedView ? "返回问答" : "查看已归档问答"}
+              title={t(archivedView ? "ask.backToAsk" : "ask.viewArchived")}
               className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-gray-500/40 ${
                 archivedView
                   ? "bg-white text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
@@ -498,8 +520,8 @@ export function Sidebar({
                 }
               }}
               disabled={askControlsDisabled}
-              aria-label="搜索问答"
-              placeholder="搜索问答…"
+              aria-label={t("ask.search")}
+              placeholder={t("ask.searchPlaceholder")}
               className="h-10 w-full rounded-lg border border-gray-200 bg-white pr-10 pl-9 text-gray-900 text-sm transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50 dark:disabled:bg-gray-800"
             />
             {query ? (
@@ -510,8 +532,8 @@ export function Sidebar({
                   searchInputRef.current?.focus();
                 }}
                 disabled={askControlsDisabled}
-                aria-label="清除问答搜索"
-                title="清除搜索"
+                aria-label={t("ask.clearSearch")}
+                title={t("ask.clearSearchTitle")}
                 className="absolute top-0 right-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-50"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -524,7 +546,7 @@ export function Sidebar({
           {listLoading && visibleConversations.length === 0 ? (
             <div className="space-y-2 px-3 py-2" role="status">
               <span className="sr-only">
-                {trimmedQuery ? "正在搜索问答" : "正在读取问答"}
+                {t(trimmedQuery ? "ask.searching" : "ask.loading")}
               </span>
               <div className="h-3 w-4/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-3/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
@@ -539,16 +561,16 @@ export function Sidebar({
                 onClick={() => setRetryGeneration((current) => current + 1)}
                 className="rounded-md text-gray-600 text-xs transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
               >
-                重试
+                {t("common.retry")}
               </button>
             </div>
           ) : visibleConversations.length === 0 ? (
             <p className="px-3 py-2 text-gray-400 text-sm">
               {trimmedQuery
-                ? "没有找到相关问答。"
+                ? t("ask.noSearchResults")
                 : archivedView
-                  ? "还没有已归档问答。"
-                  : "还没有问答。"}
+                  ? t("ask.noArchived")
+                  : t("ask.noConversations")}
             </p>
           ) : (
             <>
@@ -565,13 +587,13 @@ export function Sidebar({
                     onClick={() => setRetryGeneration((current) => current + 1)}
                     className="flex-none rounded-md text-gray-600 transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
                   >
-                    重试
+                    {t("common.retry")}
                   </button>
                 </div>
               ) : null}
               {visibleConversations.map((conversation) => {
                 const active = onAskPage && activeId === conversation.id;
-                const label = conversation.title || "新的问答";
+                const label = conversation.title || t("ask.newConversation");
                 const archived = Boolean(conversation.archivedAt);
                 const conversationTargetClass = `h-10 min-w-0 flex-1 truncate rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
                   active
@@ -618,8 +640,8 @@ export function Sidebar({
                         void toggleConversationArchived(conversation)
                       }
                       disabled={askControlsDisabled}
-                      aria-label={`${archived ? "移出归档" : "归档问答"}：${label}`}
-                      title={archived ? "移出归档" : "归档问答"}
+                      aria-label={`${t(archived ? "ask.unarchive" : "ask.archive")}：${label}`}
+                      title={t(archived ? "ask.unarchive" : "ask.archive")}
                       className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
                     >
                       {archived ? (
@@ -667,7 +689,7 @@ export function Sidebar({
               className="flex h-10 items-center gap-2 rounded-lg px-3 text-gray-700 text-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-gray-50"
             >
               <Settings className="h-4 w-4" />
-              设置
+              {t("nav.settings")}
             </Link>
             <button
               ref={signOutButtonRef}
@@ -676,7 +698,7 @@ export function Sidebar({
               className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-red-600 text-sm transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:text-red-400 dark:hover:bg-red-950/30"
             >
               <LogOut className="h-4 w-4" />
-              退出登录
+              {t("nav.signOut")}
             </button>
           </div>
         </details>
@@ -687,7 +709,7 @@ export function Sidebar({
             <div className="fixed inset-0 z-[80] grid place-items-center px-4">
               <button
                 type="button"
-                aria-label="继续编辑"
+                aria-label={t("nav.keepEditing")}
                 className="absolute inset-0 h-full w-full bg-gray-950/35 dark:bg-gray-950/70"
                 onClick={() => setConfirmingSignOut(false)}
               />
@@ -703,13 +725,13 @@ export function Sidebar({
                   id="sign-out-confirmation-title"
                   className="font-semibold text-gray-900 text-lg dark:text-gray-50"
                 >
-                  仍要退出登录？
+                  {t("nav.signOutTitle")}
                 </h2>
                 <p
                   id="sign-out-confirmation-description"
                   className="mt-2 text-gray-500 text-sm leading-6 dark:text-gray-400"
                 >
-                  当前有未保存更改，退出可能中断编辑或上传。确认仍要退出吗？
+                  {t("nav.signOutDescription")}
                 </p>
                 <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -718,7 +740,7 @@ export function Sidebar({
                     className={secondaryButtonClass}
                     onClick={() => setConfirmingSignOut(false)}
                   >
-                    继续编辑
+                    {t("nav.keepEditing")}
                   </button>
                   <button
                     type="button"
@@ -732,7 +754,7 @@ export function Sidebar({
                       onSignOut();
                     }}
                   >
-                    仍然退出
+                    {t("nav.signOutAnyway")}
                   </button>
                 </div>
               </div>

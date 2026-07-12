@@ -1,5 +1,6 @@
 import { BrainCircuit, LoaderCircle, Palette, Plus, Save } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Toast, type ToastMessage } from "../../components/Toast";
 import { UnsavedNavigationGuard } from "../../components/UnsavedNavigationGuard";
@@ -18,6 +19,8 @@ import {
   skeletonClass,
   subtleButtonClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/messages";
 import {
   type AIProfile,
   type AIProfileInput,
@@ -56,7 +59,7 @@ function toEditable(profile: AIProfile): EditableProfile {
 function blankProfile(): EditableProfile {
   return {
     id: "",
-    name: "新档案",
+    name: "",
     provider: "anthropic",
     baseUrl: "",
     model: "",
@@ -125,11 +128,15 @@ type SettingsTab = "ai" | "appearance";
 const ACTION_TIMEOUT_MS = 65_000;
 const SETTINGS_TABS: {
   value: SettingsTab;
-  label: string;
+  labelKey: TranslationKey;
   icon: typeof BrainCircuit;
 }[] = [
-  { value: "ai", label: "AI", icon: BrainCircuit },
-  { value: "appearance", label: "外观", icon: Palette },
+  { value: "ai", labelKey: "settings.aiTab", icon: BrainCircuit },
+  {
+    value: "appearance",
+    labelKey: "settings.appearanceTab",
+    icon: Palette,
+  },
 ];
 
 function profileKey(profile: EditableProfile, index: number): string {
@@ -158,14 +165,19 @@ async function withTimeout<T>(
   }
 }
 
-function actionErrorMessage(cause: unknown, fallback: string): string {
+function actionErrorMessage(
+  cause: unknown,
+  fallback: string,
+  timeout: string,
+): string {
   if (cause instanceof DOMException && cause.name === "AbortError") {
-    return "请求超时，请稍后重试。";
+    return timeout;
   }
   return cause instanceof Error ? cause.message : fallback;
 }
 
 export function SettingsWorkspace({ token }: { token: string }) {
+  const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [savedProfilesFingerprint, setSavedProfilesFingerprint] = useState<
@@ -195,6 +207,17 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [modelResults, setModelResults] = useState<Record<string, ModelState>>(
     {},
   );
+
+  useEffect(() => {
+    void locale;
+    setLoadError((current) => (current ? t("settings.loadFailed") : current));
+    setError((current) => (current ? t("errors.requestFailed") : current));
+    setNotice("");
+    setAutoSummaryToast(null);
+    setTestResults({});
+    setModelResults({});
+  }, [locale, t]);
+
   const dirty =
     savedProfilesFingerprint !== null &&
     profilesFingerprint(profiles) !== savedProfilesFingerprint;
@@ -226,10 +249,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
       if (loadRequestIdRef.current !== requestId) {
         return;
       }
-      setLoadError(cause instanceof Error ? cause.message : "读取 AI 设置失败");
+      setLoadError(
+        cause instanceof Error ? cause.message : t("settings.loadFailed"),
+      );
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     void loadSettings();
@@ -270,7 +295,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       return;
     }
     if (dirty) {
-      setNotice("请先保存当前更改，再设置默认档案。");
+      setNotice(t("settings.saveDefaultFirst"));
       setError("");
       return;
     }
@@ -284,10 +309,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setSaving(true);
     setNotice("");
     setError("");
-    saveProfiles(nextProfiles, "已设为默认")
+    saveProfiles(nextProfiles, t("settings.defaultSaved"))
       .catch((err) => {
         setProfiles(profiles);
-        setError(err instanceof Error ? err.message : "设置默认档案失败");
+        setError(
+          err instanceof Error ? err.message : t("settings.defaultFailed"),
+        );
       })
       .finally(() => setSaving(false));
   }
@@ -346,7 +373,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setAutoSummary(res.autoSummary);
       setAutoSummaryToast({
         kind: "success",
-        message: res.autoSummary ? "已开启自动总结" : "已关闭自动总结",
+        message: t(
+          res.autoSummary
+            ? "settings.autoSummaryOn"
+            : "settings.autoSummaryOff",
+        ),
       });
     } catch (cause) {
       if (autoSummaryRequestIdRef.current !== requestId) {
@@ -355,7 +386,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setAutoSummary(previousValue);
       setAutoSummaryToast({
         kind: "error",
-        message: actionErrorMessage(cause, "保存自动总结设置失败"),
+        message: actionErrorMessage(
+          cause,
+          t("settings.autoSummarySaveFailed"),
+          t("settings.timeout"),
+        ),
       });
     } finally {
       if (autoSummaryRequestIdRef.current === requestId) {
@@ -377,7 +412,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
     if (profile.id && dirty) {
       setConfirmDeleteKey(null);
-      setNotice("请先保存当前更改，再删除档案。");
+      setNotice(t("settings.saveBeforeDelete"));
       setError("");
       return;
     }
@@ -403,10 +438,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
     try {
       await saveProfiles(
         profiles.filter((_, i) => i !== index),
-        "已删除",
+        t("settings.deleted"),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(err instanceof Error ? err.message : t("common.deleteFailed"));
     } finally {
       setDeletingId((current) => (current === profile.id ? null : current));
     }
@@ -420,14 +455,26 @@ export function SettingsWorkspace({ token }: { token: string }) {
     if (mutationBusy || !dirty) {
       return;
     }
+    const invalidProfileIndex = profiles.findIndex(
+      (profile) => profile.name.trim() === "",
+    );
+    if (invalidProfileIndex >= 0) {
+      setActiveTab("ai");
+      setSelectedProfileKey(
+        profileKey(profiles[invalidProfileIndex], invalidProfileIndex),
+      );
+      setNotice("");
+      setError(t("settings.profileNameRequired"));
+      return;
+    }
     setSaving(true);
     setNotice("");
     setError("");
     try {
-      await saveProfiles(profiles, "已保存");
+      await saveProfiles(profiles, t("composer.saved"));
       setSelectedProfileKey(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+      setError(err instanceof Error ? err.message : t("composer.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -454,14 +501,21 @@ export function SettingsWorkspace({ token }: { token: string }) {
       );
       setTestResults((current) => ({
         ...current,
-        [key]: { status: "ok", message: `连接成功（${res.model}）` },
+        [key]: {
+          status: "ok",
+          message: t("settings.connectionSuccess", { model: res.model }),
+        },
       }));
     } catch (cause) {
       setTestResults((current) => ({
         ...current,
         [key]: {
           status: "error",
-          message: actionErrorMessage(cause, "连接失败"),
+          message: actionErrorMessage(
+            cause,
+            t("settings.connectionFailed"),
+            t("settings.timeout"),
+          ),
         },
       }));
     } finally {
@@ -494,7 +548,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
           loading: false,
           models: res.models,
           status: "ok",
-          message: res.models.length > 0 ? "已获取模型列表" : "没有可用模型",
+          message: t(
+            res.models.length > 0
+              ? "settings.modelsLoaded"
+              : "settings.noModels",
+          ),
         },
       }));
     } catch (cause) {
@@ -504,7 +562,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
           ...(current[key] ?? { models: [] }),
           loading: false,
           status: "error",
-          message: actionErrorMessage(cause, "获取模型失败"),
+          message: actionErrorMessage(
+            cause,
+            t("settings.modelsFailed"),
+            t("settings.timeout"),
+          ),
         },
       }));
     }
@@ -521,7 +583,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   if (loading) {
     return (
       <div className="space-y-4" role="status">
-        <span className="sr-only">正在读取设置</span>
+        <span className="sr-only">{t("settings.loading")}</span>
         <div className={`${skeletonClass} h-10 w-40`} />
         <div className={`${skeletonClass} h-24 w-full`} />
         <div className={`${skeletonClass} h-40 w-full`} />
@@ -533,7 +595,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     return (
       <section className={`${panelClass} p-4 sm:p-5`}>
         <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
-          无法读取 AI 设置
+          {t("settings.unavailableTitle")}
         </h2>
         <p role="alert" className="mt-2 text-red-600 text-sm dark:text-red-400">
           {loadError}
@@ -543,7 +605,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
           className={`${secondaryButtonClass} mt-4`}
           onClick={() => void loadSettings()}
         >
-          重新加载
+          {t("common.reload")}
         </button>
       </section>
     );
@@ -559,11 +621,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
       ) : null}
       <UnsavedNavigationGuard
         when={dirty}
-        title="设置尚未保存"
-        description="离开后，当前设置修改会丢失。"
+        title={t("settings.unsavedTitle")}
+        description={t("settings.unsavedDescription")}
       />
       <fieldset className={segmentedControlClass}>
-        <legend className="sr-only">设置分类</legend>
+        <legend className="sr-only">{t("settings.category")}</legend>
         {SETTINGS_TABS.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -575,7 +637,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
               aria-current={activeTab === tab.value ? "page" : undefined}
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           );
         })}
@@ -586,11 +648,22 @@ export function SettingsWorkspace({ token }: { token: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
-                主题色
+                {t("theme.sectionTitle")}
               </h2>
-              <p className={helperTextClass}>切换浅色和深色界面。</p>
+              <p className={helperTextClass}>{t("theme.sectionDescription")}</p>
             </div>
             <ThemeToggle />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-200/70 border-t pt-4 dark:border-gray-800">
+            <div>
+              <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
+                {t("settings.languageTitle")}
+              </h2>
+              <p className={helperTextClass}>
+                {t("settings.languageDescription")}
+              </p>
+            </div>
+            <LanguageSwitcher />
           </div>
         </section>
       ) : null}
@@ -600,11 +673,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
           disabled={mutationBusy}
           className="m-0 min-w-0 space-y-5 border-0 p-0"
         >
-          <legend className="sr-only">AI 设置</legend>
+          <legend className="sr-only">{t("settings.aiSettings")}</legend>
           <div className="flex items-center justify-between gap-3">
-            <p className={helperTextClass}>
-              密钥加密保存在本地服务端，不会回显。
-            </p>
+            <p className={helperTextClass}>{t("settings.secretDescription")}</p>
             <button
               type="button"
               onClick={() => {
@@ -613,13 +684,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 setSelectedProfileKey(`new-${profiles.length}`);
                 setProfiles((current) => [
                   ...current,
-                  { ...blankProfile(), active: current.length === 0 },
+                  {
+                    ...blankProfile(),
+                    active: current.length === 0,
+                  },
                 ]);
               }}
               className={secondaryButtonClass}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              新增档案
+              {t("settings.addProfile")}
             </button>
           </div>
 
@@ -627,10 +701,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="font-medium text-gray-800 text-sm dark:text-gray-100">
-                  新建记录后自动总结
+                  {t("settings.autoSummaryTitle")}
                 </h2>
                 <p className={helperTextClass}>
-                  使用默认 AI 档案，在记录保存后生成简短总结。
+                  {t("settings.autoSummaryDescription")}
                 </p>
               </div>
               <button
@@ -638,7 +712,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 role="switch"
                 aria-checked={autoSummary}
                 aria-busy={autoSummarySaving}
-                aria-label="新建记录后自动总结"
+                aria-label={t("settings.autoSummaryTitle")}
                 onClick={() => void toggleAutoSummary()}
                 className={`relative h-7 w-12 flex-none rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 ${
                   autoSummary
@@ -656,9 +730,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
           </section>
 
           {profiles.length === 0 ? (
-            <div className={emptyStateClass}>
-              还没有 AI 档案。点击「新增档案」添加一个。
-            </div>
+            <div className={emptyStateClass}>{t("settings.noProfiles")}</div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -677,7 +749,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h3 className="truncate font-medium text-gray-900 text-sm dark:text-gray-50">
-                            {profile.name || "未命名档案"}
+                            {profile.name || t("settings.unnamedProfile")}
                           </h3>
                           <p className="mt-1 truncate text-gray-500 text-xs dark:text-gray-400">
                             {providerLabel(profile.provider)}
@@ -685,22 +757,22 @@ export function SettingsWorkspace({ token }: { token: string }) {
                         </div>
                         {profile.active ? (
                           <span className="shrink-0 rounded-full bg-gray-900 px-2 py-0.5 text-[11px] font-medium text-white dark:bg-gray-100 dark:text-gray-900">
-                            默认
+                            {t("settings.defaultBadge")}
                           </span>
                         ) : null}
                       </div>
                       <p className="mt-4 truncate text-gray-700 text-sm dark:text-gray-200">
-                        {profile.model || "未设置模型"}
+                        {profile.model || t("settings.modelUnset")}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                           {profile.hasApiKey || profile.apiKeyInput
-                            ? "有密钥"
-                            : "无密钥"}
+                            ? t("settings.hasKey")
+                            : t("settings.noKey")}
                         </span>
                         {profile.keyUnavailable ? (
                           <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:bg-red-950/35 dark:text-red-300">
-                            密钥异常
+                            {t("settings.keyError")}
                           </span>
                         ) : null}
                       </div>
@@ -710,7 +782,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           onClick={() => setSelectedProfileKey(key)}
                           className={subtleButtonClass}
                         >
-                          配置
+                          {t("settings.configure")}
                         </button>
                         <button
                           type="button"
@@ -718,7 +790,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           disabled={profile.active || saving}
                           className={secondaryButtonClass}
                         >
-                          {profile.active ? "当前默认" : "设为默认"}
+                          {t(
+                            profile.active
+                              ? "settings.currentDefault"
+                              : "settings.makeDefault",
+                          )}
                         </button>
                       </div>
                     </article>
@@ -738,10 +814,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <h3 className="font-medium text-gray-900 text-sm dark:text-gray-50">
-                            详细配置
+                            {t("settings.details")}
                           </h3>
                           <p className={helperTextClass}>
-                            修改当前档案后点击保存设置生效。
+                            {t("settings.detailsDescription")}
                           </p>
                         </div>
                         <button
@@ -749,15 +825,18 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           onClick={() => setSelectedProfileKey(null)}
                           className={subtleButtonClass}
                         >
-                          收起
+                          {t("settings.collapse")}
                         </button>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className={labelClass}>名称</span>
+                          <span className={labelClass}>
+                            {t("settings.name")}
+                          </span>
                           <input
                             className={inputClass}
                             value={profile.name}
+                            required
                             onChange={(event) =>
                               updateProfile(index, {
                                 name: event.target.value,
@@ -766,7 +845,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                         </label>
                         <label className="block">
-                          <span className={labelClass}>服务商</span>
+                          <span className={labelClass}>
+                            {t("settings.provider")}
+                          </span>
                           <select
                             className={selectClass}
                             value={profile.provider}
@@ -791,7 +872,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           </select>
                         </label>
                         <label className="block">
-                          <span className={labelClass}>接口地址</span>
+                          <span className={labelClass}>
+                            {t("settings.baseUrl")}
+                          </span>
                           <input
                             className={inputClass}
                             value={profile.baseUrl}
@@ -804,10 +887,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                         </label>
                         <div className="block">
-                          <span className={labelClass}>模型</span>
+                          <span className={labelClass}>
+                            {t("settings.model")}
+                          </span>
                           <div className="mt-1 flex gap-2">
                             <input
-                              aria-label="模型"
+                              aria-label={t("settings.model")}
                               className={`${inputClass} mt-0`}
                               value={profile.model}
                               placeholder="claude-opus-4-8"
@@ -823,12 +908,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
                               disabled={modelState?.loading}
                               className={`${secondaryButtonClass} shrink-0`}
                             >
-                              {modelState?.loading ? "获取中…" : "获取模型"}
+                              {t(
+                                modelState?.loading
+                                  ? "settings.fetchingModels"
+                                  : "settings.fetchModels",
+                              )}
                             </button>
                           </div>
                           {modelState?.models.length ? (
                             <select
-                              aria-label="选择模型"
+                              aria-label={t("settings.chooseModel")}
                               className={selectClass}
                               value={profile.model}
                               onChange={(event) =>
@@ -839,7 +928,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             >
                               {!modelState.models.includes(profile.model) && (
                                 <option value={profile.model}>
-                                  {profile.model || "手动输入模型"}
+                                  {profile.model || t("settings.manualModel")}
                                 </option>
                               )}
                               {modelState.models.map((model) => (
@@ -862,7 +951,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           ) : null}
                         </div>
                         <label className="block">
-                          <span className={labelClass}>温度</span>
+                          <span className={labelClass}>
+                            {t("settings.temperature")}
+                          </span>
                           <input
                             className={inputClass}
                             type="number"
@@ -878,7 +969,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                         </label>
                         <label className="block">
-                          <span className={labelClass}>最大输出长度</span>
+                          <span className={labelClass}>
+                            {t("settings.maxTokens")}
+                          </span>
                           <input
                             className={inputClass}
                             type="number"
@@ -892,7 +985,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                         </label>
                         <label className="block sm:col-span-2">
-                          <span className={labelClass}>API 密钥</span>
+                          <span className={labelClass}>
+                            {t("settings.apiKey")}
+                          </span>
                           <input
                             className={inputClass}
                             type="password"
@@ -900,8 +995,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             value={profile.apiKeyInput}
                             placeholder={
                               profile.hasApiKey
-                                ? "已配置，留空保持不变"
-                                : "未配置"
+                                ? t("settings.keyConfiguredPlaceholder")
+                                : t("settings.keyMissingPlaceholder")
                             }
                             onChange={(event) =>
                               updateProfile(index, {
@@ -911,7 +1006,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           />
                           {profile.keyUnavailable && (
                             <span className="mt-1 block text-red-600 text-xs dark:text-red-400">
-                              当前密钥无法解密，请重新填写。
+                              {t("settings.keyUnavailable")}
                             </span>
                           )}
                         </label>
@@ -920,8 +1015,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-gray-200/70 border-t pt-3 dark:border-gray-800">
                         <p className={helperTextClass}>
                           {profile.active
-                            ? "当前默认档案会用于 AI 总结和问答。"
-                            : "可在上方档案卡片中设为默认。"}
+                            ? t("settings.activeProfileDescription")
+                            : t("settings.inactiveProfileDescription")}
                         </p>
                         <div className="flex items-center gap-2">
                           <button
@@ -930,7 +1025,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             disabled={testingId === key}
                             className={subtleButtonClass}
                           >
-                            {testingId === key ? "测试中…" : "测试连接"}
+                            {t(
+                              testingId === key
+                                ? "settings.testing"
+                                : "settings.testConnection",
+                            )}
                           </button>
                           <button
                             type="button"
@@ -939,10 +1038,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             className={dangerButtonClass}
                           >
                             {deletingId === profile.id
-                              ? "删除中…"
+                              ? t("common.deleting")
                               : confirmDeleteKey === key
-                                ? "确认删除"
-                                : "删除"}
+                                ? t("common.confirmDelete")
+                                : t("common.delete")}
                           </button>
                         </div>
                       </div>
@@ -961,9 +1060,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                   );
                 })()
               ) : (
-                <p className={helperTextClass}>
-                  点击一个档案卡片进行详细配置。
-                </p>
+                <p className={helperTextClass}>{t("settings.selectProfile")}</p>
               )}
             </div>
           )}
@@ -978,7 +1075,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 role="status"
                 className="font-medium text-gray-700 text-sm dark:text-gray-200"
               >
-                有未保存更改
+                {t("settings.unsaved")}
               </p>
             ) : null}
             {error ? (
@@ -1010,7 +1107,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {saving ? "保存中…" : "保存设置"}
+              {t(saving ? "common.saving" : "settings.saveSettings")}
             </button>
           ) : null}
         </div>

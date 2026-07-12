@@ -2,6 +2,8 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { I18nProvider } from "../../i18n/I18nProvider";
 import type { AskConversation, AskMessage } from "../../lib/api";
 import { MemosProvider } from "../memos/MemosContext";
 import { AskProvider, useAsk } from "./AskContext";
@@ -12,6 +14,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
   return {
     ...actual,
     listMemos: vi.fn().mockResolvedValue({ memos: [] }),
+    createMemo: vi.fn(),
     listAskConversations: vi.fn(),
     getAskConversation: vi.fn(),
     createAskConversation: vi.fn(),
@@ -24,6 +27,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
 
 import {
   createAskConversation,
+  createMemo,
   getAskConversation,
   listAskConversations,
   listAskMessages,
@@ -80,6 +84,21 @@ function renderAsk(initialEntry = "/ask?conversation=c1") {
         </AskProvider>
       </MemosProvider>
     </MemoryRouter>,
+  );
+}
+
+function renderLocalizedAsk(initialEntry = "/ask?conversation=c1") {
+  return render(
+    <I18nProvider>
+      <LanguageSwitcher compact />
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <MemosProvider token="t">
+          <AskProvider token="t">
+            <AskPage />
+          </AskProvider>
+        </MemosProvider>
+      </MemoryRouter>
+    </I18nProvider>,
   );
 }
 
@@ -154,6 +173,28 @@ beforeEach(() => {
 });
 
 describe("AskPage", () => {
+  it("clears a stale save error on language changes without saving again", async () => {
+    const user = userEvent.setup();
+    const userMessage = message("u1", "user", null, "问题", "1");
+    const answer = message("a1", "assistant", "u1", "可保存回答", "2");
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [userMessage, answer],
+    });
+    vi.mocked(createMemo).mockRejectedValue(new Error("保存失败"));
+    renderLocalizedAsk();
+
+    expect(await screen.findByText("可保存回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "存为记录" }));
+    expect(await screen.findByText("保存失败")).toBeInTheDocument();
+    expect(createMemo).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.queryByText("保存失败")).not.toBeInTheDocument();
+    expect(screen.getByText("可保存回答")).toBeInTheDocument();
+    expect(createMemo).toHaveBeenCalledTimes(1);
+  });
+
   it("loads archived conversation metadata when a deep link is refreshed", async () => {
     const archived = {
       ...conversation(),

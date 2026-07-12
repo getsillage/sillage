@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
+    <string name="app_name" translatable="false">Sillage</string>
+    <string name="brand_tagline">Private records and AI reflection</string>
+
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_confirm_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
+    <string name="action_saving">Saving</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_search">Search</string>
+    <string name="action_more">More actions</string>
+    <string name="action_favorite">Favorite</string>
+    <string name="action_unfavorite">Remove favorite</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_unarchive">Unarchive</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_configure">Configure</string>
+    <string name="action_collapse">Collapse</string>
+    <string name="action_new">New</string>
+
+    <string name="nav_records">Records</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_ask">Ask</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="mode_title">Choose how to use Sillage</string>
+    <string name="mode_supporting">You can switch modes later in Settings.</string>
+    <string name="mode_offline">Offline mode</string>
+    <string name="mode_offline_supporting">Records stay on this device.</string>
+    <string name="mode_online">Online mode</string>
+    <string name="mode_online_supporting">Connect to your self-hosted service to use attachments, sync, and AI.</string>
+    <string name="server_title">Connect to Sillage</string>
+    <string name="server_supporting">Enter the server address. From an emulator, use http://10.0.2.2:5231 to reach your computer.</string>
+    <string name="server_address">Server address</string>
+    <string name="server_address_placeholder">https://example.com or 192.168.1.10:5231</string>
+    <string name="server_connecting">Connecting</string>
+    <string name="server_save_connect">Save and connect</string>
+    <string name="server_use_offline">Use offline</string>
+    <string name="initialize_title">Create the only account</string>
+    <string name="initialize_supporting">This is your private record space. A second account cannot be created after setup.</string>
+    <string name="server_label">Server</string>
+    <string name="account_username">Username</string>
+    <string name="account_display_name">Display name</string>
+    <string name="account_password">Password</string>
+    <string name="account_creating">Creating</string>
+    <string name="account_create_enter">Create and continue</string>
+    <string name="login_title">Sign in to Sillage</string>
+    <string name="login_supporting">Sign in to view and edit your records.</string>
+    <string name="login_signing_in">Signing in</string>
+    <string name="login_action">Sign in</string>
+
+    <string name="attachment_open_chooser">Open attachment</string>
+    <string name="error_attachment_no_app">No app can open this attachment.</string>
+    <string name="error_attachment_share_denied">The system blocked access to this attachment.</string>
+    <string name="error_attachment_prepare">Could not prepare this attachment.</string>
+    <string name="error_attachment_open">Could not open this attachment.</string>
+
+    <string name="records_title">Records</string>
+    <string name="records_refresh">Refresh records</string>
+    <string name="records_new">New record</string>
+    <string name="records_load_failed">Records could not be loaded. Tap Refresh in the top-right corner to try again.</string>
+    <string name="records_search_failed">Search failed. Check your connection and try again.</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_online">Online</string>
+    <string name="filter_unarchived">Unarchived</string>
+    <string name="filter_archived">Archived</string>
+    <string name="filter_favorited">Favorites</string>
+    <string name="search_results_summary">“%1$s” · %2$s</string>
+    <string name="searching">Searching…</string>
+    <string name="search_no_matches">No matching records.</string>
+    <string name="empty_unarchived">No unarchived records yet. Tap the plus button to write your first one.</string>
+    <string name="empty_archived">No archived records yet.</string>
+    <string name="empty_favorited">No favorite records yet.</string>
+    <string name="load_more">Load more</string>
+    <string name="loading_more">Loading…</string>
+    <string name="search_records">Search records</string>
+    <string name="search_clear">Clear search</string>
+    <string name="on_this_day">On this day</string>
+    <string name="years_ago_record">%1$s · %2$s</string>
+    <string name="blank_record">Blank record</string>
+    <string name="calendar_select_day">Select a day to view its records.</string>
+    <string name="calendar_partial_month">This month may be incomplete. Loaded %1$s, with older records still available.</string>
+    <string name="calendar_complete_month">This month is complete, with older records still available.</string>
+    <string name="calendar_load_earlier">Load earlier records</string>
+    <string name="calendar_loading_earlier">Loading earlier records</string>
+    <string name="calendar_month_pattern">MMMM yyyy</string>
+    <string name="calendar_browse_by_date">Browse records by date</string>
+    <string-array name="calendar_weekdays_short">
+        <item>Sun</item><item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item><item>Fri</item><item>Sat</item>
+    </string-array>
+    <string name="calendar_day_maybe_incomplete">No content is loaded for this day. Loading earlier records may reveal older entries.</string>
+    <string name="calendar_day_empty">No records on this day.</string>
+    <string name="quick_actions_description">%1$s · Quick actions</string>
+    <string name="quick_edit_supporting">Open this record in the editor.</string>
+    <string name="quick_copy_title">Copy as new record</string>
+    <string name="quick_copy_supporting">Keep the content and use today’s date.</string>
+    <string name="quick_favorite_supporting">Move to Favorites.</string>
+    <string name="quick_unfavorite_to_records">Move back to Unarchived.</string>
+    <string name="quick_unfavorite_to_archive">Move back to Archived.</string>
+    <string name="quick_archive_supporting">Remove from the main list.</string>
+    <string name="quick_unarchive_supporting">Return to the main list.</string>
+    <string name="quick_delete_confirm_supporting">Permanently delete this record. This cannot be undone.</string>
+    <string name="quick_delete_supporting">Permanently delete this record.</string>
+
+    <string name="delete_record_title">Delete record?</string>
+    <string name="delete_record_supporting">This record will be permanently deleted and cannot be recovered.</string>
+    <string name="delete_record_offline_supporting">This offline record will be permanently deleted and cannot be recovered.</string>
+    <string name="delete_record_online_supporting">This record will be permanently deleted and the deletion will sync to the server. It cannot be recovered.</string>
+    <string name="record_detail_title">Record details</string>
+    <string name="record_edit_description">Edit record</string>
+    <string name="record_missing">This record does not exist or has been deleted.</string>
+    <string name="record_favorited">Favorited</string>
+    <string name="record_archived">Archived</string>
+    <string name="metadata_created">Created %1$s</string>
+    <string name="metadata_updated">Updated %1$s · %2$s</string>
+    <string name="summary_title">Summary</string>
+    <string name="summary_reading">Loading</string>
+    <string name="summary_generating">Summarizing</string>
+    <string name="summary_generate">Generate summary</string>
+    <string name="summary_regenerate">Summarize again</string>
+    <string name="summary_loading_body">Loading the summary…</string>
+    <string name="summary_empty_body">Ask AI to create a short summary based on this record.</string>
+
+    <string name="discard_changes_title">Discard unsaved changes?</string>
+    <string name="discard_changes_supporting">Your changes will not be saved when you go back.</string>
+    <string name="discard_changes_action">Discard changes</string>
+    <string name="continue_editing">Continue editing</string>
+    <string name="editor_new_title">New record</string>
+    <string name="editor_edit_title">Edit record</string>
+    <string name="editor_attachment_uploading">Uploading attachment</string>
+    <string name="editor_date">Record date</string>
+    <string name="editor_date_placeholder" translatable="false">YYYY-MM-DD</string>
+    <string name="editor_add_attachment">Add attachment</string>
+    <string name="editor_uploading">Uploading</string>
+    <string name="editor_mode_edit">Edit</string>
+    <string name="editor_mode_preview">Preview</string>
+    <string name="editor_content">Content</string>
+    <string name="editor_content_placeholder">Write what you want to remember…</string>
+    <string name="markdown_heading">Heading</string>
+    <string name="markdown_bold">Bold</string>
+    <string name="markdown_italic">Italic</string>
+    <string name="markdown_code">Code</string>
+    <string name="markdown_list">List</string>
+    <string name="markdown_quote">Quote</string>
+    <string name="markdown_sample_heading">Heading</string>
+    <string name="markdown_sample_bold">bold</string>
+    <string name="markdown_sample_italic">italic</string>
+    <string name="markdown_sample_code">code</string>
+    <string name="markdown_sample_list">List item</string>
+    <string name="markdown_sample_quote">Quote</string>
+    <string name="markdown_preview_empty">Nothing to preview</string>
+    <string name="markdown_opening">\u0020(opening)</string>
+    <string name="markdown_image_prefix">Image:\u0020</string>
+    <string name="markdown_image">Image</string>
+
+    <string name="ask_title">Ask</string>
+    <string name="ask_conversations_description">Conversations</string>
+    <string name="ask_context_description">Context</string>
+    <string name="ask_new_conversation_description">New conversation</string>
+    <string name="ask_scope_7_days">Last 7 days</string>
+    <string name="ask_scope_30_days">Last 30 days</string>
+    <string name="ask_scope_all">All records</string>
+    <string name="ask_source_summaries">Record summaries</string>
+    <string name="ask_source_records">Original records</string>
+    <string name="ask_prompt_title">Ask about your records</string>
+    <string name="ask_prompt_example">For example, “What have I been returning to lately?” or “What should I keep doing this week?”</string>
+    <string name="ask_question_placeholder">Ask about your records</string>
+    <string name="ask_stop_generation">Stop generating</string>
+    <string name="ask_send">Send</string>
+    <string name="ask_conversations_title">Ask conversations</string>
+    <string name="ask_context_title">Context</string>
+    <string name="ask_time_range">Time range</string>
+    <string name="ask_scope_7_days_short">7 days</string>
+    <string name="ask_scope_30_days_short">30 days</string>
+    <string name="ask_scope_all_short">All</string>
+    <string name="ask_source_title">Source</string>
+    <string name="ask_no_conversations">No Ask conversations yet.</string>
+    <string name="ask_untitled_conversation">New conversation</string>
+    <string name="ask_current_conversation">Current · %1$s</string>
+    <string name="ask_regenerating">Regenerating…</string>
+    <string name="ask_hide_sources">Hide sources</string>
+    <string name="ask_show_sources">Show sources</string>
+    <string name="ask_thinking">Thinking…</string>
+    <string name="ask_insufficient_local">There is not enough information in the current range to answer from your records.</string>
+    <string name="ask_previous_variant">Previous answer</string>
+    <string name="ask_next_variant">Next answer</string>
+    <string name="ask_generating">Generating</string>
+    <string name="ask_regenerate">Regenerate</string>
+    <string name="ask_save_as_record">Save as record</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_ai" translatable="false">AI</string>
+    <string name="settings_auto_summary">Automatically summarize</string>
+    <string name="settings_auto_summary_supporting">Generate a summary after creating a record.</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_dark_mode">Dark mode</string>
+    <string name="settings_dark_mode_on">Using the dark theme.</string>
+    <string name="settings_dark_mode_off">Using the light theme.</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_supporting">Choose the language used by the app.</string>
+    <string name="language_chinese" translatable="false">中文</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_switch_to_chinese">Switch to Chinese</string>
+    <string name="language_switch_to_english">Switch to English</string>
+    <string name="settings_section_service_sync">Service and sync</string>
+    <string name="settings_refresh_records">Refresh records</string>
+    <string name="settings_refresh_records_supporting">Reload records for the current mode.</string>
+    <string name="settings_online_current">Current: Online mode</string>
+    <string name="settings_online_switch">Switch to Online mode</string>
+    <string name="settings_server_not_configured">Server address not configured</string>
+    <string name="settings_offline_current">Current: Offline mode</string>
+    <string name="settings_offline_switch">Switch to Offline mode</string>
+    <string name="settings_offline_supporting">Records are stored on this device.</string>
+    <string name="settings_server">Server settings</string>
+    <string name="settings_server_supporting">Change the server address and reconnect.</string>
+    <string name="settings_sync_local">Sync to device</string>
+    <string name="settings_sync_local_supporting">Save server data to the offline library on this device.</string>
+    <string name="settings_sync_cloud">Sync to server</string>
+    <string name="settings_sync_cloud_supporting">Push offline records from this device to the server.</string>
+    <string name="settings_sync_both">Two-way sync</string>
+    <string name="settings_sync_both_supporting">Push local changes first, then pull server data.</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_export">Export all data</string>
+    <string name="settings_export_supporting">Export records, AI settings, and Ask data.</string>
+    <string name="settings_import">Import all data</string>
+    <string name="settings_import_supporting">Restore or merge data from a JSON file.</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_no_ai_profiles">No AI profiles yet. Create one above to get started.</string>
+    <string name="settings_status_title">Current status</string>
+    <string name="settings_not_configured">Not configured</string>
+    <string name="settings_theme_label">Theme</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_summary_manual">Manual</string>
+    <string name="settings_ai_profiles">AI profiles</string>
+    <string name="settings_ai_profiles_supporting">Manage the model configurations used for summaries and Ask. Keys are encrypted by the local server and are never shown again.</string>
+    <string name="settings_profile_unnamed">Unnamed profile</string>
+    <string name="settings_provider_unset">Provider not set</string>
+    <string name="settings_default">Default</string>
+    <string name="settings_model_unset">Model not set</string>
+    <string name="settings_key_present">Key configured</string>
+    <string name="settings_key_missing">No key</string>
+    <string name="settings_key_error">Key error</string>
+    <string name="settings_default_current">Current default</string>
+    <string name="settings_set_default">Set as default</string>
+    <string name="settings_profile_details">Profile details</string>
+    <string name="settings_profile_details_supporting">Save to apply changes to this profile.</string>
+    <string name="settings_profile_name">Name</string>
+    <string name="error_ai_profile_name_required">AI profile %1$d needs a name before it can be saved.</string>
+    <string name="settings_provider" translatable="false">Provider</string>
+    <string name="settings_provider_placeholder" translatable="false">anthropic / openai / workers-ai</string>
+    <string name="settings_base_url" translatable="false">Base URL</string>
+    <string name="settings_model">Model</string>
+    <string name="settings_models_loading">Loading</string>
+    <string name="settings_models_get">Get models</string>
+    <string name="settings_temperature">Temperature</string>
+    <string name="settings_max_tokens">Max tokens</string>
+    <string name="settings_api_key">API key</string>
+    <string name="settings_key_keep">Configured; leave blank to keep it</string>
+    <string name="settings_key_not_configured">Not configured</string>
+    <string name="settings_key_decrypt_error">This key cannot be decrypted. Enter it again.</string>
+    <string name="settings_test_testing">Testing</string>
+    <string name="settings_test_connection">Test connection</string>
+
+    <plurals name="quantity_records">
+        <item quantity="one">%d record</item>
+        <item quantity="other">%d records</item>
+    </plurals>
+    <plurals name="quantity_results">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
+    <plurals name="quantity_years_ago">
+        <item quantity="one">%d year ago</item>
+        <item quantity="other">%d years ago</item>
+    </plurals>
+    <plurals name="quantity_revisions">
+        <item quantity="one">%d revision</item>
+        <item quantity="other">%d revisions</item>
+    </plurals>
+    <plurals name="quantity_sources">
+        <item quantity="one">%d source</item>
+        <item quantity="other">%d sources</item>
+    </plurals>
+    <plurals name="quantity_source_records">
+        <item quantity="one">Based on %d record</item>
+        <item quantity="other">Based on %d records</item>
+    </plurals>
+    <plurals name="quantity_characters">
+        <item quantity="one">%d character</item>
+        <item quantity="other">%d characters</item>
+    </plurals>
+    <plurals name="quantity_lines">
+        <item quantity="one">%d line</item>
+        <item quantity="other">%d lines</item>
+    </plurals>
+    <plurals name="quantity_tokens">
+        <item quantity="one">%d token</item>
+        <item quantity="other">%d tokens</item>
+    </plurals>
+    <string name="quantity_joiner" translatable="false">%1$s · %2$s</string>
+
+    <string name="error_server_required">Enter a server address first.</string>
+    <string name="notice_offline_enabled">Switched to Offline mode.</string>
+    <string name="notice_online_session_cleared">Online sign-in details cleared.</string>
+    <string name="notice_signed_out">Signed out.</string>
+    <string name="error_export_write">Could not write the export file.</string>
+    <string name="notice_exported">All data exported.</string>
+    <string name="error_import_read">Could not read the import file.</string>
+    <string name="notice_imported">All data imported.</string>
+    <string name="error_sync_online_required">Sync requires Online mode.</string>
+    <string name="notice_synced_local">Synced to this device.</string>
+    <string name="notice_sync_both">Two-way sync complete. %1$s</string>
+    <string name="error_record_empty">Record content cannot be empty.</string>
+    <string name="notice_saved">Saved.</string>
+    <string name="notice_deleted">Deleted.</string>
+    <string name="notice_favorited">Added to Favorites.</string>
+    <string name="notice_unfavorited">Removed from Favorites.</string>
+    <string name="notice_archived">Archived.</string>
+    <string name="notice_unarchived">Unarchived.</string>
+    <string name="error_ai_default_profile_required">Configure a default AI profile first.</string>
+    <string name="notice_summary_generated">Summary generated.</string>
+    <string name="error_attachment_online_required">Attachment uploads require Online mode.</string>
+    <string name="notice_attachment_inserted">Attachment inserted.</string>
+    <string name="error_attachment_open_online_required">Opening attachments requires Online mode.</string>
+    <string name="error_attachment_read">Could not read the attachment.</string>
+    <string name="error_attachment_cache">Could not create the attachment cache.</string>
+    <string name="notice_ai_profile_deleted">AI profile deleted.</string>
+    <string name="notice_ai_default_set">Set as default.</string>
+    <string name="notice_auto_summary_on">Automatic summaries enabled.</string>
+    <string name="notice_auto_summary_off">Automatic summaries disabled.</string>
+    <string name="notice_ai_profiles_saved">AI profiles saved.</string>
+    <string name="ai_test_success">Connection successful (%1$s)</string>
+    <string name="ai_models_offline">Cloud model lists are unavailable in Offline mode.</string>
+    <string name="ai_models_empty">No models available.</string>
+    <string name="ai_models_loaded">Model list loaded.</string>
+    <string name="error_ask_question_required">Write a question first.</string>
+    <string name="notice_ask_saved_record">Saved as a record.</string>
+    <string name="sync_none">No records need to be synced to the server.</string>
+    <string name="sync_summary" tools:ignore="PluralsCandidate">Server sync: %1$d succeeded, %2$d conflicted, %3$d failed</string>
+    <string name="error_ask_regenerate_missing">Could not find the question to regenerate.</string>
+    <string name="error_request_failed">Request failed.</string>
+    <string name="error_operation_failed">Operation failed.</string>
+    <string name="error_login_required">Sign in first.</string>
+    <string name="error_record_missing">Record not found.</string>
+    <string name="error_conversation_missing">Conversation not found.</string>
+    <string name="error_data_version_unsupported">This data format version is not supported.</string>
+    <string name="error_ai_key_required">Configure an AI API key first.</string>
+    <string name="error_ai_model_required">Configure an AI model first.</string>
+    <string name="error_ai_empty">AI returned an empty response.</string>
+    <string name="error_ai_request">AI request failed: %1$s</string>
+    <string name="error_attachment_address_invalid">Invalid attachment address.</string>
+    <string name="error_attachment_download">Attachment download failed.</string>
+    <string name="error_attachment_empty">Attachment content is empty.</string>
+    <string name="error_answer_generation">Could not generate an answer.</string>
+</resources>

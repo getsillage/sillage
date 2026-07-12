@@ -23,7 +23,7 @@ The first time an instance is opened, you create its only account. After that, a
 - Write records in Markdown, upload images or files, and recover unsaved drafts.
 - Revisit records through lists, a calendar, and search, then organize them with favorites and archives.
 - Configure Anthropic, OpenAI, or an OpenAI-compatible service to generate record summaries and source-grounded answers.
-- Use the responsive Web interface or the native Android client for online and offline writing with manual record sync.
+- Use the responsive Web interface or the native Android client in English or Simplified Chinese, with online and offline writing and manual record sync.
 
 Sillage does not provide multi-user collaboration, public profiles, social sharing, background sync, complete offline attachment synchronization, or an official hosted service.
 

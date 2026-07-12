@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "../../i18n/I18nProvider";
 import type { Account } from "../../lib/api";
 import { InitializePage, LoginPage } from "./AuthPages";
 
@@ -26,6 +27,7 @@ const account: Account = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 describe("InitializePage", () => {
@@ -54,13 +56,21 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     vi.mocked(signIn).mockRejectedValue(new Error("用户名或密码错误"));
     render(
-      <MemoryRouter>
-        <LoginPage onDone={vi.fn()} />
-      </MemoryRouter>,
+      <I18nProvider>
+        <MemoryRouter>
+          <LoginPage onDone={vi.fn()} />
+        </MemoryRouter>
+      </I18nProvider>,
     );
     await user.type(screen.getByLabelText("账号"), "felix");
     await user.type(screen.getByLabelText("密码"), "wrong");
     await user.click(screen.getByRole("button", { name: "登录" }));
     expect(await screen.findByText("用户名或密码错误")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByLabelText("Username")).toHaveValue("felix");
+    expect(screen.getByRole("alert")).toHaveTextContent("Sign-in failed");
+    expect(screen.queryByText("用户名或密码错误")).not.toBeInTheDocument();
   });
 });

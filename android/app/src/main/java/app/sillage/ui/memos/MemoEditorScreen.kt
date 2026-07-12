@@ -51,8 +51,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sillage.data.SessionStore
+import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.canRunMemoEditorAction
@@ -84,8 +86,8 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text("放弃未保存的修改？") },
-            text = { Text("返回后，本次修改不会保存。") },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            text = { Text(stringResource(R.string.discard_changes_supporting)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -94,12 +96,12 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                     },
                     enabled = editorActionsEnabled,
                 ) {
-                    Text("放弃修改", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.discard_changes_action), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDiscard = false }) {
-                    Text("继续编辑")
+                    Text(stringResource(R.string.continue_editing))
                 }
             },
         )
@@ -107,13 +109,13 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("删除记录？") },
+            title = { Text(stringResource(R.string.delete_record_title)) },
             text = {
                 Text(
                     if (state.appMode == SessionStore.MODE_OFFLINE) {
-                        "删除后会从离线列表移除。"
+                        stringResource(R.string.delete_record_offline_supporting)
                     } else {
-                        "删除后会从当前列表移除，并同步到服务器。"
+                        stringResource(R.string.delete_record_online_supporting)
                     },
                 )
             },
@@ -125,12 +127,12 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                     },
                     enabled = editorActionsEnabled,
                 ) {
-                    Text("确认删除")
+                    Text(stringResource(R.string.action_confirm_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }, enabled = !state.loading) {
-                    Text("取消")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -138,22 +140,24 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.selectedMemo == null) "新建记录" else "编辑记录") },
+                title = {
+                    Text(stringResource(if (state.selectedMemo == null) R.string.editor_new_title else R.string.editor_edit_title))
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = requestCloseEditor,
                         enabled = editorActionsEnabled,
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     val selected = state.selectedMemo
                     IconButton(onClick = viewModel::saveMemo, enabled = editorActionsEnabled) {
                         val actionDescription = when {
-                            state.uploadingAttachment -> "附件上传中"
-                            state.loading -> "保存中"
-                            else -> "保存"
+                            state.uploadingAttachment -> stringResource(R.string.editor_attachment_uploading)
+                            state.loading -> stringResource(R.string.action_saving)
+                            else -> stringResource(R.string.action_save)
                         }
                         if (state.uploadingAttachment || state.loading) {
                             CircularProgressIndicator(
@@ -169,14 +173,16 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                     if (selected != null) {
                         Box {
                             IconButton(onClick = { menuExpanded = true }, enabled = editorActionsEnabled) {
-                                Icon(Icons.Rounded.MoreVert, contentDescription = "更多操作")
+                                Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
                             }
                             DropdownMenu(
                                 expanded = menuExpanded,
                                 onDismissRequest = { menuExpanded = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text(if (selected.favoritedAt == null) "收藏" else "取消收藏") },
+                                    text = {
+                                        Text(stringResource(if (selected.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite))
+                                    },
                                     leadingIcon = {
                                         Icon(
                                             if (selected.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
@@ -190,7 +196,9 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (selected.archivedAt == null) "归档" else "取消归档") },
+                                    text = {
+                                        Text(stringResource(if (selected.archivedAt == null) R.string.action_archive else R.string.action_unarchive))
+                                    },
                                     leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
                                     enabled = editorActionsEnabled,
                                     onClick = {
@@ -199,7 +207,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("删除") },
+                                    text = { Text(stringResource(R.string.action_delete)) },
                                     leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
                                     enabled = editorActionsEnabled,
                                     onClick = {
@@ -241,8 +249,8 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                             onValueChange = viewModel::updateDraftEntryDate,
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text("记录日期") },
-                            placeholder = { Text("YYYY-MM-DD") },
+                            label = { Text(stringResource(R.string.editor_date)) },
+                            placeholder = { Text(stringResource(R.string.editor_date_placeholder)) },
                         )
                     }
                 }
@@ -284,7 +292,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(if (state.uploadingAttachment) "上传中" else "添加附件")
+                                Text(stringResource(if (state.uploadingAttachment) R.string.editor_uploading else R.string.editor_add_attachment))
                             }
                         }
                     }

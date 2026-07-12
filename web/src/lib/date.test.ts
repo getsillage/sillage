@@ -42,6 +42,18 @@ describe("entry date labels", () => {
     );
     expect(formatShortDate("2025-07-10", "2026-07-10")).toBe("2025年7月10日");
   });
+
+  it("formats English labels in English date order", () => {
+    expect(formatEntryDate("2026-07-10", "2026-07-10", "en")).toBe(
+      "Today, Fri, July 10",
+    );
+    expect(formatEntryDate("2025-07-10", "2026-07-10", "en")).toBe(
+      "Thu, July 10, 2025",
+    );
+    expect(formatShortDate("2025-07-10", "2026-07-10", "en")).toBe(
+      "July 10, 2025",
+    );
+  });
 });
 
 describe("daysInMonth", () => {

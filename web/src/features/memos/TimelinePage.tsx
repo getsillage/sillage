@@ -14,6 +14,7 @@ import {
   skeletonClass,
   wideShellClass,
 } from "../../components/ui";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo, MemoListOptions } from "../../lib/api";
 import {
   formatEntryDate,
@@ -51,16 +52,17 @@ function listOptionsFor(filter: TimelineFilter): MemoListOptions {
 }
 
 function ViewToggle({ calendar }: { calendar: boolean }) {
+  const { t } = useI18n();
   return (
     <fieldset className={segmentedControlClass}>
-      <legend className="sr-only">全部记录视图</legend>
+      <legend className="sr-only">{t("timeline.viewLabel")}</legend>
       <Link
         to="/timeline"
         className={segmentedItemClass(!calendar)}
         aria-current={!calendar ? "page" : undefined}
       >
         <List className="h-4 w-4" aria-hidden="true" />
-        列表
+        {t("timeline.list")}
       </Link>
       <Link
         to="/timeline?view=calendar"
@@ -68,13 +70,14 @@ function ViewToggle({ calendar }: { calendar: boolean }) {
         aria-current={calendar ? "page" : undefined}
       >
         <CalendarDays className="h-4 w-4" aria-hidden="true" />
-        日历
+        {t("timeline.calendar")}
       </Link>
     </fieldset>
   );
 }
 
 export function TimelinePage() {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const { memos, loading, error, refresh, loadAll } = useMemos();
   const today = todayISO();
@@ -86,8 +89,8 @@ export function TimelinePage() {
       <section className={pageSectionClass}>
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className={pageTitleClass}>全部记录</h1>
-            <p className={pageLeadClass}>按时间查看所有记录。</p>
+            <h1 className={pageTitleClass}>{t("timeline.title")}</h1>
+            <p className={pageLeadClass}>{t("timeline.lead")}</p>
           </div>
           <ViewToggle calendar={calendar} />
         </header>
@@ -111,6 +114,7 @@ export function TimelinePage() {
 }
 
 function useTimelineMemoList(filter: TimelineFilter) {
+  const { locale, t } = useI18n();
   const context = useMemos();
   const { listPage } = context;
   const options = useMemo(() => listOptionsFor(filter), [filter]);
@@ -122,6 +126,15 @@ function useTimelineMemoList(filter: TimelineFilter) {
   const requestSeqRef = useRef(0);
   const cursorRef = useRef("");
   const loadMoreRequestRef = useRef<Promise<boolean> | null>(null);
+  const feedbackLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setError((current) => (current ? t("records.loadFailed") : current));
+  }, [locale, t]);
 
   const refresh = useCallback(async () => {
     const request = ++requestSeqRef.current;
@@ -142,14 +155,16 @@ function useTimelineMemoList(filter: TimelineFilter) {
       setHasMore(Boolean(res.nextCursor));
     } catch (cause) {
       if (request === requestSeqRef.current) {
-        setError(cause instanceof Error ? cause.message : "读取记录失败");
+        setError(
+          cause instanceof Error ? cause.message : t("records.loadFailed"),
+        );
       }
     } finally {
       if (request === requestSeqRef.current) {
         setLoading(false);
       }
     }
-  }, [listPage, options]);
+  }, [listPage, options, t]);
 
   useEffect(() => {
     if (filter === "active") {
@@ -191,7 +206,9 @@ function useTimelineMemoList(filter: TimelineFilter) {
           return Boolean(cursorRef.current);
         }
         const nextError =
-          cause instanceof Error ? cause : new Error("读取更多记录失败");
+          cause instanceof Error
+            ? cause
+            : new Error(t("records.loadMoreFailed"));
         setError(nextError.message);
         throw nextError;
       })
@@ -203,7 +220,7 @@ function useTimelineMemoList(filter: TimelineFilter) {
       });
     loadMoreRequestRef.current = promise;
     return promise;
-  }, [listPage, options]);
+  }, [listPage, options, t]);
 
   const activeMemos = useMemo(
     () => context.memos.filter(isActive),
@@ -240,6 +257,7 @@ function ListView({
   today: string;
   filter: TimelineFilter;
 }) {
+  const { locale, t } = useI18n();
   const { search } = useMemos();
   const { memos, loading, error, refresh, loadMore, hasMore, loadingMore } =
     useTimelineMemoList(filter);
@@ -247,9 +265,20 @@ function ListView({
   const [results, setResults] = useState<Memo[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const searchFeedbackLocaleRef = useRef(locale);
   const trimmed = query.trim();
   const memories = onThisDay(memos, today);
   const options = useMemo(() => listOptionsFor(filter), [filter]);
+
+  useEffect(() => {
+    if (searchFeedbackLocaleRef.current === locale) {
+      return;
+    }
+    searchFeedbackLocaleRef.current = locale;
+    setSearchError((current) =>
+      current ? t("timeline.searchFailed") : current,
+    );
+  }, [locale, t]);
 
   // Debounced server-side FTS search; empty query falls back to the recent list.
   useEffect(() => {
@@ -272,7 +301,11 @@ function ListView({
         })
         .catch((cause) => {
           if (!cancelled) {
-            setSearchError(cause instanceof Error ? cause.message : "搜索失败");
+            setSearchError(
+              cause instanceof Error
+                ? cause.message
+                : t("timeline.searchFailed"),
+            );
           }
         })
         .finally(() => {
@@ -285,7 +318,7 @@ function ListView({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [trimmed, search, options]);
+  }, [trimmed, search, options, t]);
 
   // The full loaded set in reverse-chronological order; older pages stream in
   // via the infinite-scroll sentinel below. Search results bypass pagination.
@@ -324,7 +357,7 @@ function ListView({
     <div className="space-y-5">
       <div className="relative">
         <label htmlFor="timeline-search" className="sr-only">
-          搜索记录
+          {t("timeline.search")}
         </label>
         <Search
           className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -335,7 +368,7 @@ function ListView({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索记录…"
+          placeholder={t("timeline.searchPlaceholder")}
           className="block h-11 w-full rounded-lg border border-gray-200 bg-white/80 pr-11 pl-10 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50"
         />
         {query ? (
@@ -343,8 +376,8 @@ function ListView({
             type="button"
             onClick={() => setQuery("")}
             className={`${iconButtonClass} absolute top-1/2 right-0.5 -translate-y-1/2`}
-            aria-label="清除搜索"
-            title="清除搜索"
+            aria-label={t("timeline.clearSearch")}
+            title={t("timeline.clearSearch")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -353,13 +386,13 @@ function ListView({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <fieldset className={segmentedControlClass}>
-          <legend className="sr-only">记录状态</legend>
+          <legend className="sr-only">{t("timeline.statusLabel")}</legend>
           <Link
             to="/timeline"
             className={segmentedItemClass(filter === "active")}
             aria-current={filter === "active" ? "page" : undefined}
           >
-            未归档
+            {t("timeline.active")}
           </Link>
           <Link
             to="/timeline?filter=archived"
@@ -367,7 +400,7 @@ function ListView({
             aria-current={filter === "archived" ? "page" : undefined}
           >
             <Archive className="h-4 w-4" aria-hidden="true" />
-            已归档
+            {t("timeline.archived")}
           </Link>
           <Link
             to="/timeline?filter=favorite"
@@ -375,7 +408,7 @@ function ListView({
             aria-current={filter === "favorite" ? "page" : undefined}
           >
             <Star className="h-4 w-4" aria-hidden="true" />
-            收藏
+            {t("timeline.favorite")}
           </Link>
         </fieldset>
         <p
@@ -383,16 +416,39 @@ function ListView({
           aria-live="polite"
         >
           {searching
-            ? "正在搜索"
+            ? t("timeline.searching")
             : trimmed
               ? searchError
                 ? list.length > 0
-                  ? `保留 ${list.length} 条上次结果`
-                  : "搜索失败"
-                : `找到 ${list.length} 条记录`
+                  ? t(
+                      list.length === 1
+                        ? "timeline.keptResultOne"
+                        : "timeline.keptResultsMany",
+                      { count: list.length },
+                    )
+                  : t("timeline.searchFailed")
+                : t(
+                    list.length === 1
+                      ? "timeline.foundOne"
+                      : "timeline.foundMany",
+                    { count: list.length },
+                  )
               : listError && list.length === 0
-                ? "记录读取失败"
-                : `${list.length} 条${filter === "active" ? "未归档" : filter === "archived" ? "已归档" : "收藏"}记录`}
+                ? t("timeline.loadFailed")
+                : t(
+                    filter === "active"
+                      ? list.length === 1
+                        ? "timeline.activeCountOne"
+                        : "timeline.activeCountMany"
+                      : filter === "archived"
+                        ? list.length === 1
+                          ? "timeline.archivedCountOne"
+                          : "timeline.archivedCountMany"
+                        : list.length === 1
+                          ? "timeline.favoriteCountOne"
+                          : "timeline.favoriteCountMany",
+                    { count: list.length },
+                  )}
         </p>
       </div>
 
@@ -410,12 +466,12 @@ function ListView({
         ) : groups.length === 0 && !listError && !searchError ? (
           <div className={emptyStateClass}>
             {trimmed
-              ? "没有匹配的记录。换一个词试试。"
+              ? t("timeline.noMatches")
               : filter === "archived"
-                ? "还没有归档记录。"
+                ? t("timeline.noArchived")
                 : filter === "favorite"
-                  ? "还没有收藏记录。"
-                  : "还没有记录。可以先写一条记录。"}
+                  ? t("timeline.noFavorites")
+                  : t("timeline.noRecords")}
           </div>
         ) : (
           <div className="space-y-7">
@@ -429,10 +485,15 @@ function ListView({
                     id={`memo-group-${group.key}`}
                     className="font-medium text-gray-800 text-sm dark:text-gray-200"
                   >
-                    {formatEntryDate(group.date, today)}
+                    {formatEntryDate(group.date, today, locale)}
                   </h2>
                   <span className="text-gray-400 text-xs dark:text-gray-500">
-                    {group.entries.length} 条
+                    {t(
+                      group.entries.length === 1
+                        ? "timeline.groupCountOne"
+                        : "timeline.groupCountMany",
+                      { count: group.entries.length },
+                    )}
                   </span>
                 </div>
                 <ul className="divide-y divide-gray-200/70 rounded-lg border border-gray-200/80 bg-white/70 p-1 shadow-sm shadow-gray-900/[0.02] dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900/45">
@@ -464,10 +525,10 @@ function ListView({
               }}
             >
               {retryingList
-                ? "正在重试…"
+                ? t("timeline.retrying")
                 : hasMore
-                  ? "重试加载更多"
-                  : "重新加载记录"}
+                  ? t("timeline.retryMore")
+                  : t("records.reload")}
             </button>
           </div>
         ) : showLoadMore ? (
@@ -477,14 +538,14 @@ function ListView({
             aria-live="polite"
           >
             {loadingMore ? (
-              "正在加载更多…"
+              t("timeline.loadingMore")
             ) : (
               <button
                 type="button"
                 onClick={() => void loadMore().catch(() => undefined)}
                 className={ghostLinkClass}
               >
-                加载更多
+                {t("timeline.loadMore")}
               </button>
             )}
           </div>
@@ -526,9 +587,10 @@ function groupEntries(memos: Memo[]): MemoGroup[] {
 }
 
 function TimelineSkeleton() {
+  const { t } = useI18n();
   return (
     <div className="space-y-7" role="status">
-      <span className="sr-only">正在读取记录</span>
+      <span className="sr-only">{t("timeline.loadingRecords")}</span>
       {[0, 1, 2].map((group) => (
         <div key={group} className="space-y-2">
           <div className={`${skeletonClass} h-4 w-32`} />
@@ -559,11 +621,23 @@ function CalendarMonth({
   refresh: () => Promise<void>;
   loadAll: () => Promise<void>;
 }) {
+  const { locale, t } = useI18n();
   const [fullLoadState, setFullLoadState] = useState<
     "loading" | "ready" | "error"
   >("loading");
   const [fullLoadError, setFullLoadError] = useState("");
   const fullLoadRequestRef = useRef(0);
+  const feedbackLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    if (feedbackLocaleRef.current === locale) {
+      return;
+    }
+    feedbackLocaleRef.current = locale;
+    setFullLoadError((current) =>
+      current ? t("records.loadAllFailed") : current,
+    );
+  }, [locale, t]);
 
   const startFullLoad = useCallback(() => {
     const request = fullLoadRequestRef.current + 1;
@@ -579,12 +653,12 @@ function CalendarMonth({
       .catch((cause) => {
         if (fullLoadRequestRef.current === request) {
           setFullLoadError(
-            cause instanceof Error ? cause.message : "读取全部记录失败",
+            cause instanceof Error ? cause.message : t("records.loadAllFailed"),
           );
           setFullLoadState("error");
         }
       });
-  }, [loadAll]);
+  }, [loadAll, t]);
 
   const retryFullLoad = useCallback(() => {
     fullLoadRequestRef.current += 1;
@@ -620,8 +694,8 @@ function CalendarMonth({
         role="status"
       >
         {memos.length > 0
-          ? `已读取 ${memos.length} 条，正在继续…`
-          : "正在读取全部记录…"}
+          ? t("timeline.loadedContinuing", { count: memos.length })
+          : t("timeline.loadingAll")}
       </div>
     );
   }
@@ -635,7 +709,7 @@ function CalendarMonth({
           className={secondaryButtonClass}
           onClick={retryFullLoad}
         >
-          重新加载全部记录
+          {t("timeline.reloadAll")}
         </button>
       </div>
     );

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import app.sillage.R
@@ -43,7 +44,20 @@ import kotlinx.coroutines.withContext
 internal fun SillageApp(viewModel: SillageViewModel) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    LaunchedEffect(viewModel, context) {
+    val attachmentChooserTitle = stringResource(R.string.attachment_open_chooser)
+    val attachmentNoApp = stringResource(R.string.error_attachment_no_app)
+    val attachmentShareDenied = stringResource(R.string.error_attachment_share_denied)
+    val attachmentPrepareFailed = stringResource(R.string.error_attachment_prepare)
+    val attachmentOpenFailed = stringResource(R.string.error_attachment_open)
+    LaunchedEffect(
+        viewModel,
+        context,
+        attachmentChooserTitle,
+        attachmentNoApp,
+        attachmentShareDenied,
+        attachmentPrepareFailed,
+        attachmentOpenFailed,
+    ) {
         viewModel.attachmentOpenEvents.collect { event ->
             var handedOff = false
             try {
@@ -60,7 +74,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     clipData = ClipData.newRawUri(event.displayName, contentUri)
                 }
-                val chooser = Intent.createChooser(viewIntent, "打开附件").apply {
+                val chooser = Intent.createChooser(viewIntent, attachmentChooserTitle).apply {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     clipData = viewIntent.clipData
                 }
@@ -68,13 +82,13 @@ internal fun SillageApp(viewModel: SillageViewModel) {
                 handedOff = true
                 viewModel.onAttachmentOpenHandled(event.requestId)
             } catch (_: ActivityNotFoundException) {
-                viewModel.onAttachmentOpenFailed(event.requestId, "没有可打开此附件的应用")
+                viewModel.onAttachmentOpenFailed(event.requestId, attachmentNoApp)
             } catch (_: SecurityException) {
-                viewModel.onAttachmentOpenFailed(event.requestId, "系统拒绝共享此附件")
+                viewModel.onAttachmentOpenFailed(event.requestId, attachmentShareDenied)
             } catch (_: IllegalArgumentException) {
-                viewModel.onAttachmentOpenFailed(event.requestId, "无法准备此附件")
+                viewModel.onAttachmentOpenFailed(event.requestId, attachmentPrepareFailed)
             } catch (_: RuntimeException) {
-                viewModel.onAttachmentOpenFailed(event.requestId, "无法打开此附件")
+                viewModel.onAttachmentOpenFailed(event.requestId, attachmentOpenFailed)
             } finally {
                 if (!handedOff) {
                     withContext(NonCancellable + Dispatchers.IO) {
@@ -117,7 +131,7 @@ private fun LoadingScreen() {
                     contentDescription = null,
                 )
             }
-            Text("Sillage", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
             CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
         }
     }

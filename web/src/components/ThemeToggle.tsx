@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n/I18nProvider";
 import { iconButtonClass, secondaryButtonClass } from "./ui";
 
 type ThemeMode = "light" | "dark";
@@ -7,11 +8,6 @@ type ThemePreference = ThemeMode | "system";
 
 const STORAGE_KEY = "sillage-theme";
 const THEME_CHANGE_EVENT = "sillage:theme-change";
-const MODE_LABELS: Record<ThemeMode, string> = {
-  light: "浅色",
-  dark: "深色",
-};
-
 function readStoredPreference(): ThemePreference {
   const value = window.localStorage.getItem(STORAGE_KEY);
   return value === "light" || value === "dark" ? value : "system";
@@ -58,7 +54,9 @@ function nextMode(mode: ThemeMode): ThemeMode {
 
 /** Light/dark toggle that mirrors the boot-time `theme-init.js` preference. */
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<ThemeMode>("light");
+  const modeLabel = t(mode === "light" ? "theme.light" : "theme.dark");
 
   useEffect(() => {
     setMode(applyTheme(readStoredPreference()));
@@ -87,8 +85,8 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   return (
     <button
       type="button"
-      title={`主题：${MODE_LABELS[mode]}`}
-      aria-label={`切换主题，当前为${MODE_LABELS[mode]}`}
+      title={t("theme.title", { mode: modeLabel })}
+      aria-label={t("theme.toggle", { mode: modeLabel })}
       className={compact ? iconButtonClass : secondaryButtonClass}
       onClick={() => {
         const next = nextMode(mode);
@@ -100,7 +98,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       ) : (
         <Sun className="h-4 w-4" aria-hidden="true" />
       )}
-      {compact ? null : <span>{MODE_LABELS[mode]}</span>}
+      {compact ? null : <span>{modeLabel}</span>}
     </button>
   );
 }

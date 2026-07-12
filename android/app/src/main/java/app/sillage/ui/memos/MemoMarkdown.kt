@@ -47,12 +47,15 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.resolveMarkdownLinkTarget
+import app.sillage.R
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.LinkResolver
 import io.noties.markwon.Markwon
@@ -79,13 +82,13 @@ private fun MarkdownModeSelector(preview: Boolean, onPreviewChange: (Boolean) ->
     ) {
         Row(modifier = Modifier.selectableGroup()) {
             MarkdownModeButton(
-                label = "编辑",
+                label = stringResource(R.string.editor_mode_edit),
                 selected = !preview,
                 onClick = { onPreviewChange(false) },
                 modifier = Modifier.weight(1f),
             )
             MarkdownModeButton(
-                label = "预览",
+                label = stringResource(R.string.editor_mode_preview),
                 selected = preview,
                 onClick = { onPreviewChange(true) },
                 modifier = Modifier.weight(1f),
@@ -203,17 +206,22 @@ internal fun MarkdownEditorSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                label = { Text("内容") },
-                placeholder = { Text("写下想记录的内容…") },
+                label = { Text(stringResource(R.string.editor_content)) },
+                placeholder = { Text(stringResource(R.string.editor_content_placeholder)) },
             )
         }
     }
 }
 
+@Composable
 private fun markdownDraftStats(content: String): String {
     val characters = content.trim().length
     val lines = if (content.isBlank()) 0 else content.lines().size
-    return "$characters 字 · $lines 行"
+    return stringResource(
+        R.string.quantity_joiner,
+        pluralStringResource(R.plurals.quantity_characters, characters, characters),
+        pluralStringResource(R.plurals.quantity_lines, lines, lines),
+    )
 }
 
 @Composable
@@ -225,14 +233,14 @@ private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            MarkdownToolButton(Icons.Rounded.Title, "标题") { onFormat(MarkdownFormatStyle.Heading) }
-            MarkdownToolButton(Icons.Rounded.FormatBold, "加粗") { onFormat(MarkdownFormatStyle.Bold) }
-            MarkdownToolButton(Icons.Rounded.FormatItalic, "斜体") { onFormat(MarkdownFormatStyle.Italic) }
-            MarkdownToolButton(Icons.Rounded.Code, "代码") { onFormat(MarkdownFormatStyle.Code) }
-            MarkdownToolButton(Icons.AutoMirrored.Rounded.FormatListBulleted, "列表") {
+            MarkdownToolButton(Icons.Rounded.Title, stringResource(R.string.markdown_heading)) { onFormat(MarkdownFormatStyle.Heading) }
+            MarkdownToolButton(Icons.Rounded.FormatBold, stringResource(R.string.markdown_bold)) { onFormat(MarkdownFormatStyle.Bold) }
+            MarkdownToolButton(Icons.Rounded.FormatItalic, stringResource(R.string.markdown_italic)) { onFormat(MarkdownFormatStyle.Italic) }
+            MarkdownToolButton(Icons.Rounded.Code, stringResource(R.string.markdown_code)) { onFormat(MarkdownFormatStyle.Code) }
+            MarkdownToolButton(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.markdown_list)) {
                 onFormat(MarkdownFormatStyle.List)
             }
-            MarkdownToolButton(Icons.Rounded.FormatQuote, "引用") { onFormat(MarkdownFormatStyle.Quote) }
+            MarkdownToolButton(Icons.Rounded.FormatQuote, stringResource(R.string.markdown_quote)) { onFormat(MarkdownFormatStyle.Quote) }
         }
     }
 }
@@ -269,7 +277,7 @@ private fun MarkdownPreview(
         if (content.isBlank()) {
             Box(modifier = Modifier.fillMaxSize().padding(14.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "没有可预览的内容",
+                    stringResource(R.string.markdown_preview_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -411,7 +419,17 @@ internal fun createMarkdownRenderer(
         )
         .usePlugin(TaskListPlugin.create(style.linkColor, style.outlineColor, style.surfaceColor))
         .usePlugin(SoftBreakAddsNewLinePlugin.create())
-        .usePlugin(MarkdownRenderingPlugin(style, isLinkAllowed, isLinkOpening, onOpenLink))
+        .usePlugin(
+            MarkdownRenderingPlugin(
+                style = style,
+                isLinkAllowed = isLinkAllowed,
+                isLinkOpening = isLinkOpening,
+                onOpenLink = onOpenLink,
+                openingLabel = context.getString(R.string.markdown_opening),
+                imagePrefix = context.getString(R.string.markdown_image_prefix),
+                imageLabel = context.getString(R.string.markdown_image),
+            ),
+        )
         .build()
 }
 
@@ -420,6 +438,9 @@ private class MarkdownRenderingPlugin(
     private val isLinkAllowed: (String) -> Boolean,
     private val isLinkOpening: (String) -> Boolean,
     private val onOpenLink: (String) -> Unit,
+    private val openingLabel: String,
+    private val imagePrefix: String,
+    private val imageLabel: String,
 ) : AbstractMarkwonPlugin() {
     override fun configureTheme(builder: MarkwonTheme.Builder) {
         builder
@@ -451,7 +472,7 @@ private class MarkdownRenderingPlugin(
             val start = visitor.length()
             visitor.visitChildren(link)
             if (isLinkOpening(link.destination)) {
-                visitor.builder().append("（正在打开）")
+                visitor.builder().append(openingLabel)
             }
             if (isLinkAllowed(link.destination)) {
                 CoreProps.LINK_DESTINATION.set(visitor.renderProps(), link.destination)
@@ -460,14 +481,14 @@ private class MarkdownRenderingPlugin(
         }
         builder.on(Image::class.java) { visitor, image ->
             val start = visitor.length()
-            visitor.builder().append("图片：")
+            visitor.builder().append(imagePrefix)
             val labelStart = visitor.length()
             visitor.visitChildren(image)
             if (labelStart == visitor.length()) {
-                visitor.builder().append("图片")
+                visitor.builder().append(imageLabel)
             }
             if (isLinkOpening(image.destination)) {
-                visitor.builder().append("（正在打开）")
+                visitor.builder().append(openingLabel)
             }
             if (isLinkAllowed(image.destination)) {
                 CoreProps.LINK_DESTINATION.set(visitor.renderProps(), image.destination)

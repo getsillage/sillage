@@ -63,6 +63,12 @@ class SessionStore(context: Context) {
         prefs.edit().putString(KEY_THEME_MODE, normalizeThemeMode(value)).apply()
     }
 
+    fun languageMode(): String = prefs.getString(KEY_LANGUAGE_MODE, LANGUAGE_ZH_CN) ?: LANGUAGE_ZH_CN
+
+    fun saveLanguageMode(value: String) {
+        prefs.edit().putString(KEY_LANGUAGE_MODE, normalizeLanguageMode(value)).apply()
+    }
+
     fun appMode(): String = prefs.getString(KEY_APP_MODE, MODE_ONLINE) ?: MODE_ONLINE
 
     fun hasAppModeSelection(): Boolean = prefs.getBoolean(KEY_APP_MODE_SELECTED, false)
@@ -94,6 +100,8 @@ class SessionStore(context: Context) {
         const val DEFAULT_BASE_URL = ""
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val LANGUAGE_EN = "en"
+        const val LANGUAGE_ZH_CN = "zh-CN"
         const val MODE_ONLINE = "online"
         const val MODE_OFFLINE = "offline"
 
@@ -105,6 +113,7 @@ class SessionStore(context: Context) {
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_COOKIES = "cookies"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_LANGUAGE_MODE = "language_mode"
         private const val KEY_APP_MODE = "app_mode"
         private const val KEY_APP_MODE_SELECTED = "app_mode_selected"
         private val SECURE_SESSION_KEYS = listOf(
@@ -127,6 +136,10 @@ class SessionStore(context: Context) {
 
         fun normalizeThemeMode(value: String): String {
             return if (value == THEME_DARK) THEME_DARK else THEME_LIGHT
+        }
+
+        fun normalizeLanguageMode(value: String): String {
+            return if (value.trim().lowercase().startsWith(LANGUAGE_EN)) LANGUAGE_EN else LANGUAGE_ZH_CN
         }
 
         fun normalizeAppMode(value: String): String {

@@ -87,8 +87,19 @@ Recommended phrasing should communicate the equivalent of:
 ## Copy Guidelines
 
 - Use plain, direct, concrete Simplified Chinese in the product UI. Do not rely on poetic metaphors to explain functionality.
+- Use equally plain, direct English copy in the English UI; prefer short action labels and sentence case.
 - Use the localized equivalents of Record / All Records / Ask / Summary / Source (`记录 / 全部记录 / 问答 / 总结 / 来源`) and do not expose `memo` or the English word `Ask` to users in the Simplified Chinese UI.
 - Button labels describe actions, such as Save, Continue Asking, View Sources, and Save as Record.
 - Empty states explain the current state and the next action instead of advertising features.
+
+## Interface Languages
+
+The Web and Android clients support English and Simplified Chinese. Simplified Chinese remains the default for existing and new installations until the user chooses English. The selected interface language is stored only on the current browser or Android device; it is not an account setting and does not sync through the server.
+
+- `Sillage` is never translated.
+- English UI uses Record / All Records / Ask / Summary / Source. Simplified Chinese UI uses `记录 / 全部记录 / 问答 / 总结 / 来源`.
+- Language switching covers navigation, controls, status and error feedback, accessibility names, and client-formatted dates and counts.
+- Switching the interface language does not translate user records, stored conversation titles, summaries, answers, provider responses, or other existing content.
+- Controls must remain readable without horizontal overflow in both languages, including compact mobile layouts.
 
 Before introducing a new concept or primary destination, confirm that it cannot be expressed through the existing core concepts and that it does not compromise the single-user private scope, writing-first design, or source-grounded AI behavior.

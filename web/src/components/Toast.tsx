@@ -1,6 +1,7 @@
 import { CircleAlert, CircleCheck, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "../i18n/I18nProvider";
 
 export type ToastMessage = {
   kind: "success" | "error";
@@ -16,6 +17,7 @@ export function Toast({
   toast: ToastMessage;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -58,8 +60,8 @@ export function Toast({
           type="button"
           onClick={onClose}
           className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
-          aria-label="关闭通知"
-          title="关闭通知"
+          aria-label={t("toast.close")}
+          title={t("toast.close")}
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>

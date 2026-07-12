@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -173,6 +173,65 @@ beforeEach(() => {
 });
 
 describe("AskPage", () => {
+  it("keeps an initial conversation-list error visible and retries it", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskConversations)
+      .mockRejectedValueOnce(new Error("问答列表读取失败：网络异常"))
+      .mockResolvedValueOnce({ conversations: [] });
+    const { container } = renderLocalizedAsk("/ask");
+
+    expect(
+      await screen.findAllByText("问答列表读取失败：网络异常"),
+    ).toHaveLength(2);
+    const errorState = within(container).getByRole("region", {
+      name: "问答列表读取失败",
+    });
+    expect(errorState).toHaveTextContent("问答列表读取失败：网络异常");
+    expect(screen.queryByText("可以根据记录提问")).not.toBeInTheDocument();
+
+    await user.click(
+      within(errorState).getByRole("button", { name: "重试读取问答列表" }),
+    );
+
+    await waitFor(() => expect(listAskConversations).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("可以根据记录提问")).toBeInTheDocument();
+    expect(
+      within(container).queryByText("问答列表读取失败：网络异常"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a message-load error visible and retries the active conversation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskMessages)
+      .mockRejectedValueOnce(new Error("当前问答读取失败：网络异常"))
+      .mockResolvedValueOnce({
+        messages: [
+          message("u1", "user", null, "重试后的问题", "1"),
+          message("a1", "assistant", "u1", "重试后恢复的回答", "2"),
+        ],
+      });
+    const { container } = renderLocalizedAsk();
+
+    expect(
+      await screen.findAllByText("当前问答读取失败：网络异常"),
+    ).toHaveLength(2);
+    const errorState = within(container).getByRole("region", {
+      name: "当前问答读取失败",
+    });
+    expect(errorState).toHaveTextContent("当前问答读取失败：网络异常");
+    expect(screen.queryByText("可以根据记录提问")).not.toBeInTheDocument();
+
+    await user.click(
+      within(errorState).getByRole("button", { name: "重试读取当前问答" }),
+    );
+
+    expect(await screen.findByText("重试后恢复的回答")).toBeInTheDocument();
+    expect(listAskMessages).toHaveBeenCalledTimes(2);
+    expect(
+      within(container).queryByText("当前问答读取失败：网络异常"),
+    ).not.toBeInTheDocument();
+  });
+
   it("clears a stale save error on language changes without saving again", async () => {
     const user = userEvent.setup();
     const userMessage = message("u1", "user", null, "问题", "1");
@@ -708,6 +767,64 @@ describe("AskPage", () => {
       "第二个对话读取失败",
     );
     expect(screen.queryByText("第一个对话的问题")).not.toBeInTheDocument();
+  });
+
+  it("ignores messages that arrive after switching conversations", async () => {
+    const user = userEvent.setup();
+    let resolveFirst: ((value: { messages: AskMessage[] }) => void) | undefined;
+    let resolveSecond:
+      | ((value: { messages: AskMessage[] }) => void)
+      | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        conversation(),
+        {
+          ...conversation(),
+          id: "c2",
+          title: "第二个对话",
+          headMessageId: "a2",
+        },
+      ],
+    });
+    vi.mocked(listAskMessages).mockImplementation(
+      (_token, id) =>
+        new Promise((resolve) => {
+          if (id === "c1") {
+            resolveFirst = resolve;
+          } else {
+            resolveSecond = resolve;
+          }
+        }),
+    );
+    renderConversationSwitcher();
+    await waitFor(() => expect(listAskConversations).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    await waitFor(() =>
+      expect(listAskMessages).toHaveBeenCalledWith("t", "c1"),
+    );
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    await waitFor(() =>
+      expect(listAskMessages).toHaveBeenCalledWith("t", "c2"),
+    );
+
+    await act(async () => {
+      resolveSecond?.({
+        messages: [
+          message("u2", "user", null, "第二个对话的问题", "3"),
+          message("a2", "assistant", "u2", "第二个对话的回答", "4"),
+        ],
+      });
+    });
+    expect(await screen.findByText("第二个对话的回答")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst?.({
+        messages: [message("u1", "user", null, "迟到的第一个问题", "1")],
+      });
+    });
+    expect(screen.queryByText("迟到的第一个问题")).not.toBeInTheDocument();
+    expect(screen.getByText("第二个对话的回答")).toBeInTheDocument();
   });
 
   it("keeps the user-selected scope after conversation reload", async () => {

@@ -2,7 +2,7 @@ import { BrainCircuit, LoaderCircle, Palette, Plus, Save } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { Toast, type ToastMessage } from "../../components/Toast";
+import { Toast, type ToastMessage, useToast } from "../../components/Toast";
 import { UnsavedNavigationGuard } from "../../components/UnsavedNavigationGuard";
 import {
   dangerButtonClass,
@@ -177,6 +177,7 @@ function actionErrorMessage(
 
 export function SettingsWorkspace({ token }: { token: string }) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [savedProfilesFingerprint, setSavedProfilesFingerprint] = useState<
@@ -198,6 +199,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [invalidProfileKey, setInvalidProfileKey] = useState<string | null>(
+    null,
+  );
   const [autoSummaryToast, setAutoSummaryToast] = useState<ToastMessage | null>(
     null,
   );
@@ -216,6 +220,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setTestResults({});
     setModelResults({});
   }, [locale, t]);
+
+  function reportError(message: string) {
+    setError(message);
+    toast.showToast({ kind: "error", message });
+  }
+
+  function reportNotice(message: string, kind: "success" | "info") {
+    setNotice(message);
+    toast.showToast({ kind, message });
+  }
 
   const dirty =
     savedProfilesFingerprint !== null &&
@@ -248,9 +262,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
       if (loadRequestIdRef.current !== requestId) {
         return;
       }
-      setLoadError(
-        cause instanceof Error ? cause.message : t("settings.loadFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("settings.loadFailed");
+      setLoadError(message);
       setLoading(false);
     }
   }, [token, t]);
@@ -282,6 +296,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setConfirmDeleteKey(null);
     setNotice("");
     setError("");
+    if (patch.name !== undefined && patch.name.trim() !== "") {
+      const key = profileKey(profiles[index], index);
+      setInvalidProfileKey((current) => (current === key ? null : current));
+    }
     setProfiles((current) =>
       current.map((profile, i) =>
         i === index ? { ...profile, ...patch } : profile,
@@ -294,7 +312,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       return;
     }
     if (dirty) {
-      setNotice(t("settings.saveDefaultFirst"));
+      reportNotice(t("settings.saveDefaultFirst"), "info");
       setError("");
       return;
     }
@@ -311,7 +329,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     saveProfiles(nextProfiles, t("settings.defaultSaved"))
       .catch((err) => {
         setProfiles(profiles);
-        setError(
+        reportError(
           err instanceof Error ? err.message : t("settings.defaultFailed"),
         );
       })
@@ -342,7 +360,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setProfiles(savedProfiles);
     setSavedProfilesFingerprint(profilesFingerprint(savedProfiles));
     setConfirmDeleteKey(null);
-    setNotice(successNotice);
+    reportNotice(successNotice, "success");
   }
 
   async function toggleAutoSummary() {
@@ -370,27 +388,37 @@ export function SettingsWorkspace({ token }: { token: string }) {
         return;
       }
       setAutoSummary(res.autoSummary);
-      setAutoSummaryToast({
+      const nextToast: ToastMessage = {
         kind: "success",
         message: t(
           res.autoSummary
             ? "settings.autoSummaryOn"
             : "settings.autoSummaryOff",
         ),
-      });
+      };
+      if (toast.available) {
+        toast.showToast(nextToast);
+      } else {
+        setAutoSummaryToast(nextToast);
+      }
     } catch (cause) {
       if (autoSummaryRequestIdRef.current !== requestId) {
         return;
       }
       setAutoSummary(previousValue);
-      setAutoSummaryToast({
+      const nextToast: ToastMessage = {
         kind: "error",
         message: actionErrorMessage(
           cause,
           t("settings.autoSummarySaveFailed"),
           t("settings.timeout"),
         ),
-      });
+      };
+      if (toast.available) {
+        toast.showToast(nextToast);
+      } else {
+        setAutoSummaryToast(nextToast);
+      }
     } finally {
       if (autoSummaryRequestIdRef.current === requestId) {
         autoSummaryAbortRef.current = null;
@@ -411,7 +439,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
     if (profile.id && dirty) {
       setConfirmDeleteKey(null);
-      setNotice(t("settings.saveBeforeDelete"));
+      reportNotice(t("settings.saveBeforeDelete"), "info");
       setError("");
       return;
     }
@@ -437,10 +465,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
     try {
       await saveProfiles(
         profiles.filter((_, i) => i !== index),
-        t("settings.deleted"),
+        t("settings.profileDeleted"),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.deleteFailed"));
+      reportError(
+        err instanceof Error ? err.message : t("common.deleteFailed"),
+      );
     } finally {
       setDeletingId((current) => (current === profile.id ? null : current));
     }
@@ -458,22 +488,32 @@ export function SettingsWorkspace({ token }: { token: string }) {
       (profile) => profile.name.trim() === "",
     );
     if (invalidProfileIndex >= 0) {
-      setActiveTab("ai");
-      setSelectedProfileKey(
-        profileKey(profiles[invalidProfileIndex], invalidProfileIndex),
+      const invalidKey = profileKey(
+        profiles[invalidProfileIndex],
+        invalidProfileIndex,
       );
+      setActiveTab("ai");
+      setSelectedProfileKey(invalidKey);
+      setInvalidProfileKey(invalidKey);
       setNotice("");
-      setError(t("settings.profileNameRequired"));
+      setError("");
+      toast.showToast({
+        kind: "error",
+        message: t("settings.profileNameRequired"),
+      });
       return;
     }
+    setInvalidProfileKey(null);
     setSaving(true);
     setNotice("");
     setError("");
     try {
-      await saveProfiles(profiles, t("composer.saved"));
+      await saveProfiles(profiles, t("settings.profileSaved"));
       setSelectedProfileKey(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("composer.saveFailed"));
+      reportError(
+        err instanceof Error ? err.message : t("composer.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -505,18 +545,24 @@ export function SettingsWorkspace({ token }: { token: string }) {
           message: t("settings.connectionSuccess", { model: res.model }),
         },
       }));
+      toast.showToast({
+        kind: "success",
+        message: t("settings.connectionSuccess", { model: res.model }),
+      });
     } catch (cause) {
+      const message = actionErrorMessage(
+        cause,
+        t("settings.connectionFailed"),
+        t("settings.timeout"),
+      );
       setTestResults((current) => ({
         ...current,
         [key]: {
           status: "error",
-          message: actionErrorMessage(
-            cause,
-            t("settings.connectionFailed"),
-            t("settings.timeout"),
-          ),
+          message,
         },
       }));
+      toast.showToast({ kind: "error", message });
     } finally {
       setTestingId((current) => (current === key ? null : current));
     }
@@ -554,20 +600,28 @@ export function SettingsWorkspace({ token }: { token: string }) {
           ),
         },
       }));
+      toast.showToast({
+        kind: "success",
+        message: t(
+          res.models.length > 0 ? "settings.modelsLoaded" : "settings.noModels",
+        ),
+      });
     } catch (cause) {
+      const message = actionErrorMessage(
+        cause,
+        t("settings.modelsFailed"),
+        t("settings.timeout"),
+      );
       setModelResults((current) => ({
         ...current,
         [key]: {
           ...(current[key] ?? { models: [] }),
           loading: false,
           status: "error",
-          message: actionErrorMessage(
-            cause,
-            t("settings.modelsFailed"),
-            t("settings.timeout"),
-          ),
+          message,
         },
       }));
+      toast.showToast({ kind: "error", message });
     }
   }
 
@@ -612,7 +666,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   return (
     <div className="space-y-5">
-      {autoSummaryToast ? (
+      {autoSummaryToast && !toast.available ? (
         <Toast
           toast={autoSummaryToast}
           onClose={() => setAutoSummaryToast(null)}
@@ -808,6 +862,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
                   const key = profileKey(profile, index);
                   const modelState = modelResults[key];
                   const testState = testResults[key];
+                  const nameInvalid = invalidProfileKey === key;
+                  const nameInputId = `profile-name-${index}`;
+                  const nameErrorId = `profile-name-error-${index}`;
                   return (
                     <article key={key} className={`${panelClass} p-4 sm:p-5`}>
                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -828,21 +885,39 @@ export function SettingsWorkspace({ token }: { token: string }) {
                         </button>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block">
-                          <span className={labelClass}>
+                        <div className="block">
+                          <label className={labelClass} htmlFor={nameInputId}>
                             {t("settings.name")}
-                          </span>
+                          </label>
                           <input
-                            className={inputClass}
+                            id={nameInputId}
+                            className={`${inputClass} ${
+                              nameInvalid
+                                ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500"
+                                : ""
+                            }`}
                             value={profile.name}
                             required
+                            aria-invalid={nameInvalid ? "true" : undefined}
+                            aria-describedby={
+                              nameInvalid ? nameErrorId : undefined
+                            }
                             onChange={(event) =>
                               updateProfile(index, {
                                 name: event.target.value,
                               })
                             }
                           />
-                        </label>
+                          {nameInvalid ? (
+                            <p
+                              id={nameErrorId}
+                              role="alert"
+                              className="mt-1 text-red-600 text-sm dark:text-red-400"
+                            >
+                              {t("settings.profileNameRequired")}
+                            </p>
+                          ) : null}
+                        </div>
                         <label className="block">
                           <span className={labelClass}>
                             {t("settings.provider")}
@@ -1066,7 +1141,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
         </fieldset>
       ) : null}
 
-      {dirty || saving || error || notice ? (
+      {dirty || saving || (!toast.available && (error || notice)) ? (
         <div className="sticky bottom-3 z-10 mr-14 flex flex-wrap items-center justify-end gap-3 rounded-lg border border-gray-200/80 bg-white/90 p-2 shadow-lg shadow-gray-900/[0.06] backdrop-blur-xl sm:mr-0 dark:border-gray-800 dark:bg-gray-900/90 dark:shadow-black/20">
           <div className="mr-auto min-w-0 space-y-0.5">
             {dirty ? (
@@ -1077,7 +1152,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 {t("settings.unsaved")}
               </p>
             ) : null}
-            {error ? (
+            {error && !toast.available ? (
               <p
                 role="alert"
                 className="text-red-600 text-sm dark:text-red-400"
@@ -1085,7 +1160,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 {error}
               </p>
             ) : null}
-            {notice ? (
+            {notice && !toast.available ? (
               <p
                 role="status"
                 className="text-gray-500 text-sm dark:text-gray-400"

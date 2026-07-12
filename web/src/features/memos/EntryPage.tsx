@@ -12,6 +12,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "../../components/Markdown";
+import { useToast } from "../../components/Toast";
 import {
   dangerButtonClass,
   ghostLinkClass,
@@ -84,6 +85,7 @@ function detailReturnLabelKey(target: string): TranslationKey {
 
 export function EntryPage() {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -158,11 +160,12 @@ export function EntryPage() {
           setDetailState({ id, status: "missing", error: "" });
           return;
         }
+        const message =
+          cause instanceof Error ? cause.message : t("records.loadFailed");
         setDetailState({
           id,
           status: "error",
-          error:
-            cause instanceof Error ? cause.message : t("records.loadFailed"),
+          error: message,
         });
       });
     return () => {
@@ -269,17 +272,33 @@ export function EntryPage() {
     setConfirmingDelete(false);
     try {
       if (action === "favorite") {
-        await memos.setFavorited(memo, !memo.favoritedAt);
+        const favorited = !memo.favoritedAt;
+        await memos.setFavorited(memo, favorited);
+        toast.showToast({
+          kind: "success",
+          message: t(
+            favorited ? "records.favoritedNotice" : "records.unfavoritedNotice",
+          ),
+        });
       } else if (action === "archive") {
-        await memos.setArchived(memo, !memo.archivedAt);
+        const archived = !memo.archivedAt;
+        await memos.setArchived(memo, archived);
+        toast.showToast({
+          kind: "success",
+          message: t(
+            archived ? "records.archivedNotice" : "records.unarchivedNotice",
+          ),
+        });
       } else {
         await memos.remove(memo);
+        toast.showToast({ kind: "success", message: t("records.deleted") });
         navigate("/");
       }
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t("entry.actionFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("entry.actionFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       actionPendingRef.current = false;
       setBusy("");
@@ -295,10 +314,15 @@ export function EntryPage() {
     setError("");
     try {
       await memos.summarize(memo);
+      toast.showToast({
+        kind: "success",
+        message: t("entry.summaryGenerated"),
+      });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t("entry.summaryFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("entry.summaryFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       actionPendingRef.current = false;
       setBusy("");
@@ -500,7 +524,7 @@ export function EntryPage() {
         ) : null}
       </section>
 
-      {error ? (
+      {error && !toast.available ? (
         <p role="alert" className="mt-4 text-red-600 text-sm dark:text-red-400">
           {error}
         </p>

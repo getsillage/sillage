@@ -98,7 +98,6 @@ import app.sillage.ui.MemoListLoadStatus
 import app.sillage.ui.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.common.MessageBlock
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
@@ -161,11 +160,6 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            MessageBlock(
-                error = state.error,
-                notice = state.notice,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
             if (state.memoViewMode == MemoViewMode.List) {
                 MemoListFilterTabs(
                     selected = state.memoListFilter,

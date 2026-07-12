@@ -50,13 +50,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -73,6 +73,14 @@ class SillageViewModel(context: Context) : ViewModel() {
     private var aiAutoSummaryJob: Job? = null
     private val memoPageLock = Any()
     private val _attachmentOpenEvents = Channel<AttachmentOpenEvent>(Channel.BUFFERED)
+    private val _toastEvents = Channel<UiToastEvent>(
+        capacity = TOAST_EVENT_BUFFER_CAPACITY,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    private val toastEventEmitter = UiToastEventEmitter { event ->
+        _toastEvents.trySend(event)
+    }
+    private val stateUpdateLock = Any()
     private val _state = MutableStateFlow(
         SillageUiState(
             screen = Screen.Loading,
@@ -86,13 +94,14 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     val state: StateFlow<SillageUiState> = _state.asStateFlow()
     internal val attachmentOpenEvents: Flow<AttachmentOpenEvent> = _attachmentOpenEvents.receiveAsFlow()
+    internal val toastEvents: Flow<UiToastEvent> = _toastEvents.receiveAsFlow()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
             pruneAttachmentOpenCache(File(appContext.cacheDir, OPEN_ATTACHMENTS_CACHE_DIRECTORY))
         }
         if (!sessionStore.hasAppModeSelection()) {
-            _state.update { it.copy(screen = Screen.ModeSelection) }
+            updateState { it.copy(screen = Screen.ModeSelection) }
         } else if (sessionStore.appMode() == SessionStore.MODE_OFFLINE) {
             enterOfflineMode(notice = null)
         } else {
@@ -100,8 +109,26 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private inline fun updateState(
+        forceFeedback: Boolean = false,
+        noticeType: UiToastType = UiToastType.SUCCESS,
+        transform: (SillageUiState) -> SillageUiState,
+    ) {
+        synchronized(stateUpdateLock) {
+            val before = _state.value
+            val after = transform(before)
+            _state.value = after
+            toastEventEmitter.onStateChanged(
+                before = before,
+                after = after,
+                forceFeedback = forceFeedback,
+                noticeType = noticeType,
+            )
+        }
+    }
+
     fun chooseOnlineMode() {
-        _state.update {
+        updateState {
             it.copy(
                 appMode = SessionStore.MODE_ONLINE,
                 screen = Screen.Server,
@@ -113,13 +140,15 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateBaseUrl(value: String) {
-        _state.update { it.copy(baseUrl = value) }
+        updateState { it.copy(baseUrl = value) }
     }
 
     fun saveServer() {
         val normalized = SessionStore.normalizeBaseUrl(state.value.baseUrl)
         if (normalized.isBlank()) {
-            _state.update { it.copy(error = uiString(R.string.error_server_required), notice = null) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_server_required), notice = null)
+            }
             return
         }
         cancelAttachmentOpen()
@@ -129,7 +158,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAIAutoSummarySave()
         sessionStore.saveBaseUrl(state.value.baseUrl)
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
-        _state.update {
+        updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 baseUrl = sessionStore.baseUrl(),
@@ -142,7 +171,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = false,
                 uploadingAttachment = false,
                 aiSettingsLoading = false,
+                aiSettingsLoadError = null,
                 askLoading = false,
+                askLoadError = null,
                 serverReturnScreen = null,
                 searchQuery = "",
                 searchResults = null,
@@ -159,7 +190,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAskStream()
         cancelAIAutoSummarySave()
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
-        _state.update {
+        updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 screenHistory = emptyList(),
@@ -170,7 +201,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 selectedMemo = null,
                 selectedSummary = null,
                 aiSettingsLoading = false,
+                aiSettingsLoadError = null,
                 askLoading = false,
+                askLoadError = null,
                 searchQuery = "",
                 searchResults = null,
                 error = null,
@@ -190,7 +223,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun openServerSettings() {
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Server,
                 serverReturnScreen = it.screen.takeIf { screen -> screen != Screen.Server && screen != Screen.ModeSelection },
@@ -201,7 +234,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun cancelServerConnection() {
-        _state.update {
+        updateState {
             val target = when {
                 it.serverReturnScreen != null -> it.serverReturnScreen
                 sessionStore.hasAppModeSelection() && sessionStore.appMode() == SessionStore.MODE_OFFLINE -> Screen.Memos
@@ -222,7 +255,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.askVariantLoading) {
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.AISettings,
                 screenHistory = emptyList(),
@@ -236,7 +269,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun openAsk() {
         val current = state.value
         val reloadConversations = !current.askLoading && !current.askSending && !current.askVariantLoading
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
@@ -263,7 +296,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             SessionStore.THEME_DARK
         }
         sessionStore.saveThemeMode(next)
-        _state.update { it.copy(themeMode = next) }
+        updateState { it.copy(themeMode = next) }
     }
 
     fun setLanguageMode(value: String) {
@@ -272,7 +305,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         sessionStore.saveLanguageMode(next)
-        _state.update {
+        updateState {
             it.copy(
                 languageMode = next,
                 error = null,
@@ -301,7 +334,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (SessionStore.normalizeBaseUrl(state.value.baseUrl).isBlank()) {
-            _state.update {
+            updateState {
                 it.copy(
                     screen = Screen.Server,
                     error = null,
@@ -315,37 +348,38 @@ class SillageViewModel(context: Context) : ViewModel() {
             val token = sessionStore.accessToken()
             val account = sessionStore.account()
             if (!initialized) {
-                _state.update { it.copy(screen = Screen.Initialize, initialized = false, account = null) }
+                updateState { it.copy(screen = Screen.Initialize, initialized = false, account = null) }
                 return@launchBusy
             }
             if (token.isNullOrBlank() || account == null) {
-                _state.update { it.copy(screen = Screen.Login, initialized = true, account = null) }
+                updateState { it.copy(screen = Screen.Login, initialized = true, account = null) }
                 return@launchBusy
             }
             val verified = api.me()
-            _state.update {
+            updateState {
                 it.copy(
                     screen = Screen.Memos,
                     initialized = true,
                     account = verified,
                     memoListLoadStatus = MemoListLoadStatus.Loading,
+                    notice = uiString(R.string.notice_connected),
                 )
             }
             refreshMemos()
         }
     }
 
-    fun updateUsername(value: String) = _state.update { it.copy(username = value) }
+    fun updateUsername(value: String) = updateState { it.copy(username = value) }
 
-    fun updateDisplayName(value: String) = _state.update { it.copy(displayName = value) }
+    fun updateDisplayName(value: String) = updateState { it.copy(displayName = value) }
 
-    fun updatePassword(value: String) = _state.update { it.copy(password = value) }
+    fun updatePassword(value: String) = updateState { it.copy(password = value) }
 
     fun initialize() {
         val current = state.value
         launchBusy {
             val session = api.initialize(current.username, current.displayName, current.password)
-            _state.update {
+            updateState {
                 it.copy(
                     account = session.account,
                     username = "",
@@ -355,6 +389,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screenHistory = emptyList(),
                     initialized = true,
                     memoListLoadStatus = MemoListLoadStatus.Loading,
+                    notice = uiString(R.string.notice_account_initialized),
                 )
             }
             refreshMemos()
@@ -365,7 +400,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val current = state.value
         launchBusy {
             val session = api.signIn(current.username, current.password)
-            _state.update {
+            updateState {
                 it.copy(
                     account = session.account,
                     username = "",
@@ -374,6 +409,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     screenHistory = emptyList(),
                     initialized = true,
                     memoListLoadStatus = MemoListLoadStatus.Loading,
+                    notice = uiString(R.string.notice_signed_in),
                 )
             }
             refreshMemos()
@@ -387,11 +423,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAskStream()
         cancelAIAutoSummarySave()
         viewModelScope.launch {
-            if (!isOfflineMode()) {
-                runCatching { api.signOut() }
-            }
-            sessionStore.clearSession()
-            _state.update {
+            val offlineMode = isOfflineMode()
+            val feedback = performSignOut(
+                offlineMode = offlineMode,
+                remoteSignOut = api::signOut,
+                clearLocalSession = sessionStore::clearSession,
+            )
+            updateState {
                 it.invalidateAIAutoSummaryRequest().copy(
                     account = null,
                     memos = emptyList(),
@@ -405,6 +443,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     aiProfiles = emptyList(),
                     aiAutoSummary = if (isOfflineMode()) localDataStore.autoSummaryEnabled() else false,
                     aiSettingsLoading = false,
+                    aiSettingsLoadError = null,
                     aiSettingsSaving = false,
                     aiTestingProfileId = "",
                     aiLoadingModelsProfileId = "",
@@ -416,6 +455,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     askMessages = emptyList(),
                     askQuestion = "",
                     askLoading = false,
+                    askLoadError = null,
                     askSending = false,
                     askStreaming = false,
                     askVariantLoading = false,
@@ -425,12 +465,10 @@ class SillageViewModel(context: Context) : ViewModel() {
                     searchQuery = "",
                     searchResults = null,
                     searching = false,
-                    screen = if (isOfflineMode()) Screen.Memos else Screen.Login,
+                    screen = if (offlineMode) Screen.Memos else Screen.Login,
                     screenHistory = emptyList(),
-                    notice = uiString(
-                        if (isOfflineMode()) R.string.notice_online_session_cleared else R.string.notice_signed_out,
-                    ),
-                    error = null,
+                    notice = feedback.noticeResourceId?.let { resourceId -> uiString(resourceId) },
+                    error = feedback.errorResourceId?.let { resourceId -> uiString(resourceId) },
                 )
             }
         }
@@ -439,7 +477,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun refreshMemos() {
         cancelMemoPageLoad()
         val request = state.value.memoRefreshRequest()
-        _state.update { current ->
+        updateState { current ->
             if (current.canApplyMemoRefresh(request)) {
                 current.copy(
                     memoListLoadStatus = MemoListLoadStatus.Loading,
@@ -467,7 +505,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { snapshot ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.canApplyMemoRefresh(request)) {
                             current.copy(
                                 memos = memosForFilter(snapshot.memos, request.filter),
@@ -482,7 +520,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.canApplyMemoRefresh(request)) {
                             current.copy(
                                 loadingMoreMemos = false,
@@ -503,7 +541,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 return
             }
             val request = state.value.nextMemoPageRequest() ?: return
-            _state.update { current ->
+            updateState { current ->
                 if (current.nextMemoPageRequest() == request) {
                     current.copy(
                         loadingMoreMemos = true,
@@ -521,7 +559,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             viewModelScope.launch(start = CoroutineStart.LAZY) {
                 runCatching { listOnlineMemos(request.filter, cursor = request.cursor) }
                 .onSuccess { page ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.canApplyMemoPage(request)) {
                             current.copy(
                                 memos = memosForFilter(current.memos + page.memos, request.filter),
@@ -534,7 +572,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.canApplyMemoPage(request)) {
                             current.copy(
                                 loadingMoreMemos = false,
@@ -557,7 +595,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun startNewMemo() {
         val today = LocalDate.now().toString()
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
@@ -578,7 +616,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun openMemoDetail(memo: Memo) {
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.MemoDetail,
                 screenHistory = it.historyFor(Screen.MemoDetail),
@@ -606,7 +644,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun duplicateMemoDraft(memo: Memo) {
         val today = LocalDate.now().toString()
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
@@ -626,12 +664,12 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun updateDraftContent(value: String) = _state.update { it.copy(draftContent = value) }
+    fun updateDraftContent(value: String) = updateState { it.copy(draftContent = value) }
 
-    fun updateDraftEntryDate(value: String) = _state.update { it.copy(draftEntryDate = value) }
+    fun updateDraftEntryDate(value: String) = updateState { it.copy(draftEntryDate = value) }
 
     fun updateMarkdownPreview(preview: Boolean) {
-        _state.update { it.copy(markdownPreview = preview) }
+        updateState { it.copy(markdownPreview = preview) }
     }
 
     fun appendMarkdownFormat(style: MarkdownFormatStyle) {
@@ -644,7 +682,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             MarkdownFormatStyle.Quote -> R.string.markdown_sample_quote
         }
         val snippet = markdownFormatSnippet(style, uiString(sampleResource))
-        _state.update {
+        updateState {
             val separator = if (it.draftContent.isBlank() || snippet.startsWith("\n")) "" else " "
             it.copy(
                 draftContent = it.draftContent + separator + snippet,
@@ -654,7 +692,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateSearchQuery(value: String) {
-        _state.update {
+        updateState {
             it.copy(
                 searchQuery = value,
                 searchResults = if (value.isBlank()) null else it.searchResults,
@@ -678,7 +716,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             clearSearch()
             return
         }
-        _state.update { current ->
+        updateState { current ->
             if (current.memoSearchRequest() == request) {
                 current.copy(searching = true, error = null, notice = null)
             } else {
@@ -697,7 +735,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { memos ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.canApplyMemoSearch(request)) {
                             current.copy(
                                 searchResults = memosForFilter(memos, request.filter),
@@ -710,7 +748,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         current.failMemoSearch(request, error.readableMessage())
                     }
                 }
@@ -719,7 +757,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun clearSearch() {
         searchJob?.cancel()
-        _state.update {
+        updateState {
             it.copy(
                 searchQuery = "",
                 searchResults = null,
@@ -731,7 +769,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun exportFullData(uri: Uri) {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 if (!isOfflineMode()) {
                     localDataStore.mergeFromServer(exportOnlineData())
@@ -745,18 +783,18 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess {
-                    _state.update { it.copy(notice = uiString(R.string.notice_exported)) }
+                    updateState { it.copy(notice = uiString(R.string.notice_exported)) }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
     fun importFullData(uri: Uri) {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 val raw = withContext(Dispatchers.IO) {
                     appContext.contentResolver.openInputStream(uri)?.use { input ->
@@ -775,7 +813,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 )
             }
                 .onSuccess { result ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             themeMode = result.themeMode,
                             memoViewMode = result.memoViewMode,
@@ -796,71 +834,81 @@ class SillageViewModel(context: Context) : ViewModel() {
                     refreshMemos()
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
     fun syncFromServer() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
+            }
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 val data = exportOnlineData()
                 localDataStore.mergeFromServer(data)
             }
                 .onSuccess {
-                    _state.update { it.copy(notice = uiString(R.string.notice_synced_local)) }
+                    updateState { it.copy(notice = uiString(R.string.notice_synced_local)) }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
     fun syncToServer() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
+            }
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching { pushLocalMemosToServer() }
                 .onSuccess { summary ->
-                    _state.update { it.copy(notice = syncPushNotice(summary)) }
+                    updateState(noticeType = syncPushToastType(summary)) {
+                        it.copy(notice = syncPushNotice(summary))
+                    }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
     fun syncBothWays() {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = uiString(R.string.error_sync_online_required), notice = null) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
+            }
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 val push = pushLocalMemosToServer()
                 localDataStore.mergeFromServer(exportOnlineData())
                 push
             }
                 .onSuccess { summary ->
-                    _state.update { it.copy(notice = uiString(R.string.notice_sync_both, syncPushNotice(summary))) }
+                    updateState(noticeType = syncPushToastType(summary)) {
+                        it.copy(notice = uiString(R.string.notice_sync_both, syncPushNotice(summary)))
+                    }
                     refreshMemos()
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
@@ -870,7 +918,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         val resetFilter = mode == MemoViewMode.Calendar &&
             state.value.memoListFilter != MemoListFilter.Unarchived
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
@@ -906,7 +954,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         searchJob?.cancel()
-        _state.update {
+        updateState {
             it.copy(
                 memoListFilter = filter,
                 memos = emptyList(),
@@ -926,7 +974,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun changeCalendarMonth(delta: Int) {
-        _state.update {
+        updateState {
             val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
             it.copy(
                 calendarYear = next.year,
@@ -937,7 +985,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun selectCalendarDate(date: String) {
-        _state.update { it.copy(selectedCalendarDate = date) }
+        updateState { it.copy(selectedCalendarDate = date) }
     }
 
     fun saveMemo() {
@@ -946,7 +994,9 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (current.draftContent.isBlank()) {
-            _state.update { it.copy(error = uiString(R.string.error_record_empty)) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_record_empty))
+            }
             return
         }
         launchBusy {
@@ -964,7 +1014,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
             applyMemo(saved)
-            _state.update {
+            updateState {
                 val history = if (it.screenHistory.lastOrNull() == Screen.MemoDetail) {
                     it.screenHistory.dropLast(1)
                 } else {
@@ -1003,7 +1053,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.deleteMemo(memo)
             }
             applyMemo(deleted)
-            _state.update {
+            updateState {
                 it.copy(
                     screen = Screen.Memos,
                     screenHistory = emptyList(),
@@ -1036,7 +1086,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.setMemoFavorited(memo, memo.favoritedAt == null)
             }
             applyMemo(updated)
-            _state.update {
+            updateState {
                 it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
             }
         }
@@ -1055,7 +1105,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.setMemoArchived(memo, memo.archivedAt == null)
             }
             applyMemo(updated)
-            _state.update {
+            updateState {
                 it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
             }
         }
@@ -1069,7 +1119,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.setMemoFavorited(memo, memo.favoritedAt == null)
             }
             applyMemo(updated)
-            _state.update {
+            updateState {
                 it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
             }
         }
@@ -1083,7 +1133,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.setMemoArchived(memo, memo.archivedAt == null)
             }
             applyMemo(updated)
-            _state.update {
+            updateState {
                 it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
             }
         }
@@ -1097,7 +1147,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 api.deleteMemo(memo)
             }
             applyMemo(deleted)
-            _state.update {
+            updateState {
                 it.copy(
                     selectedMemo = if (it.selectedMemo?.id == memo.id) null else it.selectedMemo,
                     selectedSummary = if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
@@ -1116,27 +1166,27 @@ class SillageViewModel(context: Context) : ViewModel() {
         val memo = current.selectedMemo ?: return
         if (isOfflineMode()) {
             viewModelScope.launch {
-                _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
+                updateState { it.copy(summaryLoading = true, error = null, notice = null) }
                 try {
                     val profile = localDataStore.activeAIProfile()
                         ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
                     val ai = localAiClient.summarizeMemo(profile, memo)
                     localDataStore.saveMemoAI(ai)
-                    _state.update {
+                    updateState {
                         it.copy(selectedSummary = ai, summaryLoading = false, notice = uiString(R.string.notice_summary_generated))
                     }
                 } catch (error: Throwable) {
-                    _state.update { it.copy(summaryLoading = false, error = error.readableMessage()) }
+                    updateState { it.copy(summaryLoading = false, error = error.readableMessage()) }
                 }
             }
             return
         }
         val memoId = memo.id
         viewModelScope.launch {
-            _state.update { it.copy(summaryLoading = true, error = null, notice = null) }
+            updateState { it.copy(summaryLoading = true, error = null, notice = null) }
             runCatching { api.generateMemoSummary(memo) }
                 .onSuccess { ai ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.selectedMemo?.id == memoId) {
                             current.copy(
                                 selectedSummary = ai,
@@ -1149,7 +1199,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.selectedMemo?.id == memoId) {
                             current.copy(
                                 summaryLoading = false,
@@ -1172,11 +1222,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (isOfflineMode()) {
-            _state.update { it.copy(error = uiString(R.string.error_attachment_online_required)) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_attachment_online_required))
+            }
             return
         }
         val editorSessionId = current.editorSessionId
-        _state.update {
+        updateState {
             if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
                 it.copy(uploadingAttachment = true, error = null, notice = null)
             } else {
@@ -1197,7 +1249,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { snippets ->
-                    _state.update {
+                    updateState {
                         if (it.canApplyAttachmentUpload(editorSessionId)) {
                             it.copy(
                                 draftContent = it.draftContent + snippets,
@@ -1210,7 +1262,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         if (it.canApplyAttachmentUpload(editorSessionId)) {
                             it.copy(
                                 uploadingAttachment = false,
@@ -1226,7 +1278,9 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun openProtectedAttachment(target: MarkdownLinkTarget.ProtectedAttachment) {
         if (isOfflineMode()) {
-            _state.update { it.copy(error = uiString(R.string.error_attachment_open_online_required), notice = null) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_attachment_open_online_required), notice = null)
+            }
             return
         }
         val current = state.value
@@ -1234,7 +1288,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         val requestId = current.attachmentOpenRequestId + 1
-        _state.update {
+        updateState {
             if (it.openingAttachmentPath == null) {
                 it.copy(
                     openingAttachmentPath = target.path,
@@ -1277,7 +1331,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 clearAttachmentOpenRequest(requestId)
                 throw error
             } catch (error: Throwable) {
-                _state.update {
+                updateState {
                     if (it.canHandleAttachmentOpen(requestId)) {
                         it.copy(
                             openingAttachmentPath = null,
@@ -1302,7 +1356,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun onAttachmentOpenFailed(requestId: Long, message: String) {
-        _state.update {
+        updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
                 it.copy(
                     openingAttachmentPath = null,
@@ -1316,7 +1370,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun addAIProfile() {
-        _state.update {
+        updateState {
             it.copy(
                 aiProfiles = it.aiProfiles + AIProfileDraft(active = it.aiProfiles.isEmpty()),
             )
@@ -1330,7 +1384,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         val nextProfiles = currentProfiles.filterIndexed { i, _ -> i != index }
         viewModelScope.launch {
-            _state.update {
+            updateState {
                 it.copy(
                     aiProfiles = nextProfiles,
                     aiSettingsSaving = true,
@@ -1340,7 +1394,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             runCatching { persistAIProfiles(nextProfiles) }
                 .onSuccess { savedProfiles ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
@@ -1351,7 +1405,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiProfiles = currentProfiles,
                             aiSettingsSaving = false,
@@ -1409,7 +1463,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             profile.copy(enabled = true, active = i == index)
         }
         viewModelScope.launch {
-            _state.update {
+            updateState {
                 it.copy(
                     aiProfiles = nextProfiles,
                     aiSettingsSaving = true,
@@ -1419,7 +1473,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             runCatching { persistAIProfiles(nextProfiles) }
                 .onSuccess { savedProfiles ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
@@ -1430,7 +1484,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiProfiles = currentProfiles,
                             aiSettingsSaving = false,
@@ -1443,7 +1497,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun setAISettingsAutoSummary(enabled: Boolean) {
         val request = state.value.nextAIAutoSummaryRequest(enabled) ?: return
-        _state.update { current ->
+        updateState { current ->
             val started = current.startAIAutoSummaryRequest(request)
             if (started.canApplyAIAutoSummaryRequest(request)) {
                 started.copy(error = null, notice = null)
@@ -1460,7 +1514,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             try {
                 val savedValue = persistAIAutoSummary(request)
-                _state.update { current ->
+                updateState { current ->
                     if (current.canApplyAIAutoSummaryRequest(request)) {
                         current.completeAIAutoSummaryRequest(request, savedValue).copy(
                             error = null,
@@ -1475,7 +1529,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update { current ->
+                updateState { current ->
                     if (current.canApplyAIAutoSummaryRequest(request)) {
                         current.failAIAutoSummaryRequest(request).copy(
                             error = error.readableMessage(),
@@ -1493,9 +1547,10 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAIAutoSummarySave()
         val mode = state.value.appMode
         val loadRequestId = state.value.aiAutoSummaryRequestId + 1
-        _state.update {
+        updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 aiSettingsLoading = true,
+                aiSettingsLoadError = null,
                 error = null,
                 notice = null,
             )
@@ -1519,7 +1574,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { settings ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (
                             current.appMode == mode &&
                             current.aiAutoSummaryRequestId == loadRequestId &&
@@ -1529,6 +1584,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                                 aiProfiles = settings.profiles,
                                 aiAutoSummary = settings.autoSummary,
                                 aiSettingsLoading = false,
+                                aiSettingsLoadError = null,
                                 aiTestResults = emptyMap(),
                                 aiModelResults = emptyMap(),
                                 error = null,
@@ -1539,15 +1595,17 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (
                             current.appMode == mode &&
                             current.aiAutoSummaryRequestId == loadRequestId &&
                             current.aiSettingsLoading
                         ) {
+                            val message = error.readableMessage()
                             current.copy(
                                 aiSettingsLoading = false,
-                                error = error.readableMessage(),
+                                aiSettingsLoadError = message,
+                                error = message,
                             )
                         } else {
                             current
@@ -1561,7 +1619,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val draftProfiles = state.value.aiProfiles
         val blankNameIndex = firstBlankAIProfileNameIndex(draftProfiles)
         if (blankNameIndex != null) {
-            _state.update {
+            updateState(forceFeedback = true) {
                 it.copy(
                     error = uiString(R.string.error_ai_profile_name_required, blankNameIndex + 1),
                     notice = null,
@@ -1571,10 +1629,10 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         val profiles = normalizedAIProfiles(draftProfiles)
         viewModelScope.launch {
-            _state.update { it.copy(aiSettingsSaving = true, error = null, notice = null) }
+            updateState { it.copy(aiSettingsSaving = true, error = null, notice = null) }
             runCatching { persistAIProfiles(profiles) }
                 .onSuccess { savedProfiles ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiProfiles = savedProfiles,
                             aiSettingsSaving = false,
@@ -1585,7 +1643,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             aiSettingsSaving = false,
                             error = error.readableMessage(),
@@ -1641,7 +1699,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val profile = state.value.aiProfiles.getOrNull(index) ?: return
         val key = profile.uiKey(index)
         viewModelScope.launch {
-            _state.update { it.copy(aiTestingProfileId = key, error = null, notice = null) }
+            updateState { it.copy(aiTestingProfileId = key, error = null, notice = null) }
             try {
                 val model = if (isOfflineMode()) {
                     localAiClient.testConnection(profile)
@@ -1650,17 +1708,23 @@ class SillageViewModel(context: Context) : ViewModel() {
                 } else {
                     api.testAIConnection(profile.id)
                 }
-                _state.update {
+                val message = uiString(R.string.notice_ai_test_success, model)
+                updateState {
                     it.copy(
                         aiTestingProfileId = "",
-                        aiTestResults = it.aiTestResults + (key to uiString(R.string.ai_test_success, model)),
+                        aiTestResults = it.aiTestResults + (key to message),
+                        error = null,
+                        notice = message,
                     )
                 }
             } catch (error: Throwable) {
-                _state.update {
+                val message = error.readableMessage()
+                updateState {
                     it.copy(
                         aiTestingProfileId = "",
-                        aiTestResults = it.aiTestResults + (key to error.readableMessage()),
+                        aiTestResults = it.aiTestResults + (key to message),
+                        error = message,
+                        notice = null,
                     )
                 }
             }
@@ -1671,28 +1735,41 @@ class SillageViewModel(context: Context) : ViewModel() {
         val profile = state.value.aiProfiles.getOrNull(index) ?: return
         val key = profile.uiKey(index)
         if (isOfflineMode()) {
-            _state.update { it.copy(aiTestResults = it.aiTestResults + (key to uiString(R.string.ai_models_offline))) }
+            val message = uiString(R.string.error_ai_models_offline)
+            updateState(forceFeedback = true) {
+                it.copy(
+                    aiTestResults = it.aiTestResults + (key to message),
+                    error = message,
+                    notice = null,
+                )
+            }
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(aiLoadingModelsProfileId = key, error = null, notice = null) }
+            updateState { it.copy(aiLoadingModelsProfileId = key, error = null, notice = null) }
             runCatching { api.listAIModels(profile.toInput()) }
                 .onSuccess { models ->
-                    _state.update {
+                    val message = uiString(
+                        if (models.isEmpty()) R.string.notice_ai_models_empty else R.string.notice_ai_models_loaded,
+                    )
+                    updateState {
                         it.copy(
                             aiLoadingModelsProfileId = "",
                             aiModelResults = it.aiModelResults + (key to models),
-                            aiTestResults = it.aiTestResults + (
-                                key to uiString(if (models.isEmpty()) R.string.ai_models_empty else R.string.ai_models_loaded)
-                            ),
+                            aiTestResults = it.aiTestResults + (key to message),
+                            error = null,
+                            notice = message,
                         )
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    val message = error.readableMessage()
+                    updateState {
                         it.copy(
                             aiLoadingModelsProfileId = "",
-                            aiTestResults = it.aiTestResults + (key to error.readableMessage()),
+                            aiTestResults = it.aiTestResults + (key to message),
+                            error = message,
+                            notice = null,
                         )
                     }
                 }
@@ -1706,7 +1783,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         val screenSessionId = requestState.askScreenSessionId
         val appMode = requestState.appMode
-        _state.update { current ->
+        updateState { current ->
             if (
                 !current.askLoading &&
                 !current.askSending &&
@@ -1714,7 +1791,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                 current.askScreenSessionId == screenSessionId &&
                 current.appMode == appMode
             ) {
-                current.copy(askLoading = true, error = null, notice = null)
+                current.copy(
+                    askLoading = true,
+                    askLoadError = null,
+                    error = null,
+                    notice = null,
+                )
             } else {
                 current
             }
@@ -1731,11 +1813,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { conversations ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.askScreenSessionId == screenSessionId && current.appMode == appMode) {
                             current.copy(
                                 askConversations = conversations.filter(AskConversation::isActive),
                                 askLoading = false,
+                                askLoadError = null,
                                 error = null,
                             )
                         } else {
@@ -1744,11 +1827,13 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (current.askScreenSessionId == screenSessionId && current.appMode == appMode) {
+                            val message = error.readableMessage()
                             current.copy(
                                 askLoading = false,
-                                error = error.readableMessage(),
+                                askLoadError = message,
+                                error = message,
                             )
                         } else {
                             current
@@ -1769,13 +1854,14 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         val conversation = state.value.askConversations.find { it.id == id }
-        _state.update {
+        updateState {
             it.copy(
                 activeAskId = id,
                 askHeadId = conversation?.headMessageId,
                 askMessages = emptyList(),
                 askScope = conversation?.contextScope ?: it.askScope,
                 askLoading = true,
+                askLoadError = null,
                 askVariantRequestId = it.askVariantRequestId + 1,
                 askVariantLoading = false,
                 askSourceRequestId = it.askSourceRequestId + 1,
@@ -1793,11 +1879,12 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { messages ->
-                    _state.update {
+                    updateState {
                         if (it.activeAskId == id) {
                             it.copy(
                                 askMessages = messages,
                                 askLoading = false,
+                                askLoadError = null,
                             )
                         } else {
                             it
@@ -1805,9 +1892,14 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         if (it.activeAskId == id) {
-                            it.copy(askLoading = false, error = error.readableMessage())
+                            val message = error.readableMessage()
+                            it.copy(
+                                askLoading = false,
+                                askLoadError = message,
+                                error = message,
+                            )
                         } else {
                             it
                         }
@@ -1825,7 +1917,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         ) {
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 activeAskId = "",
                 askHeadId = null,
@@ -1846,21 +1938,32 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateAskQuestion(value: String) {
-        _state.update { it.copy(askQuestion = value) }
+        updateState { it.copy(askQuestion = value) }
     }
 
     fun updateAskScope(value: String) {
-        _state.update { it.copy(askScope = value) }
+        updateState { it.copy(askScope = value) }
     }
 
     fun updateAskSourceKind(value: String) {
-        _state.update { it.copy(askSourceKind = value) }
+        updateState { it.copy(askSourceKind = value) }
+    }
+
+    fun retryAskLoad() {
+        val current = state.value
+        if (current.activeAskId.isNotBlank() && current.askMessages.isEmpty()) {
+            selectAskConversation(current.activeAskId)
+        } else {
+            loadAskConversations()
+        }
     }
 
     fun sendAskQuestion() {
         val question = state.value.askQuestion.trim()
         if (question.isBlank()) {
-            _state.update { it.copy(error = uiString(R.string.error_ask_question_required)) }
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_ask_question_required))
+            }
             return
         }
         startAskStream(content = question, forkOfId = null)
@@ -1875,7 +1978,11 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun stopAskStreaming() {
-        askStreamJob?.cancel()
+        val job = askStreamJob?.takeIf { it.isActive } ?: return
+        updateState {
+            it.withAskStreamingStoppedNotice(uiString(R.string.notice_ask_generation_stopped))
+        }
+        job.cancel()
     }
 
     fun selectAskVariant(messageId: String) {
@@ -1883,7 +1990,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val request = current.nextAskVariantRequest() ?: return
         val leafId = askBranchLeafId(current.askMessages, messageId)
         val previousHeadId = current.askHeadId
-        _state.update {
+        updateState {
             if (it.nextAskVariantRequest() == request) {
                 it.copy(
                     askHeadId = leafId,
@@ -1929,7 +2036,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching {
                 if (isOfflineMode()) {
                     localDataStore.createMemo(content, LocalDate.now().toString())
@@ -1939,7 +2046,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
                 .onSuccess { memo ->
                     applyMemo(memo)
-                    _state.update {
+                    updateState {
                         it.copy(
                             screen = Screen.MemoDetail,
                             screenHistory = it.historyFor(Screen.MemoDetail),
@@ -1955,15 +2062,15 @@ class SillageViewModel(context: Context) : ViewModel() {
                     refreshMemos()
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.readableMessage()) }
+                    updateState { it.copy(error = error.readableMessage()) }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
     fun openAskSourceMemo(memoId: String) {
         val request = state.value.nextAskSourceNavigationRequest(memoId) ?: return
-        _state.update { current ->
+        updateState { current ->
             if (current.nextAskSourceNavigationRequest(request.memoId) == request) {
                 current.copy(
                     askSourceRequestId = request.requestId,
@@ -1987,7 +2094,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { detail ->
-                    _state.update { current ->
+                    updateState { current ->
                         if (!current.canApplyAskSourceNavigation(request)) {
                             if (current.askSourceRequestId == request.requestId) {
                                 current.copy(askSourceLoading = false)
@@ -2021,7 +2128,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         when {
                             current.canApplyAskSourceNavigation(request) -> current.copy(
                                 askSourceLoading = false,
@@ -2036,7 +2143,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun closeMemoDetail() {
-        _state.update {
+        updateState {
             val navigation = it.backNavigation(Screen.Memos)
             it.copy(
                 screen = navigation.screen,
@@ -2055,7 +2162,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (!state.value.canRunMemoEditorAction()) {
             return
         }
-        _state.update {
+        updateState {
             val navigation = it.backNavigation(
                 if (it.selectedMemo == null) Screen.Memos else Screen.MemoDetail,
             )
@@ -2084,7 +2191,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun AIProfileDraft.uiKey(index: Int): String = id.ifBlank { "new-$index" }
 
     private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {
-        _state.update {
+        updateState {
             it.copy(
                 aiProfiles = it.aiProfiles.mapIndexed { i, profile ->
                     if (i == index) transform(profile) else profile
@@ -2180,7 +2287,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun cancelAttachmentOpen() {
         attachmentOpenJob?.cancel()
         attachmentOpenJob = null
-        _state.update { it.copy(openingAttachmentPath = null) }
+        updateState { it.copy(openingAttachmentPath = null) }
     }
 
     private fun cancelMemoPageLoad() {
@@ -2188,7 +2295,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             loadMoreMemosJob?.cancel()
             loadMoreMemosJob = null
         }
-        _state.update {
+        updateState {
             it.copy(
                 loadingMoreMemos = false,
                 memoPageRequestId = it.memoPageRequestId + 1,
@@ -2197,7 +2304,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun cancelAskVariant() {
-        _state.update {
+        updateState {
             it.copy(
                 askVariantLoading = false,
                 askVariantRequestId = it.askVariantRequestId + 1,
@@ -2206,7 +2313,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun completeAskVariantSelection(request: AskVariantRequest, leafId: String) {
-        _state.update { current ->
+        updateState { current ->
             if (current.canApplyAskVariant(request)) {
                 current.copy(
                     askHeadId = leafId,
@@ -2230,7 +2337,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         previousHeadId: String?,
         error: Throwable,
     ) {
-        _state.update { current ->
+        updateState { current ->
             if (current.canApplyAskVariant(request)) {
                 current.copy(
                     askHeadId = previousHeadId,
@@ -2246,7 +2353,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun cancelAskStream() {
         askStreamJob?.cancel()
         askStreamJob = null
-        _state.update {
+        updateState {
             it.copy(
                 askSending = false,
                 askStreaming = false,
@@ -2259,7 +2366,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun clearAttachmentOpenRequest(requestId: Long) {
-        _state.update {
+        updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
                 it.copy(openingAttachmentPath = null)
             } else {
@@ -2283,7 +2390,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private fun fetchSelectedMemoDetail(memoId: String) {
         val request = state.value.nextMemoDetailRequest(memoId) ?: return
-        _state.update { current -> current.startMemoDetailRequest(request) }
+        updateState { current -> current.startMemoDetailRequest(request) }
         if (state.value.memoDetailRequestId != request.requestId) {
             return
         }
@@ -2296,10 +2403,10 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { detail ->
-                    _state.update { current -> current.completeMemoDetailRequest(request, detail) }
+                    updateState { current -> current.completeMemoDetailRequest(request, detail) }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    updateState { current ->
                         current.failMemoDetailRequest(request, error.readableMessage())
                     }
                 }
@@ -2348,7 +2455,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val contextScope = current.askScope
         val sourceKind = current.askSourceKind
         val regeneratingId = forkOfId.orEmpty()
-        _state.update {
+        updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
                 it.copy(
                     askSending = true,
@@ -2381,7 +2488,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     val created = api.createAskConversation(contextScope)
                     val createdRequest = request.copy(conversationId = created.id)
                     conversationId = created.id
-                    _state.update { currentState ->
+                    updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
                                 activeAskId = created.id,
@@ -2406,7 +2513,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     sourceKind = sourceKind,
                     forkOfId = forkOfId,
                     onStart = { userMessage, regenerate ->
-                        _state.update { currentState ->
+                        updateState { currentState ->
                             if (currentState.canApplyAskStream(request)) {
                                 currentState.copy(
                                     askStreaming = true,
@@ -2419,7 +2526,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                         }
                     },
                     onDelta = { text ->
-                        _state.update { currentState ->
+                        updateState { currentState ->
                             if (currentState.canApplyAskStream(request)) {
                                 currentState.copy(askLiveAnswer = currentState.askLiveAnswer + text)
                             } else {
@@ -2428,7 +2535,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                         }
                     },
                     onError = { message ->
-                        _state.update { currentState ->
+                        updateState { currentState ->
                             if (currentState.canApplyAskStream(request)) {
                                 currentState.copy(error = IllegalStateException(message).readableMessage())
                             } else {
@@ -2440,7 +2547,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             } catch (cancelled: CancellationException) {
                 // Stop is user-initiated; the server persists whatever streamed before cancellation.
             } catch (error: Throwable) {
-                _state.update { currentState ->
+                updateState { currentState ->
                     if (currentState.canApplyAskStream(request)) {
                         currentState.copy(error = error.readableMessage())
                     } else {
@@ -2452,7 +2559,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     if (conversationId.isNotBlank() && state.value.canApplyAskStream(request)) {
                         runCatching { reloadAskConversation(conversationId) }
                             .onSuccess { snapshot ->
-                                _state.update { currentState ->
+                                updateState { currentState ->
                                     if (currentState.canApplyAskStream(request)) {
                                         currentState.copy(
                                             askMessages = snapshot.messages,
@@ -2465,7 +2572,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                                 }
                             }
                     }
-                    _state.update { currentState ->
+                    updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
                                 askQuestion = if (forkOfId == null && currentState.error == null) "" else currentState.askQuestion,
@@ -2502,7 +2609,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     val created = localDataStore.createAskConversation(contextScope)
                     val createdRequest = request.copy(conversationId = created.id)
                     conversationId = created.id
-                    _state.update { currentState ->
+                    updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
                                 activeAskId = created.id,
@@ -2554,7 +2661,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 )
                 val refreshedMessages = localDataStore.listAskMessages(conversationId)
                 val conversations = localDataStore.listAskConversations().filter(AskConversation::isActive)
-                _state.update { currentState ->
+                updateState { currentState ->
                     if (currentState.canApplyAskStream(request)) {
                         currentState.copy(
                             askMessages = refreshedMessages,
@@ -2569,7 +2676,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             } catch (cancelled: CancellationException) {
                 // The local request was stopped or superseded.
             } catch (error: Throwable) {
-                _state.update { currentState ->
+                updateState { currentState ->
                     if (currentState.canApplyAskStream(request)) {
                         currentState.copy(error = error.readableMessage())
                     } else {
@@ -2577,7 +2684,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                 }
             }
-            _state.update { currentState ->
+            updateState { currentState ->
                 if (currentState.canApplyAskStream(request)) {
                     currentState.copy(
                         askSending = false,
@@ -2598,17 +2705,17 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     private fun launchBusy(block: suspend () -> Unit) {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, notice = null) }
+            updateState { it.copy(loading = true, error = null, notice = null) }
             runCatching { block() }
                 .onFailure { error ->
-                    _state.update {
+                    updateState {
                         it.copy(
                             screen = if (it.screen == Screen.Loading) Screen.Server else it.screen,
                             error = error.readableMessage(),
                         )
                     }
                 }
-            _state.update { it.copy(loading = false) }
+            updateState { it.copy(loading = false) }
         }
     }
 
@@ -2616,7 +2723,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelAIAutoSummarySave()
         val filter = state.value.memoListFilter
         val memos = memosForFilter(localDataStore.listMemos(), filter)
-        _state.update {
+        updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_OFFLINE,
                 initialized = true,
@@ -2631,7 +2738,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 uploadingAttachment = false,
                 aiAutoSummary = localDataStore.autoSummaryEnabled(),
                 aiSettingsLoading = false,
+                aiSettingsLoadError = null,
                 askLoading = false,
+                askLoadError = null,
                 searchQuery = "",
                 searchResults = null,
                 searching = false,
@@ -2661,7 +2770,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
         searchJob?.cancel()
         searchJob = null
-        _state.update { current -> current.applyMemoToCache(memo) }
+        updateState { current -> current.applyMemoToCache(memo) }
     }
 
     private suspend fun listOnlineMemos(
@@ -2685,7 +2794,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
 
     private fun openEditorForMemo(memo: Memo) {
-        _state.update {
+        updateState {
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
@@ -2767,6 +2876,7 @@ internal data class AttachmentOpenEvent(
 
 private const val OPEN_ATTACHMENTS_CACHE_DIRECTORY = "open_attachments"
 private const val ATTACHMENT_DOWNLOAD_TEMP_FILENAME = "download.tmp"
+private const val TOAST_EVENT_BUFFER_CAPACITY = 8
 private val HAN_CHARACTER = Regex("[\\u4E00-\\u9FFF]")
 
 private data class ImportedDataResult(
@@ -2785,6 +2895,52 @@ private data class MemoListSnapshot(
     val memos: List<Memo>,
     val nextCursor: String,
 )
+
+internal fun syncPushToastType(summary: SyncPushSummary): UiToastType {
+    return if (summary.conflict > 0 || summary.rejected > 0) {
+        UiToastType.WARNING
+    } else {
+        UiToastType.SUCCESS
+    }
+}
+
+internal data class SignOutFeedback(
+    val noticeResourceId: Int?,
+    val errorResourceId: Int?,
+)
+
+internal fun signOutFeedback(
+    offlineMode: Boolean,
+    remoteSignOutFailed: Boolean,
+): SignOutFeedback {
+    return when {
+        offlineMode -> SignOutFeedback(
+            noticeResourceId = R.string.notice_online_session_cleared,
+            errorResourceId = null,
+        )
+        remoteSignOutFailed -> SignOutFeedback(
+            noticeResourceId = null,
+            errorResourceId = R.string.error_sign_out_local_only,
+        )
+        else -> SignOutFeedback(
+            noticeResourceId = R.string.notice_signed_out,
+            errorResourceId = null,
+        )
+    }
+}
+
+internal suspend fun performSignOut(
+    offlineMode: Boolean,
+    remoteSignOut: suspend () -> Unit,
+    clearLocalSession: () -> Unit,
+): SignOutFeedback {
+    val remoteSignOutFailed = !offlineMode && runCatching { remoteSignOut() }.isFailure
+    clearLocalSession()
+    return signOutFeedback(
+        offlineMode = offlineMode,
+        remoteSignOutFailed = remoteSignOutFailed,
+    )
+}
 
 internal data class MemoApiQuery(
     val archived: Boolean?,

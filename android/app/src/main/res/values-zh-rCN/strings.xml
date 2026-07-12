@@ -269,10 +269,15 @@
     <plurals name="quantity_lines"><item quantity="other">%d 行</item></plurals>
     <plurals name="quantity_tokens"><item quantity="other">%d tokens</item></plurals>
 
+    <string name="action_retry">重试</string>
     <string name="error_server_required">请先填写服务器地址。</string>
     <string name="notice_offline_enabled">已切换到离线模式。</string>
+    <string name="notice_connected">已连接服务器。</string>
+    <string name="notice_account_initialized">账号已创建。</string>
+    <string name="notice_signed_in">已登录。</string>
     <string name="notice_online_session_cleared">已清除在线登录信息。</string>
     <string name="notice_signed_out">已退出登录。</string>
+    <string name="error_sign_out_local_only">已清除本机登录信息，但服务器退出失败；其他会话可能仍处于登录状态。</string>
     <string name="error_export_write">无法写入导出文件。</string>
     <string name="notice_exported">完整数据已导出。</string>
     <string name="error_import_read">无法读取导入文件。</string>
@@ -299,11 +304,12 @@
     <string name="notice_auto_summary_on">已开启自动总结。</string>
     <string name="notice_auto_summary_off">已关闭自动总结。</string>
     <string name="notice_ai_profiles_saved">AI 档案已保存。</string>
-    <string name="ai_test_success">连接成功（%1$s）</string>
-    <string name="ai_models_offline">离线模式无法获取云端模型列表。</string>
-    <string name="ai_models_empty">没有可用模型。</string>
-    <string name="ai_models_loaded">已获取模型列表。</string>
+    <string name="notice_ai_test_success">连接成功（%1$s）</string>
+    <string name="error_ai_models_offline">离线模式无法获取云端模型列表。</string>
+    <string name="notice_ai_models_empty">没有可用模型。</string>
+    <string name="notice_ai_models_loaded">已获取模型列表。</string>
     <string name="error_ask_question_required">先写下要问的问题。</string>
+    <string name="notice_ask_generation_stopped">已停止生成，已生成内容会保留。</string>
     <string name="notice_ask_saved_record">已存为记录。</string>
     <string name="sync_none">没有需要同步到云端的记录。</string>
     <string name="sync_summary">同步到云端：成功 %1$d，冲突 %2$d，失败 %3$d</string>

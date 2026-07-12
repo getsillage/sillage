@@ -305,10 +305,15 @@
     </plurals>
     <string name="quantity_joiner" translatable="false">%1$s · %2$s</string>
 
+    <string name="action_retry">Retry</string>
     <string name="error_server_required">Enter a server address first.</string>
     <string name="notice_offline_enabled">Switched to Offline mode.</string>
+    <string name="notice_connected">Connected to the server.</string>
+    <string name="notice_account_initialized">Account created.</string>
+    <string name="notice_signed_in">Signed in.</string>
     <string name="notice_online_session_cleared">Online sign-in details cleared.</string>
     <string name="notice_signed_out">Signed out.</string>
+    <string name="error_sign_out_local_only">This device\'s sign-in was cleared, but the server sign-out failed. Other sessions may still be active.</string>
     <string name="error_export_write">Could not write the export file.</string>
     <string name="notice_exported">All data exported.</string>
     <string name="error_import_read">Could not read the import file.</string>
@@ -335,11 +340,12 @@
     <string name="notice_auto_summary_on">Automatic summaries enabled.</string>
     <string name="notice_auto_summary_off">Automatic summaries disabled.</string>
     <string name="notice_ai_profiles_saved">AI profiles saved.</string>
-    <string name="ai_test_success">Connection successful (%1$s)</string>
-    <string name="ai_models_offline">Cloud model lists are unavailable in Offline mode.</string>
-    <string name="ai_models_empty">No models available.</string>
-    <string name="ai_models_loaded">Model list loaded.</string>
+    <string name="notice_ai_test_success">Connection successful (%1$s)</string>
+    <string name="error_ai_models_offline">Cloud model lists are unavailable in Offline mode.</string>
+    <string name="notice_ai_models_empty">No models available.</string>
+    <string name="notice_ai_models_loaded">Model list loaded.</string>
     <string name="error_ask_question_required">Write a question first.</string>
+    <string name="notice_ask_generation_stopped">Generation stopped. Any generated content has been kept.</string>
     <string name="notice_ask_saved_record">Saved as a record.</string>
     <string name="sync_none">No records need to be synced to the server.</string>
     <string name="sync_summary" tools:ignore="PluralsCandidate">Server sync: %1$d succeeded, %2$d conflicted, %3$d failed</string>

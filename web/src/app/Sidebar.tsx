@@ -98,12 +98,14 @@ export function Sidebar({
   const {
     conversations,
     loadingConversations,
+    conversationsLoadError,
     activeId,
     busy,
     streaming,
     selectConversation,
     startNew,
     listConversations,
+    retryConversations,
     setConversationArchived,
   } = useAsk();
   const onAskPage = location.pathname === "/ask";
@@ -143,11 +145,20 @@ export function Sidebar({
     ? remoteConversations
     : conversations;
   const listLoading = remoteListActive ? loadingRemote : loadingConversations;
+  const listError = remoteListActive ? remoteError : conversationsLoadError;
   activeIdRef.current = activeId;
   pathnameRef.current = location.pathname;
   routeConversationRef.current = new URLSearchParams(location.search).get(
     "conversation",
   );
+
+  function retryList() {
+    if (remoteListActive) {
+      setRetryGeneration((current) => current + 1);
+      return;
+    }
+    retryConversations();
+  }
 
   useEffect(() => {
     void locale;
@@ -551,14 +562,14 @@ export function Sidebar({
               <div className="h-3 w-4/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-3/5 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
             </div>
-          ) : remoteError && visibleConversations.length === 0 ? (
+          ) : listError && visibleConversations.length === 0 ? (
             <div className="space-y-2 px-3 py-2 text-sm">
               <p role="alert" className="text-red-600 dark:text-red-400">
-                {remoteError}
+                {listError}
               </p>
               <button
                 type="button"
-                onClick={() => setRetryGeneration((current) => current + 1)}
+                onClick={retryList}
                 className="rounded-md text-gray-600 text-xs transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
               >
                 {t("common.retry")}
@@ -574,17 +585,17 @@ export function Sidebar({
             </p>
           ) : (
             <>
-              {remoteError ? (
+              {listError ? (
                 <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs">
                   <p
                     role="alert"
                     className="min-w-0 flex-1 text-red-600 dark:text-red-400"
                   >
-                    {remoteError}
+                    {listError}
                   </p>
                   <button
                     type="button"
-                    onClick={() => setRetryGeneration((current) => current + 1)}
+                    onClick={retryList}
                     className="flex-none rounded-md text-gray-600 transition hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
                   >
                     {t("common.retry")}

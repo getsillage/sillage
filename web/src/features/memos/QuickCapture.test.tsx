@@ -3,14 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasUnsavedChanges } from "../../components/UnsavedNavigationGuard";
+import { I18nProvider } from "../../i18n/I18nProvider";
 import { QuickCapture } from "./QuickCapture";
 
 function renderQuickCapture(onCapture = vi.fn().mockResolvedValue(undefined)) {
   const user = userEvent.setup();
   const view = render(
-    <MemoryRouter>
-      <QuickCapture onCapture={onCapture} />
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter>
+        <QuickCapture onCapture={onCapture} />
+      </MemoryRouter>
+    </I18nProvider>,
   );
   return { user, onCapture, ...view };
 }
@@ -45,10 +48,14 @@ describe("QuickCapture", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
     expect(screen.getByText("想记录什么？")).toBeInTheDocument();
     expect(onCapture).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "关闭通知" }));
 
     await user.type(screen.getByPlaceholderText("想记录什么？"), "新的一条");
     await user.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(onCapture).toHaveBeenCalledWith("新的一条"));
+    expect(
+      (await screen.findByText("速记已保存")).closest('[role="status"]'),
+    ).toBeInTheDocument();
   });
 
   it("ignores repeated save shortcuts while a capture is pending", async () => {

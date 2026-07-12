@@ -37,6 +37,14 @@ Page headings and control labels must match the scale of their containers. Narro
 - Transient failures preserve loaded content and user input and offer a manual retry. They must not appear as an empty or missing state.
 - Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
+- Transient operation feedback uses the global Toast queue. Successful writes,
+  state changes, uploads, and non-recoverable action errors must not add local
+  notification blocks inside feature layouts.
+- Error Toasts take priority over routine success and informational feedback;
+  they may replace the currently visible routine Toast and stay visible longer.
+- Loading and search failures with a retry action, field validation, version
+  conflicts, unsaved-change protection, and destructive confirmation remain in
+  context; they must not rely on an auto-closing Toast alone.
 
 ## Accessibility and Responsive Behavior
 

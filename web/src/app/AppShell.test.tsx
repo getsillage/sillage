@@ -10,17 +10,14 @@ const { askState } = vi.hoisted(() => ({
   askState: {
     conversations: [] as AskConversation[],
     loadingConversations: false,
+    conversationsLoadError: "",
     activeId: "",
     busy: false,
     streaming: false,
-    notification: null as {
-      kind: "success" | "error";
-      message: string;
-    } | null,
-    dismissNotification: vi.fn(),
     selectConversation: vi.fn(),
     startNew: vi.fn(),
     listConversations: vi.fn(),
+    retryConversations: vi.fn(),
     setConversationArchived: vi.fn(),
   },
 }));
@@ -108,10 +105,10 @@ beforeEach(() => {
   document.body.style.overflow = "";
   askState.conversations = [];
   askState.loadingConversations = false;
+  askState.conversationsLoadError = "";
   askState.activeId = "";
   askState.busy = false;
   askState.streaming = false;
-  askState.notification = null;
   askState.listConversations.mockResolvedValue([]);
   askState.setConversationArchived.mockResolvedValue(undefined);
 });
@@ -246,6 +243,19 @@ describe("AppShell mobile navigation", () => {
 });
 
 describe("AppShell Ask navigation", () => {
+  it("shows the initial conversation-list error instead of an empty list", async () => {
+    askState.conversationsLoadError = "问答列表读取失败：网络异常";
+    const user = renderShell();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "问答列表读取失败：网络异常",
+    );
+    expect(screen.queryByText("还没有问答。")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(askState.retryConversations).toHaveBeenCalledTimes(1);
+  });
+
   it("clears the search and closes it with Escape", async () => {
     const user = renderShell();
 

@@ -1,6 +1,7 @@
 import { Paperclip } from "lucide-react";
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { Markdown } from "../../components/Markdown";
+import { useToast } from "../../components/Toast";
 import { subtleButtonClass, textareaClass } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { UploadedAttachment } from "./MemosContext";
@@ -35,6 +36,7 @@ export function MarkdownEditor({
   disabled = false,
 }: MarkdownEditorProps) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const [preview, setPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -84,10 +86,18 @@ export function MarkdownEditor({
       if (appended) {
         insertAtCursor(appended);
       }
+      toast.showToast({
+        kind: "success",
+        message: t(
+          list.length === 1 ? "editor.uploadedOne" : "editor.uploadedMany",
+          { count: list.length },
+        ),
+      });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t("editor.uploadFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("editor.uploadFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       uploadingRef.current = false;
       setUploading(false);
@@ -197,7 +207,7 @@ export function MarkdownEditor({
         </div>
       ) : null}
 
-      {error ? (
+      {error && !toast.available ? (
         <p className="border-gray-200 border-t px-3 py-2 text-red-600 text-sm dark:border-gray-800 dark:text-red-400">
           {error}
         </p>

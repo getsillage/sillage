@@ -58,7 +58,6 @@ import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.canRunMemoEditorAction
-import app.sillage.ui.common.MessageBlock
 import app.sillage.ui.hasUnsavedMemoDraft
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -242,7 +241,6 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        MessageBlock(state.error, state.notice)
                         MemoStatusLine(state.selectedMemo)
                         OutlinedTextField(
                             value = state.draftEntryDate,

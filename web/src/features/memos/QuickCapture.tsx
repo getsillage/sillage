@@ -1,6 +1,7 @@
 import { ArrowRight, Plus, Save, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useToast } from "../../components/Toast";
 import { useUnsavedChangesRegistration } from "../../components/UnsavedNavigationGuard";
 import {
   ghostLinkClass,
@@ -43,6 +44,7 @@ function writeDraft(body: string): void {
  */
 export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState(readDraft);
   const [busy, setBusy] = useState(false);
@@ -147,7 +149,9 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
     }
     const trimmed = body.trim();
     if (!trimmed) {
-      setError(t("quick.prompt"));
+      const message = t("quick.prompt");
+      setError(message);
+      toast.showToast({ kind: "info", message });
       return;
     }
     submittingRef.current = true;
@@ -158,10 +162,12 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
       writeDraft("");
       setBody("");
       setOpen(false);
+      toast.showToast({ kind: "success", message: t("quick.saved") });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t("composer.saveFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("composer.saveFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       submittingRef.current = false;
       setBusy(false);
@@ -246,7 +252,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                 placeholder={t("quick.prompt")}
                 className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 focus:ring-0 dark:bg-gray-950`}
               />
-              {error ? (
+              {error && !toast.available ? (
                 <p
                   role="alert"
                   className="text-red-600 text-xs dark:text-red-400"

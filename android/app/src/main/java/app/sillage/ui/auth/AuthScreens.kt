@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.common.MessageBlock
 
 @Composable
 internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -399,7 +398,6 @@ private fun AuthScaffold(
                         }
                     }
                 }
-                MessageBlock(state.error, state.notice)
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     content()
                 }

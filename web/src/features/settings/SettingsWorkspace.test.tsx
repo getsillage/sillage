@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastProvider } from "../../components/Toast";
 import type { AIProfile } from "../../lib/api";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 
@@ -75,6 +76,14 @@ function renderSettings() {
   return render(<SettingsWorkspace token="t" />);
 }
 
+function renderSettingsWithToast() {
+  return render(
+    <ToastProvider>
+      <SettingsWorkspace token="t" />
+    </ToastProvider>,
+  );
+}
+
 describe("SettingsWorkspace", () => {
   async function openDefaultProfile(user: ReturnType<typeof userEvent.setup>) {
     await user.click(await screen.findByRole("button", { name: "配置" }));
@@ -119,7 +128,7 @@ describe("SettingsWorkspace", () => {
     expect(vi.mocked(patchAISettings).mock.calls[0][1]).not.toHaveProperty(
       "autoSummary",
     );
-    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
   });
 
   it("limits provider presets to Anthropic and OpenAI", async () => {
@@ -137,16 +146,28 @@ describe("SettingsWorkspace", () => {
 
   it("keeps a new unnamed profile as a draft until it has a name", async () => {
     const user = userEvent.setup();
-    renderSettings();
+    renderSettingsWithToast();
 
     await user.click(await screen.findByRole("button", { name: "新增档案" }));
-    expect(screen.getByRole("textbox", { name: "名称" })).toHaveValue("");
+    const nameInput = screen.getByRole("textbox", { name: "名称" });
+    expect(nameInput).toHaveValue("");
     await user.click(screen.getByRole("button", { name: "保存设置" }));
 
     expect(patchAISettings).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("请输入档案名称。");
+    expect(nameInput).toHaveAttribute("aria-invalid", "true");
+    const errorId = nameInput.getAttribute("aria-describedby");
+    expect(errorId).not.toBeNull();
+    expect(document.getElementById(errorId ?? "")).toHaveTextContent(
+      "请输入档案名称。",
+    );
+    expect(screen.getAllByText("请输入档案名称。")).toHaveLength(2);
     expect(screen.getByText("有未保存更改")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "名称" })).toHaveValue("");
+    expect(nameInput).toHaveValue("");
+
+    await user.type(nameInput, "工作档案");
+    expect(nameInput).not.toHaveAttribute("aria-invalid");
+    expect(nameInput).not.toHaveAttribute("aria-describedby");
+    expect(document.getElementById(errorId ?? "")).not.toBeInTheDocument();
   });
 
   it("keeps the save bar available after switching to appearance", async () => {
@@ -167,7 +188,7 @@ describe("SettingsWorkspace", () => {
     expect(screen.getByText("有未保存更改")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "保存设置" }));
 
-    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
     expect(screen.getByText("主题色")).toBeInTheDocument();
     expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles[0].name).toBe(
       "跨标签保存",
@@ -194,7 +215,7 @@ describe("SettingsWorkspace", () => {
     expect(window.dispatchEvent(dirtyUnload)).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "保存设置" }));
-    await screen.findByText("已保存");
+    await screen.findByText("AI 档案已保存");
     expect(screen.queryByText("有未保存更改")).not.toBeInTheDocument();
     const savedUnload = new Event("beforeunload", { cancelable: true });
     expect(window.dispatchEvent(savedUnload)).toBe(true);
@@ -246,7 +267,7 @@ describe("SettingsWorkspace", () => {
       profiles: [profile({ name: "保存快照" })],
       autoSummary: false,
     });
-    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "配置" }));
     expect(screen.getByDisplayValue("保存快照")).toBeEnabled();
   });
@@ -377,7 +398,7 @@ describe("SettingsWorkspace", () => {
     expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles[0].apiKey).toBe(
       "sk-new",
     );
-    expect(await screen.findByText("已保存")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
     expect(screen.queryByText("有未保存更改")).not.toBeInTheDocument();
     await openDefaultProfile(user);
     expect(screen.getByLabelText("API 密钥")).toHaveValue("");
@@ -463,7 +484,7 @@ describe("SettingsWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
     expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toEqual([]);
-    expect(await screen.findByText("已删除")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已删除")).toBeInTheDocument();
   });
 
   it("does not delete a saved profile while other settings are dirty", async () => {

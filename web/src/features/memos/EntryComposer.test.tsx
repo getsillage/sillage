@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { ToastProvider } from "../../components/Toast";
 import { I18nProvider } from "../../i18n/I18nProvider";
 import { EntryComposer } from "./EntryComposer";
 
@@ -41,6 +42,34 @@ describe("EntryComposer", () => {
     expect(onSubmit.mock.calls[0][0].content).toBe("今天写点东西");
   });
 
+  it("keeps save failures inline while also showing a toast", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValue(new Error("记录版本冲突，请刷新后重试"));
+    const { container } = renderEntryComposer(
+      <ToastProvider>
+        <EntryComposer
+          draftKey="memo:m1"
+          mode="edit"
+          initialContent="原始正文"
+          initialVersion={1}
+          onSubmit={onSubmit}
+          onUpload={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+
+    await user.type(screen.getByRole("textbox"), " 本地修改");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await within(container).findByRole("alert")).toHaveTextContent(
+      "记录版本冲突，请刷新后重试",
+    );
+    expect(screen.getAllByText("记录版本冲突，请刷新后重试")).toHaveLength(2);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it("clears stale feedback on language changes without losing the draft", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockRejectedValue(new Error("保存失败"));
@@ -77,7 +106,7 @@ describe("EntryComposer", () => {
 
     await user.click(screen.getByRole("button", { name: "中文" }));
     await user.click(screen.getByRole("button", { name: "保存" }));
-    expect(await screen.findByText("保存失败")).toBeInTheDocument();
+    expect(await screen.findAllByText("保存失败")).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "English" }));
     expect(screen.queryByText("保存失败")).not.toBeInTheDocument();

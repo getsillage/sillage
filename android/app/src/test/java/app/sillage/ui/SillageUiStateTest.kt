@@ -66,6 +66,27 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun stoppingAskKeepsGeneratedContentAndAddsFeedback() {
+        val streaming = editorState().copy(
+            screen = Screen.Ask,
+            askSending = true,
+            askStreaming = true,
+            askLiveAnswer = "已生成的部分",
+            error = "旧错误",
+        )
+
+        val stopped = streaming.withAskStreamingStoppedNotice("已停止生成")
+
+        assertEquals("已生成的部分", stopped.askLiveAnswer)
+        assertTrue(stopped.askSending)
+        assertTrue(stopped.askStreaming)
+        assertEquals(null, stopped.error)
+        assertEquals("已停止生成", stopped.notice)
+        val idle = streaming.copy(askSending = false)
+        assertEquals(idle, idle.withAskStreamingStoppedNotice("已停止生成"))
+    }
+
+    @Test
     fun memoPageRequestIsSingleFlightAndBoundToItsCursor() {
         val state = editorState().copy(
             screen = Screen.Memos,

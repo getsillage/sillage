@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useEffect, useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { useToast } from "../../components/Toast";
 import {
   helperTextClass,
   inputClass,
@@ -111,6 +112,7 @@ export function InitializePage({
 }) {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
+  const toast = useToast();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -127,10 +129,14 @@ export function InitializePage({
     setError("");
     try {
       const res = await initializeAccount({ username, displayName, password });
+      toast.showToast({ kind: "success", message: t("auth.initialized") });
       onDone(res.accessToken, res.account);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.initializeFailed"));
+      const message =
+        err instanceof Error ? err.message : t("auth.initializeFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       setBusy(false);
     }
@@ -168,7 +174,7 @@ export function InitializePage({
           onChange={setPassword}
           autoComplete="new-password"
         />
-        {error ? (
+        {error && !toast.available ? (
           <p role="alert" className="text-red-600 text-sm dark:text-red-400">
             {error}
           </p>
@@ -199,6 +205,7 @@ export function LoginPage({
 }) {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
+  const toast = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -214,10 +221,14 @@ export function LoginPage({
     setError("");
     try {
       const res = await signIn({ username, password });
+      toast.showToast({ kind: "success", message: t("auth.signedIn") });
       onDone(res.accessToken, res.account);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.loginFailed"));
+      const message =
+        err instanceof Error ? err.message : t("auth.loginFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       setBusy(false);
     }
@@ -245,7 +256,7 @@ export function LoginPage({
           onChange={setPassword}
           autoComplete="current-password"
         />
-        {error ? (
+        {error && !toast.available ? (
           <p role="alert" className="text-red-600 text-sm dark:text-red-400">
             {error}
           </p>

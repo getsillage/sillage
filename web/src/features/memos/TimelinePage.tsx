@@ -155,9 +155,9 @@ function useTimelineMemoList(filter: TimelineFilter) {
       setHasMore(Boolean(res.nextCursor));
     } catch (cause) {
       if (request === requestSeqRef.current) {
-        setError(
-          cause instanceof Error ? cause.message : t("records.loadFailed"),
-        );
+        const message =
+          cause instanceof Error ? cause.message : t("records.loadFailed");
+        setError(message);
       }
     } finally {
       if (request === requestSeqRef.current) {
@@ -301,11 +301,11 @@ function ListView({
         })
         .catch((cause) => {
           if (!cancelled) {
-            setSearchError(
+            const message =
               cause instanceof Error
                 ? cause.message
-                : t("timeline.searchFailed"),
-            );
+                : t("timeline.searchFailed");
+            setSearchError(message);
           }
         })
         .finally(() => {
@@ -652,9 +652,9 @@ function CalendarMonth({
       })
       .catch((cause) => {
         if (fullLoadRequestRef.current === request) {
-          setFullLoadError(
-            cause instanceof Error ? cause.message : t("records.loadAllFailed"),
-          );
+          const message =
+            cause instanceof Error ? cause.message : t("records.loadAllFailed");
+          setFullLoadError(message);
           setFullLoadState("error");
         }
       });

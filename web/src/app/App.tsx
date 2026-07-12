@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useToast } from "../components/Toast";
 import { AskProvider } from "../features/ask/AskContext";
 import { AskPage } from "../features/ask/AskPage";
 import {
@@ -44,6 +45,7 @@ function AuthedArea({
 
 export function App() {
   const { t } = useI18n();
+  const toast = useToast();
   const [bootstrap, setBootstrap] = useState<BootstrapState>("loading");
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState(() => getAccessToken());
@@ -111,8 +113,12 @@ export function App() {
   async function handleSignOut() {
     try {
       await signOut();
+      toast.showToast({ kind: "success", message: t("auth.signedOut") });
     } catch {
-      // Even if the request fails, drop local credentials and return to login.
+      toast.showToast({
+        kind: "error",
+        message: t("auth.signOutLocalOnly"),
+      });
     } finally {
       clearAccessToken();
     }

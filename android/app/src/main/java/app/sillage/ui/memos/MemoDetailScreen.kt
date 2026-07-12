@@ -55,7 +55,6 @@ import app.sillage.data.memoSummarySourceCount
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.common.MessageBlock
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 
@@ -173,17 +172,6 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (state.error != null || state.notice != null) {
-                item {
-                    MessageBlock(
-                        state.error,
-                        state.notice,
-                        modifier = Modifier
-                            .widthIn(max = 720.dp)
-                            .fillMaxWidth(),
-                    )
-                }
-            }
             item {
                 MemoDetailCard(
                     memo = memo,

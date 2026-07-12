@@ -1,6 +1,7 @@
 import { Check, Save } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useToast } from "../../components/Toast";
 import { UnsavedNavigationGuard } from "../../components/UnsavedNavigationGuard";
 import {
   dangerButtonClass,
@@ -129,6 +130,7 @@ export function EntryComposer({
   onCancel,
 }: EntryComposerProps) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const startingEntryDate = initialEntryDate ?? todayISO();
   const storageKey = storageKeyFor(draftKey);
   const baselineVersionRef = useRef(initialVersion ?? null);
@@ -168,6 +170,15 @@ export function EntryComposer({
   const submittingRef = useRef(false);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const feedbackLocaleRef = useRef(locale);
+  const restoredDraftToastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!restoredDraft || restoredDraftToastShownRef.current) {
+      return;
+    }
+    restoredDraftToastShownRef.current = true;
+    toast.showToast({ kind: "info", message: t("composer.restoredDraft") });
+  }, [restoredDraft, t, toast]);
 
   useEffect(() => {
     if (feedbackLocaleRef.current === locale) {
@@ -211,7 +222,9 @@ export function EntryComposer({
       return;
     }
     if (!content.trim()) {
-      setError(t("composer.submitRequired"));
+      const message = t("composer.submitRequired");
+      setError(message);
+      toast.showToast({ kind: "info", message });
       return;
     }
     submittingRef.current = true;
@@ -229,11 +242,14 @@ export function EntryComposer({
       } else {
         setBaseline({ content, entryDate });
       }
-      setNotice(t("composer.saved"));
+      const message = t("records.saved");
+      setNotice(message);
+      toast.showToast({ kind: "success", message });
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : t("composer.saveFailed"),
-      );
+      const message =
+        cause instanceof Error ? cause.message : t("composer.saveFailed");
+      setError(message);
+      toast.showToast({ kind: "error", message });
     } finally {
       submittingRef.current = false;
       setBusy(false);
@@ -324,7 +340,9 @@ export function EntryComposer({
               onClick={() => {
                 removeStoredDraft(storageKey);
                 setConflictingDraft(null);
-                setNotice(t("composer.keptServer"));
+                const message = t("composer.keptServer");
+                setNotice(message);
+                toast.showToast({ kind: "info", message });
               }}
             >
               {t("composer.keepServer")}
@@ -336,7 +354,9 @@ export function EntryComposer({
                 setContent(conflictingDraft.content);
                 setEntryDate(conflictingDraft.entryDate);
                 setConflictingDraft(null);
-                setNotice(t("composer.restoredConflictDraft"));
+                const message = t("composer.restoredConflictDraft");
+                setNotice(message);
+                toast.showToast({ kind: "info", message });
               }}
             >
               {t("composer.restoreDraft")}
@@ -346,9 +366,11 @@ export function EntryComposer({
       ) : null}
 
       {error ? (
-        <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
+        <p role="alert" className="text-red-600 text-sm dark:text-red-400">
+          {error}
+        </p>
       ) : null}
-      {notice ? (
+      {notice && !toast.available ? (
         <p
           role="status"
           className="inline-flex items-center gap-1.5 text-gray-500 text-sm dark:text-gray-400"

@@ -31,6 +31,9 @@ test("switch language and initialize the single account on a fresh instance", as
   await page.getByLabel("Username").fill("felix");
   await page.getByLabel("Password", { exact: true }).fill("a-strong-password");
   await page.getByRole("button", { name: "Create and continue" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Account created" }),
+  ).toBeVisible();
   // After initialization the app shell (record composer) should appear.
   await expect(
     page.getByPlaceholder("Write what you want to remember..."),

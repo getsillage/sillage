@@ -56,6 +56,13 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 
 `app/` composes the features. Features may depend on shared `components/` and `lib/`; Ask may call the records feature to save an answer, but the records feature must not depend on Ask. `web/src/lib/api.ts` is the single transport client. API, routing, and browser-storage contracts may change only through explicit contract changes.
 
+`I18nProvider` also owns the Web Toast provider so initialization, sign-in, and
+authenticated routes share one bounded notification queue. Features publish
+transient operation feedback through that provider; persistent retry and
+confirmation state remains owned by the feature that can resolve it.
+Error feedback preempts routine success or informational feedback and is
+retained ahead of routine messages when the queue reaches its bound.
+
 ### Android Internal Boundaries
 
 | Path | Responsibility |
@@ -71,6 +78,14 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `android/app/src/main/res/values*/` | English and Simplified Chinese interface resources |
 
 `SillageApp` only composes the UI and hands attachments to external viewers. Feature screens depend on the root `SillageUiState`, `SillageViewModel`, and shared UI, while the state and data layers must not depend on feature screens. Manual sync, navigation history, request IDs, and online/offline modes are behavior contracts that span these directories and must be preserved.
+
+Android transient feedback is emitted once by `SillageViewModel` and consumed
+by the top-level Toast host in `SillageApp`. Feature screens do not render a
+second copy of global error or notice messages; durable retry, conflict, and
+confirmation state remains part of the relevant screen.
+The event channel is bounded, new events replace the active Toast, warning and
+error feedback stays visible longer, and language changes discard buffered
+messages from the previous locale.
 
 ## Core Invariants
 

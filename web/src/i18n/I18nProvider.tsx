@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ToastProvider } from "../components/Toast";
 import {
   isLocale,
   type Locale,
@@ -85,7 +86,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale, setLocale, t],
   );
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={value}>
+      <ToastProvider closeLabel={t("toast.close")}>{children}</ToastProvider>
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): I18nContextValue {

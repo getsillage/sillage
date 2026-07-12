@@ -78,7 +78,6 @@ import app.sillage.R
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.common.MessageBlock
 import app.sillage.ui.navigation.MainNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,11 +116,6 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            MessageBlock(
-                error = state.error,
-                notice = state.notice,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
             if (state.aiSettingsLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -132,6 +126,14 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
+                    state.aiSettingsLoadError?.let { message ->
+                        item(key = "ai-settings-load-error") {
+                            SettingsLoadErrorCard(
+                                message = message,
+                                onRetry = viewModel::loadAISettings,
+                            )
+                        }
+                    }
                     item {
                         SettingsOverviewCard(state)
                     }
@@ -316,6 +318,35 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsLoadErrorCard(message: String, onRetry: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                message,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(
+                onClick = onRetry,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.action_retry))
             }
         }
     }

@@ -19,6 +19,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { Markdown } from "../../components/Markdown";
+import { useToast } from "../../components/Toast";
 import {
   ghostLinkClass,
   primaryButtonClass,
@@ -56,13 +57,17 @@ const QUESTION_SUGGESTION_KEYS: TranslationKey[] = [
 
 export function AskPage() {
   const { t } = useI18n();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const conversationParam = searchParams.get("conversation");
   const {
     activeConversation,
     activeId,
     entries,
+    loadingConversations,
+    conversationsLoadError,
     loadingMessages,
+    messagesLoadError,
     liveUser,
     liveAnswer,
     regeneratingId,
@@ -74,6 +79,8 @@ export function AskPage() {
     setScope,
     setSourceKind,
     selectConversation,
+    retryConversations,
+    retryMessages,
     send,
     regenerate,
     selectVariant,
@@ -179,6 +186,15 @@ export function AskPage() {
       </header>
 
       <div className="flex-1 space-y-7 pt-5 pb-36">
+        {conversationsLoadError && activeId ? (
+          <AskLoadError
+            compact
+            title={t("ask.conversationsLoadTitle")}
+            message={conversationsLoadError}
+            retryLabel={t("ask.retryConversations")}
+            onRetry={retryConversations}
+          />
+        ) : null}
         {loadingMessages ? (
           <p
             className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
@@ -187,6 +203,33 @@ export function AskPage() {
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
             {t("ask.loadingConversation")}
           </p>
+        ) : messagesLoadError ? (
+          <AskLoadError
+            title={t("ask.messagesLoadTitle")}
+            message={messagesLoadError}
+            retryLabel={t("ask.retryMessages")}
+            onRetry={retryMessages}
+          />
+        ) : !activeId && loadingConversations ? (
+          <div className="mx-auto flex min-h-[46vh] w-full max-w-xl items-center justify-center">
+            <p
+              className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
+              role="status"
+            >
+              <LoaderCircle
+                className="h-4 w-4 animate-spin"
+                aria-hidden="true"
+              />
+              {t("ask.loading")}
+            </p>
+          </div>
+        ) : !activeId && conversationsLoadError ? (
+          <AskLoadError
+            title={t("ask.conversationsLoadTitle")}
+            message={conversationsLoadError}
+            retryLabel={t("ask.retryConversations")}
+            onRetry={retryConversations}
+          />
         ) : entries.length === 0 && !liveUser ? (
           <div className="mx-auto flex min-h-[46vh] w-full max-w-xl items-center justify-center">
             <div className="w-full space-y-3 text-center sm:space-y-5">
@@ -304,7 +347,7 @@ export function AskPage() {
             placeholder={t("ask.placeholder")}
             className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 focus:ring-0 dark:bg-transparent`}
           />
-          {error ? (
+          {error && !toast.available ? (
             <p
               role="alert"
               className="px-3 text-red-600 text-sm dark:text-red-400"
@@ -350,6 +393,48 @@ export function AskPage() {
   );
 }
 
+function AskLoadError({
+  title,
+  message,
+  retryLabel,
+  onRetry,
+  compact = false,
+}: {
+  title: string;
+  message: string;
+  retryLabel: string;
+  onRetry: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className={
+        compact
+          ? "flex flex-wrap items-center justify-between gap-3 border-gray-200 border-y py-3 dark:border-gray-800"
+          : "mx-auto flex min-h-[46vh] w-full max-w-xl flex-col items-center justify-center"
+      }
+    >
+      <div className={compact ? "min-w-0" : "text-center"}>
+        <p className="font-medium text-gray-900 text-sm dark:text-gray-50">
+          {title}
+        </p>
+        <p role="alert" className="mt-1 text-red-600 text-sm dark:text-red-400">
+          {message}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className={`${secondaryButtonClass} ${compact ? "flex-none" : "mt-4"}`}
+      >
+        <RefreshCw className="h-4 w-4" aria-hidden="true" />
+        {retryLabel}
+      </button>
+    </section>
+  );
+}
+
 export function shouldShowLiveUser(
   entries: ActiveEntry[],
   liveUser: { id: string } | null,
@@ -376,6 +461,7 @@ function MessageBubble({
   onSelectVariant,
 }: MessageBubbleProps) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const { create } = useMemos();
   const navigate = useNavigate();
   const location = useLocation();
@@ -418,12 +504,17 @@ function MessageBubble({
         entryDate: todayISO(),
       });
       setSaved(true);
+      toast.showToast({
+        kind: "success",
+        message: t("ask.savedAsRecord"),
+      });
       navigate(`/entries/${memo.id}`, { state: { returnTo } });
     } catch (cause) {
       setSaving(false);
-      setSaveError(
-        cause instanceof Error ? cause.message : t("ask.saveFailed"),
-      );
+      const errorMessage =
+        cause instanceof Error ? cause.message : t("ask.saveFailed");
+      setSaveError(errorMessage);
+      toast.showToast({ kind: "error", message: errorMessage });
     }
   }
 
@@ -536,7 +627,7 @@ function MessageBubble({
           ))}
         </div>
       ) : null}
-      {saveError ? (
+      {saveError && !toast.available ? (
         <p role="alert" className="mt-2 text-red-600 text-xs dark:text-red-400">
           {saveError}
         </p>

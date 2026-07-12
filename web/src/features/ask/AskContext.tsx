@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useToast } from "../../components/Toast";
 import { useI18n } from "../../i18n/I18nProvider";
 import {
   type AskContextScope,
@@ -27,7 +28,9 @@ import { type ActiveEntry, branchLeafId, buildActivePath } from "./askTree";
 interface AskContextValue {
   conversations: AskConversation[];
   loadingConversations: boolean;
+  conversationsLoadError: string;
   loadingMessages: boolean;
+  messagesLoadError: string;
   activeId: string;
   activeConversation: AskConversation | undefined;
   /** The active conversation path (one branch of the message tree). */
@@ -43,10 +46,6 @@ interface AskContextValue {
   busy: boolean;
   streaming: boolean;
   error: string;
-  notification: {
-    kind: "success" | "error";
-    message: string;
-  } | null;
   setScope: (scope: AskContextScope) => void;
   setSourceKind: (kind: AskSourceKind) => void;
   selectConversation: (id: string, conversation?: AskConversation) => void;
@@ -55,11 +54,12 @@ interface AskContextValue {
     options: { query?: string; archived: boolean },
     signal?: AbortSignal,
   ) => Promise<AskConversation[]>;
+  retryConversations: () => void;
+  retryMessages: () => void;
   setConversationArchived: (
     id: string,
     archived: boolean,
   ) => Promise<AskConversation>;
-  dismissNotification: () => void;
   send: (question: string) => Promise<boolean>;
   regenerate: (assistantId: string) => Promise<void>;
   selectVariant: (messageId: string) => Promise<void>;
@@ -76,9 +76,12 @@ export function AskProvider({
   children: ReactNode;
 }) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const [conversations, setConversations] = useState<AskConversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
+  const [conversationsLoadError, setConversationsLoadError] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messagesLoadError, setMessagesLoadError] = useState("");
   const [activeId, setActiveId] = useState("");
   const [activeSnapshot, setActiveSnapshot] = useState<AskConversation | null>(
     null,
@@ -90,10 +93,6 @@ export function AskProvider({
   const [busy, setBusy] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
-  const [notification, setNotification] = useState<{
-    kind: "success" | "error";
-    message: string;
-  } | null>(null);
   const [liveUser, setLiveUser] = useState<AskMessage | null>(null);
   const [liveAnswer, setLiveAnswer] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -102,41 +101,83 @@ export function AskProvider({
   const activeIdRef = useRef(activeId);
   const navigationGenerationRef = useRef(0);
   const conversationMutationGenerationRef = useRef(0);
+  const conversationListAbortRef = useRef<AbortController | null>(null);
+  const conversationListRequestRef = useRef(0);
+  const messagesRequestRef = useRef(0);
   const metadataRequestRef = useRef(0);
   const scopedConversationRef = useRef("");
   activeIdRef.current = activeId;
 
+  const reportError = useCallback(
+    (message: string) => {
+      setError(message);
+      toast.showToast({ kind: "error", message });
+    },
+    [toast],
+  );
+
   useEffect(() => {
     void locale;
     setError("");
-    setNotification(null);
-  }, [locale]);
+    setConversationsLoadError((current) =>
+      current ? t("ask.loadFailed") : current,
+    );
+    setMessagesLoadError((current) =>
+      current ? t("ask.messagesFailed") : current,
+    );
+  }, [locale, t]);
 
-  useEffect(() => {
+  const retryConversations = useCallback(() => {
+    const requestId = conversationListRequestRef.current + 1;
+    conversationListRequestRef.current = requestId;
+    conversationListAbortRef.current?.abort();
     const controller = new AbortController();
+    conversationListAbortRef.current = controller;
     const mutationGeneration = conversationMutationGenerationRef.current;
     setLoadingConversations(true);
+    setConversationsLoadError("");
     listAskConversations(token, {}, controller.signal)
       .then((res) => {
         if (
           !controller.signal.aborted &&
+          conversationListRequestRef.current === requestId &&
           conversationMutationGenerationRef.current === mutationGeneration
         ) {
           setConversations(res.conversations);
         }
       })
       .catch((err) => {
-        if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : t("ask.loadFailed"));
+        if (
+          !controller.signal.aborted &&
+          conversationListRequestRef.current === requestId
+        ) {
+          const message =
+            err instanceof Error ? err.message : t("ask.loadFailed");
+          setConversationsLoadError(message);
+          toast.showToast({ kind: "error", message });
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) {
+        if (
+          !controller.signal.aborted &&
+          conversationListRequestRef.current === requestId
+        ) {
           setLoadingConversations(false);
+          if (conversationListAbortRef.current === controller) {
+            conversationListAbortRef.current = null;
+          }
         }
       });
-    return () => controller.abort();
-  }, [token, t]);
+  }, [token, t, toast]);
+
+  useEffect(() => {
+    retryConversations();
+    return () => {
+      conversationListRequestRef.current += 1;
+      conversationListAbortRef.current?.abort();
+      conversationListAbortRef.current = null;
+    };
+  }, [retryConversations]);
 
   useEffect(() => {
     if (!activeId || scopedConversationRef.current === activeId) {
@@ -186,7 +227,7 @@ export function AskProvider({
           metadataRequestRef.current === requestId &&
           activeIdRef.current === conversationId
         ) {
-          setError(
+          reportError(
             cause instanceof Error ? cause.message : t("ask.metadataFailed"),
           );
         }
@@ -196,40 +237,76 @@ export function AskProvider({
       metadataRequestRef.current += 1;
       controller.abort();
     };
-  }, [activeId, activeSnapshot, conversations, loadingConversations, token, t]);
+  }, [
+    activeId,
+    activeSnapshot,
+    conversations,
+    loadingConversations,
+    token,
+    t,
+    reportError,
+  ]);
+
+  const loadMessages = useCallback(
+    (conversationId: string) => {
+      const requestId = messagesRequestRef.current + 1;
+      messagesRequestRef.current = requestId;
+      setMessagesLoadError("");
+      setMessages([]);
+      setLoadingMessages(true);
+      void listAskMessages(token, conversationId)
+        .then((res) => {
+          if (
+            messagesRequestRef.current === requestId &&
+            activeIdRef.current === conversationId
+          ) {
+            setMessages(res.messages);
+          }
+        })
+        .catch((err) => {
+          if (
+            messagesRequestRef.current === requestId &&
+            activeIdRef.current === conversationId
+          ) {
+            const message =
+              err instanceof Error ? err.message : t("ask.messagesFailed");
+            setMessagesLoadError(message);
+            toast.showToast({ kind: "error", message });
+          }
+        })
+        .finally(() => {
+          if (
+            messagesRequestRef.current === requestId &&
+            activeIdRef.current === conversationId
+          ) {
+            setLoadingMessages(false);
+          }
+        });
+    },
+    [token, t, toast],
+  );
+
+  const retryMessages = useCallback(() => {
+    const conversationId = activeIdRef.current;
+    if (conversationId) {
+      loadMessages(conversationId);
+    }
+  }, [loadMessages]);
 
   useEffect(() => {
     if (!activeId) {
+      messagesRequestRef.current += 1;
       setMessages([]);
       setHeadId(null);
+      setMessagesLoadError("");
       setLoadingMessages(false);
       return;
     }
-    let cancelled = false;
-    setMessages([]);
-    setLoadingMessages(true);
-    listAskMessages(token, activeId)
-      .then((res) => {
-        if (!cancelled) {
-          setMessages(res.messages);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : t("ask.messagesFailed"),
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingMessages(false);
-        }
-      });
+    loadMessages(activeId);
     return () => {
-      cancelled = true;
+      messagesRequestRef.current += 1;
     };
-  }, [token, activeId, t]);
+  }, [activeId, loadMessages]);
 
   const selectConversation = useCallback(
     (id: string, conversation?: AskConversation) => {
@@ -241,12 +318,14 @@ export function AskProvider({
       }
       navigationGenerationRef.current += 1;
       abortRef.current?.abort();
+      messagesRequestRef.current += 1;
       activeIdRef.current = id;
       setActiveId(id);
       setActiveSnapshot(
         conversation ?? conversations.find((item) => item.id === id) ?? null,
       );
       setMessages([]);
+      setMessagesLoadError("");
       setLoadingMessages(true);
       setHeadId(null);
       setLiveUser(null);
@@ -267,11 +346,13 @@ export function AskProvider({
   const startNew = useCallback(() => {
     navigationGenerationRef.current += 1;
     abortRef.current?.abort();
+    messagesRequestRef.current += 1;
     activeIdRef.current = "";
     scopedConversationRef.current = "";
     setActiveId("");
     setActiveSnapshot(null);
     setMessages([]);
+    setMessagesLoadError("");
     setHeadId(null);
     setLoadingMessages(false);
     setLiveUser(null);
@@ -298,6 +379,7 @@ export function AskProvider({
       }
       if (conversationMutationGenerationRef.current === mutationGeneration) {
         setConversations(convs.conversations);
+        setConversationsLoadError("");
       }
       if (activeIdRef.current === conversationId) {
         setMessages(msgs.messages);
@@ -338,7 +420,7 @@ export function AskProvider({
               }
             },
             onDelta: (text) => setLiveAnswer((prev) => prev + text),
-            onError: (message) => setError(message),
+            onError: reportError,
           },
           controller.signal,
         );
@@ -346,7 +428,7 @@ export function AskProvider({
         return true;
       } catch (cause) {
         if (!controller.signal.aborted) {
-          setError(
+          reportError(
             cause instanceof Error ? cause.message : t("ask.generateFailed"),
           );
         }
@@ -361,14 +443,14 @@ export function AskProvider({
         }
       }
     },
-    [token, scope, sourceKind, reload, t],
+    [token, scope, sourceKind, reload, t, reportError],
   );
 
   const send = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
       if (!trimmed) {
-        setError(t("ask.questionRequired"));
+        reportError(t("ask.questionRequired"));
         return false;
       }
       if (operationRef.current) {
@@ -407,14 +489,16 @@ export function AskProvider({
         }
         return await runStream(conversationId, { content: trimmed });
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : t("ask.sendFailed"));
+        reportError(
+          cause instanceof Error ? cause.message : t("ask.sendFailed"),
+        );
         return false;
       } finally {
         operationRef.current = false;
         setBusy(false);
       }
     },
-    [token, activeId, scope, runStream, t],
+    [token, activeId, scope, runStream, t, reportError],
   );
 
   const regenerate = useCallback(
@@ -446,17 +530,18 @@ export function AskProvider({
       try {
         await setAskHead(token, activeId, leaf);
       } catch (cause) {
-        setError(
+        reportError(
           cause instanceof Error ? cause.message : t("ask.switchBranchFailed"),
         );
       }
     },
-    [token, activeId, messages, t],
+    [token, activeId, messages, t, reportError],
   );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
-  }, []);
+    toast.showToast({ kind: "info", message: t("ask.stopped") });
+  }, [t, toast]);
 
   const listConversations = useCallback(
     async (
@@ -482,13 +567,13 @@ export function AskProvider({
             ? withoutUpdated
             : [response.conversation, ...withoutUpdated];
         });
-        setNotification({
+        toast.showToast({
           kind: "success",
           message: t(archived ? "ask.archived" : "ask.unarchived"),
         });
         return response.conversation;
       } catch (cause) {
-        setNotification({
+        toast.showToast({
           kind: "error",
           message:
             cause instanceof Error
@@ -500,10 +585,8 @@ export function AskProvider({
         throw cause;
       }
     },
-    [token, t],
+    [token, t, toast],
   );
-
-  const dismissNotification = useCallback(() => setNotification(null), []);
 
   const activeConversation = useMemo(
     () =>
@@ -520,7 +603,9 @@ export function AskProvider({
     () => ({
       conversations,
       loadingConversations,
+      conversationsLoadError,
       loadingMessages,
+      messagesLoadError,
       activeId,
       activeConversation,
       entries,
@@ -532,14 +617,14 @@ export function AskProvider({
       busy,
       streaming,
       error,
-      notification,
       setScope,
       setSourceKind,
       selectConversation,
       startNew,
       listConversations,
+      retryConversations,
+      retryMessages,
       setConversationArchived,
-      dismissNotification,
       send,
       regenerate,
       selectVariant,
@@ -548,7 +633,9 @@ export function AskProvider({
     [
       conversations,
       loadingConversations,
+      conversationsLoadError,
       loadingMessages,
+      messagesLoadError,
       activeId,
       activeConversation,
       entries,
@@ -560,12 +647,12 @@ export function AskProvider({
       busy,
       streaming,
       error,
-      notification,
       selectConversation,
       startNew,
       listConversations,
+      retryConversations,
+      retryMessages,
       setConversationArchived,
-      dismissNotification,
       send,
       regenerate,
       selectVariant,

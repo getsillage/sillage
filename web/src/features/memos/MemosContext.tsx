@@ -142,7 +142,9 @@ export function MemosProvider({
       if (seq !== refreshSeq.current) {
         return;
       }
-      setError(err instanceof Error ? err.message : t("records.loadFailed"));
+      const message =
+        err instanceof Error ? err.message : t("records.loadFailed");
+      setError(message);
     } finally {
       if (seq === refreshSeq.current) {
         setLoading(false);

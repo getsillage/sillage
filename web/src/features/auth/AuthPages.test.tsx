@@ -49,6 +49,29 @@ describe("InitializePage", () => {
     await user.click(screen.getByRole("button", { name: "创建并进入" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("tok", account));
   });
+
+  it("emits a toast for every repeated initialization failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initializeAccount).mockRejectedValue(new Error("账号创建失败"));
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <InitializePage onDone={vi.fn()} />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+    await user.type(screen.getByLabelText("账号"), "felix");
+    await user.type(screen.getByLabelText("密码"), "secret-pass");
+
+    await user.click(screen.getByRole("button", { name: "创建并进入" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("账号创建失败");
+
+    await user.click(screen.getByRole("button", { name: "创建并进入" }));
+    await waitFor(() => expect(initializeAccount).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: "关闭通知" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("账号创建失败");
+  });
 });
 
 describe("LoginPage", () => {
@@ -70,7 +93,32 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "English" }));
 
     expect(screen.getByLabelText("Username")).toHaveValue("felix");
-    expect(screen.getByRole("alert")).toHaveTextContent("Sign-in failed");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("用户名或密码错误")).not.toBeInTheDocument();
+  });
+
+  it("emits a toast for every repeated sign-in failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(signIn).mockRejectedValue(new Error("用户名或密码错误"));
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <LoginPage onDone={vi.fn()} />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+    await user.type(screen.getByLabelText("账号"), "felix");
+    await user.type(screen.getByLabelText("密码"), "wrong");
+
+    await user.click(screen.getByRole("button", { name: "登录" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "用户名或密码错误",
+    );
+
+    await user.click(screen.getByRole("button", { name: "登录" }));
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: "关闭通知" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("用户名或密码错误");
   });
 });

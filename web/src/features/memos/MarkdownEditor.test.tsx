@@ -6,6 +6,33 @@ import { I18nProvider } from "../../i18n/I18nProvider";
 import { MarkdownEditor } from "./MarkdownEditor";
 
 describe("MarkdownEditor locale feedback", () => {
+  it("shows a toast after inserting an attachment", async () => {
+    const user = userEvent.setup();
+    const onUpload = vi.fn().mockResolvedValue({
+      url: "/file/attachments/a1",
+      filename: "note.txt",
+      isImage: false,
+    });
+    const onChange = vi.fn();
+    const { container } = render(
+      <I18nProvider>
+        <MarkdownEditor value="正文" onChange={onChange} onUpload={onUpload} />
+      </I18nProvider>,
+    );
+    const fileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+
+    await user.upload(
+      fileInput as HTMLInputElement,
+      new File(["content"], "note.txt", { type: "text/plain" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent("附件已插入");
+    expect(onChange).toHaveBeenCalledWith(
+      expect.stringContaining("[note.txt](/file/attachments/a1)"),
+    );
+  });
+
   it("clears an upload error without changing editor content", async () => {
     const user = userEvent.setup();
     const onUpload = vi.fn().mockRejectedValue(new Error("上传失败"));

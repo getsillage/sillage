@@ -6,8 +6,6 @@ import {
   useState,
 } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { Toast } from "../components/Toast";
-import { useAsk } from "../features/ask/AskContext";
 import { useMemos } from "../features/memos/MemosContext";
 import { QuickCapture } from "../features/memos/QuickCapture";
 import { useI18n } from "../i18n/I18nProvider";
@@ -39,7 +37,6 @@ export function AppShell({
   const routeKey = `${location.pathname}?${location.search}`;
   const showQuickCapture = location.pathname !== "/ask";
   const memos = useMemos();
-  const { notification, dismissNotification } = useAsk();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer on any navigation
   useEffect(() => {
@@ -191,9 +188,6 @@ export function AppShell({
         <Outlet />
       </div>
       <QuickCapture visible={showQuickCapture} onCapture={handleCapture} />
-      {notification ? (
-        <Toast toast={notification} onClose={dismissNotification} />
-      ) : null}
     </div>
   );
 }

@@ -40,6 +40,7 @@ data class SillageUiState(
     val aiAutoSummarySaving: Boolean = false,
     val aiAutoSummaryRequestId: Long = 0,
     val aiSettingsLoading: Boolean = false,
+    val aiSettingsLoadError: String? = null,
     val aiSettingsSaving: Boolean = false,
     val aiTestingProfileId: String = "",
     val aiLoadingModelsProfileId: String = "",
@@ -53,6 +54,7 @@ data class SillageUiState(
     val askScope: String = "recent_30_days",
     val askSourceKind: String = "records",
     val askLoading: Boolean = false,
+    val askLoadError: String? = null,
     val askSending: Boolean = false,
     val askStreaming: Boolean = false,
     val askStreamRequestId: Long = 0,
@@ -103,6 +105,13 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
     return openingAttachmentPath != null && attachmentOpenRequestId == requestId
+}
+
+internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {
+    if (!askSending) {
+        return this
+    }
+    return copy(error = null, notice = message)
 }
 
 internal data class MemoDetailRequest(

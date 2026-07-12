@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Sillage is designed to run with Docker on a single machine. The service itself provides HTTP only; public access must be placed behind an HTTPS reverse proxy or Tunnel.
+Sillage is designed to run with Docker on a single machine. The service itself provides HTTP only; access from public networks requires a separately operated HTTPS entry point. Public ingress, TLS, DNS, tunneling, CDNs, and other edge-network services are outside the Sillage product and repository. This guide defines only Sillage's listening and forwarded-header contract and does not provide third-party connectors or vendor-specific deployment steps.
 
 ## Docker
 
@@ -43,7 +43,7 @@ export SILLAGE_REVISION="$REVISION"
 docker compose -f scripts/compose.yaml up -d --build sillage
 ```
 
-To allow trusted devices on a local network to connect directly, explicitly set `SILLAGE_HOST_PORT=5231` and configure the host firewall at the same time. Public deployments should remain bound to the loopback address, with a reverse proxy or Tunnel accessing the container network.
+To allow trusted devices on a local network to connect directly, explicitly set `SILLAGE_HOST_PORT=5231` and configure the host firewall at the same time. Public deployments should remain bound to the loopback address, with the separately managed HTTPS entry point reaching that port through an operator-controlled network path.
 
 Common operations:
 
@@ -57,9 +57,9 @@ Compose defaults `SILLAGE_HOST_PORT` to `127.0.0.1:5231`; it controls only the h
 
 After changing the port binding, run `docker compose -f scripts/compose.yaml up -d sillage` again to recreate the existing container, then use `docker compose -f scripts/compose.yaml ps` to confirm the publish address. Changing the YAML alone does not alter a running container.
 
-## First-Time Initialization and Public Exposure
+## First-Time Initialization and External Access
 
-The account-creation endpoint does not require authentication on an uninitialized instance, and an instance accepts only its first account. Keep the default loopback port initially and create the account by opening `http://localhost:5231` from a local browser. Configure a reverse proxy, local-network port, or Tunnel only after confirming the account. Never expose an uninitialized instance directly to the public internet.
+The account-creation endpoint does not require authentication on an uninitialized instance, and an instance accepts only its first account. Keep the default loopback port initially and create the account by opening `http://localhost:5231` from a local browser. Configure any external entry point or local-network port only after confirming the account. Never expose an uninitialized instance directly to the public internet.
 
 Check the initialization status locally:
 
@@ -112,9 +112,9 @@ Identify a running binary with `./sillage --version`. Container images also incl
 
 The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
 
-## Reverse Proxy and Tunnel
+## External HTTPS Entry Point
 
-The proxy should terminate TLS and overwrite the following request headers supplied by the client:
+The operator-managed entry point should terminate TLS and overwrite the following request headers supplied by the client:
 
 ```text
 X-Forwarded-Proto
@@ -122,16 +122,7 @@ X-Forwarded-Host
 X-Forwarded-For
 ```
 
-Do not simply append untrusted forwarding headers. Sillage uses `X-Forwarded-Proto` to decide whether to mark Cookies as Secure and uses `X-Forwarded-For` for sign-in rate limiting. Only the proxy should be able to reach the backend port.
-
-Compose provides an optional Cloudflare Tunnel connector. First create the account as described in "First-Time Initialization and Public Exposure," then start the connector separately. Compose waits for the bootstrap status to become initialized before starting the Tunnel:
-
-```bash
-CLOUDFLARED_TOKEN=... \
-  docker compose -f scripts/compose.yaml --profile tunnel up -d cloudflared
-```
-
-The service address in Cloudflare should point to `http://sillage:5231`. This profile does not create a hostname or ingress automatically, and it does not remove Sillage's host port mapping.
+Do not simply append untrusted forwarding headers. Sillage uses `X-Forwarded-Proto` to decide whether to mark Cookies as Secure and uses `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
 
 ## Probes and Upgrades
 

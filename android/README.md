@@ -10,7 +10,7 @@ Start the Sillage service and make sure the phone can reach its address:
 
 - From an emulator to the host: `http://10.0.2.2:5231`
 - From a physical device to a host on the LAN: for example, `http://192.168.1.10:5231`
-- For a public instance: use an HTTPS reverse proxy or Tunnel address
+- For a public instance: use the HTTPS address of its operator-managed external entry point
 
 Both online and offline modes support records, calendar, search, favorites, archives, AI settings, summaries, and Ask. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
 

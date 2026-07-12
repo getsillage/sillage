@@ -7,17 +7,17 @@ This document records the stable boundaries that must be preserved when changing
 Protected assets include records, attachments, Ask history, account credentials, login sessions, AI API keys, and runtime secrets. The primary boundaries are:
 
 ```text
-Web / Android -> HTTPS proxy or trusted LAN -> Sillage -> SQLite / attachments
-                                                |
-                                                +-> configured AI provider
+Web / Android -> operator-managed HTTPS entry point or trusted LAN -> Sillage -> SQLite / attachments
+                                                                       |
+                                                                       +-> configured AI provider
 ```
 
-Sillage itself serves HTTP only. A reverse proxy or tunnel is responsible for public TLS, sanitizing forwarded headers, and isolating the backend port. The host, complete data directory, external secrets, and custom AI provider are all trust domains explicitly selected by the operator.
+Sillage itself serves HTTP only. A separately operated HTTPS entry point is responsible for public TLS, sanitizing forwarded headers, and isolating the backend port. Public ingress, DNS, tunneling, CDNs, and other edge-network services remain outside the product and repository; Sillage does not ship connectors or vendor-specific configuration for them. The host, complete data directory, external secrets, and custom AI provider are all trust domains explicitly selected by the operator.
 
 ## Authentication and Sessions
 
 - An instance may create only one non-deleted account. The initialization check and write must remain in the same transaction.
-- The initialization endpoint is unauthenticated before the instance has an account. Deployment documentation must require initialization on a loopback address and confirmation of bootstrap state before exposing a proxy, tunnel, or LAN port. An uninitialized instance must never be exposed directly to the public Internet.
+- The initialization endpoint is unauthenticated before the instance has an account. Deployment documentation must require initialization on a loopback address and confirmation of bootstrap state before exposing an external entry point or LAN port. An uninitialized instance must never be exposed directly to the public Internet.
 - Passwords are stored only as derived hashes and must never appear in logs, responses, or sync data.
 - Access tokens are signed by the server and expire after 15 minutes. Refresh tokens are stored only as hashes, expire after 30 days, and rotate on refresh. Signing out revokes the refresh session, but an already issued access token remains usable until it expires.
 - Cookies must retain `HttpOnly` and `SameSite=Lax`. They must also use `Secure` under TLS or trusted `X-Forwarded-Proto: https`.

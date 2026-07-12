@@ -6,6 +6,8 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Android is a separate client that accesses the same instance through REST and can also store data offline on the device.
 
+Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
+
 ```text
 Web SPA -------- REST / SSE --------┐
 Android -------- REST --------------+--> Echo adapters --> service / route orchestration --> Store --> SQLite

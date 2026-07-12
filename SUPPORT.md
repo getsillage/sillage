@@ -21,6 +21,6 @@ Sillage is a self-hosted open-source project without an official hosted service 
 
 - Public support is limited to sanitized information. Maintainers cannot inspect private instances, records, databases, attachments, secrets, or backups.
 - Sillage has no built-in password recovery, and data recovery depends on a valid backup. Follow the documented backup and restore procedures before upgrades or migrations.
-- Questions about custom reverse proxies, tunnels, AI providers, operating systems, or networks may require support from those upstream projects.
+- Public ingress, TLS, DNS, tunneling, CDNs, operating systems, and networks are managed outside this repository; questions about them may require support from their upstream projects. The same applies to custom AI providers.
 - Older releases are not guaranteed to receive separate fixes or troubleshooting.
 - Do not use public Issues for security vulnerabilities, conduct reports, or sensitive incident details.

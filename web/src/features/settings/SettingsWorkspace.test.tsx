@@ -122,6 +122,19 @@ describe("SettingsWorkspace", () => {
     expect(await screen.findByText("已保存")).toBeInTheDocument();
   });
 
+  it("limits provider presets to Anthropic and OpenAI", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await openDefaultProfile(user);
+    const providerSelect = screen.getByRole("combobox", { name: "服务商" });
+    expect(
+      within(providerSelect)
+        .getAllByRole("option")
+        .map((option) => option.getAttribute("value")),
+    ).toEqual(["anthropic", "openai"]);
+  });
+
   it("keeps a new unnamed profile as a draft until it has a name", async () => {
     const user = userEvent.setup();
     renderSettings();

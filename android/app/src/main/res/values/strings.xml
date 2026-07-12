@@ -253,7 +253,7 @@
     <string name="settings_profile_name">Name</string>
     <string name="error_ai_profile_name_required">AI profile %1$d needs a name before it can be saved.</string>
     <string name="settings_provider" translatable="false">Provider</string>
-    <string name="settings_provider_placeholder" translatable="false">anthropic / openai / workers-ai</string>
+    <string name="settings_provider_placeholder" translatable="false">anthropic / openai</string>
     <string name="settings_base_url" translatable="false">Base URL</string>
     <string name="settings_model">Model</string>
     <string name="settings_models_loading">Loading</string>

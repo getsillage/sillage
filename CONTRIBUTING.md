@@ -51,6 +51,8 @@ All participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). Neve
 ## Change Rules
 
 - Preserve Sillage's boundary as a private, single-user space for records. Do not introduce multi-user features, public sharing, social features, tags, tasks, or knowledge base functionality.
+- Keep public ingress, TLS, DNS, tunneling, CDNs, and edge-network services outside this repository. Do not add third-party network connectors, credentials, editor tooling, or vendor-specific deployment paths.
+- Keep AI services associated with edge-network platforms behind operator-configured compatible endpoints. Do not add named provider presets, adapters, or defaults for them.
 - Modify only the files needed to complete the current task. Update documentation alongside any feature, contract, configuration, or architecture change.
 - The backend, database, Proto, and API use `memo`; English user-facing documentation and copy use `record`; the Simplified Chinese UI uses `记录`.
 - Do not edit `proto/gen/` or `server/router/frontend/dist/` directly.

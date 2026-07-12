@@ -10,8 +10,6 @@
 .env.*
 **/.env
 **/.env.*
-.dev.vars
-.wrangler/
 /.claude/
 /.thumbnail_cache/
 

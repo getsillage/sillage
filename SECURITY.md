@@ -21,7 +21,7 @@ Security fixes target the latest release and `main`; older versions are not guar
 
 ## Deployment Responsibilities
 
-- Sillage provides HTTP only. Public access must use a trusted reverse proxy or Tunnel to provide HTTPS.
+- Sillage provides HTTP only. Public access must use an operator-managed HTTPS entry point configured outside this repository.
 - The data directory and backups do not have an additional layer of full at-rest encryption. Restrict host permissions and protect data in transit.
 - Do not commit `SESSION_SECRET`, `ENCRYPTION_SECRET`, AI API keys, or databases to the repository.
 - Read the [Deployment Guide](docs/user/deployment.md) and [Data, Backup, and Recovery](docs/user/data.md) before exposing the port.

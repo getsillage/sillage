@@ -37,7 +37,7 @@ body:
       options:
         - Installation or upgrade
         - Docker or Compose
-        - Reverse proxy or Tunnel
+        - Deployment networking
         - Web interface
         - Android app
         - AI provider configuration

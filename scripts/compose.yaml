@@ -28,11 +28,3 @@ services:
       timeout: 3s
       retries: 12
       start_period: 10s
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
-    profiles: ["tunnel"]
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-}
-    depends_on:
-      sillage:
-        condition: service_healthy

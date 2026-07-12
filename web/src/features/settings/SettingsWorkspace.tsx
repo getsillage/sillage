@@ -34,7 +34,6 @@ import {
 const PROVIDER_OPTIONS = [
   { value: "anthropic", label: "Anthropic Claude" },
   { value: "openai", label: "OpenAI" },
-  { value: "workers-ai", label: "Cloudflare Workers AI" },
 ];
 
 // Local editing copy: apiKeyInput holds a freshly typed key (empty keeps the

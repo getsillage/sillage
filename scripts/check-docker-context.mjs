@@ -19,7 +19,6 @@ const requiredDockerRules = [
   ".env.*",
   "**/.env",
   "**/.env.*",
-  ".dev.vars",
   "/.claude/",
   "/.thumbnail_cache/",
   "/assets/attachments/",

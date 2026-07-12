@@ -19,6 +19,10 @@ The product should be private, clear, concrete, easy to understand, and suitable
 
 Tags, public sharing, reactions, relations, public discovery, RSS, and sitemaps are outside the current product scope.
 
+Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services are operator-owned infrastructure outside the product and repository. Sillage remains vendor-neutral and does not ship third-party network connectors, credentials, or vendor-specific deployment paths.
+
+AI services associated with edge-network platforms may be reached only through operator-configured compatible endpoints. They do not receive named provider presets, adapters, defaults, or platform-specific behavior in Sillage.
+
 ## Core Concepts
 
 | English | Simplified Chinese UI | Meaning |

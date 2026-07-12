@@ -174,35 +174,6 @@ class MemoFiltersTest {
     }
 
     @Test
-    fun parseMarkdownPreviewRecognizesCommonBlocks() {
-        val blocks = parseMarkdownPreview(
-            """
-            # 标题
-            > 引用
-            - 列表项
-            ![图](/a.png)
-            [链接](https://example.com)
-            **普通** `文字`
-            """.trimIndent(),
-        )
-
-        assertEquals(
-            listOf(
-                MarkdownBlockKind.Heading,
-                MarkdownBlockKind.Quote,
-                MarkdownBlockKind.ListItem,
-                MarkdownBlockKind.Image,
-                MarkdownBlockKind.Link,
-                MarkdownBlockKind.Paragraph,
-            ),
-            blocks.map { it.kind },
-        )
-        assertEquals("普通 文字", blocks.last().text)
-        assertEquals("/a.png", blocks[3].url)
-        assertEquals("https://example.com", blocks[4].url)
-    }
-
-    @Test
     fun markdownFormatSnippetReturnsExpectedMarkup() {
         assertEquals("**加粗**", markdownFormatSnippet(MarkdownFormatStyle.Bold))
         assertEquals("\n# 标题\n", markdownFormatSnippet(MarkdownFormatStyle.Heading))

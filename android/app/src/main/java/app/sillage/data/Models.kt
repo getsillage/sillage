@@ -176,22 +176,6 @@ data class AskStreamEvent(
     val data: String,
 )
 
-data class MarkdownBlock(
-    val kind: MarkdownBlockKind,
-    val text: String,
-    val url: String? = null,
-)
-
-enum class MarkdownBlockKind {
-    Paragraph,
-    Heading,
-    Quote,
-    ListItem,
-    Code,
-    Link,
-    Image,
-}
-
 class ApiException(message: String) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
@@ -355,29 +339,6 @@ fun memoSummarySourceCount(sourceMemoIds: String): Int? {
     return uniqueIds.size.takeIf { it > 0 }
 }
 
-fun parseMarkdownPreview(content: String): List<MarkdownBlock> {
-    return content
-        .lines()
-        .mapNotNull { raw ->
-            val line = raw.trim()
-            when {
-                line.isBlank() -> null
-                line.startsWith("```") -> MarkdownBlock(MarkdownBlockKind.Code, line.removePrefix("```").ifBlank { "代码块" })
-                line.startsWith("### ") -> MarkdownBlock(MarkdownBlockKind.Heading, line.removePrefix("### ").trim())
-                line.startsWith("## ") -> MarkdownBlock(MarkdownBlockKind.Heading, line.removePrefix("## ").trim())
-                line.startsWith("# ") -> MarkdownBlock(MarkdownBlockKind.Heading, line.removePrefix("# ").trim())
-                line.startsWith("> ") -> MarkdownBlock(MarkdownBlockKind.Quote, line.removePrefix("> ").trim())
-                line.startsWith("- ") -> MarkdownBlock(MarkdownBlockKind.ListItem, line.removePrefix("- ").trim())
-                line.startsWith("* ") -> MarkdownBlock(MarkdownBlockKind.ListItem, line.removePrefix("* ").trim())
-                line.matches(Regex("""\d+\.\s+.+""")) -> MarkdownBlock(
-                    MarkdownBlockKind.ListItem,
-                    line.replaceFirst(Regex("""\d+\.\s+"""), ""),
-                )
-                else -> parseMarkdownMedia(line) ?: MarkdownBlock(MarkdownBlockKind.Paragraph, stripInlineMarkdown(line))
-            }
-        }
-}
-
 fun markdownFormatSnippet(style: MarkdownFormatStyle): String {
     return when (style) {
         MarkdownFormatStyle.Heading -> "\n# 标题\n"
@@ -396,33 +357,6 @@ enum class MarkdownFormatStyle {
     Code,
     List,
     Quote,
-}
-
-private fun parseMarkdownMedia(line: String): MarkdownBlock? {
-    val image = Regex("""!\[([^]]*)]\(([^)]+)\)""").find(line)
-    if (image != null) {
-        return MarkdownBlock(
-            kind = MarkdownBlockKind.Image,
-            text = image.groupValues[1].ifBlank { "图片" },
-            url = image.groupValues[2],
-        )
-    }
-    val link = Regex("""\[([^]]+)]\(([^)]+)\)""").find(line)
-    if (link != null) {
-        return MarkdownBlock(
-            kind = MarkdownBlockKind.Link,
-            text = link.groupValues[1],
-            url = link.groupValues[2],
-        )
-    }
-    return null
-}
-
-private fun stripInlineMarkdown(line: String): String {
-    return line
-        .replace(Regex("""\*\*([^*]+)\*\*"""), "$1")
-        .replace(Regex("""\*([^*]+)\*"""), "$1")
-        .replace(Regex("""`([^`]+)`"""), "$1")
 }
 
 fun AIProfile.toDraft(): AIProfileDraft {

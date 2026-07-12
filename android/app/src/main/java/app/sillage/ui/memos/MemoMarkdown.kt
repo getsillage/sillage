@@ -1,15 +1,17 @@
 package app.sillage.ui.memos
 
+import android.content.Context
+import android.graphics.Typeface
+import android.util.TypedValue
+import android.view.ViewGroup
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.annotation.ColorInt
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,9 +19,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
@@ -38,21 +40,34 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import app.sillage.data.MarkdownBlock
-import app.sillage.data.MarkdownBlockKind
+import androidx.compose.ui.viewinterop.AndroidView
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.MarkdownLinkTarget
-import app.sillage.data.parseMarkdownPreview
 import app.sillage.data.resolveMarkdownLinkTarget
+import io.noties.markwon.AbstractMarkwonPlugin
+import io.noties.markwon.LinkResolver
+import io.noties.markwon.Markwon
+import io.noties.markwon.MarkwonConfiguration
+import io.noties.markwon.MarkwonVisitor
+import io.noties.markwon.SoftBreakAddsNewLinePlugin
+import io.noties.markwon.core.CorePlugin
+import io.noties.markwon.core.CoreProps
+import io.noties.markwon.core.MarkwonTheme
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.tasklist.TaskListPlugin
+import org.commonmark.node.Image
+import org.commonmark.node.Link
+import kotlin.math.roundToInt
 
 @Composable
 private fun MarkdownModeSelector(preview: Boolean, onPreviewChange: (Boolean) -> Unit) {
@@ -130,24 +145,13 @@ internal fun MarkdownContent(
     openingAttachmentPath: String?,
     onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
 ) {
-    val blocks = remember(content) { parseMarkdownPreview(content) }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (blocks.isEmpty()) {
-            Text(
-                content,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        } else {
-            blocks.forEach { block ->
-                MarkdownPreviewBlock(
-                    block = block,
-                    baseUrl = baseUrl,
-                    openingAttachmentPath = openingAttachmentPath,
-                    onOpenAttachment = onOpenAttachment,
-                )
-            }
-        }
-    }
+    MarkdownText(
+        content = content,
+        baseUrl = baseUrl,
+        openingAttachmentPath = openingAttachmentPath,
+        onOpenAttachment = onOpenAttachment,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -256,14 +260,13 @@ private fun MarkdownPreview(
     onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val blocks = remember(content) { parseMarkdownPreview(content) }
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
-        if (blocks.isEmpty()) {
+        if (content.isBlank()) {
             Box(modifier = Modifier.fillMaxSize().padding(14.dp), contentAlignment = Alignment.Center) {
                 Text(
                     "没有可预览的内容",
@@ -272,136 +275,233 @@ private fun MarkdownPreview(
                 )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(blocks) { block ->
-                    MarkdownPreviewBlock(
-                        block = block,
-                        baseUrl = baseUrl,
-                        openingAttachmentPath = openingAttachmentPath,
-                        onOpenAttachment = onOpenAttachment,
+            MarkdownText(
+                content = content,
+                baseUrl = baseUrl,
+                openingAttachmentPath = openingAttachmentPath,
+                onOpenAttachment = onOpenAttachment,
+                scrollable = true,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarkdownText(
+    content: String,
+    baseUrl: String,
+    openingAttachmentPath: String?,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = false,
+) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val colors = MaterialTheme.colorScheme
+    val style = MarkdownRenderStyle(
+        textColor = colors.onSurface.toArgb(),
+        linkColor = colors.primary.toArgb(),
+        secondaryTextColor = colors.onSurfaceVariant.toArgb(),
+        outlineColor = colors.outline.toArgb(),
+        codeBackgroundColor = colors.surfaceContainer.toArgb(),
+        surfaceColor = colors.surface.toArgb(),
+    )
+    val currentOnOpenAttachment = rememberUpdatedState(onOpenAttachment)
+    val currentUriHandler = rememberUpdatedState(uriHandler)
+    val renderer = remember(context, style, baseUrl, openingAttachmentPath) {
+        createMarkdownRenderer(
+            context = context,
+            style = style,
+            isLinkAllowed = { rawUrl ->
+                when (resolveMarkdownLinkTarget(rawUrl, baseUrl)) {
+                    is MarkdownLinkTarget.ExternalHttp -> true
+                    is MarkdownLinkTarget.ProtectedAttachment -> openingAttachmentPath == null
+                    null -> false
+                }
+            },
+            isLinkOpening = { rawUrl ->
+                val target = resolveMarkdownLinkTarget(rawUrl, baseUrl)
+                    as? MarkdownLinkTarget.ProtectedAttachment
+                target?.path == openingAttachmentPath
+            },
+            onOpenLink = { rawUrl ->
+                when (val target = resolveMarkdownLinkTarget(rawUrl, baseUrl)) {
+                    is MarkdownLinkTarget.ExternalHttp -> runCatching {
+                        currentUriHandler.value.openUri(target.uri)
+                    }
+                    is MarkdownLinkTarget.ProtectedAttachment -> {
+                        if (openingAttachmentPath == null) {
+                            currentOnOpenAttachment.value(target)
+                        }
+                    }
+                    null -> Unit
+                }
+            },
+        )
+    }
+
+    if (scrollable) {
+        AndroidView(
+            factory = { viewContext ->
+                ScrollView(viewContext).apply {
+                    isFillViewport = true
+                    addView(
+                        createMarkdownTextView(viewContext, style),
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ),
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MarkdownPreviewBlock(
-    block: MarkdownBlock,
-    baseUrl: String,
-    openingAttachmentPath: String?,
-    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
-) {
-    when (block.kind) {
-        MarkdownBlockKind.Heading -> Text(
-            block.text,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        MarkdownBlockKind.Quote -> Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(2.dp)
-                    .height(21.dp)
-                    .background(
-                        MaterialTheme.colorScheme.outline,
-                        RoundedCornerShape(1.dp),
-                    ),
-            )
-            Text(
-                block.text,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        MarkdownBlockKind.ListItem -> Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("•", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                block.text,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        MarkdownBlockKind.Code -> Text(
-            block.text,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    MaterialTheme.colorScheme.surfaceContainer,
-                    RoundedCornerShape(6.dp),
-                )
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-        )
-        MarkdownBlockKind.Link -> MarkdownLinkText(
-            label = block.text.ifBlank { "打开链接" },
-            rawUrl = block.url,
-            baseUrl = baseUrl,
-            openingAttachmentPath = openingAttachmentPath,
-            onOpenAttachment = onOpenAttachment,
-        )
-        MarkdownBlockKind.Image -> MarkdownLinkText(
-            label = "图片：${block.text.ifBlank { "图片" }}",
-            rawUrl = block.url,
-            baseUrl = baseUrl,
-            openingAttachmentPath = openingAttachmentPath,
-            onOpenAttachment = onOpenAttachment,
-        )
-        MarkdownBlockKind.Paragraph -> Text(
-            block.text,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-    }
-}
-
-@Composable
-private fun MarkdownLinkText(
-    label: String,
-    rawUrl: String?,
-    baseUrl: String,
-    openingAttachmentPath: String?,
-    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
-) {
-    val uriHandler = LocalUriHandler.current
-    val target = remember(rawUrl, baseUrl) { resolveMarkdownLinkTarget(rawUrl, baseUrl) }
-    val protectedTarget = target as? MarkdownLinkTarget.ProtectedAttachment
-    val opening = protectedTarget?.path == openingAttachmentPath
-    val enabled = when (target) {
-        is MarkdownLinkTarget.ExternalHttp -> true
-        is MarkdownLinkTarget.ProtectedAttachment -> openingAttachmentPath == null
-        null -> false
-    }
-    Text(
-        if (opening) "$label（正在打开）" else label,
-        modifier = if (target == null) {
-            Modifier
-        } else {
-            Modifier.clickable(enabled = enabled) {
-                when (target) {
-                    is MarkdownLinkTarget.ExternalHttp -> runCatching { uriHandler.openUri(target.uri) }
-                    is MarkdownLinkTarget.ProtectedAttachment -> onOpenAttachment(target)
+            },
+            update = { scrollView ->
+                val textView = scrollView.getChildAt(0) as TextView
+                applyMarkdownStyle(textView, style)
+                if (renderMarkdownIfNeeded(textView, renderer, content)) {
+                    scrollView.scrollTo(0, 0)
                 }
+            },
+            modifier = modifier,
+        )
+    } else {
+        AndroidView(
+            factory = { viewContext -> createMarkdownTextView(viewContext, style) },
+            update = { textView ->
+                applyMarkdownStyle(textView, style)
+                renderMarkdownIfNeeded(textView, renderer, content)
+            },
+            modifier = modifier,
+        )
+    }
+}
+
+internal data class MarkdownRenderStyle(
+    @ColorInt val textColor: Int,
+    @ColorInt val linkColor: Int,
+    @ColorInt val secondaryTextColor: Int,
+    @ColorInt val outlineColor: Int,
+    @ColorInt val codeBackgroundColor: Int,
+    @ColorInt val surfaceColor: Int,
+)
+
+internal fun createMarkdownRenderer(
+    context: Context,
+    style: MarkdownRenderStyle,
+    isLinkAllowed: (String) -> Boolean,
+    onOpenLink: (String) -> Unit,
+    isLinkOpening: (String) -> Boolean = { false },
+): Markwon {
+    return Markwon.builder(context)
+        .usePlugin(CorePlugin.create())
+        .usePlugin(StrikethroughPlugin.create())
+        .usePlugin(
+            TablePlugin.create { tableTheme ->
+                val density = context.resources.displayMetrics.density
+                tableTheme
+                    .tableCellPadding((8f * density).roundToInt())
+                    .tableBorderWidth((1f * density).roundToInt().coerceAtLeast(1))
+                    .tableBorderColor(style.outlineColor)
+                    .tableOddRowBackgroundColor(style.codeBackgroundColor)
+                    .tableEvenRowBackgroundColor(style.surfaceColor)
+                    .tableHeaderRowBackgroundColor(style.codeBackgroundColor)
+            },
+        )
+        .usePlugin(TaskListPlugin.create(style.linkColor, style.outlineColor, style.surfaceColor))
+        .usePlugin(SoftBreakAddsNewLinePlugin.create())
+        .usePlugin(MarkdownRenderingPlugin(style, isLinkAllowed, isLinkOpening, onOpenLink))
+        .build()
+}
+
+private class MarkdownRenderingPlugin(
+    private val style: MarkdownRenderStyle,
+    private val isLinkAllowed: (String) -> Boolean,
+    private val isLinkOpening: (String) -> Boolean,
+    private val onOpenLink: (String) -> Unit,
+) : AbstractMarkwonPlugin() {
+    override fun configureTheme(builder: MarkwonTheme.Builder) {
+        builder
+            .linkColor(style.linkColor)
+            .blockQuoteColor(style.outlineColor)
+            .listItemColor(style.textColor)
+            .codeTextColor(style.secondaryTextColor)
+            .codeBlockTextColor(style.secondaryTextColor)
+            .codeBackgroundColor(style.codeBackgroundColor)
+            .codeBlockBackgroundColor(style.codeBackgroundColor)
+            .headingBreakColor(style.outlineColor)
+            .headingTypeface(Typeface.DEFAULT_BOLD)
+            .headingTextSizeMultipliers(floatArrayOf(1.55f, 1.4f, 1.25f, 1.15f, 1.05f, 1f))
+            .thematicBreakColor(style.outlineColor)
+    }
+
+    override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
+        builder.linkResolver(
+            LinkResolver { _, link ->
+                if (isLinkAllowed(link)) {
+                    onOpenLink(link)
+                }
+            },
+        )
+    }
+
+    override fun configureVisitor(builder: MarkwonVisitor.Builder) {
+        builder.on(Link::class.java) { visitor, link ->
+            val start = visitor.length()
+            visitor.visitChildren(link)
+            if (isLinkOpening(link.destination)) {
+                visitor.builder().append("（正在打开）")
             }
-        },
-        color = if (target == null || (!enabled && !opening)) {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        } else {
-            MaterialTheme.colorScheme.primary
-        },
-        style = MaterialTheme.typography.bodyLarge,
-        textDecoration = if (target == null) null else TextDecoration.Underline,
-    )
+            if (isLinkAllowed(link.destination)) {
+                CoreProps.LINK_DESTINATION.set(visitor.renderProps(), link.destination)
+                visitor.setSpansForNodeOptional(link, start)
+            }
+        }
+        builder.on(Image::class.java) { visitor, image ->
+            val start = visitor.length()
+            visitor.builder().append("图片：")
+            val labelStart = visitor.length()
+            visitor.visitChildren(image)
+            if (labelStart == visitor.length()) {
+                visitor.builder().append("图片")
+            }
+            if (isLinkOpening(image.destination)) {
+                visitor.builder().append("（正在打开）")
+            }
+            if (isLinkAllowed(image.destination)) {
+                CoreProps.LINK_DESTINATION.set(visitor.renderProps(), image.destination)
+                visitor.setSpansForNode(Link::class.java, start)
+            }
+        }
+    }
+}
+
+private data class MarkdownRenderKey(
+    val renderer: Markwon,
+    val content: String,
+)
+
+private fun createMarkdownTextView(context: Context, style: MarkdownRenderStyle): TextView {
+    return TextView(context).also { applyMarkdownStyle(it, style) }
+}
+
+private fun applyMarkdownStyle(textView: TextView, style: MarkdownRenderStyle) {
+    textView.setTextColor(style.textColor)
+    textView.setLinkTextColor(style.linkColor)
+    textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+    textView.includeFontPadding = false
+    textView.setLineSpacing(0f, 1.25f)
+}
+
+// Re-render theme or link-state changes without forcing a scroll reset.
+internal fun renderMarkdownIfNeeded(textView: TextView, renderer: Markwon, content: String): Boolean {
+    val key = MarkdownRenderKey(renderer, content)
+    val previous = textView.tag as? MarkdownRenderKey
+    if (previous == key) {
+        return false
+    }
+    renderer.setMarkdown(textView, content)
+    textView.tag = key
+    return previous?.content != content
 }

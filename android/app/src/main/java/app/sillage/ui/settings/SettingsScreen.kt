@@ -406,7 +406,7 @@ private fun AISettingsHeaderCard(
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("新增档案")
+                        Text("新建")
                     }
                     Button(
                         onClick = onSave,
@@ -425,7 +425,7 @@ private fun AISettingsHeaderCard(
                             Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (saving) "保存中" else "保存 AI 档案")
+                        Text(if (saving) "保存中" else "保存")
                     }
                 }
             }

@@ -1,12 +1,15 @@
 package app.sillage.ui.memos
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,15 +48,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -66,7 +69,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -209,28 +214,59 @@ private fun MemoListFilterTabs(
     selected: MemoListFilter,
     onSelect: (MemoListFilter) -> Unit,
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
-        MemoListFilter.entries.forEach { filter ->
-            FilterChip(
-                selected = selected == filter,
-                onClick = { onSelect(filter) },
-                label = {
-                    Text(
-                        when (filter) {
-                            MemoListFilter.Unarchived -> "未归档"
-                            MemoListFilter.Archived -> "归档"
-                            MemoListFilter.Favorited -> "收藏"
+        Row(modifier = Modifier.selectableGroup()) {
+            MemoListFilter.entries.forEach { filter ->
+                val isSelected = selected == filter
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .selectable(
+                            selected = isSelected,
+                            onClick = { onSelect(filter) },
+                            role = Role.Tab,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 3.dp)
+                            .height(36.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerLow
                         },
-                        maxLines = 1,
-                    )
-                },
-                modifier = Modifier.weight(1f),
-            )
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                when (filter) {
+                                    MemoListFilter.Unarchived -> "未归档"
+                                    MemoListFilter.Archived -> "归档"
+                                    MemoListFilter.Favorited -> "收藏"
+                                },
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -242,32 +278,26 @@ private fun SearchStatusBlock(state: SillageUiState) {
     if (query.isBlank() || results == null) {
         return
     }
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Rounded.Search,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "“$query” · ${results.size} 条结果",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Icon(
+            Icons.Rounded.Search,
+            contentDescription = null,
+            modifier = Modifier.size(15.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "“$query” · ${results.size} 条结果",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -310,18 +340,10 @@ private fun MemoListView(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (showingSearchResults) {
-            item {
-                Text(
-                    "搜索结果",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-        } else if (memories.isNotEmpty()) {
+        if (!showingSearchResults && memories.isNotEmpty()) {
             item {
                 OnThisDayCard(entries = memories, today = today, onMemoClick = onMemoClick)
             }
@@ -422,46 +444,50 @@ private fun EmptyState(text: String, icon: ImageVector? = null) {
 
 @Composable
 private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Row(
+                modifier = Modifier.padding(bottom = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    modifier = Modifier.size(28.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    modifier = Modifier.size(26.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Rounded.CalendarMonth,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.tertiary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 Text(
                     "那年今日",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.titleSmall,
                 )
             }
-            entries.forEach { memo ->
+            entries.forEachIndexed { index, memo ->
+                if (index > 0) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
                 Text(
                     "${yearsBetween(memo.entryDate, today)}年前 · ${excerpt(memo.content, 56).ifBlank { "空白记录" }}",
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onMemoClick(memo) }
-                        .padding(vertical = 4.dp),
+                        .heightIn(min = 48.dp)
+                        .padding(vertical = 8.dp),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium,
@@ -557,7 +583,8 @@ private fun CalendarCoverageNotice(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -572,7 +599,7 @@ private fun CalendarCoverageNotice(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            Button(
+            OutlinedButton(
                 onClick = onLoadMore,
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth(),
@@ -681,16 +708,21 @@ private fun CalendarDayCell(
     modifier: Modifier = Modifier,
 ) {
     val color = when {
-        selected -> MaterialTheme.colorScheme.primaryContainer
-        count > 0 -> MaterialTheme.colorScheme.surfaceContainerHigh
-        else -> MaterialTheme.colorScheme.surfaceContainerLow
+        selected -> MaterialTheme.colorScheme.surfaceContainerHighest
+        count > 0 -> MaterialTheme.colorScheme.surfaceContainerLow
+        else -> Color.Transparent
     }
-    Card(
-        modifier = modifier
-            .height(48.dp)
-            .clickable(onClick = onClick),
+    val border = when {
+        selected -> BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+        isToday -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        else -> null
+    }
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = color),
+        color = color,
+        border = border,
     ) {
         Column(
             modifier = Modifier
@@ -704,23 +736,26 @@ private fun CalendarDayCell(
                 fontWeight = if (isToday || selected) FontWeight.SemiBold else FontWeight.Normal,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (count > 0) {
-                Text(
-                    count.toString(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            Text(
+                if (count > 0) count.toString() else " ",
+                color = if (count > 0) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    Color.Transparent
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
 
 @Composable
 private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
     ) {
         Text(
             if (mayBeIncomplete) {
@@ -921,7 +956,6 @@ private fun MemoQuickActionsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 excerpt(memo.content, 64).ifBlank { "空白记录" },
@@ -932,21 +966,25 @@ private fun MemoQuickActionsSheet(
             )
             Text(
                 "${memo.entryDate} · 快捷操作",
+                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
             QuickActionRow(
                 icon = Icons.Rounded.Edit,
                 title = "编辑",
                 supporting = "直接进入编辑器。",
                 onClick = onEdit,
             )
+            QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.ContentCopy,
                 title = "复制为新记录",
                 supporting = "保留正文，日期使用今天。",
                 onClick = onDuplicate,
             )
+            QuickActionDivider()
             QuickActionRow(
                 icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
                 title = if (memo.favoritedAt == null) "收藏" else "取消收藏",
@@ -959,12 +997,14 @@ private fun MemoQuickActionsSheet(
                 },
                 onClick = onToggleFavorite,
             )
+            QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.Archive,
                 title = if (memo.archivedAt == null) "归档" else "取消归档",
                 supporting = if (memo.archivedAt == null) "从主列表移除。" else "回到主列表。",
                 onClick = onToggleArchive,
             )
+            QuickActionDivider()
             QuickActionRow(
                 icon = Icons.Rounded.Delete,
                 title = if (confirmingDelete) "确认删除" else "删除",
@@ -984,6 +1024,14 @@ private fun MemoQuickActionsSheet(
 }
 
 @Composable
+private fun QuickActionDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 48.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+    )
+}
+
+@Composable
 private fun QuickActionRow(
     icon: ImageVector,
     title: String,
@@ -991,51 +1039,45 @@ private fun QuickActionRow(
     destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    ElevatedCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier.size(34.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Surface(
-                modifier = Modifier.size(34.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = if (destructive) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                contentColor = if (destructive) {
-                    MaterialTheme.colorScheme.onErrorContainer
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(19.dp),
+                tint = if (destructive) {
+                    MaterialTheme.colorScheme.error
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    title,
-                    color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    supporting,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                title,
+                color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                supporting,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -1048,7 +1090,7 @@ private fun MemoRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -1056,11 +1098,12 @@ private fun MemoRow(
                 onLongClick = onLongClick,
             ),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 memo.content.ifBlank { "空白记录" },
@@ -1079,36 +1122,8 @@ private fun MemoRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
-                MemoStatusPills(memo)
+                MemoStatusLine(memo)
             }
         }
-    }
-}
-
-@Composable
-private fun MemoStatusPills(memo: Memo?) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (memo?.favoritedAt != null) {
-            StatusPill("收藏")
-        }
-        if (memo?.archivedAt != null) {
-            StatusPill("归档")
-        }
-    }
-}
-
-@Composable
-private fun StatusPill(text: String) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-        )
     }
 }

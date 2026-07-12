@@ -1,8 +1,10 @@
 package app.sillage
 
 import android.os.Bundle
+import androidx.activity.SystemBarStyle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,6 +20,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                lightScrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                lightScrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+            ),
+        )
         setContent {
             val state by viewModel.state.collectAsState()
             SillageTheme(darkTheme = state.themeMode == SessionStore.THEME_DARK) {

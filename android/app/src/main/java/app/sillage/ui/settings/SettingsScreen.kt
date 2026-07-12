@@ -2,7 +2,9 @@ package app.sillage.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
@@ -36,11 +40,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -54,10 +60,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -73,6 +79,10 @@ import app.sillage.ui.navigation.MainNavigationBar
 fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var selectedAIProfileIndex by remember { mutableStateOf<Int?>(null) }
     val selectedIndex = selectedAIProfileIndex?.takeIf { it in state.aiProfiles.indices }
+    val aiProfileOperationInProgress = state.aiSettingsSaving ||
+        state.aiTestingProfileId.isNotBlank() ||
+        state.aiLoadingModelsProfileId.isNotBlank() ||
+        state.loading
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -112,29 +122,37 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     item {
                         SettingsOverviewCard(state)
                     }
                     item {
                         SettingsSectionCard(title = "AI") {
-                            AISettingSwitch(
-                                label = "新建记录后自动总结",
+                            SettingsSwitchRow(
+                                icon = Icons.Rounded.AutoAwesome,
+                                title = "自动总结",
+                                supporting = "新建记录后自动生成摘要。",
                                 checked = state.aiAutoSummary,
-                                enabled = !state.aiAutoSummarySaving,
+                                enabled = !state.aiAutoSummarySaving && !state.loading,
                                 onCheckedChange = viewModel::setAISettingsAutoSummary,
                             )
                         }
                     }
                     item {
                         SettingsSectionCard(title = "外观") {
-                            SettingsActionRow(
+                            SettingsSwitchRow(
                                 icon = Icons.Rounded.DarkMode,
-                                title = if (state.themeMode == SessionStore.THEME_DARK) "浅色模式" else "深色模式",
-                                supporting = "切换应用主题显示。",
-                                onClick = viewModel::toggleThemeMode,
+                                title = "深色模式",
+                                supporting = if (state.themeMode == SessionStore.THEME_DARK) {
+                                    "当前使用深色主题。"
+                                } else {
+                                    "当前使用浅色主题。"
+                                },
+                                checked = state.themeMode == SessionStore.THEME_DARK,
+                                enabled = !aiProfileOperationInProgress,
+                                onCheckedChange = { viewModel.toggleThemeMode() },
                             )
                         }
                     }
@@ -152,14 +170,18 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 title = if (state.appMode == SessionStore.MODE_ONLINE) "当前：在线模式" else "切换到在线模式",
                                 supporting = state.baseUrl.ifBlank { "未配置服务器地址" },
                                 onClick = viewModel::useOnlineMode,
-                                enabled = state.appMode != SessionStore.MODE_ONLINE,
+                                enabled = state.appMode != SessionStore.MODE_ONLINE && !aiProfileOperationInProgress,
+                                selected = state.appMode == SessionStore.MODE_ONLINE,
+                                showDivider = true,
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.Storage,
                                 title = if (state.appMode == SessionStore.MODE_OFFLINE) "当前：离线模式" else "切换到离线模式",
                                 supporting = "记录保存在当前设备。",
                                 onClick = viewModel::useOfflineMode,
-                                enabled = state.appMode != SessionStore.MODE_OFFLINE,
+                                enabled = state.appMode != SessionStore.MODE_OFFLINE && !aiProfileOperationInProgress,
+                                selected = state.appMode == SessionStore.MODE_OFFLINE,
+                                showDivider = true,
                             )
                             if (state.appMode == SessionStore.MODE_ONLINE) {
                                 SettingsActionRow(
@@ -167,27 +189,32 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = "服务器设置",
                                     supporting = "修改服务地址和重新连接。",
                                     onClick = viewModel::openServerSettings,
+                                    enabled = !aiProfileOperationInProgress,
+                                    showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.Download,
                                     title = "同步到本地",
                                     supporting = "把服务端数据保存到本机离线库。",
                                     onClick = viewModel::syncFromServer,
-                                    enabled = !state.loading,
+                                    enabled = !aiProfileOperationInProgress,
+                                    showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.UploadFile,
                                     title = "同步到云端",
                                     supporting = "把本机离线记录推送到服务端。",
                                     onClick = viewModel::syncToServer,
-                                    enabled = !state.loading,
+                                    enabled = !aiProfileOperationInProgress,
+                                    showDivider = true,
                                 )
                                 SettingsActionRow(
                                     icon = Icons.Rounded.CloudSync,
                                     title = "双向同步",
                                     supporting = "先推送本地更改，再拉取服务端数据。",
                                     onClick = viewModel::syncBothWays,
-                                    enabled = !state.loading,
+                                    enabled = !aiProfileOperationInProgress,
+                                    showDivider = true,
                                 )
                             }
                         }
@@ -199,14 +226,15 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 title = "导出完整数据",
                                 supporting = "导出记录、AI 设置和问答数据。",
                                 onClick = { exportLauncher.launch("sillage-data.json") },
-                                enabled = !state.loading,
+                                enabled = !aiProfileOperationInProgress,
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.UploadFile,
                                 title = "导入完整数据",
                                 supporting = "从 JSON 文件恢复或合并数据。",
                                 onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                                enabled = !state.loading,
+                                enabled = !aiProfileOperationInProgress,
+                                showDivider = true,
                             )
                         }
                     }
@@ -218,7 +246,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = "退出登录",
                                     supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
                                     onClick = viewModel::signOut,
-                                    enabled = !state.loading,
+                                    enabled = !aiProfileOperationInProgress,
                                 )
                             }
                         }
@@ -226,6 +254,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
                         AISettingsHeaderCard(
                             saving = state.aiSettingsSaving,
+                            actionsEnabled = !aiProfileOperationInProgress,
                             onAdd = {
                                 selectedAIProfileIndex = state.aiProfiles.size
                                 viewModel.addAIProfile()
@@ -246,7 +275,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     profile = profile,
                                     testResult = state.aiTestResults[profileKey],
                                     selected = selectedIndex == index,
-                                    saving = state.aiSettingsSaving,
+                                    saving = aiProfileOperationInProgress,
                                     onConfigure = { selectedAIProfileIndex = index },
                                     onSetDefault = { viewModel.setAIProfileDefault(index) },
                                 )
@@ -258,6 +287,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                         loadingModels = state.aiLoadingModelsProfileId == profileKey,
                                         modelOptions = state.aiModelResults[profileKey].orEmpty(),
                                         testResult = state.aiTestResults[profileKey],
+                                        saving = aiProfileOperationInProgress,
                                         viewModel = viewModel,
                                         onClose = { selectedAIProfileIndex = null },
                                     )
@@ -273,23 +303,25 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
 
 @Composable
 private fun SettingsOverviewCard(state: SillageUiState) {
-    ElevatedCard(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 "当前状态",
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OverviewPill(
+                OverviewItem(
                     label = if (state.appMode == SessionStore.MODE_ONLINE) "在线" else "离线",
                     value = if (state.appMode == SessionStore.MODE_ONLINE) {
                         state.baseUrl.ifBlank { "未配置" }
@@ -298,12 +330,12 @@ private fun SettingsOverviewCard(state: SillageUiState) {
                     },
                     modifier = Modifier.weight(1f),
                 )
-                OverviewPill(
+                OverviewItem(
                     label = "主题",
                     value = if (state.themeMode == SessionStore.THEME_DARK) "深色" else "浅色",
                     modifier = Modifier.weight(1f),
                 )
-                OverviewPill(
+                OverviewItem(
                     label = "AI",
                     value = if (state.aiAutoSummary) "自动总结" else "手动",
                     modifier = Modifier.weight(1f),
@@ -314,73 +346,87 @@ private fun SettingsOverviewCard(state: SillageUiState) {
 }
 
 @Composable
-private fun OverviewPill(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+private fun OverviewItem(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-            )
-            Text(
-                value,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
 @Composable
 private fun AISettingsHeaderCard(
     saving: Boolean,
+    actionsEnabled: Boolean,
     onAdd: () -> Unit,
     onSave: () -> Unit,
 ) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "AI 档案",
+            modifier = Modifier.padding(horizontal = 4.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-            Text(
-                "AI 档案",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onAdd,
-                    enabled = !saving,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("新增档案")
-                }
-                TextButton(
-                    onClick = onSave,
-                    enabled = !saving,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(if (saving) "保存中" else "保存 AI 档案")
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onAdd,
+                        enabled = actionsEnabled,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("新增档案")
+                    }
+                    Button(
+                        onClick = onSave,
+                        enabled = actionsEnabled,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                    ) {
+                        if (saving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = LocalContentColor.current,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (saving) "保存中" else "保存 AI 档案")
+                    }
                 }
             }
         }
@@ -389,21 +435,21 @@ private fun AISettingsHeaderCard(
 
 @Composable
 private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            title,
+            modifier = Modifier.padding(horizontal = 4.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            content()
+            Column(content = content)
         }
     }
 }
@@ -415,51 +461,68 @@ private fun SettingsActionRow(
     supporting: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    selected: Boolean = false,
+    showDivider: Boolean = false,
 ) {
-    ElevatedCard(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (enabled) {
-                MaterialTheme.colorScheme.surfaceContainerLow
+    val titleColor = if (enabled || selected) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    val supportingColor = if (enabled || selected) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    }
+    Column {
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 50.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+        }
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            color = if (selected) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
             } else {
-                MaterialTheme.colorScheme.surfaceContainer
+                MaterialTheme.colorScheme.surfaceContainerLow
             },
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                modifier = Modifier.size(34.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 68.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(title, textAlign = TextAlign.Start, style = MaterialTheme.typography.bodyMedium)
-                if (supporting.isNotBlank()) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = if (selected) MaterialTheme.colorScheme.primary else supportingColor,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(
-                        supporting,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelSmall,
-                        textAlign = TextAlign.Start,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        title,
+                        color = titleColor,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
+                    if (supporting.isNotBlank()) {
+                        Text(
+                            supporting,
+                            color = supportingColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
@@ -467,11 +530,72 @@ private fun SettingsActionRow(
 }
 
 @Composable
+private fun SettingsSwitchRow(
+    icon: ImageVector,
+    title: String,
+    supporting: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val titleColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    val supportingColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            )
+            .heightIn(min = 68.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = supportingColor,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(title, color = titleColor, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                supporting,
+                color = supportingColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            enabled = enabled,
+        )
+    }
+}
+
+@Composable
 private fun EmptySettingsCard(text: String) {
-    ElevatedCard(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Text(
             text,
@@ -491,15 +615,19 @@ private fun AIProfileSummaryCard(
     onConfigure: () -> Unit,
     onSetDefault: () -> Unit,
 ) {
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.surfaceContainerHigh
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
             },
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Column(
@@ -520,27 +648,23 @@ private fun AIProfileSummaryCard(
                     )
                     Text(
                         profile.provider.ifBlank { "未设置 Provider" },
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
                 if (profile.active) {
-                    AssistChip(onClick = onConfigure, label = { Text("默认") })
+                    AssistChip(
+                        onClick = onConfigure,
+                        label = { Text("默认") },
+                        enabled = !saving,
+                    )
                 }
             }
             Text(
                 profile.model.ifBlank { "未设置模型" },
-                color = if (selected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -551,11 +675,7 @@ private fun AIProfileSummaryCard(
             ) {
                 Text(
                     if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) "有密钥" else "无密钥",
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
                 if (profile.keyUnavailable) {
@@ -569,23 +689,24 @@ private fun AIProfileSummaryCard(
             if (testResult != null) {
                 Text(
                     testResult,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onConfigure) {
+                TextButton(
+                    onClick = onConfigure,
+                    enabled = !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
                     Text("配置")
                 }
                 TextButton(
                     onClick = onSetDefault,
                     enabled = !profile.active && !saving,
+                    modifier = Modifier.heightIn(min = 48.dp),
                 ) {
                     Text(if (profile.active) "当前默认" else "设为默认")
                 }
@@ -602,14 +723,17 @@ private fun AIProfileDetailCard(
     loadingModels: Boolean,
     modelOptions: List<String>,
     testResult: String?,
+    saving: Boolean,
     viewModel: SillageViewModel,
     onClose: () -> Unit,
 ) {
     var confirmingDelete by remember(profile.id, index) { mutableStateOf(false) }
+    val controlsEnabled = !saving && !testing && !loadingModels
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -638,6 +762,7 @@ private fun AIProfileDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 label = { Text("名称") },
+                enabled = controlsEnabled,
             )
             OutlinedTextField(
                 value = profile.provider,
@@ -646,6 +771,7 @@ private fun AIProfileDetailCard(
                 singleLine = true,
                 label = { Text("Provider") },
                 placeholder = { Text("anthropic / openai / workers-ai") },
+                enabled = controlsEnabled,
             )
             OutlinedTextField(
                 value = profile.baseUrl,
@@ -653,6 +779,7 @@ private fun AIProfileDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 label = { Text("Base URL") },
+                enabled = controlsEnabled,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
@@ -661,10 +788,11 @@ private fun AIProfileDetailCard(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("模型") },
+                    enabled = controlsEnabled,
                 )
                 TextButton(
                     onClick = { viewModel.loadAIModels(index) },
-                    enabled = !loadingModels,
+                    enabled = controlsEnabled,
                 ) {
                     Text(if (loadingModels) "获取中" else "获取模型")
                 }
@@ -678,6 +806,7 @@ private fun AIProfileDetailCard(
                         AssistChip(
                             onClick = { viewModel.updateAIProfileModel(index, model) },
                             label = { Text(model, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            enabled = controlsEnabled,
                         )
                     }
                 }
@@ -690,6 +819,7 @@ private fun AIProfileDetailCard(
                     singleLine = true,
                     label = { Text("温度") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    enabled = controlsEnabled,
                 )
                 OutlinedTextField(
                     value = profile.maxTokensInput,
@@ -698,6 +828,7 @@ private fun AIProfileDetailCard(
                     singleLine = true,
                     label = { Text("最大 Tokens") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    enabled = controlsEnabled,
                 )
             }
             OutlinedTextField(
@@ -708,6 +839,7 @@ private fun AIProfileDetailCard(
                 label = { Text("API 密钥") },
                 placeholder = { Text(if (profile.hasApiKey) "已配置，留空保持不变" else "未配置") },
                 visualTransformation = PasswordVisualTransformation(),
+                enabled = controlsEnabled,
             )
             if (profile.keyUnavailable) {
                 Text(
@@ -717,7 +849,7 @@ private fun AIProfileDetailCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.testAIProfile(index) }, enabled = !testing) {
+                Button(onClick = { viewModel.testAIProfile(index) }, enabled = controlsEnabled) {
                     Text(if (testing) "测试中" else "测试连接")
                 }
                 TextButton(
@@ -730,7 +862,7 @@ private fun AIProfileDetailCard(
                             confirmingDelete = true
                         }
                     },
-                    enabled = !testing,
+                    enabled = controlsEnabled,
                 ) {
                     Text(if (confirmingDelete) "确认删除" else "删除")
                 }
@@ -743,26 +875,5 @@ private fun AIProfileDetailCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun AISettingSwitch(
-    label: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            label,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-        )
     }
 }

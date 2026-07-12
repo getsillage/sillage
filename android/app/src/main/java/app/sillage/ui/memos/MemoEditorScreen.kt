@@ -9,11 +9,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,7 +47,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
@@ -141,14 +150,21 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                 actions = {
                     val selected = state.selectedMemo
                     IconButton(onClick = viewModel::saveMemo, enabled = editorActionsEnabled) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = when {
-                                state.uploadingAttachment -> "附件上传中"
-                                state.loading -> "保存中"
-                                else -> "保存"
-                            },
-                        )
+                        val actionDescription = when {
+                            state.uploadingAttachment -> "附件上传中"
+                            state.loading -> "保存中"
+                            else -> "保存"
+                        }
+                        if (state.uploadingAttachment || state.loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .semantics { contentDescription = actionDescription },
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Rounded.Check, contentDescription = actionDescription)
+                        }
                     }
                     if (selected != null) {
                         Box {
@@ -207,20 +223,26 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             val editorHeight = (maxHeight * 0.6f).coerceIn(320.dp, 560.dp)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 760.dp)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         MessageBlock(state.error, state.notice)
                         MemoStatusLine(state.selectedMemo)
-                        MemoMetadataBlock(state.selectedMemo)
                         OutlinedTextField(
                             value = state.draftEntryDate,
                             onValueChange = viewModel::updateDraftEntryDate,
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text("日期 YYYY-MM-DD") },
+                            label = { Text("记录日期") },
+                            placeholder = { Text("YYYY-MM-DD") },
                         )
                     }
                 }
@@ -235,19 +257,34 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                         onFormat = viewModel::appendMarkdownFormat,
                         onOpenAttachment = viewModel::openProtectedAttachment,
                         modifier = Modifier
+                            .widthIn(max = 760.dp)
                             .fillMaxWidth()
                             .height(editorHeight),
                     )
                 }
                 if (state.appMode == SessionStore.MODE_ONLINE) {
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .widthIn(max = 760.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
                             TextButton(
                                 onClick = { attachmentLauncher.launch("*/*") },
                                 enabled = editorActionsEnabled,
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .widthIn(min = 112.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                             ) {
-                                Icon(Icons.Rounded.AttachFile, contentDescription = null)
-                                Text(if (state.uploadingAttachment) "上传中" else "附件")
+                                Icon(
+                                    Icons.Rounded.AttachFile,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (state.uploadingAttachment) "上传中" else "添加附件")
                             }
                         }
                     }
@@ -259,6 +296,9 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                             loading = state.summaryLoading,
                             actionEnabled = editorActionsEnabled,
                             onGenerate = viewModel::summarizeSelectedMemo,
+                            modifier = Modifier
+                                .widthIn(max = 760.dp)
+                                .fillMaxWidth(),
                         )
                     }
                 }

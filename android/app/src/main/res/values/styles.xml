@@ -2,8 +2,9 @@
     <style name="Theme.Sillage" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#F7F8F5</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#F8FAFC</item>
-        <item name="android:statusBarColor">#F8FAFC</item>
+        <item name="android:navigationBarColor">#F7F8F5</item>
+        <item name="android:statusBarColor">#F7F8F5</item>
     </style>
 </resources>

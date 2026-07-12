@@ -1,48 +1,48 @@
-# REST API 开发说明
+# REST API Guide
 
-本文定义 Echo REST v1 的稳定使用边界。实现事实源是 `server/*_routes.go` 与 REST 行为测试；变更步骤见[贡献指南](../../../CONTRIBUTING.md)。
+This document defines the stable usage boundaries of Echo REST v1. The implementation sources of truth are `server/*_routes.go` and the REST behavior tests. See the [Contributing Guide](../../../CONTRIBUTING.md) for the change workflow.
 
-## 契约定位
+## Contract Sources
 
-- `proto/api/v1/` 是 Connect 契约源，`buf` 生成 Connect、Gateway 与 `proto/gen/openapi/openapi.yaml`。
-- 生成的 OpenAPI 仅反映 Proto HTTP 注解，可能不包含 Echo 手写路由、认证模型和 REST DTO；不能直接用于 REST SDK codegen。
-- REST v1 的字段名、状态码与错误响应以路由实现和本文件为准。需要机器可读的 REST OpenAPI 时，先补齐完整规范与契约测试，再将其作为公开输入。
+- `proto/api/v1/` is the source of the Connect contract. `buf` generates Connect, Gateway, and `proto/gen/openapi/openapi.yaml`.
+- The generated OpenAPI document reflects only the Proto HTTP annotations and may omit handwritten Echo routes, the authentication model, and REST DTOs. It cannot be used directly for REST SDK code generation.
+- The route implementations and this document define REST v1 field names, status codes, and error responses. If a machine-readable REST OpenAPI document is needed, first complete the full specification and contract tests before treating it as a public input.
 
-## 认证与错误
+## Authentication and Errors
 
-除 `GET /healthz`、`GET /readyz`、认证 bootstrap/initialize/signin/refresh/signout 外，业务 REST 接口使用：
+Except for `GET /healthz`, `GET /readyz`, and authentication bootstrap/initialize/signin/refresh/signout, application REST endpoints use:
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-浏览器原生安全读取（当前为 `/file/attachments/...`）可回退到 HttpOnly access cookie；Cookie 不能用于业务写操作。未认证、校验、冲突和限流等 Echo REST 错误统一为：
+Protected reads initiated natively by the browser, currently `/file/attachments/...`, may fall back to an HttpOnly access cookie. Cookies cannot be used for application write operations. Echo REST errors for unauthenticated requests, validation failures, conflicts, rate limits, and similar conditions use a consistent structure:
 
 ```json
 {
   "error": {
     "code": "stable_machine_code",
-    "message": "面向用户的中文说明"
+    "message": "Localized user-facing message"
   }
 }
 ```
 
-HTTP 状态与 `error.code` 必须同时在受影响路由测试中覆盖。Connect 错误使用 Connect code，不要求复用此 JSON 结构。
+The message value is localized, user-facing text. The example above is a placeholder, not a fixed response. Current application messages are in Simplified Chinese. Tests for affected routes must cover both the HTTP status and `error.code`. Connect errors use Connect codes and do not need to reuse this JSON structure.
 
-## REST 范围
+## REST Surface
 
-| 范围 | 路由事实源 | 备注 |
+| Area | Route source of truth | Notes |
 | --- | --- | --- |
-| 认证 | `server/auth_routes.go` | 初始化、登录、刷新、退出和当前账号 |
-| 记录与同步 | `server/memo_routes.go`、`server/sync_routes.go` | `memoDTO` 使用 `createdAt`、`updatedAt`、数值 `version` |
-| 附件 | `server/attachment_routes.go` | multipart 上传、metadata、删除与认证下载 |
-| AI 设置 | `server/ai_routes.go` | 配置、模型列表、连接测试与自动总结 |
-| 问答 | `server/ask_routes.go` | 会话、消息、分支、head 与 SSE 流式回答 |
+| Authentication | `server/auth_routes.go` | Initialization, sign-in, refresh, sign-out, and the current account |
+| Records and sync | `server/memo_routes.go`, `server/sync_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
+| Attachments | `server/attachment_routes.go` | Multipart upload, metadata, deletion, and authenticated download |
+| AI settings | `server/ai_routes.go` | Configuration, model listing, connection tests, and automatic summaries |
+| Ask | `server/ask_routes.go` | Conversations, messages, branches, head, and SSE streaming answers |
 
-SSE 路由返回 `text/event-stream`；上传、附件下载、SSE 和操作型 `POST` 都是 REST 手写扩展，必须在修改时同步本表与测试。
+SSE routes return `text/event-stream`. Uploads, attachment downloads, SSE, and action-style `POST` endpoints are all handwritten REST extensions; changes must update both this table and the tests.
 
-## 版本与兼容
+## Versioning and Compatibility
 
-`/api/v1` 只允许向后兼容的新增字段、可选参数和新端点。删除、重命名、改变字段类型/含义、改变认证或错误模型都需要新的版本路径，并在发布说明中写明迁移与回滚要求。
+`/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.
 
-Proto 变化必须执行 `buf lint`、`buf breaking` 与 `buf generate`。REST 与 Connect 共享语义时，必须同时覆盖两种传输；仅手写 REST 的扩展也要维护等价的 REST 回归测试。
+Proto changes must run `buf lint`, `buf breaking`, and `buf generate`. When REST and Connect share semantics, tests must cover both transports. Handwritten REST-only extensions must also retain equivalent REST regression coverage.

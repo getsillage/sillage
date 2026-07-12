@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the support guide
+    url: https://github.com/getsillage/sillage/blob/main/SUPPORT.md
+    about: Choose the correct public form and review the project's support boundaries.
+  - name: Report a security vulnerability
+    url: https://github.com/getsillage/sillage/security/advisories/new
+    about: Report vulnerabilities privately according to the Security Policy. Do not open a public issue.

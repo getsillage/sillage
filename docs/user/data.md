@@ -1,8 +1,8 @@
-# 数据与备份
+# Data, Backup, and Recovery
 
-默认配置下，服务端的持久化单元是完整的数据目录。Docker 示例把容器内 `/var/opt/sillage` 映射到宿主机 `$HOME/.sillage`。显式配置的外置 DSN 或 secret 文件也属于同一个恢复点；浏览器草稿不在其中，见下文。
+With the default configuration, the server's persistence unit is the complete data directory. The Docker example maps `/var/opt/sillage` in the container to `$HOME/.sillage` on the host. An explicitly configured external DSN or secret file is part of the same recovery point. Browser drafts are not included, as described below.
 
-## 目录内容
+## Directory Contents
 
 ```text
 sillage.db
@@ -13,26 +13,26 @@ assets/attachments/
 runtime/secrets.json
 ```
 
-- SQLite 保存账号、记录、AI 设置和会话。
-- `assets/attachments/` 保存附件字节。
-- `.thumbnail_cache/` 是可再生缓存。
-- `runtime/secrets.json` 保存自动生成的会话和加密密钥，不是缓存。
+- SQLite stores the account, records, AI settings, and sessions.
+- `assets/attachments/` stores attachment bytes.
+- `.thumbnail_cache/` is a regenerable cache.
+- `runtime/secrets.json` stores automatically generated session and encryption secrets. It is not a cache.
 
-记录、附件和备份没有额外的整体静态加密。丢失 `runtime/` 会使现有会话失效，并可能导致已保存的 AI API key 无法解密。
+Records, attachments, and backups do not have additional whole-dataset encryption at rest. Losing `runtime/` invalidates existing sessions and may make saved AI API keys impossible to decrypt.
 
-显式设置 `SESSION_SECRET` / `ENCRYPTION_SECRET` 或对应 `_FILE` 时，实际运行值不保证回写到 `runtime/secrets.json`。这些外部 secret 必须单独安全保存并随数据恢复；更换 `SESSION_SECRET` 会使会话失效，更换 `ENCRYPTION_SECRET` 会使已有 AI API key 无法解密。
+When `SESSION_SECRET` / `ENCRYPTION_SECRET` or their corresponding `_FILE` variables are set explicitly, the effective runtime values are not guaranteed to be written back to `runtime/secrets.json`. These external secrets must be stored securely on their own and restored with the data. Changing `SESSION_SECRET` invalidates sessions; changing `ENCRYPTION_SECRET` makes existing AI API keys impossible to decrypt.
 
-## 删除与浏览器草稿
+## Deletion and Browser Drafts
 
-记录删除采用 tombstone，以便离线客户端收敛：服务端 SQLite 会保留已删除记录的正文、相关 AI 派生数据和删除时间。删除 AI 档案会清空当前服务端保存的加密 API key envelope，但旧备份仍可能包含它。当前没有记录或 AI 历史的自动清理、单项永久清除流程，因此这些内容会继续存在于服务端数据目录和由其生成的备份中。
+Record deletion uses tombstones so offline clients can converge. The server's SQLite database retains the content of deleted records, related AI-derived data, and the deletion time. Deleting an AI profile clears the encrypted API key envelope stored in the current server database, but older backups may still contain it. There is currently no automatic cleanup for record or AI history and no workflow for permanently deleting an individual item, so this content remains in the server data directory and in backups created from it.
 
-Web 为恢复未保存的记录和速记，会把草稿正文、日期和基线版本明文保存在浏览器 `localStorage`。草稿不进入服务端备份，退出登录后也可能继续保留在同一浏览器 profile。共用设备应避免使用 Web，或在离开前保存/放弃草稿并清除该站点的浏览器数据。
+To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
-账号密码没有内置的修改、重置或数据保留式恢复流程。请使用密码管理器保存密码；忘记密码时不要删除数据目录以尝试重新初始化，否则会破坏既有数据与账号关系。
+There is no built-in workflow for changing or resetting the account password, or for recovering access while preserving data. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account.
 
-## 备份
+## Back Up
 
-下面的脚本适用于 Compose。若使用 `docker run`、systemd 或本机二进制，必须换成对应的停止/启动命令，并确认没有进程继续写 SQLite。预检失败时服务仍在运行；`docker compose stop` 成功后的后续步骤失败会中止并保持服务停止。
+The following script is intended for Compose. If you use `docker run`, systemd, or a local binary, replace the stop and start commands with the appropriate equivalents and confirm that no process continues to write to SQLite. If a preflight check fails, the service remains running. If a later step fails after `docker compose stop` succeeds, the script exits and leaves the service stopped.
 
 ```bash
 sh -eu <<'SH'
@@ -53,11 +53,11 @@ docker compose -f scripts/compose.yaml start sillage
 SH
 ```
 
-上述脚本需要本机安装 `sqlite3`。容器默认以 UID/GID `10001` 管理文件；宿主用户无法读取密钥时，应使用有权限的备份账号或配置匹配的 UID/GID，不要用 `chmod 777` 绕过。不要只复制 `sillage.db`：WAL/SHM、附件和运行密钥都可能位于数据库文件之外。若 `SILLAGE_DSN` 指向数据目录外，还必须在停服状态下单独备份该数据库及其 WAL/SHM 文件。
+This script requires `sqlite3` to be installed on the host. The container manages files as UID/GID `10001` by default. If the host user cannot read the secrets, use a backup account with sufficient access or configure matching UID/GID values; do not bypass permissions with `chmod 777`. Do not copy only `sillage.db`: WAL/SHM files, attachments, and runtime secrets may all live outside the database file. If `SILLAGE_DSN` points outside the data directory, you must also back up that database and its WAL/SHM files while the service is stopped.
 
-## 验证备份
+## Verify a Backup
 
-恢复前至少确认关键路径存在：
+Before restoring, confirm at minimum that the critical paths exist:
 
 ```bash
 test -f "$BACKUP/sillage.db"
@@ -66,11 +66,11 @@ test -f "$BACKUP/runtime/secrets.json"
 test "$(sqlite3 -readonly "$BACKUP/sillage.db" "PRAGMA integrity_check;")" = "ok"
 ```
 
-最后一条需要本机安装 `sqlite3`。备份应保存在数据目录之外，并通过受保护的介质传输。
+The final command requires `sqlite3` to be installed on the host. Store backups outside the data directory and transfer them only through protected media.
 
-## 恢复
+## Restore
 
-恢复流程保留当前数据作为回滚副本，不直接删除：
+The restore procedure preserves the current data as a rollback copy instead of deleting it:
 
 ```bash
 sh -eu <<'SH'
@@ -92,18 +92,18 @@ curl --fail http://localhost:5231/readyz
 SH
 ```
 
-只有在登录、记录和附件都确认正常后，才处理 `ROLLBACK`。如果恢复失败，先停止服务，将失败目录移走，再把 `ROLLBACK` 移回原路径。上述流程假定使用默认 DSN 和自动生成的运行密钥；外置数据库和外部 secret 必须恢复为与备份时一致的值。
+Only remove or otherwise handle `ROLLBACK` after confirming that sign-in, records, and attachments all work correctly. If the restore fails, stop the service, move the failed data directory aside, and move `ROLLBACK` back to its original path. This procedure assumes the default DSN and automatically generated runtime secrets. External databases and external secrets must be restored to the same values they had when the backup was created.
 
-## 迁移实例
+## Migrate an Instance
 
-迁移到另一目录或主机时：
+To move an instance to another directory or host:
 
-1. 停止源实例与目标实例。
-2. 复制完整数据目录，并保留文件权限。
-3. 确认数据库、附件和 `runtime/` 都存在。
-4. 让目标实例使用新目录，检查 `/readyz` 后再开放流量。
-5. 不要让两个实例同时写同一份 SQLite 数据。
+1. Stop both the source and destination instances.
+2. Copy the complete data directory while preserving file permissions.
+3. Confirm that the database, attachments, and `runtime/` are all present.
+4. Configure the destination instance to use the new directory, then check `/readyz` before opening it to traffic.
+5. Do not allow two instances to write to the same SQLite data.
 
-`.thumbnail_cache/` 当前只是预留目录，启动时会重新创建空目录；数据库、附件和 `runtime/` 不能独立重置。
+`.thumbnail_cache/` is currently only a reserved directory; the server recreates it as an empty directory at startup. The database, attachments, and `runtime/` cannot be reset independently.
 
-Android 导出的 JSON 和手动同步不包含服务端附件字节、账号、会话或运行密钥，不能替代服务端整目录备份。
+Android JSON exports and manual synchronization do not include server attachment bytes, the account, sessions, or runtime secrets. They cannot replace a complete server data-directory backup.

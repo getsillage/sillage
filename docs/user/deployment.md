@@ -1,10 +1,10 @@
-# 部署说明
+# Deployment Guide
 
-Sillage 适合运行在单机 Docker 中。服务自身只提供 HTTP；公网访问必须放在 HTTPS 反向代理或 Tunnel 后面。
+Sillage is designed to run with Docker on a single machine. The service itself provides HTTP only; public access must be placed behind an HTTPS reverse proxy or Tunnel.
 
 ## Docker
 
-从 [GitHub Releases](https://github.com/getsillage/sillage/releases) 选择稳定 tag 并检出后构建。`main` 用于开发，不能作为可追溯的生产版本：
+Choose a stable tag from [GitHub Releases](https://github.com/getsillage/sillage/releases), check it out, and then build it. `main` is for development and is not a traceable production version:
 
 ```bash
 git checkout vX.Y.Z
@@ -17,7 +17,7 @@ docker build \
   -f scripts/Dockerfile .
 ```
 
-只允许本机访问：
+For local access only:
 
 ```bash
 docker run --rm \
@@ -26,13 +26,13 @@ docker run --rm \
   "sillage:$VERSION"
 ```
 
-打开 `http://localhost:5231`，首次访问时创建唯一账号。
+Open `http://localhost:5231` and create the instance's only account on the first visit.
 
-不要在未配置防火墙和 HTTPS 的主机上使用 `-p 5231:5231`，它会把端口发布到宿主机可用接口。
+Do not use `-p 5231:5231` on a host without a firewall and HTTPS. It publishes the port on the host's available interfaces.
 
 ## Compose
 
-仓库内的 Compose 默认只发布到回环地址：
+The repository's Compose configuration publishes only on the loopback address by default:
 
 ```bash
 VERSION="$(git describe --tags --exact-match)"
@@ -43,9 +43,9 @@ export SILLAGE_REVISION="$REVISION"
 docker compose -f scripts/compose.yaml up -d --build sillage
 ```
 
-需要让受信任的局域网设备直连时，可显式设置 `SILLAGE_HOST_PORT=5231`，并同时配置宿主机防火墙。公网部署仍应保持回环绑定，由反向代理或 Tunnel 访问容器网络。
+To allow trusted devices on a local network to connect directly, explicitly set `SILLAGE_HOST_PORT=5231` and configure the host firewall at the same time. Public deployments should remain bound to the loopback address, with a reverse proxy or Tunnel accessing the container network.
 
-常用操作：
+Common operations:
 
 ```bash
 docker compose -f scripts/compose.yaml logs -f sillage
@@ -53,49 +53,49 @@ docker compose -f scripts/compose.yaml stop sillage
 docker compose -f scripts/compose.yaml start sillage
 ```
 
-Compose 的 `SILLAGE_HOST_PORT` 默认是 `127.0.0.1:5231`，只控制宿主机发布地址；`SILLAGE_IMAGE`、`SILLAGE_VERSION` 和 `SILLAGE_REVISION` 只控制镜像名称与构建标识。应用环境变量在 `scripts/compose.yaml` 中显式声明，修改前先检查该文件，不能假定同名宿主机变量会自动透传。
+Compose defaults `SILLAGE_HOST_PORT` to `127.0.0.1:5231`; it controls only the host publish address. `SILLAGE_IMAGE`, `SILLAGE_VERSION`, and `SILLAGE_REVISION` control only the image name and build identifiers. Application environment variables are declared explicitly in `scripts/compose.yaml`. Check that file before making changes, and do not assume that host variables with the same names are passed through automatically.
 
-修改端口绑定后必须再次执行 `docker compose -f scripts/compose.yaml up -d sillage` 重建现有容器，并用 `docker compose -f scripts/compose.yaml ps` 确认发布地址；只修改 YAML 不会改变正在运行的容器。
+After changing the port binding, run `docker compose -f scripts/compose.yaml up -d sillage` again to recreate the existing container, then use `docker compose -f scripts/compose.yaml ps` to confirm the publish address. Changing the YAML alone does not alter a running container.
 
-## 首次初始化与公网暴露
+## First-Time Initialization and Public Exposure
 
-未初始化实例的建号接口无需登录，且一个实例只接受第一个账号。必须先保持默认回环端口，仅从本机浏览器打开 `http://localhost:5231` 创建账号；确认后再配置反向代理、局域网端口或 Tunnel。不要让未初始化实例直接暴露到公网。
+The account-creation endpoint does not require authentication on an uninitialized instance, and an instance accepts only its first account. Keep the default loopback port initially and create the account by opening `http://localhost:5231` from a local browser. Configure a reverse proxy, local-network port, or Tunnel only after confirming the account. Never expose an uninitialized instance directly to the public internet.
 
-可在本机确认初始化状态：
+Check the initialization status locally:
 
 ```bash
 curl http://localhost:5231/api/v1/auth/bootstrap
 ```
 
-响应为 `{"initialized":true}` 后，才可开放外部入口。请使用密码管理器保存密码：当前没有内置的改密、重置或数据保留式密码恢复流程。
+Open an external entry point only after the response is `{"initialized":true}`. Store the password in a password manager: there is currently no built-in workflow for changing or resetting it, or for recovering access while preserving data.
 
-## 配置
+## Configuration
 
-应用同时支持命令行 flag 和 `SILLAGE_*` 环境变量。以下是当前实际生效的常用变量：
+The application supports both command-line flags and `SILLAGE_*` environment variables. The following commonly used variables are currently effective:
 
-| 变量 | 默认值 | 说明 |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `SILLAGE_ADDR` | 空 | HTTP 绑定地址；空值会监听可用接口，直接运行时建议设为 `127.0.0.1` |
-| `SILLAGE_PORT` | `5231` | HTTP 端口 |
-| `SILLAGE_DATA` | 见下文 | 数据目录；Docker 为 `/var/opt/sillage` |
-| `SILLAGE_DSN` | `$SILLAGE_DATA/sillage.db` | SQLite 路径；相对路径按数据目录解析 |
-| `SILLAGE_MAX_UPLOAD_MB` | `30` | 单个附件上限，单位 MiB |
-| `SILLAGE_LOG_FORMAT` | `json` | `json` 或 `text` |
-| `SILLAGE_LOG_LEVEL` | `info` | `debug`、`info`、`warn`、`error` |
-| `SESSION_SECRET` | 自动生成 | 会话签名密钥 |
-| `ENCRYPTION_SECRET` | 自动生成 | AI API key 加密密钥 |
+| `SILLAGE_ADDR` | empty | HTTP bind address; an empty value listens on available interfaces, so set it to `127.0.0.1` when running directly |
+| `SILLAGE_PORT` | `5231` | HTTP port |
+| `SILLAGE_DATA` | see below | Data directory; `/var/opt/sillage` in Docker |
+| `SILLAGE_DSN` | `$SILLAGE_DATA/sillage.db` | SQLite path; relative paths are resolved from the data directory |
+| `SILLAGE_MAX_UPLOAD_MB` | `30` | Maximum size of one attachment, in MiB |
+| `SILLAGE_LOG_FORMAT` | `json` | `json` or `text` |
+| `SILLAGE_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
+| `SESSION_SECRET` | generated automatically | Session-signing secret |
+| `ENCRYPTION_SECRET` | generated automatically | AI API key encryption secret |
 
-本机直接运行时，如果 `/var/opt/sillage` 已存在，默认使用该目录，否则回退到当前目录。生产环境应始终显式设置 `SILLAGE_DATA`。
+When running directly on the host, the application uses `/var/opt/sillage` by default if that directory exists; otherwise, it falls back to the current directory. Always set `SILLAGE_DATA` explicitly in production.
 
-`SILLAGE_DSN`、`SESSION_SECRET` 和 `ENCRYPTION_SECRET` 支持对应的 `_FILE` 变量，例如 `ENCRYPTION_SECRET_FILE=/run/secrets/encryption`。普通值与 `_FILE` 不能同时设置。容器使用 `_FILE` 时还要挂载该文件并显式传入变量；宿主环境不会自动透传。外置数据库和 secret 文件不在 `SILLAGE_DATA` 内，必须纳入同一套备份与恢复流程。
+`SILLAGE_DSN`, `SESSION_SECRET`, and `ENCRYPTION_SECRET` support corresponding `_FILE` variables, such as `ENCRYPTION_SECRET_FILE=/run/secrets/encryption`. A direct value and its `_FILE` variable cannot be set at the same time. To use `_FILE` in a container, mount the file and pass the variable explicitly; the host environment is not passed through automatically. External databases and secret files are outside `SILLAGE_DATA` and must be included in the same backup and restore process.
 
-容器入口还支持 `SILLAGE_UID` 和 `SILLAGE_GID`，默认均为 `10001`，用于调整挂载目录所有权并以非 root 用户运行进程。Compose 未透传这两个变量；需要自定义时应显式修改 Compose 的 `environment` 或使用 `docker run -e`。
+The container entrypoint also supports `SILLAGE_UID` and `SILLAGE_GID`, both defaulting to `10001`. They adjust ownership of the mounted directory and run the process as a non-root user. Compose does not pass through these two variables; to customize them, explicitly change the Compose `environment` or use `docker run -e`.
 
-AI Provider、模型和 API key 登录后在应用设置中配置，不使用进程环境变量。配置前先阅读[AI 使用与隐私](ai.md)。
+Configure the AI provider, model, and API key in the application settings after signing in; they are not configured through process environment variables. Read [AI Usage and Privacy](ai.md) before configuring them.
 
-## 本机运行
+## Run Locally
 
-需要 Go 1.25。生产式运行前先生成 Web 嵌入产物，并在发布构建时写入版本与提交：
+Go 1.25 is required. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
 
 ```bash
 pnpm --dir web install
@@ -106,15 +106,15 @@ go build -ldflags "-X main.version=$VERSION -X main.revision=$REVISION" -o silla
 SILLAGE_ADDR=127.0.0.1 SILLAGE_DATA="$HOME/.sillage" ./sillage
 ```
 
-开发环境见[贡献指南](../../CONTRIBUTING.md)。
+See the [Contributing Guide](../../CONTRIBUTING.md) for the development environment.
 
-运行中的二进制可用 `./sillage --version` 识别；容器镜像同时写入 OCI `version` 与 `revision` 标签。
+Identify a running binary with `./sillage --version`. Container images also include the OCI `version` and `revision` labels.
 
-Dockerfile 固定基础镜像 digest、pnpm lockfile 和 Go module checksum。Alpine 系统包仍由该基础镜像配置的仓库解析；更新基础镜像或系统包时，必须在同一改动重建镜像、记录原因并更新锁定值。
+The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
 
-## 反向代理与 Tunnel
+## Reverse Proxy and Tunnel
 
-代理应终止 TLS，并覆盖客户端传入的以下请求头：
+The proxy should terminate TLS and overwrite the following request headers supplied by the client:
 
 ```text
 X-Forwarded-Proto
@@ -122,31 +122,31 @@ X-Forwarded-Host
 X-Forwarded-For
 ```
 
-不要简单追加不可信的转发头。Sillage 使用 `X-Forwarded-Proto` 判断 Cookie 是否标记为 Secure，并使用 `X-Forwarded-For` 参与登录限流；后端端口应只允许代理访问。
+Do not simply append untrusted forwarding headers. Sillage uses `X-Forwarded-Proto` to decide whether to mark Cookies as Secure and uses `X-Forwarded-For` for sign-in rate limiting. Only the proxy should be able to reach the backend port.
 
-Compose 提供可选的 Cloudflare Tunnel 连接器。先按“首次初始化与公网暴露”创建账号，再单独启动连接器；Compose 会等待 bootstrap 状态变为已初始化后才启动 Tunnel：
+Compose provides an optional Cloudflare Tunnel connector. First create the account as described in "First-Time Initialization and Public Exposure," then start the connector separately. Compose waits for the bootstrap status to become initialized before starting the Tunnel:
 
 ```bash
 CLOUDFLARED_TOKEN=... \
   docker compose -f scripts/compose.yaml --profile tunnel up -d cloudflared
 ```
 
-Cloudflare 侧的服务地址应指向 `http://sillage:5231`。该 profile 不会自动创建 hostname 或 ingress，并且不会移除 Sillage 的宿主机端口映射。
+The service address in Cloudflare should point to `http://sillage:5231`. This profile does not create a hostname or ingress automatically, and it does not remove Sillage's host port mapping.
 
-## 探针与升级
+## Probes and Upgrades
 
 ```bash
 curl --fail http://localhost:5231/healthz
 curl --fail http://localhost:5231/readyz
 ```
 
-`healthz` 只检查进程，`readyz` 还检查 SQLite。升级前：
+`healthz` checks only the process, while `readyz` also checks SQLite. Before upgrading:
 
-1. 用版本化 tag 保留当前镜像，例如 `docker tag sillage:latest sillage:rollback-YYYYMMDD`。
-2. 按[数据与备份](data.md)停止服务并完成整目录备份。
-3. 构建新镜像并启动，确认探针、登录、记录和附件正常。
-4. 失败时停止新实例，恢复对应数据备份，再用保留的旧镜像启动。
+1. Preserve the current image with a versioned tag, such as `docker tag sillage:latest sillage:rollback-YYYYMMDD`.
+2. Follow [Data, Backup, and Recovery](data.md) to stop the service and back up the complete data directory.
+3. Build and start the new image, then confirm that probes, sign-in, records, and attachments work correctly.
+4. If the upgrade fails, stop the new instance, restore the corresponding data backup, and start the preserved old image.
 
-启动迁移失败时服务不会进入 ready 状态。旧二进制未必兼容已升级数据库，因此不能只回滚镜像而不恢复配套数据。
+If a startup migration fails, the service does not enter the ready state. An older binary may not be compatible with an upgraded database, so you cannot roll back only the image without restoring the matching data.
 
-探针无需认证；`readyz` 在依赖异常时可能包含诊断文本。公网反向代理应只允许监控来源访问 `/healthz` 与 `/readyz`，不要将其作为公开状态页。
+Probes do not require authentication, and `readyz` may include diagnostic text when a dependency fails. A public reverse proxy should allow only monitoring sources to access `/healthz` and `/readyz`; do not expose them as a public status page.

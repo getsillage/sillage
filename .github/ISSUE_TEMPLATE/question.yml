@@ -1,0 +1,72 @@
+name: Support question
+description: Ask a sanitized question about self-hosting or using Sillage
+title: "[Question] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read the [Support Guide](https://github.com/getsillage/sillage/blob/main/SUPPORT.md) before asking. Do not include real records, attachment names, hostnames, credentials, API keys, tokens, database contents, or other sensitive data. Report security vulnerabilities privately through [GitHub Private Vulnerability Reporting](https://github.com/getsillage/sillage/security/advisories/new).
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before submitting
+      options:
+        - label: I read the relevant documentation and searched existing issues.
+          required: true
+        - label: I removed or replaced all private data and secrets in this question.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Sillage version
+      description: Provide a release tag or commit SHA.
+      placeholder: v1.2.3 or abc1234
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Installation or upgrade
+        - Docker or Compose
+        - Reverse proxy or Tunnel
+        - Web interface
+        - Android app
+        - AI provider configuration
+        - Backup, restore, or migration
+        - Development setup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Explain what you are trying to do and where you are blocked, using synthetic examples only.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: List the relevant documentation and sanitized commands or checks you already used.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the [Code of Conduct](https://github.com/getsillage/sillage/blob/main/CODE_OF_CONDUCT.md).
+          required: true

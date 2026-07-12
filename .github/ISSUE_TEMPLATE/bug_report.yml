@@ -1,0 +1,94 @@
+name: Bug report
+description: Report a reproducible problem in Sillage
+title: "[Bug] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Do not include real records, API keys, passwords, session tokens, database contents, or other sensitive data. Report security vulnerabilities privately as described in the [Security Policy](https://github.com/getsillage/sillage/blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed or replaced all private data and secrets in this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Sillage version
+      description: Provide a release tag or commit SHA.
+      placeholder: v1.2.3 or abc1234
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Web interface
+        - Server or API
+        - Android app
+        - Docker or deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the operating system, browser or Android version, and deployment method as relevant.
+      placeholder: Ubuntu 24.04, Docker 27, Firefox 128
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic data only and provide the smallest reliable reproduction.
+      placeholder: |
+        1. Start a fresh instance with ...
+        2. Open ...
+        3. Select ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Optional. Remove records, file names, URLs, tokens, keys, and other identifying or sensitive data before attaching anything.
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the [Code of Conduct](https://github.com/getsillage/sillage/blob/main/CODE_OF_CONDUCT.md).
+          required: true

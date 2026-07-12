@@ -1,14 +1,14 @@
-# 开发文档
+# Development Documentation
 
-开发环境、修改流程、生成物和验证命令统一见根目录[贡献指南](../../CONTRIBUTING.md)。本目录只保存需要长期维护的工程决策：
+See the root [Contributing Guide](../../CONTRIBUTING.md) for development setup, change workflows, generated artifacts, and validation commands. This directory contains only engineering decisions that require long-term maintenance:
 
-- [架构说明](architecture.md)：模块职责、请求链路、数据边界和事实来源。
-- [产品指导](product-guidance.md)：产品范围、术语和 AI 行为边界。
-- [安全开发边界](security.md)：认证、附件、密钥、外部请求和敏感数据约束。
-- [同步 API](api/sync.md)：离线同步、幂等和冲突语义。
-- [REST API 说明](api/README.md)：REST 认证、错误模型、路由边界和版本规则。
-- [Web 设计规范](design/README.md)：界面方向、组件约束和验收底线。
+- [Architecture Guide](architecture.md): module responsibilities, request paths, data boundaries, and sources of truth.
+- [Product Guidance](product-guidance.md): product scope, terminology, and AI behavior boundaries.
+- [Security Development Boundaries](security.md): authentication, attachments, secrets, external requests, and sensitive-data constraints.
+- [Sync API](api/sync.md): offline sync, idempotency, and conflict semantics.
+- [REST API Guide](api/README.md): REST authentication, error model, route boundaries, and versioning rules.
+- [Web Design Guidelines](design/README.md): interface direction, component constraints, and acceptance requirements.
 
-部署、数据维护和 AI 外部数据属于使用者文档，分别见[部署说明](../user/deployment.md)、[数据与备份](../user/data.md)和[AI 使用与隐私](../user/ai.md)。
+Deployment, data maintenance, and external AI data handling belong in the user documentation. See the [Deployment Guide](../user/deployment.md), [Data, Backup, and Recovery](../user/data.md), and [AI Usage and Privacy](../user/ai.md).
 
-重大、跨模块且难以逆转的技术选择，在实现该决定的提交中新增 `docs/development/decisions/YYYY-MM-DD-<topic>.md`，只写“背景、决定、后果”并链接被替代的决定。任务计划、普通实现选择和待办事项不写 ADR；待办使用 Issue，已完成过程使用 Git 历史。首个真实决定出现前不创建空目录或模板。
+When implementing a significant, cross-module, hard-to-reverse technical choice, add `docs/development/decisions/YYYY-MM-DD-<topic>.md` in the same commit. Record only Context, Decision, and Consequences, and link any superseded decision. Do not use ADRs for task plans, routine implementation choices, or TODOs; use Issues for pending work and Git history for completed work. Do not create an empty directory or template before the first real decision exists.

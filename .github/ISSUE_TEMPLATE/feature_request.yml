@@ -1,0 +1,58 @@
+name: Feature request
+description: Propose an improvement that fits Sillage's product scope
+title: "[Feature] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sillage is a private, self-hosted, single-user record space. Proposals should preserve that scope. Do not include real records, API keys, passwords, session tokens, or other sensitive data. If the proposal could reveal a vulnerability or sensitive security detail, stop and report it privately through [GitHub Private Vulnerability Reporting](https://github.com/getsillage/sillage/security/advisories/new).
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same or a closely related proposal.
+          required: true
+        - label: This proposal preserves Sillage's private, single-user product scope.
+          required: true
+        - label: I removed or replaced all private data and secrets in this request.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user problem or limitation, not only the desired implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Explain the behavior you expect and how it fits the existing product.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any current workaround or simpler alternative you considered.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Optional. Use synthetic examples and sanitized screenshots only.
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the [Code of Conduct](https://github.com/getsillage/sillage/blob/main/CODE_OF_CONDUCT.md).
+          required: true

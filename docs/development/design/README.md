@@ -1,59 +1,59 @@
-# Web 设计规范
+# Web Design Guidelines
 
-本文覆盖 Web 客户端的稳定视觉与交互约束。产品语义见[产品指导](../product-guidance.md)；主题和组件的代码事实源是 `web/src/styles/app.css` 与 `web/src/components/ui.ts`。
+This document covers the stable visual and interaction constraints for the Web client. See [Product Guidance](../product-guidance.md) for product semantics. The code sources of truth for themes and components are `web/src/styles/app.css` and `web/src/components/ui.ts`.
 
-## 方向
+## Direction
 
-界面应安静、专注、清楚，适合反复书写和阅读，不呈现为后台管理系统或营销页面。
+The interface should feel quiet, focused, and clear, and should support repeated writing and reading. It must not resemble an administration dashboard or marketing page.
 
-硬约束：
+Hard constraints:
 
-1. 界面品牌文字、导航和常规反馈使用中性灰；产品图标保留自身品牌色，红色只用于错误与破坏性动作。
-2. 全站使用无衬线字体，以字重和留白建立层次。
-3. 桌面使用可折叠左侧栏，移动端使用抽屉；正文保持居中阅读宽度。
-4. 问答可以采用聊天布局，记录、历史和设置不使用聊天气泡。
-5. 操作图标统一使用 `lucide-react`；产品图标和平台图标除外。图标按钮必须有可访问名称。
-6. 浅色与深色是同等支持的主题，新增样式必须同时适配。
+1. Brand text, navigation, and routine feedback use neutral grays. The product icon retains its own brand colors, and red is reserved for errors and destructive actions.
+2. The entire interface uses sans-serif type, with weight and whitespace establishing hierarchy.
+3. Desktop uses a collapsible left sidebar, mobile uses a drawer, and body content maintains a centered reading width.
+4. Ask may use a chat layout; records, history, and settings do not use chat bubbles.
+5. Action icons use `lucide-react`, except for the product icon and platform icons. Icon buttons must have accessible names.
+6. Light and dark themes have equal support. New styles must work in both.
 
-## 布局与组件
+## Layout and Components
 
-- 记录首页和详情使用阅读窄栏；历史与设置使用宽栏；问答使用独立对话栏。
-- 优先使用留白和细分隔线，不使用卡片套卡片或重阴影堆叠层级。
-- 复用 `ui.ts` 的按钮、输入框、图标按钮、分段控件、骨架屏和空状态样式。
-- 同一类样式出现三次以上时再提取共享令牌，并同步本文；不要散落 hex、第二套组件库或手写 SVG 图标。
-- Markdown 阅读内容复用现有 typography 样式，不创建另一套富文本表现。
-- 图标按钮保持稳定触控尺寸；视图选择用分段控件，二元设置用开关或复选框。
+- The record home and detail views use a narrow reading column; history and settings use a wide column; Ask uses a dedicated conversation column.
+- Prefer whitespace and subtle dividers. Do not nest cards or build hierarchy with heavy stacked shadows.
+- Reuse the buttons, inputs, icon buttons, segmented controls, skeletons, and empty-state styles from `ui.ts`.
+- Extract a shared token only after the same style appears at least three times, and update this document at the same time. Do not scatter hex values, introduce a second component library, or hand-draw SVG icons.
+- Reuse the existing typography styles for rendered Markdown instead of creating another rich-text presentation.
+- Keep icon buttons at a stable touch size. Use segmented controls for view selection and switches or checkboxes for binary settings.
 
-页面标题和控件文字应与容器尺度匹配。窄屏不得出现横向溢出，文本不得遮挡相邻内容。
+Page headings and control labels must match the scale of their containers. Narrow screens must not have horizontal overflow, and text must not cover adjacent content.
 
-## 交互底线
+## Interaction Requirements
 
-- 新建和编辑草稿按记录隔离；站内导航、关闭页面和退出登录都不能绕过未保存保护。
-- 编辑提交携带草稿对应的服务器版本；版本冲突必须保留草稿并提示用户刷新或重试，不能静默覆盖。
-- 保存、发送、重新生成和速记在事件入口做单飞，重复点击不能产生重复写入。
-- 保存或上传期间禁用相互冲突的操作，并显示明确的进行中状态。
-- 页面切换、刷新或规范写入后，迟到请求不得覆盖当前页面和缓存。
-- 临时失败保留已加载内容与用户输入，提供手动重试，不伪装为空状态或不存在。
-- 列表同一 cursor 只允许一个分页请求；日历完整读取所有页面后再展示结果。
-- 问答的创建、流式回答、重新生成和会话切换必须隔离旧请求。
+- New and edited drafts are isolated by record. In-app navigation, closing the page, and signing out must not bypass unsaved-change protection.
+- An edit submission includes the server version associated with the draft. Version conflicts must preserve the draft and ask the user to refresh or retry; they must never overwrite silently.
+- Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
+- Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.
+- After navigation, refresh, or a canonical write, a late response must not overwrite the current page or cache.
+- Transient failures preserve loaded content and user input and offer a manual retry. They must not appear as an empty or missing state.
+- Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
+- Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
 
-## 无障碍与响应式
+## Accessibility and Responsive Behavior
 
-- 每个页面只有一个主内容区域，键盘焦点顺序与视觉顺序一致。
-- 所有交互有可见 `focus-visible` 状态；关键文字满足 WCAG AA 对比度。
-- 主要移动端操作和图标按钮使用稳定触控尺寸；具体尺寸以 `ui.ts` 为准。
-- 模态与抽屉可用 Esc 关闭，并恢复触发元素焦点；Esc 只关闭最上层浮层。
-- 移动抽屉打开后锁定背景滚动并约束焦点；顶部和浮动操作避让 safe area。
-- hover 不能是唯一反馈；加载文案、图标和动态状态不能导致布局跳动。
+- Each page has one main content region, and keyboard focus order matches visual order.
+- Every interactive element has a visible `focus-visible` state, and critical text meets WCAG AA contrast requirements.
+- Primary mobile actions and icon buttons use stable touch dimensions; `ui.ts` is the source of truth for exact sizes.
+- Modals and drawers close with Escape and restore focus to their trigger. Escape closes only the topmost layer.
+- An open mobile drawer locks background scrolling and traps focus. Top and floating actions account for safe areas.
+- Hover must not be the only feedback. Loading copy, icons, and dynamic states must not cause layout shifts.
 
-## 验收
+## Acceptance
 
-自动门禁统一见[贡献指南](../../../CONTRIBUTING.md)。交互或视觉改动还应检查：
+See the [Contributing Guide](../../../CONTRIBUTING.md) for automated quality gates. Interaction or visual changes must also be checked across:
 
-- 浅色 / 深色 x 桌面 / 移动；
-- 写记录、全部记录、详情、问答、设置、初始化和登录；
-- 窄屏溢出、键盘导航、焦点恢复、Esc 分层与对话框语义；
-- 加载、空、失败、重试、未保存、版本冲突和进行中状态；
-- 浏览器 console/page error，以及按钮和图标的可访问名称。
+- light and dark themes on desktop and mobile;
+- Write a Record, All Records, record detail, Ask, settings, initialization, and sign-in views;
+- narrow-screen overflow, keyboard navigation, focus restoration, layered Escape behavior, and dialog semantics;
+- loading, empty, failure, retry, unsaved, version-conflict, and in-progress states;
+- browser console and page errors, plus accessible names for buttons and icons.
 
-临时截图和 Playwright 调试用例不提交仓库。涉及导航、命名或产品形态时，同时更新[产品指导](../product-guidance.md)。
+Temporary screenshots and Playwright debugging cases are not committed. Changes to navigation, naming, or product shape must also update [Product Guidance](../product-guidance.md).

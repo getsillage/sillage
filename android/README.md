@@ -1,50 +1,50 @@
-# Sillage Android
+# Sillage Android Guide
 
-原生 Android 客户端支持 Android 8.0 及以上版本，可以连接自托管实例，也可以在设备上离线记录。
+The native Android client supports Android 8.0 and later. It can connect to a self-hosted instance or save records offline on the device.
 
-已发布 APK 从 [GitHub Releases](https://github.com/getsillage/sillage/releases) 下载。安装前核对 Release 中的版本、SHA-256 与签名信息；服务端和 Android 都应使用同一发布版本或发布说明明确兼容的版本组合。
+Download released APKs from [GitHub Releases](https://github.com/getsillage/sillage/releases). Before installing, verify the version, SHA-256 checksum, and signature information in the Release. The server and Android client should use the same release version or a version combination explicitly documented as compatible in the release notes.
 
-## 连接实例
+## Connecting to an Instance
 
-先启动 Sillage 服务，并确保手机可以访问服务地址：
+Start the Sillage service and make sure the phone can reach its address:
 
-- 模拟器访问本机：`http://10.0.2.2:5231`
-- 真机访问局域网主机：例如 `http://192.168.1.10:5231`
-- 公网实例：使用 HTTPS 反向代理或 Tunnel 地址
+- From an emulator to the host: `http://10.0.2.2:5231`
+- From a physical device to a host on the LAN: for example, `http://192.168.1.10:5231`
+- For a public instance: use an HTTPS reverse proxy or Tunnel address
 
-在线与离线模式都支持记录、日历、搜索、收藏、归档、AI 设置、总结和问答。在线模式另外支持初始化/登录、附件上传与认证下载；本地数据可以导入导出，并可手动拉取、推送或双向同步。
+Both online and offline modes support records, calendar, search, favorites, archives, AI settings, summaries, and Ask. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
 
-记录编辑器支持 Markdown 编辑与预览。预览覆盖 CommonMark 基础语法、删除线、表格、任务列表和单换行；原始 HTML 不执行，图片语法显示为可安全打开的附件或外链。
+The record editor supports Markdown editing and preview. The preview supports core CommonMark syntax, strikethrough, tables, task lists, and single line breaks. Raw HTML is not executed; image syntax is displayed as an attachment or external link that can be opened safely.
 
-当前不提供后台自动同步或推送，离线附件字节与元数据也不会完整同步。Android 导出文件不能替代服务端整目录备份。
+The app currently provides neither automatic background sync nor push notifications, and offline attachment bytes and metadata are not fully synchronized. An Android export is not a substitute for a complete backup of the server's data directory.
 
-“拉取”会完整读取服务端可同步数据并合并到本机；“推送”当前只上传本机记录；“双向同步”先推送再完整拉取。发生版本冲突时，应用只显示数量并保留本地 pending 修改，暂不提供应用内合并界面；不要反复重试覆盖，先保留本地导出并在服务端确认记录后再处理。
+"Pull" reads all syncable data from the server and merges it into the device. "Push" currently uploads only local records. "Two-way sync" pushes first and then performs a full pull. When a version conflict occurs, the app displays only the conflict count and retains the pending local changes; it does not yet provide an in-app merge interface. Do not keep retrying to force an overwrite. Preserve a local export first, verify the record on the server, and then resolve it.
 
-## 构建与测试
+## Build and Test
 
-需要 JDK 17 和 Android SDK 35：
+JDK 17 and Android SDK 35 are required:
 
 ```bash
 cd android
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-调试 APK 位于：
+The debug APK is located at:
 
 ```text
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-安装到已连接设备或模拟器：
+Install it on a connected device or emulator:
 
 ```bash
 cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## 发布签名
+## Release Signing
 
-应用包名为 `app.sillage`。签名文件不提交仓库；在 `android/` 下准备 `release.keystore` 和 `signing.properties`：
+The application ID is `app.sillage`. Signing files are not committed to the repository. Under `android/`, prepare `release.keystore` and `signing.properties`:
 
 ```properties
 storeFile=release.keystore
@@ -53,7 +53,7 @@ keyAlias=sillage-release
 keyPassword=...
 ```
 
-构建并校验 release APK：
+Build and verify the release APK:
 
 ```bash
 cd android
@@ -62,12 +62,12 @@ apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-relea
 zipalign -c -v 4 app/build/outputs/apk/release/app-release.apk
 ```
 
-只有本地签名配置存在时 release 构建才会使用该 keystore。不要发布未校验签名的产物，也不要提交 APK/AAB、keystore、`signing.properties` 或 `local.properties`。
+The release build uses this keystore only when the local signing configuration exists. Do not publish artifacts with unverified signatures, and do not commit APK/AAB files, keystores, `signing.properties`, or `local.properties`.
 
-## 安全边界
+## Security Boundaries
 
-应用允许明文 HTTP，便于局域网和模拟器开发；生产实例应只使用 HTTPS。登录会话和离线数据通过 Android Keystore 保护，但导出的 JSON 是明文敏感数据，应限制分享和保存位置。
+The app permits cleartext HTTP for LAN and emulator development; production instances should use HTTPS only. Login sessions and offline data are protected through Android Keystore, but exported JSON contains sensitive data in plaintext and should be shared and stored only in restricted locations.
 
-附件链接只接受普通 `http(s)` 外链或同源 `/file/attachments/...`。受保护附件由 App 携带认证下载到缓存，再通过只读 FileProvider URI 交给系统查看器。
+Attachment links accept only standard external `http(s)` URLs or same-origin `/file/attachments/...` paths. The app downloads protected attachments to its cache with authentication, then passes them to the system viewer through a read-only FileProvider URI.
 
-完整开发门禁见[贡献指南](../CONTRIBUTING.md)，服务端部署与数据安全见[部署说明](../docs/user/deployment.md)和[数据与备份](../docs/user/data.md)。
+See the [Contributing Guide](../CONTRIBUTING.md) for the complete development gates, and the [Deployment Guide](../docs/user/deployment.md) and [Data, Backup, and Recovery](../docs/user/data.md) for server deployment and data security.

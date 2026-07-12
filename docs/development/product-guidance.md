@@ -1,94 +1,94 @@
-# 产品指导
+# Product Guidance
 
-本文约束 Sillage 的产品范围、术语和 AI 行为。实现细节以[架构说明](architecture.md)和代码为准，视觉规则见 [Web 设计规范](design/README.md)。
+This document defines Sillage's product scope, terminology, and AI behavior. See the [Architecture Guide](architecture.md) and the code for implementation details, and the [Web Design Guidelines](design/README.md) for visual rules.
 
-## 定位
+## Positioning
 
-Sillage 是单用户个人记录空间，用来保存每天发生的事、想法和感受。AI 只基于这些记录生成总结，并支持用户按已有内容提问。
+Sillage is a single-user personal record space for capturing daily events, thoughts, and feelings. AI generates summaries only from those records and lets the user ask questions about existing content.
 
-一句话说明：
+One-line description:
 
-> Sillage 是一个个人记录空间，用来保存记录、查看历史、根据记录提问。
+> Sillage is a personal record space for capturing records, revisiting history, and asking questions based on those records.
 
-产品应当私密、清楚、具体、易懂，适合长期使用。它不是：
+The product should be private, clear, concrete, easy to understand, and suitable for long-term use. It is not:
 
-- 多人协作或社交发布平台；
-- 知识库、任务或项目管理系统；
-- 复杂网盘或正式长文写作平台；
-- 情绪打卡、心理诊断或由 AI 主导表达的工具。
+- a multi-user collaboration or social publishing platform;
+- a knowledge base, task manager, or project management system;
+- a complex file drive or a formal long-form writing platform;
+- a mood tracker, a diagnostic tool, or a product where AI directs the user's expression.
 
-标签、公开分享、reaction、relation、公开探索、RSS 和 sitemap 均不在当前产品边界内。
+Tags, public sharing, reactions, relations, public discovery, RSS, and sitemaps are outside the current product scope.
 
-## 核心概念
+## Core Concepts
 
-| 英文 | 中文 | 含义 |
+| English | Simplified Chinese UI | Meaning |
 | --- | --- | --- |
-| Record | 记录 | 用户写下的一件事、想法、感受、文字或附件 |
-| History | 历史 | 按时间回看过去的记录 |
-| Ask | 问答 | 基于记录搜索、提问和追问 |
-| Summary | 总结 | AI 基于记录生成的内容概括 |
-| Source | 来源 | 总结或回答引用的原始记录 |
+| Record | 记录 | An event, thought, feeling, text, or attachment captured by the user |
+| History | 历史 | Records revisited over time |
+| Ask | 问答 | Search, questions, and follow-up questions grounded in records |
+| Summary | 总结 | An AI-generated overview based on records |
+| Source | 来源 | An original record cited by a summary or answer |
 
-后端、数据库、Proto 和 API 使用 `memo`；中文 UI 始终显示“记录”。产品名 `Sillage` 不翻译。
+The backend, database, Proto, and API use `memo`; English user-facing documentation and copy use `record`; the Simplified Chinese UI always displays `记录`. The product name `Sillage` is never translated.
 
-## 记录
+## Records
 
-记录是唯一内容单位。一天可以有多条记录，每条只要求日期和 Markdown 正文，不强制标题、种类、标签、天气、地点或预设情绪。
+A record is the only content unit. A day may contain multiple records, and each record requires only a date and Markdown body. Titles, types, tags, weather, location, and predefined moods are not required.
 
-写作优先于整理：入口应直接，短内容和长内容使用同一种编辑方式。收藏与归档是轻量状态；归档不是删除，收藏、未归档和已归档视图保持清楚且可逆。
+Writing takes priority over organization: entry points should be direct, and short and long content use the same editor. Favorites and archives are lightweight states. Archiving is not deletion, and the favorited, unarchived, and archived views must remain clear and reversible.
 
-Web 未保存草稿应能恢复。各客户端离开 dirty 编辑、发现草稿基线版本变化或放弃上传中的附件时，都必须保留内容并给出明确提示，不能静默覆盖。
+Unsaved Web drafts must be recoverable. When a client leaves a dirty editor, detects that a draft's baseline version has changed, or abandons an in-progress attachment upload, it must preserve the content and show a clear warning instead of silently overwriting it.
 
-## 信息架构
+## Information Architecture
 
-Web 主导航只有：
+The Web client has only two primary navigation destinations:
 
-- 写记录：新建记录、查看今日和最近记录；
-- 全部记录：列表、日历、搜索、收藏和归档。
+- Write a Record (`写记录`): create a record and view today's and recent records;
+- All Records (`全部记录`): list, calendar, search, favorites, and archives.
 
-问答通过“开始问答”和会话区进入，不重复占用主导航。设置位于用户菜单。除问答页外，全局提供速记入口。
+Ask is entered through Start Ask (`开始问答`) and the conversation area instead of taking another primary navigation slot. Settings live in the user menu. A quick-capture entry point is globally available outside the Ask page.
 
-Android 底栏使用“记录 / 日历 / 问答 / 设置”，记录页内提供列表状态与搜索。客户端可在线连接实例或离线保存；当前同步由用户手动触发，不提供后台自动同步或推送。
+The Android bottom bar uses Records / Calendar / Ask / Settings (`记录 / 日历 / 问答 / 设置`), with list states and search inside the Records screen. The client may connect to an instance online or save locally while offline. Sync is currently triggered manually; background sync and push notifications are not provided.
 
-## 总结与问答
+## Summaries and Ask
 
-总结必须说明其依据，并能回到来源记录。它用于概括事件、反复主题和值得回看的内容，不对用户做诊断或确定性判断。
+A summary must state what it is based on and provide a path back to its source records. It summarizes events, recurring themes, and content worth revisiting; it must not diagnose the user or present uncertain conclusions as facts.
 
-问答支持多轮对话、分支、重新生成、来源引用、会话搜索与归档。默认上下文建议为最近 30 天；全量历史只能由用户明确选择。
+Ask supports multi-turn conversations, branches, regeneration, source citations, conversation search, and archiving. The recommended default context is the most recent 30 days. Full history may be used only when the user explicitly selects it.
 
-回答的设计原则是先给简短结论，再给依据和可继续追问的方向。资料不足时应明确说明“现有记录不足以判断”。
+Answers should give a short conclusion first, followed by evidence and possible follow-up directions. When the available material is insufficient, the answer must say clearly that the existing records do not provide enough information to determine the answer.
 
-## AI 边界
+## AI Boundaries
 
-AI 可以：
+AI may:
 
-- 概括记录；
-- 发现反复出现的主题或表达变化；
-- 回答与记录相关的问题；
-- 提出基于来源的追问；
-- 将回答保存为新记录。
+- summarize records;
+- identify recurring themes or changes in expression;
+- answer questions related to records;
+- suggest source-grounded follow-up questions;
+- save an answer as a new record.
 
-AI 不得：
+AI must not:
 
-- 把猜测包装成事实；
-- 使用心理诊断式语言；
-- 脱离来源给用户下结论；
-- 在写作过程中强行打断；
-- 让 AI 产物替代或遮蔽原始记录。
+- present speculation as fact;
+- use diagnostic psychological language;
+- draw conclusions about the user without sources;
+- force interruptions while the user is writing;
+- replace or obscure original records with AI-generated content.
 
-推荐表达：
+Recommended phrasing should communicate the equivalent of:
 
-> 这些记录里反复出现了……
+> These records repeatedly mention...
 
-> 目前能看到的依据是……
+> The evidence currently available is...
 
-> 记录中没有足够信息确认这一点。
+> The records do not contain enough information to confirm this.
 
-## 文案原则
+## Copy Guidelines
 
-- 使用通俗、直接、具体的中文，不依赖诗意隐喻解释功能。
-- 使用“记录 / 全部记录 / 问答 / 总结 / 来源”，不向中文用户暴露 `memo` 或英文 `Ask`。
-- 按钮描述动作，例如“保存”“继续问”“查看来源”“保存为记录”。
-- 空状态说明当前状态和下一步，不写功能宣传文案。
+- Use plain, direct, concrete Simplified Chinese in the product UI. Do not rely on poetic metaphors to explain functionality.
+- Use the localized equivalents of Record / All Records / Ask / Summary / Source (`记录 / 全部记录 / 问答 / 总结 / 来源`) and do not expose `memo` or the English word `Ask` to users in the Simplified Chinese UI.
+- Button labels describe actions, such as Save, Continue Asking, View Sources, and Save as Record.
+- Empty states explain the current state and the next action instead of advertising features.
 
-引入新概念或一级入口前，必须确认它是否能由现有核心概念表达，以及是否破坏单人私密、写作优先和 AI 有依据这三条边界。
+Before introducing a new concept or primary destination, confirm that it cannot be expressed through the existing core concepts and that it does not compromise the single-user private scope, writing-first design, or source-grounded AI behavior.

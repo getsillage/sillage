@@ -1,73 +1,73 @@
-# 安全开发边界
+# Security Development Boundaries
 
-本文记录修改 Sillage 安全敏感代码时必须保持的稳定边界。漏洞报告流程见根目录[安全策略](../../SECURITY.md)，部署和数据保护分别见[部署说明](../user/deployment.md)与[数据与备份](../user/data.md)。
+This document records the stable boundaries that must be preserved when changing security-sensitive Sillage code. See the root [Security Policy](../../SECURITY.md) for vulnerability reporting, the [Deployment Guide](../user/deployment.md) for deployment security, and [Data, Backup, and Recovery](../user/data.md) for data protection.
 
-## 资产与信任边界
+## Assets and Trust Boundaries
 
-受保护资产包括记录、附件、问答历史、账号凭据、登录会话、AI API key 和运行密钥。主要边界是：
+Protected assets include records, attachments, Ask history, account credentials, login sessions, AI API keys, and runtime secrets. The primary boundaries are:
 
 ```text
 Web / Android -> HTTPS proxy or trusted LAN -> Sillage -> SQLite / attachments
                                                 |
-                                                +-> configured AI Provider
+                                                +-> configured AI provider
 ```
 
-Sillage 自身只提供 HTTP。公网 TLS、转发头清理和后端端口隔离由反向代理或 Tunnel 负责。宿主机、完整数据目录、外置 secret 与自定义 AI Provider 都属于部署者明确选择的信任域。
+Sillage itself serves HTTP only. A reverse proxy or tunnel is responsible for public TLS, sanitizing forwarded headers, and isolating the backend port. The host, complete data directory, external secrets, and custom AI provider are all trust domains explicitly selected by the operator.
 
-## 认证与会话
+## Authentication and Sessions
 
-- 一个实例只能创建一个未删除账号；初始化检查与写入必须保持在同一事务中。
-- 初始化接口在实例未建号前无需认证。部署文档必须要求先在回环地址初始化、确认 bootstrap 状态后，再开放代理、Tunnel 或局域网端口；不能把未初始化实例直接暴露到公网。
-- 密码只保存派生后的 hash，不得写入日志、响应或同步数据。
-- access token 由服务端签名并在 15 分钟后过期；refresh token 只以 hash 保存、有效期 30 天并在刷新时轮换。退出登录撤销 refresh session，但已签发的 access token 仍可使用到过期。
-- Cookie 必须保持 `HttpOnly` 和 `SameSite=Lax`。TLS 或可信 `X-Forwarded-Proto: https` 下还必须设置 `Secure`。
-- 受保护的业务写接口只接受 Bearer token。访问 Cookie 的回退只用于浏览器无法设置 Authorization header 的安全 GET，例如附件读取，不能扩展到业务写操作。
-- 登录限流使用账号与客户端 IP。应用会读取 `X-Forwarded-For`，因此代理必须覆盖而不是追加客户端提供的转发头。
+- An instance may create only one non-deleted account. The initialization check and write must remain in the same transaction.
+- The initialization endpoint is unauthenticated before the instance has an account. Deployment documentation must require initialization on a loopback address and confirmation of bootstrap state before exposing a proxy, tunnel, or LAN port. An uninitialized instance must never be exposed directly to the public Internet.
+- Passwords are stored only as derived hashes and must never appear in logs, responses, or sync data.
+- Access tokens are signed by the server and expire after 15 minutes. Refresh tokens are stored only as hashes, expire after 30 days, and rotate on refresh. Signing out revokes the refresh session, but an already issued access token remains usable until it expires.
+- Cookies must retain `HttpOnly` and `SameSite=Lax`. They must also use `Secure` under TLS or trusted `X-Forwarded-Proto: https`.
+- Protected business write endpoints accept only Bearer tokens. Cookie fallback is limited to safe GET requests where browsers cannot set an Authorization header, such as attachment reads, and must not be extended to business writes.
+- Sign-in rate limiting uses both account and client IP. The application reads `X-Forwarded-For`, so the proxy must overwrite rather than append client-supplied forwarded headers.
 
-## 数据与密钥
+## Data and Secrets
 
-- `SESSION_SECRET` 用于会话签名；`ENCRYPTION_SECRET` 用于派生 AI key envelope 密钥。二者的生成、文件权限和恢复语义不能静默改变。
-- AI API key 只以加密 envelope 写入 SQLite；REST、Connect、同步、日志和导出不得返回明文。
-- `runtime/secrets.json` 不是缓存。密钥轮换或存储格式变化必须提供兼容或明确的迁移、备份和回滚说明。
-- 数据库、附件与备份没有整体静态加密。不要把字段级 API key 加密描述成完整数据加密。
-- AI 档案删除必须清空当前数据库行中的 API key envelope；历史备份、记录 tombstone 与 AI 派生数据的保留语义必须在用户数据文档中明确。
+- `SESSION_SECRET` signs sessions; `ENCRYPTION_SECRET` derives the envelope-encryption key for AI API keys. Their generation, file permissions, and recovery semantics must not change silently.
+- AI API keys are written to SQLite only as encrypted envelopes. REST, Connect, sync, logs, and exports must never return plaintext keys.
+- `runtime/secrets.json` is not a cache. Secret rotation or storage-format changes require compatibility or explicit migration, backup, and rollback instructions.
+- The database, attachments, and backups do not have full at-rest encryption. Do not describe field-level AI API key encryption as complete data encryption.
+- Deleting an AI profile must clear the API key envelope from the current database row. Retention semantics for historical backups, record tombstones, and AI-derived data must remain explicit in the user data documentation.
 
-## 附件与内容
+## Attachments and Content
 
-- 上传、读取和删除都必须按账号鉴权；只凭 UID、文件名或磁盘路径不能授权。
-- 上传同时限制 HTTP body、multipart 文件声明和实际复制字节数。当前非空 MIME 来自客户端，必须视为不可信元数据；不能据此放宽鉴权或文件系统边界。
-- 文件名必须去除路径和不安全字符；数据库中的 `storage_ref` 也必须在读取和删除前验证不能逃出数据目录。
-- 当前允许 `image/*`、`text/plain` 和 PDF 内联，其余类型强制下载。改变该范围时要单独评估 SVG 等主动内容，并继续保留 `X-Content-Type-Options: nosniff`。
-- Web Markdown 不执行原始 HTML，并过滤危险 URL scheme。修改渲染器、链接或附件预览时必须补 XSS 与跨账号访问测试。
+- Upload, read, and delete operations must authorize against the account. A UID, filename, or disk path alone is never sufficient authorization.
+- Uploads limit the HTTP body, the multipart file declaration, and the number of bytes actually copied. A current non-empty MIME type comes from the client and must be treated as untrusted metadata; it cannot relax authorization or filesystem boundaries.
+- Filenames must be stripped of paths and unsafe characters. A database `storage_ref` must also be validated before reads and deletes so it cannot escape the data directory.
+- The current inline allowlist is `image/*`, `text/plain`, and PDF; every other type is forced to download. Changes to this set require a separate evaluation of active content such as SVG and must retain `X-Content-Type-Options: nosniff`.
+- Web Markdown does not execute raw HTML and filters dangerous URL schemes. Changes to the renderer, links, or attachment previews require XSS and cross-account access tests.
 
-## AI 与外部请求
+## AI and External Requests
 
-- AI 档案及自定义 Base URL 只能由已认证账号管理。自定义地址可以访问服务运行环境可达的网络目标，应视为受信任配置，不能变成未认证或第三方可控输入。
-- 总结会发送记录正文；问答会发送问题、当前分支历史和来源摘录。改变这些范围时必须同步更新[AI 使用与隐私](../user/ai.md)。
-- API key 只能放在 Provider 要求的认证 header 中。日志、错误响应和测试失败信息不得包含 key、Authorization header 或请求正文。
-- 普通生成接口应返回稳定的用户错误，不能透传 Provider 响应正文；连接测试可以提供诊断信息，但仍须过滤凭据和请求内容。
+- Only the authenticated account may manage AI profiles and custom base URLs. A custom address may reach any network target available to the service runtime, so it is trusted configuration and must never become unauthenticated or third-party-controlled input.
+- A summary request sends one record body. Ask sends the question, current branch history, and source excerpts. Any change to these scopes must update [AI Usage and Privacy](../user/ai.md).
+- API keys may appear only in the authentication headers required by the provider. Logs, error responses, and test failure output must not contain keys, Authorization headers, or request bodies.
+- Normal generation endpoints return stable user-facing errors and must not pass through provider response bodies. Connection tests may include diagnostic information, but they must still filter credentials and request content.
 
-## 日志与探针
+## Logs and Probes
 
-- 请求日志只记录请求 ID、方法、路径、状态、耗时和客户端 IP，不记录 header、body、Cookie、token 或记录内容。
-- `/healthz` 和 `/readyz` 无需认证；`readyz` 当前还返回依赖错误文本。不得让错误链新增密钥、账号、记录内容或其他敏感配置，公开部署前应评估是否需要收敛诊断信息。
-- 新增错误日志前先确认错误链不会携带密钥、私密正文或 Provider 请求 payload。
-- Web 草稿会保存在浏览器 `localStorage`，不进入服务端备份且可能跨退出登录保留。修改草稿或退出登录流程时必须保持这一边界可见，并避免在共享设备上误导用户。
+- Request logs contain only request ID, method, path, status, duration, and client IP. They do not contain headers, bodies, cookies, tokens, or record content.
+- `/healthz` and `/readyz` do not require authentication. `readyz` currently includes dependency error text. Error chains must not introduce secrets, account data, record content, or other sensitive configuration, and public deployments should evaluate whether to reduce diagnostic detail.
+- Before adding an error log, confirm that its error chain cannot contain secrets, private text, or provider request payloads.
+- Web drafts are stored in browser `localStorage`; they are not included in server backups and may remain after sign-out. Changes to draft or sign-out behavior must keep this boundary visible and avoid misleading users on shared devices.
 
 ## Android
 
-- 生产实例只使用 HTTPS；允许 HTTP 是模拟器和受信任局域网的兼容边界，不能作为公网部署建议。
-- 登录信息、离线数据和本地 AI key 通过 Android Keystore 加密；旧版明文 SharedPreferences 仍会在读取时兼容，并在后续保存时迁移。导出的 JSON 必须移除 API key，并明确提示其余内容仍为明文敏感数据。
-- 受保护附件先带认证下载到应用缓存，再通过只读 FileProvider URI 交给外部查看器，不能暴露应用私有文件路径。
+- Production instances use HTTPS only. HTTP support is a compatibility boundary for emulators and trusted LANs, not a recommendation for public deployment.
+- Login data, offline data, and local AI API keys are encrypted through Android Keystore. Legacy plaintext SharedPreferences remain readable and migrate on the next save. Exported JSON must remove API keys and clearly warn that all remaining content is still sensitive plaintext.
+- Protected attachments are downloaded with authentication into the application cache, then passed to external viewers through read-only FileProvider URIs. Private application file paths must never be exposed.
 
-## 修改与验证
+## Changes and Validation
 
-安全相关改动至少覆盖对应测试：
+Security-related changes must cover the relevant tests at a minimum:
 
-- 认证、Cookie 或代理头：`server/auth_*_test.go`、`server/connect_routes_test.go`；
-- 附件：跨账号访问、路径逃逸、大小限制、下载响应与清理；
-- 密钥或 AI 档案：加解密、密钥不可用、响应不泄露明文；
-- AI 数据范围或 Prompt：服务端和 Android 同步修改，并核对用户隐私说明；
-- Android 存储或导出：Keystore 兼容、旧数据迁移和导出脱敏。
+- authentication, cookies, or proxy headers: `server/auth_*_test.go`, `server/connect_routes_test.go`;
+- attachments: cross-account access, path traversal, size limits, download responses, and cleanup;
+- secrets or AI profiles: encryption and decryption, unavailable secrets, and absence of plaintext in responses;
+- AI data scope or prompts: update the server and Android together and verify the user privacy documentation;
+- Android storage or exports: Keystore compatibility, legacy-data migration, and export redaction.
 
-完整命令见[贡献指南](../../CONTRIBUTING.md)。实现事实源是 `server/auth/`、`server/auth_routes.go`、`server/attachment_routes.go`、`server/ai_provider*.go`、`internal/secret/`、`store/`、`web/src/components/Markdown.tsx` 和 Android `data/` 层。
+See the [Contributing Guide](../../CONTRIBUTING.md) for complete commands. Implementation sources of truth are `server/auth/`, `server/auth_routes.go`, `server/attachment_routes.go`, `server/ai_provider*.go`, `internal/secret/`, `store/`, `web/src/components/Markdown.tsx`, and the Android `data/` layer.

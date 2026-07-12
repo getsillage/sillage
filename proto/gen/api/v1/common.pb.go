@@ -100,7 +100,7 @@ func (x *Account) GetUpdatedTime() *timestamppb.Timestamp {
 	return nil
 }
 
-// Memo is the only content unit in Sillage (shown as "记录" in the UI).
+// Memo is Sillage's only content unit; user-facing clients present it as a record.
 // Deletion is a tombstone: deleted_time is set while the row is retained so
 // sync clients can converge.
 type Memo struct {

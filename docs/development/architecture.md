@@ -1,10 +1,10 @@
-# 架构说明
+# Architecture Guide
 
-本文描述 Sillage 的稳定工程边界。具体字段和行为以文末列出的代码事实源为准。
+This document describes Sillage's stable engineering boundaries. The code sources of truth listed at the end define exact fields and behavior.
 
-## 系统边界
+## System Boundaries
 
-Sillage 是单人自托管单体：一个 Go 进程提供 REST、Connect、附件下载和嵌入式 Web；业务数据写入 SQLite，附件字节写入本地文件系统。Android 作为独立客户端通过 REST 访问同一实例，也可在设备上离线保存数据。
+Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Android is a separate client that accesses the same instance through REST and can also store data offline on the device.
 
 ```text
 Web SPA -------- REST / SSE --------┐
@@ -12,78 +12,78 @@ Android -------- REST --------------+--> Echo adapters --> service / route orche
 Connect client -- Connect ----------┘                                               └--> attachments/
 ```
 
-REST 与 Connect 适配器复用相同的领域约束。记录的校验、分页、搜索、详情和写入集中在 `server/memo/`，REST、Connect 与同步负责把各自传输模型转换为服务输入；创建后的 AI 自动总结由根 `server` 跨特性编排。附件上传、Ask SSE 等手写扩展会在 route 中编排并直接调用 Store；它们仍须复用相同的鉴权和领域约束，不能另造冲突语义。
+The REST and Connect adapters reuse the same domain constraints. Record validation, pagination, search, detail retrieval, and writes are centralized in `server/memo/`; REST, Connect, and sync translate their transport models into service inputs. The root `server` package coordinates automatic AI summaries after creation across features. Handwritten extensions such as attachment uploads and Ask SSE are orchestrated in routes and call the Store directly. They must still reuse the same authorization and domain constraints and must not introduce separate conflict semantics.
 
-## 启动链路
+## Startup Lifecycle
 
-1. `cmd/sillage/main.go` 读取 flag 和环境变量。
-2. `internal/profile` 规范化监听地址、数据目录、SQLite DSN 和运行目录。
-3. `store/migrator.go` 初始化空库或执行受支持的兼容升级。
-4. `internal/secret` 读取或生成运行密钥。
-5. `server.New` 注册探针、REST、Connect、附件和 Web 路由。
-6. 收到 SIGINT/SIGTERM 后，服务停止接收请求并关闭数据库。
+1. `cmd/sillage/main.go` reads flags and environment variables.
+2. `internal/profile` normalizes the listen address, data directory, SQLite DSN, and runtime directory.
+3. `store/migrator.go` initializes an empty database or performs a supported compatibility upgrade.
+4. `internal/secret` reads or generates runtime secrets.
+5. `server.New` registers probes, REST, Connect, attachment, and Web routes.
+6. After SIGINT or SIGTERM, the service stops accepting requests and closes the database.
 
-## 模块职责
+## Module Responsibilities
 
-| 路径 | 职责 |
+| Path | Responsibility |
 | --- | --- |
-| `cmd/sillage/` | 进程入口、配置绑定、生命周期 |
-| `internal/profile/` | 运行配置与目录规范化 |
-| `internal/secret/` | 会话密钥、AI key 加密密钥与 envelope |
-| `server/` | HTTP/Connect 适配、跨特性编排和 AI 调用 |
-| `server/auth/` | 账号认证、会话和 token 服务 |
-| `server/memo/` | 记录校验、查询分页和写入业务服务 |
-| `store/` | SQLite 查询、事务、迁移与领域持久化 |
-| `proto/api/v1/` | Protobuf API 契约源 |
-| `web/` | React Web 源码、测试与构建配置 |
-| `android/` | Kotlin/Compose 客户端与本地离线数据 |
-| `scripts/` | 容器构建、启动和 Compose |
+| `cmd/sillage/` | Process entry point, configuration binding, and lifecycle |
+| `internal/profile/` | Runtime configuration and directory normalization |
+| `internal/secret/` | Session secrets, AI key-encryption secrets, and envelopes |
+| `server/` | HTTP/Connect adapters, cross-feature orchestration, and AI calls |
+| `server/auth/` | Account authentication, sessions, and token services |
+| `server/memo/` | Record validation, query pagination, and write services |
+| `store/` | SQLite queries, transactions, migrations, and domain persistence |
+| `proto/api/v1/` | Protobuf API contract source |
+| `web/` | React Web source, tests, and build configuration |
+| `android/` | Kotlin/Compose client and local offline data |
+| `scripts/` | Container builds, startup, and Compose |
 
-### Web 内部边界
+### Web Internal Boundaries
 
-| 路径 | 职责 |
+| Path | Responsibility |
 | --- | --- |
-| `web/src/app/` | 应用启动、路由装配、Provider 顺序和全局导航壳 |
-| `web/src/features/auth/` | 初始化与登录界面 |
-| `web/src/features/memos/` | 记录列表、详情、编辑、筛选和记录状态 |
-| `web/src/features/ask/` | 问答会话、消息树和流式回答状态 |
-| `web/src/features/settings/` | AI 档案与界面设置 |
-| `web/src/components/` | 跨特性复用的展示与交互组件 |
-| `web/src/lib/` | API、认证 token 和日期等底层能力 |
+| `web/src/app/` | Application startup, route composition, provider order, and global navigation shell |
+| `web/src/features/auth/` | Initialization and sign-in interface |
+| `web/src/features/memos/` | Record list, detail, editing, filters, and record state |
+| `web/src/features/ask/` | Ask conversations, message trees, and streaming-answer state |
+| `web/src/features/settings/` | AI profiles and interface settings |
+| `web/src/components/` | Presentation and interaction components shared across features |
+| `web/src/lib/` | Low-level capabilities such as API access, authentication tokens, and dates |
 
-`app/` 负责组合各特性；特性可以依赖共享 `components/`、`lib/`，问答可调用记录特性保存回答，但记录特性不反向依赖问答。`web/src/lib/api.ts` 是统一的传输客户端，API、路由和浏览器存储契约只能通过明确的契约改动变更。
+`app/` composes the features. Features may depend on shared `components/` and `lib/`; Ask may call the records feature to save an answer, but the records feature must not depend on Ask. `web/src/lib/api.ts` is the single transport client. API, routing, and browser-storage contracts may change only through explicit contract changes.
 
-### Android 内部边界
+### Android Internal Boundaries
 
-| 路径 | 职责 |
+| Path | Responsibility |
 | --- | --- |
-| `android/app/src/main/java/app/sillage/ui/` | 应用壳、共享界面状态、ViewModel 和附件缓存生命周期 |
-| `android/app/src/main/java/app/sillage/ui/auth/` | 使用模式选择、服务连接、初始化与登录界面 |
-| `android/app/src/main/java/app/sillage/ui/memos/` | 记录列表、详情、编辑和 Markdown 展示 |
-| `android/app/src/main/java/app/sillage/ui/ask/` | 问答会话与流式回答界面 |
-| `android/app/src/main/java/app/sillage/ui/settings/` | AI、外观、数据和同步设置界面 |
-| `android/app/src/main/java/app/sillage/ui/common/` | 跨特性复用的展示组件 |
-| `android/app/src/main/java/app/sillage/ui/navigation/` | 主导航组件 |
-| `android/app/src/main/java/app/sillage/data/` | REST 客户端、会话、本地存储和数据模型 |
+| `android/app/src/main/java/app/sillage/ui/` | Application shell, shared UI state, ViewModel, and attachment-cache lifecycle |
+| `android/app/src/main/java/app/sillage/ui/auth/` | Usage-mode selection, service connection, initialization, and sign-in UI |
+| `android/app/src/main/java/app/sillage/ui/memos/` | Record list, detail, editing, and Markdown rendering |
+| `android/app/src/main/java/app/sillage/ui/ask/` | Ask conversations and streaming-answer UI |
+| `android/app/src/main/java/app/sillage/ui/settings/` | AI, appearance, data, and sync settings UI |
+| `android/app/src/main/java/app/sillage/ui/common/` | Presentation components shared across features |
+| `android/app/src/main/java/app/sillage/ui/navigation/` | Primary navigation components |
+| `android/app/src/main/java/app/sillage/data/` | REST client, sessions, local storage, and data models |
 
-`SillageApp` 只组合界面并处理附件查看器交接；特性界面依赖根 `SillageUiState`、`SillageViewModel` 和共享 UI，状态与数据层不反向依赖特性界面。手动同步、导航历史、请求 ID 与在线/离线模式是跨目录必须保持的行为契约。
+`SillageApp` only composes the UI and hands attachments to external viewers. Feature screens depend on the root `SillageUiState`, `SillageViewModel`, and shared UI, while the state and data layers must not depend on feature screens. Manual sync, navigation history, request IDs, and online/offline modes are behavior contracts that span these directories and must be preserved.
 
-## 核心不变量
+## Core Invariants
 
-- 一个实例只有一个账号；初始化后拒绝创建第二个账号。
-- `memo` 是唯一内容单位，中文 UI 显示“记录”。
-- `entry_date` 表示用户选择的日期，不能用 `created_at` 替代。
-- 正文、日期、收藏、归档和删除使用 `version` 做乐观并发控制。
-- 删除保留 tombstone，供同步客户端收敛。
-- AI 派生数据独立存储，不增加 memo 的 `version` 或 `updated_at`。
-- 附件下载必须鉴权，文件名必须清理；附件字节不进入同步 payload。
-- AI API key 只以加密 envelope 保存，接口和同步不得返回明文。
+- An instance has exactly one account; initialization rejects creation of a second account.
+- `memo` is the only content unit in code, the database, Proto, and APIs; English user-facing documentation and copy use `record`; the Simplified Chinese UI uses `记录`.
+- `entry_date` is the date selected by the user and must not be replaced with `created_at`.
+- Body content, date, favorite state, archive state, and deletion use `version` for optimistic concurrency control.
+- Deletions retain tombstones so sync clients can converge.
+- AI-derived data is stored separately and does not increment a memo's `version` or `updated_at`.
+- Attachment downloads require authorization and filenames must be sanitized; attachment bytes do not enter sync payloads.
+- AI API keys are stored only in encrypted envelopes and must never be returned by APIs or sync.
 
-详细分页、幂等和冲突规则见[同步 API](api/sync.md)。产品范围见[产品指导](product-guidance.md)，认证、附件、密钥和外部请求约束见[安全开发边界](security.md)。
+See the [Sync API](api/sync.md) for detailed pagination, idempotency, and conflict rules. See [Product Guidance](product-guidance.md) for product scope and [Security Development Boundaries](security.md) for authentication, attachment, secret, and external-request constraints.
 
-## 数据与生成物
+## Data and Generated Artifacts
 
-默认数据单元是一个完整的 `SILLAGE_DATA` 目录：
+The default data unit is one complete `SILLAGE_DATA` directory:
 
 ```text
 sillage.db
@@ -94,33 +94,33 @@ assets/attachments/
 runtime/secrets.json
 ```
 
-WAL/SHM 只在 SQLite 使用时出现。`.thumbnail_cache/` 是当前未使用的预留目录，启动时会确保目录存在；`runtime/` 不是缓存。备份规则见[数据与备份](../user/data.md)。
+WAL and SHM files appear only while SQLite uses them. `.thumbnail_cache/` is a currently unused reserved directory that is created during startup; `runtime/` is not a cache. See [Data, Backup, and Recovery](../user/data.md) for backup rules.
 
-仓库提交两类生成物：
+The repository commits two types of generated artifacts:
 
-- `proto/gen/` 由 `buf generate` 生成；不得手改。
-- `server/router/frontend/dist/` 由 `pnpm --dir web build` 生成，并嵌入 Go 二进制；不得手改。
+- `proto/gen/` is generated by `buf generate` and must not be edited manually.
+- `server/router/frontend/dist/` is generated by `pnpm --dir web build`, embedded in the Go binary, and must not be edited manually.
 
-## API 边界
+## API Boundaries
 
-- REST v1：`/api/v1/*`。
-- Connect v1：`/sillage.api.v1.<Service>/<Method>`。
-- Protobuf 是 Connect 契约源；`proto/gen/openapi/openapi.yaml` 仅是 Proto HTTP 注解的生成投影，不是完整 REST 契约。
-- REST v1 的认证、错误模型、版本规则和手写扩展见[REST API 说明](api/README.md)；实现事实源是 `server/*_routes.go`。
-- Web 在 `web/src/lib/api.ts` 维护手写类型；Android 在 `SillageApi.kt` 维护 REST 映射。
+- REST v1: `/api/v1/*`.
+- Connect v1: `/sillage.api.v1.<Service>/<Method>`.
+- Protobuf is the Connect contract source. `proto/gen/openapi/openapi.yaml` is only a generated projection of Proto HTTP annotations, not the complete REST contract.
+- See the [REST API Guide](api/README.md) for REST v1 authentication, error models, versioning rules, and handwritten extensions. The implementation sources of truth are `server/*_routes.go`.
+- The Web client maintains handwritten types in `web/src/lib/api.ts`; Android maintains REST mappings in `SillageApi.kt`.
 
-契约变化必须同步 Proto、生成物、受影响的 REST/Connect 适配、客户端和测试，具体步骤见[贡献指南](../../CONTRIBUTING.md)。
+Contract changes must update Proto, generated artifacts, affected REST/Connect adapters, clients, and tests. See the [Contributing Guide](../../CONTRIBUTING.md) for the procedure.
 
-## 事实来源
+## Sources of Truth
 
-| 主题 | 事实来源 |
+| Topic | Source of truth |
 | --- | --- |
-| 运行配置 | `cmd/sillage/main.go`、`internal/profile/profile.go` |
-| 数据库结构与升级 | `store/migration/sqlite/LATEST.sql`、`store/migrator.go` |
-| REST 路由 | `server/*_routes.go` |
-| 业务服务 | `server/memo/`、`server/auth/`、`server/api_service.go` |
-| Connect / OpenAPI 投影 | `proto/api/v1/`、`proto/gen/openapi/openapi.yaml` |
-| REST 契约 | `docs/development/api/README.md`、`server/*_routes.go`、REST 行为测试 |
-| Web 主题和组件样式 | `web/src/styles/app.css`、`web/src/components/ui.ts` |
-| 自动化门禁 | `.github/workflows/ci.yml` |
-| 容器行为 | `scripts/Dockerfile`、`scripts/entrypoint.sh`、`scripts/compose.yaml` |
+| Runtime configuration | `cmd/sillage/main.go`, `internal/profile/profile.go` |
+| Database schema and upgrades | `store/migration/sqlite/LATEST.sql`, `store/migrator.go` |
+| REST routes | `server/*_routes.go` |
+| Business services | `server/memo/`, `server/auth/`, `server/api_service.go` |
+| Connect / OpenAPI projection | `proto/api/v1/`, `proto/gen/openapi/openapi.yaml` |
+| REST contract | `docs/development/api/README.md`, `server/*_routes.go`, REST behavior tests |
+| Web theme and component styles | `web/src/styles/app.css`, `web/src/components/ui.ts` |
+| Automated quality gates | `.github/workflows/ci.yml` |
+| Container behavior | `scripts/Dockerfile`, `scripts/entrypoint.sh`, `scripts/compose.yaml` |

@@ -1,41 +1,41 @@
-# AI 使用与隐私
+# AI Usage and Privacy
 
-Sillage 的 AI 功能是可选的。Sillage 不提供内置模型；配置 AI 档案后，服务端或 Android 客户端会直接调用所选的 Anthropic 或 OpenAI 兼容接口。请求到达 Provider 后，其日志、保留和训练政策由该 Provider 决定。
+Sillage's AI features are optional. Sillage does not provide a built-in model. After you configure an AI profile, the server or Android client calls the selected Anthropic or OpenAI-compatible endpoint directly. Once a request reaches the provider, that provider's policies govern logging, retention, and training.
 
-## 配置
+## Configuration
 
-一个 AI 档案包含服务商、接口地址、模型、API key、temperature 和最大输出 token。可以保存多个档案，但同一时间只有一个默认档案用于总结和问答。
+An AI profile contains a provider, endpoint URL, model, API key, temperature, and maximum output token count. You can save multiple profiles, but only one default profile is used for summaries and Ask at a time.
 
-- Anthropic 的默认接口是 `https://api.anthropic.com/v1`。
-- 其他服务商默认使用 `https://api.openai.com/v1`，也可以填写兼容接口。
-- 自定义接口地址会收到下文列出的内容。Sillage 当前不限制目标主机、协议或内网地址，只应填写自己信任且使用 HTTPS 的服务；局域网明文接口仅适合受控环境。
-- “获取模型”会携带 API key 请求 Provider 的模型列表，但不发送记录。
-- “测试连接”会发送固定的简短测试提示，不发送记录。
+- Anthropic uses `https://api.anthropic.com/v1` as its default endpoint.
+- Other providers use `https://api.openai.com/v1` by default, or you can enter a compatible endpoint.
+- A custom endpoint receives the content described below. Sillage currently does not restrict the target host, protocol, or private network address. Only enter an endpoint you trust and that uses HTTPS; a plaintext endpoint on a local network is appropriate only in a controlled environment.
+- Fetch Models (`获取模型`) sends the API key to request the provider's model list, but does not send any records.
+- Test Connection (`测试连接`) sends a fixed, short test prompt, but does not send any records.
 
-## 发送内容
+## Data Sent
 
-| 操作 | 发送给 Provider 的内容 |
+| Operation | Content sent to the provider |
 | --- | --- |
-| 生成总结 | 系统提示、所选记录的完整 Markdown 正文、模型参数 |
-| 记录问答 | 系统提示、当前问题、当前会话分支的对话历史，以及在所选时间范围内筛选出的记录摘录或已有总结 |
-| 获取模型 | API key 和模型列表请求，不包含记录 |
-| 测试连接 | API key、模型参数和固定测试提示，不包含记录 |
+| Generate a summary | System prompt, the full Markdown content of the selected record, and model parameters |
+| Ask about records | System prompt, the current question, conversation history from the current branch, and record excerpts or existing summaries selected from the chosen time range |
+| Fetch Models | API key and a model-list request; no records |
+| Test Connection | API key, model parameters, and a fixed test prompt; no records |
 
-服务端问答当前最多发送 5 条来源摘录，Android 离线问答当前最多发送 8 条。选择“全部记录”只扩大候选范围，不会把整个数据库逐条发送。附件字节不会作为总结或问答内容发送，但 Markdown 正文中的文件名、链接或描述可能随正文发送。
+Server-side Ask currently selects at most 5 source records. In record mode, it sends a raw excerpt from each selected record; in summary mode, it sends the stored summary associated with each selected record. Android offline Ask selects at most 8 source records and sends raw record excerpts. Selecting All Records (`全部记录`) only expands the candidate range; it does not send every record in the database. Attachment bytes are not sent as summary or Ask content, but file names, links, or descriptions in the Markdown body may be sent with that body.
 
-Prompt 会要求模型只依据给定来源回答，但模型仍可能遗漏或生成错误内容。重要判断应回到来源记录核对；Sillage 不把 AI 输出当作诊断或事实证明。
+The prompt instructs the model to answer only from the supplied sources, but the model may still omit information or produce incorrect content. Verify important conclusions against the source records. Sillage does not treat AI output as a diagnosis or proof of fact.
 
-## 自动总结
+## Automatic Summaries
 
-开启“新建记录后自动总结”后，服务端会在新记录保存成功后异步发送该记录正文。生成失败不会回滚记录，也不会自动无限重试。关闭设置只会阻止后续自动调用，不会删除已经生成的总结或 Provider 已经接收的数据。
+When Automatically Summarize New Records (`新建记录后自动总结`) is enabled, the server sends a new record's content asynchronously after the record has been saved successfully. A generation failure does not roll back the record and is not retried indefinitely. Disabling the setting only prevents future automatic calls; it does not delete existing summaries or data already received by the provider.
 
-手动生成总结会产生一次外部请求；发送问答只有在当前范围找到可引用来源后才会调用 Provider。没有可用的默认档案或 API key 时，Sillage 不会调用 Provider。Android 离线模式的总结和问答由设备直接请求 Provider，不经过 Sillage 服务端。
+Generating a summary manually makes one external request. Ask calls the provider only after it finds citable sources within the current scope. Sillage does not call a provider when no usable default profile or API key is available. In Android offline mode, the device calls the provider directly for summaries and Ask instead of routing requests through the Sillage server.
 
-## 密钥与本地数据
+## Secrets and Local Data
 
-- 服务端用 `ENCRYPTION_SECRET` 派生的密钥加密 AI API key，接口只返回是否已配置，不返回明文。
-- 丢失或更换 `ENCRYPTION_SECRET` 后，已有 API key 可能无法解密，需要重新保存。备份要求见[数据与备份](data.md)。
-- Android 离线档案和本地数据使用 Android Keystore 保护；设备导出的 JSON 会移除 API key，但记录、总结和问答内容仍是明文敏感数据。
-- 上述保护不等于整个数据库、附件目录或备份的静态加密。
+- The server encrypts AI API keys with a key derived from `ENCRYPTION_SECRET`. The API reports only whether a key is configured and never returns the plaintext value.
+- If `ENCRYPTION_SECRET` is lost or changed, existing API keys may no longer be decryptable and must be saved again. See [Data, Backup, and Recovery](data.md) for backup requirements.
+- Android offline profiles and local data are protected with Android Keystore. Exported JSON removes API keys, but records, summaries, and Ask content remain plaintext sensitive data.
+- These protections do not provide encryption at rest for the entire database, attachment directory, or backups.
 
-不再使用某个 Provider 时，应关闭自动总结并删除对应档案，阻止后续调用。删除会清空当前服务端数据库中的加密 API key envelope，但历史备份和 AI 派生数据仍可能保留，不能视为对全部历史副本的永久清除。已发送的数据仍应按该 Provider 的政策处理。
+When you stop using a provider, disable automatic summaries and delete the corresponding profile to prevent future calls. Deletion clears the encrypted API key envelope from the current server database, but historical backups may still contain the envelope and AI-derived data may remain. This is not permanent deletion from every historical copy. Data that has already been sent remains subject to the provider's policies.

@@ -1,29 +1,29 @@
-# 安全策略
+# Security Policy
 
-Sillage 保存私密记录、附件、登录会话和加密后的 AI API key。请不要在公开 Issue、讨论区、日志或截图中披露漏洞细节、真实数据或密钥。
+Sillage stores private records, attachments, login sessions, and encrypted AI API keys. Do not disclose vulnerability details, real data, or secrets in public issues, discussions, logs, or screenshots.
 
-## 报告漏洞
+## Reporting a Vulnerability
 
-请使用[GitHub Private Vulnerability Reporting](https://github.com/getsillage/sillage/security/advisories/new)私密提交漏洞。不要在公开 Issue、讨论区、日志或截图中披露漏洞细节、复现数据或密钥。
+Please submit vulnerabilities privately through [GitHub Private Vulnerability Reporting](https://github.com/getsillage/sillage/security/advisories/new). Do not disclose vulnerability details, reproduction data, or secrets in public issues, discussions, logs, or screenshots.
 
-完整报告应包含：
+A complete report should include:
 
-- 受影响版本或提交；
-- 影响与攻击前提；
-- 最小复现步骤；
-- 已知缓解方式。
+- the affected version or commit;
+- the impact and prerequisites for an attack;
+- minimal reproduction steps;
+- any known mitigations.
 
-请使用虚构数据复现。维护者会在 7 个自然日内确认报告；修复进展与公开披露时间在私密报告中协调。安全公告会说明受影响版本、缓解措施和升级要求。
+Use synthetic data when reproducing the issue. Maintainers will acknowledge the report within seven calendar days. Remediation progress and the timing of public disclosure will be coordinated in the private report. Security advisories will identify affected versions, mitigations, and upgrade requirements.
 
-## 支持范围
+## Supported Versions
 
-安全修复以最新发布版本和 `main` 为目标；旧版本不保证单独维护。自托管实例应在完整备份后及时升级。
+Security fixes target the latest release and `main`; older versions are not guaranteed to receive separate maintenance. Self-hosted instances should upgrade promptly after taking a complete backup.
 
-## 部署责任
+## Deployment Responsibilities
 
-- Sillage 只提供 HTTP 服务，公网访问必须由可信反向代理或 Tunnel 提供 HTTPS。
-- 数据目录和备份没有额外的整体静态加密，应限制宿主机权限并保护传输过程。
-- 不要把 `SESSION_SECRET`、`ENCRYPTION_SECRET`、AI API key 或数据库提交到仓库。
-- 暴露端口前先阅读[部署说明](docs/user/deployment.md)和[数据与备份](docs/user/data.md)。
+- Sillage provides HTTP only. Public access must use a trusted reverse proxy or Tunnel to provide HTTPS.
+- The data directory and backups do not have an additional layer of full at-rest encryption. Restrict host permissions and protect data in transit.
+- Do not commit `SESSION_SECRET`, `ENCRYPTION_SECRET`, AI API keys, or databases to the repository.
+- Read the [Deployment Guide](docs/user/deployment.md) and [Data, Backup, and Recovery](docs/user/data.md) before exposing the port.
 
-修改认证、附件、密钥或外部请求时，还应遵守[安全开发边界](docs/development/security.md)。
+Changes to authentication, attachments, secrets, or external requests must also follow the [Security Development Boundaries](docs/development/security.md).

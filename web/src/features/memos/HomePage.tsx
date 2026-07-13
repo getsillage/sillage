@@ -37,7 +37,10 @@ function EntrySection({
           {title}
         </h2>
         {showAllLink ? (
-          <Link to="/timeline" className={`${ghostLinkClass} text-xs`}>
+          <Link
+            to="/timeline"
+            className={`${ghostLinkClass} -my-3 inline-flex h-10 items-center px-2 text-xs`}
+          >
             {t("records.viewAll")}
           </Link>
         ) : null}

@@ -78,6 +78,7 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -991,6 +992,11 @@ private fun SwipeActionButton(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics {
+                    if (!visible) {
+                        invisibleToUser()
+                    }
+                }
                 .clickable(enabled = visible && enabled, onClick = onClick)
                 .padding(horizontal = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1157,11 +1163,14 @@ private fun MemoRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
 ) {
+    val moreActionsLabel = if (onLongClick == null) null else stringResource(R.string.action_more)
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
+                onLongClickLabel = moreActionsLabel,
                 onLongClick = onLongClick,
             ),
         shape = RoundedCornerShape(8.dp),

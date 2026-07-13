@@ -998,7 +998,7 @@ private fun AIProfileDetailCard(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text(stringResource(R.string.settings_temperature)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     enabled = controlsEnabled,
                 )
                 OutlinedTextField(

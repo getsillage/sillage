@@ -60,7 +60,7 @@ export function Wordmark({
     <Link
       to="/"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40"
+      className="-my-1 flex h-10 items-center gap-2 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40"
     >
       <img src="/sillage-icon.svg" alt="" className="h-8 w-8 flex-none" />
       <span className="min-w-0">

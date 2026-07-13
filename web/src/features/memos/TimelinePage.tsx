@@ -265,6 +265,7 @@ function ListView({
   const [results, setResults] = useState<Memo[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [searchAttempt, setSearchAttempt] = useState(0);
   const searchFeedbackLocaleRef = useRef(locale);
   const trimmed = query.trim();
   const memories = onThisDay(memos, today);
@@ -282,6 +283,7 @@ function ListView({
 
   // Debounced server-side FTS search; empty query falls back to the recent list.
   useEffect(() => {
+    void searchAttempt;
     if (!trimmed) {
       setResults(null);
       setSearchError("");
@@ -318,11 +320,11 @@ function ListView({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [trimmed, search, options, t]);
+  }, [trimmed, search, options, t, searchAttempt]);
 
   // The full loaded set in reverse-chronological order; older pages stream in
   // via the infinite-scroll sentinel below. Search results bypass pagination.
-  const list = trimmed ? (results ?? []) : memos;
+  const list = trimmed ? (results ?? memos) : memos;
   const groups = useMemo(() => groupEntries(list), [list]);
   const showLoadMore = !trimmed && hasMore;
   const listError = !trimmed ? error : "";
@@ -458,12 +460,22 @@ function ListView({
         <OnThisDay entries={memories} today={today} />
       ) : null}
       {searchError ? (
-        <p role="alert" className="text-red-600 text-sm dark:text-red-400">
-          {searchError}
-        </p>
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50/70 p-3 text-red-700 text-sm dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300">
+          <p role="alert" className="min-w-0 flex-1">
+            {searchError}
+          </p>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            disabled={searching}
+            onClick={() => setSearchAttempt((current) => current + 1)}
+          >
+            {t(searching ? "timeline.searching" : "common.retry")}
+          </button>
+        </div>
       ) : null}
       <section className="min-w-0 pr-14 sm:pr-0">
-        {(loading && !trimmed) || (searching && results === null) ? (
+        {(loading && !trimmed) || (searching && list.length === 0) ? (
           <TimelineSkeleton />
         ) : groups.length === 0 && !listError && !searchError ? (
           <div className={emptyStateClass}>

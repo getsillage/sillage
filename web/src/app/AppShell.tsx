@@ -187,7 +187,10 @@ export function AppShell({
       >
         <Outlet />
       </div>
-      <QuickCapture visible={showQuickCapture} onCapture={handleCapture} />
+      <QuickCapture
+        visible={showQuickCapture && !drawerOpen}
+        onCapture={handleCapture}
+      />
     </div>
   );
 }

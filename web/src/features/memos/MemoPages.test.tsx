@@ -149,6 +149,11 @@ describe("HomePage", () => {
 
     await screen.findByText("今天的记录内容");
     expect(screen.getByText("今天想记录什么？")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看全部" })).toHaveClass(
+      "h-10",
+      "-my-3",
+      "inline-flex",
+    );
 
     await user.type(screen.getByRole("textbox"), "新建的记录");
     await user.click(screen.getByRole("button", { name: "保存" }));
@@ -290,10 +295,47 @@ describe("TimelinePage", () => {
       "搜索服务暂时不可用",
     );
     expect(screen.getByText("上一次成功结果")).toBeInTheDocument();
-    expect(screen.getByText("保留 1 条上次结果")).toBeInTheDocument();
+    expect(screen.getByText("仍显示 1 条已加载记录")).toBeInTheDocument();
     expect(
       screen.queryByText("没有匹配的记录。换一个词试试。"),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded records and retries the current query after an initial search failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchMemos)
+      .mockRejectedValueOnce(new Error("搜索服务暂时不可用"))
+      .mockResolvedValueOnce({
+        memos: [memo({ id: "retried", content: "重试后命中的记录" })],
+      });
+    renderWithMemos(<TimelinePage />, "/timeline");
+
+    expect(await screen.findByText("今天的记录内容")).toBeInTheDocument();
+    const input = screen.getByPlaceholderText("搜索记录…");
+    await user.type(input, "重试查询");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "搜索服务暂时不可用",
+    );
+    expect(input).toHaveValue("重试查询");
+    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
+    expect(screen.getByText("仍显示 1 条已加载记录")).toBeInTheDocument();
+    expect(
+      screen.queryByText("没有匹配的记录。换一个词试试。"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+
+    expect(await screen.findByText("重试后命中的记录")).toBeInTheDocument();
+    expect(searchMemos).toHaveBeenCalledTimes(2);
+    expect(searchMemos).toHaveBeenNthCalledWith(1, "t", "重试查询", 100, {
+      archived: false,
+      favorited: false,
+    });
+    expect(searchMemos).toHaveBeenNthCalledWith(2, "t", "重试查询", 100, {
+      archived: false,
+      favorited: false,
+    });
   });
 
   it("passes the archived state to server-side search", async () => {

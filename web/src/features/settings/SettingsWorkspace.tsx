@@ -735,7 +735,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
         >
           <legend className="sr-only">{t("settings.aiSettings")}</legend>
           <div className="flex items-center justify-between gap-3">
-            <p className={helperTextClass}>{t("settings.secretDescription")}</p>
+            <p className={`${helperTextClass} min-w-0 flex-1`}>
+              {t("settings.secretDescription")}
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -750,7 +752,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                   },
                 ]);
               }}
-              className={secondaryButtonClass}
+              className={`${secondaryButtonClass} flex-none whitespace-nowrap`}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               {t("settings.addProfile")}
@@ -774,14 +776,19 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 aria-busy={autoSummarySaving}
                 aria-label={t("settings.autoSummaryTitle")}
                 onClick={() => void toggleAutoSummary()}
-                className={`relative h-7 w-12 flex-none rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 ${
-                  autoSummary
-                    ? "bg-gray-900 dark:bg-gray-100"
-                    : "bg-gray-300 dark:bg-gray-700"
-                }`}
+                className="relative h-10 w-12 flex-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40"
               >
                 <span
-                  className={`absolute top-1 left-0 h-5 w-5 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-950 ${
+                  aria-hidden="true"
+                  className={`absolute inset-x-0 top-1/2 h-7 -translate-y-1/2 rounded-full transition-colors ${
+                    autoSummary
+                      ? "bg-gray-900 dark:bg-gray-100"
+                      : "bg-gray-300 dark:bg-gray-700"
+                  }`}
+                />
+                <span
+                  aria-hidden="true"
+                  className={`absolute top-1/2 left-0 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-950 ${
                     autoSummary ? "translate-x-6" : "translate-x-1"
                   }`}
                 />

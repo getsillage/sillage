@@ -131,6 +131,7 @@ describe("AppShell mobile navigation", () => {
     );
 
     const firstLink = within(dialog).getByRole("link", { name: /Sillage/ });
+    expect(firstLink).toHaveClass("h-10", "-my-1");
     const themeButton = within(dialog).getByRole("button", {
       name: /切换主题/,
     });
@@ -161,6 +162,30 @@ describe("AppShell mobile navigation", () => {
     await user.click(menuButton);
     await user.click(screen.getByRole("button", { name: "关闭导航遮罩" }));
     await waitFor(() => expect(menuButton).toHaveFocus());
+  });
+
+  it("ignores quick-capture shortcuts while the mobile drawer is open", async () => {
+    const user = renderShell();
+    const menuButton = screen.getByRole("button", { name: "打开导航" });
+
+    await user.click(menuButton);
+    const drawer = screen.getByRole("dialog", { name: "导航" });
+
+    await user.keyboard("{Control>}j{/Control}");
+    await user.keyboard("{Meta>}j{/Meta}");
+
+    expect(screen.getAllByRole("dialog")).toEqual([drawer]);
+    expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "导航" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("dialog", { name: "速记" })).toBeNull();
+    expect(menuButton).toHaveFocus();
   });
 
   it("closes Ask search with Escape without closing the mobile drawer", async () => {

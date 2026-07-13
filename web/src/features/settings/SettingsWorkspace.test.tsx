@@ -308,7 +308,10 @@ describe("SettingsWorkspace", () => {
     const autoSummarySwitch = screen.getByRole("switch", {
       name: "新建记录后自动总结",
     });
-    const autoSummaryThumb = autoSummarySwitch.querySelector("span");
+    expect(autoSummarySwitch).toHaveClass("h-10", "w-12");
+    const [autoSummaryTrack, autoSummaryThumb] =
+      autoSummarySwitch.querySelectorAll("span");
+    expect(autoSummaryTrack).toHaveClass("h-7", "-translate-y-1/2");
     expect(autoSummaryThumb).toHaveClass("left-0", "translate-x-1");
     expect(
       screen.queryByRole("button", { name: "保存设置" }),

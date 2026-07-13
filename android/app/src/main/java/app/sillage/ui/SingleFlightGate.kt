@@ -1,5 +1,6 @@
 package app.sillage.ui
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 
@@ -21,6 +22,17 @@ internal class SingleFlightGate {
                 releaseGate()
             }
         }
+    }
+}
+
+internal class KeyedSingleFlightGate<K : Any> {
+    private val occupied = ConcurrentHashMap.newKeySet<K>()
+
+    fun tryAcquire(key: K): SingleFlightGate.Lease? {
+        if (!occupied.add(key)) {
+            return null
+        }
+        return SingleFlightGate.Lease { occupied.remove(key) }
     }
 }
 

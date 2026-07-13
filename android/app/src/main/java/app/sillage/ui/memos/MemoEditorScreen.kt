@@ -59,6 +59,7 @@ import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.canRunMemoEditorAction
 import app.sillage.ui.hasUnsavedMemoDraft
+import app.sillage.ui.isMemoMutationInProgress
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +67,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    val memoMutationInProgress = state.selectedMemo?.id?.let(state::isMemoMutationInProgress) == true
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor: () -> Unit = {
         if (state.hasUnsavedMemoDraft()) {
@@ -155,10 +157,10 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                     IconButton(onClick = viewModel::saveMemo, enabled = editorActionsEnabled) {
                         val actionDescription = when {
                             state.uploadingAttachment -> stringResource(R.string.editor_attachment_uploading)
-                            state.loading -> stringResource(R.string.action_saving)
+                            state.loading || memoMutationInProgress -> stringResource(R.string.action_saving)
                             else -> stringResource(R.string.action_save)
                         }
-                        if (state.uploadingAttachment || state.loading) {
+                        if (state.uploadingAttachment || state.loading || memoMutationInProgress) {
                             CircularProgressIndicator(
                                 modifier = Modifier
                                     .size(20.dp)
@@ -245,6 +247,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                         OutlinedTextField(
                             value = state.draftEntryDate,
                             onValueChange = viewModel::updateDraftEntryDate,
+                            enabled = editorActionsEnabled,
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             label = { Text(stringResource(R.string.editor_date)) },
@@ -258,6 +261,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                         baseUrl = state.baseUrl,
                         openingAttachmentPath = state.openingAttachmentPath,
                         preview = state.markdownPreview,
+                        enabled = editorActionsEnabled,
                         onContentChange = viewModel::updateDraftContent,
                         onPreviewChange = viewModel::updateMarkdownPreview,
                         onFormat = viewModel::appendMarkdownFormat,

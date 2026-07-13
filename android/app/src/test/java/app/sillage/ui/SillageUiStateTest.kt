@@ -1,6 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
+import app.sillage.data.AskMessage
 import app.sillage.data.Memo
 import app.sillage.data.MemoDetail
 import app.sillage.data.MemoListFilter
@@ -52,6 +53,23 @@ class SillageUiStateTest {
         assertFalse(editorState().copy(loading = true).canRunMemoEditorAction())
         assertFalse(editorState().copy(uploadingAttachment = true).canRunMemoEditorAction())
         assertFalse(editorState().copy(screen = Screen.Memos).canRunMemoEditorAction())
+        assertFalse(
+            editorState().copy(
+                selectedMemo = memo(),
+                memoMutationIds = setOf("memo-1"),
+            ).canRunMemoEditorAction(),
+        )
+    }
+
+    @Test
+    fun clientContextChangesAreBlockedByActiveOperations() {
+        val idle = editorState().copy(screen = Screen.AISettings)
+
+        assertFalse(idle.hasClientContextOperationInProgress())
+        assertTrue(idle.copy(memoMutationIds = setOf("memo-1")).hasClientContextOperationInProgress())
+        assertTrue(idle.copy(askSavingMessageId = "answer-1").hasClientContextOperationInProgress())
+        assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
+        assertTrue(idle.copy(aiAutoSummarySaving = true).hasClientContextOperationInProgress())
     }
 
     @Test
@@ -107,6 +125,10 @@ class SillageUiStateTest {
         assertFalse(pending.copy(memoNextCursor = "cursor-2").canApplyMemoPage(request))
         assertFalse(pending.copy(memoPageRequestId = request.requestId + 1).canApplyMemoPage(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyMemoPage(request))
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyMemoPage(request),
+        )
         assertFalse(pending.copy(memoListFilter = MemoListFilter.Archived).canApplyMemoPage(request))
         assertFalse(pending.copy(memoCacheGeneration = 1).canApplyMemoPage(request))
         assertFalse(pending.copy(loadingMoreMemos = false).canApplyMemoPage(request))
@@ -128,6 +150,14 @@ class SillageUiStateTest {
 
         assertTrue(pending.canApplyMemoRefresh(refresh))
         assertTrue(pending.canApplyMemoSearch(search))
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyMemoRefresh(refresh),
+        )
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyMemoSearch(search),
+        )
 
         val canonical = original.copy(
             version = 2,
@@ -316,6 +346,10 @@ class SillageUiStateTest {
             pending.copy(appMode = SessionStore.MODE_OFFLINE)
                 .canApplyAIAutoSummaryRequest(request),
         )
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyAIAutoSummaryRequest(request),
+        )
 
         val invalidated = pending.invalidateAIAutoSummaryRequest()
         assertFalse(invalidated.aiAutoSummarySaving)
@@ -352,6 +386,149 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun autoSummaryCannotStartWhileProfilesAreSaving() {
+        val idle = editorState().copy(
+            screen = Screen.AISettings,
+            aiAutoSummary = false,
+        )
+        val autoSummaryRequest = requireNotNull(idle.nextAIAutoSummaryRequest(true))
+        val profiles = listOf(AIProfileDraft(id = "profile-1", name = "新名称"))
+        val profilesRequest = requireNotNull(idle.nextAIProfilesMutationRequest(profiles))
+        val saving = idle.startAIProfilesMutation(profilesRequest)
+        val autoSummarySaving = idle.startAIAutoSummaryRequest(autoSummaryRequest)
+
+        assertEquals(null, saving.nextAIAutoSummaryRequest(true))
+        assertEquals(saving, saving.startAIAutoSummaryRequest(autoSummaryRequest))
+        assertEquals(null, autoSummarySaving.nextAIProfilesMutationRequest(profiles))
+    }
+
+    @Test
+    fun aiProfilesMutationIsSingleFlightAndInvalidatesEarlierLoadGeneration() {
+        val original = listOf(AIProfileDraft(id = "profile-1", name = "原名称"))
+        val edited = listOf(AIProfileDraft(id = "profile-1", name = "新名称"))
+        val idle = editorState().copy(
+            screen = Screen.AISettings,
+            appMode = SessionStore.MODE_ONLINE,
+            aiProfiles = original,
+            aiSettingsRequestId = 6,
+        )
+        val earlierLoadGeneration = idle.aiSettingsRequestId
+        val request = requireNotNull(idle.nextAIProfilesMutationRequest(edited))
+
+        val pending = idle.startAIProfilesMutation(request)
+
+        assertEquals(earlierLoadGeneration + 1, request.requestId)
+        assertEquals(request.requestId, pending.aiSettingsRequestId)
+        assertEquals(edited, pending.aiProfiles)
+        assertTrue(pending.aiSettingsSaving)
+        assertTrue(pending.canApplyAIProfilesMutation(request))
+        assertEquals(null, pending.nextAIProfilesMutationRequest(original))
+        assertEquals(pending, pending.startAIProfilesMutation(request))
+        assertFalse(
+            pending.copy(appMode = SessionStore.MODE_OFFLINE)
+                .canApplyAIProfilesMutation(request),
+        )
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyAIProfilesMutation(request),
+        )
+    }
+
+    @Test
+    fun aiProfilesFailureOnlyRollsBackItsOwnSnapshot() {
+        val original = listOf(AIProfileDraft(id = "profile-1", name = "原名称"))
+        val firstPending = listOf(AIProfileDraft(id = "profile-1", name = "首次编辑"))
+        val firstSaved = listOf(AIProfileDraft(id = "profile-1", name = "服务端名称"))
+        val initial = editorState().copy(
+            screen = Screen.AISettings,
+            aiProfiles = original,
+        )
+        val firstRequest = requireNotNull(initial.nextAIProfilesMutationRequest(firstPending))
+        val firstCompleted = initial.startAIProfilesMutation(firstRequest)
+            .completeAIProfilesMutation(firstRequest, firstSaved)
+        val secondPending = listOf(AIProfileDraft(id = "profile-1", name = "再次编辑"))
+        val secondRequest = requireNotNull(
+            firstCompleted.nextAIProfilesMutationRequest(secondPending),
+        )
+        val secondSaving = firstCompleted.startAIProfilesMutation(secondRequest)
+
+        assertEquals(secondSaving, secondSaving.failAIProfilesMutation(firstRequest))
+
+        val secondFailed = secondSaving.failAIProfilesMutation(secondRequest)
+        assertEquals(firstSaved, secondFailed.aiProfiles)
+        assertFalse(secondFailed.aiSettingsSaving)
+
+        val laterDraft = listOf(AIProfileDraft(id = "profile-1", name = "请求后继续编辑"))
+        val changedWhileSaving = secondSaving.copy(aiProfiles = laterDraft)
+        val preserved = changedWhileSaving.failAIProfilesMutation(secondRequest)
+        assertEquals(laterDraft, preserved.aiProfiles)
+        assertFalse(preserved.aiSettingsSaving)
+    }
+
+    @Test
+    fun askMemoSaveIsSingleFlightAcrossMessages() {
+        val firstAnswer = askMessage(id = "answer-1", content = "第一条回答")
+        val secondAnswer = askMessage(id = "answer-2", content = "第二条回答")
+        val idle = editorState().copy(
+            screen = Screen.Ask,
+            activeAskId = "conversation-1",
+            askHeadId = firstAnswer.id,
+            askMessages = listOf(firstAnswer, secondAnswer),
+        )
+        val request = requireNotNull(
+            idle.nextAskMemoSaveRequest(firstAnswer, memoContent = "第一条回答"),
+        )
+
+        val pending = idle.startAskMemoSave(request)
+
+        assertEquals(firstAnswer.id, pending.askSavingMessageId)
+        assertTrue(pending.canApplyAskMemoSave(request))
+        assertTrue(pending.copy(askLoading = true).canApplyAskMemoSave(request))
+        assertEquals(
+            null,
+            pending.nextAskMemoSaveRequest(firstAnswer, memoContent = "第一条回答"),
+        )
+        assertEquals(
+            null,
+            pending.nextAskMemoSaveRequest(secondAnswer, memoContent = "第二条回答"),
+        )
+        assertEquals(pending, pending.startAskMemoSave(request))
+    }
+
+    @Test
+    fun lateAskMemoSaveCannotApplyButStillClearsItsBusyState() {
+        val answer = askMessage(id = "answer-1", content = "原回答")
+        val idle = editorState().copy(
+            screen = Screen.Ask,
+            activeAskId = "conversation-1",
+            askHeadId = answer.id,
+            askScreenSessionId = 4,
+            askMessages = listOf(answer),
+        )
+        val request = requireNotNull(
+            idle.nextAskMemoSaveRequest(answer, memoContent = "保存内容"),
+        )
+        val pending = idle.startAskMemoSave(request)
+        val staleStates = listOf(
+            "screen" to pending.copy(screen = Screen.Memos),
+            "session" to pending.copy(askScreenSessionId = 5),
+            "conversation" to pending.copy(activeAskId = "conversation-2"),
+            "head" to pending.copy(askHeadId = "answer-2"),
+            "client context" to pending.copy(
+                clientContextGeneration = pending.clientContextGeneration + 1,
+            ),
+            "message" to pending.copy(
+                askMessages = listOf(answer.copy(content = "替换后的回答")),
+            ),
+        )
+
+        staleStates.forEach { (context, stale) ->
+            assertFalse(context, stale.canApplyAskMemoSave(request))
+            assertEquals(context, "", stale.finishAskMemoSave(request).askSavingMessageId)
+        }
+    }
+
+    @Test
     fun askStreamCallbacksRequireOriginalConversationAndSession() {
         val state = editorState().copy(
             screen = Screen.Ask,
@@ -371,6 +548,10 @@ class SillageUiStateTest {
         assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskStream(request))
         assertFalse(pending.copy(askStreamRequestId = request.requestId + 1).canApplyAskStream(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskStream(request))
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyAskStream(request),
+        )
         assertFalse(pending.copy(askSending = false).canApplyAskStream(request))
         assertEquals(null, state.copy(askLoading = true).nextAskStreamRequest())
         assertEquals(null, state.copy(askVariantLoading = true).nextAskStreamRequest())
@@ -395,6 +576,10 @@ class SillageUiStateTest {
         assertFalse(pending.copy(activeAskId = "conversation-2").canApplyAskVariant(request))
         assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskVariant(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskVariant(request))
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyAskVariant(request),
+        )
         assertFalse(pending.copy(askVariantRequestId = request.requestId + 1).canApplyAskVariant(request))
         assertFalse(pending.copy(screen = Screen.Memos).canApplyAskVariant(request))
     }
@@ -437,6 +622,10 @@ class SillageUiStateTest {
         assertFalse(pending.copy(askSourceRequestId = 11).canApplyAskSourceNavigation(request))
         assertFalse(pending.copy(activeAskId = "conversation-2").canApplyAskSourceNavigation(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskSourceNavigation(request))
+        assertFalse(
+            pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
+                .canApplyAskSourceNavigation(request),
+        )
         assertFalse(pending.copy(screenHistory = listOf(Screen.Memos)).canApplyAskSourceNavigation(request))
     }
 
@@ -502,6 +691,28 @@ class SillageUiStateTest {
             updatedAt = "2026-07-10T01:00:00Z",
             favoritedAt = null,
             archivedAt = null,
+            deletedAt = null,
+        )
+    }
+
+    private fun askMessage(
+        id: String,
+        content: String,
+        conversationId: String = "conversation-1",
+    ): AskMessage {
+        return AskMessage(
+            id = id,
+            conversationId = conversationId,
+            role = "assistant",
+            content = content,
+            parentId = null,
+            forkOfId = null,
+            status = "completed",
+            sourceRefs = emptyList(),
+            model = "test-model",
+            promptVersion = "test-prompt",
+            createdAt = "2026-07-10T01:00:00Z",
+            updatedAt = "2026-07-10T01:00:00Z",
             deletedAt = null,
         )
     }

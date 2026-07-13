@@ -73,7 +73,11 @@ import org.commonmark.node.Link
 import kotlin.math.roundToInt
 
 @Composable
-private fun MarkdownModeSelector(preview: Boolean, onPreviewChange: (Boolean) -> Unit) {
+private fun MarkdownModeSelector(
+    preview: Boolean,
+    enabled: Boolean,
+    onPreviewChange: (Boolean) -> Unit,
+) {
     Surface(
         modifier = Modifier.width(160.dp),
         shape = RoundedCornerShape(8.dp),
@@ -84,12 +88,14 @@ private fun MarkdownModeSelector(preview: Boolean, onPreviewChange: (Boolean) ->
             MarkdownModeButton(
                 label = stringResource(R.string.editor_mode_edit),
                 selected = !preview,
+                enabled = enabled,
                 onClick = { onPreviewChange(false) },
                 modifier = Modifier.weight(1f),
             )
             MarkdownModeButton(
                 label = stringResource(R.string.editor_mode_preview),
                 selected = preview,
+                enabled = enabled,
                 onClick = { onPreviewChange(true) },
                 modifier = Modifier.weight(1f),
             )
@@ -101,6 +107,7 @@ private fun MarkdownModeSelector(preview: Boolean, onPreviewChange: (Boolean) ->
 private fun MarkdownModeButton(
     label: String,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,6 +116,7 @@ private fun MarkdownModeButton(
             .height(48.dp)
             .selectable(
                 selected = selected,
+                enabled = enabled,
                 onClick = onClick,
                 role = Role.Tab,
             ),
@@ -129,10 +137,10 @@ private fun MarkdownModeButton(
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     label,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    color = when {
+                        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        selected -> MaterialTheme.colorScheme.onSurface
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -163,6 +171,7 @@ internal fun MarkdownEditorSection(
     baseUrl: String,
     openingAttachmentPath: String?,
     preview: Boolean,
+    enabled: Boolean,
     onContentChange: (String) -> Unit,
     onPreviewChange: (Boolean) -> Unit,
     onFormat: (MarkdownFormatStyle) -> Unit,
@@ -178,7 +187,11 @@ internal fun MarkdownEditorSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MarkdownModeSelector(preview = preview, onPreviewChange = onPreviewChange)
+            MarkdownModeSelector(
+                preview = preview,
+                enabled = enabled,
+                onPreviewChange = onPreviewChange,
+            )
             Text(
                 markdownDraftStats(content),
                 modifier = Modifier.weight(1f),
@@ -188,7 +201,7 @@ internal fun MarkdownEditorSection(
                 textAlign = androidx.compose.ui.text.style.TextAlign.End,
             )
         }
-        MarkdownToolbar(onFormat)
+        MarkdownToolbar(enabled = enabled, onFormat = onFormat)
         if (preview) {
             MarkdownPreview(
                 content = content,
@@ -203,6 +216,7 @@ internal fun MarkdownEditorSection(
             OutlinedTextField(
                 value = content,
                 onValueChange = onContentChange,
+                enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -225,7 +239,10 @@ private fun markdownDraftStats(content: String): String {
 }
 
 @Composable
-private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
+private fun MarkdownToolbar(
+    enabled: Boolean,
+    onFormat: (MarkdownFormatStyle) -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -233,29 +250,39 @@ private fun MarkdownToolbar(onFormat: (MarkdownFormatStyle) -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            MarkdownToolButton(Icons.Rounded.Title, stringResource(R.string.markdown_heading)) { onFormat(MarkdownFormatStyle.Heading) }
-            MarkdownToolButton(Icons.Rounded.FormatBold, stringResource(R.string.markdown_bold)) { onFormat(MarkdownFormatStyle.Bold) }
-            MarkdownToolButton(Icons.Rounded.FormatItalic, stringResource(R.string.markdown_italic)) { onFormat(MarkdownFormatStyle.Italic) }
-            MarkdownToolButton(Icons.Rounded.Code, stringResource(R.string.markdown_code)) { onFormat(MarkdownFormatStyle.Code) }
-            MarkdownToolButton(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.markdown_list)) {
+            MarkdownToolButton(Icons.Rounded.Title, stringResource(R.string.markdown_heading), enabled) { onFormat(MarkdownFormatStyle.Heading) }
+            MarkdownToolButton(Icons.Rounded.FormatBold, stringResource(R.string.markdown_bold), enabled) { onFormat(MarkdownFormatStyle.Bold) }
+            MarkdownToolButton(Icons.Rounded.FormatItalic, stringResource(R.string.markdown_italic), enabled) { onFormat(MarkdownFormatStyle.Italic) }
+            MarkdownToolButton(Icons.Rounded.Code, stringResource(R.string.markdown_code), enabled) { onFormat(MarkdownFormatStyle.Code) }
+            MarkdownToolButton(Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.markdown_list), enabled) {
                 onFormat(MarkdownFormatStyle.List)
             }
-            MarkdownToolButton(Icons.Rounded.FormatQuote, stringResource(R.string.markdown_quote)) { onFormat(MarkdownFormatStyle.Quote) }
+            MarkdownToolButton(Icons.Rounded.FormatQuote, stringResource(R.string.markdown_quote), enabled) { onFormat(MarkdownFormatStyle.Quote) }
         }
     }
 }
 
 @Composable
-private fun MarkdownToolButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun MarkdownToolButton(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.size(48.dp),
     ) {
         Icon(
             icon,
             contentDescription = label,
             modifier = Modifier.size(19.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (enabled) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            },
         )
     }
 }

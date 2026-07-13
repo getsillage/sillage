@@ -82,6 +82,7 @@ import app.sillage.R
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
 
 private const val AI_PROVIDER_ANTHROPIC = "anthropic"
@@ -97,6 +98,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
         state.aiTestingProfileId.isNotBlank() ||
         state.aiLoadingModelsProfileId.isNotBlank() ||
         state.loading
+    val aiProfileMutationBlocked = aiProfileOperationInProgress || state.aiAutoSummarySaving
+    val clientContextChangeBlocked = state.hasClientContextOperationInProgress()
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -152,7 +155,9 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 title = stringResource(R.string.settings_auto_summary),
                                 supporting = stringResource(R.string.settings_auto_summary_supporting),
                                 checked = state.aiAutoSummary,
-                                enabled = !state.aiAutoSummarySaving && !state.loading,
+                                enabled = !state.aiAutoSummarySaving &&
+                                    !state.aiSettingsSaving &&
+                                    !state.loading,
                                 onCheckedChange = viewModel::setAISettingsAutoSummary,
                             )
                         }
@@ -198,7 +203,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 ),
                                 supporting = state.baseUrl.ifBlank { stringResource(R.string.settings_server_not_configured) },
                                 onClick = viewModel::useOnlineMode,
-                                enabled = state.appMode != SessionStore.MODE_ONLINE && !aiProfileOperationInProgress,
+                                enabled = state.appMode != SessionStore.MODE_ONLINE && !clientContextChangeBlocked,
                                 selected = state.appMode == SessionStore.MODE_ONLINE,
                                 showDivider = true,
                             )
@@ -209,7 +214,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 ),
                                 supporting = stringResource(R.string.settings_offline_supporting),
                                 onClick = viewModel::useOfflineMode,
-                                enabled = state.appMode != SessionStore.MODE_OFFLINE && !aiProfileOperationInProgress,
+                                enabled = state.appMode != SessionStore.MODE_OFFLINE && !clientContextChangeBlocked,
                                 selected = state.appMode == SessionStore.MODE_OFFLINE,
                                 showDivider = true,
                             )
@@ -219,7 +224,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = stringResource(R.string.settings_server),
                                     supporting = stringResource(R.string.settings_server_supporting),
                                     onClick = viewModel::openServerSettings,
-                                    enabled = !aiProfileOperationInProgress,
+                                    enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
@@ -227,7 +232,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = stringResource(R.string.settings_sync_local),
                                     supporting = stringResource(R.string.settings_sync_local_supporting),
                                     onClick = viewModel::syncFromServer,
-                                    enabled = !aiProfileOperationInProgress,
+                                    enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
@@ -235,7 +240,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = stringResource(R.string.settings_sync_cloud),
                                     supporting = stringResource(R.string.settings_sync_cloud_supporting),
                                     onClick = viewModel::syncToServer,
-                                    enabled = !aiProfileOperationInProgress,
+                                    enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
                                 SettingsActionRow(
@@ -243,7 +248,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = stringResource(R.string.settings_sync_both),
                                     supporting = stringResource(R.string.settings_sync_both_supporting),
                                     onClick = viewModel::syncBothWays,
-                                    enabled = !aiProfileOperationInProgress,
+                                    enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
                             }
@@ -256,14 +261,14 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 title = stringResource(R.string.settings_export),
                                 supporting = stringResource(R.string.settings_export_supporting),
                                 onClick = { exportLauncher.launch("sillage-data.json") },
-                                enabled = !aiProfileOperationInProgress,
+                                enabled = !clientContextChangeBlocked,
                             )
                             SettingsActionRow(
                                 icon = Icons.Rounded.UploadFile,
                                 title = stringResource(R.string.settings_import),
                                 supporting = stringResource(R.string.settings_import_supporting),
                                 onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                                enabled = !aiProfileOperationInProgress,
+                                enabled = !clientContextChangeBlocked,
                                 showDivider = true,
                             )
                         }
@@ -276,7 +281,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     title = stringResource(R.string.settings_sign_out),
                                     supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
                                     onClick = viewModel::signOut,
-                                    enabled = !aiProfileOperationInProgress,
+                                    enabled = !clientContextChangeBlocked,
                                 )
                             }
                         }
@@ -284,7 +289,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
                         AISettingsHeaderCard(
                             saving = state.aiSettingsSaving,
-                            actionsEnabled = !aiProfileOperationInProgress,
+                            addEnabled = !aiProfileOperationInProgress,
+                            saveEnabled = !aiProfileMutationBlocked,
                             onAdd = {
                                 selectedAIProfileIndex = state.aiProfiles.size
                                 viewModel.addAIProfile()
@@ -305,7 +311,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     profile = profile,
                                     testResult = state.aiTestResults[profileKey],
                                     selected = selectedIndex == index,
-                                    saving = aiProfileOperationInProgress,
+                                    editingBlocked = aiProfileOperationInProgress,
+                                    mutationBlocked = aiProfileMutationBlocked,
                                     onConfigure = { selectedAIProfileIndex = index },
                                     onSetDefault = { viewModel.setAIProfileDefault(index) },
                                 )
@@ -317,7 +324,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                         loadingModels = state.aiLoadingModelsProfileId == profileKey,
                                         modelOptions = state.aiModelResults[profileKey].orEmpty(),
                                         testResult = state.aiTestResults[profileKey],
-                                        saving = aiProfileOperationInProgress,
+                                        editingBlocked = aiProfileOperationInProgress,
+                                        mutationBlocked = aiProfileMutationBlocked,
                                         viewModel = viewModel,
                                         onClose = { selectedAIProfileIndex = null },
                                     )
@@ -428,7 +436,8 @@ private fun OverviewItem(label: String, value: String, modifier: Modifier = Modi
 @Composable
 private fun AISettingsHeaderCard(
     saving: Boolean,
-    actionsEnabled: Boolean,
+    addEnabled: Boolean,
+    saveEnabled: Boolean,
     onAdd: () -> Unit,
     onSave: () -> Unit,
 ) {
@@ -458,7 +467,7 @@ private fun AISettingsHeaderCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = onAdd,
-                        enabled = actionsEnabled,
+                        enabled = addEnabled,
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp),
@@ -469,7 +478,7 @@ private fun AISettingsHeaderCard(
                     }
                     Button(
                         onClick = onSave,
-                        enabled = actionsEnabled,
+                        enabled = saveEnabled,
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp),
@@ -746,7 +755,8 @@ private fun AIProfileSummaryCard(
     profile: AIProfileDraft,
     testResult: String?,
     selected: Boolean,
-    saving: Boolean,
+    editingBlocked: Boolean,
+    mutationBlocked: Boolean,
     onConfigure: () -> Unit,
     onSetDefault: () -> Unit,
 ) {
@@ -793,7 +803,7 @@ private fun AIProfileSummaryCard(
                     AssistChip(
                         onClick = onConfigure,
                         label = { Text(stringResource(R.string.settings_default)) },
-                        enabled = !saving,
+                        enabled = !editingBlocked,
                     )
                 }
             }
@@ -835,14 +845,14 @@ private fun AIProfileSummaryCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
                     onClick = onConfigure,
-                    enabled = !saving,
+                    enabled = !editingBlocked,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(R.string.action_configure))
                 }
                 TextButton(
                     onClick = onSetDefault,
-                    enabled = !profile.active && !saving,
+                    enabled = !profile.active && !mutationBlocked,
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(if (profile.active) R.string.settings_default_current else R.string.settings_set_default))
@@ -861,13 +871,14 @@ private fun AIProfileDetailCard(
     loadingModels: Boolean,
     modelOptions: List<String>,
     testResult: String?,
-    saving: Boolean,
+    editingBlocked: Boolean,
+    mutationBlocked: Boolean,
     viewModel: SillageViewModel,
     onClose: () -> Unit,
 ) {
     var confirmingDelete by remember(profile.id, index) { mutableStateOf(false) }
     var providerMenuExpanded by remember(profile.id, index) { mutableStateOf(false) }
-    val controlsEnabled = !saving && !testing && !loadingModels
+    val controlsEnabled = !editingBlocked && !testing && !loadingModels
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -1027,13 +1038,14 @@ private fun AIProfileDetailCard(
                     onClick = {
                         if (confirmingDelete) {
                             confirmingDelete = false
-                            viewModel.removeAIProfile(index)
-                            onClose()
+                            if (viewModel.removeAIProfile(index)) {
+                                onClose()
+                            }
                         } else {
                             confirmingDelete = true
                         }
                     },
-                    enabled = controlsEnabled,
+                    enabled = controlsEnabled && !mutationBlocked,
                 ) {
                     Text(stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete))
                 }

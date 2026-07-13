@@ -63,6 +63,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,11 +72,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -190,6 +193,7 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                     today = today,
                     hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
                     loadingMore = state.loadingMoreMemos,
+                    memoMutationIds = state.memoMutationIds,
                     onLoadMore = viewModel::loadMoreMemos,
                     onMemoClick = viewModel::openMemoDetail,
                     onMemoEdit = viewModel::editMemo,
@@ -323,6 +327,7 @@ private fun MemoListView(
     today: String,
     hasMore: Boolean,
     loadingMore: Boolean,
+    memoMutationIds: Set<String>,
     onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
     onMemoEdit: (Memo) -> Unit,
@@ -364,6 +369,7 @@ private fun MemoListView(
         items(visibleMemos, key = { it.id }) { memo ->
             MemoSwipeRow(
                 memo = memo,
+                mutating = memo.id in memoMutationIds,
                 onClick = { onMemoClick(memo) },
                 onEdit = { onMemoEdit(memo) },
                 onDuplicate = { onMemoDuplicate(memo) },
@@ -587,6 +593,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         items(selectedEntries, key = { it.id }) { memo ->
             MemoSwipeRow(
                 memo = memo,
+                mutating = memo.id in state.memoMutationIds,
                 onClick = { viewModel.openMemoDetail(memo) },
                 onEdit = { viewModel.editMemo(memo) },
                 onDuplicate = { viewModel.duplicateMemoDraft(memo) },
@@ -816,6 +823,7 @@ private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
 @Composable
 private fun MemoSwipeRow(
     memo: Memo,
+    mutating: Boolean,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
@@ -856,7 +864,13 @@ private fun MemoSwipeRow(
     fun runAction(action: () -> Unit) {
         animateOffsetTo(0f, action)
     }
-    if (showActions) {
+    LaunchedEffect(mutating) {
+        if (mutating) {
+            showActions = false
+            offsetX = 0f
+        }
+    }
+    if (showActions && !mutating) {
         MemoQuickActionsSheet(
             memo = memo,
             onDismiss = { showActions = false },
@@ -893,6 +907,7 @@ private fun MemoSwipeRow(
             revealedOffset = offsetX,
             onToggleFavorite = { runAction(onToggleFavorite) },
             onToggleArchive = { runAction(onToggleArchive) },
+            enabled = !mutating,
             modifier = Modifier.matchParentSize(),
         )
         MemoRow(
@@ -903,8 +918,10 @@ private fun MemoSwipeRow(
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = dragState,
+                    enabled = !mutating,
                     onDragStopped = { settleActions() },
                 ),
+            mutating = mutating,
             onClick = {
                 if (offsetX != 0f) {
                     closeActions()
@@ -912,7 +929,7 @@ private fun MemoSwipeRow(
                     onClick()
                 }
             },
-            onLongClick = { showActions = true },
+            onLongClick = if (mutating) null else { { showActions = true } },
         )
     }
 }
@@ -924,6 +941,7 @@ private fun MemoSwipeActionPane(
     revealedOffset: Float,
     onToggleFavorite: () -> Unit,
     onToggleArchive: () -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -934,6 +952,7 @@ private fun MemoSwipeActionPane(
             icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
             label = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
             visible = revealedOffset > 0f,
+            enabled = enabled,
             color = MaterialTheme.colorScheme.primaryContainer,
             onClick = onToggleFavorite,
             modifier = Modifier
@@ -944,6 +963,7 @@ private fun MemoSwipeActionPane(
             icon = Icons.Rounded.Archive,
             label = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_restore),
             visible = revealedOffset < 0f,
+            enabled = enabled,
             color = MaterialTheme.colorScheme.secondaryContainer,
             onClick = onToggleArchive,
             modifier = Modifier
@@ -958,6 +978,7 @@ private fun SwipeActionButton(
     icon: ImageVector,
     label: String,
     visible: Boolean,
+    enabled: Boolean,
     color: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -970,7 +991,7 @@ private fun SwipeActionButton(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(enabled = visible, onClick = onClick)
+                .clickable(enabled = visible && enabled, onClick = onClick)
                 .padding(horizontal = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -1131,9 +1152,10 @@ private fun QuickActionRow(
 @Composable
 private fun MemoRow(
     memo: Memo,
+    mutating: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
 ) {
     Card(
         modifier = modifier
@@ -1167,6 +1189,20 @@ private fun MemoRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                 )
+                Box(
+                    modifier = Modifier.size(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (mutating) {
+                        val savingDescription = stringResource(R.string.action_saving)
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .semantics { contentDescription = savingDescription },
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
                 MemoStatusLine(memo)
             }
         }

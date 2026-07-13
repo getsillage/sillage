@@ -69,6 +69,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -161,20 +163,37 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            stringResource(R.string.ask_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            askContextLabel(state),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.ask_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                askContextLabel(state),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                            if (state.askSavingMessageId.isNotBlank()) {
+                                val savingDescription = stringResource(R.string.action_saving)
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .semantics { contentDescription = savingDescription },
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {
@@ -244,15 +263,19 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         AskMessageCard(
                             entry = entry,
                             canRegenerate = entry.message.id == latestAssistantId &&
+                                !state.askLoading &&
                                 !state.askSending &&
                                 !state.askVariantLoading &&
                                 !state.askSourceLoading,
                             regenerating = state.askRegeneratingId == entry.message.id,
                             variantChanging = state.askLoading || state.askVariantLoading,
                             savingDisabled = state.loading ||
+                                state.askLoading ||
                                 state.askSending ||
                                 state.askVariantLoading ||
-                                state.askSourceLoading,
+                                state.askSourceLoading ||
+                                state.askSavingMessageId.isNotBlank(),
+                            saving = state.askSavingMessageId == entry.message.id,
                             sourceActionsEnabled = !state.loading &&
                                 !state.askSending &&
                                 !state.askLoading &&
@@ -521,7 +544,10 @@ private fun AskConversationSheet(
                 )
                 TextButton(
                     onClick = viewModel::loadAskConversations,
-                    enabled = !state.askLoading && !state.askSending && !state.askVariantLoading,
+                    enabled = !state.askLoading &&
+                        !state.askSending &&
+                        !state.askVariantLoading &&
+                        state.askSavingMessageId.isBlank(),
                 ) {
                     Text(stringResource(R.string.action_refresh))
                 }
@@ -701,6 +727,7 @@ private fun AskMessageCard(
     regenerating: Boolean,
     variantChanging: Boolean,
     savingDisabled: Boolean,
+    saving: Boolean,
     sourceActionsEnabled: Boolean,
     streamingText: String?,
     onRegenerate: () -> Unit,
@@ -769,6 +796,7 @@ private fun AskMessageCard(
                         regenerating = regenerating,
                         variantChanging = variantChanging,
                         savingDisabled = savingDisabled,
+                        saving = saving,
                         onRegenerate = onRegenerate,
                         onSaveAsMemo = onSaveAsMemo,
                         onSelectVariant = onSelectVariant,
@@ -875,6 +903,7 @@ private fun AskMessageActions(
     regenerating: Boolean,
     variantChanging: Boolean,
     savingDisabled: Boolean,
+    saving: Boolean,
     onRegenerate: () -> Unit,
     onSaveAsMemo: () -> Unit,
     onSelectVariant: (String) -> Unit,
@@ -946,7 +975,21 @@ private fun AskMessageActions(
                 enabled = !savingDisabled && !regenerating,
                 modifier = Modifier.size(48.dp),
             ) {
-                Icon(Icons.Rounded.Save, contentDescription = stringResource(R.string.ask_save_as_record), modifier = Modifier.size(20.dp))
+                if (saving) {
+                    val savingDescription = stringResource(R.string.action_saving)
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .semantics { contentDescription = savingDescription },
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        Icons.Rounded.Save,
+                        contentDescription = stringResource(R.string.ask_save_as_record),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
     }

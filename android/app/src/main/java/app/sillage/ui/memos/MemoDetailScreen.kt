@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,8 +63,15 @@ import app.sillage.ui.localizedTimestamp
 @Composable
 internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val memo = state.selectedMemo
+    val memoMutating = memo?.id?.let(state.memoMutationIds::contains) == true
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    LaunchedEffect(memoMutating) {
+        if (memoMutating) {
+            menuExpanded = false
+            confirmDelete = false
+        }
+    }
     BackHandler(onBack = viewModel::closeMemoDetail)
     if (confirmDelete && memo != null) {
         AlertDialog(
@@ -76,7 +84,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                         confirmDelete = false
                         viewModel.deleteSelectedMemo()
                     },
-                    enabled = !state.loading,
+                    enabled = !state.loading && !memoMutating,
                 ) {
                     Text(stringResource(R.string.action_confirm_delete))
                 }
@@ -100,16 +108,19 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                 actions = {
                     IconButton(
                         onClick = viewModel::editSelectedMemo,
-                        enabled = memo != null && !state.loading,
+                        enabled = memo != null && !state.loading && !memoMutating,
                     ) {
                         Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.record_edit_description))
                     }
                     Box {
-                        IconButton(onClick = { menuExpanded = true }, enabled = memo != null && !state.loading) {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            enabled = memo != null && !state.loading && !memoMutating,
+                        ) {
                             Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
                         }
                         DropdownMenu(
-                            expanded = menuExpanded,
+                            expanded = menuExpanded && !memoMutating,
                             onDismissRequest = { menuExpanded = false },
                         ) {
                             if (memo != null) {
@@ -127,6 +138,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoFavorited()
                                     },
+                                    enabled = !state.loading && !memoMutating,
                                 )
                                 DropdownMenuItem(
                                     text = {
@@ -137,6 +149,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                                         menuExpanded = false
                                         viewModel.toggleSelectedMemoArchived()
                                     },
+                                    enabled = !state.loading && !memoMutating,
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_delete)) },
@@ -145,6 +158,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                                         menuExpanded = false
                                         confirmDelete = true
                                     },
+                                    enabled = !state.loading && !memoMutating,
                                 )
                             }
                         }

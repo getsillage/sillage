@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.R
 import app.sillage.data.SessionStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -117,7 +118,10 @@ class SillageViewModelToastTest {
         val feedback = performSignOut(
             offlineMode = false,
             remoteSignOut = { throw IllegalStateException("server unavailable") },
-            clearLocalSession = { localSessionCleared = true },
+            clearLocalSession = {
+                localSessionCleared = true
+                true
+            },
         )
 
         assertTrue(localSessionCleared)
@@ -138,7 +142,10 @@ class SillageViewModelToastTest {
         val feedback = performSignOut(
             offlineMode = true,
             remoteSignOut = { remoteSignOutCalled = true },
-            clearLocalSession = { localSessionCleared = true },
+            clearLocalSession = {
+                localSessionCleared = true
+                true
+            },
         )
 
         assertFalse(remoteSignOutCalled)
@@ -150,5 +157,35 @@ class SillageViewModelToastTest {
             ),
             feedback,
         )
+    }
+
+    @Test
+    fun staleSignOutDoesNotReportSuccessWhenConditionalClearIsRejected() = runBlocking {
+        val feedback = performSignOut(
+            offlineMode = false,
+            remoteSignOut = { throw IllegalStateException("old request failed") },
+            clearLocalSession = { false },
+        )
+
+        assertNull(feedback)
+    }
+
+    @Test
+    fun signOutCancellationIsRethrownAfterConditionalLocalClear() = runBlocking {
+        var localSessionCleared = false
+
+        val failure = runCatching {
+            performSignOut(
+                offlineMode = false,
+                remoteSignOut = { throw CancellationException("cancelled") },
+                clearLocalSession = {
+                    localSessionCleared = true
+                    true
+                },
+            )
+        }.exceptionOrNull()
+
+        assertTrue(localSessionCleared)
+        assertTrue(failure is CancellationException)
     }
 }

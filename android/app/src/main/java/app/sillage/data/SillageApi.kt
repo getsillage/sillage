@@ -6,6 +6,7 @@ import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -20,6 +21,7 @@ import okhttp3.Callback
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -31,16 +33,20 @@ import okio.BufferedSource
 import org.json.JSONArray
 import org.json.JSONObject
 
-class SillageApi(private val sessionStore: SessionStore) {
+private const val SERVER_CONFIG_CHANGED = "服务器配置已更改"
+
+class SillageApi(
+    private val sessionStore: SessionStore,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
     private val client = OkHttpClient.Builder()
-        .cookieJar(StoredCookieJar(sessionStore))
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
     private val refreshCoordinator = SessionRefreshCoordinator(
-        currentAccessToken = sessionStore::accessToken,
-        clearSession = sessionStore::clearSession,
-        refresh = { refresh() },
+        currentSession = sessionStore::clientSessionSnapshot,
+        clearSession = { context, accessToken -> sessionStore.clearSession(context, accessToken) },
+        refresh = ::refreshSession,
     )
 
     suspend fun bootstrap(baseUrl: String = sessionStore.baseUrl()): Boolean {
@@ -48,41 +54,60 @@ class SillageApi(private val sessionStore: SessionStore) {
         val body = execute(
             request = Request.Builder().url("$normalized/api/v1/auth/bootstrap").get().build(),
             authenticated = false,
+            sessionScoped = false,
         )
         return body.getBoolean("initialized")
     }
 
     suspend fun initialize(username: String, displayName: String, password: String): AuthSession {
+        val expectedSession = sessionStore.clientSessionSnapshot()
         val payload = JSONObject()
             .put("username", username)
             .put("displayName", displayName)
             .put("password", password)
-        return auth("/api/v1/auth/initialize", payload)
+        return auth("/api/v1/auth/initialize", payload, expectedSession)
     }
 
     suspend fun signIn(username: String, password: String): AuthSession {
+        val expectedSession = sessionStore.clientSessionSnapshot()
         val payload = JSONObject()
             .put("username", username)
             .put("password", password)
-        return auth("/api/v1/auth/signin", payload)
+        return auth("/api/v1/auth/signin", payload, expectedSession)
     }
 
-    suspend fun refresh(): AuthSession {
+    private suspend fun refreshSession(context: ClientRequestContext): AuthSession {
         val request = Request.Builder()
-            .url(url("/api/v1/auth/refresh"))
+            .url(context.baseUrl.trimEnd('/') + "/api/v1/auth/refresh")
             .post(EMPTY_BODY)
             .build()
-        val body = execute(request = request, authenticated = false)
-        return parseAuthSession(body).also(sessionStore::saveSession)
+            .withSessionContext(context, authenticated = false)
+        val session = parseAuthSession(
+            executePrepared(request = request, authenticated = false, retryRefresh = false),
+        )
+        if (!sessionStore.saveRefreshedSession(session, context)) {
+            throw ApiException(SERVER_CONFIG_CHANGED)
+        }
+        return session
     }
 
     suspend fun signOut() {
-        val request = Request.Builder()
-            .url(url("/api/v1/auth/signout"))
-            .post(EMPTY_BODY)
-            .build()
-        execute(request = request, authenticated = false)
-        sessionStore.clearSession()
+        signOut(sessionStore.clientSessionSnapshot())
+    }
+
+    internal suspend fun signOut(expectedSession: ClientSessionSnapshot) {
+        val context = expectedSession.toClientRequestContext()
+        refreshCoordinator.runSessionExclusive {
+            val request = Request.Builder()
+                .url(context.baseUrl.trimEnd('/') + "/api/v1/auth/signout")
+                .post(EMPTY_BODY)
+                .build()
+                .withSessionContext(context, authenticated = false)
+            executePrepared(request = request, authenticated = false, retryRefresh = false)
+            if (!sessionStore.clearSession(context)) {
+                throw ApiException(SERVER_CONFIG_CHANGED)
+            }
+        }
     }
 
     suspend fun me(): Account {
@@ -453,38 +478,98 @@ class SillageApi(private val sessionStore: SessionStore) {
             .url(url("/api/v1/ask/conversations/${conversationId.pathSegment()}/messages:stream"))
             .post(payload.toString().jsonBody())
             .build()
-            .withAuth(true)
+            .withSessionSnapshot(authenticated = true)
         executeAskStream(request, onStart, onDelta, onError)
     }
 
-    private suspend fun auth(path: String, payload: JSONObject): AuthSession {
-        val request = Request.Builder()
-            .url(url(path))
-            .post(payload.toString().jsonBody())
-            .build()
-        return parseAuthSession(execute(request, authenticated = false)).also(sessionStore::saveSession)
+    private suspend fun auth(
+        path: String,
+        payload: JSONObject,
+        expectedSession: ClientSessionSnapshot,
+    ): AuthSession {
+        val context = expectedSession.toClientRequestContext()
+        return refreshCoordinator.runSessionExclusive {
+            val request = Request.Builder()
+                .url(context.baseUrl.trimEnd('/') + path)
+                .post(payload.toString().jsonBody())
+                .build()
+                .withSessionContext(context, authenticated = false)
+            val session = parseAuthSession(
+                executePrepared(request = request, authenticated = false, retryRefresh = false),
+            )
+            if (!sessionStore.saveAuthenticatedSession(session, request.requireClientRequestContext())) {
+                throw ApiException(SERVER_CONFIG_CHANGED)
+            }
+            session
+        }
     }
 
     private suspend fun execute(
         request: Request,
         authenticated: Boolean = true,
         retryRefresh: Boolean = true,
-    ): JSONObject = withContext(Dispatchers.IO) {
-        val authenticatedRequest = request.withAuth(authenticated)
-        val response = client.newCall(authenticatedRequest).execute()
-        response.use { res ->
-            if (res.code == 401 && authenticated && retryRefresh) {
-                refreshSessionForRetry(authenticatedRequest.requireBearerAccessToken())
-                return@withContext execute(request, authenticated = true, retryRefresh = false)
+        sessionScoped: Boolean = true,
+    ): JSONObject {
+        val preparedRequest = if (sessionScoped) {
+            request.withSessionSnapshot(authenticated)
+        } else {
+            request
+        }
+        return executePrepared(preparedRequest, authenticated, retryRefresh)
+    }
+
+    private suspend fun executePrepared(
+        request: Request,
+        authenticated: Boolean,
+        retryRefresh: Boolean,
+    ): JSONObject {
+        return executeSnapshot(request, request, authenticated, retryRefresh)
+    }
+
+    @OptIn(InternalCoroutinesApi::class)
+    private suspend fun executeSnapshot(
+        originalRequest: Request,
+        request: Request,
+        authenticated: Boolean,
+        retryRefresh: Boolean,
+    ): JSONObject {
+        return withContext(ioDispatcher) {
+            val call = newCall(request)
+            val cancellation = currentCoroutineContext()[Job]?.invokeOnCompletion(
+                onCancelling = true,
+                invokeImmediately = true,
+            ) { cause ->
+                if (cause is CancellationException) call.cancel()
             }
-            val body = res.body?.string().orEmpty()
-            if (!res.isSuccessful) {
-                throw ApiException(parseErrorMessage(body))
-            }
-            if (body.isBlank()) {
-                JSONObject()
-            } else {
-                JSONObject(body)
+            try {
+                val response = call.execute()
+                response.use { res ->
+                    currentCoroutineContext().ensureActive()
+                    if (res.code == 401 && authenticated && retryRefresh) {
+                        refreshSessionForRetry(request)
+                        val retryRequest = originalRequest.withCurrentAuthForSameContext()
+                        return@withContext executeSnapshot(
+                            originalRequest = originalRequest,
+                            request = retryRequest,
+                            authenticated = true,
+                            retryRefresh = false,
+                        )
+                    }
+                    val body = res.body?.string().orEmpty()
+                    if (!res.isSuccessful) {
+                        throw ApiException(parseErrorMessage(body))
+                    }
+                    if (body.isBlank()) {
+                        JSONObject()
+                    } else {
+                        JSONObject(body)
+                    }
+                }
+            } catch (error: IOException) {
+                currentCoroutineContext().ensureActive()
+                throw error
+            } finally {
+                cancellation?.dispose()
             }
         }
     }
@@ -493,16 +578,22 @@ class SillageApi(private val sessionStore: SessionStore) {
         request: Request,
         tempDestination: File,
         retryRefresh: Boolean = true,
+        authenticatedRequest: Request = request.withSessionSnapshot(authenticated = true),
     ): DownloadedAttachment {
-        return when (val result = executeAttachmentDownloadAttempt(request, tempDestination)) {
+        return when (val result = executeAttachmentDownloadAttempt(authenticatedRequest, tempDestination)) {
             is AttachmentDownloadAttempt.Success -> result.attachment
             is AttachmentDownloadAttempt.Unauthorized -> {
                 if (!retryRefresh) {
                     throw ApiException(result.message)
                 }
-                refreshSessionForRetry(result.failedAccessToken)
+                refreshSessionForRetry(authenticatedRequest)
                 currentCoroutineContext().ensureActive()
-                executeAttachmentDownload(request, tempDestination, retryRefresh = false)
+                executeAttachmentDownload(
+                    request = request,
+                    tempDestination = tempDestination,
+                    retryRefresh = false,
+                    authenticatedRequest = authenticatedRequest.withCurrentAuthForSameContext(),
+                )
             }
         }
     }
@@ -512,9 +603,7 @@ class SillageApi(private val sessionStore: SessionStore) {
         request: Request,
         tempDestination: File,
     ): AttachmentDownloadAttempt = suspendCancellableCoroutine { continuation ->
-        val authenticatedRequest = request.withAuth(true)
-        val failedAccessToken = authenticatedRequest.requireBearerAccessToken()
-        val call = client.newCall(authenticatedRequest)
+        val call = newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         val callback = object : Callback {
             override fun onFailure(call: Call, error: IOException) {
@@ -533,7 +622,6 @@ class SillageApi(private val sessionStore: SessionStore) {
                         val result = when {
                             res.code == 401 -> AttachmentDownloadAttempt.Unauthorized(
                                 message = parseErrorMessage(res.body?.string().orEmpty()),
-                                failedAccessToken = failedAccessToken,
                             )
                             !res.isSuccessful -> throw ApiException(
                                 parseErrorMessage(res.body?.string().orEmpty()),
@@ -583,10 +671,7 @@ class SillageApi(private val sessionStore: SessionStore) {
     private sealed interface AttachmentDownloadAttempt {
         data class Success(val attachment: DownloadedAttachment) : AttachmentDownloadAttempt
 
-        data class Unauthorized(
-            val message: String,
-            val failedAccessToken: String,
-        ) : AttachmentDownloadAttempt
+        data class Unauthorized(val message: String) : AttachmentDownloadAttempt
     }
 
     @OptIn(InternalCoroutinesApi::class)
@@ -597,10 +682,7 @@ class SillageApi(private val sessionStore: SessionStore) {
         onError: (String) -> Unit,
         retryRefresh: Boolean = true,
     ): Unit = withContext(Dispatchers.IO) {
-        val streamClient = client.newBuilder()
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .build()
-        val call = streamClient.newCall(request)
+        val call = newCall(request, readTimeoutMillis = 0)
         val cancellation = currentCoroutineContext()[Job]?.invokeOnCompletion(
             onCancelling = true,
             invokeImmediately = true,
@@ -611,9 +693,9 @@ class SillageApi(private val sessionStore: SessionStore) {
             val response = call.execute()
             response.use { res ->
                 if (res.code == 401 && retryRefresh) {
-                    refreshSessionForRetry(request.requireBearerAccessToken())
+                    refreshSessionForRetry(request)
                     return@withContext executeAskStream(
-                        request.withAuth(true),
+                        request.withCurrentAuthForSameContext(),
                         onStart,
                         onDelta,
                         onError,
@@ -634,8 +716,11 @@ class SillageApi(private val sessionStore: SessionStore) {
         }
     }
 
-    private suspend fun refreshSessionForRetry(failedAccessToken: String) {
-        refreshCoordinator.refreshAfterUnauthorized(failedAccessToken)
+    private suspend fun refreshSessionForRetry(request: Request) {
+        refreshCoordinator.refreshAfterUnauthorized(
+            context = request.requireClientRequestContext(),
+            failedAccessToken = request.requireBearerAccessToken(),
+        )
     }
 
     private fun consumeAskStream(
@@ -677,14 +762,81 @@ class SillageApi(private val sessionStore: SessionStore) {
         }
     }
 
-    private fun Request.withAuth(authenticated: Boolean): Request {
-        if (!authenticated) {
-            return this
+    private fun Request.withSessionSnapshot(authenticated: Boolean): Request {
+        val snapshot = sessionStore.clientSessionSnapshot()
+        val context = snapshot.toClientRequestContext()
+        return withSessionContext(context, authenticated, snapshot)
+    }
+
+    private fun Request.withSessionContext(
+        context: ClientRequestContext,
+        authenticated: Boolean,
+    ): Request {
+        val snapshot = sessionStore.clientSessionSnapshot()
+        if (!snapshot.matches(context)) {
+            throw ApiException(SERVER_CONFIG_CHANGED)
         }
-        val token = sessionStore.accessToken() ?: throw ApiException("请先登录")
-        return newBuilder()
-            .header("Authorization", "Bearer $token")
-            .build()
+        return withSessionContext(context, authenticated, snapshot)
+    }
+
+    private fun Request.withSessionContext(
+        context: ClientRequestContext,
+        authenticated: Boolean,
+        snapshot: ClientSessionSnapshot,
+    ): Request {
+        val baseUrl = context.baseUrl.toHttpUrlOrNull()
+            ?: throw ApiException(SERVER_CONFIG_CHANGED)
+        if (!url.matchesSessionBase(baseUrl)) {
+            throw ApiException(SERVER_CONFIG_CHANGED)
+        }
+        val builder = newBuilder()
+            .tag(ClientRequestContext::class.java, context)
+        if (authenticated) {
+            val token = snapshot.accessToken ?: throw ApiException("请先登录")
+            builder.header("Authorization", "Bearer $token")
+        } else {
+            builder.removeHeader("Authorization")
+        }
+        return builder.build()
+    }
+
+    private fun Request.withCurrentAuthForSameContext(): Request {
+        val context = requireClientRequestContext()
+        return withSessionContext(context, authenticated = true)
+    }
+
+    private fun Request.requireClientRequestContext(): ClientRequestContext {
+        return tag(ClientRequestContext::class.java)
+            ?: throw ApiException(SERVER_CONFIG_CHANGED)
+    }
+
+    private fun ClientSessionSnapshot.toClientRequestContext(): ClientRequestContext {
+        val parsedBaseUrl = baseUrl.toHttpUrlOrNull()
+            ?: throw ApiException(SERVER_CONFIG_CHANGED)
+        return ClientRequestContext(
+            baseUrl = baseUrl,
+            contextGeneration = contextGeneration,
+            serverBaseKey = parsedBaseUrl.serverBaseKey(),
+        )
+    }
+
+    private fun newCall(request: Request, readTimeoutMillis: Long? = null): Call {
+        val builder = client.newBuilder()
+        request.tag(ClientRequestContext::class.java)?.let { context ->
+            builder.cookieJar(StoredCookieJar(sessionStore, context))
+            builder.addNetworkInterceptor { chain ->
+                val baseUrl = context.baseUrl.toHttpUrlOrNull()
+                    ?: throw IOException(SERVER_CONFIG_CHANGED)
+                if (!chain.request().url.matchesSessionBase(baseUrl)) {
+                    throw IOException(SERVER_CONFIG_CHANGED)
+                }
+                chain.proceed(chain.request())
+            }
+        }
+        if (readTimeoutMillis != null) {
+            builder.readTimeout(readTimeoutMillis, TimeUnit.MILLISECONDS)
+        }
+        return builder.build().newCall(request)
     }
 
     private fun Request.requireBearerAccessToken(): String {
@@ -884,27 +1036,46 @@ class SillageApi(private val sessionStore: SessionStore) {
         return if (isNull(name)) null else optString(name)
     }
 
-    private class StoredCookieJar(private val sessionStore: SessionStore) : CookieJar {
+    private class StoredCookieJar(
+        private val sessionStore: SessionStore,
+        private val context: ClientRequestContext,
+    ) : CookieJar {
+        private val baseUrl = context.baseUrl.toHttpUrlOrNull()
+
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            val configuredBase = baseUrl ?: return emptyList()
+            if (!url.matchesSessionBase(configuredBase)) {
+                return emptyList()
+            }
             val now = System.currentTimeMillis()
-            return sessionStore.cookieHeaders()
+            return sessionStore.cookieHeadersFor(context)
                 .mapNotNull { Cookie.parse(url, it) }
                 .filter { it.expiresAt > now && it.matches(url) }
         }
 
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            val current = loadForRequest(url).associateBy { "${it.name}|${it.domain}|${it.path}" }
-            val merged = current.toMutableMap()
-            cookies.forEach { cookie ->
-                val key = "${cookie.name}|${cookie.domain}|${cookie.path}"
-                if (cookie.expiresAt <= System.currentTimeMillis()) {
-                    merged.remove(key)
-                } else {
-                    merged[key] = cookie
-                }
+            val configuredBase = baseUrl ?: return
+            if (!url.matchesSessionBase(configuredBase)) {
+                return
             }
-            sessionStore.saveCookieHeaders(merged.values.map(Cookie::toString))
+            sessionStore.updateCookieHeaders(context) { storedHeaders ->
+                val now = System.currentTimeMillis()
+                val merged = storedHeaders
+                    .mapNotNull { Cookie.parse(url, it) }
+                    .filter { it.expiresAt > now }
+                    .associateByTo(mutableMapOf()) { it.storageKey() }
+                cookies.forEach { cookie ->
+                    if (cookie.expiresAt <= now) {
+                        merged.remove(cookie.storageKey())
+                    } else {
+                        merged[cookie.storageKey()] = cookie
+                    }
+                }
+                merged.values.map(Cookie::toString)
+            }
         }
+
+        private fun Cookie.storageKey(): String = "$name|$domain|$path"
     }
 
     companion object {
@@ -912,6 +1083,36 @@ class SillageApi(private val sessionStore: SessionStore) {
         private val EMPTY_BODY = ByteArray(0).toRequestBody(JSON)
     }
 }
+
+private fun HttpUrl.matchesSessionBase(baseUrl: HttpUrl): Boolean {
+    if (scheme != baseUrl.scheme || host != baseUrl.host || port != baseUrl.port) {
+        return false
+    }
+    val routeIndex = SESSION_ROUTE_PREFIXES.maxOf { prefix ->
+        encodedPath.lastIndexOf(prefix).takeIf { index ->
+            index >= 0 && (index + prefix.length == encodedPath.length || encodedPath[index + prefix.length] == '/')
+        } ?: -1
+    }
+    if (routeIndex < 0) {
+        return false
+    }
+    val requestBasePath = encodedPath.substring(0, routeIndex).trimEnd('/')
+    val configuredBasePath = baseUrl.encodedPath.trimEnd('/')
+    return requestBasePath == configuredBasePath
+}
+
+private fun HttpUrl.serverBaseKey(): String = newBuilder()
+    .query(null)
+    .fragment(null)
+    .build()
+    .toString()
+    .trimEnd('/')
+
+private fun ClientSessionSnapshot.matches(context: ClientRequestContext): Boolean {
+    return baseUrl == context.baseUrl && contextGeneration == context.contextGeneration
+}
+
+private val SESSION_ROUTE_PREFIXES = listOf("/api/v1", "/file/attachments")
 
 internal fun pendingMemoSyncToJson(pending: PendingMemoSync): JSONObject {
     val memo = pending.memo
@@ -945,30 +1146,43 @@ internal fun pendingMemoSyncToJson(pending: PendingMemoSync): JSONObject {
 }
 
 internal class SessionRefreshCoordinator(
-    private val currentAccessToken: () -> String?,
-    private val clearSession: () -> Unit,
-    private val refresh: suspend () -> Unit,
+    private val currentSession: () -> ClientSessionSnapshot,
+    private val clearSession: (ClientRequestContext, String) -> Boolean,
+    private val refresh: suspend (ClientRequestContext) -> Unit,
 ) {
-    private val mutex = Mutex()
+    private val mutex = SESSION_MUTEX
 
-    suspend fun refreshAfterUnauthorized(failedAccessToken: String) {
+    suspend fun refreshAfterUnauthorized(
+        context: ClientRequestContext,
+        failedAccessToken: String,
+    ) {
         mutex.withLock {
-            val currentToken = currentAccessToken()
+            val current = currentSession()
+            if (!current.matches(context)) {
+                throw ApiException(SERVER_CONFIG_CHANGED)
+            }
+            val currentToken = current.accessToken
                 ?: throw ApiException("请先登录")
             if (currentToken != failedAccessToken) {
                 return
             }
             try {
-                refresh()
+                refresh(context)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                if (currentAccessToken() == failedAccessToken) {
-                    clearSession()
-                }
+                clearSession(context, failedAccessToken)
                 throw error
             }
         }
+    }
+
+    suspend fun <T> runSessionExclusive(block: suspend () -> T): T {
+        return mutex.withLock { block() }
+    }
+
+    private companion object {
+        val SESSION_MUTEX = Mutex()
     }
 }
 

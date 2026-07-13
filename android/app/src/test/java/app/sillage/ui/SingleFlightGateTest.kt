@@ -67,4 +67,19 @@ class SingleFlightGateTest {
         assertEquals(1, finished)
         assertNotNull(gate.tryAcquire())
     }
+
+    @Test
+    fun keyedGateRejectsTheSameKeyWhileAllowingIndependentKeys() {
+        val gate = KeyedSingleFlightGate<String>()
+        val firstMemo = requireNotNull(gate.tryAcquire("memo-1"))
+
+        assertNull(gate.tryAcquire("memo-1"))
+        val secondMemo = requireNotNull(gate.tryAcquire("memo-2"))
+
+        firstMemo.release()
+        val reacquiredMemo = requireNotNull(gate.tryAcquire("memo-1"))
+        assertNotNull(reacquiredMemo)
+        reacquiredMemo.release()
+        secondMemo.release()
+    }
 }

@@ -77,8 +77,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -716,7 +719,10 @@ private fun CalendarGrid(
     val sundayFirst = stringArrayResource(R.array.calendar_weekdays_short).toList()
     val firstIndex = if (firstDayOfWeek == DayOfWeek.SUNDAY) 0 else firstDayOfWeek.value
     val weekdays = sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        modifier = Modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             weekdays.forEach { day ->
                 Text(
@@ -758,6 +764,12 @@ private fun CalendarDayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val recordCount = pluralStringResource(R.plurals.quantity_records, count, count)
+    val description = stringResource(
+        if (isToday) R.string.calendar_day_today_description else R.string.calendar_day_description,
+        localizedDate(date),
+        recordCount,
+    )
     val color = when {
         selected -> MaterialTheme.colorScheme.surfaceContainerHighest
         count > 0 -> MaterialTheme.colorScheme.surfaceContainerLow
@@ -769,8 +781,11 @@ private fun CalendarDayCell(
         else -> null
     }
     Surface(
+        selected = selected,
         onClick = onClick,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .semantics { applyCalendarDaySemantics(description, selected) },
         shape = RoundedCornerShape(8.dp),
         color = color,
         border = border,
@@ -778,6 +793,7 @@ private fun CalendarDayCell(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .clearAndSetSemantics { }
                 .padding(vertical = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -798,6 +814,14 @@ private fun CalendarDayCell(
             )
         }
     }
+}
+
+internal fun SemanticsPropertyReceiver.applyCalendarDaySemantics(
+    description: String,
+    isSelected: Boolean,
+) {
+    contentDescription = description
+    selected = isSelected
 }
 
 @Composable

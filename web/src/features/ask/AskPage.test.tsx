@@ -290,6 +290,12 @@ describe("AskPage", () => {
 
     expect(screen.queryByText("保存失败")).not.toBeInTheDocument();
     expect(screen.getByText("可保存回答")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "You said", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Sillage replied", level: 2 }),
+    ).toBeInTheDocument();
     expect(createMemo).toHaveBeenCalledTimes(1);
   });
 
@@ -572,6 +578,12 @@ describe("AskPage", () => {
     expect(await screen.findByText("我最近怎么样？")).toBeInTheDocument();
     expect(screen.getByText("你睡得更好了。")).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: "你说", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Sillage 回答", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: /来源记录/ }),
     ).not.toBeInTheDocument();
   });
@@ -676,6 +688,12 @@ describe("AskPage", () => {
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText("正在整理问答")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "你说", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Sillage 回答", level: 2 }),
+    ).toBeInTheDocument();
     await act(async () => {
       finishMessageLoad?.({ messages: [firstQuestion] });
     });
@@ -860,7 +878,10 @@ describe("AskPage", () => {
     renderAsk();
 
     expect(await screen.findByText("第二个回答")).toBeInTheDocument();
-    expect(screen.getByText("2/2")).toBeInTheDocument();
+    expect(screen.getByText("2/2")).toHaveAttribute("aria-hidden", "true");
+    const answerPosition = screen.getByRole("status");
+    expect(answerPosition).toHaveClass("sr-only");
+    expect(answerPosition).toHaveTextContent("第 2 个回答，共 2 个");
 
     const previousButton = screen.getByRole("button", { name: "上一个回答" });
     const nextButton = screen.getByRole("button", { name: "下一个回答" });
@@ -872,6 +893,7 @@ describe("AskPage", () => {
       expect(setAskHead).toHaveBeenCalledWith("t", "c1", "a1"),
     );
     expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    expect(answerPosition).toHaveTextContent("第 1 个回答，共 2 个");
   });
 
   it("uses the loaded conversation head when opened from a URL", async () => {

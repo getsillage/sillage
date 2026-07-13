@@ -168,6 +168,88 @@ class LanguageResourcesTest {
     }
 
     @Test
+    fun accessibilityDescriptionsResolveBothSupportedLanguages() {
+        assertEquals(
+            "Jul 13, 2026, 0 records",
+            context.localizedString(
+                SessionStore.LANGUAGE_EN,
+                R.string.calendar_day_description,
+                "Jul 13, 2026",
+                "0 records",
+            ),
+        )
+        assertEquals(
+            "2026年7月13日，0 条记录",
+            context.localizedString(
+                SessionStore.LANGUAGE_ZH_CN,
+                R.string.calendar_day_description,
+                "2026年7月13日",
+                "0 条记录",
+            ),
+        )
+        assertEquals(
+            "Jul 14, 2026, today, 2 records",
+            context.localizedString(
+                SessionStore.LANGUAGE_EN,
+                R.string.calendar_day_today_description,
+                "Jul 14, 2026",
+                "2 records",
+            ),
+        )
+        assertEquals(
+            "2026年7月14日，今天，2 条记录",
+            context.localizedString(
+                SessionStore.LANGUAGE_ZH_CN,
+                R.string.calendar_day_today_description,
+                "2026年7月14日",
+                "2 条记录",
+            ),
+        )
+        assertEquals(
+            "You: Hello",
+            context.localizedString(
+                SessionStore.LANGUAGE_EN,
+                R.string.ask_message_description,
+                "You",
+                "Hello",
+            ),
+        )
+        assertEquals(
+            "你：你好",
+            context.localizedString(
+                SessionStore.LANGUAGE_ZH_CN,
+                R.string.ask_message_description,
+                "你",
+                "你好",
+            ),
+        )
+        assertEquals(
+            "You",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_speaker_you),
+        )
+        assertEquals(
+            "你",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_speaker_you),
+        )
+        assertEquals(
+            "1/2",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_variant_counter, 1, 2),
+        )
+        assertEquals(
+            "Answer 1 of 2",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_variant_position, 1, 2),
+        )
+        assertEquals(
+            "1/2",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_variant_counter, 1, 2),
+        )
+        assertEquals(
+            "第 1 个回答，共 2 个",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_variant_position, 1, 2),
+        )
+    }
+
+    @Test
     fun mainActivityStartsWithAppCompatTheme() {
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
 

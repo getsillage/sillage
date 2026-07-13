@@ -91,6 +91,8 @@
     <string name="calendar_loading_earlier">Loading earlier records</string>
     <string name="calendar_month_pattern">MMMM yyyy</string>
     <string name="calendar_browse_by_date">Browse records by date</string>
+    <string name="calendar_day_description">%1$s, %2$s</string>
+    <string name="calendar_day_today_description">%1$s, today, %2$s</string>
     <string-array name="calendar_weekdays_short">
         <item>Sun</item><item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item><item>Fri</item><item>Sat</item>
     </string-array>
@@ -188,8 +190,12 @@
     <string name="ask_hide_sources">Hide sources</string>
     <string name="ask_show_sources">Show sources</string>
     <string name="ask_thinking">Thinking…</string>
+    <string name="ask_speaker_you">You</string>
+    <string name="ask_message_description">%1$s: %2$s</string>
     <string name="ask_previous_variant">Previous answer</string>
     <string name="ask_next_variant">Next answer</string>
+    <string name="ask_variant_counter">%1$d/%2$d</string>
+    <string name="ask_variant_position">Answer %1$d of %2$d</string>
     <string name="ask_generating">Generating</string>
     <string name="ask_regenerate">Regenerate</string>
     <string name="ask_save_as_record">Save as record</string>

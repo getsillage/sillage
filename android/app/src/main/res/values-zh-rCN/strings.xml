@@ -90,6 +90,8 @@
     <string name="calendar_loading_earlier">正在加载更早记录</string>
     <string name="calendar_month_pattern">yyyy年M月</string>
     <string name="calendar_browse_by_date">按日期回看记录</string>
+    <string name="calendar_day_description">%1$s，%2$s</string>
+    <string name="calendar_day_today_description">%1$s，今天，%2$s</string>
     <string-array name="calendar_weekdays_short">
         <item>日</item><item>一</item><item>二</item><item>三</item><item>四</item><item>五</item><item>六</item>
     </string-array>
@@ -186,8 +188,12 @@
     <string name="ask_hide_sources">隐藏来源</string>
     <string name="ask_show_sources">显示来源</string>
     <string name="ask_thinking">正在思考…</string>
+    <string name="ask_speaker_you">你</string>
+    <string name="ask_message_description">%1$s：%2$s</string>
     <string name="ask_previous_variant">上一条</string>
     <string name="ask_next_variant">下一条</string>
+    <string name="ask_variant_counter">%1$d/%2$d</string>
+    <string name="ask_variant_position">第 %1$d 个回答，共 %2$d 个</string>
     <string name="ask_generating">生成中</string>
     <string name="ask_regenerate">重新生成</string>
     <string name="ask_save_as_record">存为记录</string>

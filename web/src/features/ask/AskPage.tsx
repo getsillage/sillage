@@ -278,7 +278,7 @@ export function AskPage() {
         ) : (
           entries.map((entry) => (
             <MessageBubble
-              key={entry.message.id}
+              key={entry.variants[0]?.id ?? entry.message.id}
               entry={entry}
               streamingText={
                 regeneratingId === entry.message.id ? liveAnswer : undefined
@@ -300,12 +300,14 @@ export function AskPage() {
           <>
             {liveUserMessage ? (
               <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+                <h2 className="sr-only">{t("ask.youSaid")}</h2>
                 <p className="whitespace-pre-wrap text-[15px] leading-7">
                   {liveUserMessage.content}
                 </p>
               </div>
             ) : null}
             <div className="max-w-[92%] px-1">
+              <h2 className="sr-only">{t("ask.sillageReplied")}</h2>
               {liveAnswer ? (
                 <Markdown content={liveAnswer} variant="chat" />
               ) : (
@@ -504,6 +506,7 @@ function MessageBubble({
     saveRequestGenerationRef.current += 1;
     setSaved(false);
     setSaveError("");
+    setSourcesExpanded(false);
   }, [saveContext]);
 
   useEffect(() => {
@@ -517,6 +520,7 @@ function MessageBubble({
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
+        <h2 className="sr-only">{t("ask.youSaid")}</h2>
         <p className="whitespace-pre-wrap text-[15px] leading-7">
           {message.content}
         </p>
@@ -567,6 +571,7 @@ function MessageBubble({
 
   return (
     <div className="max-w-[92%] px-1">
+      <h2 className="sr-only">{t("ask.sillageReplied")}</h2>
       {streamingText !== undefined && !streamingText ? (
         <p
           className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
@@ -611,8 +616,14 @@ function MessageBubble({
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span>
+            <span aria-hidden="true">
               {index + 1}/{variants.length}
+            </span>
+            <span className="sr-only" role="status" aria-atomic="true">
+              {t("ask.answerPosition", {
+                current: index + 1,
+                total: variants.length,
+              })}
             </span>
             <button
               type="button"

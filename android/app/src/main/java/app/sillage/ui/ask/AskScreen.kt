@@ -69,6 +69,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -737,6 +739,12 @@ private fun AskMessageCard(
 ) {
     val message = entry.message
     val isAssistant = message.role == "assistant"
+    val displayedContent = when {
+        streamingText != null && streamingText.isNotBlank() -> streamingText
+        regenerating -> stringResource(R.string.ask_regenerating)
+        else -> message.content
+    }
+    val messageDescription = askMessageDescription(isAssistant, displayedContent)
     val bubbleColor = if (isAssistant) {
         MaterialTheme.colorScheme.surfaceContainerLow
     } else {
@@ -774,10 +782,9 @@ private fun AskMessageCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    when {
-                        streamingText != null && streamingText.isNotBlank() -> streamingText
-                        regenerating -> stringResource(R.string.ask_regenerating)
-                        else -> message.content
+                    displayedContent,
+                    modifier = Modifier.clearAndSetSemantics {
+                        applyAskMessageSemantics(messageDescription)
                     },
                     color = textColor,
                     style = MaterialTheme.typography.bodyMedium,
@@ -855,6 +862,7 @@ private fun AskSourceRefs(
 
 @Composable
 private fun AskLiveUserCard(message: AskMessage) {
+    val messageDescription = askMessageDescription(isAssistant = false, content = message.content)
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End,
@@ -867,7 +875,9 @@ private fun AskLiveUserCard(message: AskMessage) {
         ) {
             Text(
                 message.content,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier = Modifier
+                    .clearAndSetSemantics { applyAskMessageSemantics(messageDescription) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -877,6 +887,8 @@ private fun AskLiveUserCard(message: AskMessage) {
 
 @Composable
 private fun AskLiveAnswerCard(answer: String) {
+    val displayedContent = answer.ifBlank { stringResource(R.string.ask_thinking) }
+    val messageDescription = askMessageDescription(isAssistant = true, content = displayedContent)
     Card(
         modifier = Modifier.fillMaxWidth(0.94f),
         shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 8.dp),
@@ -888,7 +900,10 @@ private fun AskLiveAnswerCard(answer: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                answer.ifBlank { stringResource(R.string.ask_thinking) },
+                displayedContent,
+                modifier = Modifier.clearAndSetSemantics {
+                    applyAskMessageSemantics(messageDescription)
+                },
                 color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -915,6 +930,11 @@ private fun AskMessageActions(
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (hasVariants) {
+            val variantPosition = stringResource(
+                R.string.ask_variant_position,
+                entry.index + 1,
+                entry.variants.size,
+            )
             IconButton(
                 onClick = {
                     val previous = entry.variants.getOrNull(entry.index - 1)
@@ -932,7 +952,10 @@ private fun AskMessageActions(
                 )
             }
             Text(
-                "${entry.index + 1}/${entry.variants.size}",
+                stringResource(R.string.ask_variant_counter, entry.index + 1, entry.variants.size),
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = variantPosition
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -993,4 +1016,14 @@ private fun AskMessageActions(
             }
         }
     }
+}
+
+@Composable
+private fun askMessageDescription(isAssistant: Boolean, content: String): String {
+    val speaker = stringResource(if (isAssistant) R.string.app_name else R.string.ask_speaker_you)
+    return stringResource(R.string.ask_message_description, speaker, content)
+}
+
+internal fun SemanticsPropertyReceiver.applyAskMessageSemantics(description: String) {
+    contentDescription = description
 }

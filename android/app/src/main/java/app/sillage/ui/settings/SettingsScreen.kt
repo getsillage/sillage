@@ -41,11 +41,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -79,6 +83,10 @@ import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.navigation.MainNavigationBar
+
+private const val AI_PROVIDER_ANTHROPIC = "anthropic"
+private const val AI_PROVIDER_OPENAI = "openai"
+private val AI_PROVIDER_OPTIONS = listOf(AI_PROVIDER_ANTHROPIC, AI_PROVIDER_OPENAI)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -724,6 +732,16 @@ private fun EmptySettingsCard(text: String) {
 }
 
 @Composable
+private fun aiProviderProtocolLabel(provider: String): String {
+    val label = if (provider.equals(AI_PROVIDER_ANTHROPIC, ignoreCase = true)) {
+        R.string.settings_provider_anthropic_compatible
+    } else {
+        R.string.settings_provider_openai_compatible
+    }
+    return stringResource(label)
+}
+
+@Composable
 private fun AIProfileSummaryCard(
     profile: AIProfileDraft,
     testResult: String?,
@@ -764,7 +782,7 @@ private fun AIProfileSummaryCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        profile.provider.ifBlank { stringResource(R.string.settings_provider_unset) },
+                        aiProviderProtocolLabel(profile.provider),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
@@ -834,6 +852,7 @@ private fun AIProfileSummaryCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AIProfileDetailCard(
     index: Int,
@@ -847,6 +866,7 @@ private fun AIProfileDetailCard(
     onClose: () -> Unit,
 ) {
     var confirmingDelete by remember(profile.id, index) { mutableStateOf(false) }
+    var providerMenuExpanded by remember(profile.id, index) { mutableStateOf(false) }
     val controlsEnabled = !saving && !testing && !loadingModels
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -883,15 +903,45 @@ private fun AIProfileDetailCard(
                 label = { Text(stringResource(R.string.settings_profile_name)) },
                 enabled = controlsEnabled,
             )
-            OutlinedTextField(
-                value = profile.provider,
-                onValueChange = { viewModel.updateAIProfileProvider(index, it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.settings_provider)) },
-                placeholder = { Text(stringResource(R.string.settings_provider_placeholder)) },
-                enabled = controlsEnabled,
-            )
+            ExposedDropdownMenuBox(
+                expanded = providerMenuExpanded,
+                onExpandedChange = { expanded ->
+                    providerMenuExpanded = controlsEnabled && expanded
+                },
+            ) {
+                OutlinedTextField(
+                    value = aiProviderProtocolLabel(profile.provider),
+                    onValueChange = {},
+                    modifier = Modifier
+                        .menuAnchor(
+                            type = MenuAnchorType.PrimaryNotEditable,
+                            enabled = controlsEnabled,
+                        )
+                        .fillMaxWidth(),
+                    readOnly = true,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.settings_provider)) },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerMenuExpanded)
+                    },
+                    enabled = controlsEnabled,
+                )
+                ExposedDropdownMenu(
+                    expanded = providerMenuExpanded,
+                    onDismissRequest = { providerMenuExpanded = false },
+                ) {
+                    AI_PROVIDER_OPTIONS.forEach { provider ->
+                        DropdownMenuItem(
+                            text = { Text(aiProviderProtocolLabel(provider)) },
+                            enabled = controlsEnabled,
+                            onClick = {
+                                viewModel.updateAIProfileProvider(index, provider)
+                                providerMenuExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = profile.baseUrl,
                 onValueChange = { viewModel.updateAIProfileBaseUrl(index, it) },

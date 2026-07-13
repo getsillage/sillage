@@ -78,6 +78,30 @@ class LanguageResourcesTest {
             context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_ai_models_loaded),
         )
         assertEquals(
+            "API protocol",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.settings_provider),
+        )
+        assertEquals(
+            "接口协议",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.settings_provider),
+        )
+        assertEquals(
+            "Anthropic-compatible API",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.settings_provider_anthropic_compatible),
+        )
+        assertEquals(
+            "兼容 Anthropic 接口协议",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.settings_provider_anthropic_compatible),
+        )
+        assertEquals(
+            "OpenAI-compatible API",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.settings_provider_openai_compatible),
+        )
+        assertEquals(
+            "兼容 OpenAI 接口协议",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.settings_provider_openai_compatible),
+        )
+        assertEquals(
             "Signed in.",
             context.localizedString(SessionStore.LANGUAGE_EN, R.string.notice_signed_in),
         )

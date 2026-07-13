@@ -91,7 +91,7 @@ When running directly on the host, the application uses `/var/opt/sillage` by de
 
 The container entrypoint also supports `SILLAGE_UID` and `SILLAGE_GID`, both defaulting to `10001`. They adjust ownership of the mounted directory and run the process as a non-root user. Compose does not pass through these two variables; to customize them, explicitly change the Compose `environment` or use `docker run -e`.
 
-Configure the AI provider, model, and API key in the application settings after signing in; they are not configured through process environment variables. Read [AI Usage and Privacy](ai.md) before configuring them.
+Configure the AI API protocol, endpoint, model, and API key in the application settings after signing in; they are not configured through process environment variables. Read [AI Usage and Privacy](ai.md) before configuring them.
 
 ## Run Locally
 

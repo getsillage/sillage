@@ -32,9 +32,15 @@ import {
 } from "../../lib/api";
 
 const PROVIDER_OPTIONS = [
-  { value: "anthropic", label: "Anthropic Claude" },
-  { value: "openai", label: "OpenAI" },
-];
+  {
+    value: "anthropic",
+    labelKey: "settings.anthropicCompatibleProtocol",
+  },
+  { value: "openai", labelKey: "settings.openAICompatibleProtocol" },
+] as const satisfies readonly {
+  value: string;
+  labelKey: TranslationKey;
+}[];
 
 // Local editing copy: apiKeyInput holds a freshly typed key (empty keeps the
 // stored key untouched). temperatureText/maxTokensText keep the raw input as a
@@ -142,11 +148,12 @@ function profileKey(profile: EditableProfile, index: number): string {
   return profile.id || `new-${index}`;
 }
 
-function providerLabel(provider: string): string {
-  return (
-    PROVIDER_OPTIONS.find((option) => option.value === provider)?.label ??
-    provider
-  );
+function providerLabel(
+  provider: string,
+  translate: (key: TranslationKey) => string,
+): string {
+  const option = PROVIDER_OPTIONS.find((option) => option.value === provider);
+  return option ? translate(option.labelKey) : provider;
 }
 
 async function withTimeout<T>(
@@ -805,7 +812,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             {profile.name || t("settings.unnamedProfile")}
                           </h3>
                           <p className="mt-1 truncate text-gray-500 text-xs dark:text-gray-400">
-                            {providerLabel(profile.provider)}
+                            {providerLabel(profile.provider, t)}
                           </p>
                         </div>
                         {profile.active ? (
@@ -933,7 +940,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           >
                             {PROVIDER_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
-                                {option.label}
+                                {t(option.labelKey)}
                               </option>
                             ))}
                             {!PROVIDER_OPTIONS.some(

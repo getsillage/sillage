@@ -131,17 +131,45 @@ describe("SettingsWorkspace", () => {
     expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
   });
 
-  it("limits provider presets to Anthropic and OpenAI", async () => {
+  it("shows the supported API protocols in the selector and profile card", async () => {
     const user = userEvent.setup();
     renderSettings();
 
+    expect(
+      await screen.findByText("兼容 Anthropic 接口协议"),
+    ).toBeInTheDocument();
     await openDefaultProfile(user);
-    const providerSelect = screen.getByRole("combobox", { name: "服务商" });
+    const providerSelect = screen.getByRole("combobox", { name: "接口协议" });
+    expect(
+      within(providerSelect)
+        .getAllByRole("option")
+        .map((option) => ({
+          value: option.getAttribute("value"),
+          label: option.textContent,
+        })),
+    ).toEqual([
+      { value: "anthropic", label: "兼容 Anthropic 接口协议" },
+      { value: "openai", label: "兼容 OpenAI 接口协议" },
+    ]);
+  });
+
+  it("keeps an existing unknown provider available as a compatibility option", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [profile({ provider: "legacy-compatible" })],
+      autoSummary: false,
+    });
+    renderSettings();
+
+    expect(await screen.findByText("legacy-compatible")).toBeInTheDocument();
+    await openDefaultProfile(user);
+    const providerSelect = screen.getByRole("combobox", { name: "接口协议" });
     expect(
       within(providerSelect)
         .getAllByRole("option")
         .map((option) => option.getAttribute("value")),
-    ).toEqual(["anthropic", "openai"]);
+    ).toEqual(["anthropic", "openai", "legacy-compatible"]);
+    expect(providerSelect).toHaveValue("legacy-compatible");
   });
 
   it("keeps a new unnamed profile as a draft until it has a name", async () => {

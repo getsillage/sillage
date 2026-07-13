@@ -235,7 +235,6 @@
     <string name="settings_ai_profiles">AI 档案</string>
     <string name="settings_ai_profiles_supporting">管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。</string>
     <string name="settings_profile_unnamed">未命名档案</string>
-    <string name="settings_provider_unset">未设置 Provider</string>
     <string name="settings_default">默认</string>
     <string name="settings_model_unset">未设置模型</string>
     <string name="settings_key_present">有密钥</string>
@@ -247,6 +246,9 @@
     <string name="settings_profile_details_supporting">修改当前档案后保存生效。</string>
     <string name="settings_profile_name">名称</string>
     <string name="error_ai_profile_name_required">第 %1$d 个 AI 档案需要填写名称后才能保存。</string>
+    <string name="settings_provider">接口协议</string>
+    <string name="settings_provider_anthropic_compatible">兼容 Anthropic 接口协议</string>
+    <string name="settings_provider_openai_compatible">兼容 OpenAI 接口协议</string>
     <string name="settings_model">模型</string>
     <string name="settings_models_loading">获取中</string>
     <string name="settings_models_get">获取模型</string>

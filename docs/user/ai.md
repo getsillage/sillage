@@ -1,15 +1,15 @@
 # AI Usage and Privacy
 
-Sillage's AI features are optional. Sillage does not provide a built-in model. After you configure an AI profile, the server or Android client calls the selected Anthropic or OpenAI-compatible endpoint directly. Once a request reaches the provider, that provider's policies govern logging, retention, and training.
+Sillage's AI features are optional. Sillage does not provide a built-in model. After you configure an AI profile, the server or Android client calls the configured Anthropic-compatible or OpenAI-compatible endpoint directly. Once a request reaches the provider, that provider's policies govern logging, retention, and training.
 
 ## Configuration
 
-An AI profile contains a provider, endpoint URL, model, API key, temperature, and maximum output token count. You can save multiple profiles, but only one default profile is used for summaries and Ask at a time.
+An AI profile contains an API protocol, endpoint URL, model, API key, temperature, and maximum output token count. You can save multiple profiles, but only one default profile is used for summaries and Ask at a time. The protocol setting selects the request format; it is not a list of service providers.
 
-- Anthropic uses `https://api.anthropic.com/v1` as its default endpoint.
-- Other providers use `https://api.openai.com/v1` by default, or you can enter a compatible endpoint.
+- The Anthropic-compatible protocol uses `https://api.anthropic.com/v1` as its default endpoint.
+- The OpenAI-compatible protocol uses `https://api.openai.com/v1` as its default endpoint.
 - A custom endpoint receives the content described below. Sillage currently does not restrict the target host, protocol, or private network address. Only enter an endpoint you trust and that uses HTTPS; a plaintext endpoint on a local network is appropriate only in a controlled environment.
-- Fetch Models (`获取模型`) sends the API key to request the provider's model list, but does not send any records.
+- Fetch Models (`获取模型`) sends the API key to request the configured endpoint's model list, but does not send any records.
 - Test Connection (`测试连接`) sends a fixed, short test prompt, but does not send any records.
 
 ## Data Sent

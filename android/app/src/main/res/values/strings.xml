@@ -240,7 +240,6 @@
     <string name="settings_ai_profiles">AI profiles</string>
     <string name="settings_ai_profiles_supporting">Manage the model configurations used for summaries and Ask. Keys are encrypted by the local server and are never shown again.</string>
     <string name="settings_profile_unnamed">Unnamed profile</string>
-    <string name="settings_provider_unset">Provider not set</string>
     <string name="settings_default">Default</string>
     <string name="settings_model_unset">Model not set</string>
     <string name="settings_key_present">Key configured</string>
@@ -252,8 +251,9 @@
     <string name="settings_profile_details_supporting">Save to apply changes to this profile.</string>
     <string name="settings_profile_name">Name</string>
     <string name="error_ai_profile_name_required">AI profile %1$d needs a name before it can be saved.</string>
-    <string name="settings_provider" translatable="false">Provider</string>
-    <string name="settings_provider_placeholder" translatable="false">anthropic / openai</string>
+    <string name="settings_provider">API protocol</string>
+    <string name="settings_provider_anthropic_compatible">Anthropic-compatible API</string>
+    <string name="settings_provider_openai_compatible">OpenAI-compatible API</string>
     <string name="settings_base_url" translatable="false">Base URL</string>
     <string name="settings_model">Model</string>
     <string name="settings_models_loading">Loading</string>

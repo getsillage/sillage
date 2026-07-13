@@ -46,6 +46,8 @@
     <string name="account_username">Username</string>
     <string name="account_display_name">Display name</string>
     <string name="account_password">Password</string>
+    <string name="account_show_password">Show password</string>
+    <string name="account_hide_password">Hide password</string>
     <string name="account_creating">Creating</string>
     <string name="account_create_enter">Create and continue</string>
     <string name="login_title">Sign in to Sillage</string>
@@ -307,6 +309,16 @@
 
     <string name="action_retry">Retry</string>
     <string name="error_server_required">Enter a server address first.</string>
+    <string name="error_auth_bootstrap_failed">Could not read the server initialization status.</string>
+    <string name="error_auth_invalid_request">The authentication request was invalid.</string>
+    <string name="error_auth_fields_required">Enter an account and password.</string>
+    <string name="error_auth_already_initialized">This instance has already been initialized.</string>
+    <string name="error_auth_initialize_failed">Could not create the account.</string>
+    <string name="error_auth_invalid_credentials">Incorrect account or password.</string>
+    <string name="error_auth_rate_limited">Too many attempts. Try again later.</string>
+    <string name="error_auth_sign_in_failed">Sign-in failed.</string>
+    <string name="error_auth_sign_in_required">Sign in again.</string>
+    <string name="error_auth_refresh_failed">Could not refresh the sign-in session.</string>
     <string name="notice_offline_enabled">Switched to Offline mode.</string>
     <string name="notice_connected">Connected to the server.</string>
     <string name="notice_account_initialized">Account created.</string>

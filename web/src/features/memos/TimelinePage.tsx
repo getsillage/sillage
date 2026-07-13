@@ -385,29 +385,31 @@ function ListView({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <fieldset className={segmentedControlClass}>
+        <fieldset
+          className={`${segmentedControlClass} flex min-w-0 w-full sm:w-auto`}
+        >
           <legend className="sr-only">{t("timeline.statusLabel")}</legend>
           <Link
             to="/timeline"
-            className={segmentedItemClass(filter === "active")}
+            className={`${segmentedItemClass(filter === "active")} min-w-0 flex-1 px-2 sm:flex-none sm:px-3`}
             aria-current={filter === "active" ? "page" : undefined}
           >
             {t("timeline.active")}
           </Link>
           <Link
             to="/timeline?filter=archived"
-            className={segmentedItemClass(filter === "archived")}
+            className={`${segmentedItemClass(filter === "archived")} min-w-0 flex-1 px-2 sm:flex-none sm:px-3`}
             aria-current={filter === "archived" ? "page" : undefined}
           >
-            <Archive className="h-4 w-4" aria-hidden="true" />
+            <Archive className="hidden h-4 w-4 sm:block" aria-hidden="true" />
             {t("timeline.archived")}
           </Link>
           <Link
             to="/timeline?filter=favorite"
-            className={segmentedItemClass(filter === "favorite")}
+            className={`${segmentedItemClass(filter === "favorite")} min-w-0 flex-1 px-2 sm:flex-none sm:px-3`}
             aria-current={filter === "favorite" ? "page" : undefined}
           >
-            <Star className="h-4 w-4" aria-hidden="true" />
+            <Star className="hidden h-4 w-4 sm:block" aria-hidden="true" />
             {t("timeline.favorite")}
           </Link>
         </fieldset>

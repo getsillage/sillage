@@ -1,6 +1,6 @@
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { useToast } from "../../components/Toast";
@@ -16,10 +16,12 @@ import { type Account, initializeAccount, signIn } from "../../lib/api";
 function AuthSurface({
   title,
   lead,
+  controlsDisabled = false,
   children,
 }: {
   title: string;
   lead?: string;
+  controlsDisabled?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -37,7 +39,7 @@ function AuthSurface({
               Sillage
             </p>
           </div>
-          <LanguageSwitcher compact />
+          <LanguageSwitcher compact disabled={controlsDisabled} />
         </div>
         <h1 className="mt-4 font-semibold text-xl text-gray-900 dark:text-gray-50">
           {title}
@@ -49,6 +51,19 @@ function AuthSurface({
   );
 }
 
+function AuthError({ id, message }: { id: string; message: string }) {
+  return (
+    <div
+      id={id}
+      role="alert"
+      className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50/70 px-3 py-2.5 text-red-700 text-sm dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300"
+    >
+      <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden="true" />
+      <p className="min-w-0 leading-5">{message}</p>
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
@@ -56,6 +71,8 @@ function Field({
   type = "text",
   autoComplete,
   required = true,
+  disabled = false,
+  describedBy,
 }: {
   label: string;
   value: string;
@@ -63,6 +80,8 @@ function Field({
   type?: string;
   autoComplete?: string;
   required?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
 }) {
   const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
@@ -81,13 +100,18 @@ function Field({
           value={value}
           autoComplete={autoComplete}
           required={required}
+          disabled={disabled}
+          aria-describedby={describedBy}
+          spellCheck={password ? false : undefined}
+          autoCapitalize={password ? "none" : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
         {password ? (
           <button
             type="button"
+            disabled={disabled}
             onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-0 bottom-0 inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-500 dark:hover:text-gray-200"
+            className="absolute right-0 bottom-0 inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
             aria-label={t(
               showPassword ? "auth.hidePassword" : "auth.showPassword",
             )}
@@ -118,6 +142,8 @@ export function InitializePage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const errorId = useId();
 
   useEffect(() => {
     void locale;
@@ -125,6 +151,10 @@ export function InitializePage({
   }, [locale, t]);
 
   async function submit() {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -136,8 +166,8 @@ export function InitializePage({
       const message =
         err instanceof Error ? err.message : t("auth.initializeFailed");
       setError(message);
-      toast.showToast({ kind: "error", message });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -146,9 +176,11 @@ export function InitializePage({
     <AuthSurface
       title={t("auth.initializeTitle")}
       lead={t("auth.initializeLead")}
+      controlsDisabled={busy}
     >
       <form
         className="space-y-4"
+        aria-busy={busy}
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -157,28 +189,38 @@ export function InitializePage({
         <Field
           label={t("auth.account")}
           value={username}
-          onChange={setUsername}
+          onChange={(value) => {
+            setUsername(value);
+            setError("");
+          }}
           autoComplete="username"
+          disabled={busy}
+          describedBy={error ? errorId : undefined}
         />
         <Field
           label={t("auth.displayName")}
           value={displayName}
-          onChange={setDisplayName}
+          onChange={(value) => {
+            setDisplayName(value);
+            setError("");
+          }}
           autoComplete="name"
           required={false}
+          disabled={busy}
         />
         <Field
           label={t("auth.password")}
           type="password"
           value={password}
-          onChange={setPassword}
+          onChange={(value) => {
+            setPassword(value);
+            setError("");
+          }}
           autoComplete="new-password"
+          disabled={busy}
+          describedBy={error ? errorId : undefined}
         />
-        {error && !toast.available ? (
-          <p role="alert" className="text-red-600 text-sm dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        {error ? <AuthError id={errorId} message={error} /> : null}
         <button
           type="submit"
           disabled={busy}
@@ -210,6 +252,8 @@ export function LoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const errorId = useId();
 
   useEffect(() => {
     void locale;
@@ -217,6 +261,10 @@ export function LoginPage({
   }, [locale, t]);
 
   async function submit() {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -228,16 +276,17 @@ export function LoginPage({
       const message =
         err instanceof Error ? err.message : t("auth.loginFailed");
       setError(message);
-      toast.showToast({ kind: "error", message });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   return (
-    <AuthSurface title={t("auth.loginTitle")}>
+    <AuthSurface title={t("auth.loginTitle")} controlsDisabled={busy}>
       <form
         className="space-y-4"
+        aria-busy={busy}
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -246,21 +295,27 @@ export function LoginPage({
         <Field
           label={t("auth.account")}
           value={username}
-          onChange={setUsername}
+          onChange={(value) => {
+            setUsername(value);
+            setError("");
+          }}
           autoComplete="username"
+          disabled={busy}
+          describedBy={error ? errorId : undefined}
         />
         <Field
           label={t("auth.password")}
           type="password"
           value={password}
-          onChange={setPassword}
+          onChange={(value) => {
+            setPassword(value);
+            setError("");
+          }}
           autoComplete="current-password"
+          disabled={busy}
+          describedBy={error ? errorId : undefined}
         />
-        {error && !toast.available ? (
-          <p role="alert" className="text-red-600 text-sm dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        {error ? <AuthError id={errorId} message={error} /> : null}
         <button
           type="submit"
           disabled={busy}

@@ -20,12 +20,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.OfflineBolt
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,6 +44,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,9 +55,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.R
@@ -159,7 +174,11 @@ internal fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
             singleLine = true,
             label = { Text(stringResource(R.string.server_address)) },
             placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { viewModel.saveServer() }),
             enabled = !state.loading,
         )
         Button(
@@ -210,6 +229,7 @@ internal fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             label = { Text(stringResource(R.string.account_username)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             enabled = !state.loading,
         )
         OutlinedTextField(
@@ -218,16 +238,14 @@ internal fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             label = { Text(stringResource(R.string.account_display_name)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             enabled = !state.loading,
         )
-        OutlinedTextField(
+        PasswordField(
             value = state.password,
             onValueChange = viewModel::updatePassword,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.account_password)) },
-            visualTransformation = PasswordVisualTransformation(),
             enabled = !state.loading,
+            onDone = viewModel::initialize,
         )
         Button(
             onClick = viewModel::initialize,
@@ -263,16 +281,14 @@ internal fun LoginScreen(state: SillageUiState, viewModel: SillageViewModel) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             label = { Text(stringResource(R.string.account_username)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             enabled = !state.loading,
         )
-        OutlinedTextField(
+        PasswordField(
             value = state.password,
             onValueChange = viewModel::updatePassword,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.account_password)) },
-            visualTransformation = PasswordVisualTransformation(),
             enabled = !state.loading,
+            onDone = viewModel::signIn,
         )
         Button(
             onClick = viewModel::signIn,
@@ -287,6 +303,44 @@ internal fun LoginScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun PasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    onDone: () -> Unit,
+) {
+    var visible by rememberSaveable { mutableStateOf(false) }
+    val visibilityLabel = stringResource(
+        if (visible) R.string.account_hide_password else R.string.account_show_password,
+    )
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        label = { Text(stringResource(R.string.account_password)) },
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        trailingIcon = {
+            IconButton(
+                onClick = { visible = !visible },
+                enabled = enabled,
+            ) {
+                Icon(
+                    imageVector = if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = visibilityLabel,
+                )
+            }
+        },
+        enabled = enabled,
+    )
 }
 
 @Composable
@@ -399,9 +453,47 @@ private fun AuthScaffold(
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    state.authError?.let { message ->
+                        AuthErrorMessage(message)
+                    }
                     content()
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AuthErrorMessage(message: String) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics { applyAuthErrorSemantics(message) },
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                Icons.Rounded.ErrorOutline,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+internal fun SemanticsPropertyReceiver.applyAuthErrorSemantics(message: String) {
+    liveRegion = LiveRegionMode.Assertive
+    error(message)
 }

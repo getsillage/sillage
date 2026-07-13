@@ -61,7 +61,7 @@ export const segmentedControlClass =
 
 export function segmentedItemClass(active: boolean): string {
   const base =
-    "inline-flex h-10 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40";
+    "inline-flex h-10 items-center justify-center gap-1.5 rounded-md px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-gray-500/40";
   return active
     ? `${base} bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50`
     : `${base} text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100`;

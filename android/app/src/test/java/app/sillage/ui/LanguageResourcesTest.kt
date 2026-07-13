@@ -110,6 +110,30 @@ class LanguageResourcesTest {
             context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_signed_in),
         )
         assertEquals(
+            "Incorrect account or password.",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.error_auth_invalid_credentials),
+        )
+        assertEquals(
+            "账号或密码不正确。",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.error_auth_invalid_credentials),
+        )
+        assertEquals(
+            "Show password",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.account_show_password),
+        )
+        assertEquals(
+            "显示密码",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.account_show_password),
+        )
+        assertEquals(
+            "Hide password",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.account_hide_password),
+        )
+        assertEquals(
+            "隐藏密码",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.account_hide_password),
+        )
+        assertEquals(
             "This device's sign-in was cleared, but the server sign-out failed. Other sessions may still be active.",
             context.localizedString(SessionStore.LANGUAGE_EN, R.string.error_sign_out_local_only),
         )

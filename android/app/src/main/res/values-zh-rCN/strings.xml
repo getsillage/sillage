@@ -45,6 +45,8 @@
     <string name="account_username">账号</string>
     <string name="account_display_name">显示名</string>
     <string name="account_password">密码</string>
+    <string name="account_show_password">显示密码</string>
+    <string name="account_hide_password">隐藏密码</string>
     <string name="account_creating">创建中</string>
     <string name="account_create_enter">创建并进入</string>
     <string name="login_title">登录 Sillage</string>
@@ -273,6 +275,16 @@
 
     <string name="action_retry">重试</string>
     <string name="error_server_required">请先填写服务器地址。</string>
+    <string name="error_auth_bootstrap_failed">无法读取初始化状态。</string>
+    <string name="error_auth_invalid_request">请求格式不正确。</string>
+    <string name="error_auth_fields_required">账号和密码不能为空。</string>
+    <string name="error_auth_already_initialized">这个实例已经初始化。</string>
+    <string name="error_auth_initialize_failed">初始化失败。</string>
+    <string name="error_auth_invalid_credentials">账号或密码不正确。</string>
+    <string name="error_auth_rate_limited">尝试次数太多，请稍后再试。</string>
+    <string name="error_auth_sign_in_failed">登录失败。</string>
+    <string name="error_auth_sign_in_required">请重新登录。</string>
+    <string name="error_auth_refresh_failed">刷新登录状态失败。</string>
     <string name="notice_offline_enabled">已切换到离线模式。</string>
     <string name="notice_connected">已连接服务器。</string>
     <string name="notice_account_initialized">账号已创建。</string>

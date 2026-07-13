@@ -4,12 +4,12 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.R
 import app.sillage.data.SessionStore
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -27,25 +27,87 @@ class SillageViewModelToastTest {
     }
 
     @Test
-    fun repeatedEmptyServerValidationProducesTwoToastEvents() = runBlocking {
+    fun emptyServerValidationStaysInTheFormWithoutDuplicateToastEvents() = runBlocking {
         val viewModel = SillageViewModel(context)
 
         viewModel.saveServer()
         viewModel.saveServer()
 
-        val events = withTimeout(1_000) {
-            viewModel.toastEvents.take(2).toList()
-        }
-        assertEquals(listOf(1L, 2L), events.map(UiToastEvent::id))
-        assertEquals(listOf(UiToastType.ERROR, UiToastType.ERROR), events.map(UiToastEvent::type))
-        assertEquals(
-            listOf("请先填写服务器地址。", "请先填写服务器地址。"),
-            events.map(UiToastEvent::message),
-        )
+        assertEquals("请先填写服务器地址。", viewModel.state.value.authError)
+        assertNull(withTimeoutOrNull(100) { viewModel.toastEvents.first() })
         assertEquals(SessionStore.LANGUAGE_ZH_CN, viewModel.state.value.languageMode)
+
+        viewModel.setLanguageMode(SessionStore.LANGUAGE_EN)
+
         assertEquals(
-            listOf(SessionStore.LANGUAGE_ZH_CN, SessionStore.LANGUAGE_ZH_CN),
-            events.map(UiToastEvent::languageMode),
+            "Enter a server address first.",
+            viewModel.state.value.authError,
+        )
+
+        viewModel.updateBaseUrl("https://example.com")
+
+        assertNull(viewModel.state.value.authError)
+        assertNull(viewModel.state.value.authErrorResourceId)
+    }
+
+    @Test
+    fun switchingFromOfflineSettingsRoutesConnectionFailureToServerForm() {
+        val sessionStore = SessionStore(context)
+        sessionStore.saveBaseUrl("http://localhost:99999")
+        sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+        val viewModel = SillageViewModel(context)
+        viewModel.openAISettings()
+
+        viewModel.useOnlineMode()
+
+        assertEquals(Screen.Server, viewModel.state.value.screen)
+        assertFalse(viewModel.state.value.loading)
+        assertTrue(viewModel.state.value.authError?.isNotBlank() == true)
+        assertNull(viewModel.state.value.authErrorResourceId)
+
+        val originalError = viewModel.state.value.authError
+        viewModel.setLanguageMode(SessionStore.LANGUAGE_EN)
+
+        assertEquals(originalError, viewModel.state.value.authError)
+        assertNull(viewModel.state.value.authErrorResourceId)
+    }
+
+    @Test
+    fun authenticationErrorsKeepResourcesForLanguageChanges() {
+        assertEquals(
+            R.string.error_auth_invalid_credentials,
+            readableErrorResourceId("账号或密码不正确", SessionStore.LANGUAGE_ZH_CN),
+        )
+        assertEquals(
+            "Incorrect account or password.",
+            context.localizedString(
+                SessionStore.LANGUAGE_EN,
+                requireNotNull(
+                    readableErrorResourceId(
+                        "账号或密码不正确",
+                        SessionStore.LANGUAGE_ZH_CN,
+                    ),
+                ),
+            ),
+        )
+        assertEquals(
+            R.string.error_auth_rate_limited,
+            readableErrorResourceId("尝试次数太多，请稍后再试", SessionStore.LANGUAGE_ZH_CN),
+        )
+        assertEquals(
+            R.string.error_auth_already_initialized,
+            readableErrorResourceId("这个实例已经初始化", SessionStore.LANGUAGE_ZH_CN),
+        )
+        assertEquals(
+            R.string.error_auth_refresh_failed,
+            readableErrorResourceId("刷新登录状态失败", SessionStore.LANGUAGE_ZH_CN),
+        )
+        assertEquals(
+            R.string.error_request_failed,
+            readableErrorResourceId("请求失败", SessionStore.LANGUAGE_ZH_CN),
+        )
+        assertNull(
+            readableErrorResourceId("connection refused", SessionStore.LANGUAGE_EN),
         )
     }
 

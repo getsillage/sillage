@@ -187,7 +187,7 @@ function DayCell({
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
     : count > 0
       ? "border-gray-200 bg-white hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-      : "border-transparent text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800";
+      : "border-transparent text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800";
 
   const [dateYear, dateMonth, dateDay] = date.split("-").map(Number);
   const dateLabel = new Intl.DateTimeFormat(locale, {

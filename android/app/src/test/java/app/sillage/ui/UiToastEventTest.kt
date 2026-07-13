@@ -94,6 +94,17 @@ class UiToastEventTest {
     }
 
     @Test
+    fun persistentAuthenticationErrorsDoNotEmitDuplicateGlobalFeedback() {
+        val events = mutableListOf<UiToastEvent>()
+        val emitter = UiToastEventEmitter(events::add)
+        val initial = SillageUiState(screen = Screen.Login, baseUrl = "")
+
+        emitter.onStateChanged(initial, initial.copy(authError = "Sign-in failed"))
+
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
     fun syncProblemsUseWarningFeedback() {
         assertEquals(
             UiToastType.SUCCESS,

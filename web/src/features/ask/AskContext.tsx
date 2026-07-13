@@ -43,11 +43,14 @@ interface AskContextValue {
   regeneratingId: string | null;
   scope: AskContextScope;
   sourceKind: AskSourceKind;
+  savingRecordMessageIds: ReadonlySet<string>;
   busy: boolean;
   streaming: boolean;
   error: string;
   setScope: (scope: AskContextScope) => void;
   setSourceKind: (kind: AskSourceKind) => void;
+  tryStartRecordSave: (messageId: string) => boolean;
+  finishRecordSave: (messageId: string) => void;
   selectConversation: (id: string, conversation?: AskConversation) => void;
   startNew: () => void;
   listConversations: (
@@ -90,6 +93,9 @@ export function AskProvider({
   const [headId, setHeadId] = useState<string | null>(null);
   const [scope, setScope] = useState<AskContextScope>("recent_30_days");
   const [sourceKind, setSourceKind] = useState<AskSourceKind>("records");
+  const [savingRecordMessageIds, setSavingRecordMessageIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [busy, setBusy] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
@@ -98,6 +104,7 @@ export function AskProvider({
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const operationRef = useRef(false);
+  const savingRecordMessageIdsRef = useRef(new Set<string>());
   const activeIdRef = useRef(activeId);
   const navigationGenerationRef = useRef(0);
   const conversationMutationGenerationRef = useRef(0);
@@ -107,6 +114,22 @@ export function AskProvider({
   const metadataRequestRef = useRef(0);
   const scopedConversationRef = useRef("");
   activeIdRef.current = activeId;
+
+  const tryStartRecordSave = useCallback((messageId: string) => {
+    if (savingRecordMessageIdsRef.current.has(messageId)) {
+      return false;
+    }
+    savingRecordMessageIdsRef.current.add(messageId);
+    setSavingRecordMessageIds(new Set(savingRecordMessageIdsRef.current));
+    return true;
+  }, []);
+
+  const finishRecordSave = useCallback((messageId: string) => {
+    if (!savingRecordMessageIdsRef.current.delete(messageId)) {
+      return;
+    }
+    setSavingRecordMessageIds(new Set(savingRecordMessageIdsRef.current));
+  }, []);
 
   const reportError = useCallback(
     (message: string) => {
@@ -614,11 +637,14 @@ export function AskProvider({
       regeneratingId,
       scope,
       sourceKind,
+      savingRecordMessageIds,
       busy,
       streaming,
       error,
       setScope,
       setSourceKind,
+      tryStartRecordSave,
+      finishRecordSave,
       selectConversation,
       startNew,
       listConversations,
@@ -644,9 +670,12 @@ export function AskProvider({
       regeneratingId,
       scope,
       sourceKind,
+      savingRecordMessageIds,
       busy,
       streaming,
       error,
+      tryStartRecordSave,
+      finishRecordSave,
       selectConversation,
       startNew,
       listConversations,

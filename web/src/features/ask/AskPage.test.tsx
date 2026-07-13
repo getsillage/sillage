@@ -1,6 +1,13 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { I18nProvider } from "../../i18n/I18nProvider";
@@ -100,6 +107,37 @@ function renderLocalizedAsk(initialEntry = "/ask?conversation=c1") {
         </MemosProvider>
       </MemoryRouter>
     </I18nProvider>,
+  );
+}
+
+function renderAskWithTimeline(initialEntry = "/ask?conversation=c1") {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <MemosProvider token="t">
+        <AskProvider token="t">
+          <Routes>
+            <Route
+              path="/ask"
+              element={
+                <>
+                  <Link to="/timeline">离开问答</Link>
+                  <AskPage />
+                </>
+              }
+            />
+            <Route
+              path="/timeline"
+              element={
+                <>
+                  <Link to="/ask?conversation=c1">返回问答</Link>
+                  <p>时间线页面</p>
+                </>
+              }
+            />
+          </Routes>
+        </AskProvider>
+      </MemosProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -252,6 +290,122 @@ describe("AskPage", () => {
 
     expect(screen.queryByText("保存失败")).not.toBeInTheDocument();
     expect(screen.getByText("可保存回答")).toBeInTheDocument();
+    expect(createMemo).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves an answer with a single in-flight request", async () => {
+    const userMessage = message("u1", "user", null, "问题", "1");
+    const answer = message("a1", "assistant", "u1", "可保存回答", "2");
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [userMessage, answer],
+    });
+    let rejectRequest: (reason: Error) => void = () => undefined;
+    vi.mocked(createMemo).mockReturnValue(
+      new Promise((_, reject) => {
+        rejectRequest = reject;
+      }),
+    );
+    renderLocalizedAsk();
+
+    expect(await screen.findByText("可保存回答")).toBeInTheDocument();
+    const saveButton = screen.getByRole("button", {
+      name: /存为记录|Save as record/,
+    });
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+
+    expect(createMemo).toHaveBeenCalledTimes(1);
+    expect(saveButton).toBeDisabled();
+    rejectRequest(new Error("保存失败"));
+    expect(await screen.findByText("保存失败")).toBeInTheDocument();
+    expect(saveButton).toBeEnabled();
+  });
+
+  it("does not navigate after a save response arrives outside Ask", async () => {
+    const user = userEvent.setup();
+    const userMessage = message("u1", "user", null, "问题", "1");
+    const answer = message("a1", "assistant", "u1", "可保存回答", "2");
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [userMessage, answer],
+    });
+    const savedMemo = {
+      id: "saved-1",
+      content: answer.content,
+      entryDate: "2026-07-13",
+      version: 1,
+      favoritedAt: null,
+      archivedAt: null,
+      createdAt: "1",
+      updatedAt: "1",
+      deletedAt: null,
+    };
+    let resolveRequest: (value: { memo: typeof savedMemo }) => void = () =>
+      undefined;
+    vi.mocked(createMemo).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+    renderAskWithTimeline();
+
+    expect(await screen.findByText("可保存回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "存为记录" }));
+    await user.click(screen.getByRole("link", { name: "离开问答" }));
+    expect(screen.getByText("时间线页面")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveRequest({ memo: savedMemo });
+    });
+
+    expect(createMemo).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("时间线页面")).toBeInTheDocument();
+    expect(screen.queryByText("可保存回答")).not.toBeInTheDocument();
+  });
+
+  it("keeps a save single-flight after leaving and returning to Ask", async () => {
+    const user = userEvent.setup();
+    const userMessage = message("u1", "user", null, "问题", "1");
+    const answer = message("a1", "assistant", "u1", "可保存回答", "2");
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [userMessage, answer],
+    });
+    const savedMemo = {
+      id: "saved-1",
+      content: answer.content,
+      entryDate: "2026-07-13",
+      version: 1,
+      favoritedAt: null,
+      archivedAt: null,
+      createdAt: "1",
+      updatedAt: "1",
+      deletedAt: null,
+    };
+    let resolveRequest: (value: { memo: typeof savedMemo }) => void = () =>
+      undefined;
+    vi.mocked(createMemo).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+    renderAskWithTimeline();
+
+    expect(await screen.findByText("可保存回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "存为记录" }));
+    await user.click(screen.getByRole("link", { name: "离开问答" }));
+    await user.click(screen.getByRole("link", { name: "返回问答" }));
+
+    expect(await screen.findByText("可保存回答")).toBeInTheDocument();
+    const saveButton = screen.getByRole("button", { name: /保存中/ });
+    expect(saveButton).toBeDisabled();
+    fireEvent.click(saveButton);
+    expect(createMemo).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveRequest({ memo: savedMemo });
+    });
+
+    expect(screen.getByText("可保存回答")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "存为记录" })).toBeEnabled();
     expect(createMemo).toHaveBeenCalledTimes(1);
   });
 
@@ -708,7 +862,12 @@ describe("AskPage", () => {
     expect(await screen.findByText("第二个回答")).toBeInTheDocument();
     expect(screen.getByText("2/2")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "上一个回答" }));
+    const previousButton = screen.getByRole("button", { name: "上一个回答" });
+    const nextButton = screen.getByRole("button", { name: "下一个回答" });
+    expect(previousButton).toHaveClass("h-10", "w-10");
+    expect(nextButton).toHaveClass("h-10", "w-10");
+
+    await user.click(previousButton);
     await waitFor(() =>
       expect(setAskHead).toHaveBeenCalledWith("t", "c1", "a1"),
     );

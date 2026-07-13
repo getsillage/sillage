@@ -84,6 +84,8 @@ data class SillageUiState(
     val displayName: String = "",
     val password: String = "",
     val loading: Boolean = false,
+    val authError: String? = null,
+    val authErrorResourceId: Int? = null,
     val error: String? = null,
     val notice: String? = null,
 )

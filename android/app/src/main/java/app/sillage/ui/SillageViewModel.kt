@@ -71,6 +71,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private var attachmentOpenJob: Job? = null
     private var loadMoreMemosJob: Job? = null
     private var aiAutoSummaryJob: Job? = null
+    private val authOperationGate = SingleFlightGate()
     private val memoPageLock = Any()
     private val _attachmentOpenEvents = Channel<AttachmentOpenEvent>(Channel.BUFFERED)
     private val _toastEvents = Channel<UiToastEvent>(
@@ -133,6 +134,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 appMode = SessionStore.MODE_ONLINE,
                 screen = Screen.Server,
                 screenHistory = emptyList(),
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = null,
             )
@@ -140,14 +143,19 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateBaseUrl(value: String) {
-        updateState { it.copy(baseUrl = value) }
+        updateState { it.copy(baseUrl = value, authError = null, authErrorResourceId = null) }
     }
 
     fun saveServer() {
         val normalized = SessionStore.normalizeBaseUrl(state.value.baseUrl)
         if (normalized.isBlank()) {
-            updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_server_required), notice = null)
+            updateState {
+                it.copy(
+                    authError = uiString(R.string.error_server_required),
+                    authErrorResourceId = R.string.error_server_required,
+                    error = null,
+                    notice = null,
+                )
             }
             return
         }
@@ -178,6 +186,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 searchQuery = "",
                 searchResults = null,
                 searching = false,
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = null,
             )
@@ -193,6 +203,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_ONLINE,
+                screen = Screen.Loading,
                 screenHistory = emptyList(),
                 memos = emptyList(),
                 memoNextCursor = "",
@@ -206,6 +217,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 askLoadError = null,
                 searchQuery = "",
                 searchResults = null,
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = null,
             )
@@ -227,6 +240,8 @@ class SillageViewModel(context: Context) : ViewModel() {
             it.copy(
                 screen = Screen.Server,
                 serverReturnScreen = it.screen.takeIf { screen -> screen != Screen.Server && screen != Screen.ModeSelection },
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = null,
             )
@@ -245,6 +260,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 appMode = sessionStore.appMode(),
                 serverReturnScreen = null,
                 baseUrl = sessionStore.baseUrl(),
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = null,
             )
@@ -308,6 +325,9 @@ class SillageViewModel(context: Context) : ViewModel() {
         updateState {
             it.copy(
                 languageMode = next,
+                authError = it.authErrorResourceId?.let { resourceId ->
+                    appContext.localizedString(next, resourceId)
+                } ?: it.authError,
                 error = null,
                 notice = null,
             )
@@ -337,23 +357,25 @@ class SillageViewModel(context: Context) : ViewModel() {
             updateState {
                 it.copy(
                     screen = Screen.Server,
+                    authError = null,
+                    authErrorResourceId = null,
                     error = null,
                     notice = null,
                 )
             }
             return
         }
-        launchBusy {
+        launchAuthBusy {
             val initialized = api.bootstrap(state.value.baseUrl)
             val token = sessionStore.accessToken()
             val account = sessionStore.account()
             if (!initialized) {
                 updateState { it.copy(screen = Screen.Initialize, initialized = false, account = null) }
-                return@launchBusy
+                return@launchAuthBusy
             }
             if (token.isNullOrBlank() || account == null) {
                 updateState { it.copy(screen = Screen.Login, initialized = true, account = null) }
-                return@launchBusy
+                return@launchAuthBusy
             }
             val verified = api.me()
             updateState {
@@ -369,15 +391,21 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun updateUsername(value: String) = updateState { it.copy(username = value) }
+    fun updateUsername(value: String) = updateState {
+        it.copy(username = value, authError = null, authErrorResourceId = null)
+    }
 
-    fun updateDisplayName(value: String) = updateState { it.copy(displayName = value) }
+    fun updateDisplayName(value: String) = updateState {
+        it.copy(displayName = value, authError = null, authErrorResourceId = null)
+    }
 
-    fun updatePassword(value: String) = updateState { it.copy(password = value) }
+    fun updatePassword(value: String) = updateState {
+        it.copy(password = value, authError = null, authErrorResourceId = null)
+    }
 
     fun initialize() {
         val current = state.value
-        launchBusy {
+        launchAuthBusy {
             val session = api.initialize(current.username, current.displayName, current.password)
             updateState {
                 it.copy(
@@ -398,7 +426,7 @@ class SillageViewModel(context: Context) : ViewModel() {
 
     fun signIn() {
         val current = state.value
-        launchBusy {
+        launchAuthBusy {
             val session = api.signIn(current.username, current.password)
             updateState {
                 it.copy(
@@ -467,6 +495,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                     searching = false,
                     screen = if (offlineMode) Screen.Memos else Screen.Login,
                     screenHistory = emptyList(),
+                    authError = null,
+                    authErrorResourceId = null,
                     notice = feedback.noticeResourceId?.let { resourceId -> uiString(resourceId) },
                     error = feedback.errorResourceId?.let { resourceId -> uiString(resourceId) },
                 )
@@ -2719,6 +2749,42 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    private fun launchAuthBusy(block: suspend () -> Unit) {
+        val lease = authOperationGate.tryAcquire() ?: return
+        updateState {
+            it.copy(
+                loading = true,
+                authError = null,
+                authErrorResourceId = null,
+                error = null,
+                notice = null,
+            )
+        }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            runSingleFlightOperation(
+                lease = lease,
+                onFailure = { error ->
+                    val resourceId = readableErrorResourceId(
+                        error.message,
+                        state.value.languageMode,
+                    )
+                    updateState {
+                        it.copy(
+                            screen = if (it.screen == Screen.Loading) Screen.Server else it.screen,
+                            authError = error.readableMessage(),
+                            authErrorResourceId = resourceId,
+                        )
+                    }
+                },
+                onFinished = {
+                    updateState { it.copy(loading = false) }
+                },
+            ) {
+                block()
+            }
+        }
+    }
+
     private fun enterOfflineMode(notice: String?) {
         cancelAIAutoSummarySave()
         val filter = state.value.memoListFilter
@@ -2746,6 +2812,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 searching = false,
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
+                authError = null,
+                authErrorResourceId = null,
                 error = null,
                 notice = notice,
             )
@@ -2817,40 +2885,14 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun Throwable.readableMessage(): String {
         val raw = message?.trim().orEmpty()
         val normalized = raw.trimEnd('。')
-        val resourceId = when (normalized) {
-            "请求失败" -> R.string.error_request_failed
-            "操作失败" -> R.string.error_operation_failed
-            "请先登录" -> R.string.error_login_required
-            "记录不存在" -> R.string.error_record_missing
-            "会话不存在" -> R.string.error_conversation_missing
-            "不支持的数据格式版本" -> R.string.error_data_version_unsupported
-            "请先配置 AI API 密钥" -> R.string.error_ai_key_required
-            "请先配置 AI 模型" -> R.string.error_ai_model_required
-            "AI 返回为空" -> R.string.error_ai_empty
-            "附件地址无效" -> R.string.error_attachment_address_invalid
-            "附件下载失败" -> R.string.error_attachment_download
-            "附件内容为空" -> R.string.error_attachment_empty
-            "生成回答失败" -> R.string.error_answer_generation
-            "无法读取附件" -> R.string.error_attachment_read
-            "无法创建附件缓存" -> R.string.error_attachment_cache
-            "无法准备附件" -> R.string.error_attachment_prepare
-            else -> null
-        }
+        val resourceId = readableErrorResourceId(raw, state.value.languageMode)
         if (resourceId != null) {
             return uiString(resourceId)
         }
         if (normalized.startsWith("AI 请求失败：")) {
             return uiString(R.string.error_ai_request, normalized.substringAfter("AI 请求失败："))
         }
-        if (raw.isBlank()) {
-            return uiString(R.string.error_operation_failed)
-        }
-        val containsHan = HAN_CHARACTER.containsMatchIn(raw)
-        return if (state.value.languageMode == SessionStore.LANGUAGE_EN && containsHan) {
-            uiString(R.string.error_operation_failed)
-        } else {
-            raw
-        }
+        return raw
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
@@ -2878,6 +2920,51 @@ private const val OPEN_ATTACHMENTS_CACHE_DIRECTORY = "open_attachments"
 private const val ATTACHMENT_DOWNLOAD_TEMP_FILENAME = "download.tmp"
 private const val TOAST_EVENT_BUFFER_CAPACITY = 8
 private val HAN_CHARACTER = Regex("[\\u4E00-\\u9FFF]")
+
+internal fun readableErrorResourceId(rawMessage: String?, languageMode: String): Int? {
+    val raw = rawMessage?.trim().orEmpty()
+    val normalized = raw.trimEnd('。')
+    val mapped = when (normalized) {
+        "请求失败" -> R.string.error_request_failed
+        "操作失败" -> R.string.error_operation_failed
+        "无法读取初始化状态" -> R.string.error_auth_bootstrap_failed
+        "请求格式不正确" -> R.string.error_auth_invalid_request
+        "账号和密码不能为空" -> R.string.error_auth_fields_required
+        "这个实例已经初始化" -> R.string.error_auth_already_initialized
+        "初始化失败" -> R.string.error_auth_initialize_failed
+        "账号或密码不正确", "用户名或密码错误" -> R.string.error_auth_invalid_credentials
+        "尝试次数太多，请稍后再试" -> R.string.error_auth_rate_limited
+        "登录失败" -> R.string.error_auth_sign_in_failed
+        "请重新登录" -> R.string.error_auth_sign_in_required
+        "刷新登录状态失败" -> R.string.error_auth_refresh_failed
+        "请先登录" -> R.string.error_login_required
+        "记录不存在" -> R.string.error_record_missing
+        "会话不存在" -> R.string.error_conversation_missing
+        "不支持的数据格式版本" -> R.string.error_data_version_unsupported
+        "请先配置 AI API 密钥" -> R.string.error_ai_key_required
+        "请先配置 AI 模型" -> R.string.error_ai_model_required
+        "AI 返回为空" -> R.string.error_ai_empty
+        "附件地址无效" -> R.string.error_attachment_address_invalid
+        "附件下载失败" -> R.string.error_attachment_download
+        "附件内容为空" -> R.string.error_attachment_empty
+        "生成回答失败" -> R.string.error_answer_generation
+        "无法读取附件" -> R.string.error_attachment_read
+        "无法创建附件缓存" -> R.string.error_attachment_cache
+        "无法准备附件" -> R.string.error_attachment_prepare
+        else -> null
+    }
+    if (mapped != null || normalized.startsWith("AI 请求失败：")) {
+        return mapped
+    }
+    return if (
+        raw.isBlank() ||
+        languageMode == SessionStore.LANGUAGE_EN && HAN_CHARACTER.containsMatchIn(raw)
+    ) {
+        R.string.error_operation_failed
+    } else {
+        null
+    }
+}
 
 private data class ImportedDataResult(
     val themeMode: String,

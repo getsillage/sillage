@@ -20,13 +20,20 @@ const options: {
   },
 ];
 
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+export function LanguageSwitcher({
+  compact = false,
+  disabled = false,
+}: {
+  compact?: boolean;
+  disabled?: boolean;
+}) {
   const { locale, setLocale, t } = useI18n();
 
   return (
     <fieldset
       className={`${segmentedControlClass} ${compact ? "min-h-9" : ""}`}
       aria-label={t("language.change")}
+      disabled={disabled}
     >
       <legend className="sr-only">{t("language.label")}</legend>
       {compact ? null : (

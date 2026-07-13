@@ -22,6 +22,7 @@ import { Markdown } from "../../components/Markdown";
 import { useToast } from "../../components/Toast";
 import {
   ghostLinkClass,
+  iconButtonClass,
   primaryButtonClass,
   secondaryButtonClass,
   selectClass,
@@ -73,11 +74,14 @@ export function AskPage() {
     regeneratingId,
     scope,
     sourceKind,
+    savingRecordMessageIds,
     busy,
     streaming,
     error,
     setScope,
     setSourceKind,
+    tryStartRecordSave,
+    finishRecordSave,
     selectConversation,
     retryConversations,
     retryMessages,
@@ -286,6 +290,9 @@ export function AskPage() {
               }
               onRegenerate={() => regenerate(entry.message.id)}
               onSelectVariant={selectVariant}
+              savingAsRecord={savingRecordMessageIds.has(entry.message.id)}
+              onStartRecordSave={tryStartRecordSave}
+              onFinishRecordSave={finishRecordSave}
             />
           ))
         )}
@@ -356,7 +363,7 @@ export function AskPage() {
             </p>
           ) : null}
           <div className="flex items-center justify-between gap-2 px-1 pb-1">
-            <p className="px-2 text-gray-400 text-xs dark:text-gray-500">
+            <p className="px-2 text-gray-500 text-xs dark:text-gray-400">
               {t("ask.sourceConstraint")}
             </p>
             <div className="flex items-center gap-2">
@@ -451,6 +458,9 @@ interface MessageBubbleProps {
   canRegenerate: boolean;
   onRegenerate: () => void;
   onSelectVariant: (messageId: string) => void;
+  savingAsRecord: boolean;
+  onStartRecordSave: (messageId: string) => boolean;
+  onFinishRecordSave: (messageId: string) => void;
 }
 
 function MessageBubble({
@@ -459,6 +469,9 @@ function MessageBubble({
   canRegenerate,
   onRegenerate,
   onSelectVariant,
+  savingAsRecord,
+  onStartRecordSave,
+  onFinishRecordSave,
 }: MessageBubbleProps) {
   const { locale, t } = useI18n();
   const toast = useToast();
@@ -466,13 +479,32 @@ function MessageBubble({
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const sourceListId = useId();
+  const mountedRef = useRef(false);
+  const saveRequestGenerationRef = useRef(0);
   const feedbackLocaleRef = useRef(locale);
   const { message, variants, index } = entry;
+  const saveContext = JSON.stringify([returnTo, message.id, message.content]);
+  const saveContextRef = useRef(saveContext);
+  saveContextRef.current = saveContext;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      saveRequestGenerationRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    void saveContext;
+    saveRequestGenerationRef.current += 1;
+    setSaved(false);
+    setSaveError("");
+  }, [saveContext]);
 
   useEffect(() => {
     if (feedbackLocaleRef.current === locale) {
@@ -493,16 +525,24 @@ function MessageBubble({
   }
 
   async function saveAsRecord() {
-    if (!message.content.trim()) {
+    if (saved || !message.content.trim() || !onStartRecordSave(message.id)) {
       return;
     }
-    setSaving(true);
+    const requestGeneration = ++saveRequestGenerationRef.current;
+    const requestContext = saveContext;
+    const canApplyResponse = () =>
+      mountedRef.current &&
+      saveRequestGenerationRef.current === requestGeneration &&
+      saveContextRef.current === requestContext;
     setSaveError("");
     try {
       const memo = await create({
         content: message.content,
         entryDate: todayISO(),
       });
+      if (!canApplyResponse()) {
+        return;
+      }
       setSaved(true);
       toast.showToast({
         kind: "success",
@@ -510,11 +550,15 @@ function MessageBubble({
       });
       navigate(`/entries/${memo.id}`, { state: { returnTo } });
     } catch (cause) {
-      setSaving(false);
+      if (!canApplyResponse()) {
+        return;
+      }
       const errorMessage =
         cause instanceof Error ? cause.message : t("ask.saveFailed");
       setSaveError(errorMessage);
       toast.showToast({ kind: "error", message: errorMessage });
+    } finally {
+      onFinishRecordSave(message.id);
     }
   }
 
@@ -563,9 +607,9 @@ function MessageBubble({
               aria-label={t("ask.previousAnswer")}
               disabled={index <= 0}
               onClick={() => onSelectVariant(variants[index - 1].id)}
-              className={`${ghostLinkClass} px-1`}
+              className={iconButtonClass}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             <span>
               {index + 1}/{variants.length}
@@ -575,9 +619,9 @@ function MessageBubble({
               aria-label={t("ask.nextAnswer")}
               disabled={index >= variants.length - 1}
               onClick={() => onSelectVariant(variants[index + 1].id)}
-              className={`${ghostLinkClass} px-1`}
+              className={iconButtonClass}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </span>
         ) : null}
@@ -595,14 +639,14 @@ function MessageBubble({
           <button
             type="button"
             onClick={saveAsRecord}
-            disabled={saving || saved}
+            disabled={savingAsRecord || saved}
             className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <BookmarkPlus className="h-3.5 w-3.5" aria-hidden="true" />
             {t(
               saved
                 ? "ask.savedAsRecord"
-                : saving
+                : savingAsRecord
                   ? "common.saving"
                   : "ask.saveAsRecord",
             )}

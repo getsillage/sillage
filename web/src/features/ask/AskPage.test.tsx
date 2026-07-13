@@ -69,6 +69,7 @@ function message(
     status: "complete",
     sourceRefs: [],
     model: "gpt-test",
+    promptVersion: role === "assistant" ? "ask-answer-v2" : "",
     createdAt,
     updatedAt: createdAt,
     deletedAt: null,
@@ -187,14 +188,14 @@ describe("AskPage", () => {
       name: "问答列表读取失败",
     });
     expect(errorState).toHaveTextContent("问答列表读取失败：网络异常");
-    expect(screen.queryByText("可以根据记录提问")).not.toBeInTheDocument();
+    expect(screen.queryByText("开始问答")).not.toBeInTheDocument();
 
     await user.click(
       within(errorState).getByRole("button", { name: "重试读取问答列表" }),
     );
 
     await waitFor(() => expect(listAskConversations).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("可以根据记录提问")).toBeInTheDocument();
+    expect(await screen.findByText("开始问答")).toBeInTheDocument();
     expect(
       within(container).queryByText("问答列表读取失败：网络异常"),
     ).not.toBeInTheDocument();
@@ -219,7 +220,7 @@ describe("AskPage", () => {
       name: "当前问答读取失败",
     });
     expect(errorState).toHaveTextContent("当前问答读取失败：网络异常");
-    expect(screen.queryByText("可以根据记录提问")).not.toBeInTheDocument();
+    expect(screen.queryByText("开始问答")).not.toBeInTheDocument();
 
     await user.click(
       within(errorState).getByRole("button", { name: "重试读取当前问答" }),
@@ -270,7 +271,9 @@ describe("AskPage", () => {
     expect(
       await screen.findByRole("heading", { name: "归档后的睡眠问答" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText(/范围：全部记录/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/需要时参考全部记录内的相关记录/),
+    ).toBeInTheDocument();
     expect(getAskConversation).toHaveBeenCalledWith(
       "t",
       "c1",
@@ -311,7 +314,7 @@ describe("AskPage", () => {
     expect(
       await screen.findByRole("heading", { name: "归档后的睡眠问答" }),
     ).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText(/根据记录提问/), "继续追问");
+    await user.type(screen.getByPlaceholderText(/输入问题/), "继续追问");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText("新的回答")).toBeInTheDocument();
@@ -414,6 +417,9 @@ describe("AskPage", () => {
     renderAsk();
     expect(await screen.findByText("我最近怎么样？")).toBeInTheDocument();
     expect(screen.getByText("你睡得更好了。")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /来源记录/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("collapses answer sources by default and toggles them", async () => {
@@ -469,8 +475,8 @@ describe("AskPage", () => {
       });
 
     renderAsk();
-    await screen.findByPlaceholderText(/根据记录提问/);
-    await user.type(screen.getByPlaceholderText(/根据记录提问/), "新问题");
+    await screen.findByPlaceholderText(/输入问题/);
+    await user.type(screen.getByPlaceholderText(/输入问题/), "新问题");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText("回答片段")).toBeInTheDocument();
@@ -511,7 +517,7 @@ describe("AskPage", () => {
     );
 
     renderAsk("/ask");
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, firstQuestion.content);
     await user.click(screen.getByRole("button", { name: "发送" }));
 
@@ -539,7 +545,7 @@ describe("AskPage", () => {
     );
 
     renderAsk("/ask");
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "新的问题");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
@@ -563,7 +569,7 @@ describe("AskPage", () => {
     );
 
     renderAsk();
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "正在发送的问题");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
@@ -584,7 +590,7 @@ describe("AskPage", () => {
     );
 
     renderAsk();
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "第一个问题");
     await user.keyboard("{Enter}");
     await waitFor(() => expect(streamAskMessage).toHaveBeenCalledTimes(1));
@@ -622,7 +628,7 @@ describe("AskPage", () => {
       });
 
     renderAsk();
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "第一行{Shift>}{Enter}{/Shift}第二行");
     expect(streamAskMessage).not.toHaveBeenCalled();
 
@@ -833,9 +839,9 @@ describe("AskPage", () => {
     vi.mocked(streamAskMessage).mockImplementation(async () => undefined);
 
     renderAsk();
-    await screen.findByPlaceholderText(/根据记录提问/);
+    await screen.findByPlaceholderText(/输入问题/);
     await user.selectOptions(screen.getByLabelText("范围"), "all");
-    await user.type(screen.getByPlaceholderText(/根据记录提问/), "总结全部");
+    await user.type(screen.getByPlaceholderText(/输入问题/), "总结全部");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     await waitFor(() => expect(streamAskMessage).toHaveBeenCalled());
@@ -872,7 +878,7 @@ describe("AskPage", () => {
     );
 
     renderConversationSwitcher();
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "不应进入第二个对话的问题");
     await user.click(screen.getByRole("button", { name: "发送" }));
     await waitFor(() => expect(createAskConversation).toHaveBeenCalledTimes(1));
@@ -912,7 +918,7 @@ describe("AskPage", () => {
     );
 
     renderConversationSwitcher();
-    const input = await screen.findByPlaceholderText(/根据记录提问/);
+    const input = await screen.findByPlaceholderText(/输入问题/);
     await user.type(input, "不应恢复到第二个对话的问题");
     await user.click(screen.getByRole("button", { name: "发送" }));
     await waitFor(() => expect(createAskConversation).toHaveBeenCalledTimes(1));

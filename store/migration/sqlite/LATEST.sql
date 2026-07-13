@@ -150,6 +150,7 @@ CREATE TABLE ask_messages (
   status TEXT NOT NULL DEFAULT 'complete',
   source_refs TEXT NOT NULL DEFAULT '[]',
   model TEXT NOT NULL DEFAULT '',
+  prompt_version TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER,

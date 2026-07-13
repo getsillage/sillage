@@ -35,6 +35,7 @@ type AskMessage struct {
 	Status         string
 	SourceRefs     string
 	Model          string
+	PromptVersion  string
 	CreatedAt      int64
 	UpdatedAt      int64
 	DeletedAt      sql.NullInt64
@@ -155,8 +156,8 @@ func (s *Store) CreateAskMessage(ctx context.Context, message *AskMessage) (*Ask
 	if _, err := s.driver.GetDB().ExecContext(ctx, `
 INSERT INTO ask_messages (
   id, conversation_id, role, content, parent_id, fork_of_id, status, source_refs,
-  model, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  model, prompt_version, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id,
 		message.ConversationID,
 		message.Role,
@@ -166,6 +167,7 @@ INSERT INTO ask_messages (
 		message.Status,
 		message.SourceRefs,
 		message.Model,
+		message.PromptVersion,
 		now,
 		now,
 	); err != nil {
@@ -316,6 +318,7 @@ func askMessageSelect() string {
 SELECT ask_messages.id, ask_messages.conversation_id, ask_messages.role,
   ask_messages.content, ask_messages.parent_id, ask_messages.fork_of_id,
   ask_messages.status, ask_messages.source_refs, ask_messages.model,
+  ask_messages.prompt_version,
   ask_messages.created_at, ask_messages.updated_at, ask_messages.deleted_at
 FROM ask_messages `
 }
@@ -359,6 +362,7 @@ func scanAskMessage(row interface {
 		&message.Status,
 		&message.SourceRefs,
 		&message.Model,
+		&message.PromptVersion,
 		&message.CreatedAt,
 		&message.UpdatedAt,
 		&message.DeletedAt,

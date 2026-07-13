@@ -38,6 +38,7 @@ func TestAskConversationAndMessageLifecycle(t *testing.T) {
 		Content:        "你最近睡得更好。",
 		SourceRefs:     "[]",
 		Model:          "gpt-test",
+		PromptVersion:  "ask-answer-v2",
 	})
 	if err != nil {
 		t.Fatalf("CreateAskMessage(assistant) error = %v", err)
@@ -49,6 +50,12 @@ func TestAskConversationAndMessageLifecycle(t *testing.T) {
 	}
 	if len(messages) != 2 || messages[0].ID != user.ID || messages[1].ID != assistant.ID {
 		t.Fatalf("messages = %d, want [user, assistant] in order", len(messages))
+	}
+	if messages[0].PromptVersion != "" {
+		t.Fatalf("user prompt version = %q, want empty", messages[0].PromptVersion)
+	}
+	if messages[1].PromptVersion != "ask-answer-v2" {
+		t.Fatalf("assistant prompt version = %q, want ask-answer-v2", messages[1].PromptVersion)
 	}
 
 	// The conversation head advances to the latest message and the title is

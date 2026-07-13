@@ -60,6 +60,16 @@ class SillageExportCodecTest {
         assertEquals("默认", decoded.aiProfiles.single().name)
         assertEquals("会话", decoded.askConversations.single().title)
         assertEquals("回答", decoded.askMessages.single().content)
+        assertEquals("ask-answer-v2", decoded.askMessages.single().promptVersion)
+    }
+
+    @Test
+    fun legacyAskMessageWithoutPromptVersionImportsAsEmptyString() {
+        val legacy = askMessageToJson(askMessage()).apply { remove("promptVersion") }
+
+        val decoded = jsonToAskMessage(legacy)
+
+        assertEquals("", decoded.promptVersion)
     }
 
     @Test
@@ -291,6 +301,7 @@ class SillageExportCodecTest {
             status = "complete",
             sourceRefs = listOf(AskSourceRef("m1", "2026-06-27", "来源", 1)),
             model = "model",
+            promptVersion = "ask-answer-v2",
             createdAt = "2026-06-27T00:00:00Z",
             updatedAt = "2026-06-27T00:00:00Z",
             deletedAt = null,

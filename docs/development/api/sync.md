@@ -55,6 +55,8 @@ Each stream uses an independent `(updated_at, id)` position and `limit + 1` look
 
 An incremental client should atomically merge a page's resources and tombstones into local storage before persisting `nextCursor`. It must not advance the cursor independently after a resource write fails. To reduce the complexity of local cursor migration, Android currently performs a complete pull from an empty cursor each time and then merges the results. It is not an example implementation of an incremental client.
 
+Each `askMessages` item includes the camelCase `promptVersion` field. Newly generated assistant answers use `ask-answer-v2`; user messages and historical rows that were not backfilled may contain an empty string. This is generation metadata and does not change pull ordering. `sourceRefs` is empty for general answers and contains only record citations retained from a source-grounded answer.
+
 ## Push
 
 ```http

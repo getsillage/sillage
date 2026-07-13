@@ -34,14 +34,17 @@ func TestMigrateFreshInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version != "0.1.3" {
-		t.Fatalf("schema version = %q, want 0.1.3", version)
+	if version != "0.1.4" {
+		t.Fatalf("schema version = %q, want 0.1.4", version)
 	}
 	if !columnExists(t, s, "memo", "favorited_at") {
 		t.Fatal("fresh memo schema is missing favorited_at")
 	}
 	if columnExists(t, s, "memo", "pinned_at") {
 		t.Fatal("fresh memo schema must not include legacy pinned_at")
+	}
+	if !columnExists(t, s, "ask_messages", "prompt_version") {
+		t.Fatal("fresh ask message schema is missing prompt_version")
 	}
 
 	for _, table := range []string{
@@ -220,8 +223,8 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() after compat migration error = %v", err)
 	}
-	if version != "0.1.3" {
-		t.Fatalf("schema version after compat migration = %q, want 0.1.3", version)
+	if version != "0.1.4" {
+		t.Fatalf("schema version after compat migration = %q, want 0.1.4", version)
 	}
 	memo, err = s.GetMemo(ctx, "a1", "m1", false)
 	if err != nil {
@@ -236,6 +239,120 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	value, ok, err := s.GetAccountSetting(ctx, "a1", "ai.auto_summary")
 	if err != nil || !ok || value != "true" {
 		t.Fatalf("GetAccountSetting() = %q, %v, %v; want true, true, nil", value, ok, err)
+	}
+}
+
+func TestMigrateExistingAskMessagesAddsPromptVersion(t *testing.T) {
+	ctx := context.Background()
+	p := &profile.Profile{Data: t.TempDir()}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	seedDB, err := sql.Open("sqlite", p.DSN)
+	if err != nil {
+		t.Fatalf("open seed db: %v", err)
+	}
+	now := time.Now().UTC().UnixMilli()
+	if _, err := seedDB.ExecContext(ctx, `
+CREATE TABLE system_setting (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+CREATE TABLE account (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL DEFAULT '',
+  password_hash TEXT NOT NULL,
+  password_algorithm TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+CREATE TABLE ask_messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  parent_id TEXT,
+  fork_of_id TEXT,
+  status TEXT NOT NULL DEFAULT 'complete',
+  source_refs TEXT NOT NULL DEFAULT '[]',
+  model TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+INSERT INTO system_setting (key, value, created_at, updated_at)
+VALUES ('schema_version', '0.1.3', ?, ?);
+INSERT INTO ask_messages (
+  id, conversation_id, role, content, status, source_refs, model, created_at, updated_at
+) VALUES ('legacy-message', 'legacy-conversation', 'assistant', 'legacy answer', 'complete', '[]', 'legacy-model', ?, ?);`,
+		now, now, now, now); err != nil {
+		t.Fatalf("seed 0.1.3 ask schema: %v", err)
+	}
+	if err := seedDB.Close(); err != nil {
+		t.Fatalf("close seed db: %v", err)
+	}
+
+	driver, err := db.NewDBDriver(p)
+	if err != nil {
+		t.Fatalf("NewDBDriver() error = %v", err)
+	}
+	s := store.New(driver, p)
+	defer s.Close()
+
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if !columnExists(t, s, "ask_messages", "prompt_version") {
+		t.Fatal("ask_messages prompt_version column was not added")
+	}
+	version, err := s.GetSchemaVersion(ctx)
+	if err != nil {
+		t.Fatalf("GetSchemaVersion() error = %v", err)
+	}
+	if version != "0.1.4" {
+		t.Fatalf("schema version = %q, want 0.1.4", version)
+	}
+	legacy, err := s.GetAskMessage(ctx, "legacy-message")
+	if err != nil {
+		t.Fatalf("GetAskMessage(legacy) error = %v", err)
+	}
+	if legacy.PromptVersion != "" {
+		t.Fatalf("legacy prompt version = %q, want empty", legacy.PromptVersion)
+	}
+
+	if _, err := s.GetDriver().GetDB().ExecContext(ctx, `
+INSERT INTO ask_messages (
+  id, conversation_id, role, content, status, source_refs, model, created_at, updated_at
+) VALUES ('default-message', 'legacy-conversation', 'assistant', 'default answer', 'complete', '[]', 'legacy-model', ?, ?)`,
+		now, now); err != nil {
+		t.Fatalf("insert ask message using prompt_version default: %v", err)
+	}
+	if _, err := s.GetDriver().GetDB().ExecContext(ctx,
+		"UPDATE ask_messages SET prompt_version = 'ask-answer-v2' WHERE id = 'legacy-message'"); err != nil {
+		t.Fatalf("set migrated prompt version: %v", err)
+	}
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("second Migrate() error = %v", err)
+	}
+
+	legacy, err = s.GetAskMessage(ctx, "legacy-message")
+	if err != nil {
+		t.Fatalf("GetAskMessage(legacy) after second migration error = %v", err)
+	}
+	if legacy.PromptVersion != "ask-answer-v2" {
+		t.Fatalf("legacy prompt version after second migration = %q, want ask-answer-v2", legacy.PromptVersion)
+	}
+	defaulted, err := s.GetAskMessage(ctx, "default-message")
+	if err != nil {
+		t.Fatalf("GetAskMessage(default) error = %v", err)
+	}
+	if defaulted.PromptVersion != "" {
+		t.Fatalf("default prompt version = %q, want empty", defaulted.PromptVersion)
 	}
 }
 

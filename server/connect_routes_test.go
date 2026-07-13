@@ -13,6 +13,7 @@ import (
 
 	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
 	"github.com/getsillage/sillage/proto/gen/api/v1/apiv1connect"
+	"github.com/getsillage/sillage/store"
 )
 
 func TestConnectMemoServiceCreateAndList(t *testing.T) {
@@ -426,6 +427,24 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	if !pushRes.Msg.GetResults()[0].GetIdempotent() {
 		t.Fatal("PushSync duplicate must be idempotent")
 	}
+	account, err := srv.Store.GetAccountByUsername(context.Background(), "felix")
+	if err != nil {
+		t.Fatalf("GetAccountByUsername() error = %v", err)
+	}
+	conversation, err := srv.Store.CreateAskConversation(context.Background(), account.ID, "sync ask", "all")
+	if err != nil {
+		t.Fatalf("CreateAskConversation() error = %v", err)
+	}
+	if _, err := srv.Store.CreateAskMessage(context.Background(), &store.AskMessage{
+		ConversationID: conversation.ID,
+		Role:           "assistant",
+		Content:        "sync answer",
+		SourceRefs:     "[]",
+		Model:          "gpt-test",
+		PromptVersion:  "ask-answer-v2",
+	}); err != nil {
+		t.Fatalf("CreateAskMessage() error = %v", err)
+	}
 
 	pullReq := connect.NewRequest(&apiv1.PullSyncRequest{Limit: 20})
 	pullReq.Header().Set("Authorization", "Bearer "+token)
@@ -438,6 +457,9 @@ func TestConnectSyncServicePushAndPull(t *testing.T) {
 	}
 	if pullRes.Msg.GetMemos()[0].GetFavoritedTime() == nil {
 		t.Fatalf("PullSync memo = %#v, want favorited time", pullRes.Msg.GetMemos()[0])
+	}
+	if got := pullRes.Msg.GetAskMessages(); len(got) != 1 || got[0].GetPromptVersion() != "ask-answer-v2" {
+		t.Fatalf("PullSync ask messages = %#v, want prompt version ask-answer-v2", got)
 	}
 	if pullRes.Msg.GetCursor() == "" || pullRes.Msg.GetHasMore() {
 		t.Fatalf("unexpected PullSync cursor/hasMore: cursor=%q hasMore=%v", pullRes.Msg.GetCursor(), pullRes.Msg.GetHasMore())
@@ -467,7 +489,7 @@ func TestConnectAskServiceGroundedMessages(t *testing.T) {
 
 	messageReq := connect.NewRequest(&apiv1.CreateAskMessageRequest{
 		ConversationId: conversationID,
-		Content:        "最近状态有什么变化？",
+		Content:        "睡眠有什么变化？",
 	})
 	messageReq.Header().Set("Authorization", "Bearer "+token)
 	messageRes, err := client.CreateAskMessage(context.Background(), messageReq)
@@ -484,6 +506,9 @@ func TestConnectAskServiceGroundedMessages(t *testing.T) {
 	if messages[1].GetModel() != "gpt-test" {
 		t.Fatalf("assistant model = %q, want gpt-test", messages[1].GetModel())
 	}
+	if messages[0].GetPromptVersion() != "" || messages[1].GetPromptVersion() != "ask-answer-v2" {
+		t.Fatalf("ask prompt versions = %q/%q, want empty/ask-answer-v2", messages[0].GetPromptVersion(), messages[1].GetPromptVersion())
+	}
 
 	listReq := connect.NewRequest(&apiv1.ListAskMessagesRequest{ConversationId: conversationID})
 	listReq.Header().Set("Authorization", "Bearer "+token)
@@ -493,6 +518,9 @@ func TestConnectAskServiceGroundedMessages(t *testing.T) {
 	}
 	if len(listRes.Msg.GetMessages()) != 2 {
 		t.Fatalf("ListAskMessages len = %d, want 2", len(listRes.Msg.GetMessages()))
+	}
+	if got := listRes.Msg.GetMessages()[1].GetPromptVersion(); got != "ask-answer-v2" {
+		t.Fatalf("ListAskMessages assistant prompt version = %q, want ask-answer-v2", got)
 	}
 }
 

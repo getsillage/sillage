@@ -243,6 +243,7 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 		Status:         "complete",
 		SourceRefs:     encodeAskSourceRefs(sources),
 		Model:          modelName,
+		PromptVersion:  askPromptVersion,
 	})
 	if err != nil {
 		return nil, err

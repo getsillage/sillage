@@ -174,6 +174,7 @@ internal fun askMessageToJson(message: AskMessage): JSONObject {
         .put("status", message.status)
         .put("sourceRefs", message.sourceRefs.toJsonArray(::askSourceRefToJson))
         .put("model", message.model)
+        .put("promptVersion", message.promptVersion)
         .put("createdAt", message.createdAt)
         .put("updatedAt", message.updatedAt)
         .putNullable("deletedAt", message.deletedAt)
@@ -190,6 +191,7 @@ internal fun jsonToAskMessage(body: JSONObject): AskMessage {
         status = body.optString("status"),
         sourceRefs = body.optJSONArray("sourceRefs").toListOrEmpty(::jsonToAskSourceRef),
         model = body.optString("model"),
+        promptVersion = body.optString("promptVersion"),
         createdAt = body.optString("createdAt"),
         updatedAt = body.optString("updatedAt"),
         deletedAt = body.nullableString("deletedAt"),

@@ -240,6 +240,7 @@ class LocalDataStore(context: Context) {
         answer: String,
         sourceRefs: List<AskSourceRef>,
         model: String,
+        promptVersion: String,
         parentId: String?,
         forkOfId: String?,
     ): Pair<AskConversation, List<AskMessage>> {
@@ -255,6 +256,7 @@ class LocalDataStore(context: Context) {
                 status = "complete",
                 sourceRefs = emptyList(),
                 model = "",
+                promptVersion = "",
                 createdAt = now,
                 updatedAt = now,
                 deletedAt = null,
@@ -272,6 +274,7 @@ class LocalDataStore(context: Context) {
             status = "complete",
             sourceRefs = sourceRefs,
             model = model,
+            promptVersion = promptVersion,
             createdAt = now,
             updatedAt = now,
             deletedAt = null,

@@ -12,7 +12,8 @@ import (
 const (
 	mockAIAPIKey         = "mock-key"
 	mockAISummaryContent = "mock-summary: 这条记录提到了散步和睡眠。"
-	mockAIAnswerContent  = "根据当前范围内的记录，睡眠更稳定。"
+	mockAIAnswerContent  = "根据当前范围内的记录，睡眠更稳定。[1]"
+	mockAIGeneralContent = "你好！很高兴见到你。"
 	mockAIInputTokens    = 11
 	mockAIOutputTokens   = 7
 	mockAITotalTokens    = 18
@@ -34,6 +35,10 @@ type mockAIAnthropicRequest struct {
 }
 
 func newMockAIProvider(t *testing.T) *httptest.Server {
+	return newMockAIProviderWithHook(t, nil)
+}
+
+func newMockAIProviderWithHook(t *testing.T, hook func(mockAIChatRequest)) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
@@ -64,6 +69,9 @@ func newMockAIProvider(t *testing.T) *httptest.Server {
 			if err := json.Unmarshal(body, &req); err != nil {
 				http.Error(w, "invalid json", http.StatusBadRequest)
 				return
+			}
+			if hook != nil {
+				hook(req)
 			}
 			if req.Stream {
 				writeMockAIStream(w, mockAIContent(req.Messages))
@@ -121,8 +129,22 @@ func mockAIContent(messages []mockAIMessage) string {
 			break
 		}
 	}
+	for _, message := range messages {
+		if message.Role == "system" && strings.Contains(message.Content, "Sillage 问答路由器") {
+			return mockAIRouteContent(lastUser)
+		}
+	}
 	if strings.Contains(lastUser, "生成简洁总结") {
 		return mockAISummaryContent
+	}
+	if strings.Contains(lastUser, "当前问题：\n你好") {
+		return mockAIGeneralContent
+	}
+	if strings.Contains(lastUser, "当前问题：\n法国的首都") {
+		return "法国的首都是巴黎。"
+	}
+	if strings.Contains(lastUser, "当前问题：") && strings.Contains(lastUser, "\n[]\n") {
+		return "现有记录不足以判断。"
 	}
 	if strings.Contains(lastUser, "最早") {
 		return "最早的那条记录提到了长期睡眠变化。"
@@ -131,6 +153,23 @@ func mockAIContent(messages []mockAIMessage) string {
 		return mockAIAnswerContent
 	}
 	return "mock-ai-response"
+}
+
+func mockAIRouteContent(lastUser string) string {
+	switch {
+	case strings.Contains(lastUser, "你好"), strings.Contains(lastUser, "法国的首都"):
+		return `{"mode":"general","searchQuery":""}`
+	case strings.Contains(lastUser, "改善睡眠"):
+		return `{"mode":"mixed","searchQuery":"睡眠"}`
+	case strings.Contains(lastUser, "中间"):
+		return `{"mode":"records","searchQuery":"中间 唯一标记"}`
+	case strings.Contains(lastUser, "法语"):
+		return `{"mode":"records","searchQuery":"法语 学习"}`
+	case strings.Contains(lastUser, "睡眠"), strings.Contains(lastUser, "状态"), strings.Contains(lastUser, "最近"):
+		return `{"mode":"records","searchQuery":"睡眠 精神 状态 变化"}`
+	default:
+		return `{"mode":"records","searchQuery":"记录"}`
+	}
 }
 
 func writeMockAIResponse(w http.ResponseWriter, content string) {

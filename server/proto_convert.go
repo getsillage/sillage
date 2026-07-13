@@ -154,6 +154,7 @@ func askMessagePB(message *store.AskMessage) *apiv1.AskMessage {
 		Status:         message.Status,
 		SourceRefs:     askSourceRefsPB(message.SourceRefs),
 		Model:          message.Model,
+		PromptVersion:  message.PromptVersion,
 		CreatedTime:    timestamppb.New(unixMilliTime(message.CreatedAt)),
 		UpdatedTime:    timestamppb.New(unixMilliTime(message.UpdatedAt)),
 		DeletedTime:    timestampPB(message.DeletedAt),

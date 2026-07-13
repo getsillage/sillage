@@ -434,6 +434,7 @@ class MemoFiltersTest {
             status = "complete",
             sourceRefs = emptyList(),
             model = "",
+            promptVersion = "",
             createdAt = createdAt,
             updatedAt = createdAt,
             deletedAt = null,

@@ -18,6 +18,7 @@ function msg(
     status: "complete",
     sourceRefs: [],
     model: "",
+    promptVersion: role === "assistant" ? "ask-answer-v2" : "",
     createdAt,
     updatedAt: createdAt,
     deletedAt: null,

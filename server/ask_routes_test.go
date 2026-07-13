@@ -152,6 +152,9 @@ func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 	if messages[0]["role"] != "user" || messages[1]["role"] != "assistant" {
 		t.Fatalf("unexpected roles: %#v", messages)
 	}
+	if messages[0]["promptVersion"] != "" || messages[1]["promptVersion"] != "ask-answer-v2" {
+		t.Fatalf("unexpected prompt versions: %#v", messages)
+	}
 	answer := messages[1]["content"].(string)
 	if !strings.Contains(answer, "睡眠更稳定") {
 		t.Fatalf("assistant answer not grounded: %s", answer)
@@ -189,6 +192,8 @@ func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 func TestAskInsufficientRecordsResponse(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
 
 	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
 		"contextScope": "recent_30_days",
@@ -214,6 +219,79 @@ func TestAskInsufficientRecordsResponse(t *testing.T) {
 	}
 	if refs := payload["messages"][1]["sourceRefs"].([]any); len(refs) != 0 {
 		t.Fatalf("source refs len = %d, want 0", len(refs))
+	}
+}
+
+func TestAskGeneralQuestionDoesNotSendUnrelatedRecords(t *testing.T) {
+	assertGeneralQuestionDoesNotSendUnrelatedRecords(
+		t,
+		"PRIVATE_UNRELATED_RECORD 今天散步后很早就睡了。",
+		"你好",
+		mockAIGeneralContent,
+	)
+}
+
+func TestAskGeneralKnowledgeDoesNotMatchCommonRecordWords(t *testing.T) {
+	assertGeneralQuestionDoesNotSendUnrelatedRecords(
+		t,
+		"PRIVATE_ENGLISH_RECORD This is a note about coffee and the morning routine.",
+		"法国的首都是哪里？",
+		"法国的首都是巴黎。",
+	)
+}
+
+func assertGeneralQuestionDoesNotSendUnrelatedRecords(t *testing.T, unrelatedContent, question, wantAnswer string) {
+	t.Helper()
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	requests := make(chan mockAIChatRequest, 2)
+	mockAI := newMockAIProviderWithHook(t, func(req mockAIChatRequest) {
+		requests <- req
+	})
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+
+	createMemoForAsk(t, srv, token, unrelatedContent, "2026-07-12")
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations/"+conversationID+"/messages", map[string]any{
+		"content": question,
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("general ask status = %d body=%s", res.Code, res.Body.String())
+	}
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode general ask: %v", err)
+	}
+	answer := payload["messages"][1]
+	if answer["content"] != wantAnswer {
+		t.Fatalf("general answer = %v, want %q", answer["content"], wantAnswer)
+	}
+	if refs := answer["sourceRefs"].([]any); len(refs) != 0 {
+		t.Fatalf("general answer sources = %#v, want none", refs)
+	}
+
+	foundAnswerRequest := false
+	for i := 0; i < 2; i++ {
+		providerRequest := <-requests
+		for _, message := range providerRequest.Messages {
+			if strings.Contains(message.Content, unrelatedContent) {
+				t.Fatalf("general request sent unrelated record: %s", message.Content)
+			}
+		}
+		last := providerRequest.Messages[len(providerRequest.Messages)-1].Content
+		if strings.Contains(last, "候选记录来源") {
+			foundAnswerRequest = true
+			if !strings.Contains(last, "\n[]\n") {
+				t.Fatalf("general answer request sources = %s, want empty JSON array", last)
+			}
+		}
+	}
+	if !foundAnswerRequest {
+		t.Fatal("general Ask did not make an answer request")
 	}
 }
 
@@ -329,6 +407,9 @@ func TestAskStreamMessageDeliversSSEEvents(t *testing.T) {
 	if done.Message["content"] != mockAIAnswerContent {
 		t.Fatalf("done content = %v, want %q", done.Message["content"], mockAIAnswerContent)
 	}
+	if done.Message["promptVersion"] != "ask-answer-v2" {
+		t.Fatalf("done promptVersion = %v", done.Message["promptVersion"])
+	}
 
 	// The assistant message is persisted.
 	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
@@ -338,6 +419,36 @@ func TestAskStreamMessageDeliversSSEEvents(t *testing.T) {
 	}
 	if len(payload["messages"]) != 2 {
 		t.Fatalf("persisted messages = %d, want 2", len(payload["messages"]))
+	}
+}
+
+func TestAskGeneralStreamStartSourcesIsEmptyArray(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	mockAI := newMockAIProvider(t)
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+
+	res = doJSON(t, srv, http.MethodPost,
+		"/api/v1/ask/conversations/"+conversationID+"/messages:stream",
+		map[string]any{"content": "你好"}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("stream status = %d body=%s", res.Code, res.Body.String())
+	}
+	events := parseSSE(res.Body.String())
+	if len(events["start"]) != 1 {
+		t.Fatalf("want exactly 1 start event, got %d", len(events["start"]))
+	}
+	var start map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(events["start"][0]), &start); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+	if got := string(start["sources"]); got != "[]" {
+		t.Fatalf("start sources = %s, want []", got)
 	}
 }
 

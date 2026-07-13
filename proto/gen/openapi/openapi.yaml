@@ -887,6 +887,11 @@ components:
                 deletedTime:
                     type: string
                     format: date-time
+                promptVersion:
+                    type: string
+                    description: |-
+                        prompt_version identifies the answer instructions used for assistant
+                         messages. User and legacy messages leave it empty.
             description: |-
                 AskMessage is one turn in a conversation. Branching and regeneration are
                  modeled as a tree: parent_id links a follow-up to the message it answers, and

@@ -912,12 +912,15 @@ type AskMessage struct {
 	ForkOfId string `protobuf:"bytes,6,opt,name=fork_of_id,json=forkOfId,proto3" json:"fork_of_id,omitempty"`
 	// status is the message lifecycle marker; persisted messages currently use
 	// "complete".
-	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	SourceRefs    []*AskSourceRef        `protobuf:"bytes,8,rep,name=source_refs,json=sourceRefs,proto3" json:"source_refs,omitempty"`
-	Model         string                 `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`
-	CreatedTime   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
-	UpdatedTime   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
-	DeletedTime   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
+	Status      string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	SourceRefs  []*AskSourceRef        `protobuf:"bytes,8,rep,name=source_refs,json=sourceRefs,proto3" json:"source_refs,omitempty"`
+	Model       string                 `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`
+	CreatedTime *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_time,json=createdTime,proto3" json:"created_time,omitempty"`
+	UpdatedTime *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time,omitempty"`
+	DeletedTime *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
+	// prompt_version identifies the answer instructions used for assistant
+	// messages. User and legacy messages leave it empty.
+	PromptVersion string `protobuf:"bytes,13,opt,name=prompt_version,json=promptVersion,proto3" json:"prompt_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1036,6 +1039,13 @@ func (x *AskMessage) GetDeletedTime() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AskMessage) GetPromptVersion() string {
+	if x != nil {
+		return x.PromptVersion
+	}
+	return ""
+}
+
 var File_api_v1_common_proto protoreflect.FileDescriptor
 
 const file_api_v1_common_proto_rawDesc = "" +
@@ -1132,7 +1142,7 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\n" +
 	"entry_date\x18\x02 \x01(\tR\tentryDate\x12\x18\n" +
 	"\aexcerpt\x18\x03 \x01(\tR\aexcerpt\x12\x12\n" +
-	"\x04rank\x18\x04 \x01(\x05R\x04rank\"\xd8\x03\n" +
+	"\x04rank\x18\x04 \x01(\x05R\x04rank\"\xff\x03\n" +
 	"\n" +
 	"AskMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
@@ -1149,7 +1159,8 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\fcreated_time\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
 	"\fupdated_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12=\n" +
-	"\fdeleted_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTimeB\xb1\x01\n" +
+	"\fdeleted_time\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\x12%\n" +
+	"\x0eprompt_version\x18\r \x01(\tR\rpromptVersionB\xb1\x01\n" +
 	"\x12com.sillage.api.v1B\vCommonProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (

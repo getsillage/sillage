@@ -2646,9 +2646,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                     profile = profile,
                     question = question,
                     scope = contextScope,
-                    memos = localDataStore.listMemos(),
+                    loadMemos = localDataStore::listMemos,
                     history = history,
-                    emptySourcesAnswer = uiString(R.string.ask_insufficient_local),
                 )
                 localDataStore.appendAskTurn(
                     conversationId = conversationId,
@@ -2656,6 +2655,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     answer = answer.answer,
                     sourceRefs = answer.sourceRefs,
                     model = answer.model,
+                    promptVersion = answer.promptVersion,
                     parentId = parentId,
                     forkOfId = forkOfId,
                 )

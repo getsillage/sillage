@@ -4,11 +4,11 @@ This document defines Sillage's product scope, terminology, and AI behavior. See
 
 ## Positioning
 
-Sillage is a single-user personal record space for capturing daily events, thoughts, and feelings. AI generates summaries only from those records and lets the user ask questions about existing content.
+Sillage is a single-user personal record space for capturing daily events, thoughts, and feelings. AI generates summaries only from those records, grounds claims about the user's personal history in cited records, and may answer general questions without pretending those answers came from the record history.
 
 One-line description:
 
-> Sillage is a personal record space for capturing records, revisiting history, and asking questions based on those records.
+> Sillage is a personal record space for capturing records, revisiting history, and asking questions with personal claims grounded in those records.
 
 The product should be private, clear, concrete, easy to understand, and suitable for long-term use. It is not:
 
@@ -29,7 +29,7 @@ AI services associated with edge-network platforms may be reached only through o
 | --- | --- | --- |
 | Record | 记录 | An event, thought, feeling, text, or attachment captured by the user |
 | History | 历史 | Records revisited over time |
-| Ask | 问答 | Search, questions, and follow-up questions grounded in records |
+| Ask | 问答 | Questions and follow-up questions, with claims about personal history grounded in records |
 | Summary | 总结 | An AI-generated overview based on records |
 | Source | 来源 | An original record cited by a summary or answer |
 
@@ -58,9 +58,11 @@ The Android bottom bar uses Records / Calendar / Ask / Settings (`记录 / 日�
 
 A summary must state what it is based on and provide a path back to its source records. It summarizes events, recurring themes, and content worth revisiting; it must not diagnose the user or present uncertain conclusions as facts.
 
-Ask supports multi-turn conversations, branches, regeneration, source citations, conversation search, and archiving. The recommended default context is the most recent 30 days. Full history may be used only when the user explicitly selects it.
+Ask supports multi-turn conversations, branches, regeneration, source citations, conversation search, and archiving. The recommended default context is the most recent 30 days. Full history may be used only when the user explicitly selects it. Answer-level source links appear only when an answer actually cites records.
 
-Answers should give a short conclusion first, followed by evidence and possible follow-up directions. When the available material is insufficient, the answer must say clearly that the existing records do not provide enough information to determine the answer.
+Each Ask turn normally uses the configured AI provider twice. The first request receives the system prompt, current question, and current branch history, but no attached record content; it classifies the turn as `general`, `records`, or `mixed` and generates retrieval phrases. A `general` turn proceeds to an answer request with no record lookup or attached sources. For `records` and `mixed`, Sillage uses the generated phrases to select relevant records locally, then attaches only those excerpts or summaries to the answer request. An invalid routing response falls back to `records`, preserving the requirement that personal claims need record evidence.
+
+Answers should give a short conclusion first, followed by evidence and possible follow-up directions. Greetings and general-knowledge questions may be answered naturally from the model's general knowledge without record citations; they must not be reframed as failed searches of the user's records. Claims about the user's life, history, or state must be supported by cited source records. When the available material is insufficient for such a personal claim, the answer must say clearly that the existing records do not provide enough information to determine it. A mixed answer must distinguish record-backed observations from general guidance.
 
 ## AI Boundaries
 
@@ -69,6 +71,7 @@ AI may:
 - summarize records;
 - identify recurring themes or changes in expression;
 - answer questions related to records;
+- answer general questions without citations when it makes no claim about the user or their records;
 - suggest source-grounded follow-up questions;
 - save an answer as a new record.
 
@@ -77,10 +80,12 @@ AI must not:
 - present speculation as fact;
 - use diagnostic psychological language;
 - draw conclusions about the user without sources;
+- attach unrelated or fabricated record citations to a general answer;
+- present general model knowledge as evidence about the user;
 - force interruptions while the user is writing;
 - replace or obscure original records with AI-generated content.
 
-Recommended phrasing should communicate the equivalent of:
+For personal-record questions, recommended phrasing should communicate the equivalent of:
 
 > These records repeatedly mention...
 
@@ -106,4 +111,4 @@ The Web and Android clients support English and Simplified Chinese. Simplified C
 - Switching the interface language does not translate user records, stored conversation titles, summaries, answers, provider responses, or other existing content.
 - Controls must remain readable without horizontal overflow in both languages, including compact mobile layouts.
 
-Before introducing a new concept or primary destination, confirm that it cannot be expressed through the existing core concepts and that it does not compromise the single-user private scope, writing-first design, or source-grounded AI behavior.
+Before introducing a new concept or primary destination, confirm that it cannot be expressed through the existing core concepts and that it does not compromise the single-user private scope, writing-first design, or source-grounded personal-record behavior.

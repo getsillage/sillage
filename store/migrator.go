@@ -18,7 +18,7 @@ var migrationFS embed.FS
 const (
 	latestSchemaFileName = "migration/sqlite/LATEST.sql"
 	minimumSchemaVersion = "0.1.0"
-	currentSchemaVersion = "0.1.3"
+	currentSchemaVersion = "0.1.4"
 	schemaVersionKey     = "schema_version"
 )
 
@@ -141,6 +141,9 @@ func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	if err := s.ensureMemoFavoritedCompat(ctx); err != nil {
 		return err
 	}
+	if err := s.ensureAskMessageCompat(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -207,6 +210,39 @@ WHERE pinned_at IS NOT NULL`); err != nil {
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit memo favorite compat migration: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) ensureAskMessageCompat(ctx context.Context) error {
+	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin ask message compat migration: %w", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			slog.Warn("failed to rollback ask message compat migration", "error", rollbackErr)
+		}
+	}()
+
+	exists, err := tableExists(ctx, tx, "ask_messages")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return tx.Commit()
+	}
+	hasPromptVersion, err := tableColumnExists(ctx, tx, "ask_messages", "prompt_version")
+	if err != nil {
+		return err
+	}
+	if !hasPromptVersion {
+		if _, err := tx.ExecContext(ctx, "ALTER TABLE ask_messages ADD COLUMN prompt_version TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("ensure ask_messages prompt_version column: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit ask message compat migration: %w", err)
 	}
 	return nil
 }

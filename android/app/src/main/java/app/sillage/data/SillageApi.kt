@@ -849,6 +849,7 @@ class SillageApi(private val sessionStore: SessionStore) {
                 }
             },
             model = body.optString("model"),
+            promptVersion = body.optString("promptVersion"),
             createdAt = body.optString("createdAt"),
             updatedAt = body.optString("updatedAt"),
             deletedAt = body.nullableString("deletedAt"),

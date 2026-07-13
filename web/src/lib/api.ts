@@ -104,6 +104,7 @@ export type AskMessage = {
   status: string;
   sourceRefs: AskSourceRef[];
   model: string;
+  promptVersion: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

@@ -337,7 +337,7 @@ private fun askContextLabel(state: SillageUiState): String {
     val source = stringResource(
         if (state.askSourceKind == "summaries") R.string.ask_source_summaries else R.string.ask_source_records,
     )
-    return stringResource(R.string.quantity_joiner, scope, source)
+    return stringResource(R.string.ask_record_context_summary, scope, source)
 }
 
 @Composable

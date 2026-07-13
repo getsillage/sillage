@@ -160,6 +160,7 @@ data class AskMessage(
     val status: String,
     val sourceRefs: List<AskSourceRef>,
     val model: String,
+    val promptVersion: String,
     val createdAt: String,
     val updatedAt: String,
     val deletedAt: String?,

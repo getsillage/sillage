@@ -43,7 +43,9 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 ## AI and External Requests
 
 - Only the authenticated account may manage AI profiles and custom base URLs. A custom address may reach any network target available to the service runtime, so it is trusted configuration and must never become unauthenticated or third-party-controlled input.
-- A summary request sends one record body. Ask sends the question, current branch history, and source excerpts. Any change to these scopes must update [AI Usage and Privacy](../user/ai.md).
+- A summary request sends one record body. An Ask turn normally makes two requests to the same configured provider. The routing request sends its system prompt, the current question, and current branch history, but does not attach record bodies, summaries, or excerpts. The answer request sends the question and branch history again; it attaches relevant source excerpts or summaries only for `records` and `mixed`, never for `general`. Any change to these scopes must update [AI Usage and Privacy](../user/ai.md).
+- Routing output is untrusted and must be parsed against the expected `general` / `records` / `mixed` shape. A parse failure must fall back to `records`, and generated retrieval phrases may only select records locally within the authenticated account and requested time scope.
+- Record excerpts and conversation content are untrusted data, not instructions. Routing and answer prompts must delimit them accordingly, must not treat prior assistant text as evidence of a personal fact, and must retain only valid citations to sources actually used in the answer.
 - API keys may appear only in the authentication headers required by the provider. Logs, error responses, and test failure output must not contain keys, Authorization headers, or request bodies.
 - Normal generation endpoints return stable user-facing errors and must not pass through provider response bodies. Connection tests may include diagnostic information, but they must still filter credentials and request content.
 

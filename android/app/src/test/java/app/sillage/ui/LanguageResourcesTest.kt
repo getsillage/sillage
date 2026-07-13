@@ -125,6 +125,22 @@ class LanguageResourcesTest {
             "已停止生成，已生成内容会保留。",
             context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_ask_generation_stopped),
         )
+        assertEquals(
+            "General questions are answered directly. For personal facts, relevant records from the selected range are cited.",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_prompt_example),
+        )
+        assertEquals(
+            "通用问题会直接回答；涉及个人事实时，只引用当前范围内的相关记录。",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_prompt_example),
+        )
+        assertEquals(
+            "Type a question",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_question_placeholder),
+        )
+        assertEquals(
+            "输入问题",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_question_placeholder),
+        )
     }
 
     @Test

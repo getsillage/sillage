@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/labstack/echo/v5"
 
@@ -219,48 +221,20 @@ func (s *Server) handleCreateAskMessage(c *echo.Context) error {
 }
 
 // askAnswerPrep is everything needed to call the AI for an answer, gathered
-// without making the call. A non-empty fallback means there is nothing to ask
-// (no records / no in-scope sources) and the fallback text is the whole answer.
+// without making the call.
 type askAnswerPrep struct {
 	sources  []askSourceRef
 	messages []aiProviderMessage
 	profile  *store.AIProfile
-	fallback string
 }
 
-// prepareAskAnswer selects sources, builds the prompt + history, and picks the
-// active profile. Shared by the unary and streaming answer paths; it makes no
-// AI call and acquires no job slot. historyParentID is the message the new
-// answer's question follows (i.e. the question's own parent); history is the
-// ancestor chain ending there, which is correct for linear, branched, and
-// regenerated turns alike.
+// prepareAskAnswer asks the active model to route the question, selects sources
+// for record-backed modes, and builds the answer prompt + history. Callers hold
+// an Ask job slot across this routing call and the following answer call.
+// historyParentID is the message the new answer's question follows (i.e. the
+// question's own parent); history is the ancestor chain ending there, which is
+// correct for linear, branched, and regenerated turns alike.
 func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scope, sourceKind, conversationID, historyParentID string) (*askAnswerPrep, error) {
-	memos, err := s.listAskCandidateMemos(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	if len(memos) == 0 {
-		return &askAnswerPrep{fallback: "现有记录不足以判断。可以先写下一些记录，或缩小问题范围后再问。"}, nil
-	}
-	sort.Slice(memos, func(i, j int) bool {
-		if memos[i].EntryDate != memos[j].EntryDate {
-			return memos[i].EntryDate > memos[j].EntryDate
-		}
-		if memos[i].CreatedAt != memos[j].CreatedAt {
-			return memos[i].CreatedAt > memos[j].CreatedAt
-		}
-		return memos[i].ID > memos[j].ID
-	})
-	sources := selectAskSourceRefs(question, memos, scope)
-	if len(sources) == 0 {
-		return &askAnswerPrep{fallback: "现有记录不足以判断。当前范围内没有可引用的记录。"}, nil
-	}
-	// In summary mode, ground the answer in each source's stored AI summary
-	// (distilled) rather than its raw text, falling back to the raw excerpt.
-	if isSummarySourceKind(sourceKind) {
-		sources = s.applySummaryExcerpts(ctx, sources)
-	}
-
 	if _, err := s.Store.GetAskConversation(ctx, accountID, conversationID); err != nil {
 		return nil, err
 	}
@@ -278,7 +252,46 @@ func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scop
 	}
 
 	history := askAncestorHistory(messages, historyParentID)
-	history = append(history, aiProviderMessage{Role: "user", Content: askUserPrompt(scope, question, sources)})
+	routerMessages := append([]aiProviderMessage{}, history...)
+	routerMessages = append(routerMessages, aiProviderMessage{Role: "user", Content: askRouterUserPrompt(question)})
+	routeResult, err := s.callAI(
+		ctx,
+		accountID,
+		profile,
+		askRouterSystemPrompt(),
+		routerMessages,
+		profile.Temperature,
+		askRouterMaxTokens,
+	)
+	if err != nil {
+		return nil, err
+	}
+	decision := parseAskRouteDecision(routeResult.Content, question)
+
+	sources := make([]askSourceRef, 0)
+	if decision.Mode != askRouteGeneral {
+		memos, err := s.listAskCandidateMemos(ctx, accountID)
+		if err != nil {
+			return nil, err
+		}
+		sort.Slice(memos, func(i, j int) bool {
+			if memos[i].EntryDate != memos[j].EntryDate {
+				return memos[i].EntryDate > memos[j].EntryDate
+			}
+			if memos[i].CreatedAt != memos[j].CreatedAt {
+				return memos[i].CreatedAt > memos[j].CreatedAt
+			}
+			return memos[i].ID > memos[j].ID
+		})
+		sources = selectAskSourceRefs(decision.SearchQuery, memos, scope)
+		// In summary mode, ground the answer in each source's stored AI summary
+		// (distilled) rather than its raw text, falling back to the raw excerpt.
+		if isSummarySourceKind(sourceKind) {
+			sources = s.applySummaryExcerpts(ctx, sources)
+		}
+	}
+
+	history = append(history, aiProviderMessage{Role: "user", Content: askUserPrompt(scope, question, decision.Mode, sources)})
 	return &askAnswerPrep{sources: sources, messages: history, profile: profile}, nil
 }
 
@@ -354,6 +367,11 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 	}
 
 	scope := firstNonEmpty(req.ContextScope, conversation.ContextScope)
+	jobDone, jobErr := s.acquireAskAIJob()
+	if jobErr != nil {
+		return apiError(c, http.StatusTooManyRequests, "rate_limited", "当前生成任务较多，请稍后再试")
+	}
+	defer jobDone()
 	prep, err := s.prepareAskAnswer(reqCtx, account.ID, turn.question.Content, scope, req.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
 		status, code, message := memoHTTPStatus(err)
@@ -369,31 +387,22 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 		"regenerate":  turn.newUser == nil,
 	})
 
-	answer := prep.fallback
-	modelName := ""
+	answer := ""
+	modelName := prep.profile.Model
 	streamErr := error(nil)
-	if prep.fallback == "" {
-		jobDone, jobErr := s.acquireAskAIJob()
-		if jobErr != nil {
-			_ = emit("error", map[string]any{"message": "当前生成任务较多，请稍后再试"})
-			return nil
-		}
-		defer jobDone()
-		modelName = prep.profile.Model
-		var builder strings.Builder
-		result, callErr := s.callAIStream(reqCtx, account.ID, prep.profile, askSystemPrompt(), prep.messages, prep.profile.Temperature, prep.profile.MaxTokens, func(delta string) {
-			builder.WriteString(delta)
-			_ = emit("delta", map[string]any{"text": delta})
-		})
-		switch {
-		case callErr == nil:
-			answer = result.Content
-		case reqCtx.Err() != nil:
-			// Client stopped: keep whatever streamed so far.
-			answer = strings.TrimSpace(builder.String())
-		default:
-			streamErr = callErr
-		}
+	var builder strings.Builder
+	result, callErr := s.callAIStream(reqCtx, account.ID, prep.profile, askSystemPrompt(), prep.messages, prep.profile.Temperature, prep.profile.MaxTokens, func(delta string) {
+		builder.WriteString(delta)
+		_ = emit("delta", map[string]any{"text": delta})
+	})
+	switch {
+	case callErr == nil:
+		answer = result.Content
+	case reqCtx.Err() != nil:
+		// Client stopped: keep whatever streamed so far.
+		answer = strings.TrimSpace(builder.String())
+	default:
+		streamErr = callErr
 	}
 
 	if streamErr != nil {
@@ -403,6 +412,7 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 	if answer == "" {
 		answer = "（未生成内容）"
 	}
+	usedSources := citedAskSourceRefs(answer, prep.sources)
 
 	// Persist with a fresh context so a stop (cancelled reqCtx) still saves the
 	// partial answer.
@@ -413,8 +423,9 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 		ParentID:       sql.NullString{String: turn.question.ID, Valid: true},
 		ForkOfID:       sql.NullString{String: turn.forkOfID, Valid: turn.forkOfID != ""},
 		Status:         "complete",
-		SourceRefs:     encodeAskSourceRefs(prep.sources),
+		SourceRefs:     encodeAskSourceRefs(usedSources),
 		Model:          modelName,
+		PromptVersion:  askPromptVersion,
 	})
 	if err != nil {
 		_ = emit("error", map[string]any{"message": "保存回答失败"})
@@ -454,23 +465,20 @@ func sseEmitter(c *echo.Context) func(event string, data any) error {
 }
 
 func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind, conversationID, historyParentID string) ([]askSourceRef, string, string, error) {
-	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID, historyParentID)
-	if err != nil {
-		return nil, "", "", err
-	}
-	if prep.fallback != "" {
-		return nil, prep.fallback, "", nil
-	}
 	jobDone, err := s.acquireAskAIJob()
 	if err != nil {
 		return nil, "", "", err
 	}
 	defer jobDone()
+	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID, historyParentID)
+	if err != nil {
+		return nil, "", "", err
+	}
 	answer, err := s.callAI(ctx, accountID, prep.profile, askSystemPrompt(), prep.messages, prep.profile.Temperature, prep.profile.MaxTokens)
 	if err != nil {
 		return nil, "", "", err
 	}
-	return prep.sources, answer.Content, prep.profile.Model, nil
+	return citedAskSourceRefs(answer.Content, prep.sources), answer.Content, prep.profile.Model, nil
 }
 
 // isSummarySourceKind reports whether the answer should be grounded in stored
@@ -549,10 +557,11 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 		if cutoff != "" && memo.EntryDate < cutoff {
 			continue
 		}
-		scored = append(scored, scoredMemo{
-			memo:  memo,
-			score: askMemoScore(question, terms, memo),
-		})
+		score := askMemoScore(question, terms, memo)
+		if score <= 0 {
+			continue
+		}
+		scored = append(scored, scoredMemo{memo: memo, score: score})
 	}
 
 	sort.Slice(scored, func(i, j int) bool {
@@ -578,7 +587,7 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 		sources = append(sources, askSourceRef{
 			MemoID:    memo.ID,
 			EntryDate: memo.EntryDate,
-			Excerpt:   excerpt(memo.Content, 96),
+			Excerpt:   askRelevantExcerpt(memo.Content, question, terms, 96),
 			Rank:      i + 1,
 		})
 	}
@@ -611,10 +620,101 @@ func askMemoScore(question string, terms []string, memo *store.Memo) int {
 			score += 10 + len(term)
 		}
 	}
-	if strings.Contains(content, memo.EntryDate) {
-		score += 5
-	}
 	return score
+}
+
+func askRelevantExcerpt(content, question string, terms []string, limit int) string {
+	content = strings.TrimSpace(content)
+	if content == "" || limit <= 0 {
+		return ""
+	}
+
+	candidates := append([]string{strings.TrimSpace(question)}, terms...)
+	bestIndex := -1
+	bestLength := 0
+	for _, candidate := range candidates {
+		index, length := foldedRuneIndex(content, candidate)
+		if index >= 0 && (length > bestLength || length == bestLength && (bestIndex < 0 || index < bestIndex)) {
+			bestIndex = index
+			bestLength = length
+		}
+	}
+	if bestIndex < 0 {
+		return excerpt(content, limit)
+	}
+
+	runes := []rune(content)
+	if len(runes) <= limit {
+		return content
+	}
+	start := bestIndex - limit/3
+	if start < 0 {
+		start = 0
+	}
+	end := start + limit
+	if end > len(runes) {
+		end = len(runes)
+		start = end - limit
+		if start < 0 {
+			start = 0
+		}
+	}
+	result := string(runes[start:end])
+	if start > 0 {
+		result = "..." + result
+	}
+	if end < len(runes) {
+		result += "..."
+	}
+	return result
+}
+
+func foldedRuneIndex(content, term string) (int, int) {
+	haystack := []rune(strings.ToLower(content))
+	needle := []rune(strings.ToLower(strings.TrimSpace(term)))
+	if len(needle) == 0 || len(needle) > len(haystack) {
+		return -1, 0
+	}
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		matched := true
+		for j := range needle {
+			if haystack[i+j] != needle[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return i, len(needle)
+		}
+	}
+	return -1, 0
+}
+
+var askCitationPattern = regexp.MustCompile(`\[([1-9][0-9]*)\]`)
+
+func citedAskSourceRefs(answer string, candidates []askSourceRef) []askSourceRef {
+	byRank := make(map[int]askSourceRef, len(candidates))
+	for _, source := range candidates {
+		byRank[source.Rank] = source
+	}
+	seen := make(map[int]struct{}, len(candidates))
+	refs := make([]askSourceRef, 0, len(candidates))
+	for _, match := range askCitationPattern.FindAllStringSubmatch(answer, -1) {
+		rank, err := strconv.Atoi(match[1])
+		if err != nil {
+			continue
+		}
+		source, ok := byRank[rank]
+		if !ok {
+			continue
+		}
+		if _, duplicate := seen[rank]; duplicate {
+			continue
+		}
+		seen[rank] = struct{}{}
+		refs = append(refs, source)
+	}
+	return refs
 }
 
 func askQueryTerms(question string) []string {
@@ -626,7 +726,7 @@ func askQueryTerms(question string) []string {
 	seen := make(map[string]struct{})
 	add := func(term string) {
 		term = strings.TrimSpace(strings.ToLower(term))
-		if len(term) < 2 {
+		if utf8.RuneCountInString(term) < 2 {
 			return
 		}
 		if _, ok := seen[term]; ok {
@@ -641,13 +741,15 @@ func askQueryTerms(question string) []string {
 		add(field)
 	}
 
-	runes := []rune(question)
-	for i := 0; i < len(runes); i++ {
-		if i+1 < len(runes) {
-			add(string(runes[i : i+2]))
-		}
-		if i+2 < len(runes) {
-			add(string(runes[i : i+3]))
+	if strings.IndexFunc(question, func(r rune) bool { return r > unicode.MaxASCII }) >= 0 {
+		runes := []rune(question)
+		for i := 0; i < len(runes); i++ {
+			if i+1 < len(runes) && containsNonASCII(runes[i:i+2]) {
+				add(string(runes[i : i+2]))
+			}
+			if i+2 < len(runes) && containsNonASCII(runes[i:i+3]) {
+				add(string(runes[i : i+3]))
+			}
 		}
 	}
 
@@ -657,6 +759,15 @@ func askQueryTerms(question string) []string {
 	}
 	sort.Slice(terms, func(i, j int) bool { return terms[i] < terms[j] })
 	return terms
+}
+
+func containsNonASCII(runes []rune) bool {
+	for _, r := range runes {
+		if r > unicode.MaxASCII {
+			return true
+		}
+	}
+	return false
 }
 
 func askConversationDTOs(conversations []*store.AskConversation) []map[string]any {
@@ -701,6 +812,7 @@ func askMessageDTO(message *store.AskMessage) map[string]any {
 		"status":         message.Status,
 		"sourceRefs":     decodeAskSourceRefs(message.SourceRefs),
 		"model":          message.Model,
+		"promptVersion":  message.PromptVersion,
 		"createdAt":      time.UnixMilli(message.CreatedAt).UTC().Format(time.RFC3339),
 		"updatedAt":      time.UnixMilli(message.UpdatedAt).UTC().Format(time.RFC3339),
 		"deletedAt":      optionalTime(message.DeletedAt),

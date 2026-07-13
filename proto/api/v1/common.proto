@@ -160,4 +160,7 @@ message AskMessage {
   google.protobuf.Timestamp created_time = 10;
   google.protobuf.Timestamp updated_time = 11;
   google.protobuf.Timestamp deleted_time = 12;
+  // prompt_version identifies the answer instructions used for assistant
+  // messages. User and legacy messages leave it empty.
+  string prompt_version = 13;
 }

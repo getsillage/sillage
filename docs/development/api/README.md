@@ -41,6 +41,8 @@ The message value is localized, user-facing text. The example above is a placeho
 
 SSE routes return `text/event-stream`. Uploads, attachment downloads, SSE, and action-style `POST` endpoints are all handwritten REST extensions; changes must update both this table and the tests.
 
+Ask message objects returned by list, create, stream, and sync routes use camelCase fields. `promptVersion` identifies the prompt semantics used to generate an answer: newly generated assistant answers use `ask-answer-v2`, while user messages and historical rows that were not backfilled return an empty string. `sourceRefs` contains only valid record citations retained from the answer and is empty for a general answer. The SSE `done` event carries the same message shape as the non-streaming routes.
+
 ## Versioning and Compatibility
 
 `/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.

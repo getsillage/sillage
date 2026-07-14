@@ -11,6 +11,7 @@ import { QuickCapture } from "../features/memos/QuickCapture";
 import { useI18n } from "../i18n/I18nProvider";
 import type { Account } from "../lib/api";
 import { todayISO } from "../lib/date";
+import { routeAccessibilityIdentity } from "./RouteAccessibility";
 import { Sidebar, Wordmark } from "./Sidebar";
 
 const SIDEBAR_KEY = "sillage-sidebar";
@@ -19,6 +20,25 @@ const DRAWER_FOCUSABLE_SELECTOR =
 
 function readSidebarOpen(): boolean {
   return window.localStorage.getItem(SIDEBAR_KEY) !== "collapsed";
+}
+
+function hasVisibleAlertDialog(): boolean {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '[role="alertdialog"][aria-modal="true"]',
+    ),
+  ).some(
+    (dialog) => !dialog.hidden && dialog.getAttribute("aria-hidden") !== "true",
+  );
+}
+
+function afterNextPaint(callback: () => void): () => void {
+  if (typeof window.requestAnimationFrame === "function") {
+    const frame = window.requestAnimationFrame(callback);
+    return () => window.cancelAnimationFrame(frame);
+  }
+  const timer = window.setTimeout(callback, 0);
+  return () => window.clearTimeout(timer);
 }
 
 export function AppShell({
@@ -33,15 +53,36 @@ export function AppShell({
   const [desktopOpen, setDesktopOpen] = useState(readSidebarOpen);
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreDrawerFocusRef = useRef(true);
+  const pendingDrawerNavigationRef = useRef<(() => void) | null>(null);
   const location = useLocation();
   const routeKey = `${location.pathname}?${location.search}`;
+  const focusRouteKey = routeAccessibilityIdentity(
+    location.pathname,
+    location.search,
+  );
+  const routeKeyRef = useRef(routeKey);
+  const previousFocusRouteKeyRef = useRef(focusRouteKey);
+  routeKeyRef.current = routeKey;
   const showQuickCapture = location.pathname !== "/ask";
   const memos = useMemos();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer on any navigation
   useEffect(() => {
+    pendingDrawerNavigationRef.current?.();
+    pendingDrawerNavigationRef.current = null;
+    restoreDrawerFocusRef.current =
+      previousFocusRouteKeyRef.current === focusRouteKey;
+    previousFocusRouteKeyRef.current = focusRouteKey;
     setDrawerOpen(false);
-  }, [routeKey]);
+  }, [routeKey, focusRouteKey]);
+
+  useEffect(
+    () => () => {
+      pendingDrawerNavigationRef.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -62,17 +103,10 @@ export function AppShell({
 
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
-        const visibleAlertDialog = Array.from(
-          document.querySelectorAll<HTMLElement>(
-            '[role="alertdialog"][aria-modal="true"]',
-          ),
-        ).some(
-          (dialog) =>
-            !dialog.hidden && dialog.getAttribute("aria-hidden") !== "true",
-        );
-        if (visibleAlertDialog) {
+        if (hasVisibleAlertDialog()) {
           return;
         }
+        restoreDrawerFocusRef.current = true;
         setDrawerOpen(false);
       }
     }
@@ -80,7 +114,10 @@ export function AppShell({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      menuButtonRef.current?.focus();
+      if (restoreDrawerFocusRef.current) {
+        menuButtonRef.current?.focus();
+      }
+      restoreDrawerFocusRef.current = true;
     };
   }, [drawerOpen]);
 
@@ -110,6 +147,21 @@ export function AppShell({
       event.preventDefault();
       first.focus();
     }
+  }
+
+  function handleDrawerNavigation() {
+    const sourceRouteKey = routeKeyRef.current;
+    pendingDrawerNavigationRef.current?.();
+    pendingDrawerNavigationRef.current = afterNextPaint(() => {
+      pendingDrawerNavigationRef.current = afterNextPaint(() => {
+        pendingDrawerNavigationRef.current = null;
+        if (routeKeyRef.current !== sourceRouteKey || hasVisibleAlertDialog()) {
+          return;
+        }
+        restoreDrawerFocusRef.current = true;
+        setDrawerOpen(false);
+      });
+    });
   }
 
   async function handleCapture(body: string) {
@@ -146,7 +198,10 @@ export function AppShell({
           aria-expanded={drawerOpen}
           aria-controls="mobile-navigation-dialog"
           className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => {
+            restoreDrawerFocusRef.current = true;
+            setDrawerOpen(true);
+          }}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -159,7 +214,10 @@ export function AppShell({
             aria-label={t("nav.closeBackdrop")}
             tabIndex={-1}
             className="absolute inset-0 h-full w-full bg-gray-950/30 dark:bg-gray-950/60"
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => {
+              restoreDrawerFocusRef.current = true;
+              setDrawerOpen(false);
+            }}
           />
           <div
             ref={drawerRef}
@@ -173,8 +231,11 @@ export function AppShell({
           >
             <Sidebar
               className="h-full w-full"
-              onNavigate={() => setDrawerOpen(false)}
-              onClose={() => setDrawerOpen(false)}
+              onNavigate={handleDrawerNavigation}
+              onClose={() => {
+                restoreDrawerFocusRef.current = true;
+                setDrawerOpen(false);
+              }}
               account={account}
               onSignOut={onSignOut}
             />

@@ -1,10 +1,21 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useUnsavedChangesRegistration } from "../components/UnsavedNavigationGuard";
+import {
+  UnsavedNavigationGuard,
+  useUnsavedChangesRegistration,
+} from "../components/UnsavedNavigationGuard";
 import type { AskConversation } from "../lib/api";
 import { AppShell } from "./AppShell";
+import { RouteAccessibility } from "./RouteAccessibility";
 
 const { askState } = vi.hoisted(() => ({
   askState: {
@@ -59,14 +70,33 @@ function conversation(
 
 function DirtyPage() {
   useUnsavedChangesRegistration(true);
-  return <main>有未保存内容</main>;
+  return (
+    <main>
+      <h1>有未保存内容</h1>
+    </main>
+  );
+}
+
+function GuardedDirtyPage() {
+  return (
+    <>
+      <UnsavedNavigationGuard
+        when
+        title="记录尚未保存"
+        description="离开后会丢失未保存的修改。"
+      />
+      <main>
+        <h1>有未保存内容</h1>
+      </main>
+    </>
+  );
 }
 
 function AskRoute() {
   const location = useLocation();
   return (
     <main>
-      问答页面
+      <h1>问答页面</h1>
       <span data-testid="ask-location">
         {location.pathname}
         {location.search}
@@ -85,19 +115,75 @@ function renderShell({
   const user = userEvent.setup();
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
+      <RouteAccessibility />
       <Routes>
         <Route element={<AppShell account={account} onSignOut={vi.fn()} />}>
           <Route
             index
-            element={dirty ? <DirtyPage /> : <main>记录页面</main>}
+            element={
+              dirty ? (
+                <DirtyPage />
+              ) : (
+                <main>
+                  <h1>记录页面</h1>
+                </main>
+              )
+            }
           />
-          <Route path="timeline" element={<main>全部记录页面</main>} />
+          <Route
+            path="timeline"
+            element={
+              <main>
+                <h1>全部记录页面</h1>
+              </main>
+            }
+          />
           <Route path="ask" element={<AskRoute />} />
         </Route>
       </Routes>
     </MemoryRouter>,
   );
   return user;
+}
+
+function renderGuardedShell() {
+  const user = userEvent.setup();
+  const nativeRequest = globalThis.Request;
+  globalThis.Request = class extends nativeRequest {
+    constructor(input: RequestInfo | URL, init?: RequestInit) {
+      super(input, init ? { ...init, signal: undefined } : init);
+    }
+  };
+  const router = createMemoryRouter([
+    {
+      path: "/",
+      element: (
+        <>
+          <RouteAccessibility />
+          <AppShell account={account} onSignOut={vi.fn()} />
+        </>
+      ),
+      children: [
+        { index: true, element: <GuardedDirtyPage /> },
+        {
+          path: "timeline",
+          element: (
+            <main>
+              <h1>全部记录页面</h1>
+            </main>
+          ),
+        },
+      ],
+    },
+  ]);
+  const view = render(<RouterProvider router={router} />);
+  return {
+    user,
+    dispose: () => {
+      view.unmount();
+      globalThis.Request = nativeRequest;
+    },
+  };
 }
 
 beforeEach(() => {
@@ -227,7 +313,110 @@ describe("AppShell mobile navigation", () => {
       screen.queryByRole("dialog", { name: "导航" }),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("main")).toHaveLength(1);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "全部记录页面" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("restores the menu trigger when the current route is selected", async () => {
+    const user = renderShell({ initialEntry: "/timeline" });
+    const menuButton = screen.getByRole("button", { name: "打开导航" });
+
+    await user.click(menuButton);
+    await user.click(
+      within(screen.getByRole("dialog", { name: "导航" })).getByRole("link", {
+        name: "全部记录",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "导航" }),
+      ).not.toBeInTheDocument(),
+    );
     expect(menuButton).toHaveFocus();
+    expect(
+      screen.getByRole("heading", { name: "全部记录页面" }),
+    ).not.toHaveFocus();
+  });
+
+  it("restores the menu trigger for an in-page query change", async () => {
+    const user = renderShell({ initialEntry: "/timeline?view=calendar" });
+    const menuButton = screen.getByRole("button", { name: "打开导航" });
+
+    await user.click(menuButton);
+    await user.click(
+      within(screen.getByRole("dialog", { name: "导航" })).getByRole("link", {
+        name: "全部记录",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "导航" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(menuButton).toHaveFocus();
+    expect(
+      screen.getByRole("heading", { name: "全部记录页面" }),
+    ).not.toHaveFocus();
+  });
+
+  it("keeps a blocked drawer navigation open until leaving is confirmed", async () => {
+    const { user, dispose } = renderGuardedShell();
+    try {
+      const menuButton = screen.getByRole("button", { name: "打开导航" });
+      await user.click(menuButton);
+      const drawer = screen.getByRole("dialog", { name: "导航" });
+      const allRecords = within(drawer).getByRole("link", {
+        name: "全部记录",
+      });
+
+      await user.click(allRecords);
+
+      const confirmation = await screen.findByRole("alertdialog", {
+        name: "记录尚未保存",
+      });
+      for (let frame = 0; frame < 2; frame += 1) {
+        await act(
+          () =>
+            new Promise<void>((resolve) => {
+              window.requestAnimationFrame(() => resolve());
+            }),
+        );
+      }
+      expect(drawer).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "有未保存内容" }),
+      ).toBeVisible();
+
+      await user.click(
+        within(confirmation).getByRole("button", { name: "继续编辑" }),
+      );
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      expect(drawer).toBeInTheDocument();
+      expect(allRecords).toHaveFocus();
+
+      await user.click(allRecords);
+      await user.click(
+        within(await screen.findByRole("alertdialog")).getByRole("button", {
+          name: "离开此页",
+        }),
+      );
+
+      expect(await screen.findByText("全部记录页面")).toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "导航" })).toBeNull();
+      await waitFor(() =>
+        expect(
+          screen.getByRole("heading", { name: "全部记录页面" }),
+        ).toHaveFocus(),
+      );
+      expect(menuButton).not.toHaveFocus();
+    } finally {
+      dispose();
+    }
   });
 
   it("keeps a quick-capture draft mounted across the Ask route", async () => {
@@ -235,7 +424,7 @@ describe("AppShell mobile navigation", () => {
     await user.click(screen.getByRole("button", { name: "速记" }));
     const quickDialog = screen.getByRole("dialog", { name: "速记" });
     await user.type(
-      within(quickDialog).getByPlaceholderText("想记录什么？"),
+      within(quickDialog).getByRole("textbox", { name: "速记内容" }),
       "跨页面速记",
     );
     await user.click(
@@ -248,7 +437,7 @@ describe("AppShell mobile navigation", () => {
 
     await user.click(screen.getByRole("link", { name: "写记录" }));
     await user.click(screen.getByRole("button", { name: "速记" }));
-    expect(screen.getByPlaceholderText("想记录什么？")).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toHaveValue(
       "跨页面速记",
     );
   });

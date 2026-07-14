@@ -90,6 +90,20 @@ summary {
   background: rgb(255 255 255 / 0.16);
 }
 
+[data-route-focus-target] {
+  scroll-margin-top: 5rem;
+}
+
+[data-route-focus-target]:focus-visible {
+  border-radius: 0.25rem;
+  outline: 2px solid var(--color-gray-500);
+  outline-offset: 4px;
+}
+
+.dark [data-route-focus-target]:focus-visible {
+  outline-color: var(--color-gray-400);
+}
+
 .surface-enter {
   animation: surface-enter 180ms ease-out both;
 }

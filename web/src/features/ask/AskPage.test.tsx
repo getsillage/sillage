@@ -213,6 +213,21 @@ beforeEach(() => {
 });
 
 describe("AskPage", () => {
+  it("labels the question independently from its placeholder", async () => {
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    renderAsk();
+
+    const input = await screen.findByRole("textbox", { name: "要问的问题" });
+    expect(input).toHaveAttribute("placeholder", "输入问题…");
+    expect(input).toHaveAccessibleDescription(
+      "涉及个人事实时，仅引用选定范围内的相关记录",
+    );
+    expect(input).toHaveClass(
+      "focus-visible:ring-2",
+      "focus-visible:ring-inset",
+    );
+  });
+
   it("keeps an initial conversation-list error visible and retries it", async () => {
     const user = userEvent.setup();
     vi.mocked(listAskConversations)

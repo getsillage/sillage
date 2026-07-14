@@ -22,6 +22,7 @@ import {
   subscribeAccessToken,
 } from "../lib/auth";
 import { AppShell } from "./AppShell";
+import { RouteAccessibility } from "./RouteAccessibility";
 
 type BootstrapState = "loading" | "needs-init" | "ready";
 
@@ -132,54 +133,57 @@ export function App() {
   const authed = Boolean(account && token);
 
   return (
-    <Routes>
-      <Route
-        path="/initialize"
-        element={
-          needsInit ? (
-            <InitializePage onDone={handleAuthed} />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          needsInit ? (
-            <Navigate to="/initialize" replace />
-          ) : (
-            <LoginPage onDone={handleAuthed} />
-          )
-        }
-      />
-      {authed && account && token ? (
+    <>
+      <RouteAccessibility />
+      <Routes>
         <Route
+          path="/initialize"
           element={
-            <AuthedArea
-              account={account}
-              token={token}
-              onSignOut={handleSignOut}
-            />
-          }
-        >
-          <Route index element={<HomePage />} />
-          <Route path="timeline" element={<TimelinePage />} />
-          <Route path="entries/:id" element={<EntryPage />} />
-          <Route path="ask" element={<AskPage />} />
-          {/* Legacy path: 照见/回顾 became 问答. */}
-          <Route path="review" element={<Navigate to="/ask" replace />} />
-          <Route path="settings" element={<SettingsPage token={token} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      ) : (
-        <Route
-          path="*"
-          element={
-            <Navigate to={needsInit ? "/initialize" : "/login"} replace />
+            needsInit ? (
+              <InitializePage onDone={handleAuthed} />
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         />
-      )}
-    </Routes>
+        <Route
+          path="/login"
+          element={
+            needsInit ? (
+              <Navigate to="/initialize" replace />
+            ) : (
+              <LoginPage onDone={handleAuthed} />
+            )
+          }
+        />
+        {authed && account && token ? (
+          <Route
+            element={
+              <AuthedArea
+                account={account}
+                token={token}
+                onSignOut={handleSignOut}
+              />
+            }
+          >
+            <Route index element={<HomePage />} />
+            <Route path="timeline" element={<TimelinePage />} />
+            <Route path="entries/:id" element={<EntryPage />} />
+            <Route path="ask" element={<AskPage />} />
+            {/* Legacy path: 照见/回顾 became 问答. */}
+            <Route path="review" element={<Navigate to="/ask" replace />} />
+            <Route path="settings" element={<SettingsPage token={token} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        ) : (
+          <Route
+            path="*"
+            element={
+              <Navigate to={needsInit ? "/initialize" : "/login"} replace />
+            }
+          />
+        )}
+      </Routes>
+    </>
   );
 }

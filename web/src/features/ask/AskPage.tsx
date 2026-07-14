@@ -93,6 +93,8 @@ export function AskPage() {
   } = useAsk();
   const [question, setQuestion] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const questionInputId = useId();
+  const questionDescriptionId = useId();
   const endRef = useRef<HTMLDivElement>(null);
   const followOutputRef = useRef(true);
   const liveUserMessage = shouldShowLiveUser(entries, liveUser)
@@ -338,8 +340,13 @@ export function AskPage() {
 
       <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-gray-50 via-gray-50 to-gray-50/0 px-4 pt-6 pb-4 sm:-mx-6 sm:px-6 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950/0">
         <div className="space-y-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-xl shadow-gray-900/[0.07] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/25">
+          <label className="sr-only" htmlFor={questionInputId}>
+            {t("ask.questionLabel")}
+          </label>
           <textarea
+            id={questionInputId}
             ref={inputRef}
+            aria-describedby={questionDescriptionId}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
@@ -356,7 +363,7 @@ export function AskPage() {
             }}
             rows={2}
             placeholder={t("ask.placeholder")}
-            className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 focus:ring-0 dark:bg-transparent`}
+            className={`${textareaClass} min-h-20 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-7 dark:bg-transparent`}
           />
           {error && !toast.available ? (
             <p
@@ -367,7 +374,10 @@ export function AskPage() {
             </p>
           ) : null}
           <div className="flex items-center justify-between gap-2 px-1 pb-1">
-            <p className="px-2 text-gray-500 text-xs dark:text-gray-400">
+            <p
+              id={questionDescriptionId}
+              className="px-2 text-gray-500 text-xs dark:text-gray-400"
+            >
               {t("ask.sourceConstraint")}
             </p>
             <div className="flex items-center gap-2">

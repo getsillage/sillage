@@ -1,5 +1,5 @@
 import { ArrowRight, Plus, Save, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../../components/Toast";
 import { useUnsavedChangesRegistration } from "../../components/UnsavedNavigationGuard";
@@ -45,6 +45,7 @@ function writeDraft(body: string): void {
 export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
   const { locale, t } = useI18n();
   const toast = useToast();
+  const textareaId = useId();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState(readDraft);
   const [busy, setBusy] = useState(false);
@@ -234,7 +235,11 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              <label className="sr-only" htmlFor={textareaId}>
+                {t("quick.contentLabel")}
+              </label>
               <textarea
+                id={textareaId}
                 ref={textareaRef}
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
@@ -250,7 +255,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                 }}
                 rows={4}
                 placeholder={t("quick.prompt")}
-                className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 focus:ring-0 dark:bg-gray-950`}
+                className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 dark:bg-gray-950`}
               />
               {error && !toast.available ? (
                 <p

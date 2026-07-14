@@ -182,7 +182,8 @@ export function EntryPage() {
   if (currentDetailState.status === "missing") {
     return (
       <main className={readingShellClass}>
-        <p className={mutedTextClass}>{t("entry.missing")}</p>
+        <h1 className={pageTitleClass}>{t("entry.detailTitle")}</h1>
+        <p className={`${mutedTextClass} mt-2`}>{t("entry.missing")}</p>
         <Link
           to={returnTarget}
           className={`${ghostLinkClass} mt-3 inline-flex h-10 items-center gap-2 px-2 text-sm`}
@@ -226,6 +227,7 @@ export function EntryPage() {
     }
     return (
       <main className={readingShellClass}>
+        <h1 className="sr-only">{t("entry.detailTitle")}</h1>
         <div className="space-y-5" role="status">
           <span className="sr-only">{t("entry.opening")}</span>
           <div className={`${skeletonClass} h-4 w-32`} />
@@ -330,6 +332,7 @@ export function EntryPage() {
 
   return (
     <main className={readingShellClass}>
+      <h1 className="sr-only">{t("entry.detailTitle")}</h1>
       {currentDetailState.status === "loading" ? (
         <p
           role="status"

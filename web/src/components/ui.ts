@@ -36,7 +36,7 @@ export const inputClass =
 export const selectClass = inputClass;
 
 export const textareaClass =
-  "block w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50";
+  "block w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 transition placeholder:text-gray-500 focus:outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-inset dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:border-gray-400 dark:focus-visible:ring-gray-400";
 
 export const labelClass =
   "block text-sm font-medium text-gray-700 dark:text-gray-300";

@@ -1,5 +1,5 @@
 import { Paperclip } from "lucide-react";
-import { type DragEvent, useEffect, useRef, useState } from "react";
+import { type DragEvent, useEffect, useId, useRef, useState } from "react";
 import { Markdown } from "../../components/Markdown";
 import { useToast } from "../../components/Toast";
 import { subtleButtonClass, textareaClass } from "../../components/ui";
@@ -41,6 +41,7 @@ export function MarkdownEditor({
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const textareaId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const latestValueRef = useRef(value);
@@ -174,8 +175,13 @@ export function MarkdownEditor({
         </div>
       </div>
 
+      <label className="sr-only" htmlFor={textareaId} hidden={preview}>
+        {t("editor.contentLabel")}
+      </label>
       <textarea
+        id={textareaId}
         ref={textareaRef}
+        hidden={preview}
         value={value}
         disabled={disabled}
         onChange={(event) => {
@@ -193,7 +199,7 @@ export function MarkdownEditor({
         onDragOver={(event) => event.preventDefault()}
         placeholder={placeholder ?? t("editor.placeholder")}
         rows={8}
-        className={`${textareaClass} min-h-44 rounded-t-none border-0 bg-white text-[15px] leading-7 focus:ring-0 sm:min-h-56 dark:bg-gray-950 ${preview ? "hidden" : ""}`}
+        className={`${textareaClass} min-h-44 rounded-t-none border-0 bg-white text-[15px] leading-7 sm:min-h-56 dark:bg-gray-950`}
       />
       {preview ? (
         <div className="min-h-44 bg-white p-3 sm:min-h-56 dark:bg-gray-950">

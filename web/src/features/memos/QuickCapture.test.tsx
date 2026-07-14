@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,6 +29,12 @@ describe("QuickCapture", () => {
     await user.click(screen.getByRole("button", { name: "速记" }));
     const dialog = screen.getByRole("dialog", { name: "速记" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
+    const editor = within(dialog).getByRole("textbox", { name: "速记内容" });
+    expect(editor).toHaveAttribute("placeholder", "想记录什么？");
+    expect(editor).toHaveClass(
+      "focus-visible:ring-2",
+      "focus-visible:ring-inset",
+    );
   });
 
   it("closes on Escape", async () => {
@@ -50,7 +56,10 @@ describe("QuickCapture", () => {
     expect(onCapture).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "关闭通知" }));
 
-    await user.type(screen.getByPlaceholderText("想记录什么？"), "新的一条");
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "新的一条",
+    );
     await user.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(onCapture).toHaveBeenCalledWith("新的一条"));
     expect(
@@ -69,7 +78,7 @@ describe("QuickCapture", () => {
     const { user } = renderQuickCapture(onCapture);
     await user.click(screen.getByRole("button", { name: "速记" }));
     await user.type(
-      screen.getByPlaceholderText("想记录什么？"),
+      screen.getByRole("textbox", { name: "速记内容" }),
       "  只保存一次  ",
     );
 
@@ -78,7 +87,7 @@ describe("QuickCapture", () => {
 
     expect(onCapture).toHaveBeenCalledTimes(1);
     expect(onCapture).toHaveBeenCalledWith("只保存一次");
-    expect(screen.getByPlaceholderText("想记录什么？")).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toBeDisabled();
     const trigger = screen.getByRole("button", { name: "速记" });
     expect(trigger).toBeDisabled();
     await user.click(trigger);
@@ -93,7 +102,7 @@ describe("QuickCapture", () => {
     const first = renderQuickCapture();
     await first.user.click(screen.getByRole("button", { name: "速记" }));
     await first.user.type(
-      screen.getByPlaceholderText("想记录什么？"),
+      screen.getByRole("textbox", { name: "速记内容" }),
       "刷新后继续写",
     );
     await waitFor(() =>
@@ -105,7 +114,7 @@ describe("QuickCapture", () => {
 
     const second = renderQuickCapture();
     await second.user.click(screen.getByRole("button", { name: "速记" }));
-    expect(screen.getByPlaceholderText("想记录什么？")).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toHaveValue(
       "刷新后继续写",
     );
   });
@@ -113,7 +122,10 @@ describe("QuickCapture", () => {
   it("registers a non-empty draft for unload and clears it only after save", async () => {
     const { user } = renderQuickCapture();
     await user.click(screen.getByRole("button", { name: "速记" }));
-    await user.type(screen.getByPlaceholderText("想记录什么？"), "待保存速记");
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "待保存速记",
+    );
 
     await waitFor(() => expect(hasUnsavedChanges()).toBe(true));
     const dirtyUnload = new Event("beforeunload", { cancelable: true });

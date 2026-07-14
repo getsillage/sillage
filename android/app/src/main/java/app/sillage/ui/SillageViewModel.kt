@@ -1715,7 +1715,10 @@ class SillageViewModel(context: Context) : ViewModel() {
                 !it.aiSettingsSaving
             ) {
                 it.copy(
-                    aiProfiles = it.aiProfiles + AIProfileDraft(active = it.aiProfiles.isEmpty()),
+                    aiProfiles = it.aiProfiles + AIProfileDraft(
+                        draftKey = UUID.randomUUID().toString(),
+                        active = it.aiProfiles.isEmpty(),
+                    ),
                 )
             } else {
                 it
@@ -1724,14 +1727,26 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun removeAIProfile(index: Int): Boolean {
-        val current = state.value
-        val currentProfiles = current.aiProfiles
-        if (index !in currentProfiles.indices) {
-            return false
+        var removed = false
+        updateState {
+            if (
+                !it.loading &&
+                !it.aiSettingsLoading &&
+                !it.aiSettingsSaving &&
+                !it.aiAutoSummarySaving &&
+                index in it.aiProfiles.indices
+            ) {
+                removed = true
+                it.copy(
+                    aiProfiles = normalizedAIProfiles(
+                        it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
+                    ),
+                )
+            } else {
+                it
+            }
         }
-        val nextProfiles = currentProfiles.filterIndexed { i, _ -> i != index }
-        val request = current.nextAIProfilesMutationRequest(nextProfiles) ?: return false
-        return launchAIProfilesMutation(request, R.string.notice_ai_profile_deleted)
+        return removed
     }
 
     fun updateAIProfileName(index: Int, value: String) {
@@ -1773,16 +1788,23 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun setAIProfileDefault(index: Int) {
-        val current = state.value
-        val currentProfiles = current.aiProfiles
-        if (index !in currentProfiles.indices) {
-            return
+        updateState {
+            if (
+                !it.loading &&
+                !it.aiSettingsLoading &&
+                !it.aiSettingsSaving &&
+                !it.aiAutoSummarySaving &&
+                index in it.aiProfiles.indices
+            ) {
+                it.copy(
+                    aiProfiles = it.aiProfiles.mapIndexed { profileIndex, profile ->
+                        profile.copy(enabled = true, active = profileIndex == index)
+                    },
+                )
+            } else {
+                it
+            }
         }
-        val nextProfiles = currentProfiles.mapIndexed { i, profile ->
-            profile.copy(enabled = true, active = i == index)
-        }
-        val request = current.nextAIProfilesMutationRequest(nextProfiles) ?: return
-        launchAIProfilesMutation(request, R.string.notice_ai_default_set)
     }
 
     fun setAISettingsAutoSummary(enabled: Boolean) {
@@ -2666,8 +2688,6 @@ class SillageViewModel(context: Context) : ViewModel() {
             )
         }
     }
-
-    private fun AIProfileDraft.uiKey(index: Int): String = id.ifBlank { "new-$index" }
 
     private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {
         updateState {

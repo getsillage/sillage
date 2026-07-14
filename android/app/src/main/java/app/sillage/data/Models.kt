@@ -98,6 +98,9 @@ data class AISettings(
 
 data class AIProfileDraft(
     val id: String = "",
+    // Stable editor identity for unsaved profiles. Manual JSON/API mappings
+    // intentionally omit it so it never becomes part of a persistence contract.
+    val draftKey: String = "",
     val name: String = "",
     val provider: String = "anthropic",
     val baseUrl: String = "",

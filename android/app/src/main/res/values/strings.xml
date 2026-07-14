@@ -356,8 +356,6 @@
     <string name="error_attachment_open_online_required">Opening attachments requires Online mode.</string>
     <string name="error_attachment_read">Could not read the attachment.</string>
     <string name="error_attachment_cache">Could not create the attachment cache.</string>
-    <string name="notice_ai_profile_deleted">AI profile deleted.</string>
-    <string name="notice_ai_default_set">Set as default.</string>
     <string name="notice_auto_summary_on">Automatic summaries enabled.</string>
     <string name="notice_auto_summary_off">Automatic summaries disabled.</string>
     <string name="notice_ai_profiles_saved">AI profiles saved.</string>

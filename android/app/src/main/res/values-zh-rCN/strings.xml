@@ -322,8 +322,6 @@
     <string name="error_attachment_open_online_required">打开附件需要在线模式。</string>
     <string name="error_attachment_read">无法读取附件。</string>
     <string name="error_attachment_cache">无法创建附件缓存。</string>
-    <string name="notice_ai_profile_deleted">AI 档案已删除。</string>
-    <string name="notice_ai_default_set">已设为默认。</string>
     <string name="notice_auto_summary_on">已开启自动总结。</string>
     <string name="notice_auto_summary_off">已关闭自动总结。</string>
     <string name="notice_ai_profiles_saved">AI 档案已保存。</string>

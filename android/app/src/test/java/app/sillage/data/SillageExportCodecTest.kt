@@ -146,6 +146,28 @@ class SillageExportCodecTest {
     }
 
     @Test
+    fun localJsonDoesNotPersistAIProfileDraftKeys() {
+        val data = SillageExportData(
+            formatVersion = SillageExportCodec.FORMAT_VERSION,
+            exportedAt = "2026-07-14T00:00:00Z",
+            themeMode = SessionStore.THEME_DARK,
+            memoViewMode = "List",
+            autoSummary = false,
+            memos = emptyList(),
+            memoAI = emptyList(),
+            aiProfiles = listOf(aiProfile(id = "").copy(draftKey = "draft-only-key")),
+            askConversations = emptyList(),
+            askMessages = emptyList(),
+        )
+
+        val encoded = SillageExportCodec.toLocalJson(data)
+        val decoded = SillageExportCodec.fromJson(encoded)
+
+        assertFalse(encoded.contains("draft-only-key"))
+        assertEquals("", decoded.aiProfiles.single().draftKey)
+    }
+
+    @Test
     fun mergeSavedAIProfilesForLocalStorageKeepsExistingApiKeyWhenServerOmitsIt() {
         val current = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = "sk-local"))
         val remote = listOf(aiProfile(id = "p1", hasApiKey = true, apiKey = ""))

@@ -6,6 +6,8 @@ Sillage's AI features are optional. Sillage does not provide a built-in model. A
 
 An AI profile contains an API protocol, endpoint URL, model, API key, temperature, and maximum output token count. You can save multiple profiles, but only one default profile is used for summaries and Ask at a time. The protocol setting selects the request format; it is not a list of service providers.
 
+Adding, editing, deleting, or changing the default profile updates the current draft. Select Save to apply the complete set of profile changes together. The automatic-summary switch is saved independently and takes effect immediately.
+
 - The Anthropic-compatible protocol uses `https://api.anthropic.com/v1` as its default endpoint.
 - The OpenAI-compatible protocol uses `https://api.openai.com/v1` as its default endpoint.
 - A custom endpoint receives the content described below. Sillage currently does not restrict the target host, protocol, or private network address. Only enter an endpoint you trust and that uses HTTPS; a plaintext endpoint on a local network is appropriate only in a controlled environment.

@@ -47,14 +47,20 @@ const PROVIDER_OPTIONS = [
 // string so clearing or typing "0." never snaps back to a coerced number; they
 // are parsed only at save time.
 type EditableProfile = AIProfile & {
+  draftKey: string;
   apiKeyInput: string;
   temperatureText: string;
   maxTokensText: string;
 };
 
+function nextDraftProfileKey(): string {
+  return `new-${crypto.randomUUID()}`;
+}
+
 function toEditable(profile: AIProfile): EditableProfile {
   return {
     ...profile,
+    draftKey: profile.id ? "" : nextDraftProfileKey(),
     apiKeyInput: "",
     temperatureText: String(profile.temperature),
     maxTokensText: String(profile.maxTokens),
@@ -77,6 +83,7 @@ function blankProfile(): EditableProfile {
     autoSummary: false,
     createdAt: "",
     updatedAt: "",
+    draftKey: nextDraftProfileKey(),
     apiKeyInput: "",
     temperatureText: "0.3",
     maxTokensText: "1000",
@@ -144,8 +151,8 @@ const SETTINGS_TABS: {
   },
 ];
 
-function profileKey(profile: EditableProfile, index: number): string {
-  return profile.id || `new-${index}`;
+function profileKey(profile: EditableProfile): string {
+  return profile.id || profile.draftKey;
 }
 
 function providerLabel(
@@ -202,7 +209,6 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const autoSummaryMutationRef = useRef(false);
   const autoSummaryRequestIdRef = useRef(0);
   const autoSummaryAbortRef = useRef<AbortController | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -241,7 +247,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const dirty =
     savedProfilesFingerprint !== null &&
     profilesFingerprint(profiles) !== savedProfilesFingerprint;
-  const mutationBusy = saving || autoSummarySaving || deletingId !== null;
+  const mutationBusy = saving || autoSummarySaving;
 
   const loadSettings = useCallback(async () => {
     autoSummaryAbortRef.current?.abort();
@@ -304,7 +310,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setNotice("");
     setError("");
     if (patch.name !== undefined && patch.name.trim() !== "") {
-      const key = profileKey(profiles[index], index);
+      const key = profileKey(profiles[index]);
       setInvalidProfileKey((current) => (current === key ? null : current));
     }
     setProfiles((current) =>
@@ -318,29 +324,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
     if (mutationBusy) {
       return;
     }
-    if (dirty) {
-      reportNotice(t("settings.saveDefaultFirst"), "info");
-      setError("");
-      return;
-    }
-    const nextProfiles = profiles.map((profile, i) => ({
-      ...profile,
-      enabled: true,
-      active: i === index,
-    }));
     setConfirmDeleteKey(null);
-    setProfiles(nextProfiles);
-    setSaving(true);
     setNotice("");
     setError("");
-    saveProfiles(nextProfiles, t("settings.defaultSaved"))
-      .catch((err) => {
-        setProfiles(profiles);
-        reportError(
-          err instanceof Error ? err.message : t("settings.defaultFailed"),
-        );
-      })
-      .finally(() => setSaving(false));
+    setProfiles((current) =>
+      current.map((profile, i) => ({
+        ...profile,
+        enabled: true,
+        active: i === index,
+      })),
+    );
   }
 
   async function saveProfiles(
@@ -435,19 +428,13 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
   }
 
-  async function removeProfile(index: number) {
+  function removeProfile(index: number) {
     const profile = profiles[index];
-    const key = profile ? profileKey(profile, index) : null;
+    const key = profile ? profileKey(profile) : null;
     if (!profile) {
       return;
     }
     if (mutationBusy) {
-      return;
-    }
-    if (profile.id && dirty) {
-      setConfirmDeleteKey(null);
-      reportNotice(t("settings.saveBeforeDelete"), "info");
-      setError("");
       return;
     }
     if (confirmDeleteKey !== key) {
@@ -456,32 +443,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setError("");
       return;
     }
-    if (!profile.id) {
-      setProfiles((current) =>
-        normalizeProfilesForSave(current.filter((_, i) => i !== index)),
-      );
-      setConfirmDeleteKey(null);
-      if (selectedProfileKey === key) {
-        setSelectedProfileKey(null);
-      }
-      return;
-    }
-    setDeletingId(profile.id);
+    setProfiles((current) =>
+      normalizeProfilesForSave(current.filter((_, i) => i !== index)),
+    );
+    setConfirmDeleteKey(null);
     setNotice("");
     setError("");
-    try {
-      await saveProfiles(
-        profiles.filter((_, i) => i !== index),
-        t("settings.profileDeleted"),
-      );
-    } catch (err) {
-      reportError(
-        err instanceof Error ? err.message : t("common.deleteFailed"),
-      );
-    } finally {
-      setDeletingId((current) => (current === profile.id ? null : current));
-    }
-    setConfirmDeleteKey(null);
     if (selectedProfileKey === key) {
       setSelectedProfileKey(null);
     }
@@ -495,10 +462,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       (profile) => profile.name.trim() === "",
     );
     if (invalidProfileIndex >= 0) {
-      const invalidKey = profileKey(
-        profiles[invalidProfileIndex],
-        invalidProfileIndex,
-      );
+      const invalidKey = profileKey(profiles[invalidProfileIndex]);
       setActiveTab("ai");
       setSelectedProfileKey(invalidKey);
       setInvalidProfileKey(invalidKey);
@@ -526,8 +490,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
   }
 
-  async function testConnection(profile: EditableProfile, index: number) {
-    const key = profileKey(profile, index);
+  async function testConnection(profile: EditableProfile) {
+    const key = profileKey(profile);
     setTestingId(key);
     try {
       const res = await withTimeout((signal) =>
@@ -575,8 +539,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
   }
 
-  async function fetchModels(profile: EditableProfile, index: number) {
-    const key = profileKey(profile, index);
+  async function fetchModels(profile: EditableProfile) {
+    const key = profileKey(profile);
     setModelResults((current) => ({
       ...current,
       [key]: { ...(current[key] ?? { models: [] }), loading: true },
@@ -634,7 +598,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   const selectedProfileIndex = selectedProfileKey
     ? profiles.findIndex(
-        (profile, index) => profileKey(profile, index) === selectedProfileKey,
+        (profile) => profileKey(profile) === selectedProfileKey,
       )
     : -1;
   const selectedProfile =
@@ -741,13 +705,14 @@ export function SettingsWorkspace({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => {
+                const profile = blankProfile();
                 setNotice("");
                 setError("");
-                setSelectedProfileKey(`new-${profiles.length}`);
+                setSelectedProfileKey(profileKey(profile));
                 setProfiles((current) => [
                   ...current,
                   {
-                    ...blankProfile(),
+                    ...profile,
                     active: current.length === 0,
                   },
                 ]);
@@ -802,7 +767,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {profiles.map((profile, index) => {
-                  const key = profileKey(profile, index);
+                  const key = profileKey(profile);
                   const isSelected = key === selectedProfileKey;
                   return (
                     <article
@@ -873,7 +838,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 (() => {
                   const index = selectedProfileIndex;
                   const profile = selectedProfile;
-                  const key = profileKey(profile, index);
+                  const key = profileKey(profile);
                   const modelState = modelResults[key];
                   const testState = testResults[key];
                   const nameInvalid = invalidProfileKey === key;
@@ -992,7 +957,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                             />
                             <button
                               type="button"
-                              onClick={() => fetchModels(profile, index)}
+                              onClick={() => fetchModels(profile)}
                               disabled={modelState?.loading}
                               className={`${secondaryButtonClass} shrink-0`}
                             >
@@ -1109,7 +1074,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => testConnection(profile, index)}
+                            onClick={() => testConnection(profile)}
                             disabled={testingId === key}
                             className={subtleButtonClass}
                           >
@@ -1122,14 +1087,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           <button
                             type="button"
                             onClick={() => removeProfile(index)}
-                            disabled={deletingId === profile.id}
                             className={dangerButtonClass}
                           >
-                            {deletingId === profile.id
-                              ? t("common.deleting")
-                              : confirmDeleteKey === key
-                                ? t("common.confirmDelete")
-                                : t("common.delete")}
+                            {confirmDeleteKey === key
+                              ? t("common.confirmDelete")
+                              : t("common.delete")}
                           </button>
                         </div>
                       </div>

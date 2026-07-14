@@ -268,6 +268,66 @@ describe("SettingsWorkspace", () => {
     expect(window.dispatchEvent(failedSaveUnload)).toBe(false);
   });
 
+  it("keeps the whole staged profile transaction when saving fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [
+        profile({ id: "p1", name: "工作", active: true }),
+        profile({ id: "p2", name: "生活", active: false }),
+        profile({ id: "p3", name: "临时", active: false }),
+      ],
+      autoSummary: false,
+    });
+    vi.mocked(patchAISettings).mockRejectedValue(
+      new Error("保存失败：网络异常"),
+    );
+    renderSettings();
+
+    const configureButtons = await screen.findAllByRole("button", {
+      name: "配置",
+    });
+    await user.click(configureButtons[0]);
+    await user.clear(screen.getByDisplayValue("工作"));
+    await user.type(screen.getByLabelText("名称"), "工作更新");
+
+    const lifeCard = screen.getByText("生活").closest("article");
+    expect(lifeCard).not.toBeNull();
+    await user.click(
+      within(lifeCard as HTMLElement).getByRole("button", { name: "设为默认" }),
+    );
+
+    const temporaryCard = screen.getByText("临时").closest("article");
+    expect(temporaryCard).not.toBeNull();
+    await user.click(
+      within(temporaryCard as HTMLElement).getByRole("button", {
+        name: "配置",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(patchAISettings).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "保存失败：网络异常",
+    );
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toMatchObject([
+      { id: "p1", name: "工作更新", active: false },
+      { id: "p2", name: "生活", active: true },
+    ]);
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    expect(screen.queryByText("临时")).not.toBeInTheDocument();
+    const stagedLifeCard = screen.getByText("生活").closest("article");
+    expect(stagedLifeCard).not.toBeNull();
+    expect(
+      within(stagedLifeCard as HTMLElement).getByRole("button", {
+        name: "当前默认",
+      }),
+    ).toBeDisabled();
+    expect(screen.getByText("工作更新")).toBeInTheDocument();
+  });
+
   it("locks mutable settings while a save response is pending", async () => {
     const user = userEvent.setup();
     let finishSave:
@@ -435,7 +495,7 @@ describe("SettingsWorkspace", () => {
     expect(screen.getByLabelText("API 密钥")).toHaveValue("");
   });
 
-  it("sets a collapsed profile card as the only default", async () => {
+  it("stages a collapsed profile card as the only default until save", async () => {
     const user = userEvent.setup();
     vi.mocked(getAISettings).mockResolvedValue({
       profiles: [
@@ -459,6 +519,15 @@ describe("SettingsWorkspace", () => {
       within(lifeCard as HTMLElement).getByRole("button", { name: "设为默认" }),
     );
 
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(
+      within(lifeCard as HTMLElement).getByRole("button", {
+        name: "当前默认",
+      }),
+    ).toBeDisabled();
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
     await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
     const payload = vi.mocked(patchAISettings).mock.calls[0][1].profiles;
     expect(payload).toMatchObject([
@@ -466,15 +535,22 @@ describe("SettingsWorkspace", () => {
       { id: "p2", active: true, enabled: true },
     ]);
     expect(payload.filter((item) => item.active)).toHaveLength(1);
-    expect(await screen.findByText("已设为默认")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
   });
 
-  it("requires saving other edits before setting a default profile", async () => {
+  it("saves profile edits and a default change in one transaction", async () => {
     const user = userEvent.setup();
     vi.mocked(getAISettings).mockResolvedValue({
       profiles: [
         profile({ id: "p1", name: "工作", active: true }),
         profile({ id: "p2", name: "生活", active: false }),
+      ],
+      autoSummary: false,
+    });
+    vi.mocked(patchAISettings).mockResolvedValue({
+      profiles: [
+        profile({ id: "p1", name: "工作更新", active: false }),
+        profile({ id: "p2", name: "生活", active: true }),
       ],
       autoSummary: false,
     });
@@ -494,10 +570,15 @@ describe("SettingsWorkspace", () => {
     );
 
     expect(patchAISettings).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("请先保存当前更改，再设置默认档案。"),
-    ).toBeInTheDocument();
     expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    expect(nameInput).toHaveValue("工作更新");
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toMatchObject([
+      { id: "p1", name: "工作更新", active: false },
+      { id: "p2", name: "生活", active: true },
+    ]);
   });
 
   it("requires confirmation before deleting a saved profile", async () => {
@@ -513,18 +594,64 @@ describe("SettingsWorkspace", () => {
     expect(patchAISettings).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "确认删除" }));
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(screen.getByText(/还没有 AI 档案/)).toBeInTheDocument();
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
     await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
     expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toEqual([]);
-    expect(await screen.findByText("AI 档案已删除")).toBeInTheDocument();
+    expect(await screen.findByText("AI 档案已保存")).toBeInTheDocument();
   });
 
-  it("does not delete a saved profile while other settings are dirty", async () => {
+  it("stages a new default when the current default is deleted", async () => {
     const user = userEvent.setup();
     vi.mocked(getAISettings).mockResolvedValue({
       profiles: [
         profile({ id: "p1", name: "工作", active: true }),
         profile({ id: "p2", name: "生活", active: false }),
       ],
+      autoSummary: false,
+    });
+    vi.mocked(patchAISettings).mockResolvedValue({
+      profiles: [profile({ id: "p2", name: "生活", active: true })],
+      autoSummary: false,
+    });
+    renderSettings();
+
+    await user.click(
+      (await screen.findAllByRole("button", { name: "配置" }))[0],
+    );
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(patchAISettings).not.toHaveBeenCalled();
+    const lifeCard = screen.getByText("生活").closest("article");
+    expect(lifeCard).not.toBeNull();
+    expect(
+      within(lifeCard as HTMLElement).getByRole("button", {
+        name: "当前默认",
+      }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toMatchObject([
+      { id: "p2", active: true },
+    ]);
+  });
+
+  it("saves profile edits and a deletion in one transaction", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [
+        profile({ id: "p1", name: "工作", active: true }),
+        profile({ id: "p2", name: "生活", active: false }),
+      ],
+      autoSummary: false,
+    });
+    vi.mocked(patchAISettings).mockResolvedValue({
+      profiles: [profile({ id: "p1", name: "工作更新", active: true })],
       autoSummary: false,
     });
     renderSettings();
@@ -536,14 +663,17 @@ describe("SettingsWorkspace", () => {
     await user.type(screen.getByDisplayValue("工作"), "更新");
     await user.click(configureButtons[1]);
     await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
 
     expect(patchAISettings).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("请先保存当前更改，再删除档案。"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "确认删除" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    expect(screen.queryByText("生活")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "保存设置" }));
+
+    await waitFor(() => expect(patchAISettings).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAISettings).mock.calls[0][1].profiles).toMatchObject([
+      { id: "p1", name: "工作更新", active: true },
+    ]);
   });
 
   it("fetches models while keeping manual model input editable", async () => {
@@ -649,6 +779,60 @@ describe("SettingsWorkspace", () => {
     expect(
       screen.queryByText("请先保存后再测试连接。"),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps new profile draft state isolated after an earlier draft is deleted", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getAISettings).mockResolvedValue({
+      profiles: [],
+      autoSummary: false,
+    });
+    vi.mocked(testAIConnection).mockImplementation(async (_token, input) => ({
+      ok: true,
+      model: input.model,
+    }));
+    renderSettings();
+    await screen.findByText(/还没有 AI 档案/);
+
+    await user.click(screen.getByRole("button", { name: "新增档案" }));
+    await user.type(screen.getByLabelText("名称"), "第一档案");
+    await user.type(
+      screen.getByRole("textbox", { name: "模型" }),
+      "first-model",
+    );
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+    expect(
+      await screen.findByText("连接成功（first-model）"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "新增档案" }));
+    await user.type(screen.getByLabelText("名称"), "第二档案");
+    await user.type(
+      screen.getByRole("textbox", { name: "模型" }),
+      "second-model",
+    );
+
+    const firstCard = screen.getByText("第一档案").closest("article");
+    expect(firstCard).not.toBeNull();
+    await user.click(
+      within(firstCard as HTMLElement).getByRole("button", { name: "配置" }),
+    );
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    const secondCard = screen.getByText("第二档案").closest("article");
+    expect(secondCard).not.toBeNull();
+    await user.click(
+      within(secondCard as HTMLElement).getByRole("button", { name: "配置" }),
+    );
+    expect(screen.getByLabelText("名称")).toHaveValue("第二档案");
+    expect(screen.getByRole("textbox", { name: "模型" })).toHaveValue(
+      "second-model",
+    );
+    expect(
+      screen.queryByText("连接成功（first-model）"),
+    ).not.toBeInTheDocument();
+    expect(patchAISettings).not.toHaveBeenCalled();
   });
 
   it("shows the theme switcher under the appearance tab", async () => {

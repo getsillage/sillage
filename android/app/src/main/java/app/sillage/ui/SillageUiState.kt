@@ -101,6 +101,10 @@ data class SillageUiState(
     val notice: String? = null,
 )
 
+internal fun AIProfileDraft.uiKey(index: Int): String {
+    return id.ifBlank { draftKey.ifBlank { "new-$index" } }
+}
+
 internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
     return screen == Screen.Editor &&
         (draftContent != initialDraftContent || draftEntryDate != initialDraftEntryDate)

@@ -673,6 +673,30 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun explicitAIProfilesSaveFailurePreservesTheWholeStagedDraft() {
+        val staged = listOf(
+            AIProfileDraft(id = "profile-2", name = "新的默认档案", active = true),
+            AIProfileDraft(name = "尚未保存的新档案"),
+        )
+        val idle = editorState().copy(
+            screen = Screen.AISettings,
+            aiProfiles = staged,
+        )
+        val request = requireNotNull(
+            idle.nextAIProfilesMutationRequest(
+                pendingProfiles = staged,
+                submittedProfiles = staged,
+            ),
+        )
+
+        val failed = idle.startAIProfilesMutation(request)
+            .failAIProfilesMutation(request)
+
+        assertEquals(staged, failed.aiProfiles)
+        assertFalse(failed.aiSettingsSaving)
+    }
+
+    @Test
     fun askMemoSaveIsSingleFlightAcrossMessages() {
         val firstAnswer = askMessage(id = "answer-1", content = "第一条回答")
         val secondAnswer = askMessage(id = "answer-2", content = "第二条回答")

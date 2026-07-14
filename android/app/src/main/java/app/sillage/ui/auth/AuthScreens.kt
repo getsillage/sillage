@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.applyHeadingSemantics
 
 @Composable
 internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -439,7 +441,11 @@ private fun AuthScaffold(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        Text(title, style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            title,
+                            modifier = Modifier.semantics { applyHeadingSemantics() },
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
                         Text(
                             supporting,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

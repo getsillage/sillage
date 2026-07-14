@@ -213,6 +213,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 serverReturnScreen = null,
                 searchQuery = "",
                 searchResults = null,
+                searchResultQuery = "",
+                searchFailureQuery = "",
                 searching = false,
                 authError = null,
                 authErrorResourceId = null,
@@ -268,6 +270,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                 askSavingMessageId = "",
                 searchQuery = "",
                 searchResults = null,
+                searchResultQuery = "",
+                searchFailureQuery = "",
+                searching = false,
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -601,6 +606,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                             askSavingMessageId = "",
                             searchQuery = "",
                             searchResults = null,
+                            searchResultQuery = "",
+                            searchFailureQuery = "",
                             searching = false,
                             loading = false,
                             screen = if (offlineMode) Screen.Memos else Screen.Login,
@@ -850,15 +857,22 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun updateSearchQuery(value: String) {
+        val blank = value.isBlank()
+        val previousJob = searchJob
         updateState {
             it.copy(
                 searchQuery = value,
-                searchResults = if (value.isBlank()) null else it.searchResults,
-                searching = if (value.isBlank()) false else it.searching,
+                searchResults = if (blank) null else it.searchResults,
+                searchResultQuery = if (blank) "" else it.searchResultQuery,
+                searchFailureQuery = "",
+                memoSearchRequestId = it.memoSearchRequestId + 1,
+                searching = !blank,
+                error = null,
             )
         }
-        searchJob?.cancel()
-        if (value.isBlank()) {
+        previousJob?.cancel()
+        searchJob = null
+        if (blank) {
             return
         }
         searchJob = viewModelScope.launch {
@@ -868,61 +882,56 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun searchMemos() {
-        searchJob?.cancel()
-        val request = state.value.memoSearchRequest()
+        val previousJob = searchJob
+        val request = state.value.nextMemoSearchRequest()
         if (request == null) {
             clearSearch()
             return
         }
-        updateState { current ->
-            if (current.memoSearchRequest() == request) {
-                current.copy(searching = true, error = null, notice = null)
-            } else {
-                current
-            }
-        }
+        updateState { current -> current.startMemoSearch(request) }
+        previousJob?.cancel()
+        searchJob = null
         if (!state.value.canApplyMemoSearch(request)) {
             return
         }
         searchJob = viewModelScope.launch {
-            runCatching {
-                if (request.appMode == SessionStore.MODE_OFFLINE) {
+            try {
+                val memos = if (request.appMode == SessionStore.MODE_OFFLINE) {
                     localDataStore.searchMemos(request.query)
                 } else {
                     searchOnlineMemos(request.query, request.filter)
                 }
+                updateState { current ->
+                    current.completeMemoSearch(
+                        request = request,
+                        results = memosForFilter(memos, request.filter),
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                updateState { current ->
+                    current.failMemoSearch(request, error.readableMessage())
+                }
             }
-                .onSuccess { memos ->
-                    updateState { current ->
-                        if (current.canApplyMemoSearch(request)) {
-                            current.copy(
-                                searchResults = memosForFilter(memos, request.filter),
-                                searching = false,
-                                error = null,
-                            )
-                        } else {
-                            current
-                        }
-                    }
-                }
-                .onFailure { error ->
-                    updateState { current ->
-                        current.failMemoSearch(request, error.readableMessage())
-                    }
-                }
         }
     }
 
     fun clearSearch() {
-        searchJob?.cancel()
+        val previousJob = searchJob
         updateState {
             it.copy(
                 searchQuery = "",
                 searchResults = null,
+                searchResultQuery = "",
+                searchFailureQuery = "",
+                memoSearchRequestId = it.memoSearchRequestId + 1,
                 searching = false,
                 error = null,
             )
         }
+        previousJob?.cancel()
+        searchJob = null
     }
 
     fun exportFullData(uri: Uri) {
@@ -985,6 +994,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                             askMessages = emptyList(),
                             searchQuery = "",
                             searchResults = null,
+                            searchResultQuery = "",
+                            searchFailureQuery = "",
                             searching = false,
                             notice = uiString(R.string.notice_imported),
                         )
@@ -1098,6 +1109,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 },
                 searchQuery = if (mode == MemoViewMode.Calendar) "" else it.searchQuery,
                 searchResults = if (mode == MemoViewMode.Calendar) null else it.searchResults,
+                searchResultQuery = if (mode == MemoViewMode.Calendar) "" else it.searchResultQuery,
+                searchFailureQuery = if (mode == MemoViewMode.Calendar) "" else it.searchFailureQuery,
                 searching = if (mode == MemoViewMode.Calendar) false else it.searching,
                 selectedMemo = null,
                 selectedSummary = null,
@@ -1141,6 +1154,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 memoListLoadStatus = MemoListLoadStatus.Loading,
                 searchQuery = "",
                 searchResults = null,
+                searchResultQuery = "",
+                searchFailureQuery = "",
                 searching = false,
                 selectedMemo = null,
                 selectedSummary = null,
@@ -1233,6 +1248,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                         initialDraftEntryDate = LocalDate.now().toString(),
                         searchQuery = "",
                         searchResults = null,
+                        searchResultQuery = "",
+                        searchFailureQuery = "",
+                        searching = false,
                         notice = uiString(R.string.notice_saved),
                     )
                 }
@@ -1292,6 +1310,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                         initialDraftEntryDate = LocalDate.now().toString(),
                         searchQuery = "",
                         searchResults = null,
+                        searchResultQuery = "",
+                        searchFailureQuery = "",
+                        searching = false,
                         notice = uiString(R.string.notice_deleted),
                     )
                 } else {
@@ -2873,7 +2894,17 @@ class SillageViewModel(context: Context) : ViewModel() {
                 }
             }
                 .onSuccess { detail ->
-                    updateState { current -> current.completeMemoDetailRequest(request, detail) }
+                    var restartSearch = false
+                    updateState { current ->
+                        val completed = current.completeMemoDetailRequest(request, detail)
+                        restartSearch = current.searching &&
+                            current.searchQuery.isNotBlank() &&
+                            completed.memoCacheGeneration != current.memoCacheGeneration
+                        completed
+                    }
+                    if (restartSearch) {
+                        searchMemos()
+                    }
                 }
                 .onFailure { error ->
                     updateState { current ->
@@ -3344,6 +3375,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 askSavingMessageId = "",
                 searchQuery = "",
                 searchResults = null,
+                searchResultQuery = "",
+                searchFailureQuery = "",
                 searching = false,
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
@@ -3372,6 +3405,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         clientContextGeneration: Long,
     ): Boolean {
         var applied = false
+        var restartSearch = false
         synchronized(memoPageLock) {
             if (
                 state.value.appMode != appMode ||
@@ -3390,10 +3424,14 @@ class SillageViewModel(context: Context) : ViewModel() {
                 current.clientContextGeneration == clientContextGeneration
             ) {
                 applied = true
+                restartSearch = current.searching && current.searchQuery.isNotBlank()
                 current.applyMemoToCache(memo)
             } else {
                 current
             }
+        }
+        if (applied && restartSearch) {
+            searchMemos()
         }
         return applied
     }

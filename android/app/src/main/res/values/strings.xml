@@ -172,7 +172,7 @@
     <string name="ask_source_records">Original records</string>
     <string name="ask_prompt_title">What would you like to ask?</string>
     <string name="ask_prompt_example">General questions are answered directly. For personal facts, relevant records from the selected range are cited.</string>
-    <string name="ask_question_placeholder">Type a question</string>
+    <string name="ask_question_label">Type a question</string>
     <string name="ask_stop_generation">Stop generating</string>
     <string name="ask_send">Send</string>
     <string name="ask_conversations_title">Ask conversations</string>

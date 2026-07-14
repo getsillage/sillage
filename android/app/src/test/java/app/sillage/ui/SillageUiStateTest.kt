@@ -155,16 +155,18 @@ class SillageUiStateTest {
     @Test
     fun canonicalMemoInvalidatesEarlierRefreshAndSearchRequests() {
         val original = memo()
-        val pending = editorState().copy(
+        val initial = editorState().copy(
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
             memos = listOf(original),
             searchQuery = "记录",
             searchResults = listOf(original),
-            searching = true,
+            searchResultQuery = "记录",
+            searchCompletionEventId = 4,
         )
-        val refresh = pending.memoRefreshRequest()
-        val search = requireNotNull(pending.memoSearchRequest())
+        val refresh = initial.memoRefreshRequest()
+        val search = requireNotNull(initial.nextMemoSearchRequest())
+        val pending = initial.startMemoSearch(search)
 
         assertTrue(pending.canApplyMemoRefresh(refresh))
         assertTrue(pending.canApplyMemoSearch(search))
@@ -189,6 +191,9 @@ class SillageUiStateTest {
         assertFalse(updated.canApplyMemoSearch(search))
         assertTrue(updated.memos.isEmpty())
         assertEquals(emptyList<Memo>(), updated.searchResults)
+        assertEquals("", updated.searchResultQuery)
+        assertEquals(4L, updated.searchCompletionEventId)
+        assertEquals(null, updated.completedMemoSearch())
         assertFalse(updated.searching)
     }
 
@@ -335,37 +340,108 @@ class SillageUiStateTest {
     @Test
     fun searchFailureKeepsLoadedResultsAndCanBeRetried() {
         val loaded = listOf(memo())
-        val pending = editorState().copy(
+        val initial = editorState().copy(
             screen = Screen.Memos,
             searchQuery = "记录",
             searchResults = loaded,
-            searching = true,
+            searchResultQuery = "记录",
+            searchCompletionEventId = 4,
         )
-        val request = requireNotNull(pending.memoSearchRequest())
+        val request = requireNotNull(initial.nextMemoSearchRequest())
+        val pending = initial.startMemoSearch(request)
 
         val failed = pending.failMemoSearch(request, "网络错误")
 
         assertEquals(loaded, failed.searchResults)
+        assertEquals("", failed.searchResultQuery)
+        assertEquals("记录", failed.searchFailureQuery)
+        assertEquals(4L, failed.searchCompletionEventId)
         assertFalse(failed.searching)
         assertEquals("网络错误", failed.error)
-        assertEquals(request, failed.memoSearchRequest())
         assertFalse(failed.canApplyMemoSearch(request))
+        val retry = requireNotNull(failed.nextMemoSearchRequest())
+        assertEquals(request.requestId + 1, retry.requestId)
+        assertTrue(failed.startMemoSearch(retry).canApplyMemoSearch(retry))
     }
 
     @Test
-    fun failedSearchWithPreviousEmptyResultsUsesFailureState() {
+    fun newerSearchAttemptSupersedesTheSameQuery() {
+        val initial = editorState().copy(
+            screen = Screen.Memos,
+            searchQuery = "记录",
+        )
+        val firstRequest = requireNotNull(initial.nextMemoSearchRequest())
+        val first = initial.startMemoSearch(firstRequest)
+        val secondRequest = requireNotNull(first.nextMemoSearchRequest())
+        val second = first.startMemoSearch(secondRequest)
+
+        assertTrue(first.canApplyMemoSearch(firstRequest))
+        assertFalse(second.canApplyMemoSearch(firstRequest))
+        assertTrue(second.canApplyMemoSearch(secondRequest))
+        assertEquals(second, second.failMemoSearch(firstRequest, "旧请求失败"))
+        assertEquals(second, second.completeMemoSearch(firstRequest, listOf(memo())))
+
+        val completed = second.completeMemoSearch(secondRequest, listOf(memo()))
+        assertEquals(1L, completed.searchCompletionEventId)
+        assertFalse(completed.searching)
+    }
+
+    @Test
+    fun completedSearchSummaryIsBoundToTheAppliedQuery() {
+        val oldResults = listOf(memo(id = "memo-old"))
+        val initial = editorState().copy(
+            screen = Screen.Memos,
+            searchQuery = "新查询",
+            searchResults = oldResults,
+            searchResultQuery = "旧查询",
+            searchCompletionEventId = 4,
+        )
+        val request = requireNotNull(initial.nextMemoSearchRequest())
+        val pending = initial.startMemoSearch(request)
+
+        assertEquals(null, pending.completedMemoSearch())
+        assertEquals(null, pending.currentMemoSearchResults())
+
+        val results = listOf(memo(id = "memo-new"))
+        val completed = pending.completeMemoSearch(request, results)
+
+        assertEquals(results, completed.searchResults)
+        assertEquals("新查询", completed.searchResultQuery)
+        assertEquals(5L, completed.searchCompletionEventId)
+        assertFalse(completed.searching)
+        assertEquals(results, completed.currentMemoSearchResults())
+        assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 1), completed.completedMemoSearch())
+        assertEquals(null, completed.copy(searchQuery = "又一查询").currentMemoSearchResults())
+        assertEquals(null, completed.copy(searchQuery = "又一查询").completedMemoSearch())
+        assertEquals(null, completed.copy(searching = true).completedMemoSearch())
+        assertEquals(completed.completedMemoSearch(), completed.copy(error = "无关错误").completedMemoSearch())
+
+        val empty = pending.completeMemoSearch(request, emptyList())
+        assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 0), empty.completedMemoSearch())
+        assertEquals(5L, empty.searchCompletionEventId)
+
+        val stale = pending.copy(searchQuery = "其他查询")
+        assertEquals(stale, stale.completeMemoSearch(request, results))
+    }
+
+    @Test
+    fun failedSearchStateIsBoundToTheFailedQuery() {
         val failed = editorState().copy(
             screen = Screen.Memos,
             searchQuery = "新查询",
-            searchResults = emptyList(),
+            searchResults = listOf(memo()),
+            searchResultQuery = "旧查询",
+            searchFailureQuery = "新查询",
             searching = false,
             error = "网络错误",
         )
 
+        assertEquals(null, failed.currentMemoSearchResults())
         assertTrue(failed.shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(error = null).shouldShowMemoSearchFailure())
+        assertTrue(failed.copy(error = null).shouldShowMemoSearchFailure())
         assertFalse(failed.copy(searching = true).shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(searchResults = listOf(memo())).shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(searchFailureQuery = "旧查询").shouldShowMemoSearchFailure())
+        assertFalse(failed.copy(searchResultQuery = "新查询").shouldShowMemoSearchFailure())
         assertFalse(failed.copy(searchQuery = "").shouldShowMemoSearchFailure())
     }
 
@@ -394,6 +470,7 @@ class SillageUiStateTest {
         )
 
         assertTrue(failed.shouldShowMemoListLoadFailure())
+        assertFalse(failed.copy(searchQuery = "记录").shouldShowMemoListLoadFailure())
         assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Loading).shouldShowMemoListLoadFailure())
         assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Idle).shouldShowMemoListLoadFailure())
         assertFalse(failed.copy(memos = listOf(memo())).shouldShowMemoListLoadFailure())
@@ -830,9 +907,9 @@ class SillageUiStateTest {
         )
     }
 
-    private fun memo(): Memo {
+    private fun memo(id: String = "memo-1"): Memo {
         return Memo(
-            id = "memo-1",
+            id = id,
             content = "记录",
             entryDate = "2026-07-10",
             version = 1,

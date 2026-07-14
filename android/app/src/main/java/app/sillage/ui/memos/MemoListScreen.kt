@@ -65,6 +65,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,6 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -105,6 +107,10 @@ import app.sillage.ui.MemoListLoadStatus
 import app.sillage.ui.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.applyStatusSemantics
+import app.sillage.ui.completedMemoSearch
+import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
@@ -120,8 +126,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
-    val visibleMemos = state.searchResults ?: state.memos
-    val showingSearchResults = state.searchResults != null
+    val showingSearchResults = state.searchQuery.isNotBlank()
+    val visibleMemos = if (showingSearchResults) {
+        state.currentMemoSearchResults().orEmpty()
+    } else {
+        state.memos
+    }
     val today = remember { LocalDate.now().toString() }
     val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
     Scaffold(
@@ -131,6 +141,7 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                     Column {
                         Text(
                             stringResource(if (state.memoViewMode == MemoViewMode.Calendar) R.string.nav_calendar else R.string.records_title),
+                            modifier = Modifier.semantics { applyHeadingSemantics() },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -290,15 +301,31 @@ private fun MemoListFilterTabs(
 
 @Composable
 private fun SearchStatusBlock(state: SillageUiState) {
-    val query = state.searchQuery.trim()
-    val results = state.searchResults
-    if (query.isBlank() || results == null) {
-        return
+    val view = LocalView.current
+    var observedCompletionEventId by remember {
+        mutableLongStateOf(state.searchCompletionEventId)
+    }
+    val completed = state.completedMemoSearch() ?: return
+    val summary = stringResource(
+        R.string.search_results_summary,
+        completed.query,
+        pluralStringResource(
+            R.plurals.quantity_results,
+            completed.resultCount,
+            completed.resultCount,
+        ),
+    )
+    LaunchedEffect(state.searchCompletionEventId, summary, view) {
+        if (observedCompletionEventId != state.searchCompletionEventId) {
+            observedCompletionEventId = state.searchCompletionEventId
+            view.announceForAccessibility(summary)
+        }
     }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .clearAndSetSemantics { applyStatusSemantics(summary) },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -309,11 +336,7 @@ private fun SearchStatusBlock(state: SillageUiState) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            stringResource(
-                R.string.search_results_summary,
-                query,
-                pluralStringResource(R.plurals.quantity_results, results.size, results.size),
-            ),
+            summary,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
@@ -408,7 +431,7 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
             onValueChange = viewModel::updateSearchQuery,
             modifier = Modifier.weight(1f),
             singleLine = true,
-            placeholder = { Text(stringResource(R.string.search_records)) },
+            label = { Text(stringResource(R.string.search_records)) },
             leadingIcon = {
                 if (state.searching) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

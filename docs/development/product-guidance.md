@@ -101,6 +101,12 @@ For personal-record questions, recommended phrasing should communicate the equiv
 - Button labels describe actions, such as Save, Continue Asking, View Sources, and Save as Record.
 - Empty states explain the current state and the next action instead of advertising features.
 
+## Accessibility and Status Feedback
+
+Android keeps the Record search and Ask composer field names visible as persistent labels and exposes actual screen and section titles as accessibility headings. Visual emphasis alone does not make a label a heading.
+
+Android search results and their feedback belong to the exact query that completed successfully; cached results from another query are never shown as current matches. The localized result count remains visible and readable by assistive technology, but is announced only once for each new successful completion. Editing the query, a failed search, returning to the screen, or an unrelated record update must not replay a stale success announcement.
+
 ## Interface Languages
 
 The Web and Android clients support English and Simplified Chinese. Simplified Chinese remains the default for existing and new installations until the user chooses English. The selected interface language is stored only on the current browser or Android device; it is not an account setting and does not sync through the server.

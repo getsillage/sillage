@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import app.sillage.data.memoSummarySourceCount
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 
@@ -99,7 +101,14 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.record_detail_title), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    Text(
+                        stringResource(R.string.record_detail_title),
+                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = viewModel::closeMemoDetail) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
@@ -337,7 +346,9 @@ internal fun MemoSummarySection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.summary_title),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { applyHeadingSemantics() },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )

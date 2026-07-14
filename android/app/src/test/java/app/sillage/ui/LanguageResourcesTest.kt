@@ -159,11 +159,11 @@ class LanguageResourcesTest {
         )
         assertEquals(
             "Type a question",
-            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_question_placeholder),
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.ask_question_label),
         )
         assertEquals(
             "输入问题",
-            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_question_placeholder),
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.ask_question_label),
         )
     }
 

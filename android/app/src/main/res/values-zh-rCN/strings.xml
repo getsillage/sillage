@@ -170,7 +170,7 @@
     <string name="ask_source_records">原始记录</string>
     <string name="ask_prompt_title">想问什么？</string>
     <string name="ask_prompt_example">通用问题会直接回答；涉及个人事实时，只引用当前范围内的相关记录。</string>
-    <string name="ask_question_placeholder">输入问题</string>
+    <string name="ask_question_label">输入问题</string>
     <string name="ask_stop_generation">停止生成</string>
     <string name="ask_send">发送</string>
     <string name="ask_conversations_title">问答会话</string>

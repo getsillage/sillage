@@ -90,6 +90,7 @@ import app.sillage.data.lastAssistantMessageId
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.navigation.MainNavigationBar
 
@@ -193,6 +194,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.ask_title),
+                                modifier = Modifier.semantics { applyHeadingSemantics() },
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -502,7 +504,7 @@ private fun AskComposer(
                     modifier = Modifier.weight(1f),
                     minLines = 1,
                     maxLines = 3,
-                    placeholder = { Text(stringResource(R.string.ask_question_placeholder)) },
+                    label = { Text(stringResource(R.string.ask_question_label)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
@@ -560,7 +562,9 @@ private fun AskConversationSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.ask_conversations_title),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { applyHeadingSemantics() },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -608,6 +612,7 @@ private fun AskOptionsSheet(
         ) {
             Text(
                 stringResource(R.string.ask_context_title),
+                modifier = Modifier.semantics { applyHeadingSemantics() },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )

@@ -69,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -82,6 +83,7 @@ import app.sillage.R
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
 
@@ -115,7 +117,12 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = {
+                    Text(
+                        stringResource(R.string.settings_title),
+                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                    )
+                },
             )
         },
         bottomBar = {
@@ -382,6 +389,7 @@ private fun SettingsOverviewCard(state: SillageUiState) {
         ) {
             Text(
                 stringResource(R.string.settings_status_title),
+                modifier = Modifier.semantics { applyHeadingSemantics() },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -444,7 +452,9 @@ private fun AISettingsHeaderCard(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             stringResource(R.string.settings_ai_profiles),
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .semantics { applyHeadingSemantics() },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
@@ -506,7 +516,9 @@ private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             title,
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .semantics { applyHeadingSemantics() },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
@@ -893,6 +905,7 @@ private fun AIProfileDetailCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         stringResource(R.string.settings_profile_details),
+                        modifier = Modifier.semantics { applyHeadingSemantics() },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )

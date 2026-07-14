@@ -419,6 +419,43 @@ describe("AppShell mobile navigation", () => {
     }
   });
 
+  it("keeps global quick capture behind a blocked navigation dialog", async () => {
+    const { user, dispose } = renderGuardedShell();
+    try {
+      const allRecords = screen.getByRole("link", { name: "全部记录" });
+      await user.click(allRecords);
+
+      const confirmation = await screen.findByRole("alertdialog", {
+        name: "记录尚未保存",
+      });
+      const keepEditing = within(confirmation).getByRole("button", {
+        name: "继续编辑",
+      });
+      await waitFor(() => expect(keepEditing).toHaveFocus());
+
+      await user.keyboard("{Control>}j{/Control}");
+      await user.keyboard("{Meta>}j{/Meta}");
+
+      expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+      expect(screen.queryByRole("dialog", { name: "速记" })).toBeNull();
+      expect(keepEditing).toHaveFocus();
+
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      expect(allRecords).toHaveFocus();
+
+      await user.keyboard("{Control>}j{/Control}");
+      const quickCapture = screen.getByRole("dialog", { name: "速记" });
+      await waitFor(() =>
+        expect(
+          within(quickCapture).getByRole("textbox", { name: "速记内容" }),
+        ).toHaveFocus(),
+      );
+    } finally {
+      dispose();
+    }
+  });
+
   it("keeps a quick-capture draft mounted across the Ask route", async () => {
     const user = renderShell();
     await user.click(screen.getByRole("button", { name: "速记" }));

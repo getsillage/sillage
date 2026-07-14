@@ -9,6 +9,7 @@ import {
   textareaClass,
 } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
+import { hasVisibleModal } from "../../lib/modal";
 
 interface QuickCaptureProps {
   onCapture: (body: string) => Promise<void>;
@@ -91,12 +92,16 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
         event.preventDefault();
-        if (!visible || submittingRef.current) {
+        if (
+          !visible ||
+          submittingRef.current ||
+          hasVisibleModal(dialogRef.current)
+        ) {
           return;
         }
         setOpen((value) => !value);
       } else if (event.key === "Escape") {
-        if (submittingRef.current) {
+        if (submittingRef.current || hasVisibleModal(dialogRef.current)) {
           return;
         }
         setOpen(false);

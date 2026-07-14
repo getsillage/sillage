@@ -52,7 +52,7 @@ Page headings and control labels must match the scale of their containers. Narro
 - Client-side page changes update the document title, announce the destination politely, and move focus to the main heading after overlays close. Forward and replacement navigation brings that heading into view; browser-history navigation preserves the existing scroll position. The initial render and in-page filters do not steal focus; changing the active Ask conversation counts as page navigation.
 - Every interactive element has a visible `focus-visible` state, and critical text meets WCAG AA contrast requirements.
 - Primary mobile actions and icon buttons use stable touch dimensions; `ui.ts` is the source of truth for exact sizes.
-- Modals and drawers close with Escape and restore focus to their trigger. Escape closes only the topmost layer.
+- Modals and drawers close with Escape and restore focus to their trigger. Escape closes only the topmost layer, and global shortcuts do not open another layer while a modal is active.
 - An open mobile drawer locks background scrolling and traps focus. Top and floating actions account for safe areas.
 - Hover must not be the only feedback. Loading copy, icons, and dynamic states must not cause layout shifts.
 

@@ -11,6 +11,7 @@ import { QuickCapture } from "../features/memos/QuickCapture";
 import { useI18n } from "../i18n/I18nProvider";
 import type { Account } from "../lib/api";
 import { todayISO } from "../lib/date";
+import { hasVisibleModal } from "../lib/modal";
 import { routeAccessibilityIdentity } from "./RouteAccessibility";
 import { Sidebar, Wordmark } from "./Sidebar";
 
@@ -20,16 +21,6 @@ const DRAWER_FOCUSABLE_SELECTOR =
 
 function readSidebarOpen(): boolean {
   return window.localStorage.getItem(SIDEBAR_KEY) !== "collapsed";
-}
-
-function hasVisibleAlertDialog(): boolean {
-  return Array.from(
-    document.querySelectorAll<HTMLElement>(
-      '[role="alertdialog"][aria-modal="true"]',
-    ),
-  ).some(
-    (dialog) => !dialog.hidden && dialog.getAttribute("aria-hidden") !== "true",
-  );
 }
 
 function afterNextPaint(callback: () => void): () => void {
@@ -103,7 +94,7 @@ export function AppShell({
 
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
-        if (hasVisibleAlertDialog()) {
+        if (hasVisibleModal(drawerRef.current)) {
           return;
         }
         restoreDrawerFocusRef.current = true;
@@ -155,7 +146,10 @@ export function AppShell({
     pendingDrawerNavigationRef.current = afterNextPaint(() => {
       pendingDrawerNavigationRef.current = afterNextPaint(() => {
         pendingDrawerNavigationRef.current = null;
-        if (routeKeyRef.current !== sourceRouteKey || hasVisibleAlertDialog()) {
+        if (
+          routeKeyRef.current !== sourceRouteKey ||
+          hasVisibleModal(drawerRef.current)
+        ) {
           return;
         }
         restoreDrawerFocusRef.current = true;

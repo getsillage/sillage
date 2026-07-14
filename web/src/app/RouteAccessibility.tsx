@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import type { TranslationKey } from "../i18n/messages";
+import { hasVisibleModal } from "../lib/modal";
 
 function normalizePathname(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";
@@ -52,14 +53,6 @@ function afterRouteCommit(callback: () => void): () => void {
   }
   const timer = window.setTimeout(callback, 0);
   return () => window.clearTimeout(timer);
-}
-
-function hasVisibleModal(): boolean {
-  return Array.from(
-    document.querySelectorAll<HTMLElement>('[aria-modal="true"]'),
-  ).some(
-    (modal) => !modal.hidden && modal.getAttribute("aria-hidden") !== "true",
-  );
 }
 
 export function RouteAccessibility() {

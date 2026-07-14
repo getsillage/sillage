@@ -59,6 +59,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +68,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -96,6 +98,11 @@ import app.sillage.ui.navigation.MainNavigationBar
 fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showConversations by remember { mutableStateOf(false) }
     var showOptions by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    val completedDescription = stringResource(R.string.ask_answer_complete)
+    var observedCompletionEventId by remember(state.askScreenSessionId) {
+        mutableLongStateOf(state.askCompletionEventId)
+    }
     val listState = rememberLazyListState()
     val isUserDragging by listState.interactionSource.collectIsDraggedAsState()
     val autoFollowThresholdPx = with(LocalDensity.current) { 96.dp.roundToPx() }
@@ -134,6 +141,17 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             autoFollow = true
             withFrameNanos { }
             listState.scrollToAskBottom()
+        }
+    }
+    LaunchedEffect(
+        state.askScreenSessionId,
+        state.askCompletionEventId,
+        completedDescription,
+        view,
+    ) {
+        if (observedCompletionEventId != state.askCompletionEventId) {
+            observedCompletionEventId = state.askCompletionEventId
+            view.announceForAccessibility(completedDescription)
         }
     }
     LaunchedEffect(

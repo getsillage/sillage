@@ -741,6 +741,79 @@ class SillageUiStateTest {
         assertTrue(askBack.history.isEmpty())
     }
 
+    @Test
+    fun onlyAvailableSuccessfulAskAnswersEmitCompletionEvents() {
+        val pending = editorState().copy(
+            screen = Screen.Ask,
+            askQuestion = "问题",
+            askSending = true,
+            askStreaming = true,
+            askRegeneratingId = "answer-1",
+            askLiveUser = askMessage("question-1", "问题", role = "user"),
+            askLiveAnswer = "回答",
+            askCompletionEventId = 4,
+        )
+
+        val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
+        assertFalse(completed.askSending)
+        assertFalse(completed.askStreaming)
+        assertEquals("", completed.askQuestion)
+        assertEquals("", completed.askRegeneratingId)
+        assertEquals(null, completed.askLiveUser)
+        assertEquals("", completed.askLiveAnswer)
+        assertEquals(5L, completed.askCompletionEventId)
+
+        val unavailable = pending.finishAskStream(answerAvailable = false, clearQuestion = true)
+        assertEquals(4L, unavailable.askCompletionEventId)
+
+        val failed = pending.copy(error = "失败").finishAskStream(answerAvailable = true, clearQuestion = true)
+        assertEquals("问题", failed.askQuestion)
+        assertEquals(4L, failed.askCompletionEventId)
+
+        val stopped = pending.copy(notice = "已停止").finishAskStream(answerAvailable = true, clearQuestion = true)
+        assertEquals("", stopped.askQuestion)
+        assertEquals(4L, stopped.askCompletionEventId)
+    }
+
+    @Test
+    fun completionRequiresANewCompletedAssistantHead() {
+        val answer = askMessage("answer-2", "回答")
+
+        assertTrue(
+            hasNewCompletedAskAnswer(
+                messages = listOf(answer),
+                headId = answer.id,
+                previousHeadId = "answer-1",
+            ),
+        )
+        assertFalse(hasNewCompletedAskAnswer(listOf(answer), answer.id, answer.id))
+        assertFalse(hasNewCompletedAskAnswer(listOf(answer.copy(content = "")), answer.id, "answer-1"))
+        assertFalse(hasNewCompletedAskAnswer(listOf(answer.copy(status = "pending")), answer.id, "answer-1"))
+        assertFalse(hasNewCompletedAskAnswer(listOf(answer.copy(role = "user")), answer.id, "answer-1"))
+    }
+
+    @Test
+    fun secondaryMainDestinationsReturnToRecordsOnBack() {
+        val state = editorState()
+
+        assertTrue(state.copy(screen = Screen.Ask).shouldReturnToRecordsOnBack())
+        assertTrue(state.copy(screen = Screen.AISettings).shouldReturnToRecordsOnBack())
+        assertTrue(
+            state.copy(
+                screen = Screen.Memos,
+                memoViewMode = MemoViewMode.Calendar,
+            ).shouldReturnToRecordsOnBack(),
+        )
+        assertFalse(
+            state.copy(
+                screen = Screen.Memos,
+                memoViewMode = MemoViewMode.List,
+            ).shouldReturnToRecordsOnBack(),
+        )
+        assertFalse(state.copy(screen = Screen.MemoDetail).shouldReturnToRecordsOnBack())
+        assertFalse(state.copy(screen = Screen.Editor).shouldReturnToRecordsOnBack())
+    }
+
     private fun editorState(
         draftContent: String = "",
         draftEntryDate: String = "2026-07-10",
@@ -797,15 +870,16 @@ class SillageUiStateTest {
         id: String,
         content: String,
         conversationId: String = "conversation-1",
+        role: String = "assistant",
     ): AskMessage {
         return AskMessage(
             id = id,
             conversationId = conversationId,
-            role = "assistant",
+            role = role,
             content = content,
             parentId = null,
             forkOfId = null,
-            status = "completed",
+            status = "complete",
             sourceRefs = emptyList(),
             model = "test-model",
             promptVersion = "test-prompt",

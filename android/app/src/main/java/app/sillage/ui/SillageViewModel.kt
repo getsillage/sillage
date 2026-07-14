@@ -1110,6 +1110,23 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
     }
 
+    fun returnToRecords() {
+        val current = state.value
+        if (!current.shouldReturnToRecordsOnBack()) {
+            return
+        }
+        if (current.askVariantLoading) {
+            updateState(forceFeedback = true, noticeType = UiToastType.WARNING) {
+                it.copy(
+                    error = null,
+                    notice = uiString(R.string.notice_ask_variant_saving),
+                )
+            }
+            return
+        }
+        updateMemoViewMode(MemoViewMode.List)
+    }
+
     fun updateMemoListFilter(filter: MemoListFilter) {
         if (state.value.memoListFilter == filter || state.value.askVariantLoading) {
             return
@@ -2759,6 +2776,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 current.copy(
                     askHeadId = leafId,
                     askVariantLoading = false,
+                    notice = null,
                     askConversations = current.askConversations.map { conversation ->
                         if (conversation.id == request.conversationId) {
                             conversation.copy(headMessageId = leafId)
@@ -2784,6 +2802,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                     askHeadId = previousHeadId,
                     askVariantLoading = false,
                     error = error.readableMessage(),
+                    notice = null,
                 )
             } else {
                 current
@@ -2906,6 +2925,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         val initialRequest = current.nextAskStreamRequest() ?: return
         val contextScope = current.askScope
         val sourceKind = current.askSourceKind
+        val previousHeadId = current.askHeadId
         val regeneratingId = forkOfId.orEmpty()
         updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
@@ -2927,7 +2947,13 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         if (initialRequest.appMode == SessionStore.MODE_OFFLINE) {
-            startLocalAsk(content, forkOfId, initialRequest, contextScope)
+            startLocalAsk(
+                content = content,
+                forkOfId = forkOfId,
+                initialRequest = initialRequest,
+                contextScope = contextScope,
+                previousHeadId = previousHeadId,
+            )
             return
         }
 
@@ -2935,6 +2961,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         askStreamJob = viewModelScope.launch {
             var request = initialRequest
             var conversationId = request.conversationId
+            var answerAvailable = false
             try {
                 if (conversationId.isBlank()) {
                     val created = api.createAskConversation(contextScope)
@@ -3013,6 +3040,11 @@ class SillageViewModel(context: Context) : ViewModel() {
                             .onSuccess { snapshot ->
                                 updateState { currentState ->
                                     if (currentState.canApplyAskStream(request)) {
+                                        answerAvailable = hasNewCompletedAskAnswer(
+                                            messages = snapshot.messages,
+                                            headId = snapshot.headId,
+                                            previousHeadId = previousHeadId,
+                                        )
                                         currentState.copy(
                                             askMessages = snapshot.messages,
                                             askConversations = snapshot.conversations,
@@ -3026,13 +3058,9 @@ class SillageViewModel(context: Context) : ViewModel() {
                     }
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
-                            currentState.copy(
-                                askQuestion = if (forkOfId == null && currentState.error == null) "" else currentState.askQuestion,
-                                askSending = false,
-                                askStreaming = false,
-                                askRegeneratingId = "",
-                                askLiveUser = null,
-                                askLiveAnswer = "",
+                            currentState.finishAskStream(
+                                answerAvailable = answerAvailable,
+                                clearQuestion = forkOfId == null,
                             )
                         } else {
                             currentState
@@ -3051,11 +3079,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         forkOfId: String?,
         initialRequest: AskStreamRequest,
         contextScope: String,
+        previousHeadId: String?,
     ) {
         askStreamJob?.cancel()
         askStreamJob = viewModelScope.launch {
             var request = initialRequest
             var conversationId = request.conversationId
+            var answerAvailable = false
             try {
                 if (conversationId.isBlank()) {
                     val created = localDataStore.createAskConversation(contextScope)
@@ -3113,12 +3143,20 @@ class SillageViewModel(context: Context) : ViewModel() {
                 )
                 val refreshedMessages = localDataStore.listAskMessages(conversationId)
                 val conversations = localDataStore.listAskConversations().filter(AskConversation::isActive)
+                val refreshedHeadId = conversations.find { conversation ->
+                    conversation.id == conversationId
+                }?.headMessageId
                 updateState { currentState ->
                     if (currentState.canApplyAskStream(request)) {
+                        answerAvailable = hasNewCompletedAskAnswer(
+                            messages = refreshedMessages,
+                            headId = refreshedHeadId,
+                            previousHeadId = previousHeadId,
+                        )
                         currentState.copy(
                             askMessages = refreshedMessages,
                             askConversations = conversations,
-                            askHeadId = conversations.find { conversation -> conversation.id == conversationId }?.headMessageId,
+                            askHeadId = refreshedHeadId,
                             askQuestion = if (forkOfId == null) "" else currentState.askQuestion,
                         )
                     } else {
@@ -3138,12 +3176,9 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             updateState { currentState ->
                 if (currentState.canApplyAskStream(request)) {
-                    currentState.copy(
-                        askSending = false,
-                        askStreaming = false,
-                        askRegeneratingId = "",
-                        askLiveUser = null,
-                        askLiveAnswer = "",
+                    currentState.finishAskStream(
+                        answerAvailable = answerAvailable,
+                        clearQuestion = false,
                     )
                 } else {
                     currentState

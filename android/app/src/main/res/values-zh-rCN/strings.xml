@@ -195,6 +195,7 @@
     <string name="ask_variant_counter">%1$d/%2$d</string>
     <string name="ask_variant_position">第 %1$d 个回答，共 %2$d 个</string>
     <string name="ask_generating">生成中</string>
+    <string name="ask_answer_complete">回答已完成</string>
     <string name="ask_regenerate">重新生成</string>
     <string name="ask_save_as_record">存为记录</string>
 
@@ -330,6 +331,7 @@
     <string name="notice_ai_models_loaded">已获取模型列表。</string>
     <string name="error_ask_question_required">先写下要问的问题。</string>
     <string name="notice_ask_generation_stopped">已停止生成，已生成内容会保留。</string>
+    <string name="notice_ask_variant_saving">正在保存回答选择，请稍后再返回。</string>
     <string name="notice_ask_saved_record">已存为记录。</string>
     <string name="sync_none">没有需要同步到云端的记录。</string>
     <string name="sync_summary">同步到云端：成功 %1$d，冲突 %2$d，失败 %3$d</string>

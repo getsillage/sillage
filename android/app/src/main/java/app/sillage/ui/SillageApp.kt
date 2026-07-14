@@ -3,6 +3,7 @@ package app.sillage.ui
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,10 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun SillageApp(viewModel: SillageViewModel) {
     val state by viewModel.state.collectAsState()
+    BackHandler(
+        enabled = state.shouldReturnToRecordsOnBack(),
+        onBack = viewModel::returnToRecords,
+    )
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var activeToastType by remember { mutableStateOf(UiToastType.SUCCESS) }

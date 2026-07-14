@@ -52,7 +52,7 @@ The Web client has only two primary navigation destinations:
 
 Ask is entered through Start Ask (`开始问答`) and the conversation area instead of taking another primary navigation slot. Settings live in the user menu. A quick-capture entry point is globally available outside the Ask page.
 
-The Android bottom bar uses Records / Calendar / Ask / Settings (`记录 / 日历 / 问答 / 设置`), with list states and search inside the Records screen. The client may connect to an instance online or save locally while offline. Sync is currently triggered manually; background sync and push notifications are not provided.
+The Android bottom bar uses Records / Calendar / Ask / Settings (`记录 / 日历 / 问答 / 设置`), with list states and search inside the Records screen. System Back returns from Calendar, Ask, or Settings to the starting Records destination before leaving the app. The client may connect to an instance online or save locally while offline. Sync is currently triggered manually; background sync and push notifications are not provided.
 
 ## Summaries and Ask
 

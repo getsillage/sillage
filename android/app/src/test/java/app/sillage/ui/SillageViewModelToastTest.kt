@@ -74,6 +74,28 @@ class SillageViewModelToastTest {
     }
 
     @Test
+    fun secondaryMainDestinationsReturnToRecords() {
+        val sessionStore = SessionStore(context)
+        sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+        val viewModel = SillageViewModel(context)
+
+        viewModel.openAsk()
+        viewModel.returnToRecords()
+        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+
+        viewModel.updateMemoViewMode(MemoViewMode.Calendar)
+        viewModel.returnToRecords()
+        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+
+        viewModel.openAISettings()
+        viewModel.returnToRecords()
+        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+    }
+
+    @Test
     fun authenticationErrorsKeepResourcesForLanguageChanges() {
         assertEquals(
             R.string.error_auth_invalid_credentials,

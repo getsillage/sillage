@@ -62,6 +62,7 @@ data class SillageUiState(
     val askSending: Boolean = false,
     val askStreaming: Boolean = false,
     val askStreamRequestId: Long = 0,
+    val askCompletionEventId: Long = 0,
     val askVariantRequestId: Long = 0,
     val askVariantLoading: Boolean = false,
     val askRegeneratingId: String = "",
@@ -657,6 +658,38 @@ internal fun SillageUiState.canApplyAskStream(request: AskStreamRequest): Boolea
         clientContextGeneration == request.clientContextGeneration
 }
 
+internal fun SillageUiState.finishAskStream(
+    answerAvailable: Boolean,
+    clearQuestion: Boolean,
+): SillageUiState {
+    val completed = answerAvailable && error == null && notice == null
+    return copy(
+        askQuestion = if (clearQuestion && error == null) "" else askQuestion,
+        askSending = false,
+        askStreaming = false,
+        askRegeneratingId = "",
+        askLiveUser = null,
+        askLiveAnswer = "",
+        askCompletionEventId = if (completed) askCompletionEventId + 1 else askCompletionEventId,
+    )
+}
+
+internal fun hasNewCompletedAskAnswer(
+    messages: List<AskMessage>,
+    headId: String?,
+    previousHeadId: String?,
+): Boolean {
+    return headId != null &&
+        headId != previousHeadId &&
+        messages.any { message ->
+            message.id == headId &&
+                message.role == "assistant" &&
+                message.status == "complete" &&
+                message.deletedAt == null &&
+                message.content.isNotBlank()
+        }
+}
+
 internal data class AskVariantRequest(
     val requestId: Long,
     val screenSessionId: Long,
@@ -843,6 +876,12 @@ internal fun SillageUiState.backNavigation(fallback: Screen): BackNavigation {
         screen = screenHistory.lastOrNull() ?: fallback,
         history = if (screenHistory.isEmpty()) emptyList() else screenHistory.dropLast(1),
     )
+}
+
+internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
+    return screen == Screen.Ask ||
+        screen == Screen.AISettings ||
+        (screen == Screen.Memos && memoViewMode == MemoViewMode.Calendar)
 }
 
 enum class MemoViewMode {

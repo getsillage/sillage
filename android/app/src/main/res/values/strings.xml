@@ -197,6 +197,7 @@
     <string name="ask_variant_counter">%1$d/%2$d</string>
     <string name="ask_variant_position">Answer %1$d of %2$d</string>
     <string name="ask_generating">Generating</string>
+    <string name="ask_answer_complete">Answer complete</string>
     <string name="ask_regenerate">Regenerate</string>
     <string name="ask_save_as_record">Save as record</string>
 
@@ -364,6 +365,7 @@
     <string name="notice_ai_models_loaded">Model list loaded.</string>
     <string name="error_ask_question_required">Write a question first.</string>
     <string name="notice_ask_generation_stopped">Generation stopped. Any generated content has been kept.</string>
+    <string name="notice_ask_variant_saving">The answer selection is still being saved. Try again shortly.</string>
     <string name="notice_ask_saved_record">Saved as a record.</string>
     <string name="sync_none">No records need to be synced to the server.</string>
     <string name="sync_summary" tools:ignore="PluralsCandidate">Server sync: %1$d succeeded, %2$d conflicted, %3$d failed</string>

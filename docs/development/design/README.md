@@ -34,7 +34,7 @@ Page headings and control labels must match the scale of their containers. Narro
 - Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
 - Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.
 - After navigation, refresh, or a canonical write, a late response must not overwrite the current page or cache.
-- Transient failures preserve loaded content and user input and offer a manual retry. They must not appear as an empty or missing state.
+- Transient failures preserve loaded content that belongs to the current view or normalized search query, preserve user input, and offer a manual retry. Cached results from another query are never shown as current matches.
 - Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
 - Transient operation feedback uses the global Toast queue. Successful writes,

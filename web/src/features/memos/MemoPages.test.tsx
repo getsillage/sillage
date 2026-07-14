@@ -303,7 +303,7 @@ describe("TimelinePage", () => {
     expect(await screen.findByText("搜索命中的记录")).toBeInTheDocument();
   });
 
-  it("keeps the last successful search results when a later search fails", async () => {
+  it("hides results from another query while a later search is pending or failed", async () => {
     const user = userEvent.setup();
     let rejectSearch: ((reason?: unknown) => void) | undefined;
     vi.mocked(searchMemos)
@@ -326,7 +326,9 @@ describe("TimelinePage", () => {
     await waitFor(() => expect(searchMemos).toHaveBeenCalledTimes(2), {
       timeout: 2000,
     });
-    expect(screen.getByText("上一次成功结果")).toBeInTheDocument();
+    expect(screen.queryByText("上一次成功结果")).not.toBeInTheDocument();
+    expect(screen.getByText("正在搜索")).toHaveAttribute("aria-live", "polite");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await act(async () => {
       rejectSearch?.(new Error("搜索服务暂时不可用"));
@@ -335,14 +337,15 @@ describe("TimelinePage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "搜索服务暂时不可用",
     );
-    expect(screen.getByText("上一次成功结果")).toBeInTheDocument();
-    expect(screen.getByText("仍显示 1 条已加载记录")).toBeInTheDocument();
+    expect(screen.queryByText("上一次成功结果")).not.toBeInTheDocument();
+    expect(screen.getByText("搜索失败")).not.toHaveAttribute("aria-live");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(
       screen.queryByText("没有匹配的记录。换一个词试试。"),
     ).not.toBeInTheDocument();
   });
 
-  it("keeps loaded records and retries the current query after an initial search failure", async () => {
+  it("keeps the query but hides the base list after an initial search failure", async () => {
     const user = userEvent.setup();
     vi.mocked(searchMemos)
       .mockRejectedValueOnce(new Error("搜索服务暂时不可用"))
@@ -359,8 +362,8 @@ describe("TimelinePage", () => {
       "搜索服务暂时不可用",
     );
     expect(input).toHaveValue("重试查询");
-    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
-    expect(screen.getByText("仍显示 1 条已加载记录")).toBeInTheDocument();
+    expect(screen.queryByText("今天的记录内容")).not.toBeInTheDocument();
+    expect(screen.getByText("搜索失败")).toBeInTheDocument();
     expect(
       screen.queryByText("没有匹配的记录。换一个词试试。"),
     ).not.toBeInTheDocument();
@@ -377,6 +380,67 @@ describe("TimelinePage", () => {
       archived: false,
       favorited: false,
     });
+  });
+
+  it("keeps a successful snapshot when returning to the same query", async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchMemos)
+      .mockResolvedValueOnce({
+        memos: [memo({ id: "first-a", content: "查询 A 的已有结果" })],
+      })
+      .mockImplementationOnce(() => new Promise(() => undefined))
+      .mockRejectedValueOnce(new Error("查询 A 重试失败"));
+    renderWithMemos(<TimelinePage />, "/timeline");
+
+    const input = screen.getByPlaceholderText("搜索记录…");
+    await user.type(input, "查询A");
+    expect(await screen.findByText("查询 A 的已有结果")).toBeInTheDocument();
+
+    await user.type(input, "B");
+    await waitFor(() => expect(searchMemos).toHaveBeenCalledTimes(2), {
+      timeout: 2000,
+    });
+    expect(screen.queryByText("查询 A 的已有结果")).not.toBeInTheDocument();
+
+    await user.keyboard("{Backspace}");
+    await waitFor(() => expect(searchMemos).toHaveBeenCalledTimes(3), {
+      timeout: 2000,
+    });
+    expect(screen.getByText("查询 A 的已有结果")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "查询 A 重试失败",
+    );
+    expect(screen.getByText("查询 A 的已有结果")).toBeInTheDocument();
+  });
+
+  it("restores the base list and ignores a late response after clearing", async () => {
+    const user = userEvent.setup();
+    let finishSearch: ((value: { memos: Memo[] }) => void) | undefined;
+    vi.mocked(searchMemos).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSearch = resolve;
+        }),
+    );
+    renderWithMemos(<TimelinePage />, "/timeline");
+
+    expect(await screen.findByText("今天的记录内容")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("搜索记录…"), "稍后返回");
+    await waitFor(() => expect(searchMemos).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+    });
+    expect(screen.queryByText("今天的记录内容")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "清除搜索" }));
+    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
+
+    await act(async () => {
+      finishSearch?.({
+        memos: [memo({ id: "late", content: "不应出现的迟到结果" })],
+      });
+    });
+    expect(screen.queryByText("不应出现的迟到结果")).not.toBeInTheDocument();
+    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
   });
 
   it("passes the archived state to server-side search", async () => {

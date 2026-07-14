@@ -105,7 +105,7 @@ For personal-record questions, recommended phrasing should communicate the equiv
 
 Android keeps the Record search and Ask composer field names visible as persistent labels and exposes actual screen and section titles as accessibility headings. Visual emphasis alone does not make a label a heading.
 
-Android search results and their feedback belong to the exact query that completed successfully; cached results from another query are never shown as current matches. The localized result count remains visible and readable by assistive technology, but is announced only once for each new successful completion. Editing the query, a failed search, returning to the screen, or an unrelated record update must not replay a stale success announcement.
+Web and Android search results belong to the exact query that completed successfully; cached results from another query are never shown as current matches. On Android, the localized result count remains visible and readable by assistive technology, but is announced only once for each new successful completion. Editing the query, a failed search, returning to the screen, or an unrelated record update must not replay a stale success announcement.
 
 ## Interface Languages
 

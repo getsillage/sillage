@@ -36,6 +36,11 @@ import { OnThisDay } from "./OnThisDay";
 
 type TimelineFilter = "active" | "archived" | "favorite";
 
+type MemoSearchSnapshot = {
+  query: string;
+  memos: Memo[];
+};
+
 function timelineFilter(searchParams: URLSearchParams): TimelineFilter {
   const filter = searchParams.get("filter");
   return filter === "archived" || filter === "favorite" ? filter : "active";
@@ -262,7 +267,8 @@ function ListView({
   const { memos, loading, error, refresh, loadMore, hasMore, loadingMore } =
     useTimelineMemoList(filter);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Memo[] | null>(null);
+  const [searchSnapshot, setSearchSnapshot] =
+    useState<MemoSearchSnapshot | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchAttempt, setSearchAttempt] = useState(0);
@@ -285,7 +291,7 @@ function ListView({
   useEffect(() => {
     void searchAttempt;
     if (!trimmed) {
-      setResults(null);
+      setSearchSnapshot(null);
       setSearchError("");
       setSearching(false);
       return;
@@ -297,7 +303,7 @@ function ListView({
       search(trimmed, options)
         .then((found) => {
           if (!cancelled) {
-            setResults(found);
+            setSearchSnapshot({ query: trimmed, memos: found });
             setSearchError("");
           }
         })
@@ -324,7 +330,9 @@ function ListView({
 
   // The full loaded set in reverse-chronological order; older pages stream in
   // via the infinite-scroll sentinel below. Search results bypass pagination.
-  const list = trimmed ? (results ?? memos) : memos;
+  const currentSearchResults =
+    searchSnapshot?.query === trimmed ? searchSnapshot.memos : null;
+  const list = trimmed ? (currentSearchResults ?? []) : memos;
   const groups = useMemo(() => groupEntries(list), [list]);
   const showLoadMore = !trimmed && hasMore;
   const listError = !trimmed ? error : "";
@@ -417,20 +425,13 @@ function ListView({
         </fieldset>
         <p
           className="text-gray-500 text-xs dark:text-gray-400"
-          aria-live="polite"
+          aria-live={searchError ? undefined : "polite"}
         >
           {searching
             ? t("timeline.searching")
             : trimmed
               ? searchError
-                ? list.length > 0
-                  ? t(
-                      list.length === 1
-                        ? "timeline.keptResultOne"
-                        : "timeline.keptResultsMany",
-                      { count: list.length },
-                    )
-                  : t("timeline.searchFailed")
+                ? t("timeline.searchFailed")
                 : t(
                     list.length === 1
                       ? "timeline.foundOne"
@@ -476,7 +477,7 @@ function ListView({
       ) : null}
       <section className="min-w-0 pr-14 sm:pr-0">
         {(loading && !trimmed) || (searching && list.length === 0) ? (
-          <TimelineSkeleton />
+          <TimelineSkeleton announce={!trimmed} />
         ) : groups.length === 0 && !listError && !searchError ? (
           <div className={emptyStateClass}>
             {trimmed
@@ -600,11 +601,17 @@ function groupEntries(memos: Memo[]): MemoGroup[] {
   return dateGroups;
 }
 
-function TimelineSkeleton() {
+function TimelineSkeleton({ announce = true }: { announce?: boolean }) {
   const { t } = useI18n();
   return (
-    <div className="space-y-7" role="status">
-      <span className="sr-only">{t("timeline.loadingRecords")}</span>
+    <div
+      className="space-y-7"
+      role={announce ? "status" : undefined}
+      aria-hidden={announce ? undefined : true}
+    >
+      {announce ? (
+        <span className="sr-only">{t("timeline.loadingRecords")}</span>
+      ) : null}
       {[0, 1, 2].map((group) => (
         <div key={group} className="space-y-2">
           <div className={`${skeletonClass} h-4 w-32`} />

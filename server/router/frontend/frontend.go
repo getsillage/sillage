@@ -9,11 +9,13 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-//go:embed dist
+// dist_placeholder.txt keeps this pattern valid before the Web client is built.
+//
+//go:embed dist*
 var distFS embed.FS
 
 func Register(e *echo.Echo) {
-	subFS, err := fs.Sub(distFS, "dist")
+	subFS, err := frontendFiles(distFS)
 	if err != nil {
 		registerFallback(e)
 		return
@@ -34,6 +36,17 @@ func Register(e *echo.Echo) {
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
 	})
+}
+
+func frontendFiles(root fs.FS) (fs.FS, error) {
+	subFS, err := fs.Sub(root, "dist")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fs.Stat(subFS, "index.html"); err != nil {
+		return nil, err
+	}
+	return subFS, nil
 }
 
 func registerFallback(e *echo.Echo) {

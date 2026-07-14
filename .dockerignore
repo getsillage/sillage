@@ -11,20 +11,34 @@
 **/.env
 **/.env.*
 /.claude/
+/.claude/launch.json
+/.claude/settings.local.json
 /.thumbnail_cache/
+tmp/
 
-# Node / web outputs
+# Node / Web outputs
 node_modules/
 web/node_modules/
 **/node_modules/
 coverage/
 **/coverage/
+*.lcov
 *.tsbuildinfo
 **/*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+web/dist/
 web/test-results/
 web/playwright-report/
+web/blob-report/
 web/.playwright/
-web/dist/
 server/router/frontend/dist/
 
 # Local runtime data
@@ -32,26 +46,45 @@ server/router/frontend/dist/
 /runtime/
 /.sillage/
 /.data-dev/
-tmp/
 
-# App binary / databases
+# Go build / test outputs
 /sillage
+/sillage.exe
+*.test
+*.out
+coverage.out
+*.coverprofile
+profile.cov
+
+# Databases stay out of the build context even when Git fixtures are allowed
+/sillage.db
+/sillage.db-journal
+/sillage.db-shm
+/sillage.db-wal
+/sillage.db.bak-*
 *.db
+*.db-journal
 *.db-shm
 *.db-wal
 *.db.bak-*
 **/*.db
+**/*.db-journal
 **/*.db-shm
 **/*.db-wal
 **/*.db.bak-*
 
-# Android
+# Android / Gradle
 android/.gradle/
-android/build/
-android/app/build/
+android/.kotlin/
+android/.idea/
+android/**/build/
 android/local.properties
 android/signing.properties
-android/.idea/
+android/keystore.properties
+android/captures/
+android/**/.externalNativeBuild/
+android/**/.cxx/
+android/**/*.iml
 *.apk
 *.aab
 *.keystore

@@ -109,12 +109,13 @@ jobs:
       - name: Verify embedded assets
         working-directory: .
         run: |
-          changes="$(git status --porcelain=v1 --untracked-files=all -- server/router/frontend/dist)"
-          if [ -n "$changes" ]; then
-            printf '%s\n' "$changes"
-            git diff -- server/router/frontend/dist
+          test -f server/router/frontend/dist/index.html
+          tracked="$(git ls-files -- server/router/frontend/dist)"
+          if [ -n "$tracked" ]; then
+            printf 'Generated Web assets must not be tracked:\n%s\n' "$tracked"
             exit 1
           fi
+          git check-ignore -q server/router/frontend/dist/index.html
 
   docs:
     name: Docs

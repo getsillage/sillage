@@ -1,0 +1,2 @@
+This tracked placeholder lets Go build the fallback Web handler before Vite assets are generated.
+The generated server/router/frontend/dist directory is intentionally ignored.

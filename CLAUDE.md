@@ -66,7 +66,7 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 
 - Proto 变化：运行 `buf lint`、`buf generate`，提交生成物，并同步 REST、Web、Android 与测试。
 - 数据库变化：同时更新新库 `LATEST.sql`、已存在数据库兼容迁移和迁移测试。
-- Web 变化：运行 Web lint/typecheck/test/build，提交最新 `server/router/frontend/dist/`。
+- Web 变化：运行 Web lint/typecheck/test/build；`server/router/frontend/dist/` 是已忽略的构建产物，不提交到仓库。
 - 写操作：继续使用版本检查、tombstone 和同步幂等规则，不引入静默覆盖。
 - UI 异步流程：隔离迟到响应，进行中状态锁定冲突操作，失败保留用户输入并允许重试。
 - 认证、附件、密钥或外部数据流变化：先读安全开发边界，补泄漏、越权或迁移测试，并同步用户文档。

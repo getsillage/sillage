@@ -42,7 +42,7 @@ Open `http://localhost:5173`. Vite listens only on `127.0.0.1` and proxies API, 
 1. Search existing Issues and pull requests before starting. Use the repository's Bug Report or Feature Request form for new work.
 2. Open a Feature Request before implementing a substantial change to product scope, public contracts, data formats, authentication, or security boundaries. If the discussion could reveal a vulnerability or sensitive security detail, use the private process in the [Security Policy](SECURITY.md) instead.
 3. Fork the repository, create a focused branch from `main`, and keep the change limited to one purpose.
-4. Add the relevant tests, documentation, and generated artifacts as part of the same change.
+4. Add the relevant tests, documentation, and tracked generated artifacts as part of the same change.
 5. Run the validation commands for every affected area.
 6. Open a pull request and complete the pull request template with the rationale, related Issue, and exact validation performed.
 
@@ -73,11 +73,11 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 ### Web Artifacts
 
-`pnpm --dir web build` overwrites `server/router/frontend/dist/`. Commit the Web source and the latest embedded artifacts together. Generate the Web artifacts before building the Go binary.
+`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary.
 
 ## Verification
 
-Run at least the commands appropriate for the affected area. CI runs Go test/vet/build, Buf lint/breaking/generate, Web lint/typecheck/test/build, Android test/lint/build, fresh-instance E2E, Docker build, and Compose parsing. It also checks dependency metadata, the Docker context policy, Proto/Web generated artifacts, Markdown links, and whitespace in the commit range. Dependabot checks Go, Web, Android, Docker, and GitHub Actions dependencies weekly; security updates must still pass the same gates. Before a Docker build, check the context policy to ensure that Git-ignored local data, secrets, and build artifacts are not sent to the builder.
+Run at least the commands appropriate for the affected area. CI runs Go test/vet/build, Buf lint/breaking/generate, Web lint/typecheck/test/build, Android test/lint/build, fresh-instance E2E, Docker build, and Compose parsing. It also checks dependency metadata, the Docker context policy, tracked Proto artifacts, successful Web output generation, Markdown links, and whitespace in the commit range. Dependabot checks Go, Web, Android, Docker, and GitHub Actions dependencies weekly; security updates must still pass the same gates. Before a Docker build, check the context policy to ensure that Git-ignored local data, secrets, and build artifacts are not sent to the builder.
 
 | Area | Commands |
 | --- | --- |

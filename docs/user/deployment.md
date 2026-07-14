@@ -95,7 +95,7 @@ Configure the AI API protocol, endpoint, model, and API key in the application s
 
 ## Run Locally
 
-Go 1.25 is required. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
+Go 1.25 is required. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
 
 ```bash
 pnpm --dir web install

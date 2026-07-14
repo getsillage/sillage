@@ -80,6 +80,8 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     BackHandler {
         if (editorActionsEnabled) {
             requestCloseEditor()
+        } else {
+            viewModel.notifyMemoEditorBackBlocked()
         }
     }
     val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->

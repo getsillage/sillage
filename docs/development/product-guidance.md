@@ -107,6 +107,8 @@ Android keeps the Record search and Ask composer field names visible as persiste
 
 Web and Android search results belong to the exact query that completed successfully; cached results from another query are never shown as current matches. On Android, the localized result count remains visible and readable by assistive technology, but is announced only once for each new successful completion. Editing the query, a failed search, returning to the screen, or an unrelated record update must not replay a stale success announcement.
 
+On Android, system Back is intercepted while an attachment upload or another blocking operation is active in the editor, and the user is told why. Back does not cancel or queue the operation; normal navigation resumes when the operation finishes.
+
 ## Interface Languages
 
 The Web and Android clients support English and Simplified Chinese. Simplified Chinese remains the default for existing and new installations until the user chooses English. The selected interface language is stored only on the current browser or Android device; it is not an account setting and does not sync through the server.

@@ -78,6 +78,22 @@ class LanguageResourcesTest {
             context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_ai_models_loaded),
         )
         assertEquals(
+            "An attachment is still uploading. Try again shortly.",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.notice_editor_back_attachment_uploading),
+        )
+        assertEquals(
+            "附件仍在上传，请稍候再返回。",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_editor_back_attachment_uploading),
+        )
+        assertEquals(
+            "An operation is still in progress. Try again shortly.",
+            context.localizedString(SessionStore.LANGUAGE_EN, R.string.notice_editor_back_operation),
+        )
+        assertEquals(
+            "操作仍在进行，请稍候再返回。",
+            context.localizedString(SessionStore.LANGUAGE_ZH_CN, R.string.notice_editor_back_operation),
+        )
+        assertEquals(
             "API protocol",
             context.localizedString(SessionStore.LANGUAGE_EN, R.string.settings_provider),
         )

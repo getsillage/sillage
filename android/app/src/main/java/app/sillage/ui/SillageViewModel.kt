@@ -2653,6 +2653,20 @@ class SillageViewModel(context: Context) : ViewModel() {
             ?.let(::fetchSelectedMemoDetail)
     }
 
+    fun notifyMemoEditorBackBlocked() {
+        if (state.value.memoEditorBusyReason() == null) {
+            return
+        }
+        val attachmentUploadNotice = uiString(R.string.notice_editor_back_attachment_uploading)
+        val operationNotice = uiString(R.string.notice_editor_back_operation)
+        updateState(forceFeedback = true, noticeType = UiToastType.WARNING) {
+            it.withMemoEditorBackBlockedNotice(
+                attachmentUploadNotice = attachmentUploadNotice,
+                operationNotice = operationNotice,
+            )
+        }
+    }
+
     private fun AIProfileDraft.uiKey(index: Int): String = id.ifBlank { "new-$index" }
 
     private fun updateAIProfile(index: Int, transform: (AIProfileDraft) -> AIProfileDraft) {

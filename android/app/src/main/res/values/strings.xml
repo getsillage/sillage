@@ -136,6 +136,8 @@
     <string name="editor_new_title">New record</string>
     <string name="editor_edit_title">Edit record</string>
     <string name="editor_attachment_uploading">Uploading attachment</string>
+    <string name="notice_editor_back_attachment_uploading">An attachment is still uploading. Try again shortly.</string>
+    <string name="notice_editor_back_operation">An operation is still in progress. Try again shortly.</string>
     <string name="editor_date">Record date</string>
     <string name="editor_date_placeholder" translatable="false">YYYY-MM-DD</string>
     <string name="editor_add_attachment">Add attachment</string>

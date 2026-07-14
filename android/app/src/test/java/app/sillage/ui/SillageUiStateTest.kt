@@ -63,6 +63,60 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun memoEditorBusyReasonOnlyCoversBlockingOperations() {
+        val selected = editorState().copy(selectedMemo = memo())
+
+        assertEquals(null, selected.memoEditorBusyReason())
+        assertEquals(
+            MemoEditorBusyReason.AttachmentUpload,
+            selected.copy(uploadingAttachment = true).memoEditorBusyReason(),
+        )
+        assertEquals(
+            MemoEditorBusyReason.Operation,
+            editorState().copy(loading = true).memoEditorBusyReason(),
+        )
+        assertEquals(
+            MemoEditorBusyReason.Operation,
+            selected.copy(memoMutationIds = setOf("memo-1")).memoEditorBusyReason(),
+        )
+        assertEquals(null, selected.copy(memoMutationIds = setOf("memo-2")).memoEditorBusyReason())
+        assertEquals(null, selected.copy(summaryLoading = true).memoEditorBusyReason())
+        assertEquals(null, selected.copy(openingAttachmentPath = "/attachments/file-1").memoEditorBusyReason())
+        assertEquals(null, selected.copy(screen = Screen.Memos, loading = true).memoEditorBusyReason())
+    }
+
+    @Test
+    fun memoEditorBackBlockedNoticeClearsOldErrorAndKeepsIdleStateUnchanged() {
+        val uploading = editorState().copy(
+            uploadingAttachment = true,
+            error = "旧错误",
+            notice = "旧提示",
+        )
+        val operation = editorState().copy(loading = true)
+        val idle = editorState().copy(error = "保留错误")
+
+        val uploadFeedback = uploading.withMemoEditorBackBlockedNotice(
+            attachmentUploadNotice = "附件仍在上传",
+            operationNotice = "操作仍在进行",
+        )
+        val operationFeedback = operation.withMemoEditorBackBlockedNotice(
+            attachmentUploadNotice = "附件仍在上传",
+            operationNotice = "操作仍在进行",
+        )
+
+        assertEquals(null, uploadFeedback.error)
+        assertEquals("附件仍在上传", uploadFeedback.notice)
+        assertEquals("操作仍在进行", operationFeedback.notice)
+        assertEquals(
+            idle,
+            idle.withMemoEditorBackBlockedNotice(
+                attachmentUploadNotice = "附件仍在上传",
+                operationNotice = "操作仍在进行",
+            ),
+        )
+    }
+
+    @Test
     fun clientContextChangesAreBlockedByActiveOperations() {
         val idle = editorState().copy(screen = Screen.AISettings)
 

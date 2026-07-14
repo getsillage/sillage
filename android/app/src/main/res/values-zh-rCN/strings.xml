@@ -135,6 +135,8 @@
     <string name="editor_new_title">新建记录</string>
     <string name="editor_edit_title">编辑记录</string>
     <string name="editor_attachment_uploading">附件上传中</string>
+    <string name="notice_editor_back_attachment_uploading">附件仍在上传，请稍候再返回。</string>
+    <string name="notice_editor_back_operation">操作仍在进行，请稍候再返回。</string>
     <string name="editor_date">记录日期</string>
     <string name="editor_add_attachment">添加附件</string>
     <string name="editor_uploading">上传中</string>

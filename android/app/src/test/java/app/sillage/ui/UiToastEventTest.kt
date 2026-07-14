@@ -94,6 +94,38 @@ class UiToastEventTest {
     }
 
     @Test
+    fun memoEditorBackFeedbackClearsOldErrorAndEmitsRepeatableWarnings() {
+        val events = mutableListOf<UiToastEvent>()
+        val emitter = UiToastEventEmitter(events::add)
+        val busy = SillageUiState(
+            screen = Screen.Editor,
+            baseUrl = "",
+            uploadingAttachment = true,
+            error = "旧错误",
+        )
+        val warning = busy.withMemoEditorBackBlockedNotice(
+            attachmentUploadNotice = "附件仍在上传",
+            operationNotice = "操作仍在进行",
+        )
+
+        emitter.onStateChanged(
+            before = busy,
+            after = warning,
+            forceFeedback = true,
+            noticeType = UiToastType.WARNING,
+        )
+        emitter.onStateChanged(
+            before = warning,
+            after = warning,
+            forceFeedback = true,
+            noticeType = UiToastType.WARNING,
+        )
+
+        assertEquals(listOf(UiToastType.WARNING, UiToastType.WARNING), events.map(UiToastEvent::type))
+        assertEquals(listOf("附件仍在上传", "附件仍在上传"), events.map(UiToastEvent::message))
+    }
+
+    @Test
     fun persistentAuthenticationErrorsDoNotEmitDuplicateGlobalFeedback() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)

@@ -106,11 +106,36 @@ internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
         (draftContent != initialDraftContent || draftEntryDate != initialDraftEntryDate)
 }
 
+internal enum class MemoEditorBusyReason {
+    AttachmentUpload,
+    Operation,
+}
+
+internal fun SillageUiState.memoEditorBusyReason(): MemoEditorBusyReason? {
+    if (screen != Screen.Editor) {
+        return null
+    }
+    return when {
+        uploadingAttachment -> MemoEditorBusyReason.AttachmentUpload
+        loading || selectedMemo?.id in memoMutationIds -> MemoEditorBusyReason.Operation
+        else -> null
+    }
+}
+
+internal fun SillageUiState.withMemoEditorBackBlockedNotice(
+    attachmentUploadNotice: String,
+    operationNotice: String,
+): SillageUiState {
+    val blockedNotice = when (memoEditorBusyReason()) {
+        MemoEditorBusyReason.AttachmentUpload -> attachmentUploadNotice
+        MemoEditorBusyReason.Operation -> operationNotice
+        null -> return this
+    }
+    return copy(error = null, notice = blockedNotice)
+}
+
 internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
-    return screen == Screen.Editor &&
-        !loading &&
-        !uploadingAttachment &&
-        selectedMemo?.id !in memoMutationIds
+    return screen == Screen.Editor && memoEditorBusyReason() == null
 }
 
 internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {

@@ -269,7 +269,6 @@ export function EntryPage() {
     actionPendingRef.current = true;
     setBusy(action);
     setError("");
-    setConfirmingDelete(false);
     try {
       if (action === "favorite") {
         const favorited = !memo.favoritedAt;
@@ -292,7 +291,7 @@ export function EntryPage() {
       } else {
         await memos.remove(memo);
         toast.showToast({ kind: "success", message: t("records.deleted") });
-        navigate("/");
+        navigate(returnTarget, { replace: true });
       }
     } catch (cause) {
       const message =
@@ -415,6 +414,7 @@ export function EntryPage() {
             ref={deleteTriggerRef}
             type="button"
             onClick={() => {
+              setError("");
               restoreDeleteFocusRef.current = false;
               setConfirmingDelete(true);
             }}
@@ -524,7 +524,7 @@ export function EntryPage() {
         ) : null}
       </section>
 
-      {error && !toast.available ? (
+      {error && !toast.available && !confirmingDelete ? (
         <p role="alert" className="mt-4 text-red-600 text-sm dark:text-red-400">
           {error}
         </p>
@@ -533,6 +533,7 @@ export function EntryPage() {
       {confirmingDelete ? (
         <DeleteDialog
           busy={busy === "delete"}
+          error={error}
           onCancel={() => {
             restoreDeleteFocusRef.current = true;
             setConfirmingDelete(false);
@@ -549,24 +550,32 @@ export function EntryPage() {
 
 function DeleteDialog({
   busy,
+  error,
   onCancel,
   onConfirm,
 }: {
   busy: boolean;
+  error: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { t } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(busy);
+  const onCancelRef = useRef(onCancel);
+  const wasBusyRef = useRef(false);
+  busyRef.current = busy;
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     cancelRef.current?.focus();
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !busy) {
-        onCancel();
+      if (event.key === "Escape" && !busyRef.current) {
+        onCancelRef.current();
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -574,7 +583,16 @@ function DeleteDialog({
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [busy, onCancel]);
+  }, []);
+
+  useEffect(() => {
+    if (busy) {
+      dialogRef.current?.focus();
+    } else if (wasBusyRef.current) {
+      confirmRef.current?.focus();
+    }
+    wasBusyRef.current = busy;
+  }, [busy]);
 
   function trapFocus(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab" || !dialogRef.current) {
@@ -587,12 +605,17 @@ function DeleteDialog({
     );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+    if (!first || !last) {
+      event.preventDefault();
+      dialogRef.current.focus();
+      return;
+    }
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
-      last?.focus();
+      last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
       event.preventDefault();
-      first?.focus();
+      first.focus();
     }
   }
 
@@ -610,8 +633,12 @@ function DeleteDialog({
         ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
+        aria-busy={busy}
         aria-labelledby="delete-title"
-        aria-describedby="delete-description"
+        aria-describedby={
+          error ? "delete-description delete-error" : "delete-description"
+        }
+        tabIndex={-1}
         onKeyDown={trapFocus}
         className="surface-enter relative w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-xl shadow-gray-950/15 dark:border-gray-700 dark:bg-gray-900 dark:shadow-black/30"
       >
@@ -629,6 +656,15 @@ function DeleteDialog({
             >
               {t("entry.deleteDescription")}
             </p>
+            {error ? (
+              <p
+                id="delete-error"
+                role="alert"
+                className="mt-2 text-red-600 text-sm dark:text-red-400"
+              >
+                {error}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -651,6 +687,7 @@ function DeleteDialog({
             {t("common.cancel")}
           </button>
           <button
+            ref={confirmRef}
             type="button"
             onClick={onConfirm}
             disabled={busy}

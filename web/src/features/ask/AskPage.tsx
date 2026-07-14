@@ -76,6 +76,7 @@ export function AskPage() {
     sourceKind,
     savingRecordMessageIds,
     busy,
+    variantLoading,
     streaming,
     error,
     setScope,
@@ -129,7 +130,7 @@ export function AskPage() {
   }, [entries.length, liveUser, liveAnswer]);
 
   async function submit() {
-    if (busy) {
+    if (busy || variantLoading) {
       return;
     }
     const text = question.trim();
@@ -290,6 +291,7 @@ export function AskPage() {
               }
               onRegenerate={() => regenerate(entry.message.id)}
               onSelectVariant={selectVariant}
+              variantChanging={variantLoading}
               savingAsRecord={savingRecordMessageIds.has(entry.message.id)}
               onStartRecordSave={tryStartRecordSave}
               onFinishRecordSave={finishRecordSave}
@@ -347,7 +349,7 @@ export function AskPage() {
                 !event.nativeEvent.isComposing
               ) {
                 event.preventDefault();
-                if (!busy) {
+                if (!busy && !variantLoading) {
                   void submit();
                 }
               }
@@ -383,7 +385,7 @@ export function AskPage() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={busy || !question.trim()}
+                disabled={busy || variantLoading || !question.trim()}
                 className={`${primaryButtonClass} h-11 w-11 rounded-full px-0`}
                 aria-label={t(busy ? "ask.generating" : "ask.send")}
                 title={t(busy ? "ask.generating" : "ask.send")}
@@ -460,6 +462,7 @@ interface MessageBubbleProps {
   canRegenerate: boolean;
   onRegenerate: () => void;
   onSelectVariant: (messageId: string) => void;
+  variantChanging: boolean;
   savingAsRecord: boolean;
   onStartRecordSave: (messageId: string) => boolean;
   onFinishRecordSave: (messageId: string) => void;
@@ -471,6 +474,7 @@ function MessageBubble({
   canRegenerate,
   onRegenerate,
   onSelectVariant,
+  variantChanging,
   savingAsRecord,
   onStartRecordSave,
   onFinishRecordSave,
@@ -606,11 +610,14 @@ function MessageBubble({
           </button>
         ) : null}
         {hasVariants ? (
-          <span className="inline-flex items-center gap-1 text-gray-500 text-xs dark:text-gray-400">
+          <span
+            aria-busy={variantChanging}
+            className="inline-flex items-center gap-1 text-gray-500 text-xs dark:text-gray-400"
+          >
             <button
               type="button"
               aria-label={t("ask.previousAnswer")}
-              disabled={index <= 0}
+              disabled={variantChanging || index <= 0}
               onClick={() => onSelectVariant(variants[index - 1].id)}
               className={iconButtonClass}
             >
@@ -628,7 +635,7 @@ function MessageBubble({
             <button
               type="button"
               aria-label={t("ask.nextAnswer")}
-              disabled={index >= variants.length - 1}
+              disabled={variantChanging || index >= variants.length - 1}
               onClick={() => onSelectVariant(variants[index + 1].id)}
               className={iconButtonClass}
             >
@@ -640,6 +647,7 @@ function MessageBubble({
           <button
             type="button"
             onClick={onRegenerate}
+            disabled={variantChanging}
             className={`${ghostLinkClass} inline-flex h-10 items-center gap-1.5 px-2 text-xs`}
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />

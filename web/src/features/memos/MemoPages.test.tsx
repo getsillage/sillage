@@ -5,6 +5,8 @@ import {
   MemoryRouter,
   Route,
   Routes,
+  useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
@@ -125,6 +127,45 @@ function renderTimelineWithEntry(initialPath: InitialEntry) {
         <Routes>
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/entries/:id" element={<EntryPage />} />
+        </Routes>
+      </MemosProvider>
+    </MemoryRouter>,
+  );
+}
+
+function DeleteReturnTarget() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <main>
+      <p data-testid="delete-return-location">
+        {location.pathname}
+        {location.search}
+      </p>
+      <button type="button" onClick={() => navigate(-1)}>
+        返回历史
+      </button>
+    </main>
+  );
+}
+
+function renderEntryDeleteNavigation() {
+  return render(
+    <MemoryRouter
+      initialEntries={[
+        "/before-delete",
+        {
+          pathname: "/entries/m1",
+          state: { returnTo: "/timeline?filter=favorite" },
+        },
+      ]}
+      initialIndex={1}
+    >
+      <MemosProvider token="t">
+        <Routes>
+          <Route path="/entries/:id" element={<EntryPage />} />
+          <Route path="/timeline" element={<DeleteReturnTarget />} />
+          <Route path="/before-delete" element={<main>删除前的页面</main>} />
         </Routes>
       </MemosProvider>
     </MemoryRouter>,
@@ -804,7 +845,7 @@ describe("EntryPage", () => {
     const user = userEvent.setup();
     vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
     vi.mocked(deleteMemo).mockResolvedValue({ memo: memo({ deletedAt: "x" }) });
-    renderWithMemos(<EntryPage />, "/entries/m1");
+    renderEntryDeleteNavigation();
 
     await screen.findByText("今天的记录内容");
     await user.click(screen.getByRole("button", { name: "删除" }));
@@ -812,6 +853,67 @@ describe("EntryPage", () => {
 
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => expect(deleteMemo).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByTestId("delete-return-location"),
+    ).toHaveTextContent("/timeline?filter=favorite");
+
+    await user.click(screen.getByRole("button", { name: "返回历史" }));
+    expect(await screen.findByText("删除前的页面")).toBeInTheDocument();
+  });
+
+  it("does not present an earlier action error as a delete failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
+    vi.mocked(setMemoFavorited).mockRejectedValue(new Error("收藏暂时失败"));
+    renderWithMemos(<EntryPage />, "/entries/m1");
+
+    await screen.findByText("今天的记录内容");
+    await user.click(screen.getByRole("button", { name: "收藏" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("收藏暂时失败");
+
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveAttribute("aria-describedby", "delete-description");
+    expect(within(dialog).queryByText("收藏暂时失败")).not.toBeInTheDocument();
+  });
+
+  it("keeps the delete dialog actionable when deletion fails", async () => {
+    const user = userEvent.setup();
+    let rejectDelete: ((reason: Error) => void) | undefined;
+    vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
+    vi.mocked(deleteMemo).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectDelete = reject;
+        }),
+    );
+    renderWithMemos(<EntryPage />, "/entries/m1");
+
+    await screen.findByText("今天的记录内容");
+    const deleteTrigger = screen.getByRole("button", { name: "删除" });
+    await user.click(deleteTrigger);
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "删除中…" })).toBeDisabled();
+    await waitFor(() => expect(dialog).toHaveFocus());
+
+    await act(async () => {
+      rejectDelete?.(new Error("删除暂时失败"));
+    });
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "删除暂时失败",
+    );
+    const retryButton = screen.getByRole("button", { name: "确认删除" });
+    expect(dialog).toHaveAttribute("aria-busy", "false");
+    expect(retryButton).toBeEnabled();
+    await waitFor(() => expect(retryButton).toHaveFocus());
+
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(deleteTrigger).toHaveFocus();
   });
 
   it("restores focus to the delete trigger after every cancel path", async () => {

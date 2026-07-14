@@ -71,6 +71,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private var attachmentOpenJob: Job? = null
     private var loadMoreMemosJob: Job? = null
     private var aiAutoSummaryJob: Job? = null
+    private var memoSummaryJob: Job? = null
     private val authOperationGate = SingleFlightGate()
     private val askMemoSaveGate = KeyedSingleFlightGate<Long>()
     private val aiProfilesMutationGate = KeyedSingleFlightGate<Long>()
@@ -292,6 +293,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.hasClientContextOperationInProgress()) {
             return
         }
+        cancelAttachmentOpen()
         updateState {
             it.copy(
                 screen = Screen.Server,
@@ -328,10 +330,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.askVariantLoading) {
             return
         }
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             it.copy(
                 screen = Screen.AISettings,
                 screenHistory = emptyList(),
+                summaryLoading = false,
                 error = null,
                 notice = null,
             )
@@ -342,10 +347,13 @@ class SillageViewModel(context: Context) : ViewModel() {
     fun openAsk() {
         val current = state.value
         val reloadConversations = !current.askLoading && !current.askSending && !current.askVariantLoading
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             it.copy(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
+                summaryLoading = false,
                 askScreenSessionId = if (it.askLoading || it.askSending || it.askVariantLoading) {
                     it.askScreenSessionId
                 } else {
@@ -728,6 +736,8 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun startNewMemo() {
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         val today = LocalDate.now().toString()
         updateState {
             it.copy(
@@ -750,6 +760,8 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun openMemoDetail(memo: Memo) {
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             it.copy(
                 screen = Screen.MemoDetail,
@@ -777,6 +789,8 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun duplicateMemoDraft(memo: Memo) {
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         val today = LocalDate.now().toString()
         updateState {
             it.copy(
@@ -1060,6 +1074,8 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (state.value.askVariantLoading) {
             return
         }
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         val resetFilter = mode == MemoViewMode.Calendar &&
             state.value.memoListFilter != MemoListFilter.Unarchived
         updateState {
@@ -1085,6 +1101,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 searching = if (mode == MemoViewMode.Calendar) false else it.searching,
                 selectedMemo = null,
                 selectedSummary = null,
+                summaryLoading = false,
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
         }
@@ -1143,6 +1160,8 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             return
         }
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         val selectedMemo = current.selectedMemo
         launchMemoMutation(
             key = selectedMemo?.let {
@@ -1214,6 +1233,8 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         val memo = current.selectedMemo ?: return
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         val originScreen = current.screen
         val originHistory = current.screenHistory
         val originEditorSessionId = current.editorSessionId
@@ -1434,53 +1455,62 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         val memo = current.selectedMemo ?: return
-        if (isOfflineMode()) {
-            viewModelScope.launch {
-                updateState { it.copy(summaryLoading = true, error = null, notice = null) }
-                try {
-                    val profile = localDataStore.activeAIProfile()
-                        ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
-                    val ai = localAiClient.summarizeMemo(profile, memo)
-                    localDataStore.saveMemoAI(ai)
-                    updateState {
-                        it.copy(selectedSummary = ai, summaryLoading = false, notice = uiString(R.string.notice_summary_generated))
-                    }
-                } catch (error: Throwable) {
-                    updateState { it.copy(summaryLoading = false, error = error.readableMessage()) }
-                }
+        val request = current.nextMemoSummaryRequest() ?: return
+        var started = false
+        updateState { state ->
+            val pending = state.startMemoSummaryRequest(request)
+            if (pending.canApplyMemoSummaryRequest(request)) {
+                started = true
             }
+            pending
+        }
+        if (!started) {
             return
         }
-        val memoId = memo.id
-        viewModelScope.launch {
-            updateState { it.copy(summaryLoading = true, error = null, notice = null) }
-            runCatching { api.generateMemoSummary(memo) }
-                .onSuccess { ai ->
-                    updateState { current ->
-                        if (current.selectedMemo?.id == memoId) {
-                            current.copy(
-                                selectedSummary = ai,
-                                summaryLoading = false,
-                                notice = uiString(R.string.notice_summary_generated),
-                            )
-                        } else {
-                            current
-                        }
+        memoSummaryJob?.cancel()
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val ai = if (request.appMode == SessionStore.MODE_OFFLINE) {
+                    val profile = localDataStore.activeAIProfile()
+                        ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
+                    val generated = localAiClient.summarizeMemo(profile, memo)
+                    val latest = state.value
+                    if (
+                        latest.appMode != request.appMode ||
+                        latest.clientContextGeneration != request.clientContextGeneration ||
+                        localDataStore.getMemo(request.memoId).memo.version != request.memoVersion
+                    ) {
+                        return@launch
                     }
+                    localDataStore.saveMemoAI(generated)
+                    generated
+                } else {
+                    api.generateMemoSummary(memo)
                 }
-                .onFailure { error ->
-                    updateState { current ->
-                        if (current.selectedMemo?.id == memoId) {
-                            current.copy(
-                                summaryLoading = false,
-                                error = error.readableMessage(),
-                            )
-                        } else {
-                            current
-                        }
-                    }
+                updateState { state ->
+                    state.completeMemoSummaryRequest(
+                        request,
+                        ai,
+                        uiString(R.string.notice_summary_generated),
+                    )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                updateState { state ->
+                    state.failMemoSummaryRequest(request, error.readableMessage())
+                }
+            } finally {
+                updateState { state -> state.finishMemoSummaryRequest(request) }
+            }
         }
+        memoSummaryJob = job
+        job.invokeOnCompletion {
+            if (memoSummaryJob === job) {
+                memoSummaryJob = null
+            }
+        }
+        job.start()
     }
 
     fun uploadAttachments(uris: List<Uri>) {
@@ -2536,6 +2566,8 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun closeMemoDetail() {
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             val navigation = it.backNavigation(Screen.Memos)
             it.copy(
@@ -2555,6 +2587,8 @@ class SillageViewModel(context: Context) : ViewModel() {
         if (!state.value.canRunMemoEditorAction()) {
             return
         }
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             val navigation = it.backNavigation(
                 if (it.selectedMemo == null) Screen.Memos else Screen.MemoDetail,
@@ -2688,7 +2722,13 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun cancelAttachmentOpen() {
         attachmentOpenJob?.cancel()
         attachmentOpenJob = null
-        updateState { it.copy(openingAttachmentPath = null) }
+        updateState { it.invalidateAttachmentOpenRequest() }
+    }
+
+    private fun cancelMemoSummary() {
+        memoSummaryJob?.cancel()
+        memoSummaryJob = null
+        updateState { it.invalidateMemoSummaryRequest() }
     }
 
     private fun cancelMemoPageLoad() {
@@ -3344,6 +3384,8 @@ class SillageViewModel(context: Context) : ViewModel() {
         }
 
     private fun openEditorForMemo(memo: Memo) {
+        cancelMemoSummary()
+        cancelAttachmentOpen()
         updateState {
             it.copy(
                 screen = Screen.Editor,

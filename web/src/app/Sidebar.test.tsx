@@ -12,6 +12,9 @@ vi.mock("../features/ask/AskContext", () => ({
   useAsk: () => ({
     conversations: [],
     activeId: "",
+    busy: false,
+    variantLoading: false,
+    streaming: false,
     startNew: vi.fn(),
   }),
 }));

@@ -209,6 +209,7 @@ beforeEach(() => {
   vi.mocked(setAskConversationArchived).mockResolvedValue({
     conversation: conversation(),
   });
+  vi.mocked(setAskHead).mockResolvedValue(undefined);
 });
 
 describe("AskPage", () => {
@@ -894,6 +895,251 @@ describe("AskPage", () => {
     );
     expect(await screen.findByText("第一个回答")).toBeInTheDocument();
     expect(answerPosition).toHaveTextContent("第 1 个回答，共 2 个");
+  });
+
+  it("locks conflicting actions until the selected answer is persisted", async () => {
+    const user = userEvent.setup();
+    let finishHeadUpdate: (() => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [{ ...conversation(), headMessageId: "a1b" }],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [
+        message("u1", "user", null, "问题", "1"),
+        message("a1", "assistant", "u1", "第一个回答", "2"),
+        message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+      ],
+    });
+    vi.mocked(setAskHead).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishHeadUpdate = resolve;
+        }),
+    );
+    renderAsk();
+
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox"), "继续追问");
+    const previousButton = screen.getByRole("button", { name: "上一个回答" });
+    await user.click(previousButton);
+
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    expect(screen.getByRole("status").parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(previousButton).toBeDisabled();
+    expect(screen.getByRole("button", { name: "下一个回答" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "重新生成" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
+    await user.click(previousButton);
+    expect(setAskHead).toHaveBeenCalledTimes(1);
+    expect(streamAskMessage).not.toHaveBeenCalled();
+
+    await act(async () => finishHeadUpdate?.());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "下一个回答" })).toBeEnabled(),
+    );
+    expect(screen.getByRole("status").parentElement).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "重新生成" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
+  });
+
+  it("rolls back the optimistic answer when head persistence fails", async () => {
+    const user = userEvent.setup();
+    let rejectHeadUpdate: ((reason?: unknown) => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [{ ...conversation(), headMessageId: "a1b" }],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({
+      messages: [
+        message("u1", "user", null, "问题", "1"),
+        message("a1", "assistant", "u1", "第一个回答", "2"),
+        message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+      ],
+    });
+    vi.mocked(setAskHead).mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectHeadUpdate = reject;
+        }),
+    );
+    renderAsk();
+
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "上一个回答" }));
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+
+    await act(async () => rejectHeadUpdate?.(new Error("分支保存失败")));
+
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    expect(screen.queryByText("第一个回答")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("分支保存失败");
+  });
+
+  it("keeps the persisted answer selected after leaving and returning", async () => {
+    const user = userEvent.setup();
+    const secondConversation = {
+      ...conversation(),
+      id: "c2",
+      title: "另一个对话",
+      headMessageId: "a2",
+    };
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        { ...conversation(), headMessageId: "a1b" },
+        secondConversation,
+      ],
+    });
+    vi.mocked(listAskMessages).mockImplementation(async (_token, id) => ({
+      messages:
+        id === "c1"
+          ? [
+              message("u1", "user", null, "问题", "1"),
+              message("a1", "assistant", "u1", "第一个回答", "2"),
+              message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+            ]
+          : [
+              {
+                ...message("u2", "user", null, "另一个问题", "4"),
+                conversationId: "c2",
+              },
+              {
+                ...message("a2", "assistant", "u2", "另一个回答", "5"),
+                conversationId: "c2",
+              },
+            ],
+    }));
+    renderConversationSwitcher();
+
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "上一个回答" }));
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    await waitFor(() => expect(setAskHead).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(await screen.findByText("另一个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    expect(screen.queryByText("第二个回答")).not.toBeInTheDocument();
+  });
+
+  it("applies a pending branch selection after leaving and returning", async () => {
+    const user = userEvent.setup();
+    let finishHeadUpdate: (() => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        { ...conversation(), headMessageId: "a1b" },
+        {
+          ...conversation(),
+          id: "c2",
+          title: "另一个对话",
+          headMessageId: "a2",
+        },
+      ],
+    });
+    vi.mocked(listAskMessages).mockImplementation(async (_token, id) => ({
+      messages:
+        id === "c1"
+          ? [
+              message("u1", "user", null, "问题", "1"),
+              message("a1", "assistant", "u1", "第一个回答", "2"),
+              message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+            ]
+          : [
+              {
+                ...message("u2", "user", null, "另一个问题", "4"),
+                conversationId: "c2",
+              },
+              {
+                ...message("a2", "assistant", "u2", "另一个回答", "5"),
+                conversationId: "c2",
+              },
+            ],
+    }));
+    vi.mocked(setAskHead).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishHeadUpdate = resolve;
+        }),
+    );
+    renderConversationSwitcher();
+
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "上一个回答" }));
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(await screen.findByText("另一个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+
+    await act(async () => finishHeadUpdate?.());
+
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+    expect(screen.queryByText("第二个回答")).not.toBeInTheDocument();
+  });
+
+  it("ignores a branch failure after another conversation becomes active", async () => {
+    const user = userEvent.setup();
+    let rejectHeadUpdate: ((reason?: unknown) => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        { ...conversation(), headMessageId: "a1b" },
+        {
+          ...conversation(),
+          id: "c2",
+          title: "另一个对话",
+          headMessageId: "a2",
+        },
+      ],
+    });
+    vi.mocked(listAskMessages).mockImplementation(async (_token, id) => ({
+      messages:
+        id === "c1"
+          ? [
+              message("u1", "user", null, "问题", "1"),
+              message("a1", "assistant", "u1", "第一个回答", "2"),
+              message("a1b", "assistant", "u1", "第二个回答", "3", "a1"),
+            ]
+          : [
+              {
+                ...message("u2", "user", null, "另一个问题", "4"),
+                conversationId: "c2",
+              },
+              {
+                ...message("a2", "assistant", "u2", "另一个回答", "5"),
+                conversationId: "c2",
+              },
+            ],
+    }));
+    vi.mocked(setAskHead).mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectHeadUpdate = reject;
+        }),
+    );
+    renderConversationSwitcher();
+
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    expect(await screen.findByText("第二个回答")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "上一个回答" }));
+    expect(await screen.findByText("第一个回答")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    expect(await screen.findByText("另一个回答")).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox"), "新会话可以继续提问");
+    expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
+    await act(async () => rejectHeadUpdate?.(new Error("旧分支保存失败")));
+
+    expect(screen.getByText("另一个回答")).toBeInTheDocument();
+    expect(screen.queryByText("旧分支保存失败")).not.toBeInTheDocument();
   });
 
   it("uses the loaded conversation head when opened from a URL", async () => {

@@ -45,6 +45,7 @@ interface AskContextValue {
   sourceKind: AskSourceKind;
   savingRecordMessageIds: ReadonlySet<string>;
   busy: boolean;
+  variantLoading: boolean;
   streaming: boolean;
   error: string;
   setScope: (scope: AskContextScope) => void;
@@ -97,6 +98,8 @@ export function AskProvider({
     ReadonlySet<string>
   >(() => new Set());
   const [busy, setBusy] = useState(false);
+  const [variantLoadingConversationIds, setVariantLoadingConversationIds] =
+    useState<ReadonlySet<string>>(() => new Set());
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const [liveUser, setLiveUser] = useState<AskMessage | null>(null);
@@ -104,6 +107,8 @@ export function AskProvider({
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const operationRef = useRef(false);
+  const variantOperationsRef = useRef(new Map<string, number>());
+  const variantRequestRef = useRef(0);
   const savingRecordMessageIdsRef = useRef(new Set<string>());
   const activeIdRef = useRef(activeId);
   const navigationGenerationRef = useRef(0);
@@ -201,6 +206,14 @@ export function AskProvider({
       conversationListAbortRef.current = null;
     };
   }, [retryConversations]);
+
+  useEffect(
+    () => () => {
+      variantRequestRef.current += 1;
+      variantOperationsRef.current.clear();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!activeId || scopedConversationRef.current === activeId) {
@@ -476,7 +489,7 @@ export function AskProvider({
         reportError(t("ask.questionRequired"));
         return false;
       }
-      if (operationRef.current) {
+      if (operationRef.current || variantOperationsRef.current.has(activeId)) {
         return false;
       }
       operationRef.current = true;
@@ -526,7 +539,12 @@ export function AskProvider({
 
   const regenerate = useCallback(
     async (assistantId: string) => {
-      if (!activeId || busy || operationRef.current) {
+      if (
+        !activeId ||
+        busy ||
+        operationRef.current ||
+        variantOperationsRef.current.has(activeId)
+      ) {
         return;
       }
       operationRef.current = true;
@@ -545,20 +563,77 @@ export function AskProvider({
 
   const selectVariant = useCallback(
     async (messageId: string) => {
-      if (!activeId || operationRef.current) {
+      if (
+        !activeId ||
+        operationRef.current ||
+        variantOperationsRef.current.has(activeId)
+      ) {
         return;
       }
+      const conversationId = activeId;
       const leaf = branchLeafId(messages, messageId);
+      if (leaf === headId) {
+        return;
+      }
+      const previousHeadId = headId;
+      const requestId = variantRequestRef.current + 1;
+      variantRequestRef.current = requestId;
+      variantOperationsRef.current.set(conversationId, requestId);
+      setVariantLoadingConversationIds((current) => {
+        const next = new Set(current);
+        next.add(conversationId);
+        return next;
+      });
+      setError("");
       setHeadId(leaf);
       try {
-        await setAskHead(token, activeId, leaf);
-      } catch (cause) {
-        reportError(
-          cause instanceof Error ? cause.message : t("ask.switchBranchFailed"),
+        await setAskHead(token, conversationId, leaf);
+        if (variantOperationsRef.current.get(conversationId) !== requestId) {
+          return;
+        }
+        conversationMutationGenerationRef.current += 1;
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id === conversationId
+              ? { ...conversation, headMessageId: leaf }
+              : conversation,
+          ),
         );
+        setActiveSnapshot((current) =>
+          current?.id === conversationId
+            ? { ...current, headMessageId: leaf }
+            : current,
+        );
+        if (activeIdRef.current === conversationId) {
+          setHeadId(leaf);
+        }
+      } catch (cause) {
+        if (
+          variantOperationsRef.current.get(conversationId) === requestId &&
+          activeIdRef.current === conversationId
+        ) {
+          setHeadId(previousHeadId);
+          reportError(
+            cause instanceof Error
+              ? cause.message
+              : t("ask.switchBranchFailed"),
+          );
+        }
+      } finally {
+        if (variantOperationsRef.current.get(conversationId) === requestId) {
+          variantOperationsRef.current.delete(conversationId);
+          setVariantLoadingConversationIds((current) => {
+            if (!current.has(conversationId)) {
+              return current;
+            }
+            const next = new Set(current);
+            next.delete(conversationId);
+            return next;
+          });
+        }
       }
     },
-    [token, activeId, messages, t, reportError],
+    [token, activeId, messages, headId, t, reportError],
   );
 
   const stop = useCallback(() => {
@@ -621,6 +696,8 @@ export function AskProvider({
     () => buildActivePath(messages, headId),
     [messages, headId],
   );
+  const variantLoading =
+    activeId !== "" && variantLoadingConversationIds.has(activeId);
 
   const value = useMemo<AskContextValue>(
     () => ({
@@ -639,6 +716,7 @@ export function AskProvider({
       sourceKind,
       savingRecordMessageIds,
       busy,
+      variantLoading,
       streaming,
       error,
       setScope,
@@ -672,6 +750,7 @@ export function AskProvider({
       sourceKind,
       savingRecordMessageIds,
       busy,
+      variantLoading,
       streaming,
       error,
       tryStartRecordSave,

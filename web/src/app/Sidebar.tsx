@@ -101,6 +101,7 @@ export function Sidebar({
     conversationsLoadError,
     activeId,
     busy,
+    variantLoading,
     streaming,
     selectConversation,
     startNew,
@@ -109,7 +110,7 @@ export function Sidebar({
     setConversationArchived,
   } = useAsk();
   const onAskPage = location.pathname === "/ask";
-  const controlsDisabled = busy || streaming;
+  const controlsDisabled = busy || variantLoading || streaming;
   const activeIdRef = useRef(activeId);
   const pathnameRef = useRef(location.pathname);
   const routeConversationRef = useRef(

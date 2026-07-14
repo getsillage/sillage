@@ -69,9 +69,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -954,7 +956,7 @@ private fun AskMessageActions(
             Text(
                 stringResource(R.string.ask_variant_counter, entry.index + 1, entry.variants.size),
                 modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = variantPosition
+                    applyAskVariantSemantics(variantPosition)
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
@@ -1026,4 +1028,9 @@ private fun askMessageDescription(isAssistant: Boolean, content: String): String
 
 internal fun SemanticsPropertyReceiver.applyAskMessageSemantics(description: String) {
     contentDescription = description
+}
+
+internal fun SemanticsPropertyReceiver.applyAskVariantSemantics(description: String) {
+    contentDescription = description
+    liveRegion = LiveRegionMode.Polite
 }

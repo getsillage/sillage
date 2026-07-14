@@ -3,6 +3,7 @@ package app.sillage.ui
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskMessage
 import app.sillage.data.Memo
+import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
 import app.sillage.data.MemoListFilter
 import app.sillage.data.SessionStore
@@ -66,6 +67,7 @@ class SillageUiStateTest {
         val idle = editorState().copy(screen = Screen.AISettings)
 
         assertFalse(idle.hasClientContextOperationInProgress())
+        assertTrue(idle.copy(summaryLoading = true).hasClientContextOperationInProgress())
         assertTrue(idle.copy(memoMutationIds = setOf("memo-1")).hasClientContextOperationInProgress())
         assertTrue(idle.copy(askSavingMessageId = "answer-1").hasClientContextOperationInProgress())
         assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
@@ -81,6 +83,22 @@ class SillageUiStateTest {
         assertFalse(uploading.copy(editorSessionId = 8).canApplyAttachmentUpload(7))
         assertFalse(uploading.copy(screen = Screen.Memos).canApplyAttachmentUpload(7))
         assertFalse(uploading.copy(uploadingAttachment = false).canApplyAttachmentUpload(7))
+    }
+
+    @Test
+    fun leavingAttachmentContextInvalidatesAQueuedOpenEvent() {
+        val opening = editorState().copy(
+            openingAttachmentPath = "/api/v1/attachments/file-1",
+            attachmentOpenRequestId = 8,
+        )
+
+        assertTrue(opening.canHandleAttachmentOpen(8))
+        val invalidated = opening.invalidateAttachmentOpenRequest()
+
+        assertEquals(null, invalidated.openingAttachmentPath)
+        assertEquals(9L, invalidated.attachmentOpenRequestId)
+        assertFalse(invalidated.canHandleAttachmentOpen(8))
+        assertEquals(invalidated, invalidated.invalidateAttachmentOpenRequest())
     }
 
     @Test
@@ -254,6 +272,64 @@ class SillageUiStateTest {
         assertEquals(canonical, failed.selectedMemo)
         assertEquals(null, failed.error)
         assertFalse(failed.summaryLoading)
+    }
+
+    @Test
+    fun memoSummaryRequestIsSingleFlightAndBoundToItsRecordContext() {
+        val original = memo()
+        val initial = editorState().copy(
+            screen = Screen.MemoDetail,
+            appMode = SessionStore.MODE_OFFLINE,
+            clientContextGeneration = 3,
+            selectedMemo = original,
+            editorSessionId = 7,
+            memoDetailRequestId = 11,
+        )
+        val request = requireNotNull(initial.nextMemoSummaryRequest())
+        val pending = initial.startMemoSummaryRequest(request)
+
+        assertTrue(pending.canApplyMemoSummaryRequest(request))
+        assertEquals(null, pending.nextMemoSummaryRequest())
+        assertFalse(
+            pending.copy(selectedMemo = original.copy(id = "memo-2"))
+                .canApplyMemoSummaryRequest(request),
+        )
+        assertFalse(
+            pending.copy(selectedMemo = original.copy(version = 2))
+                .canApplyMemoSummaryRequest(request),
+        )
+        assertFalse(pending.copy(screen = Screen.Memos).canApplyMemoSummaryRequest(request))
+        assertFalse(
+            pending.copy(clientContextGeneration = 4)
+                .canApplyMemoSummaryRequest(request),
+        )
+        assertFalse(
+            pending.copy(memoDetailRequestId = 12)
+                .canApplyMemoSummaryRequest(request),
+        )
+
+        val summary = memoAI("新总结")
+        val completed = pending.completeMemoSummaryRequest(request, summary, "总结已生成")
+        assertEquals(summary, completed.selectedSummary)
+        assertFalse(completed.summaryLoading)
+        assertEquals("总结已生成", completed.notice)
+
+        val stale = pending.copy(screen = Screen.Memos)
+        assertEquals(
+            stale,
+            stale.completeMemoSummaryRequest(request, summary, "不应出现"),
+        )
+        assertEquals(stale, stale.failMemoSummaryRequest(request, "旧请求失败"))
+
+        val versionChanged = pending.copy(selectedMemo = original.copy(version = 2))
+        val finished = versionChanged.finishMemoSummaryRequest(request)
+        assertFalse(finished.summaryLoading)
+        assertEquals(null, finished.selectedSummary)
+
+        val invalidated = pending.invalidateMemoSummaryRequest()
+        assertFalse(invalidated.summaryLoading)
+        assertEquals(request.requestId + 1, invalidated.memoSummaryRequestId)
+        assertEquals(invalidated, invalidated.finishMemoSummaryRequest(request))
     }
 
     @Test
@@ -692,6 +768,28 @@ class SillageUiStateTest {
             favoritedAt = null,
             archivedAt = null,
             deletedAt = null,
+        )
+    }
+
+    private fun memoAI(summary: String): MemoAI {
+        return MemoAI(
+            memoId = "memo-1",
+            summary = summary,
+            sentiment = null,
+            provider = "openai",
+            model = "model",
+            profileId = "profile-1",
+            promptVersion = "v1",
+            sourceMemoIds = "memo-1",
+            status = "complete",
+            errorCode = null,
+            startedAt = null,
+            finishedAt = null,
+            inputTokens = 1,
+            outputTokens = 2,
+            totalTokens = 3,
+            createdAt = "2026-07-10T01:00:00Z",
+            updatedAt = "2026-07-10T01:00:00Z",
         )
     }
 

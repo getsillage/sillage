@@ -13,6 +13,7 @@ const { askState } = vi.hoisted(() => ({
     conversationsLoadError: "",
     activeId: "",
     busy: false,
+    variantLoading: false,
     streaming: false,
     selectConversation: vi.fn(),
     startNew: vi.fn(),
@@ -108,6 +109,7 @@ beforeEach(() => {
   askState.conversationsLoadError = "";
   askState.activeId = "";
   askState.busy = false;
+  askState.variantLoading = false;
   askState.streaming = false;
   askState.listConversations.mockResolvedValue([]);
   askState.setConversationArchived.mockResolvedValue(undefined);
@@ -467,6 +469,19 @@ describe("AppShell Ask navigation", () => {
     expect(
       screen.queryByRole("link", { name: "开始问答" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "睡眠变化" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables Ask navigation while an answer branch is being persisted", () => {
+    askState.conversations = [conversation()];
+    askState.variantLoading = true;
+    renderShell();
+
+    expect(screen.getByRole("button", { name: "搜索问答" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "开始问答" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "睡眠变化" })).toBeDisabled();
     expect(
       screen.queryByRole("link", { name: "睡眠变化" }),
     ).not.toBeInTheDocument();

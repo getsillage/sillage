@@ -34,6 +34,7 @@ data class SillageUiState(
     val selectedMemo: Memo? = null,
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,
+    val memoSummaryRequestId: Long = 0,
     val uploadingAttachment: Boolean = false,
     val openingAttachmentPath: String? = null,
     val attachmentOpenRequestId: Long = 0,
@@ -113,6 +114,7 @@ internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {
 
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
+        summaryLoading ||
         memoMutationIds.isNotEmpty() ||
         askSavingMessageId.isNotBlank() ||
         aiSettingsSaving ||
@@ -129,6 +131,16 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
     return openingAttachmentPath != null && attachmentOpenRequestId == requestId
+}
+
+internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
+    if (openingAttachmentPath == null) {
+        return this
+    }
+    return copy(
+        openingAttachmentPath = null,
+        attachmentOpenRequestId = attachmentOpenRequestId + 1,
+    )
 }
 
 internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {
@@ -221,6 +233,105 @@ internal fun SillageUiState.failMemoDetailRequest(
     } else {
         copy(summaryLoading = false, error = message)
     }
+}
+
+internal data class MemoSummaryRequest(
+    val requestId: Long,
+    val memoId: String,
+    val memoVersion: Long,
+    val appMode: String,
+    val clientContextGeneration: Long,
+    val screen: Screen,
+    val editorSessionId: Long,
+    val memoDetailRequestId: Long,
+)
+
+internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
+    val memo = selectedMemo ?: return null
+    if (summaryLoading || (screen != Screen.MemoDetail && screen != Screen.Editor)) {
+        return null
+    }
+    return MemoSummaryRequest(
+        requestId = memoSummaryRequestId + 1,
+        memoId = memo.id,
+        memoVersion = memo.version,
+        appMode = appMode,
+        clientContextGeneration = clientContextGeneration,
+        screen = screen,
+        editorSessionId = editorSessionId,
+        memoDetailRequestId = memoDetailRequestId,
+    )
+}
+
+internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
+    if (nextMemoSummaryRequest() != request) {
+        return this
+    }
+    return copy(
+        memoSummaryRequestId = request.requestId,
+        summaryLoading = true,
+        error = null,
+        notice = null,
+    )
+}
+
+private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
+    return summaryLoading && memoSummaryRequestId == request.requestId
+}
+
+internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
+    return ownsMemoSummaryRequest(request) &&
+        selectedMemo?.id == request.memoId &&
+        selectedMemo.version == request.memoVersion &&
+        appMode == request.appMode &&
+        clientContextGeneration == request.clientContextGeneration &&
+        screen == request.screen &&
+        editorSessionId == request.editorSessionId &&
+        memoDetailRequestId == request.memoDetailRequestId
+}
+
+internal fun SillageUiState.completeMemoSummaryRequest(
+    request: MemoSummaryRequest,
+    summary: MemoAI,
+    message: String,
+): SillageUiState {
+    if (!canApplyMemoSummaryRequest(request) || summary.memoId != request.memoId) {
+        return this
+    }
+    return copy(
+        selectedSummary = summary,
+        summaryLoading = false,
+        error = null,
+        notice = message,
+    )
+}
+
+internal fun SillageUiState.failMemoSummaryRequest(
+    request: MemoSummaryRequest,
+    message: String,
+): SillageUiState {
+    if (!canApplyMemoSummaryRequest(request)) {
+        return this
+    }
+    return copy(summaryLoading = false, error = message)
+}
+
+internal fun SillageUiState.finishMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
+    return if (ownsMemoSummaryRequest(request)) {
+        copy(summaryLoading = false)
+    } else {
+        this
+    }
+}
+
+internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
+    if (!summaryLoading) {
+        return this
+    }
+    return copy(
+        summaryLoading = false,
+        memoSummaryRequestId = memoSummaryRequestId + 1,
+    )
 }
 
 internal data class AIAutoSummaryRequest(

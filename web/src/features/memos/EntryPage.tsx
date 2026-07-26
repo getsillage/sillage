@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Markdown } from "../../components/Markdown";
 import { useToast } from "../../components/Toast";
 import {

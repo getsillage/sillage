@@ -1,6 +1,6 @@
 import { ChevronRight, Star } from "lucide-react";
 import type { KeyboardEvent, MouseEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import { rowLinkClass } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo } from "../../lib/api";

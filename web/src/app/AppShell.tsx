@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { useMemos } from "../features/memos/MemosContext";
 import { QuickCapture } from "../features/memos/QuickCapture";
 import { useI18n } from "../i18n/I18nProvider";

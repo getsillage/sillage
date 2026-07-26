@@ -1,6 +1,6 @@
 import { Archive, CalendarDays, List, Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import {
   emptyStateClass,
   ghostLinkClass,

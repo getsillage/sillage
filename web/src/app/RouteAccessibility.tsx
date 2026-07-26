@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigationType } from "react-router-dom";
+import { useLocation, useNavigationType } from "react-router";
 import { useI18n } from "../i18n/I18nProvider";
 import type { TranslationKey } from "../i18n/messages";
 import { hasVisibleModal } from "../lib/modal";

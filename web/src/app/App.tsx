@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router";
 import { useToast } from "../components/Toast";
 import { AskProvider } from "../features/ask/AskContext";
 import { AskPage } from "../features/ask/AskPage";

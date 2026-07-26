@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { hasUnsavedChanges } from "../components/UnsavedNavigationGuard";
 import { dangerButtonClass, secondaryButtonClass } from "../components/ui";

@@ -1,6 +1,6 @@
 import { ArrowRight, Plus, Save, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useToast } from "../../components/Toast";
 import { useUnsavedChangesRegistration } from "../../components/UnsavedNavigationGuard";
 import {

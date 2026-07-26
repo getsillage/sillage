@@ -7,7 +7,7 @@ import {
   RouterProvider,
   Routes,
   useLocation,
-} from "react-router-dom";
+} from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   UnsavedNavigationGuard,

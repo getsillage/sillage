@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { type BlockerFunction, useBlocker } from "react-router-dom";
+import { type BlockerFunction, useBlocker } from "react-router";
 import { useI18n } from "../i18n/I18nProvider";
 import { dangerButtonClass, secondaryButtonClass } from "./ui";
 

@@ -8,7 +8,7 @@ import {
   Routes,
   useNavigate,
   useSearchParams,
-} from "react-router-dom";
+} from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { I18nProvider } from "../i18n/I18nProvider";

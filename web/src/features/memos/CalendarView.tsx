@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { iconButtonClass } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo } from "../../lib/api";

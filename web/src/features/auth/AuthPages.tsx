@@ -1,7 +1,7 @@
 import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { useToast } from "../../components/Toast";
 import {

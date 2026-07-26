@@ -79,7 +79,7 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 Run at least the commands appropriate for the affected area. CI runs Go test/vet/build, Buf lint/breaking/generate, Web lint/typecheck/test/build, Android test/lint/build, fresh-instance E2E, Docker build, and Compose parsing. It also checks dependency metadata, the Docker context policy, tracked Proto artifacts, successful Web output generation, Markdown links, and whitespace in the commit range. Dependabot checks Go, Web, Android, Docker, and GitHub Actions dependencies weekly; security updates must still pass the same gates. Before a Docker build, check the context policy to ensure that Git-ignored local data, secrets, and build artifacts are not sent to the builder.
 
-CI compares Proto compatibility with the exact pull request base or previous pushed commit. The fresh-instance E2E job builds the Go binary before starting the readiness timeout so cold compilation cannot consume the server startup window.
+CI compares Proto compatibility with the exact pull request base or previous pushed commit, and authenticates Buf setup downloads with the workflow token to avoid anonymous GitHub API rate limits. The fresh-instance E2E job builds the Go binary before starting the readiness timeout so cold compilation cannot consume the server startup window.
 
 | Area | Commands |
 | --- | --- |

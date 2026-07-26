@@ -45,6 +45,7 @@ jobs:
         uses: bufbuild/buf-setup-action@v1
         with:
           version: 1.71.0
+          github_token: ${{ github.token }}
 
       - name: Lint
         uses: bufbuild/buf-lint-action@v1

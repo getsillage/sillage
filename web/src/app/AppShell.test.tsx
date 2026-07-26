@@ -678,38 +678,35 @@ describe("AppShell Ask navigation", () => {
     expect(askState.startNew).not.toHaveBeenCalled();
   });
 
-  it("disables search and archive controls while an answer is generating", () => {
+  it("keeps conversation navigation usable while an answer is generating", () => {
     askState.conversations = [conversation()];
     askState.busy = true;
+    askState.streaming = true;
     renderShell();
 
-    expect(screen.getByRole("button", { name: "搜索问答" })).toBeDisabled();
+    // Switching or starting conversations aborts the stream safely; only the
+    // archive mutation stays locked.
+    expect(screen.getByRole("link", { name: "开始问答" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "睡眠变化" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "搜索问答" })).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "查看已归档问答" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "归档问答：睡眠变化" }),
     ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "开始问答" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "睡眠变化" })).toBeDisabled();
-    expect(
-      screen.queryByRole("link", { name: "开始问答" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "睡眠变化" }),
-    ).not.toBeInTheDocument();
   });
 
-  it("disables Ask navigation while an answer branch is being persisted", () => {
+  it("keeps Ask navigation usable while an answer branch is being persisted", () => {
     askState.conversations = [conversation()];
     askState.variantLoading = true;
     renderShell();
 
-    expect(screen.getByRole("button", { name: "搜索问答" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "开始问答" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "睡眠变化" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "开始问答" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "睡眠变化" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "搜索问答" })).toBeEnabled();
     expect(
-      screen.queryByRole("link", { name: "睡眠变化" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "归档问答：睡眠变化" }),
+    ).toBeDisabled();
   });
 });

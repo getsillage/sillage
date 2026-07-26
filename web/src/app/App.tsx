@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { AskProvider } from "../features/ask/AskContext";
 import { AskPage } from "../features/ask/AskPage";
 import {
+  FullPageErrorState,
   FullPageState,
   InitializePage,
   LoginPage,
@@ -14,7 +15,13 @@ import { MemosProvider } from "../features/memos/MemosContext";
 import { TimelinePage } from "../features/memos/TimelinePage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { useI18n } from "../i18n/I18nProvider";
-import { type Account, getBootstrap, getMe, signOut } from "../lib/api";
+import {
+  type Account,
+  ApiError,
+  getBootstrap,
+  getMe,
+  signOut,
+} from "../lib/api";
 import {
   clearAccessToken,
   getAccessToken,
@@ -24,7 +31,7 @@ import {
 import { AppShell } from "./AppShell";
 import { RouteAccessibility } from "./RouteAccessibility";
 
-type BootstrapState = "loading" | "needs-init" | "ready";
+type BootstrapState = "loading" | "needs-init" | "ready" | "error";
 
 function AuthedArea({
   account,
@@ -51,6 +58,10 @@ export function App() {
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState(() => getAccessToken());
   const [authResolved, setAuthResolved] = useState(false);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  // Once the session is resolved (signed in or definitely signed out), later
+  // token refreshes must not replay bootstrap/getMe or kick the user out.
+  const accountResolvedRef = useRef(false);
 
   useEffect(
     () =>
@@ -63,7 +74,11 @@ export function App() {
     [],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: bootstrapAttempt is the explicit retry trigger
   useEffect(() => {
+    if (accountResolvedRef.current) {
+      return;
+    }
     let cancelled = false;
     async function load() {
       const state = await getBootstrap();
@@ -79,12 +94,19 @@ export function App() {
       try {
         // A reopened tab has empty sessionStorage but may still hold a valid
         // refresh cookie; request() transparently refreshes and retries on 401.
-        const me = await getMe(token ?? "");
+        const me = await getMe(getAccessToken() ?? "");
         if (!cancelled) {
+          accountResolvedRef.current = true;
           setAccount(me.account);
         }
-      } catch {
-        if (!cancelled) {
+      } catch (cause) {
+        if (cancelled) {
+          return;
+        }
+        // Only a definite 401 (the refresh also failed) means signed out;
+        // transient network or server errors keep the current session state.
+        if (cause instanceof ApiError && cause.status === 401) {
+          accountResolvedRef.current = true;
           setAccount(null);
         }
       } finally {
@@ -95,16 +117,16 @@ export function App() {
     }
     load().catch(() => {
       if (!cancelled) {
-        setBootstrap("ready");
-        setAuthResolved(true);
+        setBootstrap("error");
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [bootstrapAttempt]);
 
   function handleAuthed(nextToken: string, nextAccount: Account) {
+    accountResolvedRef.current = true;
     setAccessToken(nextToken);
     setAccount(nextAccount);
     setAuthResolved(true);
@@ -123,6 +145,19 @@ export function App() {
     } finally {
       clearAccessToken();
     }
+  }
+
+  if (bootstrap === "error") {
+    return (
+      <FullPageErrorState
+        text={t("app.bootstrapFailed")}
+        retryLabel={t("common.retry")}
+        onRetry={() => {
+          setBootstrap("loading");
+          setBootstrapAttempt((current) => current + 1);
+        }}
+      />
+    );
   }
 
   if (bootstrap === "loading" || (bootstrap === "ready" && !authResolved)) {

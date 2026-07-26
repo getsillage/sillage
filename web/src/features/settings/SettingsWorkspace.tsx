@@ -151,6 +151,24 @@ const SETTINGS_TABS: {
   },
 ];
 
+// Editing any of these fields invalidates an earlier connection-test result.
+const CONNECTION_FIELDS = [
+  "provider",
+  "baseUrl",
+  "model",
+  "apiKeyInput",
+  "temperatureText",
+  "maxTokensText",
+] as const satisfies readonly (keyof EditableProfile)[];
+
+// Editing any of these fields invalidates the fetched model list itself
+// (it came from the previous endpoint/credentials).
+const MODEL_LIST_FIELDS = [
+  "provider",
+  "baseUrl",
+  "apiKeyInput",
+] as const satisfies readonly (keyof EditableProfile)[];
+
 function profileKey(profile: EditableProfile): string {
   return profile.id || profile.draftKey;
 }
@@ -312,6 +330,40 @@ export function SettingsWorkspace({ token }: { token: string }) {
     if (patch.name !== undefined && patch.name.trim() !== "") {
       const key = profileKey(profiles[index]);
       setInvalidProfileKey((current) => (current === key ? null : current));
+    }
+    const touchesConnection = CONNECTION_FIELDS.some(
+      (field) => patch[field] !== undefined,
+    );
+    if (touchesConnection) {
+      const key = profileKey(profiles[index]);
+      setTestResults((current) => {
+        if (!(key in current)) {
+          return current;
+        }
+        const { [key]: _removed, ...rest } = current;
+        return rest;
+      });
+      const touchesModelList = MODEL_LIST_FIELDS.some(
+        (field) => patch[field] !== undefined,
+      );
+      setModelResults((current) => {
+        const existing = current[key];
+        if (!existing) {
+          return current;
+        }
+        if (touchesModelList) {
+          const { [key]: _removed, ...rest } = current;
+          return rest;
+        }
+        if (existing.status === undefined && existing.message === undefined) {
+          return current;
+        }
+        // Keep the fetched list usable but drop the stale success/error verdict.
+        return {
+          ...current,
+          [key]: { loading: existing.loading, models: existing.models },
+        };
+      });
     }
     setProfiles((current) =>
       current.map((profile, i) =>

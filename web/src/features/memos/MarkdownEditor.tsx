@@ -1,5 +1,13 @@
 import { Paperclip } from "lucide-react";
-import { type DragEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { Markdown } from "../../components/Markdown";
 import { useToast } from "../../components/Toast";
 import { subtleButtonClass, textareaClass } from "../../components/ui";
@@ -11,6 +19,7 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
   onUpload: (file: File) => Promise<UploadedAttachment>;
   onUploadingChange?: (uploading: boolean) => void;
+  onSubmitShortcut?: () => void;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -32,6 +41,7 @@ export function MarkdownEditor({
   onChange,
   onUpload,
   onUploadingChange,
+  onSubmitShortcut,
   placeholder,
   disabled = false,
 }: MarkdownEditorProps) {
@@ -63,6 +73,17 @@ export function MarkdownEditor({
     const start = textarea?.selectionStart ?? current.length;
     const end = textarea?.selectionEnd ?? current.length;
     onChange(current.slice(0, start) + snippet + current.slice(end));
+    // Return focus to the text with the caret after the inserted snippet once
+    // React has committed the new value (e.g. after the 附件 button flow).
+    requestAnimationFrame(() => {
+      const target = textareaRef.current;
+      if (!target) {
+        return;
+      }
+      target.focus();
+      const caret = start + snippet.length;
+      target.setSelectionRange(caret, caret);
+    });
   }
 
   async function uploadFiles(files: FileList | File[]) {
@@ -119,6 +140,30 @@ export function MarkdownEditor({
       return;
     }
     void uploadFiles(event.dataTransfer.files);
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (!event.clipboardData || event.clipboardData.files.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    if (disabled) {
+      return;
+    }
+    void uploadFiles(event.clipboardData.files);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (
+      onSubmitShortcut &&
+      (event.metaKey || event.ctrlKey) &&
+      event.key === "Enter"
+    ) {
+      event.preventDefault();
+      if (!disabled) {
+        onSubmitShortcut();
+      }
+    }
   }
 
   return (
@@ -190,6 +235,8 @@ export function MarkdownEditor({
           }
         }}
         onDrop={handleDrop}
+        onPaste={handlePaste}
+        onKeyDown={handleKeyDown}
         onDragEnter={(event) => {
           if (!disabled && event.dataTransfer.types.includes("Files")) {
             setDragging(true);

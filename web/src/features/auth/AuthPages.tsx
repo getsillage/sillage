@@ -9,6 +9,7 @@ import {
   inputClass,
   labelClass,
   primaryButtonClass,
+  secondaryButtonClass,
 } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import { type Account, initializeAccount, signIn } from "../../lib/api";
@@ -344,6 +345,38 @@ export function FullPageState({ text }: { text: string }) {
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
           {text}
         </span>
+      </div>
+    </main>
+  );
+}
+
+export function FullPageErrorState({
+  text,
+  retryLabel,
+  onRetry,
+}: {
+  text: string;
+  retryLabel: string;
+  onRetry: () => void;
+}) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-gray-50 px-4 text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+      <div className="flex flex-col items-center gap-3">
+        <img src="/sillage-icon.svg" alt="" className="h-10 w-10" />
+        <p role="alert" className="inline-flex items-center gap-2 text-sm">
+          <CircleAlert
+            className="h-4 w-4 text-red-600 dark:text-red-400"
+            aria-hidden="true"
+          />
+          {text}
+        </p>
+        <button
+          type="button"
+          className={secondaryButtonClass}
+          onClick={onRetry}
+        >
+          {retryLabel}
+        </button>
       </div>
     </main>
   );

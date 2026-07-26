@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
 import { iconButtonClass, secondaryButtonClass } from "./ui";
@@ -38,33 +38,49 @@ function applyTheme(preference: ThemePreference): ThemeMode {
   return effectiveMode;
 }
 
-function applyAndBroadcastTheme(preference: ThemePreference): ThemeMode {
-  const effectiveMode = applyTheme(preference);
+function applyAndBroadcastTheme(preference: ThemePreference): ThemePreference {
+  applyTheme(preference);
   window.dispatchEvent(
-    new CustomEvent<ThemeMode>(THEME_CHANGE_EVENT, {
-      detail: effectiveMode,
+    new CustomEvent<ThemePreference>(THEME_CHANGE_EVENT, {
+      detail: preference,
     }),
   );
-  return effectiveMode;
+  return preference;
 }
 
-function nextMode(mode: ThemeMode): ThemeMode {
-  return mode === "dark" ? "light" : "dark";
+// Tri-state cycle so a user can always return to following the OS theme.
+function nextPreference(preference: ThemePreference): ThemePreference {
+  switch (preference) {
+    case "light":
+      return "dark";
+    case "dark":
+      return "system";
+    default:
+      return "light";
+  }
 }
 
-/** Light/dark toggle that mirrors the boot-time `theme-init.js` preference. */
+/** Light/dark/system toggle mirroring the boot-time `theme-init.js` preference. */
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
-  const [mode, setMode] = useState<ThemeMode>("light");
-  const modeLabel = t(mode === "light" ? "theme.light" : "theme.dark");
+  const [preference, setPreference] = useState<ThemePreference>("system");
+  const preferenceLabel = t(
+    preference === "light"
+      ? "theme.light"
+      : preference === "dark"
+        ? "theme.dark"
+        : "theme.system",
+  );
 
   useEffect(() => {
-    setMode(applyTheme(readStoredPreference()));
+    const stored = readStoredPreference();
+    applyTheme(stored);
+    setPreference(stored);
   }, []);
 
   useEffect(() => {
     function onThemeChange(event: Event) {
-      setMode((event as CustomEvent<ThemeMode>).detail);
+      setPreference((event as CustomEvent<ThemePreference>).detail);
     }
     window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
     return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
@@ -76,29 +92,28 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       return;
     }
     function onChange() {
-      setMode(applyTheme(readStoredPreference()));
+      // Re-derive the effective mode when the OS theme flips under "system".
+      applyTheme(readStoredPreference());
     }
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, []);
 
+  const Icon =
+    preference === "dark" ? Moon : preference === "light" ? Sun : Monitor;
+
   return (
     <button
       type="button"
-      title={t("theme.title", { mode: modeLabel })}
-      aria-label={t("theme.toggle", { mode: modeLabel })}
+      title={t("theme.title", { mode: preferenceLabel })}
+      aria-label={t("theme.toggle", { mode: preferenceLabel })}
       className={compact ? iconButtonClass : secondaryButtonClass}
       onClick={() => {
-        const next = nextMode(mode);
-        setMode(applyAndBroadcastTheme(next));
+        setPreference(applyAndBroadcastTheme(nextPreference(preference)));
       }}
     >
-      {mode === "dark" ? (
-        <Moon className="h-4 w-4" aria-hidden="true" />
-      ) : (
-        <Sun className="h-4 w-4" aria-hidden="true" />
-      )}
-      {compact ? null : <span>{modeLabel}</span>}
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      {compact ? null : <span>{preferenceLabel}</span>}
     </button>
   );
 }

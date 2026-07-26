@@ -59,6 +59,7 @@ const QUESTION_SUGGESTION_KEYS: TranslationKey[] = [
 export function AskPage() {
   const { t } = useI18n();
   const toast = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const conversationParam = searchParams.get("conversation");
   const {
@@ -84,6 +85,7 @@ export function AskPage() {
     tryStartRecordSave,
     finishRecordSave,
     selectConversation,
+    startNew,
     retryConversations,
     retryMessages,
     send,
@@ -97,6 +99,11 @@ export function AskPage() {
   const questionDescriptionId = useId();
   const endRef = useRef<HTMLDivElement>(null);
   const followOutputRef = useRef(true);
+  const mountedRef = useRef(true);
+  const activeIdRef = useRef(activeId);
+  const conversationParamRef = useRef(conversationParam);
+  activeIdRef.current = activeId;
+  conversationParamRef.current = conversationParam;
   const liveUserMessage = shouldShowLiveUser(entries, liveUser)
     ? liveUser
     : null;
@@ -104,10 +111,27 @@ export function AskPage() {
     .reverse()
     .find((entry) => entry.message.role === "assistant")?.message.id;
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // The URL param is the source of truth for the active conversation. Reacting
+  // only to param changes keeps programmatic selection (sidebar clicks update
+  // both URL and context) and post-send URL catch-up from looping; when the
+  // param disappears (browser Back to a blank /ask), reset to a new ask.
   // biome-ignore lint/correctness/useExhaustiveDependencies: react only to the URL param
   useEffect(() => {
-    if (conversationParam && conversationParam !== activeId) {
-      selectConversation(conversationParam);
+    if (conversationParam) {
+      if (conversationParam !== activeIdRef.current) {
+        selectConversation(conversationParam);
+      }
+      return;
+    }
+    if (activeIdRef.current) {
+      startNew();
     }
   }, [conversationParam]);
 
@@ -144,6 +168,16 @@ export function AskPage() {
     const accepted = await send(text);
     if (!accepted) {
       setQuestion((current) => current || text);
+      return;
+    }
+    // A send from a blank ask created a conversation; reflect it in the URL so
+    // refresh and Back keep working. Skipped when the page moved on meanwhile.
+    if (
+      mountedRef.current &&
+      !conversationParamRef.current &&
+      activeIdRef.current
+    ) {
+      navigate(`/ask?conversation=${activeIdRef.current}`, { replace: true });
     }
   }
 

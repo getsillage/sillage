@@ -266,7 +266,10 @@ function ListView({
   const { search } = useMemos();
   const { memos, loading, error, refresh, loadMore, hasMore, loadingMore } =
     useTimelineMemoList(filter);
-  const [query, setQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The URL is the source of truth for the query so returning from a detail
+  // page (returnTo carries location.search) restores the search context.
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [searchSnapshot, setSearchSnapshot] =
     useState<MemoSearchSnapshot | null>(null);
   const [searching, setSearching] = useState(false);
@@ -276,6 +279,22 @@ function ListView({
   const trimmed = query.trim();
   const memories = onThisDay(memos, today);
   const options = useMemo(() => listOptionsFor(filter), [filter]);
+
+  // Mirror the typed query into ?q= without adding history entries. Debounce is
+  // unchanged: the fetch effect below still waits on the trimmed value.
+  useEffect(() => {
+    const currentParam = searchParams.get("q") ?? "";
+    if (currentParam === trimmed) {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    if (trimmed) {
+      next.set("q", trimmed);
+    } else {
+      next.delete("q");
+    }
+    setSearchParams(next, { replace: true });
+  }, [trimmed, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (searchFeedbackLocaleRef.current === locale) {

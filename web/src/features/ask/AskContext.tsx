@@ -428,6 +428,37 @@ export function AskProvider({
     [token],
   );
 
+  // Upserts a completed turn's messages so a failed post-stream reload does
+  // not erase an answer the server already persisted.
+  const keepTurnVisible = useCallback(
+    (
+      conversationId: string,
+      turn: { userMessage: AskMessage | null; doneMessage: AskMessage | null },
+    ) => {
+      if (activeIdRef.current !== conversationId) {
+        return;
+      }
+      const additions = [turn.userMessage, turn.doneMessage].filter(
+        (message): message is AskMessage => message !== null,
+      );
+      if (additions.length === 0) {
+        return;
+      }
+      setMessages((current) => {
+        const known = new Set(current.map((message) => message.id));
+        const missing = additions.filter((message) => !known.has(message.id));
+        return missing.length > 0 ? [...current, ...missing] : current;
+      });
+      // Point the head at the turn's leaf so the upserted messages land on the
+      // rendered path (buildActivePath walks ancestors from the head).
+      const leaf = turn.doneMessage ?? turn.userMessage;
+      if (leaf) {
+        setHeadId(leaf.id);
+      }
+    },
+    [],
+  );
+
   const runStream = useCallback(
     async (
       conversationId: string,
@@ -435,6 +466,11 @@ export function AskProvider({
     ): Promise<boolean> => {
       const controller = new AbortController();
       let started = false;
+      // Stream results cached so a failed reload can still present the turn.
+      const turn: {
+        userMessage: AskMessage | null;
+        doneMessage: AskMessage | null;
+      } = { userMessage: null, doneMessage: null };
       abortRef.current = controller;
       try {
         await streamAskMessage(
@@ -452,15 +488,30 @@ export function AskProvider({
               setStreaming(true);
               setLiveAnswer("");
               if (!regenerate) {
+                turn.userMessage = userMessage;
                 setLiveUser(userMessage);
               }
             },
             onDelta: (text) => setLiveAnswer((prev) => prev + text),
+            onDone: (message) => {
+              turn.doneMessage = message;
+            },
             onError: reportError,
           },
           controller.signal,
         );
-        await reload(conversationId);
+        try {
+          await reload(conversationId);
+        } catch (cause) {
+          // The stream finished and the server persisted the turn; a failed
+          // reload must not make it vanish from the view.
+          keepTurnVisible(conversationId, turn);
+          if (!controller.signal.aborted) {
+            reportError(
+              cause instanceof Error ? cause.message : t("ask.loadFailed"),
+            );
+          }
+        }
         return true;
       } catch (cause) {
         if (!controller.signal.aborted) {
@@ -479,7 +530,7 @@ export function AskProvider({
         }
       }
     },
-    [token, scope, sourceKind, reload, t, reportError],
+    [token, scope, sourceKind, reload, keepTurnVisible, t, reportError],
   );
 
   const send = useCallback(

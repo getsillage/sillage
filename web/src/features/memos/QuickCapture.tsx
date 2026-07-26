@@ -9,6 +9,7 @@ import {
   textareaClass,
 } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
+import { todayISO } from "../../lib/date";
 import { hasVisibleModal } from "../../lib/modal";
 
 interface QuickCaptureProps {
@@ -17,6 +18,8 @@ interface QuickCaptureProps {
 }
 
 const QUICK_CAPTURE_DRAFT_KEY = "sillage.quick-capture-draft";
+const ENTRY_DRAFT_KEY = "sillage.entry-draft.memo:new";
+const TEXTAREA_MAX_HEIGHT = "40vh";
 
 function readDraft(): string {
   try {
@@ -35,6 +38,32 @@ function writeDraft(body: string): void {
     }
   } catch {
     // beforeunload and the global unsaved registration remain as fallbacks.
+  }
+}
+
+// Hands the quick draft over to the full editor ("写得更完整") using the exact
+// stored format EntryComposer reads for draftKey "memo:new". An existing entry
+// draft wins: the quick draft is kept rather than overwriting it.
+function transferDraftToEntryComposer(body: string): boolean {
+  if (!body) {
+    return false;
+  }
+  try {
+    if (window.localStorage.getItem(ENTRY_DRAFT_KEY) !== null) {
+      return false;
+    }
+    window.localStorage.setItem(
+      ENTRY_DRAFT_KEY,
+      JSON.stringify({
+        version: 2,
+        content: body,
+        entryDate: todayISO(),
+        baseVersion: null,
+      }),
+    );
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -91,12 +120,12 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
+        // Leave the browser's own shortcut alone when quick capture is hidden.
+        if (!visible) {
+          return;
+        }
         event.preventDefault();
-        if (
-          !visible ||
-          submittingRef.current ||
-          hasVisibleModal(dialogRef.current)
-        ) {
+        if (submittingRef.current || hasVisibleModal(dialogRef.current)) {
           return;
         }
         setOpen((value) => !value);
@@ -126,6 +155,19 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
       wasOpenRef.current = false;
     }
   }, [dialogOpen]);
+
+  // Auto-grow the capture textarea with its content, capped before internal
+  // scrolling takes over.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure on every body change
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!dialogOpen || !textarea) {
+      return;
+    }
+    textarea.style.maxHeight = TEXTAREA_MAX_HEIGHT;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [dialogOpen, body]);
 
   // Keep Tab focus inside the open dialog (simple two-end wrap trap).
   function onDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -260,7 +302,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                 }}
                 rows={4}
                 placeholder={t("quick.prompt")}
-                className={`${textareaClass} min-h-28 resize-none border-0 bg-gray-50 dark:bg-gray-950`}
+                className={`${textareaClass} min-h-28 resize-none overflow-y-auto border-0 bg-gray-50 dark:bg-gray-950`}
               />
               {error && !toast.available ? (
                 <p
@@ -278,6 +320,12 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                     if (busy) {
                       event.preventDefault();
                       return;
+                    }
+                    // Carry the quick draft into the full editor so "write
+                    // more" continues the same text instead of dropping it.
+                    if (transferDraftToEntryComposer(body)) {
+                      writeDraft("");
+                      setBody("");
                     }
                     setOpen(false);
                   }}

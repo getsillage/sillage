@@ -273,6 +273,17 @@ export function MemosProvider({
   const update = useCallback(
     async (memo: Memo, input: { content?: string; entryDate?: string }) => {
       const res = await apiUpdate(token, memo, input);
+      // A content edit makes the cached AI summary describe stale text; drop
+      // it so the detail page offers to regenerate instead of misleading.
+      if (input.content !== undefined && input.content !== memo.content) {
+        setSummaries((current) => {
+          if (!(memo.id in current)) {
+            return current;
+          }
+          const { [memo.id]: _removed, ...rest } = current;
+          return rest;
+        });
+      }
       return apply(res.memo);
     },
     [token, apply],

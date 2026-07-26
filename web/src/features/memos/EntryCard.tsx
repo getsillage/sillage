@@ -45,6 +45,10 @@ export function EntryCard({
   }
 
   function handleCardClick(event: MouseEvent<HTMLElement>) {
+    // A click that ends a text selection is reading, not navigation intent.
+    if (window.getSelection()?.toString()) {
+      return;
+    }
     if (event.defaultPrevented || isInteractiveTarget(event.target)) {
       return;
     }

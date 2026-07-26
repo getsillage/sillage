@@ -665,6 +665,40 @@ describe("AskPage", () => {
     expect(streamAskMessage).toHaveBeenCalled();
   });
 
+  it("keeps a completed turn visible when the post-stream reload fails", async () => {
+    const user = userEvent.setup();
+    const userMessage = message("u9", "user", null, "新问题", "09");
+    const doneMessage = message("a9", "assistant", "u9", "完整回答", "10");
+    vi.mocked(streamAskMessage).mockImplementation(
+      async (_token, _conv, _input, handlers) => {
+        handlers.onStart?.({ userMessage, sources: [] });
+        handlers.onDelta?.("完整回答");
+        handlers.onDone?.(doneMessage);
+      },
+    );
+    // Initial load succeeds; the reload after the stream hits a network error.
+    vi.mocked(listAskMessages)
+      .mockResolvedValueOnce({ messages: [] })
+      .mockRejectedValue(new Error("刷新失败：网络异常"));
+
+    renderAsk();
+    await screen.findByPlaceholderText(/输入问题/);
+    await user.type(screen.getByPlaceholderText(/输入问题/), "新问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    // The server already persisted the turn: both the question and the full
+    // answer must stay on screen despite the failed reload.
+    expect(await screen.findByText("完整回答")).toBeInTheDocument();
+    expect(screen.getByText("新问题")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("刷新失败：网络异常");
+    // Busy state clears (the composer is empty, so the button stays disabled
+    // only because there is no draft, not because a send is stuck in flight).
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "发送" })).toBeInTheDocument(),
+    );
+    expect(screen.getByText("完整回答")).toBeInTheDocument();
+  });
+
   it("keeps the first answer's pending state after its user message loads", async () => {
     const user = userEvent.setup();
     let finishStream: (() => void) | undefined;

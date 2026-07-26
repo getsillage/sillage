@@ -110,6 +110,9 @@ export function Sidebar({
     setConversationArchived,
   } = useAsk();
   const onAskPage = location.pathname === "/ask";
+  // Navigation (switching or starting conversations) stays available during a
+  // stream: selectConversation/startNew abort the in-flight request safely.
+  // Only mutating actions (archive) and search wait for a quiet context.
   const controlsDisabled = busy || variantLoading || streaming;
   const activeIdRef = useRef(activeId);
   const pathnameRef = useRef(location.pathname);
@@ -139,7 +142,10 @@ export function Sidebar({
   const [remoteError, setRemoteError] = useState("");
   const [retryGeneration, setRetryGeneration] = useState(0);
   const [archivingId, setArchivingId] = useState<string | null>(null);
-  const askControlsDisabled = controlsDisabled || archivingId !== null;
+  // Navigation and search stay usable while an answer streams; only archive
+  // mutations are exclusive.
+  const askNavigationDisabled = archivingId !== null;
+  const askMutationDisabled = controlsDisabled || archivingId !== null;
   const trimmedQuery = query.trim();
   const remoteListActive = archivedView || Boolean(trimmedQuery);
   const visibleConversations = remoteListActive
@@ -417,7 +423,7 @@ export function Sidebar({
       </div>
 
       <div className="space-y-1">
-        {askControlsDisabled ? (
+        {askNavigationDisabled ? (
           <button
             type="button"
             disabled
@@ -476,7 +482,7 @@ export function Sidebar({
                   setSearchOpen(true);
                 }
               }}
-              disabled={askControlsDisabled}
+              disabled={askNavigationDisabled}
               aria-label={t(searchOpen ? "ask.collapseSearch" : "ask.search")}
               aria-expanded={searchOpen}
               title={t(searchOpen ? "ask.collapseSearchTitle" : "ask.search")}
@@ -492,7 +498,7 @@ export function Sidebar({
                 setRemoteError("");
                 setArchivedView((current) => !current);
               }}
-              disabled={askControlsDisabled}
+              disabled={askNavigationDisabled}
               aria-label={t(
                 archivedView ? "ask.backToAsk" : "ask.viewArchived",
               )}
@@ -531,7 +537,7 @@ export function Sidebar({
                   closeSearch();
                 }
               }}
-              disabled={askControlsDisabled}
+              disabled={askNavigationDisabled}
               aria-label={t("ask.search")}
               placeholder={t("ask.searchPlaceholder")}
               className="h-10 w-full rounded-lg border border-gray-200 bg-white pr-10 pl-9 text-gray-900 text-sm transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50 dark:disabled:bg-gray-800"
@@ -543,7 +549,7 @@ export function Sidebar({
                   setQuery("");
                   searchInputRef.current?.focus();
                 }}
-                disabled={askControlsDisabled}
+                disabled={askNavigationDisabled}
                 aria-label={t("ask.clearSearch")}
                 title={t("ask.clearSearchTitle")}
                 className="absolute top-0 right-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-50"
@@ -621,7 +627,7 @@ export function Sidebar({
                         : "hover:bg-white/70 dark:hover:bg-gray-900"
                     }`}
                   >
-                    {askControlsDisabled ? (
+                    {askNavigationDisabled ? (
                       <button
                         type="button"
                         disabled
@@ -651,7 +657,7 @@ export function Sidebar({
                       onClick={() =>
                         void toggleConversationArchived(conversation)
                       }
-                      disabled={askControlsDisabled}
+                      disabled={askMutationDisabled}
                       aria-label={`${t(archived ? "ask.unarchive" : "ask.archive")}：${label}`}
                       title={t(archived ? "ask.unarchive" : "ask.archive")}
                       className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"

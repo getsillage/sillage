@@ -164,21 +164,15 @@ export function EntryComposer({
   const [notice, setNotice] = useState(
     restoredDraft ? t("composer.restoredDraft") : "",
   );
+  // The restored-draft signal is inline-only (no toast), so it must render
+  // even when the toast system is available.
+  const restoredNoticeActive = notice === t("composer.restoredDraft");
   const effectiveSubmitLabel = submitLabel ?? t("common.save");
   const dirty =
     content !== baseline.content || entryDate !== baseline.entryDate;
   const submittingRef = useRef(false);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const feedbackLocaleRef = useRef(locale);
-  const restoredDraftToastShownRef = useRef(false);
-
-  useEffect(() => {
-    if (!restoredDraft || restoredDraftToastShownRef.current) {
-      return;
-    }
-    restoredDraftToastShownRef.current = true;
-    toast.showToast({ kind: "info", message: t("composer.restoredDraft") });
-  }, [restoredDraft, t, toast]);
 
   useEffect(() => {
     if (feedbackLocaleRef.current === locale) {
@@ -227,12 +221,15 @@ export function EntryComposer({
       toast.showToast({ kind: "info", message });
       return;
     }
+    // A cleared date input submits ""; fall back to today rather than
+    // surfacing a raw server-side validation error.
+    const effectiveEntryDate = entryDate || todayISO();
     submittingRef.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await onSubmit({ content, entryDate });
+      await onSubmit({ content, entryDate: effectiveEntryDate });
       removeStoredDraft(storageKey);
       if (mode === "create") {
         const resetEntryDate = todayISO();
@@ -240,7 +237,8 @@ export function EntryComposer({
         setEntryDate(resetEntryDate);
         setBaseline({ content: "", entryDate: resetEntryDate });
       } else {
-        setBaseline({ content, entryDate });
+        setEntryDate(effectiveEntryDate);
+        setBaseline({ content, entryDate: effectiveEntryDate });
       }
       const message = t("records.saved");
       setNotice(message);
@@ -320,6 +318,7 @@ export function EntryComposer({
         }}
         onUpload={onUpload}
         onUploadingChange={setUploading}
+        onSubmitShortcut={() => void handleSubmit()}
       />
 
       {conflictingDraft ? (
@@ -370,7 +369,7 @@ export function EntryComposer({
           {error}
         </p>
       ) : null}
-      {notice && !toast.available ? (
+      {notice && (!toast.available || restoredNoticeActive) ? (
         <p
           role="status"
           className="inline-flex items-center gap-1.5 text-gray-500 text-sm dark:text-gray-400"

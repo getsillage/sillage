@@ -309,4 +309,3 @@ func containsNonASCII(runes []rune) bool {
 	}
 	return false
 }
-

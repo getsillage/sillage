@@ -51,7 +51,7 @@ jobs:
 
       - name: Check breaking changes against pull request base
         if: github.event_name == 'pull_request'
-        run: buf breaking --against ".git#branch=${{ github.base_ref }}"
+        run: buf breaking --against ".git#ref=${{ github.event.pull_request.base.sha }}"
 
       - name: Check breaking changes against previous main commit
         if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
@@ -194,16 +194,28 @@ jobs:
       - name: Run fresh-instance E2E
         run: |
           pnpm --dir web build
-          SILLAGE_DATA="$(mktemp -d)" SILLAGE_ADDR=127.0.0.1 go run ./cmd/sillage > /tmp/sillage.log 2>&1 &
+          e2e_data="$(mktemp -d)"
+          server_binary="$RUNNER_TEMP/sillage-e2e"
+          go build -o "$server_binary" ./cmd/sillage
+          SILLAGE_DATA="$e2e_data" SILLAGE_ADDR=127.0.0.1 "$server_binary" > /tmp/sillage.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid"; wait "$server_pid" || true' EXIT
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
           for attempt in $(seq 1 30); do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/sillage.log
+              exit 1
+            fi
             if curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null; then
+              ready=1
               break
             fi
             sleep 1
           done
-          curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/sillage.log
+            exit 1
+          fi
           E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
 
   android:

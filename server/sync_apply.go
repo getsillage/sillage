@@ -395,4 +395,3 @@ func encodeSyncCursor(cursor syncCursor) string {
 	}
 	return base64.RawURLEncoding.EncodeToString(payload)
 }
-

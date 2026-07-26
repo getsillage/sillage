@@ -5,8 +5,77 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
+
+// TestAskRateLimitedTurnLeavesNoOrphanQuestion saturates both Ask AI slots
+// with blocked streams, then verifies that a rejected (429) turn does not
+// persist a dangling user message the client would see after a refresh.
+func TestAskRateLimitedTurnLeavesNoOrphanQuestion(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	release := make(chan struct{})
+	var started atomic.Int32
+	mockAI := newMockAIProviderWithHook(t, func(mockAIChatRequest) {
+		started.Add(1)
+		<-release
+	})
+	configureMockAIProfile(t, srv, token, mockAI.URL)
+
+	newConversation := func() string {
+		res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+			"contextScope": "all",
+		}, bearer(token))
+		if res.Code != http.StatusOK {
+			t.Fatalf("create conversation status = %d body=%s", res.Code, res.Body.String())
+		}
+		return decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+	}
+
+	holdA, holdB, target := newConversation(), newConversation(), newConversation()
+	var wg sync.WaitGroup
+	for _, id := range []string{holdA, holdB} {
+		wg.Add(1)
+		go func(conversationID string) {
+			defer wg.Done()
+			doJSON(t, srv, http.MethodPost,
+				"/api/v1/ask/conversations/"+conversationID+"/messages:stream",
+				map[string]any{"content": "占住一个生成槽位"}, bearer(token))
+		}(id)
+	}
+	defer func() {
+		close(release)
+		wg.Wait()
+	}()
+	// Wait until both blocked streams actually hold their AI slots.
+	deadline := time.Now().Add(5 * time.Second)
+	for started.Load() < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("blocked streams never acquired their AI slots")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	res := doJSON(t, srv, http.MethodPost,
+		"/api/v1/ask/conversations/"+target+"/messages:stream",
+		map[string]any{"content": "这个问题应该被拒绝"}, bearer(token))
+	if res.Code != http.StatusTooManyRequests {
+		t.Fatalf("saturated stream status = %d, want 429; body=%s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+target+"/messages", nil, bearer(token))
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(payload["messages"]) != 0 {
+		t.Fatalf("rejected turn left %d orphan messages: %v", len(payload["messages"]), payload["messages"])
+	}
+}
 
 func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 	srv := newTestServer(t)

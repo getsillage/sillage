@@ -77,6 +77,41 @@ func TestAskRateLimitedTurnLeavesNoOrphanQuestion(t *testing.T) {
 	}
 }
 
+// TestAskPreStreamFailureRetractsQuestion verifies that when answer
+// preparation fails before the stream opens (here: no AI profile), the just
+// persisted question is retracted so a retry does not stack orphans.
+func TestAskPreStreamFailureRetractsQuestion(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"contextScope": "all",
+	}, bearer(token))
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+
+	res = doJSON(t, srv, http.MethodPost,
+		"/api/v1/ask/conversations/"+conversationID+"/messages:stream",
+		map[string]any{"content": "没有配置 AI 的提问"}, bearer(token))
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ai_not_configured") {
+		t.Fatalf("pre-stream failure status = %d body=%s, want 400 ai_not_configured", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(payload["messages"]) != 0 {
+		t.Fatalf("pre-stream failure left %d orphan messages: %v", len(payload["messages"]), payload["messages"])
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID, nil, bearer(token))
+	conversation := decodeAskConversationResponse(t, res.Body.Bytes())
+	if conversation["headMessageId"] != nil {
+		t.Fatalf("conversation head should be reset, got %v", conversation["headMessageId"])
+	}
+}
+
 func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

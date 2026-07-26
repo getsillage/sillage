@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server/auth"
@@ -216,6 +217,30 @@ func (s *Server) resolveAskTurn(ctx context.Context, conv *store.AskConversation
 	return &askTurn{question: user, newUser: user}, nil
 }
 
+// retractAskTurn undoes the question created by resolveAskTurn when answer
+// preparation fails before generation starts, so a retry does not stack
+// orphaned questions. Regenerate turns create no user message and need no
+// retraction. Best-effort: a failed retraction only logs.
+func (s *Server) retractAskTurn(ctx context.Context, conv *store.AskConversation, turn *askTurn) {
+	if turn == nil || turn.newUser == nil {
+		return
+	}
+	// The request context may already be cancelled (client stop); the cleanup
+	// must still run or the orphaned question survives.
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+	}
+	previousHead := ""
+	if conv.HeadMessageID.Valid {
+		previousHead = conv.HeadMessageID.String
+	}
+	if err := s.Store.RetractAskMessage(ctx, conv.ID, turn.newUser.ID, previousHead); err != nil {
+		slog.Warn("retract ask question", "conversation", conv.ID, "message", turn.newUser.ID, "error", err)
+	}
+}
+
 func (s *Server) createAskMessage(ctx context.Context, accountID string, input askMessageInput) (*askCreateMessageResult, error) {
 	conversation, err := s.Store.GetAskConversation(ctx, accountID, input.ConversationID)
 	if err != nil {
@@ -236,6 +261,7 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 	scope := firstNonEmpty(input.ContextScope, conversation.ContextScope)
 	sources, answer, modelName, err := s.answerFromMemos(ctx, accountID, turn.question.Content, scope, input.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
+		s.retractAskTurn(ctx, conversation, turn)
 		return nil, err
 	}
 	assistantMessage, err := s.Store.CreateAskMessage(ctx, &store.AskMessage{

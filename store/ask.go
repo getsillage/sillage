@@ -188,6 +188,30 @@ func (s *Store) GetAskMessage(ctx context.Context, id string) (*AskMessage, erro
 WHERE id = ? AND deleted_at IS NULL`, id))
 }
 
+// RetractAskMessage soft-deletes a just-created question and points the
+// conversation head back at the previous head. It runs when answer
+// preparation fails before any generation starts, so a client retry does not
+// stack orphaned questions. previousHeadID may be empty for the first turn.
+func (s *Store) RetractAskMessage(ctx context.Context, conversationID, messageID, previousHeadID string) error {
+	now := time.Now().UTC().UnixMilli()
+	if _, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE ask_messages
+SET deleted_at = ?, updated_at = ?
+WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL`,
+		now, now, messageID, conversationID); err != nil {
+		return fmt.Errorf("retract ask message: %w", err)
+	}
+	if _, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE ask_conversations
+SET head_message_id = ?, updated_at = ?
+WHERE id = ? AND head_message_id = ?`,
+		nullableString(sql.NullString{String: previousHeadID, Valid: previousHeadID != ""}),
+		now, conversationID, messageID); err != nil {
+		return fmt.Errorf("retract ask conversation head: %w", err)
+	}
+	return nil
+}
+
 // SetAskConversationHead points a conversation's active leaf at headMessageID,
 // used when the user switches between regenerated answer variants. The message
 // must belong to the conversation.

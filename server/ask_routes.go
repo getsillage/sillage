@@ -375,6 +375,9 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 	scope := firstNonEmpty(req.ContextScope, conversation.ContextScope)
 	prep, err := s.prepareAskAnswer(reqCtx, account.ID, turn.question.Content, scope, req.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
+		// The stream has not opened; retract the question so a client retry
+		// does not stack orphaned unanswered messages.
+		s.retractAskTurn(reqCtx, conversation, turn)
 		status, code, message := askHTTPStatus(err)
 		return apiError(c, status, code, message)
 	}

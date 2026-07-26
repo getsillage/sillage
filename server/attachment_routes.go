@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"os"
@@ -119,7 +120,9 @@ func (s *Server) handleUploadAttachment(c *echo.Context) error {
 		IdempotencyKey: c.FormValue("idempotency_key"),
 	})
 	if err != nil {
-		_ = os.Remove(finalPath)
+		if removeErr := os.Remove(finalPath); removeErr != nil {
+			slog.Warn("clean up attachment file after metadata failure", "path", finalPath, "error", removeErr)
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "保存附件元数据失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"attachment": attachmentDTO(attachment)})
@@ -153,7 +156,9 @@ func (s *Server) handleDeleteAttachment(c *echo.Context) error {
 		return apiError(c, http.StatusInternalServerError, "internal", "删除附件失败")
 	}
 	if path, err := s.safeStoragePath(attachment.StorageRef); err == nil {
-		_ = os.Remove(path)
+		if removeErr := os.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			slog.Warn("remove attachment file after delete", "path", path, "error", removeErr)
+		}
 	}
 	return c.JSON(http.StatusOK, map[string]any{"attachment": attachmentDTO(attachment)})
 }

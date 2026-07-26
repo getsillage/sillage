@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/getsillage/sillage/store"
 )
@@ -15,6 +16,12 @@ const (
 	askRouteGeneral      = "general"
 	askRouteRecords      = "records"
 	askRouteMixed        = "mixed"
+
+	// aiCallTimeout bounds direct AI calls made from an interactive request
+	// (connection test, model list). autoSummaryTimeout is longer because the
+	// background summary includes a store round-trip plus generation.
+	aiCallTimeout      = 65 * time.Second
+	autoSummaryTimeout = 90 * time.Second
 )
 
 type askRouteDecision struct {

@@ -154,7 +154,10 @@ func (s *Server) handleDeleteMemo(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
-	expectedVersion, _ := strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
+	expectedVersion, err := parseExpectedVersionParam(c)
+	if err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+	}
 	memo, err := s.memos.Delete(c.Request().Context(), account.ID, memoParam(c), expectedVersion)
 	return s.writeMemoMutationResult(c, memo, err)
 }
@@ -204,11 +207,17 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		update.Favorited = &value
 	case "archive":
 		value := true
-		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
+		update.ExpectedVersion, err = parseExpectedVersionParam(c)
+		if err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		update.Archived = &value
 	case "unarchive":
 		value := false
-		update.ExpectedVersion, _ = strconv.ParseInt(c.QueryParam("expectedVersion"), 10, 64)
+		update.ExpectedVersion, err = parseExpectedVersionParam(c)
+		if err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		update.Archived = &value
 	default:
 		return apiError(c, http.StatusNotFound, "not_found", "接口不存在")
@@ -294,6 +303,21 @@ func parseMemoBoolFilter(raw, field string) (*bool, error) {
 		return nil, errors.New(field + " 必须是 true 或 false")
 	}
 	return &value, nil
+}
+
+// parseExpectedVersionParam rejects malformed values outright so a typo'd
+// query parameter fails as invalid_field instead of the misleading
+// "expectedVersion 必须大于 0" validation error downstream.
+func parseExpectedVersionParam(c *echo.Context) (int64, error) {
+	raw := c.QueryParam("expectedVersion")
+	if raw == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, errors.New("expectedVersion 必须是数字")
+	}
+	return value, nil
 }
 
 func stringValue(value *string) string {

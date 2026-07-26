@@ -11,8 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,7 +92,7 @@ func (s *Service) SignIn(ctx context.Context, username, password string, r *http
 	account, err := s.store.GetAccountByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			_ = s.recordLoginFailure(ctx, username, clientIP(r))
+			s.noteLoginFailure(ctx, username, clientIP(r))
 			return nil, nil, ErrInvalidCredentials
 		}
 		return nil, nil, err
@@ -101,10 +103,12 @@ func (s *Service) SignIn(ctx context.Context, username, password string, r *http
 		return nil, nil, err
 	}
 	if !ok {
-		_ = s.recordLoginFailure(ctx, username, clientIP(r))
+		s.noteLoginFailure(ctx, username, clientIP(r))
 		return nil, nil, ErrInvalidCredentials
 	}
-	_ = s.clearLoginFailure(ctx, username, clientIP(r))
+	if err := s.clearLoginFailure(ctx, username, clientIP(r)); err != nil {
+		slog.Warn("clear login failure counter", "error", err)
+	}
 
 	tokens, err := s.createTokenPair(ctx, account.ID, r)
 	if err != nil {
@@ -219,11 +223,21 @@ func (s *Service) isLoginLimited(ctx context.Context, username, ip string) (bool
 	if err != nil || !ok {
 		return false, err
 	}
-	var count int
-	if _, err := fmt.Sscanf(value, "%d", &count); err != nil {
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		slog.Warn("parse login failure counter", "value", value, "error", err)
 		return false, nil
 	}
 	return count >= maxLoginFailures, nil
+}
+
+// noteLoginFailure advances the rate-limit counter. Failing to record must not
+// change the sign-in outcome, but it silently disables brute-force protection,
+// so it is always logged.
+func (s *Service) noteLoginFailure(ctx context.Context, username, ip string) {
+	if err := s.recordLoginFailure(ctx, username, ip); err != nil {
+		slog.Warn("record login failure counter", "error", err)
+	}
 }
 
 func (s *Service) recordLoginFailure(ctx context.Context, username, ip string) error {
@@ -234,9 +248,14 @@ func (s *Service) recordLoginFailure(ctx context.Context, username, ip string) e
 	}
 	count := 0
 	if ok {
-		_, _ = fmt.Sscanf(value, "%d", &count)
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			slog.Warn("parse login failure counter", "value", value, "error", err)
+		} else {
+			count = parsed
+		}
 	}
-	return s.store.RuntimeKVPut(ctx, "login_failure", key, fmt.Sprintf("%d", count+1), loginFailureWindow)
+	return s.store.RuntimeKVPut(ctx, "login_failure", key, strconv.Itoa(count+1), loginFailureWindow)
 }
 
 func (s *Service) clearLoginFailure(ctx context.Context, username, ip string) error {

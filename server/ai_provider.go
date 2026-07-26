@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -124,7 +125,9 @@ func (s *Server) resolveAIKey(ctx context.Context, accountID string, profile *st
 	}
 	raw, err := secret.DecryptEnvelope(s.Secrets.EncryptionSecret, profile.APIKeyEnvelope.String)
 	if err != nil {
-		_ = s.Store.MarkAIProfileKeyUnavailable(ctx, accountID, profile.ID)
+		if markErr := s.Store.MarkAIProfileKeyUnavailable(ctx, accountID, profile.ID); markErr != nil {
+			slog.Warn("mark ai profile key unavailable", "profile", profile.ID, "error", markErr)
+		}
 		return "", errAIKeyUnavailable
 	}
 	return raw, nil

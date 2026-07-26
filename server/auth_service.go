@@ -4,14 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
+	"github.com/getsillage/sillage/internal/profile"
 	"github.com/getsillage/sillage/server/auth"
 	"github.com/getsillage/sillage/store"
 )
@@ -114,30 +115,38 @@ func authConnectError(err error) error {
 	}
 }
 
+// requestFromConnectHeader adapts a Connect call's headers into an
+// *http.Request so the cookie helpers can derive the Secure flag the same way
+// they do for plain REST requests.
 func requestFromConnectHeader(header http.Header) *http.Request {
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	req.Host = header.Get("X-Forwarded-Host")
-	if req.Host == "" {
-		req.Host = "localhost:5231"
+	host := header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = fmt.Sprintf("localhost:%d", profile.DefaultPort)
 	}
-	req.Header = header.Clone()
-	return req
+	return &http.Request{
+		Method: http.MethodPost,
+		Host:   host,
+		Header: header.Clone(),
+	}
 }
 
 func setRefreshCookieHeader(header http.Header, req *http.Request, token string) {
-	rec := httptest.NewRecorder()
-	auth.SetRefreshCookie(rec, req, token)
-	copySetCookie(header, rec)
+	auth.SetRefreshCookie(headerOnlyResponseWriter{header}, req, token)
 }
 
 func clearRefreshCookieHeader(header http.Header, req *http.Request) {
-	rec := httptest.NewRecorder()
-	auth.ClearRefreshCookie(rec, req)
-	copySetCookie(header, rec)
+	auth.ClearRefreshCookie(headerOnlyResponseWriter{header}, req)
 }
 
-func copySetCookie(header http.Header, rec *httptest.ResponseRecorder) {
-	for _, value := range rec.Result().Header.Values("Set-Cookie") {
-		header.Add("Set-Cookie", value)
-	}
+// headerOnlyResponseWriter lets http.SetCookie-based helpers write Set-Cookie
+// values straight onto a Connect response header. Body and status are never
+// used by those helpers.
+type headerOnlyResponseWriter struct {
+	header http.Header
 }
+
+func (w headerOnlyResponseWriter) Header() http.Header { return w.header }
+
+func (w headerOnlyResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
+
+func (w headerOnlyResponseWriter) WriteHeader(int) {}

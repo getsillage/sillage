@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server/auth"
@@ -413,7 +412,7 @@ func (s *Server) setAIAutoSummary(ctx context.Context, accountID string, enabled
 // testAIConnection makes a minimal call against a saved profile or an unsaved
 // draft to verify the key, base URL, and model actually work.
 func (s *Server) testAIConnection(ctx context.Context, accountID string, input aiTestInput) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, aiCallTimeout)
 	defer cancel()
 
 	profile, err := s.aiProfileForConnectionTest(ctx, accountID, input)
@@ -491,7 +490,7 @@ func (s *Server) aiProfileForConnectionTest(ctx context.Context, accountID strin
 }
 
 func (s *Server) listAIModels(ctx context.Context, accountID string, input aiModelsInput) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 65*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, aiCallTimeout)
 	defer cancel()
 
 	provider := strings.TrimSpace(input.Provider)
@@ -548,18 +547,26 @@ func (s *Server) getAttachment(ctx context.Context, accountID, uid string) (*sto
 // path with its own timeout and never blocks or fails the memo write.
 func (s *Server) maybeScheduleAutoSummary(accountID, memoID string) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), autoSummaryTimeout)
 		defer cancel()
 		profiles, err := s.Store.ListAIProfiles(ctx, accountID)
 		if err != nil {
+			slog.Warn("auto summary skipped: list ai profiles", "memo", memoID, "error", err)
 			return
 		}
 		autoSummary, err := s.getGlobalAutoSummary(ctx, accountID, profiles)
-		if err != nil || !autoSummary {
+		if err != nil {
+			slog.Warn("auto summary skipped: read setting", "memo", memoID, "error", err)
+			return
+		}
+		if !autoSummary {
 			return
 		}
 		profile, err := pickActiveAIProfile(profiles)
 		if err != nil || profile == nil {
+			if err != nil {
+				slog.Warn("auto summary skipped: pick ai profile", "memo", memoID, "error", err)
+			}
 			return
 		}
 		if _, err := s.generateMemoSummary(ctx, accountID, memoID); err != nil {

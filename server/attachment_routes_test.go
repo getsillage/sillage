@@ -117,6 +117,79 @@ func TestAttachmentRejectsUnsafeFilename(t *testing.T) {
 	}
 }
 
+func TestAttachmentKeepsUnicodeFilenameAndCaches(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	body, contentType := multipartBody(t, "三月账单 v1.zip", "PK fake zip bytes", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments", body)
+	req.Host = "localhost:5231"
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("upload status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	attachment := decodeAttachmentResponse(t, rec.Body.Bytes())
+	if attachment["filename"].(string) != "三月账单 v1.zip" {
+		t.Fatalf("unicode filename mangled: %v", attachment["filename"])
+	}
+	uploadedURL := attachment["url"].(string)
+	if strings.Contains(uploadedURL, " ") {
+		t.Fatalf("attachment url must be percent-encoded: %s", uploadedURL)
+	}
+
+	uid := attachment["uid"].(string)
+	req = httptest.NewRequest(http.MethodGet, uploadedURL, nil)
+	req.Host = "localhost:5231"
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("download via encoded url status = %d", rec.Code)
+	}
+	if got := rec.Header().Get("Cache-Control"); !strings.Contains(got, "immutable") {
+		t.Fatalf("Cache-Control = %q, want immutable", got)
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("ETag should be set from the attachment SHA-256")
+	}
+	if disposition := rec.Header().Get("Content-Disposition"); !strings.Contains(disposition, "filename*=UTF-8''") {
+		t.Fatalf("Content-Disposition missing RFC 5987 form: %q", disposition)
+	}
+
+	// A revalidation with the same ETag must answer 304 without a body.
+	req = httptest.NewRequest(http.MethodGet, "/file/attachments/"+uid+"/"+"%E4%B8%89%E6%9C%88%E8%B4%A6%E5%8D%95%20v1.zip", nil)
+	req.Host = "localhost:5231"
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("If-None-Match", etag)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotModified {
+		t.Fatalf("revalidation status = %d, want 304", rec.Code)
+	}
+}
+
+func TestAttachmentUploadDistinguishesBrokenMultipart(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attachments", strings.NewReader("not multipart at all"))
+	req.Host = "localhost:5231"
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=missing")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("broken multipart status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "invalid_upload") {
+		t.Fatalf("broken multipart should not report too_large: %s", rec.Body.String())
+	}
+}
+
 func multipartBody(t *testing.T, filename, content string, fields map[string]string) (io.Reader, string) {
 	t.Helper()
 	var body bytes.Buffer

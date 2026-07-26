@@ -355,6 +355,15 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 		return apiError(c, http.StatusInternalServerError, "internal", "读取会话失败")
 	}
 
+	// Acquire the AI slot before persisting the question: if the instance is
+	// saturated the client gets a clean 429 and a retry will not leave orphaned
+	// user messages in the conversation.
+	jobDone, jobErr := s.acquireAskAIJob()
+	if jobErr != nil {
+		return apiError(c, http.StatusTooManyRequests, "rate_limited", "当前生成任务较多，请稍后再试")
+	}
+	defer jobDone()
+
 	turn, err := s.resolveAskTurn(reqCtx, conversation, askMessageInput{
 		ConversationID: conversation.ID,
 		Content:        req.Content,
@@ -367,14 +376,9 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 	}
 
 	scope := firstNonEmpty(req.ContextScope, conversation.ContextScope)
-	jobDone, jobErr := s.acquireAskAIJob()
-	if jobErr != nil {
-		return apiError(c, http.StatusTooManyRequests, "rate_limited", "当前生成任务较多，请稍后再试")
-	}
-	defer jobDone()
 	prep, err := s.prepareAskAnswer(reqCtx, account.ID, turn.question.Content, scope, req.SourceKind, conversation.ID, nullStringValue(turn.question.ParentID))
 	if err != nil {
-		status, code, message := memoHTTPStatus(err)
+		status, code, message := askHTTPStatus(err)
 		return apiError(c, status, code, message)
 	}
 
@@ -407,6 +411,11 @@ func (s *Server) handleStreamAskMessage(c *echo.Context) error {
 
 	if streamErr != nil {
 		_ = emit("error", map[string]any{"message": "生成回答失败"})
+		return nil
+	}
+	// A stop before the first delta means the user cancelled: leave the
+	// conversation as-is instead of persisting a placeholder answer.
+	if answer == "" && reqCtx.Err() != nil {
 		return nil
 	}
 	if answer == "" {
@@ -465,11 +474,6 @@ func sseEmitter(c *echo.Context) func(event string, data any) error {
 }
 
 func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope, sourceKind, conversationID, historyParentID string) ([]askSourceRef, string, string, error) {
-	jobDone, err := s.acquireAskAIJob()
-	if err != nil {
-		return nil, "", "", err
-	}
-	defer jobDone()
 	prep, err := s.prepareAskAnswer(ctx, accountID, question, scope, sourceKind, conversationID, historyParentID)
 	if err != nil {
 		return nil, "", "", err
@@ -479,6 +483,20 @@ func (s *Server) answerFromMemos(ctx context.Context, accountID, question, scope
 		return nil, "", "", err
 	}
 	return citedAskSourceRefs(answer.Content, prep.sources), answer.Content, prep.profile.Model, nil
+}
+
+// askHTTPStatus maps errors from the Ask answer pipeline to HTTP responses.
+// It mirrors memoHTTPStatus but with copy that matches the Ask context: the
+// user asked a question, so a generic failure must not read as a failed save.
+func askHTTPStatus(err error) (int, string, string) {
+	status, code, message := memoHTTPStatus(err)
+	switch code {
+	case "not_found":
+		message = "会话不存在"
+	case "internal":
+		message = "生成回答失败"
+	}
+	return status, code, message
 }
 
 // isSummarySourceKind reports whether the answer should be grounded in stored
@@ -594,12 +612,16 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 	return sources
 }
 
+// askScopeCutoff returns the earliest entryDate (inclusive window start) for a
+// scope. entryDate strings carry the user's local date while the server may run
+// in another timezone (Docker defaults to UTC), so the window is widened by one
+// day to cover any offset; candidates are still ranked by relevance.
 func askScopeCutoff(scope string) string {
 	switch scope {
 	case "recent_7_days":
-		return time.Now().AddDate(0, 0, -7).Format("2006-01-02")
+		return time.Now().AddDate(0, 0, -8).Format("2006-01-02")
 	default:
-		return time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+		return time.Now().AddDate(0, 0, -31).Format("2006-01-02")
 	}
 }
 

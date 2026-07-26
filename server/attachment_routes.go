@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,7 +24,10 @@ import (
 
 const defaultMaxUploadBytes = 30 << 20
 
-var unsafeFilenameChars = regexp.MustCompile(`[^\w.\- ]+`)
+// unsafeFilenameChars folds anything outside Unicode letters/digits and a few
+// safe punctuation marks: uploaded names regularly contain CJK characters,
+// which must survive sanitization intact.
+var unsafeFilenameChars = regexp.MustCompile(`[^\p{L}\p{N}.\- ]+`)
 
 func (s *Server) registerAttachmentRoutes(e *echo.Echo) {
 	e.POST("/api/v1/attachments", s.handleUploadAttachment)
@@ -40,7 +44,11 @@ func (s *Server) handleUploadAttachment(c *echo.Context) error {
 	maxUpload := s.maxUploadBytes()
 	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, maxUpload)
 	if err := c.Request().ParseMultipartForm(maxUpload); err != nil {
-		return apiError(c, http.StatusRequestEntityTooLarge, "too_large", "文件超过上传大小限制")
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return apiError(c, http.StatusRequestEntityTooLarge, "too_large", "文件超过上传大小限制")
+		}
+		return apiError(c, http.StatusBadRequest, "invalid_upload", "上传数据不完整或格式不正确，请重试")
 	}
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -189,6 +197,12 @@ func (s *Server) handleServeAttachment(c *echo.Context) error {
 		return apiError(c, http.StatusNotFound, "not_found", "附件不存在")
 	}
 
+	// Attachment content is immutable (the storage ref embeds the SHA-256), so
+	// clients may cache aggressively; ServeContent answers If-None-Match with 304.
+	c.Response().Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	if attachment.SHA256.Valid && attachment.SHA256.String != "" {
+		c.Response().Header().Set("ETag", `"`+attachment.SHA256.String+`"`)
+	}
 	c.Response().Header().Set("Content-Type", attachment.ContentType)
 	if shouldForceDownload(attachment.ContentType) {
 		c.Response().Header().Set("Content-Disposition", contentDispositionAttachment(attachment.Filename))
@@ -254,8 +268,16 @@ func shouldForceDownload(contentType string) bool {
 		contentType == "application/pdf")
 }
 
+// contentDispositionAttachment renders both the legacy quoted filename (ASCII
+// fallback) and the RFC 5987 filename* form so non-ASCII names download intact.
 func contentDispositionAttachment(filename string) string {
-	return `attachment; filename="` + strings.ReplaceAll(filename, `"`, "_") + `"`
+	fallback := strings.Map(func(r rune) rune {
+		if r < 0x20 || r > 0x7e || r == '"' {
+			return '_'
+		}
+		return r
+	}, filename)
+	return `attachment; filename="` + fallback + `"; filename*=UTF-8''` + url.PathEscape(filename)
 }
 
 func attachmentDTO(attachment *store.Attachment) map[string]any {
@@ -266,7 +288,7 @@ func attachmentDTO(attachment *store.Attachment) map[string]any {
 		"id":          attachment.ID,
 		"uid":         attachment.UID,
 		"memoId":      optionalString(attachment.MemoID),
-		"url":         "/file/attachments/" + attachment.UID + "/" + attachment.Filename,
+		"url":         "/file/attachments/" + attachment.UID + "/" + url.PathEscape(attachment.Filename),
 		"filename":    attachment.Filename,
 		"contentType": attachment.ContentType,
 		"size":        attachment.Size,

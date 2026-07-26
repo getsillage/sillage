@@ -176,6 +176,9 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 		ai, err := s.generateMemoSummary(c.Request().Context(), account.ID, memoID)
 		if err != nil {
 			status, code, message := memoHTTPStatus(err)
+			if code == "internal" {
+				message = "生成总结失败"
+			}
 			return apiError(c, status, code, message)
 		}
 		return c.JSON(http.StatusOK, map[string]any{"ai": memoAIDTO(ai)})

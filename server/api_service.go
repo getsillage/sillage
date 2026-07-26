@@ -223,6 +223,13 @@ func (s *Server) createAskMessage(ctx context.Context, accountID string, input a
 	if err != nil {
 		return nil, err
 	}
+	// Hold the AI slot before persisting the question so an overloaded instance
+	// rejects the turn cleanly instead of leaving an unanswered user message.
+	jobDone, err := s.acquireAskAIJob()
+	if err != nil {
+		return nil, err
+	}
+	defer jobDone()
 	turn, err := s.resolveAskTurn(ctx, conversation, input)
 	if err != nil {
 		return nil, err
@@ -866,7 +873,8 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	case isValidationError(err):
 		result = syncRejected(change, "invalid_field", err.Error())
 	case err != nil:
-		result = syncRejected(change, "rejected", err.Error())
+		slog.Warn("sync change rejected", "action", change.Action, "resource", change.ResourceID, "error", err)
+		result = syncRejected(change, "rejected", "同步该条记录失败，请重试")
 	default:
 		result = syncApplied(change, memo)
 	}

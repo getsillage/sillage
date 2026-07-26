@@ -136,7 +136,7 @@ Contract changes must update Proto, generated artifacts, affected REST/Connect a
 | Runtime configuration | `cmd/sillage/main.go`, `internal/profile/profile.go` |
 | Database schema and upgrades | `store/migration/sqlite/LATEST.sql`, `store/migrator.go` |
 | REST routes | `server/*_routes.go` |
-| Business services | `server/memo/`, `server/auth/`, `server/api_service.go` |
+| Business services | `server/memo/`, `server/auth/`, `server/api_service.go`, `server/sync_apply.go` |
 | Connect / OpenAPI projection | `proto/api/v1/`, `proto/gen/openapi/openapi.yaml` |
 | REST contract | `docs/development/api/README.md`, `server/*_routes.go`, REST behavior tests |
 | Web theme and component styles | `web/src/styles/app.css`, `web/src/components/ui.ts` |

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
@@ -31,6 +33,8 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +58,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import app.sillage.data.SessionStore
 import app.sillage.R
 import app.sillage.ui.SillageUiState
@@ -68,6 +76,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
     val memoMutationInProgress = state.selectedMemo?.id?.let(state::isMemoMutationInProgress) == true
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor: () -> Unit = {
@@ -86,6 +95,36 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     }
     val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         viewModel.uploadAttachments(uris)
+    }
+    if (showDatePicker) {
+        val initialMillis = runCatching { LocalDate.parse(state.draftEntryDate.trim()) }
+            .getOrElse { LocalDate.now() }
+            .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            viewModel.updateDraftEntryDate(
+                                Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString(),
+                            )
+                        }
+                        showDatePicker = false
+                    },
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
     if (confirmDiscard) {
         AlertDialog(
@@ -233,6 +272,9 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                // Scaffold already applies these insets via padding; without
+                // consuming them imePadding stacks a blank gap over the keyboard.
+                .consumeWindowInsets(padding)
                 .imePadding(),
         ) {
             val editorHeight = (maxHeight * 0.6f).coerceIn(320.dp, 560.dp)
@@ -258,6 +300,17 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                             singleLine = true,
                             label = { Text(stringResource(R.string.editor_date)) },
                             placeholder = { Text(stringResource(R.string.editor_date_placeholder)) },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { showDatePicker = true },
+                                    enabled = editorActionsEnabled,
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.CalendarMonth,
+                                        contentDescription = stringResource(R.string.editor_pick_date),
+                                    )
+                                }
+                            },
                         )
                     }
                 }

@@ -1,14 +1,21 @@
 package app.sillage.data
 
+import java.io.IOException
 import java.net.URL
 import java.time.Instant
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -96,7 +103,7 @@ class LocalAiClient {
         result.content.ifBlank { profile.model }
     }
 
-    private fun callAI(
+    private suspend fun callAI(
         profile: AIProfileDraft,
         systemPrompt: String,
         messages: List<AIMessage>,
@@ -116,7 +123,7 @@ class LocalAiClient {
         }
     }
 
-    private fun callOpenAICompatible(
+    private suspend fun callOpenAICompatible(
         baseUrl: String,
         profile: AIProfileDraft,
         systemPrompt: String,
@@ -158,7 +165,7 @@ class LocalAiClient {
         )
     }
 
-    private fun callAnthropic(
+    private suspend fun callAnthropic(
         baseUrl: String,
         profile: AIProfileDraft,
         systemPrompt: String,
@@ -205,13 +212,36 @@ class LocalAiClient {
         )
     }
 
-    private fun executeProviderRequest(request: Request): JSONObject {
-        client.newCall(request).execute().use { response ->
-            val raw = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw ApiException("AI 请求失败：${response.code} ${raw.take(200)}")
-            }
-            return JSONObject(raw)
+    private suspend fun executeProviderRequest(request: Request): JSONObject {
+        // Cancel the underlying HTTP call when the coroutine is cancelled
+        // (user taps stop) instead of letting the provider request run on.
+        val call = client.newCall(request)
+        return suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (!continuation.isCancelled) {
+                        continuation.resumeWithException(e)
+                    }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val outcome = runCatching {
+                        response.use {
+                            val raw = it.body?.string().orEmpty()
+                            if (!it.isSuccessful) {
+                                throw ApiException("AI 请求失败：${it.code} ${raw.take(200)}")
+                            }
+                            JSONObject(raw)
+                        }
+                    }
+                    outcome.fold(continuation::resume) { error ->
+                        if (!continuation.isCancelled) {
+                            continuation.resumeWithException(error)
+                        }
+                    }
+                }
+            })
         }
     }
 

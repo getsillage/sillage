@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyStoredNightMode()
         val effectiveLanguage = applyStoredLanguage()
         super.onCreate(savedInstanceState)
         viewModel.setLanguageMode(effectiveLanguage)
@@ -43,6 +44,19 @@ class MainActivity : AppCompatActivity() {
             SillageTheme(darkTheme = state.themeMode == SessionStore.THEME_DARK) {
                 SillageApp(viewModel = viewModel)
             }
+        }
+    }
+
+    private fun applyStoredNightMode() {
+        // Match the pre-compose window to the stored theme so a dark cold
+        // start does not flash the light window background.
+        val mode = if (SessionStore(applicationContext).themeMode() == SessionStore.THEME_DARK) {
+            AppCompatDelegate.MODE_NIGHT_YES
+        } else {
+            AppCompatDelegate.MODE_NIGHT_NO
+        }
+        if (AppCompatDelegate.getDefaultNightMode() != mode) {
+            AppCompatDelegate.setDefaultNightMode(mode)
         }
     }
 

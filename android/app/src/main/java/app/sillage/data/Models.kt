@@ -180,7 +180,7 @@ data class AskStreamEvent(
     val data: String,
 )
 
-class ApiException(message: String) : Exception(message)
+class ApiException(message: String, val statusCode: Int? = null) : Exception(message)
 
 fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
 

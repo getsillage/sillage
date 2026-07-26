@@ -26,7 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -125,7 +128,11 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) {
+internal fun MemoListScreen(
+    state: SillageUiState,
+    viewModel: SillageViewModel,
+    listState: LazyListState = rememberLazyListState(),
+) {
     val showingSearchResults = state.searchQuery.isNotBlank()
     val visibleMemos = if (showingSearchResults) {
         state.currentMemoSearchResults().orEmpty()
@@ -186,38 +193,55 @@ internal fun MemoListScreen(state: SillageUiState, viewModel: SillageViewModel) 
                 SearchBlock(state = state, viewModel = viewModel)
                 SearchStatusBlock(state = state)
             }
-            if (
-                (state.loading || state.memoListLoadStatus == MemoListLoadStatus.Loading) &&
-                visibleMemos.isEmpty()
+            // Swipe-down-to-refresh is the expected gesture for a manual-sync
+            // feed; the toolbar button stays for accessibility.
+            PullToRefreshBox(
+                isRefreshing = state.memoListLoadStatus == MemoListLoadStatus.Loading,
+                onRefresh = viewModel::refreshMemos,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                if (
+                    (state.loading || state.memoListLoadStatus == MemoListLoadStatus.Loading) &&
+                    visibleMemos.isEmpty()
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (state.memoViewMode == MemoViewMode.Calendar) {
+                    CalendarMemoView(state = state, viewModel = viewModel)
+                } else if (state.shouldShowMemoListLoadFailure()) {
+                    EmptyState(
+                        stringResource(R.string.records_load_failed),
+                        Icons.Rounded.Refresh,
+                        onRetry = viewModel::refreshMemos,
+                    )
+                } else if (state.shouldShowMemoSearchFailure()) {
+                    EmptyState(
+                        stringResource(R.string.records_search_failed),
+                        Icons.Rounded.Refresh,
+                        onRetry = viewModel::searchMemos,
+                    )
+                } else {
+                    MemoListView(
+                        visibleMemos = visibleMemos,
+                        showingSearchResults = showingSearchResults,
+                        searching = state.searching,
+                        memories = memories,
+                        today = today,
+                        hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
+                        loadingMore = state.loadingMoreMemos,
+                        memoMutationIds = state.memoMutationIds,
+                        listState = listState,
+                        onLoadMore = viewModel::loadMoreMemos,
+                        onMemoClick = viewModel::openMemoDetail,
+                        onMemoEdit = viewModel::editMemo,
+                        onMemoDuplicate = viewModel::duplicateMemoDraft,
+                        onMemoToggleFavorite = viewModel::toggleMemoFavorited,
+                        onMemoToggleArchive = viewModel::toggleMemoArchived,
+                        onMemoDelete = viewModel::deleteMemo,
+                        filter = state.memoListFilter,
+                    )
                 }
-            } else if (state.memoViewMode == MemoViewMode.Calendar) {
-                CalendarMemoView(state = state, viewModel = viewModel)
-            } else if (state.shouldShowMemoListLoadFailure()) {
-                EmptyState(stringResource(R.string.records_load_failed), Icons.Rounded.Refresh)
-            } else if (state.shouldShowMemoSearchFailure()) {
-                EmptyState(stringResource(R.string.records_search_failed), Icons.Rounded.Refresh)
-            } else {
-                MemoListView(
-                    visibleMemos = visibleMemos,
-                    showingSearchResults = showingSearchResults,
-                    searching = state.searching,
-                    memories = memories,
-                    today = today,
-                    hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
-                    loadingMore = state.loadingMoreMemos,
-                    memoMutationIds = state.memoMutationIds,
-                    onLoadMore = viewModel::loadMoreMemos,
-                    onMemoClick = viewModel::openMemoDetail,
-                    onMemoEdit = viewModel::editMemo,
-                    onMemoDuplicate = viewModel::duplicateMemoDraft,
-                    onMemoToggleFavorite = viewModel::toggleMemoFavorited,
-                    onMemoToggleArchive = viewModel::toggleMemoArchived,
-                    onMemoDelete = viewModel::deleteMemo,
-                    filter = state.memoListFilter,
-                )
             }
         }
     }
@@ -355,6 +379,7 @@ private fun MemoListView(
     hasMore: Boolean,
     loadingMore: Boolean,
     memoMutationIds: Set<String>,
+    listState: LazyListState,
     onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
     onMemoEdit: (Memo) -> Unit,
@@ -385,6 +410,7 @@ private fun MemoListView(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -459,7 +485,11 @@ private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
 }
 
 @Composable
-private fun EmptyState(text: String, icon: ImageVector? = null) {
+private fun EmptyState(
+    text: String,
+    icon: ImageVector? = null,
+    onRetry: (() -> Unit)? = null,
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.padding(24.dp),
@@ -484,6 +514,11 @@ private fun EmptyState(text: String, icon: ImageVector? = null) {
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )
+            if (onRetry != null) {
+                Button(onClick = onRetry) {
+                    Text(stringResource(R.string.action_retry))
+                }
+            }
         }
     }
 }

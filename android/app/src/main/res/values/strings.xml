@@ -5,6 +5,7 @@
 
     <string name="action_back">Back</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">OK</string>
     <string name="action_delete">Delete</string>
     <string name="action_confirm_delete">Delete</string>
     <string name="action_edit">Edit</string>
@@ -343,6 +344,13 @@
     <string name="notice_synced_local">Synced to this device.</string>
     <string name="notice_sync_both">Two-way sync complete. %1$s</string>
     <string name="error_record_empty">Record content cannot be empty.</string>
+    <string name="error_entry_date_invalid">Enter a valid record date in YYYY-MM-DD format.</string>
+    <string name="error_network">Network error. Check your connection and try again.</string>
+    <string name="error_local_data_corrupt">Local data could not be read. A backup of the raw data has been kept; saving is disabled to protect it.</string>
+    <string name="error_sync_ai_settings_failed">Records synced, but AI settings could not be fetched and were left unchanged.</string>
+    <string name="error_attachment_too_large">%1$s exceeds the %2$d MB upload limit.</string>
+    <string name="notice_attachment_partial_failure">%1$d attachment(s) failed to upload. Successful links were inserted.</string>
+    <string name="editor_pick_date">Pick a date</string>
     <string name="notice_saved">Saved.</string>
     <string name="notice_deleted">Deleted.</string>
     <string name="notice_favorited">Added to Favorites.</string>

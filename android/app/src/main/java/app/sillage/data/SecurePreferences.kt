@@ -26,6 +26,21 @@ internal class SecurePreferences(private val prefs: SharedPreferences) {
         return prefs.getString(key, fallback)
     }
 
+    /**
+     * Reads a value while distinguishing "nothing stored" from "stored but
+     * unreadable" (for example after a Keystore key loss). Callers that guard
+     * user data must not treat an unreadable value as absent.
+     */
+    fun readString(key: String): SecureReadResult {
+        val encrypted = prefs.getString(secureKey(key), null)
+        if (encrypted != null) {
+            return runCatching { SecureReadResult.Value(decrypt(encrypted)) }
+                .getOrElse { SecureReadResult.Unreadable(encrypted) }
+        }
+        val legacy = prefs.getString(key, null) ?: return SecureReadResult.Missing
+        return SecureReadResult.Value(legacy)
+    }
+
     fun putString(
         editor: SharedPreferences.Editor,
         key: String,
@@ -94,4 +109,13 @@ internal class SecurePreferences(private val prefs: SharedPreferences) {
         private const val KEY_SIZE_BITS = 256
         private const val PAYLOAD_VERSION = "v1"
     }
+}
+
+internal sealed interface SecureReadResult {
+    data object Missing : SecureReadResult
+
+    data class Value(val value: String) : SecureReadResult
+
+    /** Data exists but cannot be decrypted; [rawPayload] is the stored ciphertext. */
+    data class Unreadable(val rawPayload: String) : SecureReadResult
 }

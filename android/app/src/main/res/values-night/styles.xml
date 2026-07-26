@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.Sillage" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#121513</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#121513</item>
+        <item name="android:statusBarColor">#121513</item>
+    </style>
+</resources>

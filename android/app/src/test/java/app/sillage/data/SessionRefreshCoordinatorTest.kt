@@ -79,7 +79,7 @@ class SessionRefreshCoordinatorTest {
             refresh = { _ ->
                 refreshCalls += 1
                 releaseRefresh.await()
-                throw ApiException("刷新失败")
+                throw ApiException("刷新失败", statusCode = 401)
             },
         )
 
@@ -100,6 +100,28 @@ class SessionRefreshCoordinatorTest {
         assertEquals(1, refreshCalls)
         assertEquals(1, clearCalls)
         assertEquals(null, session.accessToken)
+    }
+
+    @Test
+    fun transientRefreshFailureKeepsTheSessionForRetry() = runBlocking {
+        var session = testSession(accessToken = "expired")
+        var clearCalls = 0
+        val coordinator = SessionRefreshCoordinator(
+            currentSession = { session },
+            clearSession = { _, _ ->
+                clearCalls += 1
+                true
+            },
+            refresh = { _ -> throw ApiException("网络超时") },
+        )
+
+        val failure = runCatching {
+            coordinator.refreshAfterUnauthorized(TEST_CONTEXT, "expired")
+        }.exceptionOrNull()
+
+        assertNotNull(failure)
+        assertEquals(0, clearCalls)
+        assertEquals("expired", session.accessToken)
     }
 
     @Test

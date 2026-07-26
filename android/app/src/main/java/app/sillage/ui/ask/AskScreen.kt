@@ -85,11 +85,13 @@ import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
 import app.sillage.data.AskPathEntry
 import app.sillage.data.AskSourceRef
+import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.memos.MarkdownContent
 import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.navigation.MainNavigationBar
@@ -306,10 +308,13 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 !state.askVariantLoading &&
                                 !state.askSourceLoading,
                             streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
+                            baseUrl = state.baseUrl,
+                            openingAttachmentPath = state.openingAttachmentPath,
                             onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
                             onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
                             onOpenSource = viewModel::openAskSourceMemo,
                             onSelectVariant = viewModel::selectAskVariant,
+                            onOpenAttachment = viewModel::openProtectedAttachment,
                         )
                     }
                     if (state.askLiveUser != null) {
@@ -757,10 +762,13 @@ private fun AskMessageCard(
     saving: Boolean,
     sourceActionsEnabled: Boolean,
     streamingText: String?,
+    baseUrl: String,
+    openingAttachmentPath: String?,
     onRegenerate: () -> Unit,
     onSaveAsMemo: () -> Unit,
     onOpenSource: (String) -> Unit,
     onSelectVariant: (String) -> Unit,
+    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
 ) {
     val message = entry.message
     val isAssistant = message.role == "assistant"
@@ -806,14 +814,32 @@ private fun AskMessageCard(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(
-                    displayedContent,
-                    modifier = Modifier.clearAndSetSemantics {
-                        applyAskMessageSemantics(messageDescription)
-                    },
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                // Final assistant answers render as Markdown like record bodies;
+                // streaming/regenerating text stays plain to avoid re-parsing
+                // partial syntax on every delta.
+                if (isAssistant && streamingText == null && !regenerating) {
+                    Box(
+                        modifier = Modifier.clearAndSetSemantics {
+                            applyAskMessageSemantics(messageDescription)
+                        },
+                    ) {
+                        MarkdownContent(
+                            content = displayedContent,
+                            baseUrl = baseUrl,
+                            openingAttachmentPath = openingAttachmentPath,
+                            onOpenAttachment = onOpenAttachment,
+                        )
+                    }
+                } else {
+                    Text(
+                        displayedContent,
+                        modifier = Modifier.clearAndSetSemantics {
+                            applyAskMessageSemantics(messageDescription)
+                        },
+                        color = textColor,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 if (isAssistant && message.sourceRefs.isNotEmpty()) {
                     AskSourceRefs(
                         sources = message.sourceRefs,

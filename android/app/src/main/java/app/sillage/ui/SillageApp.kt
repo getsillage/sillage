@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +67,17 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     )
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    // Hoisted here so the memo list keeps its scroll position when the list
+    // screen leaves composition (detail/editor) and the user comes back.
+    val memoListState = remember { LazyListState() }
+    LaunchedEffect(
+        state.memoListFilter,
+        state.searchQuery.isBlank(),
+        state.searchResultQuery,
+    ) {
+        // The visible list context changed (filter or search), reset to top.
+        memoListState.scrollToItem(0)
+    }
     var activeToastType by remember { mutableStateOf(UiToastType.SUCCESS) }
     val attachmentChooserTitle = stringResource(R.string.attachment_open_chooser)
     val attachmentNoApp = stringResource(R.string.error_attachment_no_app)
@@ -148,7 +160,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
                 Screen.Server -> ServerScreen(state, viewModel)
                 Screen.Initialize -> InitializeScreen(state, viewModel)
                 Screen.Login -> LoginScreen(state, viewModel)
-                Screen.Memos -> MemoListScreen(state, viewModel)
+                Screen.Memos -> MemoListScreen(state, viewModel, memoListState)
                 Screen.MemoDetail -> MemoDetailScreen(state, viewModel)
                 Screen.Editor -> MemoEditorScreen(state, viewModel)
                 Screen.AISettings -> AISettingsScreen(state, viewModel)

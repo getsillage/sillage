@@ -388,8 +388,23 @@ class LocalDataStore(context: Context) {
     }
 
     private fun loadData(): SillageExportData {
-        val raw = securePrefs.getString(KEY_DATA, null) ?: return emptyData()
-        return runCatching { SillageExportCodec.fromJson(raw) }.getOrElse { emptyData() }
+        return when (val stored = securePrefs.readString(KEY_DATA)) {
+            is SecureReadResult.Missing -> emptyData()
+            is SecureReadResult.Unreadable -> throw corruptLocalData(stored.rawPayload)
+            is SecureReadResult.Value -> runCatching { SillageExportCodec.fromJson(stored.value) }
+                .getOrElse { throw corruptLocalData(stored.value) }
+        }
+    }
+
+    /**
+     * Local data exists but cannot be decrypted or parsed. Preserve the raw
+     * payload once and fail loudly so covering writes cannot wipe the diary.
+     */
+    private fun corruptLocalData(rawPayload: String): ApiException {
+        if (!prefs.contains(KEY_DATA_CORRUPT_BACKUP)) {
+            prefs.edit().putString(KEY_DATA_CORRUPT_BACKUP, rawPayload).apply()
+        }
+        return ApiException(LOCAL_DATA_CORRUPT_MESSAGE)
     }
 
     private fun updateData(transform: (SillageExportData) -> SillageExportData) {
@@ -462,6 +477,8 @@ class LocalDataStore(context: Context) {
         private const val KEY_DATA = "data"
         private const val KEY_CLOUD_MEMO_VERSIONS = "cloud_memo_versions"
         private const val KEY_PENDING_MEMO_MUTATIONS = "pending_memo_mutations"
+        internal const val KEY_DATA_CORRUPT_BACKUP = "data_corrupt_backup"
+        internal const val LOCAL_DATA_CORRUPT_MESSAGE = "本地数据无法读取"
     }
 
     private fun cloudMemoVersions(): Map<String, Long> {

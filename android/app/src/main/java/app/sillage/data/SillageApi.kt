@@ -138,12 +138,21 @@ class SillageApi(
         )
     }
 
-    suspend fun pullFullSync(limit: Int = 200): SillageExportData {
+    suspend fun pullFullSync(limit: Int = 200): PulledSyncData {
         val memos = mutableListOf<Memo>()
         val memoAI = mutableListOf<MemoAI>()
         val askConversations = mutableListOf<AskConversation>()
         val askMessages = mutableListOf<AskMessage>()
-        val aiSettings = runCatching { getAISettings() }.getOrDefault(AISettings(emptyList(), false))
+        // A failed AI-settings fetch must not silently reset local AI settings:
+        // mark them undefined so the merge keeps the local values, and report
+        // the partial failure to the caller.
+        val aiSettings = runCatching { getAISettings() }
+        val aiSettingsFetched = aiSettings.isSuccess
+        aiSettings.exceptionOrNull()?.let { error ->
+            if (error is CancellationException) {
+                throw error
+            }
+        }
         var cursor = ""
         do {
             val suffix = if (cursor.isBlank()) {
@@ -160,17 +169,22 @@ class SillageApi(
             cursor = body.optString("nextCursor")
             val hasMore = body.optBoolean("hasMore")
         } while (hasMore && cursor.isNotBlank())
-        return SillageExportData(
-            formatVersion = SillageExportCodec.FORMAT_VERSION,
-            exportedAt = java.time.Instant.now().toString(),
-            themeMode = "",
-            memoViewMode = "",
-            autoSummary = aiSettings.autoSummary,
-            memos = memos,
-            memoAI = memoAI,
-            aiProfiles = aiSettings.profiles.map { it.toDraft() },
-            askConversations = askConversations,
-            askMessages = askMessages,
+        val settings = aiSettings.getOrDefault(AISettings(emptyList(), false))
+        return PulledSyncData(
+            data = SillageExportData(
+                formatVersion = SillageExportCodec.FORMAT_VERSION,
+                exportedAt = java.time.Instant.now().toString(),
+                themeMode = "",
+                memoViewMode = "",
+                autoSummary = settings.autoSummary,
+                autoSummaryDefined = aiSettingsFetched,
+                memos = memos,
+                memoAI = memoAI,
+                aiProfiles = if (aiSettingsFetched) settings.profiles.map { it.toDraft() } else emptyList(),
+                askConversations = askConversations,
+                askMessages = askMessages,
+            ),
+            aiSettingsFetched = aiSettingsFetched,
         )
     }
 
@@ -557,7 +571,7 @@ class SillageApi(
                     }
                     val body = res.body?.string().orEmpty()
                     if (!res.isSuccessful) {
-                        throw ApiException(parseErrorMessage(body))
+                        throw ApiException(parseErrorMessage(body), statusCode = res.code)
                     }
                     if (body.isBlank()) {
                         JSONObject()
@@ -1171,7 +1185,12 @@ internal class SessionRefreshCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                clearSession(context, failedAccessToken)
+                // Only an explicit auth rejection from the refresh endpoint
+                // invalidates the session. Transient failures (IOException,
+                // 5xx, timeouts) keep the session so the user can retry.
+                if (error.isAuthRejection()) {
+                    clearSession(context, failedAccessToken)
+                }
                 throw error
             }
         }
@@ -1186,11 +1205,22 @@ internal class SessionRefreshCoordinator(
     }
 }
 
+/** True when the failure is an explicit credential rejection, not a transient error. */
+internal fun Throwable.isAuthRejection(): Boolean {
+    val statusCode = (this as? ApiException)?.statusCode ?: return false
+    return statusCode == 401 || statusCode == 403
+}
+
 data class SyncPushSummary(
     val applied: Int,
     val conflict: Int,
     val rejected: Int,
     val appliedMemoSyncs: List<AppliedMemoSync> = emptyList(),
+)
+
+data class PulledSyncData(
+    val data: SillageExportData,
+    val aiSettingsFetched: Boolean,
 )
 
 internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {

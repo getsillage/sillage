@@ -1036,6 +1036,7 @@ private fun AIProfileDetailCard(
                     Text(stringResource(if (profile.hasApiKey) R.string.settings_key_keep else R.string.settings_key_not_configured))
                 },
                 visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 enabled = controlsEnabled,
             )
             if (profile.keyUnavailable) {

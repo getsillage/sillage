@@ -4,6 +4,7 @@
 
     <string name="action_back">返回</string>
     <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
     <string name="action_delete">删除</string>
     <string name="action_confirm_delete">确认删除</string>
     <string name="action_edit">编辑</string>
@@ -309,6 +310,13 @@
     <string name="notice_synced_local">已同步到本地。</string>
     <string name="notice_sync_both">双向同步完成。%1$s</string>
     <string name="error_record_empty">记录内容不能为空。</string>
+    <string name="error_entry_date_invalid">请输入有效的记录日期（YYYY-MM-DD）。</string>
+    <string name="error_network">网络连接失败，请检查网络后重试。</string>
+    <string name="error_local_data_corrupt">本地数据无法读取，原始数据已备份；为保护数据已停用保存。</string>
+    <string name="error_sync_ai_settings_failed">记录已同步，但 AI 设置获取失败，保持本地设置不变。</string>
+    <string name="error_attachment_too_large">%1$s 超过 %2$d MB 上传上限。</string>
+    <string name="notice_attachment_partial_failure">%1$d 个附件上传失败，已插入成功文件的链接。</string>
+    <string name="editor_pick_date">选择日期</string>
     <string name="notice_saved">已保存。</string>
     <string name="notice_deleted">已删除。</string>
     <string name="notice_favorited">已收藏。</string>

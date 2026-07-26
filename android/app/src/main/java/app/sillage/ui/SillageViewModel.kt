@@ -4,9 +4,12 @@ import app.sillage.R
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
 import app.sillage.data.Account
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskConversation
@@ -20,6 +23,7 @@ import app.sillage.data.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
+import app.sillage.data.PulledSyncData
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
@@ -60,7 +64,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class SillageViewModel(context: Context) : ViewModel() {
+class SillageViewModel(
+    context: Context,
+    private val savedStateHandle: SavedStateHandle? = null,
+) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = LocalDataStore(appContext)
@@ -73,6 +80,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private var aiAutoSummaryJob: Job? = null
     private var memoSummaryJob: Job? = null
     private val authOperationGate = SingleFlightGate()
+    private val dataTransferGate = SingleFlightGate()
     private val askMemoSaveGate = KeyedSingleFlightGate<Long>()
     private val aiProfilesMutationGate = KeyedSingleFlightGate<Long>()
     private val memoMutationGate = KeyedSingleFlightGate<MemoMutationKey>()
@@ -101,6 +109,21 @@ class SillageViewModel(context: Context) : ViewModel() {
     internal val attachmentOpenEvents: Flow<AttachmentOpenEvent> = _attachmentOpenEvents.receiveAsFlow()
     internal val toastEvents: Flow<UiToastEvent> = _toastEvents.receiveAsFlow()
 
+    // Editor draft rescued from SavedStateHandle after process death; consumed
+    // the next time the matching editor session opens.
+    private var restoredEditorDraft: RestoredEditorDraft? = savedStateHandle?.let { handle ->
+        val content = handle.get<String>(KEY_SAVED_DRAFT_CONTENT)
+        if (content.isNullOrBlank()) {
+            null
+        } else {
+            RestoredEditorDraft(
+                content = content,
+                entryDate = handle.get<String>(KEY_SAVED_DRAFT_ENTRY_DATE).orEmpty(),
+                editingMemoId = handle.get<String>(KEY_SAVED_EDITING_MEMO_ID).orEmpty(),
+            )
+        }
+    }
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
             pruneAttachmentOpenCache(File(appContext.cacheDir, OPEN_ATTACHMENTS_CACHE_DIRECTORY))
@@ -123,6 +146,7 @@ class SillageViewModel(context: Context) : ViewModel() {
             val before = _state.value
             val after = transform(before)
             _state.value = after
+            persistEditorDraft(before, after)
             toastEventEmitter.onStateChanged(
                 before = before,
                 after = after,
@@ -130,6 +154,39 @@ class SillageViewModel(context: Context) : ViewModel() {
                 noticeType = noticeType,
             )
         }
+    }
+
+    // Keep the minimal editor draft in SavedStateHandle so process death does
+    // not lose unsaved text.
+    private fun persistEditorDraft(before: SillageUiState, after: SillageUiState) {
+        val handle = savedStateHandle ?: return
+        val draftActive = after.screen == Screen.Editor && after.draftContent.isNotBlank()
+        val wasActive = before.screen == Screen.Editor && before.draftContent.isNotBlank()
+        if (draftActive) {
+            if (
+                before.draftContent != after.draftContent ||
+                before.draftEntryDate != after.draftEntryDate ||
+                before.selectedMemo?.id != after.selectedMemo?.id ||
+                !wasActive
+            ) {
+                handle[KEY_SAVED_DRAFT_CONTENT] = after.draftContent
+                handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.draftEntryDate
+                handle[KEY_SAVED_EDITING_MEMO_ID] = after.selectedMemo?.id.orEmpty()
+            }
+        } else if (wasActive) {
+            handle[KEY_SAVED_DRAFT_CONTENT] = ""
+            handle[KEY_SAVED_DRAFT_ENTRY_DATE] = ""
+            handle[KEY_SAVED_EDITING_MEMO_ID] = ""
+        }
+    }
+
+    private fun consumeRestoredEditorDraft(editingMemoId: String): RestoredEditorDraft? {
+        val restored = restoredEditorDraft ?: return null
+        if (restored.editingMemoId != editingMemoId) {
+            return null
+        }
+        restoredEditorDraft = null
+        return restored
     }
 
     fun chooseOnlineMode() {
@@ -746,6 +803,7 @@ class SillageViewModel(context: Context) : ViewModel() {
         cancelMemoSummary()
         cancelAttachmentOpen()
         val today = LocalDate.now().toString()
+        val restored = consumeRestoredEditorDraft(editingMemoId = "")
         updateState {
             it.copy(
                 screen = Screen.Editor,
@@ -755,8 +813,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = false,
                 uploadingAttachment = false,
                 editorSessionId = it.editorSessionId + 1,
-                draftContent = "",
-                draftEntryDate = today,
+                draftContent = restored?.content ?: "",
+                draftEntryDate = restored?.entryDate?.ifBlank { today } ?: today,
                 initialDraftContent = "",
                 initialDraftEntryDate = today,
                 markdownPreview = false,
@@ -935,39 +993,44 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     fun exportFullData(uri: Uri) {
-        viewModelScope.launch {
-            updateState { it.copy(loading = true, error = null, notice = null) }
-            runCatching {
-                if (!isOfflineMode()) {
-                    localDataStore.mergeFromServer(exportOnlineData())
-                }
-                val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
-                val json = SillageExportCodec.toJson(data)
-                withContext(Dispatchers.IO) {
-                    appContext.contentResolver.openOutputStream(uri)?.use { output ->
-                        output.write(json.toByteArray(Charsets.UTF_8))
-                    } ?: throw IllegalArgumentException(uiString(R.string.error_export_write))
+        launchDataTransfer {
+            var aiSettingsFetched = true
+            if (!isOfflineMode()) {
+                val pulled = exportOnlineData()
+                aiSettingsFetched = pulled.aiSettingsFetched
+                withContext(Dispatchers.Default) {
+                    localDataStore.mergeFromServer(pulled.data)
                 }
             }
-                .onSuccess {
-                    updateState { it.copy(notice = uiString(R.string.notice_exported)) }
-                }
-                .onFailure { error ->
-                    updateState { it.copy(error = error.readableMessage()) }
-                }
-            updateState { it.copy(loading = false) }
+            val json = withContext(Dispatchers.Default) {
+                val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
+                SillageExportCodec.toJson(data)
+            }
+            withContext(Dispatchers.IO) {
+                appContext.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(json.toByteArray(Charsets.UTF_8))
+                } ?: throw IllegalArgumentException(uiString(R.string.error_export_write))
+            }
+            updateState(noticeType = if (aiSettingsFetched) UiToastType.SUCCESS else UiToastType.WARNING) {
+                it.copy(
+                    notice = if (aiSettingsFetched) {
+                        uiString(R.string.notice_exported)
+                    } else {
+                        uiString(R.string.error_sync_ai_settings_failed)
+                    },
+                )
+            }
         }
     }
 
     fun importFullData(uri: Uri) {
-        viewModelScope.launch {
-            updateState { it.copy(loading = true, error = null, notice = null) }
-            runCatching {
-                val raw = withContext(Dispatchers.IO) {
-                    appContext.contentResolver.openInputStream(uri)?.use { input ->
-                        input.readBytes().toString(Charsets.UTF_8)
-                    } ?: throw IllegalArgumentException(uiString(R.string.error_import_read))
-                }
+        launchDataTransfer {
+            val raw = withContext(Dispatchers.IO) {
+                appContext.contentResolver.openInputStream(uri)?.use { input ->
+                    input.readBytes().toString(Charsets.UTF_8)
+                } ?: throw IllegalArgumentException(uiString(R.string.error_import_read))
+            }
+            val result = withContext(Dispatchers.Default) {
                 val data = SillageExportCodec.fromJson(raw)
                 localDataStore.mergeWith(data)
                 data.themeMode.takeIf { it.isNotBlank() }?.let(sessionStore::saveThemeMode)
@@ -979,33 +1042,27 @@ class SillageViewModel(context: Context) : ViewModel() {
                     aiAutoSummary = merged.autoSummary,
                 )
             }
-                .onSuccess { result ->
-                    updateState {
-                        it.copy(
-                            themeMode = result.themeMode,
-                            memoViewMode = result.memoViewMode,
-                            selectedMemo = null,
-                            selectedSummary = null,
-                            summaryLoading = false,
-                            uploadingAttachment = false,
-                            aiProfiles = result.aiProfiles,
-                            aiAutoSummary = result.aiAutoSummary,
-                            askConversations = emptyList(),
-                            askMessages = emptyList(),
-                            searchQuery = "",
-                            searchResults = null,
-                            searchResultQuery = "",
-                            searchFailureQuery = "",
-                            searching = false,
-                            notice = uiString(R.string.notice_imported),
-                        )
-                    }
-                    refreshMemos()
-                }
-                .onFailure { error ->
-                    updateState { it.copy(error = error.readableMessage()) }
-                }
-            updateState { it.copy(loading = false) }
+            updateState {
+                it.copy(
+                    themeMode = result.themeMode,
+                    memoViewMode = result.memoViewMode,
+                    selectedMemo = null,
+                    selectedSummary = null,
+                    summaryLoading = false,
+                    uploadingAttachment = false,
+                    aiProfiles = result.aiProfiles,
+                    aiAutoSummary = result.aiAutoSummary,
+                    askConversations = emptyList(),
+                    askMessages = emptyList(),
+                    searchQuery = "",
+                    searchResults = null,
+                    searchResultQuery = "",
+                    searchFailureQuery = "",
+                    searching = false,
+                    notice = uiString(R.string.notice_imported),
+                )
+            }
+            refreshMemos()
         }
     }
 
@@ -1016,19 +1073,20 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             return
         }
-        viewModelScope.launch {
-            updateState { it.copy(loading = true, error = null, notice = null) }
-            runCatching {
-                val data = exportOnlineData()
-                localDataStore.mergeFromServer(data)
+        launchDataTransfer {
+            val pulled = exportOnlineData()
+            withContext(Dispatchers.Default) {
+                localDataStore.mergeFromServer(pulled.data)
             }
-                .onSuccess {
-                    updateState { it.copy(notice = uiString(R.string.notice_synced_local)) }
-                }
-                .onFailure { error ->
-                    updateState { it.copy(error = error.readableMessage()) }
-                }
-            updateState { it.copy(loading = false) }
+            updateState(noticeType = if (pulled.aiSettingsFetched) UiToastType.SUCCESS else UiToastType.WARNING) {
+                it.copy(
+                    notice = if (pulled.aiSettingsFetched) {
+                        uiString(R.string.notice_synced_local)
+                    } else {
+                        uiString(R.string.error_sync_ai_settings_failed)
+                    },
+                )
+            }
         }
     }
 
@@ -1039,18 +1097,11 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             return
         }
-        viewModelScope.launch {
-            updateState { it.copy(loading = true, error = null, notice = null) }
-            runCatching { pushLocalMemosToServer() }
-                .onSuccess { summary ->
-                    updateState(noticeType = syncPushToastType(summary)) {
-                        it.copy(notice = syncPushNotice(summary))
-                    }
-                }
-                .onFailure { error ->
-                    updateState { it.copy(error = error.readableMessage()) }
-                }
-            updateState { it.copy(loading = false) }
+        launchDataTransfer {
+            val summary = pushLocalMemosToServer()
+            updateState(noticeType = syncPushToastType(summary)) {
+                it.copy(notice = syncPushNotice(summary))
+            }
         }
     }
 
@@ -1061,23 +1112,45 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             return
         }
-        viewModelScope.launch {
-            updateState { it.copy(loading = true, error = null, notice = null) }
-            runCatching {
-                val push = pushLocalMemosToServer()
-                localDataStore.mergeFromServer(exportOnlineData())
-                push
+        launchDataTransfer {
+            val push = pushLocalMemosToServer()
+            val pulled = exportOnlineData()
+            withContext(Dispatchers.Default) {
+                localDataStore.mergeFromServer(pulled.data)
             }
-                .onSuccess { summary ->
-                    updateState(noticeType = syncPushToastType(summary)) {
-                        it.copy(notice = uiString(R.string.notice_sync_both, syncPushNotice(summary)))
-                    }
-                    refreshMemos()
-                }
-                .onFailure { error ->
+            val warnAiSettings = !pulled.aiSettingsFetched
+            updateState(
+                noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
+            ) {
+                it.copy(
+                    notice = if (warnAiSettings) {
+                        uiString(R.string.error_sync_ai_settings_failed)
+                    } else {
+                        uiString(R.string.notice_sync_both, syncPushNotice(push))
+                    },
+                )
+            }
+            refreshMemos()
+        }
+    }
+
+    // Single-flight wrapper for full-data operations (sync/import/export) so a
+    // rapid double tap cannot start two concurrent transfers.
+    private fun launchDataTransfer(block: suspend () -> Unit) {
+        val lease = dataTransferGate.tryAcquire() ?: return
+        updateState { it.copy(loading = true, error = null, notice = null) }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            runSingleFlightOperation(
+                lease = lease,
+                onFailure = { error ->
                     updateState { it.copy(error = error.readableMessage()) }
-                }
-            updateState { it.copy(loading = false) }
+                },
+                onFinished = {
+                    updateState { it.copy(loading = false) }
+                },
+            ) {
+                block()
+            }
         }
     }
 
@@ -1192,6 +1265,12 @@ class SillageViewModel(context: Context) : ViewModel() {
             }
             return
         }
+        if (runCatching { LocalDate.parse(current.draftEntryDate.trim()) }.isFailure) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_entry_date_invalid))
+            }
+            return
+        }
         cancelMemoSummary()
         cancelAttachmentOpen()
         val selectedMemo = current.selectedMemo
@@ -1206,17 +1285,18 @@ class SillageViewModel(context: Context) : ViewModel() {
             memoId = selectedMemo?.id,
             useGlobalBusy = selectedMemo == null,
         ) {
+            val entryDate = current.draftEntryDate.trim()
             val saved = if (current.selectedMemo == null) {
                 if (current.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.createMemo(current.draftContent.trim(), current.draftEntryDate)
+                    localDataStore.createMemo(current.draftContent.trim(), entryDate)
                 } else {
-                    api.createMemo(current.draftContent.trim(), current.draftEntryDate)
+                    api.createMemo(current.draftContent.trim(), entryDate)
                 }
             } else {
                 if (current.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.updateMemo(current.selectedMemo, current.draftContent.trim(), current.draftEntryDate)
+                    localDataStore.updateMemo(current.selectedMemo, current.draftContent.trim(), entryDate)
                 } else {
-                    api.updateMemo(current.selectedMemo, current.draftContent.trim(), current.draftEntryDate)
+                    api.updateMemo(current.selectedMemo, current.draftContent.trim(), entryDate)
                 }
             }
             if (!applyMemo(saved, current.appMode, current.clientContextGeneration)) {
@@ -1577,40 +1657,59 @@ class SillageViewModel(context: Context) : ViewModel() {
             return
         }
         viewModelScope.launch {
-            runCatching {
-                buildString {
-                    for (uri in uris) {
-                        val upload = readAttachmentUpload(uri)
-                        val attachment = api.uploadAttachment(upload)
-                        append(attachmentMarkdown(attachment))
+            // Insert each successfully uploaded attachment as soon as it lands
+            // so a mid-batch failure never discards earlier uploads' links.
+            var failedCount = 0
+            var firstError: Throwable? = null
+            for (uri in uris) {
+                val snippet = runCatching {
+                    val upload = readAttachmentUpload(uri)
+                    attachmentMarkdown(api.uploadAttachment(upload))
+                }.getOrElse { error ->
+                    if (error is CancellationException) {
+                        throw error
                     }
+                    failedCount += 1
+                    if (firstError == null) {
+                        firstError = error
+                    }
+                    null
+                }
+                if (snippet != null) {
+                    updateState {
+                        if (it.canApplyAttachmentUpload(editorSessionId)) {
+                            it.copy(draftContent = it.draftContent + snippet)
+                        } else {
+                            it
+                        }
+                    }
+                }
+                if (!state.value.canApplyAttachmentUpload(editorSessionId)) {
+                    return@launch
                 }
             }
-                .onSuccess { snippets ->
-                    updateState {
-                        if (it.canApplyAttachmentUpload(editorSessionId)) {
-                            it.copy(
-                                draftContent = it.draftContent + snippets,
-                                uploadingAttachment = false,
-                                notice = uiString(R.string.notice_attachment_inserted),
-                            )
-                        } else {
-                            it
-                        }
+            val partialFailure = failedCount in 1 until uris.size
+            updateState(noticeType = if (partialFailure) UiToastType.WARNING else UiToastType.SUCCESS) {
+                if (it.canApplyAttachmentUpload(editorSessionId)) {
+                    when {
+                        failedCount == 0 -> it.copy(
+                            uploadingAttachment = false,
+                            notice = uiString(R.string.notice_attachment_inserted),
+                        )
+                        partialFailure -> it.copy(
+                            uploadingAttachment = false,
+                            error = null,
+                            notice = uiString(R.string.notice_attachment_partial_failure, failedCount),
+                        )
+                        else -> it.copy(
+                            uploadingAttachment = false,
+                            error = firstError?.readableMessage(),
+                        )
                     }
+                } else {
+                    it
                 }
-                .onFailure { error ->
-                    updateState {
-                        if (it.canApplyAttachmentUpload(editorSessionId)) {
-                            it.copy(
-                                uploadingAttachment = false,
-                                error = error.readableMessage(),
-                            )
-                        } else {
-                            it
-                        }
-                    }
-                }
+            }
         }
     }
 
@@ -2710,14 +2809,40 @@ class SillageViewModel(context: Context) : ViewModel() {
     private suspend fun readAttachmentUpload(uri: Uri): AttachmentUpload = withContext(Dispatchers.IO) {
         val resolver = appContext.contentResolver
         val filename = displayName(uri).ifBlank { uri.lastPathSegment ?: "attachment" }
+        // Reject oversized files before materializing them in memory.
+        val size = attachmentSize(uri)
+        if (size != null && size > MAX_ATTACHMENT_UPLOAD_BYTES) {
+            throw IllegalArgumentException(
+                uiString(R.string.error_attachment_too_large, filename, MAX_ATTACHMENT_UPLOAD_MB),
+            )
+        }
         val contentType = resolver.getType(uri) ?: "application/octet-stream"
         val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
             ?: throw IllegalArgumentException(uiString(R.string.error_attachment_read))
+        if (bytes.size > MAX_ATTACHMENT_UPLOAD_BYTES) {
+            throw IllegalArgumentException(
+                uiString(R.string.error_attachment_too_large, filename, MAX_ATTACHMENT_UPLOAD_MB),
+            )
+        }
         AttachmentUpload(
             filename = filename,
             contentType = contentType,
             bytes = bytes,
         )
+    }
+
+    private fun attachmentSize(uri: Uri): Long? {
+        appContext.contentResolver
+            .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (index >= 0 && !cursor.isNull(index)) {
+                        return cursor.getLong(index)
+                    }
+                }
+            }
+        return null
     }
 
     private suspend fun createAttachmentDownloadTempFile(
@@ -2959,10 +3084,13 @@ class SillageViewModel(context: Context) : ViewModel() {
         )
     }
 
-    private suspend fun exportOnlineData() = withContext(Dispatchers.IO) {
-        api.pullFullSync().copy(
-            themeMode = state.value.themeMode,
-            memoViewMode = state.value.memoViewMode.name,
+    private suspend fun exportOnlineData(): PulledSyncData = withContext(Dispatchers.IO) {
+        val pulled = api.pullFullSync()
+        pulled.copy(
+            data = pulled.data.copy(
+                themeMode = state.value.themeMode,
+                memoViewMode = state.value.memoViewMode.name,
+            ),
         )
     }
 
@@ -3368,8 +3496,19 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun enterOfflineMode(notice: String?) {
         cancelAIAutoSummarySave()
         val filter = state.value.memoListFilter
-        val memos = memosForFilter(localDataStore.listMemos(), filter)
-        val aiProfiles = localDataStore.listAIProfiles()
+        // Corrupted local data must surface as an error, not crash the app or
+        // silently show an empty diary.
+        val localSnapshot = runCatching {
+            OfflineLocalSnapshot(
+                memos = memosForFilter(localDataStore.listMemos(), filter),
+                aiProfiles = localDataStore.listAIProfiles(),
+                autoSummary = localDataStore.autoSummaryEnabled(),
+            )
+        }
+        val memos = localSnapshot.getOrNull()?.memos.orEmpty()
+        val aiProfiles = localSnapshot.getOrNull()?.aiProfiles.orEmpty()
+        val autoSummary = localSnapshot.getOrNull()?.autoSummary == true
+        val loadError = localSnapshot.exceptionOrNull()?.readableMessage()
         updateState {
             it.invalidateAIAutoSummaryRequest().copy(
                 appMode = SessionStore.MODE_OFFLINE,
@@ -3386,7 +3525,7 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = false,
                 uploadingAttachment = false,
                 aiProfiles = aiProfiles,
-                aiAutoSummary = localDataStore.autoSummaryEnabled(),
+                aiAutoSummary = autoSummary,
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
                 aiSettingsSaving = false,
@@ -3416,11 +3555,17 @@ class SillageViewModel(context: Context) : ViewModel() {
                 screenHistory = emptyList(),
                 authError = null,
                 authErrorResourceId = null,
-                error = null,
-                notice = notice,
+                error = loadError,
+                notice = if (loadError == null) notice else null,
             )
         }
     }
+
+    private data class OfflineLocalSnapshot(
+        val memos: List<Memo>,
+        val aiProfiles: List<AIProfileDraft>,
+        val autoSummary: Boolean,
+    )
 
     private fun isOfflineMode(): Boolean = state.value.appMode == SessionStore.MODE_OFFLINE
 
@@ -3493,6 +3638,7 @@ class SillageViewModel(context: Context) : ViewModel() {
     private fun openEditorForMemo(memo: Memo) {
         cancelMemoSummary()
         cancelAttachmentOpen()
+        val restored = consumeRestoredEditorDraft(editingMemoId = memo.id)
         updateState {
             it.copy(
                 screen = Screen.Editor,
@@ -3502,8 +3648,8 @@ class SillageViewModel(context: Context) : ViewModel() {
                 summaryLoading = !isOfflineMode(),
                 uploadingAttachment = false,
                 editorSessionId = it.editorSessionId + 1,
-                draftContent = memo.content,
-                draftEntryDate = memo.entryDate,
+                draftContent = restored?.content ?: memo.content,
+                draftEntryDate = restored?.entryDate?.ifBlank { memo.entryDate } ?: memo.entryDate,
                 initialDraftContent = memo.content,
                 initialDraftEntryDate = memo.entryDate,
                 markdownPreview = false,
@@ -3514,6 +3660,12 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     private fun Throwable.readableMessage(): String {
+        if (this is IOException) {
+            // Raw socket-level messages are English and unhelpful; log them and
+            // show a localized transport error instead.
+            android.util.Log.w("SillageViewModel", "network error: ${message.orEmpty()}", this)
+            return uiString(R.string.error_network)
+        }
         val raw = message?.trim().orEmpty()
         val normalized = raw.trimEnd('。')
         val resourceId = readableErrorResourceId(raw, state.value.languageMode)
@@ -3527,6 +3679,12 @@ class SillageViewModel(context: Context) : ViewModel() {
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+            val handle = runCatching { extras.createSavedStateHandle() }.getOrNull()
+            return SillageViewModel(context, handle) as T
+        }
+
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return SillageViewModel(context) as T
@@ -3562,7 +3720,19 @@ internal data class AttachmentOpenEvent(
 private const val OPEN_ATTACHMENTS_CACHE_DIRECTORY = "open_attachments"
 private const val ATTACHMENT_DOWNLOAD_TEMP_FILENAME = "download.tmp"
 private const val TOAST_EVENT_BUFFER_CAPACITY = 8
+// Matches the server's default --max-upload-mb (internal/profile/profile.go).
+private const val MAX_ATTACHMENT_UPLOAD_MB = 30
+private const val MAX_ATTACHMENT_UPLOAD_BYTES = MAX_ATTACHMENT_UPLOAD_MB * 1024L * 1024L
+private const val KEY_SAVED_DRAFT_CONTENT = "editor_draft_content"
+private const val KEY_SAVED_DRAFT_ENTRY_DATE = "editor_draft_entry_date"
+private const val KEY_SAVED_EDITING_MEMO_ID = "editor_editing_memo_id"
 private val HAN_CHARACTER = Regex("[\\u4E00-\\u9FFF]")
+
+private data class RestoredEditorDraft(
+    val content: String,
+    val entryDate: String,
+    val editingMemoId: String,
+)
 
 internal fun readableErrorResourceId(rawMessage: String?, languageMode: String): Int? {
     val raw = rawMessage?.trim().orEmpty()
@@ -3582,6 +3752,7 @@ internal fun readableErrorResourceId(rawMessage: String?, languageMode: String):
         "刷新登录状态失败" -> R.string.error_auth_refresh_failed
         "请先登录" -> R.string.error_login_required
         "记录不存在" -> R.string.error_record_missing
+        "本地数据无法读取" -> R.string.error_local_data_corrupt
         "会话不存在" -> R.string.error_conversation_missing
         "不支持的数据格式版本" -> R.string.error_data_version_unsupported
         "请先配置 AI API 密钥" -> R.string.error_ai_key_required

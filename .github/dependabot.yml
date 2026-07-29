@@ -1,26 +1,33 @@
 version: 2
+# Pull requests are disabled for now to keep the repo quiet.
+# Set open-pull-requests-limit above 0 when ready to review upgrades again.
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: npm
     directory: /web
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: gradle
     directory: /android
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 
   - package-ecosystem: docker
     directory: /scripts
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0

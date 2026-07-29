@@ -132,11 +132,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api \
-            --method PUT \
-            -H "Accept: application/vnd.github+json" \
-            "/orgs/getsillage/packages/container/sillage/visibility" \
-            -f visibility=public
+          # GITHUB_TOKEN often cannot change org package visibility (API 404).
+          # After the first publish, set the package to Public once in the UI if needed:
+          # https://github.com/orgs/getsillage/packages
+          set +e
+          for attempt in 1 2 3 4 5; do
+            if gh api \
+              --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              "/orgs/getsillage/packages/container/sillage/visibility" \
+              -f visibility=public; then
+              echo "Package visibility set to public"
+              exit 0
+            fi
+            echo "visibility update attempt $attempt failed; retrying..."
+            sleep 5
+          done
+          echo "::warning::Could not set package visibility via API. If anonymous docker pull fails, open the package settings and set visibility to Public."
+          exit 0
 
       - name: Summary
         run: |
@@ -173,8 +186,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          notes="$(mktemp)"
-          {
+
+          container_block() {
             echo "## Container image"
             echo ""
             echo "Images are published only by CI. Prefer the version tag that matches this release."
@@ -196,66 +209,42 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "## Changes"
-            echo ""
-          } > "$notes"
+          }
+
+          notes="$(mktemp)"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            existing="$(gh release view "$TAG" --json body -q .body // "")"
-            # Keep maintainer-written change notes if the body already has a Changes section.
-            if printf '%s' "$existing" | grep -q '^## Changes'; then
+            existing="$(gh release view "$TAG" --json body --jq '.body // ""')"
+            if printf '%s' "$existing" | grep -q '^## Container image'; then
               printf '%s\n' "$existing" > "$notes"
-              # Refresh the container block at the top when re-running.
-              if ! printf '%s' "$existing" | grep -q '^## Container image'; then
-                body="$(mktemp)"
-                {
-                  echo "## Container image"
-                  echo ""
-                  echo "Images are published only by CI. Prefer the version tag that matches this release."
-                  echo ""
-                  echo '```bash'
-                  echo "docker pull ${IMAGE}:${TAG}"
-                  echo "docker run --rm \\"
-                  echo "  -p 127.0.0.1:5231:5231 \\"
-                  echo "  -v \"\$HOME/.sillage:/var/opt/sillage\" \\"
-                  echo "  ${IMAGE}:${TAG}"
-                  echo '```'
-                  echo ""
-                  echo "- Image: \`${IMAGE}:${TAG}\`"
-                  if [ -n "${DIGEST}" ]; then
-                    echo "- Digest: \`${DIGEST}\`"
-                  fi
-                  echo ""
-                  echo "---"
-                  echo ""
-                  printf '%s\n' "$existing"
-                } > "$body"
-                mv "$body" "$notes"
-              fi
             else
+              {
+                container_block
+                if [ -n "$existing" ]; then
+                  printf '%s\n' "$existing"
+                else
+                  echo "## Changes"
+                  echo ""
+                  echo "See the commit history for ${TAG}."
+                fi
+              } > "$notes"
+            fi
+            gh release edit "$TAG" --notes-file "$notes"
+          else
+            {
+              container_block
+              echo "## Changes"
+              echo ""
               gen="$(mktemp)"
               if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
                 -f tag_name="$TAG" \
                 -f target_commitish="$(git rev-parse HEAD)" \
                 --jq .body > "$gen" 2>/dev/null; then
-                cat "$gen" >> "$notes"
-              elif [ -n "$existing" ]; then
-                printf '%s\n' "$existing" >> "$notes"
+                cat "$gen"
               else
-                echo "See the commit history for ${TAG}." >> "$notes"
+                echo "See the commit history for ${TAG}."
               fi
-            fi
-            gh release edit "$TAG" --notes-file "$notes"
-          else
-            gen="$(mktemp)"
-            if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-              -f tag_name="$TAG" \
-              -f target_commitish="$(git rev-parse HEAD)" \
-              --jq .body > "$gen" 2>/dev/null; then
-              cat "$gen" >> "$notes"
-            else
-              echo "See the commit history for ${TAG}." >> "$notes"
-            fi
+            } > "$notes"
             gh release create "$TAG" \
               --title "Sillage ${TAG}" \
               --notes-file "$notes" \

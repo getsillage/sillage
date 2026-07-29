@@ -4,33 +4,30 @@ Sillage is designed to run with Docker on a single machine. The service itself p
 
 ## Docker
 
-Prefer a published release image from [GitHub Container Registry](https://github.com/getsillage/sillage/pkgs/container/sillage). Image tags match [GitHub Releases](https://github.com/getsillage/sillage/releases) (`vX.Y.Z`). `latest` tracks the newest non-prerelease image published by CI. Do not run untagged builds from `main` in production.
-
-Pull and run on the local machine only:
+The simplest path uses the published image and binds only to the local machine:
 
 ```bash
-docker pull ghcr.io/getsillage/sillage:vX.Y.Z
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  ghcr.io/getsillage/sillage:vX.Y.Z
+  ghcr.io/getsillage/sillage:latest
 ```
 
-Open `http://localhost:5231` and create the instance's only account on the first visit.
+Open `http://localhost:5231` and create the instance's only account on the first visit. Docker pulls the image automatically when needed.
+
+`latest` always points at the newest non-prerelease image from CI. To pin a specific release later, replace `latest` with a tag from [GitHub Releases](https://github.com/getsillage/sillage/releases) (for example the tag shown on that page). Images are listed under [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage).
 
 Do not use `-p 5231:5231` on a host without a firewall and HTTPS. It publishes the port on the host's available interfaces.
 
 ## Compose
 
-The repository Compose file pulls the published image by default and publishes only on the loopback address:
+From a checkout of this repository, start with the default image (`ghcr.io/getsillage/sillage:latest`):
 
 ```bash
-export SILLAGE_IMAGE="ghcr.io/getsillage/sillage:vX.Y.Z"
-docker compose -f scripts/compose.yaml pull
 docker compose -f scripts/compose.yaml up -d
 ```
 
-If you omit `SILLAGE_IMAGE`, Compose uses `ghcr.io/getsillage/sillage:latest`.
+To use another image, set `SILLAGE_IMAGE` before `up` (for example a release tag from GitHub Releases).
 
 To allow trusted devices on a local network to connect directly, explicitly set `SILLAGE_HOST_PORT=5231` and configure the host firewall at the same time. Public deployments should remain bound to the loopback address, with the separately managed HTTPS entry point reaching that port through an operator-controlled network path.
 
@@ -103,9 +100,9 @@ curl --fail http://localhost:5231/readyz
 
 `healthz` checks only the process, while `readyz` also checks SQLite. Before upgrading:
 
-1. Note the current image reference (for example `ghcr.io/getsillage/sillage:vX.Y.Z` or its digest) so you can roll back.
+1. Note the image you are running (`docker inspect` digest or the tag you started with) so you can roll back.
 2. Follow [Data, Backup, and Recovery](data.md) to stop the service and back up the complete data directory.
-3. Pull and start the new image, then confirm that probes, sign-in, records, and attachments work correctly.
+3. Pull the new image (`docker pull ghcr.io/getsillage/sillage:latest` or a pinned tag), start it, then confirm that probes, sign-in, records, and attachments work correctly.
 4. If the upgrade fails, stop the new instance, restore the corresponding data backup, and start the preserved old image.
 
 If a startup migration fails, the service does not enter the ready state. An older binary may not be compatible with an upgraded database, so you cannot roll back only the image without restoring the matching data.
@@ -114,31 +111,31 @@ Probes do not require authentication, and `readyz` may include diagnostic text w
 
 ## Appendix: Build from source
 
-Use a release tag checkout when you need a custom build. Published GHCR images remain the recommended path for production.
+Use a release checkout from [GitHub Releases](https://github.com/getsillage/sillage/releases) when you need a custom build. Published GHCR images remain the recommended path.
 
 ```bash
 git clone https://github.com/getsillage/sillage.git
 cd sillage
-git checkout vX.Y.Z
-VERSION="$(git describe --tags --exact-match)"
+# Check out a release tag from the Releases page, then:
+VERSION="$(git describe --tags --exact-match 2>/dev/null || echo dev)"
 REVISION="$(git rev-parse HEAD)"
 docker build \
   --build-arg VERSION="$VERSION" \
   --build-arg REVISION="$REVISION" \
-  -t "sillage:$VERSION" \
+  -t "sillage:local" \
   -f scripts/Dockerfile .
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  "sillage:$VERSION"
+  sillage:local
 ```
 
 Compose with a local build:
 
 ```bash
-export SILLAGE_VERSION="$(git describe --tags --exact-match)"
+export SILLAGE_VERSION=local
 export SILLAGE_REVISION="$(git rev-parse HEAD)"
-export SILLAGE_IMAGE="sillage:$SILLAGE_VERSION"
+export SILLAGE_IMAGE="sillage:local"
 docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml up -d --build
 ```
 
@@ -149,7 +146,7 @@ Go 1.25 is required. The ignored Web output is generated locally rather than sto
 ```bash
 pnpm --dir web install
 pnpm --dir web build
-VERSION="$(git describe --tags --exact-match)"
+VERSION="$(git describe --tags --exact-match 2>/dev/null || echo dev)"
 REVISION="$(git rev-parse HEAD)"
 go build -ldflags "-X main.version=$VERSION -X main.revision=$REVISION" -o sillage ./cmd/sillage
 SILLAGE_ADDR=127.0.0.1 SILLAGE_DATA="$HOME/.sillage" ./sillage

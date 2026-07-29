@@ -71,6 +71,7 @@ class SyncPushTest {
             serverVersion = 2L,
             newMutationId = { "new-mutation" },
         )
+        // Local was already ahead of server; content and version stay the same.
         assertEquals(local, resolved.memos.single())
         assertEquals(2L, resolved.cloudVersions[local.id])
         assertEquals("new-mutation", resolved.pendingMutations[local.id]?.mutationId)
@@ -83,6 +84,82 @@ class SyncPushTest {
         )
         assertEquals(2L, pending.pending.single().baseVersion)
         assertEquals("new-mutation", pending.pending.single().mutationId)
+    }
+
+    @Test
+    fun keepLocalConflictWhenServerVersionAtLeastLocalStillSchedulesResubmit() {
+        // Realistic conflict: server advanced to the same or higher version than
+        // the device's pending edit. Keep-local must bump the local memo so
+        // resolvePendingMemoSyncs does not drop the pending push.
+        val local = memo(
+            version = 6,
+            content = "本机冲突内容",
+            updatedAt = "2026-07-30T01:00:00Z",
+        )
+        val resolvedEqual = resolveConflictKeepLocalState(
+            localMemos = listOf(local),
+            cloudVersions = mapOf(local.id to 5L),
+            pendingMutations = mapOf(
+                local.id to PendingMemoMutation(
+                    mutationId = "old-mutation",
+                    memoVersion = local.version,
+                    memoUpdatedAt = local.updatedAt,
+                ),
+            ),
+            localMemo = local,
+            serverVersion = 6L,
+            newMutationId = { "resubmit-equal" },
+            now = "2026-07-30T02:00:00Z",
+        )
+        val keptEqual = resolvedEqual.memos.single()
+        assertEquals(6L, resolvedEqual.cloudVersions[local.id])
+        assertEquals(7L, keptEqual.version)
+        assertEquals("本机冲突内容", keptEqual.content)
+        assertEquals("2026-07-30T02:00:00Z", keptEqual.updatedAt)
+        assertEquals("resubmit-equal", resolvedEqual.pendingMutations[local.id]?.mutationId)
+        assertEquals(7L, resolvedEqual.pendingMutations[local.id]?.memoVersion)
+
+        val pendingEqual = resolvePendingMemoSyncs(
+            memos = resolvedEqual.memos,
+            cloudVersions = resolvedEqual.cloudVersions,
+            pendingMutations = resolvedEqual.pendingMutations,
+            newMutationId = { error("should reuse mutation") },
+        )
+        assertEquals(1, pendingEqual.pending.size)
+        assertEquals(6L, pendingEqual.pending.single().baseVersion)
+        assertEquals("resubmit-equal", pendingEqual.pending.single().mutationId)
+        assertEquals(7L, pendingEqual.pending.single().memo.version)
+
+        val resolvedAhead = resolveConflictKeepLocalState(
+            localMemos = listOf(local),
+            cloudVersions = mapOf(local.id to 5L),
+            pendingMutations = mapOf(
+                local.id to PendingMemoMutation(
+                    mutationId = "old-mutation",
+                    memoVersion = local.version,
+                    memoUpdatedAt = local.updatedAt,
+                ),
+            ),
+            localMemo = local,
+            serverVersion = 7L,
+            newMutationId = { "resubmit-ahead" },
+            now = "2026-07-30T03:00:00Z",
+        )
+        val keptAhead = resolvedAhead.memos.single()
+        assertEquals(7L, resolvedAhead.cloudVersions[local.id])
+        assertEquals(8L, keptAhead.version)
+        assertEquals("本机冲突内容", keptAhead.content)
+
+        val pendingAhead = resolvePendingMemoSyncs(
+            memos = resolvedAhead.memos,
+            cloudVersions = resolvedAhead.cloudVersions,
+            pendingMutations = resolvedAhead.pendingMutations,
+            newMutationId = { error("should reuse mutation") },
+        )
+        assertEquals(1, pendingAhead.pending.size)
+        assertEquals(7L, pendingAhead.pending.single().baseVersion)
+        assertEquals("resubmit-ahead", pendingAhead.pending.single().mutationId)
+        assertEquals(8L, pendingAhead.pending.single().memo.version)
     }
 
     @Test

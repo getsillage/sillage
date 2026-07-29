@@ -717,17 +717,28 @@ internal fun resolveConflictKeepLocalState(
     localMemo: Memo,
     serverVersion: Long,
     newMutationId: () -> String = ::newMemoMutationId,
+    now: String = Instant.now().toString(),
 ): ConflictResolutionState {
+    // Cloud baseline becomes the server version; local content must stay strictly
+    // ahead so resolvePendingMemoSyncs still schedules a push (baseVersion=server).
+    // When the conflicted local version is already <= serverVersion (common after
+    // concurrent edits), bump it to serverVersion+1 and refresh mutation match fields.
     val versions = cloudVersions.toMutableMap()
     versions[localMemo.id] = serverVersion
+    val resubmitVersion = maxOf(localMemo.version, serverVersion + 1)
+    val keptLocal = if (resubmitVersion == localMemo.version) {
+        localMemo
+    } else {
+        localMemo.copy(version = resubmitVersion, updatedAt = now)
+    }
     val mutations = pendingMutations.toMutableMap()
     mutations[localMemo.id] = PendingMemoMutation(
         mutationId = newMutationId(),
-        memoVersion = localMemo.version,
-        memoUpdatedAt = localMemo.updatedAt,
+        memoVersion = keptLocal.version,
+        memoUpdatedAt = keptLocal.updatedAt,
     )
     return ConflictResolutionState(
-        memos = localMemos.map { if (it.id == localMemo.id) localMemo else it },
+        memos = localMemos.map { if (it.id == localMemo.id) keptLocal else it },
         cloudVersions = versions,
         pendingMutations = mutations,
     )

@@ -121,6 +121,7 @@ GitHub Releases are the only source of user-visible release notes; the repositor
 4. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes `ghcr.io/getsillage/sillage:vX.Y.Z` (and related tags), creates or updates the GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.
 5. Edit the generated Release notes so they include the main changes, known limitations, and upgrade or rollback requirements. Do not commit keystores, signing configuration, or build artifacts.
 6. To republish an image for an existing tag (for example after enabling GHCR), run the Release workflow with `workflow_dispatch` and the tag name. Set `create_release` only when the GitHub Release should be created or refreshed.
+7. After the **first** successful image publish, open [GitHub Packages](https://github.com/orgs/getsillage/packages) for `sillage`, set package visibility to **Public**, and link it to this repository if needed. Anonymous `docker pull ghcr.io/getsillage/sillage:vX.Y.Z` requires a public package; `GITHUB_TOKEN` often cannot change org package visibility via the API.
 
 `main` requires green CI status checks before merge. Force-pushes to `main` are blocked.
 

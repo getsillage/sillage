@@ -816,7 +816,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
             }}
           >
             <label className="block space-y-1.5">
-              <span className={labelClass}>{t("settings.currentPassword")}</span>
+              <span className={labelClass}>
+                {t("settings.currentPassword")}
+              </span>
               <input
                 className={inputClass}
                 type="password"
@@ -838,7 +840,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className={labelClass}>{t("settings.confirmPassword")}</span>
+              <span className={labelClass}>
+                {t("settings.confirmPassword")}
+              </span>
               <input
                 className={inputClass}
                 type="password"

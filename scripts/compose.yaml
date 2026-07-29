@@ -1,12 +1,6 @@
 services:
   sillage:
-    image: ${SILLAGE_IMAGE:-sillage:latest}
-    build:
-      context: ..
-      dockerfile: scripts/Dockerfile
-      args:
-        VERSION: ${SILLAGE_VERSION:-dev}
-        REVISION: ${SILLAGE_REVISION:-unknown}
+    image: ${SILLAGE_IMAGE:-ghcr.io/getsillage/sillage:latest}
     container_name: sillage
     restart: unless-stopped
     ports:

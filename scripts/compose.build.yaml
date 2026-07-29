@@ -1,0 +1,16 @@
+# Optional override to build the image from a source checkout instead of
+# pulling ghcr.io/getsillage/sillage. Usage:
+#
+#   export SILLAGE_VERSION="$(git describe --tags --exact-match)"
+#   export SILLAGE_REVISION="$(git rev-parse HEAD)"
+#   export SILLAGE_IMAGE="sillage:$SILLAGE_VERSION"
+#   docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml up -d --build
+services:
+  sillage:
+    image: ${SILLAGE_IMAGE:-sillage:local}
+    build:
+      context: ..
+      dockerfile: scripts/Dockerfile
+      args:
+        VERSION: ${SILLAGE_VERSION:-dev}
+        REVISION: ${SILLAGE_REVISION:-unknown}

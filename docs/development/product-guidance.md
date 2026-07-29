@@ -8,7 +8,7 @@ Sillage is a single-user personal record space for capturing daily events, thoug
 
 One-line description:
 
-> Sillage is a personal record space for capturing records, revisiting history, and asking questions with personal claims grounded in those records.
+> Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.
 
 The product should be private, clear, concrete, easy to understand, and suitable for long-term use. It is not:
 

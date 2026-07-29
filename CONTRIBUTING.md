@@ -88,7 +88,7 @@ CI compares Proto compatibility with the exact pull request base or previous pus
 | Proto | `buf lint`, `buf breaking --against '.git#branch=main'`, `buf generate`, then inspect the generated diff |
 | Android | `cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` |
 | Documentation and final checks | `node scripts/check-markdown-links.mjs`, `git diff --check` |
-| Deployment | `node scripts/check-docker-context.mjs`, `docker build --build-arg VERSION=dev --build-arg REVISION="$(git rev-parse HEAD)" -t sillage:dev -f scripts/Dockerfile .`, `docker compose -f scripts/compose.yaml config` |
+| Deployment | `node scripts/check-docker-context.mjs`, `docker build --build-arg VERSION=dev --build-arg REVISION="$(git rev-parse HEAD)" -t sillage:dev -f scripts/Dockerfile .`, `docker compose -f scripts/compose.yaml config`, `docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config` |
 
 Web E2E tests run against a live instance. First prepare the browser and embedded artifacts:
 
@@ -113,13 +113,16 @@ Changes that affect the UI must also follow the [Web Design Guidelines](docs/dev
 
 ## Releases
 
-GitHub Releases are the only source of user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Releases are created from `main` commits that have passed CI. The README and documentation index must link to Releases.
+GitHub Releases are the only source of user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Release container images and optional APK assets must be produced by the [Release workflow](.github/workflows/release.yml). Do not attach hand-built server binaries, Docker images, or unsigned APKs to a Release.
 
-1. Compile the user-visible changes and clearly document any compatibility impact on the database, configuration, synchronization, or data formats. Update the deployment and data documentation when special upgrade steps are required.
-2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag.
-3. Run the appropriate gates from the Verification section and the Docker build. For an Android release, also follow the [Sillage Android Guide](android/README.md) to complete signing and the `apksigner` and `zipalign` checks.
-4. After committing the release preparation, create an annotated `vX.Y.Z` tag, then create a GitHub Release from that tag. Release builds use `VERSION=vX.Y.Z` and `REVISION=$(git rev-parse HEAD)`; the binary's `--version` output and the image's OCI labels must be traceable to the tag and commit.
-5. Release notes must include the main changes, known limitations, and upgrade or rollback requirements. Include checksums when downloadable artifacts are available. Do not commit keystores, signing configuration, or build artifacts.
+1. Merge release preparation to `main` after CI is green. Document user-visible changes and any compatibility impact on the database, configuration, synchronization, or data formats. Update the deployment and data documentation when special upgrade steps are required.
+2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+3. Create an annotated tag on the release commit: `git tag -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`.
+4. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes `ghcr.io/getsillage/sillage:vX.Y.Z` (and related tags), creates or updates the GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.
+5. Edit the generated Release notes so they include the main changes, known limitations, and upgrade or rollback requirements. Do not commit keystores, signing configuration, or build artifacts.
+6. To republish an image for an existing tag (for example after enabling GHCR), run the Release workflow with `workflow_dispatch` and the tag name. Set `create_release` only when the GitHub Release should be created or refreshed.
+
+`main` requires green CI status checks before merge. Force-pushes to `main` are blocked.
 
 ## Commits
 

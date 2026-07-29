@@ -1,0 +1,357 @@
+name: Release
+
+# Publish GHCR images and create a GitHub Release for version tags.
+# Container images (and optional signed APKs) must come from this workflow.
+# Do not attach hand-built server or container artifacts to Releases.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing git tag to build and publish (e.g. v0.1.7)"
+        required: true
+        type: string
+      create_release:
+        description: "Create or refresh a GitHub Release for the tag"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: getsillage/sillage
+
+jobs:
+  container:
+    name: Container image
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ref.outputs.tag }}
+      revision: ${{ steps.rev.outputs.revision }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Resolve tag
+        id: ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          case "$tag" in
+            v[0-9]*) ;;
+            *)
+              echo "Tag must look like vX.Y.Z (got: $tag)" >&2
+              exit 1
+              ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Resolve revision
+        id: rev
+        run: |
+          tag="${{ steps.ref.outputs.tag }}"
+          if ! git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Missing tag $tag" >&2
+            exit 1
+          fi
+          expected="$(git rev-parse "$tag^{commit}")"
+          actual="$(git rev-parse HEAD)"
+          if [ "$expected" != "$actual" ]; then
+            echo "Checkout $actual does not match tag $tag ($expected)" >&2
+            exit 1
+          fi
+          echo "revision=$actual" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.ref.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.ref.outputs.tag }}
+            type=raw,value=${{ steps.ref.outputs.tag }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' || inputs.create_release }}
+          labels: |
+            org.opencontainers.image.title=Sillage
+            org.opencontainers.image.description=Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.
+            org.opencontainers.image.source=https://github.com/getsillage/sillage
+            org.opencontainers.image.url=https://github.com/getsillage/sillage
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: scripts/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.ref.outputs.tag }}
+            REVISION=${{ steps.rev.outputs.revision }}
+          provenance: true
+          sbom: true
+
+      - name: Make package public
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            "/orgs/getsillage/packages/container/sillage/visibility" \
+            -f visibility=public
+
+      - name: Summary
+        run: |
+          {
+            echo "## Container"
+            echo ""
+            echo "- Tag: \`${{ steps.ref.outputs.tag }}\`"
+            echo "- Revision: \`${{ steps.rev.outputs.revision }}\`"
+            echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo ""
+            echo '```bash'
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.tag }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release-notes:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: [container]
+    if: github.event_name == 'push' || inputs.create_release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.container.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Compose release notes
+        env:
+          TAG: ${{ needs.container.outputs.tag }}
+          DIGEST: ${{ needs.container.outputs.digest }}
+          IMAGE: ghcr.io/getsillage/sillage
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          notes="$(mktemp)"
+          {
+            echo "## Container image"
+            echo ""
+            echo "Images are published only by CI. Prefer the version tag that matches this release."
+            echo ""
+            echo '```bash'
+            echo "docker pull ${IMAGE}:${TAG}"
+            echo "docker run --rm \\"
+            echo "  -p 127.0.0.1:5231:5231 \\"
+            echo "  -v \"\$HOME/.sillage:/var/opt/sillage\" \\"
+            echo "  ${IMAGE}:${TAG}"
+            echo '```'
+            echo ""
+            echo "- Image: \`${IMAGE}:${TAG}\`"
+            if [ -n "${DIGEST}" ]; then
+              echo "- Digest: \`${DIGEST}\`"
+            fi
+            echo ""
+            echo "Upgrade and rollback: [Data, Backup, and Recovery](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/data.md) · [Deployment](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/deployment.md)"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Changes"
+            echo ""
+          } > "$notes"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            existing="$(gh release view "$TAG" --json body -q .body // "")"
+            # Keep maintainer-written change notes if the body already has a Changes section.
+            if printf '%s' "$existing" | grep -q '^## Changes'; then
+              printf '%s\n' "$existing" > "$notes"
+              # Refresh the container block at the top when re-running.
+              if ! printf '%s' "$existing" | grep -q '^## Container image'; then
+                body="$(mktemp)"
+                {
+                  echo "## Container image"
+                  echo ""
+                  echo "Images are published only by CI. Prefer the version tag that matches this release."
+                  echo ""
+                  echo '```bash'
+                  echo "docker pull ${IMAGE}:${TAG}"
+                  echo "docker run --rm \\"
+                  echo "  -p 127.0.0.1:5231:5231 \\"
+                  echo "  -v \"\$HOME/.sillage:/var/opt/sillage\" \\"
+                  echo "  ${IMAGE}:${TAG}"
+                  echo '```'
+                  echo ""
+                  echo "- Image: \`${IMAGE}:${TAG}\`"
+                  if [ -n "${DIGEST}" ]; then
+                    echo "- Digest: \`${DIGEST}\`"
+                  fi
+                  echo ""
+                  echo "---"
+                  echo ""
+                  printf '%s\n' "$existing"
+                } > "$body"
+                mv "$body" "$notes"
+              fi
+            else
+              gen="$(mktemp)"
+              if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+                -f tag_name="$TAG" \
+                -f target_commitish="$(git rev-parse HEAD)" \
+                --jq .body > "$gen" 2>/dev/null; then
+                cat "$gen" >> "$notes"
+              elif [ -n "$existing" ]; then
+                printf '%s\n' "$existing" >> "$notes"
+              else
+                echo "See the commit history for ${TAG}." >> "$notes"
+              fi
+            fi
+            gh release edit "$TAG" --notes-file "$notes"
+          else
+            gen="$(mktemp)"
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="$TAG" \
+              -f target_commitish="$(git rev-parse HEAD)" \
+              --jq .body > "$gen" 2>/dev/null; then
+              cat "$gen" >> "$notes"
+            else
+              echo "See the commit history for ${TAG}." >> "$notes"
+            fi
+            gh release create "$TAG" \
+              --title "Sillage ${TAG}" \
+              --notes-file "$notes" \
+              --verify-tag
+          fi
+
+  # Optional signed Android APK when enabled and secrets are present.
+  # Repository variable: RELEASE_ANDROID_APK=true
+  # Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+  # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    needs: [container, release-notes]
+    if: >-
+      (github.event_name == 'push' || inputs.create_release)
+      && vars.RELEASE_ANDROID_APK == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.container.outputs.tag }}
+
+      - name: Require signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "Missing secret: $name" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Set the Android signing secrets or disable RELEASE_ANDROID_APK." >&2
+            exit 1
+          fi
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Decode keystore
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+          cat > signing.properties <<EOF
+          storeFile=release.keystore
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          EOF
+          # Properties files must not be indented.
+          sed -i 's/^[[:space:]]*//' signing.properties
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease
+
+      - name: Verify and stage APK
+        id: apk
+        working-directory: android
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/app-release.apk"
+          test -f "$apk"
+          apksigner_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name apksigner | sort | tail -1)"
+          test -n "$apksigner_bin"
+          "$apksigner_bin" verify --verbose --print-certs "$apk"
+          out="$RUNNER_TEMP/Sillage-${{ needs.container.outputs.tag }}.apk"
+          cp "$apk" "$out"
+          sha256sum "$out" | tee "$out.sha256"
+          echo "apk=$out" >> "$GITHUB_OUTPUT"
+          echo "sum=$out.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.container.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            "${{ steps.apk.outputs.apk }}" \
+            "${{ steps.apk.outputs.sum }}" \
+            --clobber

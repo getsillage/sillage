@@ -11,10 +11,11 @@
 <p align="center">
   <a href="https://github.com/getsillage/sillage/actions/workflows/ci.yml"><img src="https://github.com/getsillage/sillage/actions/workflows/ci.yml/badge.svg" alt="CI 状态" /></a>
   <a href="https://github.com/getsillage/sillage/releases"><img src="https://img.shields.io/github/v/release/getsillage/sillage?display_name=tag" alt="最新版本" /></a>
+  <a href="https://github.com/getsillage/sillage/pkgs/container/sillage"><img src="https://img.shields.io/badge/ghcr.io-getsillage%2Fsillage-blue?logo=docker&label=image" alt="GHCR 镜像" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
 </p>
 
-Sillage 是一个自托管的单人记录空间，用来保存日常片段、回看历史，并基于自己的记录进行 AI 总结与问答。
+Sillage 是一个自托管的单人记录空间：保存日常记录、回看历史，并基于自己的记录进行 AI 总结与问答。
 
 首次打开实例时创建唯一账号。之后，记录、附件、总结和问答都需要登录访问。
 
@@ -29,23 +30,14 @@ Sillage 不提供多人协作、公开主页、社交分享、后台自动同步
 
 ## 快速开始
 
-稳定部署应从 [GitHub Releases](https://github.com/getsillage/sillage/releases) 选择发布 tag，而不是直接构建 `main`。以下示例从发布源码构建，并只在本机开放服务：
+从 [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage) 拉取与 [GitHub Releases](https://github.com/getsillage/sillage/releases) 对应的镜像 tag（`vX.Y.Z`）。以下示例只在本机开放服务：
 
 ```bash
-git clone https://github.com/getsillage/sillage.git
-cd sillage
-git checkout vX.Y.Z
-VERSION="$(git describe --tags --exact-match)"
-REVISION="$(git rev-parse HEAD)"
-docker build \
-  --build-arg VERSION="$VERSION" \
-  --build-arg REVISION="$REVISION" \
-  -t "sillage:$VERSION" \
-  -f scripts/Dockerfile .
+docker pull ghcr.io/getsillage/sillage:vX.Y.Z
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  "sillage:$VERSION"
+  ghcr.io/getsillage/sillage:vX.Y.Z
 ```
 
 打开 `http://localhost:5231`，按页面提示创建唯一账号。
@@ -59,8 +51,7 @@ curl http://localhost:5231/readyz
 
 数据保存在 `$HOME/.sillage`。升级、迁移或备份前应先停止服务，并复制整个目录，不要只复制 `sillage.db`。完整步骤见[数据与备份](docs/user/data.md)。
 
-Compose、反向代理、环境变量和公网部署见[部署说明](docs/user/deployment.md)。
-
+Compose、反向代理、环境变量、公网部署以及从源码构建见[部署说明](docs/user/deployment.md)。
 ## 技术结构
 
 - Go + Echo 单体后端

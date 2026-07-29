@@ -11,10 +11,11 @@
 <p align="center">
   <a href="https://github.com/getsillage/sillage/actions/workflows/ci.yml"><img src="https://github.com/getsillage/sillage/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
   <a href="https://github.com/getsillage/sillage/releases"><img src="https://img.shields.io/github/v/release/getsillage/sillage?display_name=tag" alt="Latest release" /></a>
+  <a href="https://github.com/getsillage/sillage/pkgs/container/sillage"><img src="https://img.shields.io/badge/ghcr.io-getsillage%2Fsillage-blue?logo=docker&label=image" alt="GHCR image" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
 </p>
 
-Sillage is a self-hosted, single-user space for capturing everyday moments, revisiting your history, and using AI to generate summaries and answers grounded in your own records.
+Sillage is a self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.
 
 The first time an instance is opened, you create its only account. After that, authentication is required to access records, attachments, summaries, and Ask conversations.
 
@@ -29,23 +30,14 @@ Sillage does not provide multi-user collaboration, public profiles, social shari
 
 ## Quick Start
 
-For a stable deployment, choose a release tag from [GitHub Releases](https://github.com/getsillage/sillage/releases) instead of building `main` directly. The following example builds from a release checkout and exposes the service only on the local machine:
+Pull a release image from [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage). Tags match [GitHub Releases](https://github.com/getsillage/sillage/releases) (`vX.Y.Z`). This example exposes the service only on the local machine:
 
 ```bash
-git clone https://github.com/getsillage/sillage.git
-cd sillage
-git checkout vX.Y.Z
-VERSION="$(git describe --tags --exact-match)"
-REVISION="$(git rev-parse HEAD)"
-docker build \
-  --build-arg VERSION="$VERSION" \
-  --build-arg REVISION="$REVISION" \
-  -t "sillage:$VERSION" \
-  -f scripts/Dockerfile .
+docker pull ghcr.io/getsillage/sillage:vX.Y.Z
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  "sillage:$VERSION"
+  ghcr.io/getsillage/sillage:vX.Y.Z
 ```
 
 Open `http://localhost:5231` and follow the prompts to create the instance's only account.
@@ -59,7 +51,7 @@ curl http://localhost:5231/readyz
 
 Data is stored in `$HOME/.sillage`. Stop the service before upgrading, migrating, or backing it up, and copy the entire directory rather than only `sillage.db`. See [Data, Backup, and Recovery](docs/user/data.md) for the complete procedure.
 
-See the [Deployment Guide](docs/user/deployment.md) for Docker Compose, reverse proxy, environment variable, and public deployment instructions.
+See the [Deployment Guide](docs/user/deployment.md) for Docker Compose, reverse proxy, environment variables, public deployment, and building from source.
 
 ## Architecture
 

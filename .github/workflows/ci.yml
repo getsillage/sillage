@@ -159,7 +159,9 @@ jobs:
         run: docker build --build-arg VERSION=ci --build-arg REVISION="$GITHUB_SHA" -t sillage:ci -f scripts/Dockerfile .
 
       - name: Validate Compose configuration
-        run: docker compose -f scripts/compose.yaml config
+        run: |
+          docker compose -f scripts/compose.yaml config
+          docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config
 
   e2e:
     name: E2E

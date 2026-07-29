@@ -26,6 +26,12 @@ func (s *Server) registerAuthRoutes(e *echo.Echo) {
 	e.POST("/api/v1/auth/refresh", s.handleAuthRefresh)
 	e.POST("/api/v1/auth/signout", s.handleAuthSignOut)
 	e.GET("/api/v1/auth/me", s.handleAuthMe)
+	e.POST("/api/v1/auth/change-password", s.handleAuthChangePassword)
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
 }
 
 func (s *Server) handleAuthBootstrap(c *echo.Context) error {
@@ -116,6 +122,36 @@ func (s *Server) handleAuthMe(c *echo.Context) error {
 		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"account": accountDTO(account)})
+}
+
+func (s *Server) handleAuthChangePassword(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	var req changePasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+	}
+	updated, tokens, err := s.changePassword(c.Request().Context(), account.ID, changePasswordInput{
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	}, c.Request())
+	if err != nil {
+		switch {
+		case errors.Is(err, errValidation):
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			return apiError(c, http.StatusUnauthorized, "invalid_credentials", "当前密码不正确")
+		case errors.Is(err, auth.ErrUnauthenticated), errors.Is(err, sql.ErrNoRows):
+			return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+		default:
+			return apiError(c, http.StatusInternalServerError, "internal", "修改密码失败")
+		}
+	}
+	auth.SetRefreshCookie(c.Response(), c.Request(), tokens.RefreshToken)
+	auth.SetAccessCookie(c.Response(), c.Request(), tokens.AccessToken)
+	return c.JSON(http.StatusOK, authResponse(updated, tokens))
 }
 
 func (s *Server) accountFromBearer(c *echo.Context) (*store.Account, error) {

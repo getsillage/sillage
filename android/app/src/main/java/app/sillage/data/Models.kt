@@ -314,6 +314,46 @@ fun attachmentMarkdown(attachment: Attachment): String {
     }
 }
 
+/** Local offline-queued attachment waiting for an online upload. */
+data class PendingLocalAttachment(
+    val id: String,
+    val filename: String,
+    val contentType: String,
+    val absolutePath: String,
+    val size: Long,
+)
+
+const val LOCAL_PENDING_ATTACHMENT_UID_PREFIX = "localpending-"
+
+fun localAttachmentPath(pending: PendingLocalAttachment): String {
+    val safeName = pending.filename
+        .replace('\\', '/')
+        .substringAfterLast('/')
+        .ifBlank { "attachment" }
+    return "/file/attachments/$LOCAL_PENDING_ATTACHMENT_UID_PREFIX${pending.id}/$safeName"
+}
+
+fun localAttachmentMarkdown(pending: PendingLocalAttachment): String {
+    val url = localAttachmentPath(pending)
+    return if (pending.contentType.startsWith("image/")) {
+        "\n![${pending.filename}]($url)\n"
+    } else {
+        "\n[${pending.filename}]($url)\n"
+    }
+}
+
+fun pendingLocalAttachmentId(target: MarkdownLinkTarget.ProtectedAttachment): String? {
+    val segments = target.path.substringBefore('?').trim('/').split('/')
+    if (segments.size != 4 || segments[0] != "file" || segments[1] != "attachments") {
+        return null
+    }
+    val uid = segments[2]
+    if (!uid.startsWith(LOCAL_PENDING_ATTACHMENT_UID_PREFIX)) {
+        return null
+    }
+    return uid.removePrefix(LOCAL_PENDING_ATTACHMENT_UID_PREFIX).ifBlank { null }
+}
+
 fun askAnswerMemoContent(message: AskMessage): String {
     return if (message.role == "assistant") message.content.trim() else ""
 }

@@ -102,6 +102,31 @@ WHERE id = ? AND deleted_at IS NULL`, id)
 	return scanAccount(row)
 }
 
+// UpdateAccountPassword replaces the password hash for an existing account.
+func (s *Store) UpdateAccountPassword(ctx context.Context, accountID, passwordHash, passwordAlgorithm string) error {
+	now := time.Now().UTC().UnixMilli()
+	res, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE account
+SET password_hash = ?, password_algorithm = ?, updated_at = ?
+WHERE id = ? AND deleted_at IS NULL`,
+		passwordHash,
+		passwordAlgorithm,
+		now,
+		accountID,
+	)
+	if err != nil {
+		return fmt.Errorf("update account password: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update account password rows: %w", err)
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func scanAccount(row interface {
 	Scan(dest ...any) error
 }) (*Account, error) {

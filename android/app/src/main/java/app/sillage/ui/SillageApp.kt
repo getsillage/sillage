@@ -16,6 +16,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -24,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +48,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import app.sillage.R
@@ -152,6 +160,21 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             )
         }
     }
+    val activeConflict = state.syncConflicts.firstOrNull()
+    if (activeConflict != null) {
+        SyncConflictDialog(
+            item = activeConflict,
+            onKeepLocal = {
+                viewModel.resolveSyncConflictKeepLocal(activeConflict.conflict.resourceId)
+            },
+            onTakeServer = {
+                viewModel.resolveSyncConflictTakeServer(activeConflict.conflict.resourceId)
+            },
+            onDismiss = {
+                viewModel.dismissSyncConflict(activeConflict.conflict.resourceId)
+            },
+        )
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (state.screen) {
@@ -205,6 +228,60 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun SyncConflictDialog(
+    item: SyncConflictItem,
+    onKeepLocal: () -> Unit,
+    onTakeServer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val localPreview = item.localMemo?.content?.trim().orEmpty()
+        .ifBlank { stringResource(R.string.sync_conflict_empty_local) }
+    val serverPreview = item.conflict.serverMemo?.content?.trim().orEmpty()
+        .ifBlank { stringResource(R.string.sync_conflict_empty_server) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sync_conflict_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.sync_conflict_supporting))
+                Text(
+                    stringResource(R.string.sync_conflict_local_label),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(localPreview.take(800))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.sync_conflict_server_label),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(serverPreview.take(800))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onKeepLocal) {
+                Text(stringResource(R.string.sync_conflict_keep_local))
+            }
+        },
+        dismissButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onTakeServer) {
+                    Text(stringResource(R.string.sync_conflict_take_server))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.sync_conflict_dismiss))
+                }
+            }
+        },
+    )
 }
 
 @Composable

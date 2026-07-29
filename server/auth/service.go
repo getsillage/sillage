@@ -158,6 +158,46 @@ func (s *Service) SignOut(ctx context.Context, refreshToken string) error {
 	return s.store.DeleteSessionByRefreshToken(ctx, refreshToken)
 }
 
+// ChangePassword verifies the current password, stores a new hash, revokes every
+// refresh session for the account, and issues a new token pair for this request
+// so the caller remains signed in with the new credentials.
+func (s *Service) ChangePassword(ctx context.Context, accountID, currentPassword, newPassword string, r *http.Request) (*store.Account, *TokenPair, error) {
+	account, err := s.store.GetAccountByID(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, ErrUnauthenticated
+		}
+		return nil, nil, err
+	}
+	ok, err := VerifyPassword(account.PasswordHash, currentPassword)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !ok {
+		return nil, nil, ErrInvalidCredentials
+	}
+	passwordHash, err := HashPassword(newPassword)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.store.UpdateAccountPassword(ctx, account.ID, passwordHash, PasswordAlgorithmName); err != nil {
+		return nil, nil, err
+	}
+	if err := s.store.DeleteSessionsForAccount(ctx, account.ID); err != nil {
+		return nil, nil, err
+	}
+	// Reload so UpdatedAt reflects the password write.
+	account, err = s.store.GetAccountByID(ctx, account.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	tokens, err := s.createTokenPair(ctx, account.ID, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	return account, tokens, nil
+}
+
 func (s *Service) SignAccessToken(accountID string) (string, time.Time, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(accessTokenTTL)

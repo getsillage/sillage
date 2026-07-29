@@ -95,6 +95,116 @@ func TestAuthInitializeSignInRefreshSignOut(t *testing.T) {
 	}
 }
 
+func TestAuthChangePassword(t *testing.T) {
+	srv := newTestServer(t)
+	initBody := map[string]string{
+		"username": "felix",
+		"password": "old-passw0rd!",
+	}
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/auth/initialize", initBody, nil)
+	if res.Code != http.StatusOK {
+		t.Fatalf("initialize status = %d body=%s", res.Code, res.Body.String())
+	}
+	var authRes map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &authRes); err != nil {
+		t.Fatalf("decode auth response: %v", err)
+	}
+	accessToken, _ := authRes["accessToken"].(string)
+	if accessToken == "" {
+		t.Fatal("missing access token after initialize")
+	}
+	oldRefresh := refreshCookie(res)
+	if oldRefresh == nil {
+		t.Fatal("initialize did not set refresh cookie")
+	}
+
+	// Wrong current password is rejected; old password still works.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/change-password", map[string]string{
+		"currentPassword": "not-the-password",
+		"newPassword":     "new-passw0rd!",
+	}, map[string]string{"Authorization": "Bearer " + accessToken})
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong current password status = %d body=%s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "invalid_credentials") {
+		t.Fatalf("wrong current password body = %s", res.Body.String())
+	}
+
+	// Same password is a validation error.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/change-password", map[string]string{
+		"currentPassword": "old-passw0rd!",
+		"newPassword":     "old-passw0rd!",
+	}, map[string]string{"Authorization": "Bearer " + accessToken})
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("same password status = %d body=%s", res.Code, res.Body.String())
+	}
+
+	// Successful change returns new tokens and rotates refresh session.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/change-password", map[string]string{
+		"currentPassword": "old-passw0rd!",
+		"newPassword":     "new-passw0rd!",
+	}, map[string]string{"Authorization": "Bearer " + accessToken})
+	if res.Code != http.StatusOK {
+		t.Fatalf("change password status = %d body=%s", res.Code, res.Body.String())
+	}
+	var changed map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &changed); err != nil {
+		t.Fatalf("decode change-password response: %v", err)
+	}
+	newAccess, _ := changed["accessToken"].(string)
+	if newAccess == "" {
+		t.Fatal("change-password missing accessToken")
+	}
+	newRefresh := refreshCookie(res)
+	if newRefresh == nil || newRefresh.Value == oldRefresh.Value {
+		t.Fatal("change-password did not rotate refresh cookie")
+	}
+
+	// Old password fails; new password succeeds.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/signin", map[string]string{
+		"username": "felix",
+		"password": "old-passw0rd!",
+	}, nil)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("old password signin status = %d, want 401", res.Code)
+	}
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/signin", map[string]string{
+		"username": "felix",
+		"password": "new-passw0rd!",
+	}, nil)
+	if res.Code != http.StatusOK {
+		t.Fatalf("new password signin status = %d body=%s", res.Code, res.Body.String())
+	}
+
+	// Previous refresh session is revoked.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/refresh", nil, map[string]string{
+		"Cookie": oldRefresh.Name + "=" + oldRefresh.Value,
+	})
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("old refresh after change-password status = %d, want 401", res.Code)
+	}
+
+	// New access token still authenticates me; data path is available under same account.
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/auth/me", nil, map[string]string{
+		"Authorization": "Bearer " + newAccess,
+	})
+	if res.Code != http.StatusOK {
+		t.Fatalf("me after change-password status = %d body=%s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"username":"felix"`) {
+		t.Fatalf("me body = %s", res.Body.String())
+	}
+
+	// Unauthenticated callers cannot change password.
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/change-password", map[string]string{
+		"currentPassword": "new-passw0rd!",
+		"newPassword":     "another!",
+	}, nil)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated change-password status = %d", res.Code)
+	}
+}
+
 func TestSignInRateLimit(t *testing.T) {
 	srv := newTestServer(t)
 	initBody := map[string]string{"username": "felix", "password": "passw0rd!"}

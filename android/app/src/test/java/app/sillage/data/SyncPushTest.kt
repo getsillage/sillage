@@ -22,7 +22,18 @@ class SyncPushTest {
                     .put("resourceId", "memo-1")
                     .put("resource", resource),
             )
-            .put(JSONObject().put("status", "conflict"))
+            .put(
+                JSONObject()
+                    .put("status", "conflict")
+                    .put("mutationId", "mutation-conflict")
+                    .put("resourceId", "memo-2")
+                    .put("clientVersion", 2)
+                    .put("serverVersion", 3)
+                    .put(
+                        "serverResource",
+                        memoJson(content = "服务端冲突版本", version = 3).put("id", "memo-2"),
+                    ),
+            )
             .put(JSONObject().put("status", "invalid"))
 
         val summary = syncPushSummaryFromResults(results)
@@ -35,6 +46,64 @@ class SyncPushTest {
         assertEquals(1L, applied.memo.version)
         assertEquals("服务端规范内容", applied.memo.content)
         assertEquals("2026-07-10T02:00:00Z", applied.memo.favoritedAt)
+        val conflict = summary.conflictMemoSyncs.single()
+        assertEquals("mutation-conflict", conflict.mutationId)
+        assertEquals("memo-2", conflict.resourceId)
+        assertEquals(2L, conflict.clientVersion)
+        assertEquals(3L, conflict.serverVersion)
+        assertEquals("服务端冲突版本", conflict.serverMemo?.content)
+    }
+
+    @Test
+    fun keepLocalConflictAdoptsServerBaselineAndNewMutation() {
+        val local = memo(version = 3, content = "本机待推送")
+        val resolved = resolveConflictKeepLocalState(
+            localMemos = listOf(local),
+            cloudVersions = mapOf(local.id to 1L),
+            pendingMutations = mapOf(
+                local.id to PendingMemoMutation(
+                    mutationId = "old-mutation",
+                    memoVersion = local.version,
+                    memoUpdatedAt = local.updatedAt,
+                ),
+            ),
+            localMemo = local,
+            serverVersion = 2L,
+            newMutationId = { "new-mutation" },
+        )
+        assertEquals(local, resolved.memos.single())
+        assertEquals(2L, resolved.cloudVersions[local.id])
+        assertEquals("new-mutation", resolved.pendingMutations[local.id]?.mutationId)
+
+        val pending = resolvePendingMemoSyncs(
+            memos = resolved.memos,
+            cloudVersions = resolved.cloudVersions,
+            pendingMutations = resolved.pendingMutations,
+            newMutationId = { error("should reuse mutation") },
+        )
+        assertEquals(2L, pending.pending.single().baseVersion)
+        assertEquals("new-mutation", pending.pending.single().mutationId)
+    }
+
+    @Test
+    fun takeServerConflictDropsPendingAndUsesServerMemo() {
+        val local = memo(version = 3, content = "本机待推送")
+        val server = memo(version = 2, content = "服务端版本")
+        val resolved = resolveConflictTakeServerState(
+            localMemos = listOf(local),
+            cloudVersions = mapOf(local.id to 1L),
+            pendingMutations = mapOf(
+                local.id to PendingMemoMutation(
+                    mutationId = "old-mutation",
+                    memoVersion = local.version,
+                    memoUpdatedAt = local.updatedAt,
+                ),
+            ),
+            serverMemo = server,
+        )
+        assertEquals(server, resolved.memos.single())
+        assertEquals(2L, resolved.cloudVersions[server.id])
+        assertTrue(resolved.pendingMutations.isEmpty())
     }
 
     @Test

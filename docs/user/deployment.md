@@ -53,7 +53,7 @@ Check the initialization status locally:
 curl http://localhost:5231/api/v1/auth/bootstrap
 ```
 
-Open an external entry point only after the response is `{"initialized":true}`. Store the password in a password manager: there is currently no built-in workflow for changing or resetting it, or for recovering access while preserving data.
+Open an external entry point only after the response is `{"initialized":true}`. Store the password in a password manager. After signing in, you can change the password in Settings under Account (`账号`). There is no unauthenticated forgot-password or break-glass recovery that preserves data while you are locked out.
 
 ## Configuration
 

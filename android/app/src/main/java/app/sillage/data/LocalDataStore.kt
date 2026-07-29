@@ -59,22 +59,127 @@ class LocalDataStore(context: Context) {
             pendingMutations = pendingMemoMutations(),
             appliedMemos = appliedMemos,
         )
-        val data = currentData.copy(memos = merged.memos).normalizedForLocalStorage()
+        persistMemoCloudState(currentData.copy(memos = merged.memos), merged.cloudVersions, merged.pendingMutations)
+    }
+
+    fun getMemoOrNull(id: String): Memo? = loadData().memos.find { it.id == id }
+
+    fun listPendingLocalAttachments(): List<PendingLocalAttachment> {
+        return pendingLocalAttachments().values.toList()
+    }
+
+    fun getPendingLocalAttachment(id: String): PendingLocalAttachment? {
+        return pendingLocalAttachments()[id]
+    }
+
+    fun addPendingLocalAttachment(pending: PendingLocalAttachment) {
+        val current = pendingLocalAttachments().toMutableMap()
+        current[pending.id] = pending
+        savePendingLocalAttachments(current)
+    }
+
+    fun removePendingLocalAttachment(id: String) {
+        val current = pendingLocalAttachments().toMutableMap()
+        if (current.remove(id) == null) {
+            return
+        }
+        savePendingLocalAttachments(current)
+    }
+
+    /** Rewrite attachment markdown placeholders in every stored memo body. */
+    fun replaceAttachmentMarkdownEverywhere(fromMarkdown: String, toMarkdown: String) {
+        if (fromMarkdown.isBlank() || fromMarkdown == toMarkdown) {
+            return
+        }
+        val currentData = loadData()
+        val cloudVersions = cloudMemoVersions()
+        val mutations = pendingMemoMutations().toMutableMap()
+        val now = now()
+        var any = false
+        val memos = currentData.memos.map { memo ->
+            if (!memo.content.contains(fromMarkdown)) {
+                return@map memo
+            }
+            any = true
+            val rewritten = memo.copy(
+                content = memo.content.replace(fromMarkdown, toMarkdown),
+                // Bump version when a cloud baseline exists so push treats this as an update.
+                version = if (cloudVersions[memo.id] != null || mutations[memo.id] != null) {
+                    memo.version + 1
+                } else {
+                    memo.version
+                },
+                updatedAt = now,
+            )
+            mutations[rewritten.id] = newPendingMemoMutation(rewritten)
+            rewritten
+        }
+        if (!any) {
+            return
+        }
+        persistMemoCloudState(
+            currentData.copy(memos = memos),
+            cloudVersions,
+            mutations,
+        )
+    }
+
+    /**
+     * Keep the local pending edit and adopt the server version as the next baseVersion
+     * so a later push resubmits against the conflicted baseline.
+     */
+    fun resolveConflictKeepLocal(conflict: ConflictMemoSync, newMutationId: () -> String = ::newMemoMutationId) {
+        val currentData = loadData()
+        val local = currentData.memos.find { it.id == conflict.resourceId }
+            ?: throw ApiException("记录不存在")
+        val serverVersion = conflict.serverVersion
+            ?: conflict.serverMemo?.version
+            ?: throw ApiException("缺少服务端版本")
+        val merged = resolveConflictKeepLocalState(
+            localMemos = currentData.memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = pendingMemoMutations(),
+            localMemo = local,
+            serverVersion = serverVersion,
+            newMutationId = newMutationId,
+        )
+        persistMemoCloudState(currentData.copy(memos = merged.memos), merged.cloudVersions, merged.pendingMutations)
+    }
+
+    /** Drop the local pending mutation and adopt the server resource as the local memo. */
+    fun resolveConflictTakeServer(conflict: ConflictMemoSync) {
+        val server = conflict.serverMemo ?: throw ApiException("缺少服务端记录")
+        val currentData = loadData()
+        val merged = resolveConflictTakeServerState(
+            localMemos = currentData.memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = pendingMemoMutations(),
+            serverMemo = server,
+        )
+        persistMemoCloudState(currentData.copy(memos = merged.memos), merged.cloudVersions, merged.pendingMutations)
+    }
+
+    private fun persistMemoCloudState(
+        data: SillageExportData,
+        cloudVersions: Map<String, Long>,
+        pendingMutations: Map<String, PendingMemoMutation>,
+    ) {
+        val normalized = data.normalizedForLocalStorage()
         val editor = prefs.edit()
         securePrefs.putString(
             editor,
             KEY_DATA,
-            SillageExportCodec.toLocalJson(data),
+            SillageExportCodec.toLocalJson(normalized),
         )
         securePrefs.putString(
             editor,
             KEY_CLOUD_MEMO_VERSIONS,
-            cloudMemoVersionsJson(merged.cloudVersions),
+            cloudMemoVersionsJson(cloudVersions),
         )
         securePrefs.putString(
             editor,
             KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(merged.pendingMutations),
+            pendingMemoMutationsJson(pendingMutations),
         ).apply()
     }
 
@@ -477,6 +582,7 @@ class LocalDataStore(context: Context) {
         private const val KEY_DATA = "data"
         private const val KEY_CLOUD_MEMO_VERSIONS = "cloud_memo_versions"
         private const val KEY_PENDING_MEMO_MUTATIONS = "pending_memo_mutations"
+        private const val KEY_PENDING_LOCAL_ATTACHMENTS = "pending_local_attachments"
         internal const val KEY_DATA_CORRUPT_BACKUP = "data_corrupt_backup"
         internal const val LOCAL_DATA_CORRUPT_MESSAGE = "本地数据无法读取"
     }
@@ -489,6 +595,44 @@ class LocalDataStore(context: Context) {
                 put(id, body.optLong(id))
             }
         }
+    }
+
+    private fun pendingLocalAttachments(): Map<String, PendingLocalAttachment> {
+        val raw = when (val stored = securePrefs.readString(KEY_PENDING_LOCAL_ATTACHMENTS)) {
+            is SecureReadResult.Missing -> return emptyMap()
+            is SecureReadResult.Unreadable -> return emptyMap()
+            is SecureReadResult.Value -> stored.value
+        }
+        return runCatching {
+            val body = JSONObject(raw)
+            val out = linkedMapOf<String, PendingLocalAttachment>()
+            body.keys().forEach { id ->
+                val item = body.getJSONObject(id)
+                out[id] = PendingLocalAttachment(
+                    id = id,
+                    filename = item.optString("filename"),
+                    contentType = item.optString("contentType"),
+                    absolutePath = item.optString("absolutePath"),
+                    size = item.optLong("size"),
+                )
+            }
+            out
+        }.getOrDefault(emptyMap())
+    }
+
+    private fun savePendingLocalAttachments(items: Map<String, PendingLocalAttachment>) {
+        val body = JSONObject()
+        items.forEach { (id, item) ->
+            body.put(
+                id,
+                JSONObject()
+                    .put("filename", item.filename)
+                    .put("contentType", item.contentType)
+                    .put("absolutePath", item.absolutePath)
+                    .put("size", item.size),
+            )
+        }
+        securePrefs.putString(prefs.edit(), KEY_PENDING_LOCAL_ATTACHMENTS, body.toString()).apply()
     }
 
     private fun pendingMemoMutations(): Map<String, PendingMemoMutation> {
@@ -557,6 +701,57 @@ internal fun mergePulledCloudMemos(
         memos = mergedMemos.values.toList(),
         cloudVersions = mergedVersions,
         pendingMutations = mergedMutations,
+    )
+}
+
+internal data class ConflictResolutionState(
+    val memos: List<Memo>,
+    val cloudVersions: Map<String, Long>,
+    val pendingMutations: Map<String, PendingMemoMutation>,
+)
+
+internal fun resolveConflictKeepLocalState(
+    localMemos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    localMemo: Memo,
+    serverVersion: Long,
+    newMutationId: () -> String = ::newMemoMutationId,
+): ConflictResolutionState {
+    val versions = cloudVersions.toMutableMap()
+    versions[localMemo.id] = serverVersion
+    val mutations = pendingMutations.toMutableMap()
+    mutations[localMemo.id] = PendingMemoMutation(
+        mutationId = newMutationId(),
+        memoVersion = localMemo.version,
+        memoUpdatedAt = localMemo.updatedAt,
+    )
+    return ConflictResolutionState(
+        memos = localMemos.map { if (it.id == localMemo.id) localMemo else it },
+        cloudVersions = versions,
+        pendingMutations = mutations,
+    )
+}
+
+internal fun resolveConflictTakeServerState(
+    localMemos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    serverMemo: Memo,
+): ConflictResolutionState {
+    val versions = cloudVersions.toMutableMap()
+    versions[serverMemo.id] = serverMemo.version
+    val mutations = pendingMutations.toMutableMap()
+    mutations.remove(serverMemo.id)
+    val memos = if (localMemos.any { it.id == serverMemo.id }) {
+        localMemos.map { if (it.id == serverMemo.id) serverMemo else it }
+    } else {
+        localMemos + serverMemo
+    }
+    return ConflictResolutionState(
+        memos = memos,
+        cloudVersions = versions,
+        pendingMutations = mutations,
     )
 }
 

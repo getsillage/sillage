@@ -4,6 +4,7 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
+import app.sillage.data.ConflictMemoSync
 import app.sillage.data.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
@@ -94,11 +95,25 @@ data class SillageUiState(
     val username: String = "",
     val displayName: String = "",
     val password: String = "",
+    val currentPassword: String = "",
+    val newPassword: String = "",
+    val confirmPassword: String = "",
+    val passwordChanging: Boolean = false,
     val loading: Boolean = false,
     val authError: String? = null,
     val authErrorResourceId: Int? = null,
     val error: String? = null,
     val notice: String? = null,
+    /** Open sync version conflicts awaiting an explicit user choice. */
+    val syncConflicts: List<SyncConflictItem> = emptyList(),
+)
+
+/**
+ * UI model for one push conflict: local pending content plus the server resource.
+ */
+data class SyncConflictItem(
+    val conflict: ConflictMemoSync,
+    val localMemo: Memo?,
 )
 
 internal fun AIProfileDraft.uiKey(index: Int): String {

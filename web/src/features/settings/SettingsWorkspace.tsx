@@ -1,4 +1,11 @@
-import { BrainCircuit, LoaderCircle, Palette, Plus, Save } from "lucide-react";
+import {
+  BrainCircuit,
+  KeyRound,
+  LoaderCircle,
+  Palette,
+  Plus,
+  Save,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -24,12 +31,14 @@ import type { TranslationKey } from "../../i18n/messages";
 import {
   type AIProfile,
   type AIProfileInput,
+  changePassword,
   getAISettings,
   listAIModels,
   patchAISettings,
   setAIAutoSummary,
   testAIConnection,
 } from "../../lib/api";
+import { setAccessToken } from "../../lib/auth";
 
 const PROVIDER_OPTIONS = [
   {
@@ -136,7 +145,7 @@ type ModelState = {
   status?: "ok" | "error";
   message?: string;
 };
-type SettingsTab = "ai" | "appearance";
+type SettingsTab = "ai" | "account" | "appearance";
 const ACTION_TIMEOUT_MS = 65_000;
 const SETTINGS_TABS: {
   value: SettingsTab;
@@ -144,6 +153,7 @@ const SETTINGS_TABS: {
   icon: typeof BrainCircuit;
 }[] = [
   { value: "ai", labelKey: "settings.aiTab", icon: BrainCircuit },
+  { value: "account", labelKey: "settings.accountTab", icon: KeyRound },
   {
     value: "appearance",
     labelKey: "settings.appearanceTab",
@@ -241,6 +251,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [modelResults, setModelResults] = useState<Record<string, ModelState>>(
     {},
   );
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     void locale;
@@ -265,7 +279,47 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const dirty =
     savedProfilesFingerprint !== null &&
     profilesFingerprint(profiles) !== savedProfilesFingerprint;
-  const mutationBusy = saving || autoSummarySaving;
+  const mutationBusy = saving || autoSummarySaving || passwordSaving;
+
+  async function submitPasswordChange() {
+    const current = currentPassword;
+    const next = newPassword;
+    const confirm = confirmPassword;
+    if (!current.trim() || !next.trim()) {
+      reportError(t("settings.passwordRequired"));
+      return;
+    }
+    if (next !== confirm) {
+      reportError(t("settings.passwordMismatch"));
+      return;
+    }
+    if (current === next) {
+      reportError(t("settings.passwordSame"));
+      return;
+    }
+    setPasswordSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await changePassword(token, {
+        currentPassword: current,
+        newPassword: next,
+      });
+      setAccessToken(res.accessToken);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      reportNotice(t("settings.passwordChanged"), "success");
+    } catch (cause) {
+      reportError(
+        cause instanceof Error
+          ? cause.message
+          : t("settings.passwordChangeFailed"),
+      );
+    } finally {
+      setPasswordSaving(false);
+    }
+  }
 
   const loadSettings = useCallback(async () => {
     autoSummaryAbortRef.current?.abort();
@@ -741,6 +795,83 @@ export function SettingsWorkspace({ token }: { token: string }) {
             </div>
             <LanguageSwitcher />
           </div>
+        </section>
+      ) : null}
+
+      {activeTab === "account" ? (
+        <section className={`${panelClass} p-4 sm:p-5`}>
+          <div>
+            <h2 className="font-medium text-gray-900 text-sm dark:text-gray-50">
+              {t("settings.passwordTitle")}
+            </h2>
+            <p className={helperTextClass}>
+              {t("settings.passwordDescription")}
+            </p>
+          </div>
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitPasswordChange();
+            }}
+          >
+            <label className="block space-y-1.5">
+              <span className={labelClass}>
+                {t("settings.currentPassword")}
+              </span>
+              <input
+                className={inputClass}
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                disabled={passwordSaving}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className={labelClass}>{t("settings.newPassword")}</span>
+              <input
+                className={inputClass}
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                disabled={passwordSaving}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className={labelClass}>
+                {t("settings.confirmPassword")}
+              </span>
+              <input
+                className={inputClass}
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                disabled={passwordSaving}
+              />
+            </label>
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                className={primaryButtonClass}
+                disabled={passwordSaving}
+              >
+                {passwordSaving ? (
+                  <>
+                    <LoaderCircle
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    {t("settings.passwordChanging")}
+                  </>
+                ) : (
+                  t("settings.changePassword")
+                )}
+              </button>
+            </div>
+          </form>
         </section>
       ) : null}
 

@@ -28,7 +28,7 @@ Record deletion uses tombstones so offline clients can converge. The server's SQ
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
-There is no built-in workflow for changing or resetting the account password, or for recovering access while preserving data. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account.
+After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the browser that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password recovery that preserves data while you are locked out. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account.
 
 ## Back Up
 

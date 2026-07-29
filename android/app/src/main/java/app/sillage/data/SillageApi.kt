@@ -76,6 +76,22 @@ class SillageApi(
         return auth("/api/v1/auth/signin", payload, expectedSession)
     }
 
+    suspend fun changePassword(currentPassword: String, newPassword: String): AuthSession {
+        val expectedSession = sessionStore.clientSessionSnapshot()
+        val payload = JSONObject()
+            .put("currentPassword", currentPassword)
+            .put("newPassword", newPassword)
+        val request = Request.Builder()
+            .url(url("/api/v1/auth/change-password"))
+            .post(payload.toString().jsonBody())
+            .build()
+        val session = parseAuthSession(execute(request))
+        if (!sessionStore.saveRefreshedSession(session, expectedSession.toClientRequestContext())) {
+            throw ApiException(SERVER_CONFIG_CHANGED)
+        }
+        return session
+    }
+
     private suspend fun refreshSession(context: ClientRequestContext): AuthSession {
         val request = Request.Builder()
             .url(context.baseUrl.trimEnd('/') + "/api/v1/auth/refresh")
@@ -1216,6 +1232,16 @@ data class SyncPushSummary(
     val conflict: Int,
     val rejected: Int,
     val appliedMemoSyncs: List<AppliedMemoSync> = emptyList(),
+    val conflictMemoSyncs: List<ConflictMemoSync> = emptyList(),
+)
+
+/** One push result that the server rejected as a version conflict. */
+data class ConflictMemoSync(
+    val mutationId: String,
+    val resourceId: String,
+    val clientVersion: Long?,
+    val serverVersion: Long?,
+    val serverMemo: Memo?,
 )
 
 data class PulledSyncData(
@@ -1228,6 +1254,7 @@ internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {
     var conflict = 0
     var rejected = 0
     val appliedMemoSyncs = mutableListOf<AppliedMemoSync>()
+    val conflictMemoSyncs = mutableListOf<ConflictMemoSync>()
     for (index in 0 until results.length()) {
         val result = results.getJSONObject(index)
         when (result.optString("status")) {
@@ -1238,7 +1265,20 @@ internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {
                     memo = apiMemoFromJson(result.getJSONObject("resource")),
                 )
             }
-            "conflict" -> conflict += 1
+            "conflict" -> {
+                conflict += 1
+                val serverResource = result.optJSONObject("serverResource")
+                conflictMemoSyncs += ConflictMemoSync(
+                    mutationId = result.optString("mutationId"),
+                    resourceId = result.optString("resourceId").ifBlank {
+                        serverResource?.optString("id").orEmpty()
+                    },
+                    clientVersion = result.optLongOrNull("clientVersion"),
+                    serverVersion = result.optLongOrNull("serverVersion")
+                        ?: serverResource?.optLongOrNull("version"),
+                    serverMemo = serverResource?.let { apiMemoFromJson(it) },
+                )
+            }
             else -> rejected += 1
         }
     }
@@ -1247,7 +1287,15 @@ internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {
         conflict = conflict,
         rejected = rejected,
         appliedMemoSyncs = appliedMemoSyncs,
+        conflictMemoSyncs = conflictMemoSyncs,
     )
+}
+
+private fun JSONObject.optLongOrNull(name: String): Long? {
+    if (!has(name) || isNull(name)) {
+        return null
+    }
+    return optLong(name)
 }
 
 internal fun apiMemoFromJson(body: JSONObject): Memo {

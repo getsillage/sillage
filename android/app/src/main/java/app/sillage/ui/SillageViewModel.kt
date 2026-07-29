@@ -23,6 +23,7 @@ import app.sillage.data.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
+import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.PulledSyncData
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
@@ -35,9 +36,12 @@ import app.sillage.data.buildAskActivePath
 import app.sillage.data.firstBlankAIProfileNameIndex
 import app.sillage.data.isActive
 import app.sillage.data.lastAssistantMessageId
+import app.sillage.data.localAttachmentMarkdown
+import app.sillage.data.localAttachmentPath
 import app.sillage.data.markdownFormatSnippet
 import app.sillage.data.memosForFilter
 import app.sillage.data.mergeSavedAIProfilesForLocalStorage
+import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
 import app.sillage.data.toDraft
@@ -527,6 +531,73 @@ class SillageViewModel(
 
     fun updatePassword(value: String) = updateState {
         it.copy(password = value, authError = null, authErrorResourceId = null)
+    }
+
+    fun updateCurrentPassword(value: String) = updateState {
+        it.copy(currentPassword = value, error = null)
+    }
+
+    fun updateNewPassword(value: String) = updateState {
+        it.copy(newPassword = value, error = null)
+    }
+
+    fun updateConfirmPassword(value: String) = updateState {
+        it.copy(confirmPassword = value, error = null)
+    }
+
+    fun changePassword() {
+        if (isOfflineMode()) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_password_online_required), notice = null)
+            }
+            return
+        }
+        val current = state.value
+        val currentPassword = current.currentPassword
+        val newPassword = current.newPassword
+        val confirmPassword = current.confirmPassword
+        if (currentPassword.isBlank() || newPassword.isBlank()) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_password_required), notice = null)
+            }
+            return
+        }
+        if (newPassword != confirmPassword) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_password_mismatch), notice = null)
+            }
+            return
+        }
+        if (currentPassword == newPassword) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_password_same), notice = null)
+            }
+            return
+        }
+        viewModelScope.launch {
+            updateState { it.copy(passwordChanging = true, error = null, notice = null) }
+            runCatching {
+                api.changePassword(currentPassword, newPassword)
+            }.onSuccess { session ->
+                updateState(noticeType = UiToastType.SUCCESS) {
+                    it.copy(
+                        account = session.account,
+                        currentPassword = "",
+                        newPassword = "",
+                        confirmPassword = "",
+                        passwordChanging = false,
+                        notice = uiString(R.string.notice_password_changed),
+                    )
+                }
+            }.onFailure { error ->
+                updateState {
+                    it.copy(
+                        passwordChanging = false,
+                        error = error.readableMessage(),
+                    )
+                }
+            }
+        }
     }
 
     fun initialize() {
@@ -1098,10 +1169,9 @@ class SillageViewModel(
             return
         }
         launchDataTransfer {
+            flushPendingLocalAttachments()
             val summary = pushLocalMemosToServer()
-            updateState(noticeType = syncPushToastType(summary)) {
-                it.copy(notice = syncPushNotice(summary))
-            }
+            presentSyncPushResult(summary)
         }
     }
 
@@ -1113,16 +1183,19 @@ class SillageViewModel(
             return
         }
         launchDataTransfer {
+            flushPendingLocalAttachments()
             val push = pushLocalMemosToServer()
             val pulled = exportOnlineData()
             withContext(Dispatchers.Default) {
                 localDataStore.mergeFromServer(pulled.data)
             }
             val warnAiSettings = !pulled.aiSettingsFetched
+            val conflicts = conflictItemsFromSummary(push)
             updateState(
                 noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
             ) {
                 it.copy(
+                    syncConflicts = conflicts.ifEmpty { it.syncConflicts },
                     notice = if (warnAiSettings) {
                         uiString(R.string.error_sync_ai_settings_failed)
                     } else {
@@ -1131,6 +1204,60 @@ class SillageViewModel(
                 )
             }
             refreshMemos()
+        }
+    }
+
+    fun resolveSyncConflictKeepLocal(resourceId: String) {
+        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.Default) {
+                    localDataStore.resolveConflictKeepLocal(item.conflict)
+                }
+            }.onSuccess {
+                updateState(noticeType = UiToastType.SUCCESS) {
+                    it.copy(
+                        syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+                        notice = uiString(R.string.notice_conflict_keep_local),
+                    )
+                }
+            }.onFailure { error ->
+                updateState { it.copy(error = error.readableMessage()) }
+            }
+        }
+    }
+
+    fun resolveSyncConflictTakeServer(resourceId: String) {
+        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.Default) {
+                    localDataStore.resolveConflictTakeServer(item.conflict)
+                }
+            }.onSuccess {
+                updateState(noticeType = UiToastType.SUCCESS) {
+                    it.copy(
+                        syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+                        notice = uiString(R.string.notice_conflict_take_server),
+                        selectedMemo = if (it.selectedMemo?.id == resourceId) {
+                            item.conflict.serverMemo
+                        } else {
+                            it.selectedMemo
+                        },
+                    )
+                }
+                refreshMemos()
+            }.onFailure { error ->
+                updateState { it.copy(error = error.readableMessage()) }
+            }
+        }
+    }
+
+    fun dismissSyncConflict(resourceId: String) {
+        updateState {
+            it.copy(
+                syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+            )
         }
     }
 
@@ -1639,13 +1766,8 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        if (isOfflineMode()) {
-            updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_attachment_online_required))
-            }
-            return
-        }
         val editorSessionId = current.editorSessionId
+        val offline = isOfflineMode()
         updateState {
             if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
                 it.copy(uploadingAttachment = true, error = null, notice = null)
@@ -1657,14 +1779,19 @@ class SillageViewModel(
             return
         }
         viewModelScope.launch {
-            // Insert each successfully uploaded attachment as soon as it lands
-            // so a mid-batch failure never discards earlier uploads' links.
+            // Insert each successfully uploaded (or offline-queued) attachment as
+            // soon as it lands so a mid-batch failure never discards earlier links.
             var failedCount = 0
             var firstError: Throwable? = null
             for (uri in uris) {
                 val snippet = runCatching {
-                    val upload = readAttachmentUpload(uri)
-                    attachmentMarkdown(api.uploadAttachment(upload))
+                    if (offline) {
+                        val pending = stageOfflineAttachment(uri)
+                        localAttachmentMarkdown(pending)
+                    } else {
+                        val upload = readAttachmentUpload(uri)
+                        attachmentMarkdown(api.uploadAttachment(upload))
+                    }
                 }.getOrElse { error ->
                     if (error is CancellationException) {
                         throw error
@@ -1694,7 +1821,13 @@ class SillageViewModel(
                     when {
                         failedCount == 0 -> it.copy(
                             uploadingAttachment = false,
-                            notice = uiString(R.string.notice_attachment_inserted),
+                            notice = uiString(
+                                if (offline) {
+                                    R.string.notice_attachment_queued_offline
+                                } else {
+                                    R.string.notice_attachment_inserted
+                                },
+                            ),
                         )
                         partialFailure -> it.copy(
                             uploadingAttachment = false,
@@ -1714,6 +1847,11 @@ class SillageViewModel(
     }
 
     fun openProtectedAttachment(target: MarkdownLinkTarget.ProtectedAttachment) {
+        val pendingId = pendingLocalAttachmentId(target)
+        if (pendingId != null) {
+            openPendingLocalAttachment(pendingId, target.filename)
+            return
+        }
         if (isOfflineMode()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_attachment_open_online_required), notice = null)
@@ -3104,11 +3242,183 @@ class SillageViewModel(
         return summary
     }
 
+    private fun presentSyncPushResult(summary: SyncPushSummary) {
+        val conflicts = conflictItemsFromSummary(summary)
+        updateState(noticeType = syncPushToastType(summary)) {
+            it.copy(
+                syncConflicts = conflicts.ifEmpty { emptyList() },
+                notice = syncPushNotice(summary),
+            )
+        }
+    }
+
+    private fun conflictItemsFromSummary(summary: SyncPushSummary): List<SyncConflictItem> {
+        return summary.conflictMemoSyncs.map { conflict ->
+            SyncConflictItem(
+                conflict = conflict,
+                localMemo = localDataStore.getMemoOrNull(conflict.resourceId),
+            )
+        }
+    }
+
     private fun syncPushNotice(summary: SyncPushSummary): String {
         return if (summary.applied == 0 && summary.conflict == 0 && summary.rejected == 0) {
             uiString(R.string.sync_none)
         } else {
             uiString(R.string.sync_summary, summary.applied, summary.conflict, summary.rejected)
+        }
+    }
+
+    private suspend fun stageOfflineAttachment(uri: Uri): PendingLocalAttachment {
+        val upload = readAttachmentUpload(uri)
+        val id = UUID.randomUUID().toString()
+        val dir = File(appContext.filesDir, PENDING_ATTACHMENTS_DIRECTORY).apply { mkdirs() }
+        val file = File(dir, id)
+        withContext(Dispatchers.IO) {
+            file.outputStream().use { output -> output.write(upload.bytes) }
+        }
+        val pending = PendingLocalAttachment(
+            id = id,
+            filename = upload.filename,
+            contentType = upload.contentType,
+            absolutePath = file.absolutePath,
+            size = upload.bytes.size.toLong(),
+        )
+        localDataStore.addPendingLocalAttachment(pending)
+        return pending
+    }
+
+    private suspend fun flushPendingLocalAttachments() {
+        val pending = localDataStore.listPendingLocalAttachments()
+        if (pending.isEmpty()) {
+            return
+        }
+        val draftRewrites = mutableListOf<Pair<String, String>>()
+        for (item in pending) {
+            val file = File(item.absolutePath)
+            if (!file.isFile) {
+                localDataStore.removePendingLocalAttachment(item.id)
+                continue
+            }
+            val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+            val uploaded = api.uploadAttachment(
+                AttachmentUpload(
+                    filename = item.filename,
+                    contentType = item.contentType,
+                    bytes = bytes,
+                ),
+            )
+            val remoteMarkdown = attachmentMarkdown(uploaded).trim()
+            val localMarkdown = localAttachmentMarkdown(item).trim()
+            localDataStore.replaceAttachmentMarkdownEverywhere(localMarkdown, remoteMarkdown)
+            draftRewrites += localMarkdown to remoteMarkdown
+            localDataStore.removePendingLocalAttachment(item.id)
+            withContext(Dispatchers.IO) {
+                runCatching { file.delete() }
+            }
+        }
+        if (draftRewrites.isNotEmpty()) {
+            updateState { current ->
+                if (current.screen != Screen.Editor) {
+                    return@updateState current
+                }
+                var draft = current.draftContent
+                draftRewrites.forEach { (from, to) ->
+                    if (draft.contains(from)) {
+                        draft = draft.replace(from, to)
+                    }
+                }
+                if (draft == current.draftContent) {
+                    current
+                } else {
+                    current.copy(draftContent = draft)
+                }
+            }
+        }
+    }
+
+    private fun openPendingLocalAttachment(pendingId: String, filename: String) {
+        val pending = localDataStore.getPendingLocalAttachment(pendingId)
+        if (pending == null) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_attachment_missing_local), notice = null)
+            }
+            return
+        }
+        val source = File(pending.absolutePath)
+        if (!source.isFile) {
+            updateState(forceFeedback = true) {
+                it.copy(error = uiString(R.string.error_attachment_missing_local), notice = null)
+            }
+            return
+        }
+        if (state.value.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
+            return
+        }
+        val requestId = state.value.attachmentOpenRequestId + 1
+        val openPath = localAttachmentPath(pending)
+        updateState {
+            if (it.openingAttachmentPath == null) {
+                it.copy(
+                    openingAttachmentPath = openPath,
+                    attachmentOpenRequestId = requestId,
+                    error = null,
+                    notice = null,
+                )
+            } else {
+                it
+            }
+        }
+        if (!state.value.canHandleAttachmentOpen(requestId)) {
+            return
+        }
+        attachmentOpenJob = viewModelScope.launch {
+            var requestDirectory: File? = null
+            try {
+                val cacheRoot = File(appContext.cacheDir, OPEN_ATTACHMENTS_CACHE_DIRECTORY)
+                withContext(Dispatchers.IO) {
+                    pruneAttachmentOpenCache(cacheRoot)
+                }
+                requestDirectory = File(cacheRoot, UUID.randomUUID().toString()).also { it.mkdirs() }
+                val displayName = preferredAttachmentFilename(null, filename.ifBlank { pending.filename })
+                val shareFile = File(requestDirectory, displayName)
+                withContext(Dispatchers.IO) {
+                    source.copyTo(shareFile, overwrite = true)
+                }
+                val event = AttachmentOpenEvent(
+                    requestId = requestId,
+                    file = shareFile,
+                    mimeType = resolveAttachmentMimeType(pending.contentType, displayName),
+                    displayName = displayName,
+                )
+                if (state.value.canHandleAttachmentOpen(requestId)) {
+                    val result = _attachmentOpenEvents.trySend(event)
+                    if (result.isFailure) {
+                        throw IllegalStateException(uiString(R.string.error_attachment_prepare))
+                    }
+                    requestDirectory = null
+                }
+            } catch (error: CancellationException) {
+                clearAttachmentOpenRequest(requestId)
+                throw error
+            } catch (error: Throwable) {
+                updateState {
+                    if (it.canHandleAttachmentOpen(requestId)) {
+                        it.copy(
+                            openingAttachmentPath = null,
+                            error = error.readableMessage(),
+                        )
+                    } else {
+                        it
+                    }
+                }
+            } finally {
+                requestDirectory?.let { directory ->
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        directory.deleteRecursively()
+                    }
+                }
+            }
         }
     }
 
@@ -3718,6 +4028,7 @@ internal data class AttachmentOpenEvent(
 )
 
 private const val OPEN_ATTACHMENTS_CACHE_DIRECTORY = "open_attachments"
+private const val PENDING_ATTACHMENTS_DIRECTORY = "pending_attachments"
 private const val ATTACHMENT_DOWNLOAD_TEMP_FILENAME = "download.tmp"
 private const val TOAST_EVENT_BUFFER_CAPACITY = 8
 // Matches the server's default --max-upload-mb (internal/profile/profile.go).

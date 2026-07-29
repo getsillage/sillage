@@ -18,9 +18,9 @@ The interface supports English and Simplified Chinese. Simplified Chinese is use
 
 The record editor supports Markdown editing and preview. The preview supports core CommonMark syntax, strikethrough, tables, task lists, and single line breaks. Raw HTML is not executed; image syntax is displayed as an attachment or external link that can be opened safely.
 
-The app currently provides neither automatic background sync nor push notifications, and offline attachment bytes and metadata are not fully synchronized. An Android export is not a substitute for a complete backup of the server's data directory.
+The app provides neither automatic background sync nor push notifications; sync is always started by the user. Offline attachment bytes are stored on the device and uploaded through `POST /api/v1/attachments` during the next online push or two-way sync (attachment bytes never enter the sync payload). After upload, memo markdown is rewritten to the authenticated server URL so later downloads use `/file/attachments/...`. An Android export is not a substitute for a complete backup of the server's data directory.
 
-"Pull" reads all syncable data from the server and merges it into the device. "Push" currently uploads only local records. "Two-way sync" pushes first and then performs a full pull. When a version conflict occurs, the app displays only the conflict count and retains the pending local changes; it does not yet provide an in-app merge interface. Do not keep retrying to force an overwrite. Preserve a local export first, verify the record on the server, and then resolve it.
+"Pull" reads all syncable data from the server and merges it into the device. "Push" uploads pending local records (after flushing offline attachment uploads). "Two-way sync" pushes first and then performs a full pull. When a version conflict occurs, the app keeps the local pending change and opens a conflict dialog that shows the local content and the server resource. You can keep the device version (adopt the server version as the next `baseVersion` and resubmit later), use the server version (drop the local pending change), or dismiss and decide later. Do not keep retrying to force an overwrite without resolving the conflict.
 
 ## Build and Test
 

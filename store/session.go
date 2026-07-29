@@ -113,6 +113,22 @@ WHERE refresh_token_hash = ? AND deleted_at IS NULL`,
 	return nil
 }
 
+// DeleteSessionsForAccount soft-deletes every active refresh session for the account.
+func (s *Store) DeleteSessionsForAccount(ctx context.Context, accountID string) error {
+	now := time.Now().UTC().UnixMilli()
+	if _, err := s.driver.GetDB().ExecContext(ctx, `
+UPDATE session
+SET deleted_at = ?, updated_at = ?
+WHERE account_id = ? AND deleted_at IS NULL`,
+		now,
+		now,
+		accountID,
+	); err != nil {
+		return fmt.Errorf("delete account sessions: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) RotateSession(ctx context.Context, oldToken string, create *CreateSession) (*Session, error) {
 	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
 	if err != nil {

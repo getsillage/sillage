@@ -29,6 +29,10 @@ fun resolveMarkdownLinkTarget(rawUrl: String?, baseUrl: String): MarkdownLinkTar
         return null
     }
 
+    // Offline-queued attachments use a reserved localpending-* UID path and must
+    // resolve without a configured server base URL.
+    localPendingAttachmentTarget(candidate)?.let { return it }
+
     val base = SessionStore.normalizeBaseUrl(baseUrl).toHttpUrlOrNull()
     candidate.toHttpUrlOrNull()?.let { absolute ->
         if (base != null && absolute.hasSameOrigin(base)) {
@@ -49,6 +53,31 @@ fun resolveMarkdownLinkTarget(rawUrl: String?, baseUrl: String): MarkdownLinkTar
         return null
     }
     return resolved.toProtectedAttachment()
+}
+
+private fun localPendingAttachmentTarget(candidate: String): MarkdownLinkTarget.ProtectedAttachment? {
+    val path = when {
+        candidate.startsWith(ATTACHMENT_PATH_PREFIX) -> candidate.substringBefore('?')
+        else -> {
+            val absolute = candidate.toHttpUrlOrNull() ?: return null
+            absolute.encodedPath.takeIf { it.startsWith(ATTACHMENT_PATH_PREFIX) } ?: return null
+        }
+    }
+    val segments = path.trim('/').split('/')
+    if (
+        segments.size != 4 ||
+        segments[0] != "file" ||
+        segments[1] != "attachments" ||
+        !segments[2].startsWith(LOCAL_PENDING_ATTACHMENT_UID_PREFIX) ||
+        segments[2].removePrefix(LOCAL_PENDING_ATTACHMENT_UID_PREFIX).isBlank() ||
+        segments[3].isBlank()
+    ) {
+        return null
+    }
+    return MarkdownLinkTarget.ProtectedAttachment(
+        path = path,
+        filename = segments[3],
+    )
 }
 
 fun preferredAttachmentFilename(contentDisposition: String?, urlFilename: String): String {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Memo } from "./api";
 import {
+  changePassword,
   createAskConversation,
   createAskMessage,
   createMemo,
@@ -232,6 +233,12 @@ describe("ask + settings + auth api wrappers", () => {
 
     await signOut();
     expect(lastCall().path).toBe("/api/v1/auth/signout");
+
+    await changePassword("t", {
+      currentPassword: "old",
+      newPassword: "new",
+    });
+    expect(lastCall().path).toBe("/api/v1/auth/change-password");
 
     await initializeAccount({
       username: "a",

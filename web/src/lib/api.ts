@@ -178,6 +178,17 @@ export async function signOut(): Promise<void> {
   await request("/api/v1/auth/signout", { method: "POST" });
 }
 
+export async function changePassword(
+  accessToken: string,
+  input: { currentPassword: string; newPassword: string },
+): Promise<AuthResponse> {
+  return request("/api/v1/auth/change-password", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
 export async function getMe(
   accessToken: string,
 ): Promise<{ account: Account }> {

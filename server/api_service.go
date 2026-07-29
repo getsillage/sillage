@@ -58,6 +58,23 @@ func (s *Server) signOut(ctx context.Context, refreshToken string) error {
 	return s.auth.SignOut(ctx, refreshToken)
 }
 
+type changePasswordInput struct {
+	CurrentPassword string
+	NewPassword     string
+}
+
+func (s *Server) changePassword(ctx context.Context, accountID string, input changePasswordInput, r *http.Request) (*store.Account, *auth.TokenPair, error) {
+	current := strings.TrimSpace(input.CurrentPassword)
+	next := strings.TrimSpace(input.NewPassword)
+	if current == "" || next == "" {
+		return nil, nil, validationError{message: "当前密码和新密码不能为空"}
+	}
+	if current == next {
+		return nil, nil, validationError{message: "新密码不能与当前密码相同"}
+	}
+	return s.auth.ChangePassword(ctx, accountID, current, next, r)
+}
+
 func (e validationError) Error() string {
 	return e.message
 }

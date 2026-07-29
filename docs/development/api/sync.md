@@ -104,11 +104,11 @@ After the first result has been stored successfully, submitting the same `mutati
 - `favorited` is the canonical favorite field. For compatibility with older clients, the server reads the deprecated `pinned` field; when both are present, `favorited` takes precedence.
 - An AI summary does not change the memo's `version` or `updatedAt`.
 
-On a `conflict`, the client should preserve the local mutation and show the server resource so the user can merge the changes, discard the local change, or resubmit it against the new version. It must not overwrite automatically or retry an old `baseVersion` indefinitely. Android currently preserves only the pending local mutation and displays the number of conflicts. It does not yet provide an in-app way to view and merge the server resource; this is a known limitation and must not be treated as automatic conflict resolution.
+On a `conflict`, the client should preserve the local mutation and show the server resource so the user can merge the changes, discard the local change, or resubmit it against the new version. It must not overwrite automatically or retry an old `baseVersion` indefinitely. Android opens a conflict dialog with the local pending content and `serverResource`, then lets the user keep the device version (new mutation against the server baseline), take the server version (drop the local pending change), or dismiss without overwriting.
 
 ## Attachment Boundaries
 
-Synchronization pulls attachment metadata only. Attachment bytes are not included in the payload, and attachment push is not accepted. Online uploads use `POST /api/v1/attachments`; authenticated downloads use `/file/attachments/{uid}/{filename}`. Complete synchronization of Android offline attachments is not yet implemented.
+Synchronization pulls attachment metadata only. Attachment bytes are not included in the payload, and attachment push is not accepted. Online uploads use `POST /api/v1/attachments`; authenticated downloads use `/file/attachments/{uid}/{filename}`. Android offline writing stages attachment bytes on the device and uploads them through the attachment API during the next online push or two-way sync, then rewrites memo markdown to the server URL so authenticated download retrieves the bytes.
 
 ## Changes and Verification
 

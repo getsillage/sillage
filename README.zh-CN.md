@@ -30,28 +30,20 @@ Sillage 不提供多人协作、公开主页、社交分享、后台自动同步
 
 ## 快速开始
 
-从 [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage) 拉取与 [GitHub Releases](https://github.com/getsillage/sillage/releases) 对应的镜像 tag（`vX.Y.Z`）。以下示例只在本机开放服务：
+已安装 Docker 后执行：
 
 ```bash
-docker pull ghcr.io/getsillage/sillage:vX.Y.Z
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  ghcr.io/getsillage/sillage:vX.Y.Z
+  ghcr.io/getsillage/sillage:latest
 ```
 
-打开 `http://localhost:5231`，按页面提示创建唯一账号。
+打开 [http://localhost:5231](http://localhost:5231)，按提示创建唯一账号。
 
-健康检查：
+本机部署到此即可。数据在 `$HOME/.sillage`。升级时先停止容器并备份该目录，再执行同样的命令（或先 `docker pull ghcr.io/getsillage/sillage:latest`）后重新启动。
 
-```bash
-curl http://localhost:5231/healthz
-curl http://localhost:5231/readyz
-```
-
-数据保存在 `$HOME/.sillage`。升级、迁移或备份前应先停止服务，并复制整个目录，不要只复制 `sillage.db`。完整步骤见[数据与备份](docs/user/data.md)。
-
-Compose、反向代理、环境变量、公网部署以及从源码构建见[部署说明](docs/user/deployment.md)。
+Compose、反向代理、环境变量、公网部署、固定某一发布镜像，以及从源码构建见[部署说明](docs/user/deployment.md)与[数据与备份](docs/user/data.md)。
 ## 技术结构
 
 - Go + Echo 单体后端

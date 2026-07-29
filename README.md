@@ -30,28 +30,20 @@ Sillage does not provide multi-user collaboration, public profiles, social shari
 
 ## Quick Start
 
-Pull a release image from [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage). Tags match [GitHub Releases](https://github.com/getsillage/sillage/releases) (`vX.Y.Z`). This example exposes the service only on the local machine:
+With Docker installed, run:
 
 ```bash
-docker pull ghcr.io/getsillage/sillage:vX.Y.Z
 docker run --rm \
   -p 127.0.0.1:5231:5231 \
   -v "$HOME/.sillage:/var/opt/sillage" \
-  ghcr.io/getsillage/sillage:vX.Y.Z
+  ghcr.io/getsillage/sillage:latest
 ```
 
-Open `http://localhost:5231` and follow the prompts to create the instance's only account.
+Open [http://localhost:5231](http://localhost:5231) and create the instance's only account.
 
-Health checks:
+That is enough for a local install. Data lives in `$HOME/.sillage`. To upgrade, stop the container, back up that directory, pull again with the same command (or `docker pull ghcr.io/getsillage/sillage:latest`), and start it once more.
 
-```bash
-curl http://localhost:5231/healthz
-curl http://localhost:5231/readyz
-```
-
-Data is stored in `$HOME/.sillage`. Stop the service before upgrading, migrating, or backing it up, and copy the entire directory rather than only `sillage.db`. See [Data, Backup, and Recovery](docs/user/data.md) for the complete procedure.
-
-See the [Deployment Guide](docs/user/deployment.md) for Docker Compose, reverse proxy, environment variables, public deployment, and building from source.
+For Compose, reverse proxy, environment variables, public exposure, pinning a release image, or building from source, see the [Deployment Guide](docs/user/deployment.md) and [Data, Backup, and Recovery](docs/user/data.md).
 
 ## Architecture
 

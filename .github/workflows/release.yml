@@ -188,22 +188,18 @@ jobs:
           set -euo pipefail
 
           container_block() {
-            echo "## Container image"
+            echo "## Install"
             echo ""
-            echo "Images are published only by CI. Prefer the version tag that matches this release."
+            echo "Quick start (always the newest non-prerelease image):"
             echo ""
             echo '```bash'
-            echo "docker pull ${IMAGE}:${TAG}"
             echo "docker run --rm \\"
             echo "  -p 127.0.0.1:5231:5231 \\"
             echo "  -v \"\$HOME/.sillage:/var/opt/sillage\" \\"
-            echo "  ${IMAGE}:${TAG}"
+            echo "  ${IMAGE}:latest"
             echo '```'
             echo ""
-            echo "- Image: \`${IMAGE}:${TAG}\`"
-            if [ -n "${DIGEST}" ]; then
-              echo "- Digest: \`${DIGEST}\`"
-            fi
+            echo "This release is also tagged \`${IMAGE}:${TAG}\` (digest \`${DIGEST:-unknown}\`)."
             echo ""
             echo "Upgrade and rollback: [Data, Backup, and Recovery](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/data.md) · [Deployment](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/deployment.md)"
             echo ""
@@ -215,7 +211,7 @@ jobs:
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             existing="$(gh release view "$TAG" --json body --jq '.body // ""')"
-            if printf '%s' "$existing" | grep -q '^## Container image'; then
+            if printf '%s' "$existing" | grep -qE '^## (Install|Container image)'; then
               printf '%s\n' "$existing" > "$notes"
             else
               {

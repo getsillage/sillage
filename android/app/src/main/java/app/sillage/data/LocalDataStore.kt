@@ -88,39 +88,19 @@ class LocalDataStore(context: Context) {
 
     /** Rewrite attachment markdown placeholders in every stored memo body. */
     fun replaceAttachmentMarkdownEverywhere(fromMarkdown: String, toMarkdown: String) {
-        if (fromMarkdown.isBlank() || fromMarkdown == toMarkdown) {
-            return
-        }
         val currentData = loadData()
-        val cloudVersions = cloudMemoVersions()
-        val mutations = pendingMemoMutations().toMutableMap()
-        val now = now()
-        var any = false
-        val memos = currentData.memos.map { memo ->
-            if (!memo.content.contains(fromMarkdown)) {
-                return@map memo
-            }
-            any = true
-            val rewritten = memo.copy(
-                content = memo.content.replace(fromMarkdown, toMarkdown),
-                // Bump version when a cloud baseline exists so push treats this as an update.
-                version = if (cloudVersions[memo.id] != null || mutations[memo.id] != null) {
-                    memo.version + 1
-                } else {
-                    memo.version
-                },
-                updatedAt = now,
-            )
-            mutations[rewritten.id] = newPendingMemoMutation(rewritten)
-            rewritten
-        }
-        if (!any) {
-            return
-        }
+        val rewritten = rewriteAttachmentMarkdownInMemos(
+            memos = currentData.memos,
+            cloudVersions = cloudMemoVersions(),
+            pendingMutations = pendingMemoMutations(),
+            fromMarkdown = fromMarkdown,
+            toMarkdown = toMarkdown,
+            now = now(),
+        ) ?: return
         persistMemoCloudState(
-            currentData.copy(memos = memos),
-            cloudVersions,
-            mutations,
+            currentData.copy(memos = rewritten.memos),
+            rewritten.cloudVersions,
+            rewritten.pendingMutations,
         )
     }
 
@@ -701,6 +681,58 @@ internal fun mergePulledCloudMemos(
         memos = mergedMemos.values.toList(),
         cloudVersions = mergedVersions,
         pendingMutations = mergedMutations,
+    )
+}
+
+/**
+ * After an offline attachment is uploaded, replace localpending markdown with the
+ * server URL and ensure affected memos remain pushable (version + pending mutation).
+ * Returns null when nothing changes.
+ */
+internal fun rewriteAttachmentMarkdownInMemos(
+    memos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    fromMarkdown: String,
+    toMarkdown: String,
+    now: String,
+    newMutationId: () -> String = ::newMemoMutationId,
+): ConflictResolutionState? {
+    if (fromMarkdown.isBlank() || fromMarkdown == toMarkdown) {
+        return null
+    }
+    val mutations = pendingMutations.toMutableMap()
+    var any = false
+    val nextMemos = memos.map { memo ->
+        if (!memo.content.contains(fromMarkdown)) {
+            return@map memo
+        }
+        any = true
+        val rewritten = memo.copy(
+            content = memo.content.replace(fromMarkdown, toMarkdown),
+            // Bump version when a cloud baseline or pending mutation exists so push
+            // treats this as an update rather than dropping a no-op version.
+            version = if (cloudVersions[memo.id] != null || mutations[memo.id] != null) {
+                memo.version + 1
+            } else {
+                memo.version
+            },
+            updatedAt = now,
+        )
+        mutations[rewritten.id] = PendingMemoMutation(
+            mutationId = newMutationId(),
+            memoVersion = rewritten.version,
+            memoUpdatedAt = rewritten.updatedAt,
+        )
+        rewritten
+    }
+    if (!any) {
+        return null
+    }
+    return ConflictResolutionState(
+        memos = nextMemos,
+        cloudVersions = cloudVersions,
+        pendingMutations = mutations,
     )
 }
 

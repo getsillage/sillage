@@ -60,7 +60,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.ref.outputs.tag }}
           fetch-depth: 0
@@ -173,7 +173,7 @@ jobs:
     if: github.event_name == 'push' || inputs.create_release
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.container.outputs.tag }}
           fetch-depth: 0
@@ -260,7 +260,7 @@ jobs:
       && vars.RELEASE_ANDROID_APK == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.container.outputs.tag }}
 

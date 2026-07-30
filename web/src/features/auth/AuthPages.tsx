@@ -74,6 +74,8 @@ function Field({
   required = true,
   disabled = false,
   describedBy,
+  minLength,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -83,6 +85,8 @@ function Field({
   required?: boolean;
   disabled?: boolean;
   describedBy?: string;
+  minLength?: number;
+  maxLength?: number;
 }) {
   const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
@@ -102,6 +106,8 @@ function Field({
           autoComplete={autoComplete}
           required={required}
           disabled={disabled}
+          minLength={minLength}
+          maxLength={maxLength}
           aria-describedby={describedBy}
           spellCheck={password ? false : undefined}
           autoCapitalize={password ? "none" : undefined}
@@ -197,6 +203,7 @@ export function InitializePage({
           autoComplete="username"
           disabled={busy}
           describedBy={error ? errorId : undefined}
+          maxLength={64}
         />
         <Field
           label={t("auth.displayName")}
@@ -208,6 +215,7 @@ export function InitializePage({
           autoComplete="name"
           required={false}
           disabled={busy}
+          maxLength={120}
         />
         <Field
           label={t("auth.password")}
@@ -220,6 +228,8 @@ export function InitializePage({
           autoComplete="new-password"
           disabled={busy}
           describedBy={error ? errorId : undefined}
+          minLength={8}
+          maxLength={256}
         />
         {error ? <AuthError id={errorId} message={error} /> : null}
         <button
@@ -303,6 +313,7 @@ export function LoginPage({
           autoComplete="username"
           disabled={busy}
           describedBy={error ? errorId : undefined}
+          maxLength={64}
         />
         <Field
           label={t("auth.password")}
@@ -315,6 +326,7 @@ export function LoginPage({
           autoComplete="current-password"
           disabled={busy}
           describedBy={error ? errorId : undefined}
+          maxLength={256}
         />
         {error ? <AuthError id={errorId} message={error} /> : null}
         <button

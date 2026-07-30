@@ -15,6 +15,8 @@ import (
 const (
 	defaultPageSize       = 50
 	memoListCursorVersion = 2
+	maxMemoContentBytes   = 1 << 20
+	maxMemoQueryBytes     = 512
 )
 
 var (
@@ -145,6 +147,9 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 }
 
 func (s *Service) Search(ctx context.Context, accountID string, input SearchInput) ([]*store.Memo, error) {
+	if len(input.Query) > maxMemoQueryBytes {
+		return nil, validationError{message: "搜索内容不能超过 512 字节"}
+	}
 	return s.repository.SearchMemos(ctx, &store.SearchMemoOptions{
 		AccountID: accountID,
 		Query:     input.Query,
@@ -194,8 +199,10 @@ func (s *Service) Update(ctx context.Context, accountID string, input UpdateInpu
 	if input.ExpectedVersion <= 0 {
 		return nil, validationError{message: "expectedVersion 必须大于 0"}
 	}
-	if input.Content != nil && *input.Content == "" {
-		return nil, validationError{message: "记录内容不能为空"}
+	if input.Content != nil {
+		if err := validateMemoContent(*input.Content); err != nil {
+			return nil, err
+		}
 	}
 	if input.EntryDate != nil {
 		if err := validateEntryDate(*input.EntryDate); err != nil {
@@ -224,10 +231,20 @@ func (s *Service) Delete(ctx context.Context, accountID, id string, expectedVers
 }
 
 func ValidateFields(content, entryDate string) error {
+	if err := validateMemoContent(content); err != nil {
+		return err
+	}
+	return validateEntryDate(entryDate)
+}
+
+func validateMemoContent(content string) error {
 	if content == "" {
 		return validationError{message: "记录内容不能为空"}
 	}
-	return validateEntryDate(entryDate)
+	if len(content) > maxMemoContentBytes {
+		return validationError{message: "记录内容不能超过 1 MiB"}
+	}
+	return nil
 }
 
 func validateEntryDate(entryDate string) error {

@@ -8,7 +8,7 @@ gates:
   go: "Go modules, tests, vet, and binary build"
   proto: "Buf lint, breaking, generate, and committed gen drift"
   web: "Web lint, typecheck, unit tests, and production build"
-  android: "Android unit tests, lint, and debug assemble"
+  android: "Android unit tests, lint, debug assemble, and release manifest policy"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
   e2e: "Fresh-instance Playwright smoke"

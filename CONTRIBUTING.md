@@ -84,7 +84,8 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 Use the root **Makefile** so local runs match CI. Details and the path→gate matrix are in [Governance](docs/development/governance.md).
 
 ```bash
-make check              # go + proto + web + docs
+make check              # all CI-equivalent code, secret, artifact, and E2E gates
+make check-fast         # go + proto + web + docs
 make check-affected     # gates implied by current changes (set BASE_SHA for PR ranges)
 make print-affected     # show gates without running them
 ```
@@ -94,13 +95,13 @@ make print-affected     # show gates without running them
 | Go | `make check-go` | `go mod tidy -diff`, tests, vet, build |
 | Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
 | Web | `make check-web` | lint, typecheck, unit tests, build, embed policy |
-| Android | `make check-android` | unit tests, lint, debug assemble |
+| Android | `make check-android` | unit tests, lint, debug assemble, release manifest security policy |
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync |
 | Container | `make check-container` | Docker build + Compose config |
 | E2E | `make check-e2e` | fresh-instance Playwright smoke |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 
-CI also runs gitleaks (`.gitleaks.toml`) and validates pull request titles as Conventional Commits subjects.
+The full `make check` requires Docker, gitleaks, and Playwright system dependencies. CI also validates pull request titles as Conventional Commits subjects.
 
 For a PR-shaped range:
 

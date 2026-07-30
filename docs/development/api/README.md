@@ -48,6 +48,12 @@ Authentication password changes are exposed through both the REST route
 method. Both transports verify the current password, revoke other refresh
 sessions, and return the rotated token pair for the current client.
 
+New passwords must contain at least 8 Unicode characters and at most 256 UTF-8
+bytes. Non-multipart requests over 8 MiB are rejected with HTTP 413; attachment
+uploads use the separate configured upload limit. Record, Ask, search, and AI
+configuration fields have stricter per-field limits and return the normal
+`invalid_field` error when exceeded.
+
 ## Versioning and Compatibility
 
 `/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.

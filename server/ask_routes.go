@@ -102,6 +102,9 @@ func (s *Server) handleListAskConversations(c *echo.Context) error {
 		Archived: archived,
 	})
 	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取问答会话失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversations": askConversationDTOs(conversations)})
@@ -159,6 +162,9 @@ func (s *Server) handleCreateAskConversation(c *echo.Context) error {
 		ContextScope: req.ContextScope,
 	})
 	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "创建问答会话失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversation": askConversationDTO(conversation)})

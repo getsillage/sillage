@@ -22,6 +22,11 @@ type aiProviderMessage struct {
 	Content string `json:"content"`
 }
 
+const (
+	maxAIResponseBytes = 4 << 20
+	maxAIOutputBytes   = 512 << 10
+)
+
 type aiCallResult struct {
 	Content      string
 	InputTokens  int64
@@ -147,6 +152,11 @@ func normalizeAIBaseURL(raw, provider string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid ai base url: %w", err)
 	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if (scheme != "http" && scheme != "https") || parsed.Host == "" || parsed.User != nil {
+		return "", fmt.Errorf("invalid ai base url: absolute http(s) URL without embedded credentials required")
+	}
+	parsed.Scheme = scheme
 	parsed.Fragment = ""
 	parsed.RawQuery = ""
 	return strings.TrimRight(parsed.String(), "/"), nil
@@ -185,7 +195,7 @@ func callOpenAICompatibleAI(
 		return nil, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("ai provider status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("ai provider status %d", res.StatusCode)
 	}
 	var decoded openAIChatResponse
 	if err := json.Unmarshal(body, &decoded); err != nil {
@@ -194,6 +204,9 @@ func callOpenAICompatibleAI(
 	content := openAIContent(decoded)
 	if content == "" {
 		return nil, fmt.Errorf("ai provider returned empty content")
+	}
+	if len(content) > maxAIOutputBytes {
+		return nil, fmt.Errorf("ai provider returned oversized content")
 	}
 	return &aiCallResult{
 		Content:      strings.TrimSpace(content),
@@ -241,7 +254,7 @@ func callAnthropicAI(
 		return nil, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("ai provider status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("ai provider status %d", res.StatusCode)
 	}
 	var decoded anthropicMessagesResponse
 	if err := json.Unmarshal(body, &decoded); err != nil {
@@ -250,6 +263,9 @@ func callAnthropicAI(
 	content := anthropicContent(decoded)
 	if content == "" {
 		return nil, fmt.Errorf("ai provider returned empty content")
+	}
+	if len(content) > maxAIOutputBytes {
+		return nil, fmt.Errorf("ai provider returned oversized content")
 	}
 	return &aiCallResult{
 		Content:      strings.TrimSpace(content),
@@ -276,7 +292,7 @@ func fetchAIModels(ctx context.Context, provider, baseURL, apiKey string) ([]str
 		return nil, err
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("ai provider status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("ai provider status %d", res.StatusCode)
 	}
 	models, err := decodeAIModels(body)
 	if err != nil {
@@ -295,9 +311,12 @@ func doAIRequest(req *http.Request) (*http.Response, []byte, error) {
 		return nil, nil, fmt.Errorf("call ai provider: %w", err)
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, maxAIResponseBytes+1))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read ai response: %w", err)
+	}
+	if len(body) > maxAIResponseBytes {
+		return nil, nil, fmt.Errorf("ai provider response exceeds %d bytes", maxAIResponseBytes)
 	}
 	return res, body, nil
 }

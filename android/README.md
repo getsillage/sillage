@@ -6,10 +6,10 @@ Download released APKs from [GitHub Releases](https://github.com/getsillage/sill
 
 ## Connecting to an Instance
 
-Start the Sillage service and make sure the phone can reach its address:
+Release APKs require HTTPS. Debug builds permit HTTP so local development can reach an emulator or a trusted LAN host:
 
-- From an emulator to the host: `http://10.0.2.2:5231`
-- From a physical device to a host on the LAN: for example, `http://192.168.1.10:5231`
+- From a debug build in an emulator to the host: `http://10.0.2.2:5231`
+- From a debug build on a physical device to a trusted LAN host: for example, `http://192.168.1.10:5231`
 - For a public instance: use the HTTPS address of its operator-managed external entry point
 
 Both online and offline modes support records, calendar, search, favorites, archives, AI settings, summaries, and Ask. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
@@ -68,7 +68,7 @@ The release build uses this keystore only when the local signing configuration e
 
 ## Security Boundaries
 
-The app permits cleartext HTTP for LAN and emulator development; production instances should use HTTPS only. Login sessions and offline data are protected through Android Keystore, but exported JSON contains sensitive data in plaintext and should be shared and stored only in restricted locations.
+Only debug builds permit cleartext HTTP for LAN and emulator development. Release APKs reject cleartext traffic and require an HTTPS instance. Login sessions and offline data are protected through Android Keystore, but exported JSON contains sensitive data in plaintext and should be shared and stored only in restricted locations.
 
 Attachment links accept only standard external `http(s)` URLs or same-origin `/file/attachments/...` paths. The app downloads protected attachments to its cache with authentication, then passes them to the system viewer through a read-only FileProvider URI.
 

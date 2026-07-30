@@ -112,6 +112,36 @@ func TestAskPreStreamFailureRetractsQuestion(t *testing.T) {
 	}
 }
 
+func TestAskRejectsOversizedUserInput(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{
+		"title": strings.Repeat("x", 513),
+	}, bearer(token))
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("oversized title status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/ask/conversations", map[string]any{}, bearer(token))
+	conversationID := decodeAskConversationResponse(t, res.Body.Bytes())["id"].(string)
+	res = doJSON(t, srv, http.MethodPost,
+		"/api/v1/ask/conversations/"+conversationID+"/messages",
+		map[string]any{"content": strings.Repeat("x", (64<<10)+1)}, bearer(token))
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("oversized question status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/ask/conversations/"+conversationID+"/messages", nil, bearer(token))
+	var payload map[string][]map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode messages: %v", err)
+	}
+	if len(payload["messages"]) != 0 {
+		t.Fatalf("oversized question left persisted messages: %v", payload["messages"])
+	}
+}
+
 func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)

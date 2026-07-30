@@ -232,6 +232,25 @@ func TestSignInRateLimit(t *testing.T) {
 	}
 }
 
+func TestAuthInitializationPasswordPolicy(t *testing.T) {
+	srv := newTestServer(t)
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/auth/initialize", map[string]string{
+		"username": "felix",
+		"password": "short",
+	}, nil)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("short password status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/initialize", map[string]string{
+		"username": strings.Repeat("用", 65),
+		"password": "passw0rd!",
+	}, nil)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("long username status/body = %d %s", res.Code, res.Body.String())
+	}
+}
+
 func newTestServer(t *testing.T) *server.Server {
 	t.Helper()
 	ctx := context.Background()

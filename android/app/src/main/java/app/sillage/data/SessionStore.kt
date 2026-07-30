@@ -294,7 +294,7 @@ class SessionStore(context: Context) {
             return when {
                 trimmed.isBlank() -> ""
                 trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
-                else -> "http://$trimmed"
+                else -> "https://$trimmed"
             }
         }
 

@@ -4,6 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/spf13/viper"
+
+	"github.com/getsillage/sillage/internal/profile"
 )
 
 func TestExpandFileEnv(t *testing.T) {
@@ -22,6 +26,22 @@ func TestExpandFileEnv(t *testing.T) {
 	}
 	if got := os.Getenv("SILLAGE_DSN_FILE"); got != "" {
 		t.Fatalf("SILLAGE_DSN_FILE = %q, want empty", got)
+	}
+}
+
+func TestSecureNetworkDefaultsAndTrustedProxyEnv(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	t.Setenv("SILLAGE_TRUSTED_PROXY", "127.0.0.1/32,::1/128")
+	_ = newRootCommand()
+
+	if got := viper.GetString("addr"); got != profile.DefaultAddr {
+		t.Fatalf("default addr = %q, want %q", got, profile.DefaultAddr)
+	}
+	want := []string{"127.0.0.1/32", "::1/128"}
+	got := trustedProxyCIDRs()
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("trusted proxy env = %v, want %v", got, want)
 	}
 }
 

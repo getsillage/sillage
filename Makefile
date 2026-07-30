@@ -4,18 +4,19 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help check check-affected check-go check-proto check-web check-android \
+.PHONY: help check check-fast check-affected check-go check-proto check-web check-android \
 	check-docs check-container check-e2e check-commits check-secrets print-affected
 
 help:
 	@printf '%s\n' \
 		'Verification targets (see docs/development/governance.md):' \
-		'  make check            Run go + proto + web + docs gates' \
+		'  make check            Run all CI-equivalent code, secret, artifact, and E2E gates' \
+		'  make check-fast       Run go + proto + web + docs gates' \
 		'  make check-affected   Run gates implied by git changes (BASE_SHA optional)' \
 		'  make check-go         Go mod tidy, test, vet, build' \
 		'  make check-proto      Buf lint/breaking/generate + gen drift' \
 		'  make check-web        Web lint, typecheck, test, build, embed policy' \
-		'  make check-android    Android unit tests, lint, debug APK' \
+		'  make check-android    Android unit tests, lint, debug APK, release manifest policy' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
 		'  make check-e2e        Fresh-instance Playwright smoke' \
@@ -26,7 +27,9 @@ help:
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-docs
+check: check-go check-proto check-web check-android check-docs check-secrets check-container check-e2e
+
+check-fast: check-go check-proto check-web check-docs
 
 check-affected:
 	node scripts/affected.mjs --run
@@ -51,7 +54,8 @@ check-web:
 	bash scripts/check-web-assets.sh
 
 check-android:
-	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:processReleaseMainManifest
+	grep -Fq 'android:usesCleartextTraffic="false"' android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
 
 check-docs:
 	node scripts/check-docker-context.mjs

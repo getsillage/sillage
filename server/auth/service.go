@@ -24,13 +24,14 @@ import (
 )
 
 const (
-	PasswordAlgorithmName = passwordAlgorithm
-	refreshCookieName     = "sillage_refresh"
-	accessCookieName      = "sillage_access"
-	accessTokenTTL        = 15 * time.Minute
-	refreshTokenTTL       = 30 * 24 * time.Hour
-	loginFailureWindow    = 15 * time.Minute
-	maxLoginFailures      = 10
+	PasswordAlgorithmName    = passwordAlgorithm
+	TrustedProxyMarkerHeader = "X-Sillage-Trusted-Proxy"
+	refreshCookieName        = "sillage_refresh"
+	accessCookieName         = "sillage_access"
+	accessTokenTTL           = 15 * time.Minute
+	refreshTokenTTL          = 30 * 24 * time.Hour
+	loginFailureWindow       = 15 * time.Minute
+	maxLoginFailures         = 10
 )
 
 type Service struct {
@@ -315,10 +316,14 @@ func randomToken() string {
 }
 
 func clientIP(r *http.Request) string {
-	if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
-		first := strings.TrimSpace(strings.Split(forwardedFor, ",")[0])
-		if first != "" {
-			return first
+	if r.Header.Get(TrustedProxyMarkerHeader) == "1" {
+		if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
+			first := strings.TrimSpace(strings.Split(forwardedFor, ",")[0])
+			if first != "" {
+				if parsed := net.ParseIP(first); parsed != nil {
+					return parsed.String()
+				}
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -407,13 +412,8 @@ func shouldUseSecureCookie(r *http.Request) bool {
 	if r.TLS != nil {
 		return true
 	}
-	proto := strings.ToLower(r.Header.Get("X-Forwarded-Proto"))
-	if proto == "https" {
+	if r.Header.Get(TrustedProxyMarkerHeader) == "1" && strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https") {
 		return true
-	}
-	host := r.Host
-	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") || strings.HasPrefix(host, "[::1]") {
-		return false
 	}
 	return false
 }

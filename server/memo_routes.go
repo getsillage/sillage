@@ -62,6 +62,9 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 			Limit:     limit,
 		})
 		if err != nil {
+			if isValidationError(err) {
+				return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+			}
 			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 		}
 		return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})

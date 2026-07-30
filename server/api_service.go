@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server/auth"
@@ -22,6 +23,19 @@ var (
 	errAIOverloaded     = errors.New("ai overloaded")
 	errTooManyChanges   = errors.New("too many sync changes")
 	errValidation       = errors.New("validation error")
+)
+
+const (
+	maxAskConversationTitleBytes = 512
+	maxAskMessageBytes           = 64 << 10
+	maxSearchQueryBytes          = 512
+	maxAIProfiles                = 20
+	maxAIProfileNameBytes        = 256
+	maxAIProviderBytes           = 64
+	maxAIBaseURLBytes            = 2048
+	maxAIModelBytes              = 256
+	maxAIKeyBytes                = 16 << 10
+	maxAIConfiguredTokens        = 32768
 )
 
 type validationError struct {
@@ -40,8 +54,18 @@ func (s *Server) authBootstrap(ctx context.Context) (bool, error) {
 
 func (s *Server) initializeAccount(ctx context.Context, input authInput, r *http.Request) (*store.Account, *auth.TokenPair, error) {
 	input.Username = strings.TrimSpace(input.Username)
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	if input.Username == "" || input.Password == "" {
 		return nil, nil, validationError{message: "账号和密码不能为空"}
+	}
+	if utf8.RuneCountInString(input.Username) > 64 {
+		return nil, nil, validationError{message: "账号不能超过 64 个字符"}
+	}
+	if utf8.RuneCountInString(input.DisplayName) > 120 {
+		return nil, nil, validationError{message: "显示名称不能超过 120 个字符"}
+	}
+	if err := auth.ValidateNewPassword(input.Password); err != nil {
+		return nil, nil, validationError{message: "密码至少需要 8 个字符，且不能超过 256 字节"}
 	}
 	return s.auth.Initialize(ctx, input.Username, input.DisplayName, input.Password, r)
 }
@@ -64,13 +88,16 @@ type changePasswordInput struct {
 }
 
 func (s *Server) changePassword(ctx context.Context, accountID string, input changePasswordInput, r *http.Request) (*store.Account, *auth.TokenPair, error) {
-	current := strings.TrimSpace(input.CurrentPassword)
-	next := strings.TrimSpace(input.NewPassword)
+	current := input.CurrentPassword
+	next := input.NewPassword
 	if current == "" || next == "" {
 		return nil, nil, validationError{message: "当前密码和新密码不能为空"}
 	}
 	if current == next {
 		return nil, nil, validationError{message: "新密码不能与当前密码相同"}
+	}
+	if err := auth.ValidateNewPassword(next); err != nil {
+		return nil, nil, validationError{message: "新密码至少需要 8 个字符，且不能超过 256 字节"}
 	}
 	return s.auth.ChangePassword(ctx, accountID, current, next, r)
 }
@@ -156,6 +183,9 @@ type askCreateMessageResult struct {
 }
 
 func (s *Server) listAskConversations(ctx context.Context, accountID string, input askConversationListInput) ([]*store.AskConversation, error) {
+	if len(input.Query) > maxSearchQueryBytes {
+		return nil, validationError{message: "搜索内容不能超过 512 字节"}
+	}
 	return s.Store.ListAskConversations(ctx, &store.ListAskConversationOptions{
 		AccountID: accountID,
 		Limit:     normalizeLimit(input.Limit, 50),
@@ -165,6 +195,9 @@ func (s *Server) listAskConversations(ctx context.Context, accountID string, inp
 }
 
 func (s *Server) createAskConversation(ctx context.Context, accountID string, input askConversationInput) (*store.AskConversation, error) {
+	if len(input.Title) > maxAskConversationTitleBytes {
+		return nil, validationError{message: "会话标题不能超过 512 字节"}
+	}
 	return s.Store.CreateAskConversation(ctx, accountID, input.Title, input.ContextScope)
 }
 
@@ -215,6 +248,9 @@ func (s *Server) resolveAskTurn(ctx context.Context, conv *store.AskConversation
 	content := strings.TrimSpace(input.Content)
 	if content == "" {
 		return nil, validationError{message: "问题不能为空"}
+	}
+	if len(content) > maxAskMessageBytes {
+		return nil, validationError{message: "问题不能超过 64 KiB"}
 	}
 	parentID := input.ParentID
 	if parentID == "" && conv.HeadMessageID.Valid {
@@ -320,10 +356,28 @@ func (s *Server) patchAISettings(ctx context.Context, accountID string, input ai
 		return nil, err
 	}
 	input.Profiles = normalizeAIProfileInputs(input.Profiles)
+	if len(input.Profiles) > maxAIProfiles {
+		return nil, validationError{message: "AI 档案不能超过 20 个"}
+	}
 	profiles := make([]*store.AIProfile, 0, len(input.Profiles))
 	for _, profileReq := range input.Profiles {
 		if profileReq.Name == "" || profileReq.Provider == "" {
 			return nil, validationError{message: "AI 档案名称和 provider 不能为空"}
+		}
+		if len(profileReq.Name) > maxAIProfileNameBytes || len(profileReq.Provider) > maxAIProviderBytes || len(profileReq.Model) > maxAIModelBytes {
+			return nil, validationError{message: "AI 档案名称、provider 或模型名称过长"}
+		}
+		if len(profileReq.BaseURL) > maxAIBaseURLBytes {
+			return nil, validationError{message: "Base URL 不能超过 2048 字节"}
+		}
+		if _, err := normalizeAIBaseURL(profileReq.BaseURL, profileReq.Provider); err != nil {
+			return nil, validationError{message: "Base URL 必须是有效的 http(s) 地址"}
+		}
+		if profileReq.APIKey != nil && len(*profileReq.APIKey) > maxAIKeyBytes {
+			return nil, validationError{message: "API Key 不能超过 16 KiB"}
+		}
+		if profileReq.MaxTokens != nil && (*profileReq.MaxTokens < 0 || *profileReq.MaxTokens > maxAIConfiguredTokens) {
+			return nil, validationError{message: "最大输出 Token 必须在 0 到 32768 之间"}
 		}
 		if profileReq.ID != "" {
 			deleted, err := s.Store.AIProfileDeleted(ctx, accountID, profileReq.ID)

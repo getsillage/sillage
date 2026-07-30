@@ -96,4 +96,15 @@ func TestStreamProviderStatusError(t *testing.T) {
 	if !strings.Contains(err.Error(), "401") {
 		t.Fatalf("error = %v, want status 401", err)
 	}
+	if strings.Contains(err.Error(), "bad key") {
+		t.Fatalf("provider response body leaked into error: %v", err)
+	}
+}
+
+func TestAppendAIStreamChunkEnforcesOutputLimit(t *testing.T) {
+	var builder strings.Builder
+	written, complete := appendAIStreamChunk(&builder, strings.Repeat("x", maxAIOutputBytes+1))
+	if complete || len(written) != maxAIOutputBytes || builder.Len() != maxAIOutputBytes {
+		t.Fatalf("appendAIStreamChunk() wrote %d bytes, complete=%v, builder=%d", len(written), complete, builder.Len())
+	}
 }

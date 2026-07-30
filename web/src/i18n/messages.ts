@@ -73,7 +73,8 @@ const zhCN = {
   "auth.displayName": "显示名",
   "auth.password": "密码",
   "auth.initializeTitle": "创建唯一账号",
-  "auth.initializeLead": "这是你的私密记录空间，仅此一个账号。",
+  "auth.initializeLead":
+    "这是你的私密记录空间，仅此一个账号。密码至少需要 8 个字符。",
   "auth.initializing": "创建中…",
   "auth.initializeAction": "创建并进入",
   "auth.initializeFailed": "初始化失败",
@@ -328,6 +329,7 @@ const zhCN = {
   "settings.passwordMismatch": "两次输入的新密码不一致。",
   "settings.passwordRequired": "请填写当前密码和新密码。",
   "settings.passwordSame": "新密码不能与当前密码相同。",
+  "settings.passwordPolicy": "新密码至少需要 8 个字符，且不能超过 256 字节。",
   "settings.passwordChangeFailed": "修改密码失败",
   "settings.timeout": "请求超时，请稍后重试。",
   "settings.loadFailed": "读取 AI 设置失败",
@@ -466,7 +468,7 @@ const en = {
   "auth.password": "Password",
   "auth.initializeTitle": "Create the only account",
   "auth.initializeLead":
-    "This is your private record space, with a single account.",
+    "This is your private record space, with a single account. Use at least 8 characters for the password.",
   "auth.initializing": "Creating...",
   "auth.initializeAction": "Create and continue",
   "auth.initializeFailed": "Initialization failed",
@@ -728,6 +730,8 @@ const en = {
   "settings.passwordMismatch": "The new passwords do not match.",
   "settings.passwordRequired": "Enter the current password and a new password.",
   "settings.passwordSame": "The new password must differ from the current one.",
+  "settings.passwordPolicy":
+    "Use at least 8 characters and no more than 256 UTF-8 bytes.",
   "settings.passwordChangeFailed": "Could not change the password",
   "settings.timeout": "The request timed out. Try again later.",
   "settings.loadFailed": "Could not load AI settings",

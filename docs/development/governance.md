@@ -60,7 +60,8 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 
 | Command | Purpose |
 | --- | --- |
-| `make check` | go + proto + web + docs |
+| `make check` | all CI-equivalent code, secret, artifact, and E2E gates (requires Docker, gitleaks, and Playwright dependencies) |
+| `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
 | `make check-go` / `check-proto` / `check-web` / `check-android` / `check-docs` / `check-container` / `check-e2e` | Individual gates |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/getsillage/sillage/store"
@@ -131,6 +132,7 @@ func TestServiceUpdateRejectsInvalidMutations(t *testing.T) {
 		{ID: "memo-1"},
 		{ID: "memo-1", ExpectedVersion: 1, Content: stringPointer("")},
 		{ID: "memo-1", ExpectedVersion: 1, EntryDate: stringPointer("2026/07/11")},
+		{ID: "memo-1", ExpectedVersion: 1, Content: stringPointer(strings.Repeat("x", maxMemoContentBytes+1))},
 	} {
 		if _, err := service.Update(context.Background(), "account-1", input); !errors.Is(err, ErrValidation) {
 			t.Fatalf("Update(%#v) error = %v", input, err)

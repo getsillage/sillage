@@ -96,6 +96,7 @@ func streamOpenAICompatibleAI(
 	}
 
 	var builder strings.Builder
+	tooLarge := false
 	err = scanSSE(res.Body, func(data string) bool {
 		if data == "[DONE]" {
 			return false
@@ -106,14 +107,23 @@ func streamOpenAICompatibleAI(
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != "" {
-				builder.WriteString(choice.Delta.Content)
-				onDelta(choice.Delta.Content)
+				written, complete := appendAIStreamChunk(&builder, choice.Delta.Content)
+				if written != "" {
+					onDelta(written)
+				}
+				if !complete {
+					tooLarge = true
+					return false
+				}
 			}
 		}
 		return true
 	})
 	if err != nil {
 		return nil, err
+	}
+	if tooLarge {
+		return nil, fmt.Errorf("ai provider stream exceeds %d bytes", maxAIOutputBytes)
 	}
 	return finishStream(builder.String())
 }
@@ -181,6 +191,7 @@ func streamAnthropicAI(
 
 	var builder strings.Builder
 	var inputTokens, outputTokens int64
+	tooLarge := false
 	err = scanSSE(res.Body, func(data string) bool {
 		var event anthropicStreamEvent
 		if json.Unmarshal([]byte(data), &event) != nil {
@@ -189,8 +200,14 @@ func streamAnthropicAI(
 		switch event.Type {
 		case "content_block_delta":
 			if event.Delta.Text != "" {
-				builder.WriteString(event.Delta.Text)
-				onDelta(event.Delta.Text)
+				written, complete := appendAIStreamChunk(&builder, event.Delta.Text)
+				if written != "" {
+					onDelta(written)
+				}
+				if !complete {
+					tooLarge = true
+					return false
+				}
 			}
 		case "message_start":
 			if event.Message.Usage.InputTokens > 0 {
@@ -207,6 +224,9 @@ func streamAnthropicAI(
 	})
 	if err != nil {
 		return nil, err
+	}
+	if tooLarge {
+		return nil, fmt.Errorf("ai provider stream exceeds %d bytes", maxAIOutputBytes)
 	}
 	result, err := finishStream(builder.String())
 	if err != nil {
@@ -244,6 +264,9 @@ func scanSSE(body io.Reader, onData func(string) bool) error {
 }
 
 func finishStream(content string) (*aiCallResult, error) {
+	if len(content) > maxAIOutputBytes {
+		return nil, fmt.Errorf("ai provider returned oversized content")
+	}
 	trimmed := strings.TrimSpace(content)
 	if trimmed == "" {
 		return nil, fmt.Errorf("ai provider returned empty content")
@@ -251,7 +274,20 @@ func finishStream(content string) (*aiCallResult, error) {
 	return &aiCallResult{Content: trimmed}, nil
 }
 
+func appendAIStreamChunk(builder *strings.Builder, chunk string) (string, bool) {
+	remaining := maxAIOutputBytes - builder.Len()
+	if remaining <= 0 {
+		return "", false
+	}
+	if len(chunk) <= remaining {
+		builder.WriteString(chunk)
+		return chunk, true
+	}
+	truncated := strings.ToValidUTF8(chunk[:remaining], "")
+	builder.WriteString(truncated)
+	return truncated, false
+}
+
 func providerStatusError(res *http.Response) error {
-	body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
-	return fmt.Errorf("ai provider status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	return fmt.Errorf("ai provider status %d", res.StatusCode)
 }

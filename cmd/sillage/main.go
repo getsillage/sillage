@@ -43,12 +43,13 @@ func newRootCommand() *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().String("addr", "", "HTTP bind address")
+	cmd.PersistentFlags().String("addr", profile.DefaultAddr, "HTTP bind address")
 	cmd.PersistentFlags().Int("port", profile.DefaultPort, "HTTP bind port")
 	cmd.PersistentFlags().String("data", "", "data directory")
 	cmd.PersistentFlags().String("dsn", "", "SQLite database path")
 	cmd.PersistentFlags().String("driver", profile.DriverSQLite, "database driver")
 	cmd.PersistentFlags().Int("max-upload-mb", 30, "maximum upload size in MiB")
+	cmd.PersistentFlags().StringSlice("trusted-proxy", nil, "trusted reverse-proxy CIDR (repeatable)")
 	cmd.PersistentFlags().String("log-format", "json", "log format: json or text")
 	cmd.PersistentFlags().String("log-level", "info", "log level: debug, info, warn, or error")
 
@@ -58,6 +59,7 @@ func newRootCommand() *cobra.Command {
 	mustBindFlag(cmd, "dsn")
 	mustBindFlag(cmd, "driver")
 	mustBindFlag(cmd, "max-upload-mb")
+	mustBindFlag(cmd, "trusted-proxy")
 	mustBindFlag(cmd, "log-format")
 	mustBindFlag(cmd, "log-level")
 
@@ -83,14 +85,15 @@ func run() error {
 		return err
 	}
 	instanceProfile := &profile.Profile{
-		Addr:        viper.GetString("addr"),
-		Port:        viper.GetInt("port"),
-		Data:        viper.GetString("data"),
-		Driver:      viper.GetString("driver"),
-		DSN:         viper.GetString("dsn"),
-		MaxUploadMB: viper.GetInt("max-upload-mb"),
-		LogFormat:   viper.GetString("log-format"),
-		LogLevel:    viper.GetString("log-level"),
+		Addr:              viper.GetString("addr"),
+		Port:              viper.GetInt("port"),
+		TrustedProxyCIDRs: trustedProxyCIDRs(),
+		Data:              viper.GetString("data"),
+		Driver:            viper.GetString("driver"),
+		DSN:               viper.GetString("dsn"),
+		MaxUploadMB:       viper.GetInt("max-upload-mb"),
+		LogFormat:         viper.GetString("log-format"),
+		LogLevel:          viper.GetString("log-level"),
 	}
 	if err := instanceProfile.Validate(); err != nil {
 		return fmt.Errorf("validate profile: %w", err)
@@ -136,6 +139,19 @@ func run() error {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
 	return nil
+}
+
+func trustedProxyCIDRs() []string {
+	values := viper.GetStringSlice("trusted-proxy")
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, item := range strings.Split(value, ",") {
+			if item = strings.TrimSpace(item); item != "" {
+				result = append(result, item)
+			}
+		}
+	}
+	return result
 }
 
 func expandFileEnv(names ...string) error {

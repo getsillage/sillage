@@ -13,7 +13,7 @@ docker run --rm \
   ghcr.io/getsillage/sillage:latest
 ```
 
-Open `http://localhost:5231` and create the instance's only account on the first visit. Docker pulls the image automatically when needed.
+Open `http://localhost:5231` and create the instance's only account on the first visit. New passwords must contain at least 8 characters. Docker pulls the image automatically when needed.
 
 `latest` always points at the newest non-prerelease image from CI. To pin a specific release later, replace `latest` with a tag from [GitHub Releases](https://github.com/getsillage/sillage/releases) (for example the tag shown on that page). Images are listed under [GHCR](https://github.com/getsillage/sillage/pkgs/container/sillage).
 
@@ -61,11 +61,12 @@ The application supports both command-line flags and `SILLAGE_*` environment var
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SILLAGE_ADDR` | empty | HTTP bind address; an empty value listens on available interfaces, so set it to `127.0.0.1` when running directly |
+| `SILLAGE_ADDR` | `127.0.0.1` | HTTP bind address; set `0.0.0.0` only inside an isolated container or when intentionally serving a trusted network |
 | `SILLAGE_PORT` | `5231` | HTTP port |
 | `SILLAGE_DATA` | see below | Data directory; `/var/opt/sillage` in Docker |
 | `SILLAGE_DSN` | `$SILLAGE_DATA/sillage.db` | SQLite path; relative paths are resolved from the data directory |
 | `SILLAGE_MAX_UPLOAD_MB` | `30` | Maximum size of one attachment, in MiB |
+| `SILLAGE_TRUSTED_PROXY` | empty | Comma-separated reverse-proxy CIDRs allowed to supply forwarded headers; for example `127.0.0.1/32,::1/128` |
 | `SILLAGE_LOG_FORMAT` | `json` | `json` or `text` |
 | `SILLAGE_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
 | `SESSION_SECRET` | generated automatically | Session-signing secret |
@@ -81,7 +82,7 @@ Configure the AI API protocol, endpoint, model, and API key in the application s
 
 ## External HTTPS Entry Point
 
-The operator-managed entry point should terminate TLS and overwrite the following request headers supplied by the client:
+Configure the direct proxy address or network with `SILLAGE_TRUSTED_PROXY`, then have the operator-managed entry point terminate TLS and overwrite the following request headers supplied by the client:
 
 ```text
 X-Forwarded-Proto
@@ -89,7 +90,7 @@ X-Forwarded-Host
 X-Forwarded-For
 ```
 
-Do not simply append untrusted forwarding headers. Sillage uses `X-Forwarded-Proto` to decide whether to mark Cookies as Secure and uses `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
+Do not simply append untrusted forwarding headers. Sillage ignores them when the direct peer is outside the configured CIDRs; for a trusted peer it uses `X-Forwarded-Proto` to mark Cookies as Secure and `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
 
 ## Probes and Upgrades
 

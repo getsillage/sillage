@@ -40,6 +40,13 @@ type Server struct {
 func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.Recover())
+	e.Use(trustedProxyHeadersMiddleware(p.TrustedProxyCIDRs))
+	e.Use(middleware.BodyLimitWithConfig(middleware.BodyLimitConfig{
+		LimitBytes: maxRequestBodyBytes,
+		Skipper: func(c *echo.Context) bool {
+			return c.Request().Method == http.MethodPost && c.Request().URL.Path == "/api/v1/attachments"
+		},
+	}))
 	e.Use(securityHeadersMiddleware())
 	e.Use(requestLogMiddleware())
 
@@ -90,6 +97,10 @@ func (s *Server) Start(_ context.Context) error {
 	s.httpServer = &http.Server{
 		Handler:           s.echoServer,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       2 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    1 << 20,
 	}
 	go func() {
 		if err := s.httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -124,6 +135,10 @@ func securityHeadersMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			c.Response().Header().Set("X-Content-Type-Options", "nosniff")
+			c.Response().Header().Set("X-Frame-Options", "DENY")
+			c.Response().Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:")
+			c.Response().Header().Set("Referrer-Policy", "no-referrer")
+			c.Response().Header().Set("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()")
 			return next(c)
 		}
 	}

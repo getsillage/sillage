@@ -37,7 +37,7 @@
     <string name="server_title">Connect to Sillage</string>
     <string name="server_supporting">Enter the server address. From an emulator, use http://10.0.2.2:5231 to reach your computer.</string>
     <string name="server_address">Server address</string>
-    <string name="server_address_placeholder">https://example.com or 192.168.1.10:5231</string>
+    <string name="server_address_placeholder">https://sillage.example</string>
     <string name="server_connecting">Connecting</string>
     <string name="server_save_connect">Save and connect</string>
     <string name="server_use_offline">Use offline</string>

@@ -18,12 +18,12 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 
 - An instance may create only one non-deleted account. The initialization check and write must remain in the same transaction.
 - The initialization endpoint is unauthenticated before the instance has an account. Deployment documentation must require initialization on a loopback address and confirmation of bootstrap state before exposing an external entry point or LAN port. An uninitialized instance must never be exposed directly to the public Internet.
-- Passwords are stored only as derived hashes and must never appear in logs, responses, or sync data.
+- Passwords are stored only as derived hashes and must never appear in logs, responses, or sync data. New passwords contain at least 8 Unicode characters and at most 256 UTF-8 bytes; there is no forced composition rule, and existing shorter passwords remain verifiable until changed.
 - Authenticated password change requires the current password and a different new password (`POST /api/v1/auth/change-password`). On success the server updates the hash, revokes every refresh session for the account, and issues a new token pair for the caller. There is no unauthenticated forgot-password flow.
 - Access tokens are signed by the server and expire after 15 minutes. Refresh tokens are stored only as hashes, expire after 30 days, and rotate on refresh. Signing out revokes the refresh session, but an already issued access token remains usable until it expires.
 - Cookies must retain `HttpOnly` and `SameSite=Lax`. They must also use `Secure` under TLS or trusted `X-Forwarded-Proto: https`.
 - Protected business write endpoints accept only Bearer tokens. Cookie fallback is limited to safe GET requests where browsers cannot set an Authorization header, such as attachment reads, and must not be extended to business writes.
-- Sign-in rate limiting uses both account and client IP. The application reads `X-Forwarded-For`, so the proxy must overwrite rather than append client-supplied forwarded headers.
+- Sign-in rate limiting uses both account and client IP. Forwarded headers are ignored unless the direct peer matches an explicitly configured `SILLAGE_TRUSTED_PROXY` CIDR. A trusted proxy must overwrite rather than append client-supplied forwarded headers.
 
 ## Data and Secrets
 
@@ -57,9 +57,15 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 - Before adding an error log, confirm that its error chain cannot contain secrets, private text, or provider request payloads.
 - Web drafts are stored in browser `localStorage`; they are not included in server backups and may remain after sign-out. Changes to draft or sign-out behavior must keep this boundary visible and avoid misleading users on shared devices.
 
+## Request and Response Limits
+
+- Non-multipart requests are limited to 8 MiB at the HTTP middleware boundary. Attachment uploads use the configured `SILLAGE_MAX_UPLOAD_MB` limit and are independently bounded while copying bytes to disk.
+- A record body is limited to 1 MiB, search strings to 512 bytes, Ask questions to 64 KiB, and AI configuration fields to bounded sizes documented by validation errors. AI provider responses are capped before decoding, and generated text is capped before persistence.
+- The HTTP server enforces header, header-read, body-read, write, and idle timeouts. Streaming Ask responses use the longer write timeout but remain cancellable through the request context.
+
 ## Android
 
-- Production instances use HTTPS only. HTTP support is a compatibility boundary for emulators and trusted LANs, not a recommendation for public deployment.
+- Release APKs require HTTPS. Cleartext HTTP is enabled only in debug builds for emulators and trusted LAN development.
 - Login data, offline data, and local AI API keys are encrypted through Android Keystore. Legacy plaintext SharedPreferences remain readable and migrate on the next save. Exported JSON must remove API keys and clearly warn that all remaining content is still sensitive plaintext.
 - Protected attachments are downloaded with authentication into the application cache, then passed to external viewers through read-only FileProvider URIs. Private application file paths must never be exposed.
 

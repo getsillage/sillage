@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/getsillage/sillage/internal/profile"
@@ -45,8 +46,17 @@ func TestHealthzAndReadyz(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("GET %s status = %d, want 200; body=%s", path, rec.Code, rec.Body.String())
 		}
-		if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
-			t.Fatalf("GET %s missing nosniff header", path)
+		for header, want := range map[string]string{
+			"X-Content-Type-Options": "nosniff",
+			"X-Frame-Options":        "DENY",
+			"Referrer-Policy":        "no-referrer",
+		} {
+			if got := rec.Header().Get(header); got != want {
+				t.Fatalf("GET %s header %s = %q, want %q", path, header, got, want)
+			}
+		}
+		if rec.Header().Get("Content-Security-Policy") == "" || rec.Header().Get("Permissions-Policy") == "" {
+			t.Fatalf("GET %s missing browser security policy headers", path)
 		}
 		if rec.Header().Get("X-Request-ID") == "" {
 			t.Fatalf("GET %s missing request id", path)
@@ -59,6 +69,17 @@ func TestHealthzAndReadyz(t *testing.T) {
 		if body["status"] == "" {
 			t.Fatalf("GET %s response has empty status", path)
 		}
+	}
+}
+
+func TestGeneralRequestBodyLimit(t *testing.T) {
+	srv := newTestServer(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/signin", strings.NewReader(strings.Repeat("x", (8<<20)+1)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized request status = %d, want 413; body=%s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -98,6 +98,7 @@ make print-affected     # show gates without running them
 | Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy, min/target device-matrix consistency |
 | Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |
 | Scale | `make check-scale` | 10,000 active records, 2,000 recoverable deletions, HTTP list/search/sync pagination, and SQLite integrity budgets |
+| Upgrade | `make check-upgrade` | latest stable binary/data creation, candidate migration, representative data checks, old-binary schema rejection, and complete-backup rollback |
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
 | Container | `make check-container` | Docker build + Compose config |
 | Supply Chain | `make check-supply-chain` | pnpm high-severity audit, runtime license/NOTICE drift, SPDX + CycloneDX SBOM, Grype final-image scan (high blocks) |
@@ -106,7 +107,7 @@ make print-affected     # show gates without running them
 | Actions | `make check-actions` | full commit-SHA pins for every workflow action |
 | Remote settings | `make check-repository-settings` | authenticated branch-protection, security-feature, vulnerability-reporting, and Pages HTTPS audit |
 
-The full `make check` requires Docker, gitleaks, and Playwright system dependencies. CI also validates pull request titles as Conventional Commits subjects.
+The full `make check` requires Docker, gitleaks, Playwright system dependencies, complete Git tags, and `tar`. CI also validates pull request titles as Conventional Commits subjects.
 
 For a PR-shaped range:
 

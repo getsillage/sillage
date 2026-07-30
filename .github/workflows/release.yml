@@ -121,7 +121,7 @@ jobs:
               exit 1
             fi
             jobs="$(gh run view "$ci_run" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
-            for required in Commits Secrets Go Proto Scale Web Docs Container "Supply Chain" E2E Android \
+            for required in Commits Secrets Go Proto Scale Upgrade Web Docs Container "Supply Chain" E2E Android \
               "Android Device (API 26)" "Android Device (API 35)" \
               "CodeQL (go)" "CodeQL (javascript-typescript)" "CodeQL (java-kotlin)"; do
               if ! grep -Fqx "$required"$'\t'"success" <<< "$jobs"; then

@@ -58,11 +58,13 @@ const targetByGate = {
   proto: "check-proto",
   web: "check-web",
   android: "check-android",
+  scale: "check-scale",
   docs: "check-docs",
   container: "check-container",
   "supply-chain": "check-supply-chain",
   e2e: "check-e2e",
   restore: "check-restore",
+  upgrade: "check-upgrade",
 };
 
 const targets = gates.map((gate) => targetByGate[gate]).filter(Boolean);

@@ -48,7 +48,7 @@ The release commit must have a successful CI run containing every required job c
 - Android unit tests, lint, APK builds, dependency verification, vulnerability scan, and independently required API 26/API 35 device journeys;
 - documentation and action-pin checks;
 - container build, supply-chain inventory, SBOM generation, and vulnerability scan;
-- long-term scale acceptance and isolated backup/restore recovery.
+- long-term scale acceptance, isolated backup/restore recovery, and a real latest-stable-to-candidate upgrade plus backup-backed rollback.
 
 Do not release from a locally green commit that lacks the matching successful remote CI run. Local environment failures may be diagnosed independently, but the release workflow must never waive a required job.
 
@@ -58,7 +58,7 @@ Before creating the signed tag, verify the exact release commit and record the r
 
 1. Start a fresh digest-pinned container and initialize the only account.
 2. Create, edit, search, archive, attach, summarize, ask, delete, restore, and permanently delete representative records.
-3. Upgrade a copy of an instance from the latest stable release after taking a complete backup.
+3. Review the automated cross-version drill for the exact release commit, then repeat the upgrade with a copy of a representative operator instance after taking a complete backup when one is available.
 4. Confirm sign-in, records, attachments, search, AI settings, sync metadata, and `/readyz` after the upgrade.
 5. Exercise the documented restore-backed rollback rather than attempting a database-only binary downgrade.
 6. Run the Web journey in Chromium, Firefox, and WebKit, then check narrow and desktop layouts, keyboard focus, English, Simplified Chinese, light theme, dark theme, console errors, and CSP failures.

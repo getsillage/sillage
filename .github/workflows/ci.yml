@@ -123,6 +123,25 @@ jobs:
       - name: Long-term scale acceptance
         run: make check-scale
 
+  upgrade:
+    name: Upgrade
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Upgrade and rollback drill
+        run: make check-upgrade
+
   web:
     name: Web
     runs-on: ubuntu-latest

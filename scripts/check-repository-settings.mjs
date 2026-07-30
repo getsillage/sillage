@@ -12,6 +12,7 @@ export const repositoryPolicies = [
       "Go",
       "Proto",
       "Scale",
+      "Upgrade",
       "Web",
       "Docs",
       "Container",

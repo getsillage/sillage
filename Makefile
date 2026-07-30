@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device check-scale \
-	check-docs check-container check-supply-chain check-e2e check-restore check-commits \
+	check-docs check-container check-supply-chain check-e2e check-restore check-upgrade check-commits \
 	check-secrets check-actions check-repository-settings generate-third-party-notices generate-android-third-party-notices print-affected
 
 help:
@@ -25,6 +25,7 @@ help:
 		'  make check-supply-chain  Dependency audit, notices, SBOM, final-image vulnerability scan' \
 		'  make check-e2e        Fresh-instance Playwright release journeys' \
 		'  make check-restore    Isolated backup/restore recovery drill' \
+		'  make check-upgrade    Latest-stable upgrade and backup-backed rollback drill' \
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
@@ -36,7 +37,7 @@ help:
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-android check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore
+check: check-go check-proto check-web check-android check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore check-upgrade
 
 check-fast: check-go check-proto check-web check-docs
 
@@ -121,6 +122,9 @@ check-restore:
 	trap 'rm -f "$$report"' EXIT; \
 	SILLAGE_RESTORE_DRILL_REPORT="$$report" go test -tags=restore_drill -count=1 ./integration/restore_drill; \
 	cat "$$report"
+
+check-upgrade:
+	bash scripts/check-upgrade.sh
 
 check-commits:
 	node scripts/check-commit-msg.mjs --range

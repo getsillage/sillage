@@ -66,7 +66,7 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 | `make check` | all CI-equivalent code, secret, artifact, and E2E gates (requires Docker, gitleaks, and Playwright dependencies) |
 | `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
-| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` | Individual local gates |
+| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` / `check-upgrade` | Individual local gates |
 | `make check-repository-settings` | Authenticated audit of branch protection, required CI contexts, GitHub security features, private vulnerability reporting, and Pages HTTPS |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | `make print-affected` | Print matched rules and gates without running them |

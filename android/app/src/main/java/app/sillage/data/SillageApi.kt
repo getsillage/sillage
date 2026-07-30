@@ -49,14 +49,20 @@ class SillageApi(
         refresh = ::refreshSession,
     )
 
-    suspend fun bootstrap(baseUrl: String = sessionStore.baseUrl()): Boolean {
+    suspend fun bootstrap(baseUrl: String = sessionStore.baseUrl()): BootstrapInfo {
         val normalized = SessionStore.normalizeBaseUrl(baseUrl)
         val body = execute(
             request = Request.Builder().url("$normalized/api/v1/auth/bootstrap").get().build(),
             authenticated = false,
             sessionScoped = false,
         )
-        return body.getBoolean("initialized")
+        return BootstrapInfo(
+            initialized = body.getBoolean("initialized"),
+            serverVersion = body.optString("serverVersion"),
+            serverRevision = body.optString("serverRevision"),
+            apiVersion = body.optString("apiVersion"),
+            minimumAndroidVersionCode = body.optInt("minimumAndroidVersionCode"),
+        )
     }
 
     suspend fun initialize(username: String, displayName: String, password: String): AuthSession {
@@ -136,11 +142,13 @@ class SillageApi(
         cursor: String = "",
         archived: Boolean? = false,
         favorited: Boolean = false,
+        deleted: Boolean = false,
     ): MemoPage {
         val params = buildList {
             add("limit=$limit")
             archived?.let { add("archived=$it") }
             add("favorited=$favorited")
+            add("deleted=$deleted")
             if (cursor.isNotBlank()) {
                 add("cursor=${cursor.queryParam()}")
             }
@@ -238,10 +246,12 @@ class SillageApi(
         limit: Int = 100,
         archived: Boolean? = false,
         favorited: Boolean = false,
+        deleted: Boolean = false,
     ): List<Memo> {
         val filter = buildList {
             archived?.let { add("archived=$it") }
             add("favorited=$favorited")
+            add("deleted=$deleted")
         }.joinToString("&")
         val request = Request.Builder()
             .url(url("/api/v1/memos?query=${query.queryParam()}&limit=$limit&$filter"))
@@ -290,6 +300,24 @@ class SillageApi(
         val request = Request.Builder()
             .url(url("/api/v1/memos/${memo.id.pathSegment()}?expectedVersion=${memo.version}"))
             .delete()
+            .build()
+        return parseMemo(execute(request).getJSONObject("memo"))
+    }
+
+    suspend fun restoreMemo(memo: Memo): Memo {
+        val payload = JSONObject().put("expectedVersion", memo.version)
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:restore"))
+            .post(payload.toString().jsonBody())
+            .build()
+        return parseMemo(execute(request).getJSONObject("memo"))
+    }
+
+    suspend fun purgeMemo(memo: Memo): Memo {
+        val payload = JSONObject().put("expectedVersion", memo.version)
+        val request = Request.Builder()
+            .url(url("/api/v1/memos/${memo.id.pathSegment()}:purge"))
+            .post(payload.toString().jsonBody())
             .build()
         return parseMemo(execute(request).getJSONObject("memo"))
     }
@@ -636,7 +664,7 @@ class SillageApi(
         val call = newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         val callback = object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
+            override fun onFailure(call: Call, e: IOException) {
                 val token = continuation.tryResumeWithException(ApiException("附件下载失败"))
                 if (token != null) {
                     continuation.completeResume(token)
@@ -1146,16 +1174,19 @@ private val SESSION_ROUTE_PREFIXES = listOf("/api/v1", "/file/attachments")
 
 internal fun pendingMemoSyncToJson(pending: PendingMemoSync): JSONObject {
     val memo = pending.memo
-    val action = when {
-        memo.deletedAt != null -> "delete"
-        pending.baseVersion == null -> "create"
-        else -> "update"
+    val action = pending.action.ifBlank {
+        when {
+            memo.purgedAt != null -> "purge"
+            memo.deletedAt != null -> "delete"
+            pending.baseVersion == null -> "create"
+            else -> "update"
+        }
     }
     val memoPayload = JSONObject()
         .put("id", memo.id)
         .put("content", memo.content)
         .put("entryDate", memo.entryDate)
-    if (action != "delete") {
+    if (action != "delete" && action != "purge") {
         val favorited = memo.favoritedAt != null
         memoPayload
             .put("favorited", favorited)
@@ -1309,6 +1340,7 @@ internal fun apiMemoFromJson(body: JSONObject): Memo {
         favoritedAt = body.apiNullableString("favoritedAt") ?: body.apiNullableString("pinnedAt"),
         archivedAt = body.apiNullableString("archivedAt"),
         deletedAt = body.apiNullableString("deletedAt"),
+        purgedAt = body.apiNullableString("purgedAt"),
     )
 }
 

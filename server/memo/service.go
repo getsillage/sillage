@@ -14,7 +14,9 @@ import (
 
 const (
 	defaultPageSize       = 50
-	memoListCursorVersion = 2
+	memoListCursorVersion = 3
+	maxMemoContentBytes   = 1 << 20
+	maxMemoQueryBytes     = 512
 )
 
 var (
@@ -40,6 +42,8 @@ type Repository interface {
 	CreateMemo(context.Context, *store.CreateMemo) (*store.Memo, error)
 	GetMemo(context.Context, string, string, bool) (*store.Memo, error)
 	UpdateMemo(context.Context, *store.UpdateMemo) (*store.Memo, error)
+	RestoreMemo(context.Context, string, string, int64) (*store.Memo, error)
+	PurgeMemo(context.Context, string, string, int64) (*store.Memo, error)
 	GetMemoAI(context.Context, string) (*store.MemoAI, error)
 }
 
@@ -59,6 +63,7 @@ func NewService(repository Repository, afterCreate AfterCreateFunc) *Service {
 type ListInput struct {
 	Archived  *bool
 	Favorited *bool
+	Deleted   *bool
 	Limit     int
 	Cursor    string
 }
@@ -67,6 +72,7 @@ type SearchInput struct {
 	Query     string
 	Archived  *bool
 	Favorited *bool
+	Deleted   *bool
 	Limit     int
 }
 
@@ -108,17 +114,38 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 		LookaheadPageSize: pageSize,
 		Archived:          input.Archived,
 		Favorited:         input.Favorited,
+		Deleted:           input.Deleted,
+	}
+	deletedOnly := input.Deleted != nil && *input.Deleted
+	if deletedOnly {
+		// Recently Deleted is one lifecycle view, not a favorite/archive
+		// sub-filter. This also keeps clients that send their normal
+		// favorited=false default from hiding previously favorited records.
+		opts.Archived = nil
+		opts.Favorited = nil
 	}
 	legacyV1 := false
 	if cursor, ok := decodeListCursor(input.Cursor); ok {
-		if cursor.Version == 1 {
+		cursorMatchesView := (!deletedOnly && (cursor.Version < 3 || !cursor.Deleted)) ||
+			(deletedOnly && cursor.Version >= 3 && cursor.Deleted)
+		if !cursorMatchesView {
+			ok = false
+		}
+		if ok && deletedOnly {
+			opts.BeforeDeletedAt = cursor.DeletedAt
+			opts.BeforeID = cursor.ID
+		} else if ok && cursor.Version == 1 {
 			legacyV1 = true
 			opts.LegacyFavoritedFirst = true
 			opts.BeforeFavorited = cursor.Pinned
+			opts.BeforeEntryDate = cursor.EntryDate
+			opts.BeforeCreatedAt = cursor.CreatedAt
+			opts.BeforeID = cursor.ID
+		} else if ok {
+			opts.BeforeEntryDate = cursor.EntryDate
+			opts.BeforeCreatedAt = cursor.CreatedAt
+			opts.BeforeID = cursor.ID
 		}
-		opts.BeforeEntryDate = cursor.EntryDate
-		opts.BeforeCreatedAt = cursor.CreatedAt
-		opts.BeforeID = cursor.ID
 	}
 	memos, err := s.repository.ListMemos(ctx, opts)
 	if err != nil {
@@ -133,6 +160,10 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 			EntryDate: last.EntryDate,
 			CreatedAt: last.CreatedAt,
 			ID:        last.ID,
+			Deleted:   deletedOnly,
+		}
+		if deletedOnly {
+			nextCursor.DeletedAt = last.DeletedAt.Int64
 		}
 		if legacyV1 {
 			favorited := last.FavoritedAt.Valid
@@ -145,12 +176,20 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 }
 
 func (s *Service) Search(ctx context.Context, accountID string, input SearchInput) ([]*store.Memo, error) {
+	if len(input.Query) > maxMemoQueryBytes {
+		return nil, validationError{message: "搜索内容不能超过 512 字节"}
+	}
+	if input.Deleted != nil && *input.Deleted {
+		input.Archived = nil
+		input.Favorited = nil
+	}
 	return s.repository.SearchMemos(ctx, &store.SearchMemoOptions{
 		AccountID: accountID,
 		Query:     input.Query,
 		Limit:     normalizeLimit(input.Limit, defaultPageSize),
 		Archived:  input.Archived,
 		Favorited: input.Favorited,
+		Deleted:   input.Deleted,
 	})
 }
 
@@ -194,8 +233,10 @@ func (s *Service) Update(ctx context.Context, accountID string, input UpdateInpu
 	if input.ExpectedVersion <= 0 {
 		return nil, validationError{message: "expectedVersion 必须大于 0"}
 	}
-	if input.Content != nil && *input.Content == "" {
-		return nil, validationError{message: "记录内容不能为空"}
+	if input.Content != nil {
+		if err := validateMemoContent(*input.Content); err != nil {
+			return nil, err
+		}
 	}
 	if input.EntryDate != nil {
 		if err := validateEntryDate(*input.EntryDate); err != nil {
@@ -223,11 +264,35 @@ func (s *Service) Delete(ctx context.Context, accountID, id string, expectedVers
 	})
 }
 
+func (s *Service) Restore(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
+	if expectedVersion <= 0 {
+		return nil, validationError{message: "expectedVersion 必须大于 0"}
+	}
+	return s.repository.RestoreMemo(ctx, accountID, id, expectedVersion)
+}
+
+func (s *Service) Purge(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
+	if expectedVersion <= 0 {
+		return nil, validationError{message: "expectedVersion 必须大于 0"}
+	}
+	return s.repository.PurgeMemo(ctx, accountID, id, expectedVersion)
+}
+
 func ValidateFields(content, entryDate string) error {
+	if err := validateMemoContent(content); err != nil {
+		return err
+	}
+	return validateEntryDate(entryDate)
+}
+
+func validateMemoContent(content string) error {
 	if content == "" {
 		return validationError{message: "记录内容不能为空"}
 	}
-	return validateEntryDate(entryDate)
+	if len(content) > maxMemoContentBytes {
+		return validationError{message: "记录内容不能超过 1 MiB"}
+	}
+	return nil
 }
 
 func validateEntryDate(entryDate string) error {
@@ -240,6 +305,8 @@ func validateEntryDate(entryDate string) error {
 type listCursor struct {
 	Version   int    `json:"version,omitempty"`
 	Pinned    *bool  `json:"pinned,omitempty"`
+	Deleted   bool   `json:"deleted,omitempty"`
+	DeletedAt int64  `json:"deletedAt,omitempty"`
 	EntryDate string `json:"entryDate"`
 	CreatedAt int64  `json:"createdAt"`
 	ID        string `json:"id"`
@@ -258,7 +325,7 @@ func decodeListCursor(raw string) (listCursor, bool) {
 		return listCursor{}, false
 	}
 	switch cursor.Version {
-	case 0, memoListCursorVersion:
+	case 0, 2, memoListCursorVersion:
 	case 1:
 		if cursor.Pinned == nil {
 			return listCursor{}, false

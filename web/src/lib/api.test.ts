@@ -47,6 +47,9 @@ describe("request 401 refresh-and-retry", () => {
     const retryInit = fetchMock.mock.calls[2][1] as RequestInit;
     const headers = new Headers(retryInit.headers);
     expect(headers.get("Authorization")).toBe("Bearer fresh");
+    expect(headers.get("X-Sillage-Client")).toBe("web");
+    expect(headers.get("X-Sillage-Client-Version")).toBeTruthy();
+    expect(headers.get("X-Sillage-Client-Revision")).toBeTruthy();
   });
 
   it("clears the token and throws when refresh fails", async () => {

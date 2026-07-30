@@ -7,22 +7,19 @@ import {
 } from "./auth";
 
 beforeEach(() => {
-  sessionStorage.clear();
   clearAccessToken();
 });
 
-afterEach(() => {
-  sessionStorage.clear();
-});
+afterEach(clearAccessToken);
 
 describe("access token store", () => {
-  it("sets, reads, and clears the token in sessionStorage", () => {
+  it("keeps the token in memory and out of Web Storage", () => {
     setAccessToken("abc");
     expect(getAccessToken()).toBe("abc");
-    expect(sessionStorage.getItem("sillage.accessToken")).toBe("abc");
+    expect(sessionStorage.length).toBe(0);
+    expect(localStorage.length).toBe(0);
     clearAccessToken();
     expect(getAccessToken()).toBeNull();
-    expect(sessionStorage.getItem("sillage.accessToken")).toBeNull();
   });
 
   it("notifies a subscriber on set and clear, and stops after unsubscribe", () => {

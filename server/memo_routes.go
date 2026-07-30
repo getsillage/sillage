@@ -54,14 +54,22 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	}
+	deleted, err := parseMemoBoolFilter(c.QueryParam("deleted"), "deleted")
+	if err != nil {
+		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+	}
 	if query != "" {
 		memos, err := s.memos.Search(ctx, account.ID, memoapp.SearchInput{
 			Query:     query,
 			Archived:  archived,
 			Favorited: favorited,
+			Deleted:   deleted,
 			Limit:     limit,
 		})
 		if err != nil {
+			if isValidationError(err) {
+				return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+			}
 			return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 		}
 		return c.JSON(http.StatusOK, map[string]any{"memos": memoDTOs(memos)})
@@ -69,6 +77,7 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 	page, err := s.memos.List(ctx, account.ID, memoapp.ListInput{
 		Archived:  archived,
 		Favorited: favorited,
+		Deleted:   deleted,
 		Limit:     limit,
 		Cursor:    c.QueryParam("cursor"),
 	})
@@ -186,6 +195,18 @@ func (s *Server) handleMemoAction(c *echo.Context) error {
 
 	update := memoapp.UpdateInput{ID: memoID}
 	switch action {
+	case "restore", "purge":
+		var req memoRequest
+		if err := c.Bind(&req); err != nil {
+			return apiError(c, http.StatusBadRequest, "invalid_json", "请求格式不正确")
+		}
+		var memo *store.Memo
+		if action == "restore" {
+			memo, err = s.memos.Restore(c.Request().Context(), account.ID, memoID, req.ExpectedVersion)
+		} else {
+			memo, err = s.memos.Purge(c.Request().Context(), account.ID, memoID, req.ExpectedVersion)
+		}
+		return s.writeMemoMutationResult(c, memo, err)
 	case "setArchived":
 		var req memoRequest
 		if err := c.Bind(&req); err != nil {
@@ -352,6 +373,7 @@ func memoDTO(memo *store.Memo) map[string]any {
 		"createdAt":   time.UnixMilli(memo.CreatedAt).UTC().Format(time.RFC3339),
 		"updatedAt":   time.UnixMilli(memo.UpdatedAt).UTC().Format(time.RFC3339),
 		"deletedAt":   optionalTime(memo.DeletedAt),
+		"purgedAt":    optionalTime(memo.PurgedAt),
 	}
 }
 

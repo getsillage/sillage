@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
@@ -65,6 +65,40 @@ describe("MarkdownEditor locale feedback", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("附件已插入");
     expect(onChange).toHaveBeenCalledWith(
       expect.stringContaining("[note.txt](/file/attachments/a1)"),
+    );
+  });
+
+  it("preserves text when an upload starts before a controlled rerender", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onUpload = vi.fn().mockResolvedValue({
+      url: "/file/attachments/race",
+      filename: "race.txt",
+      isImage: false,
+    });
+    const { container } = render(
+      <I18nProvider>
+        <MarkdownEditor value="" onChange={onChange} onUpload={onUpload} />
+      </I18nProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "记录内容",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "不能丢失的正文" } });
+    onChange.mockClear();
+
+    const fileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+    await user.upload(
+      fileInput as HTMLInputElement,
+      new File(["content"], "race.txt", { type: "text/plain" }),
+    );
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.stringContaining("不能丢失的正文"),
+    );
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.stringContaining("[race.txt](/file/attachments/race)"),
     );
   });
 

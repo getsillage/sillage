@@ -218,6 +218,33 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/auth/change-password:
+        post:
+            tags:
+                - AuthService
+            description: |-
+                ChangePassword verifies the current password, rotates all refresh sessions,
+                 and returns a fresh access/refresh token pair for the current client.
+            operationId: AuthService_ChangePassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ChangePasswordRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuthResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/auth/initialize:
         post:
             tags:
@@ -368,6 +395,13 @@ paths:
                      applied. When unset, both favorited and non-favorited memos are included.
                   schema:
                     type: boolean
+                - name: deleted
+                  in: query
+                  description: |-
+                    deleted=true returns recoverable records from Recently Deleted. Purged
+                     tombstones are never returned by this user-facing list.
+                  schema:
+                    type: boolean
             responses:
                 "200":
                     description: OK
@@ -508,6 +542,66 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/GenerateMemoSummaryResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:purge:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_PurgeMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PurgeMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:restore:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_RestoreMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RestoreMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
                 default:
                     description: Default error response
                     content:
@@ -972,6 +1066,25 @@ components:
             properties:
                 initialized:
                     type: boolean
+                serverVersion:
+                    type: string
+                    description: |-
+                        Public build metadata lets operators and clients diagnose a stale bundle
+                         or an unsupported mobile client without relying on container logs.
+                serverRevision:
+                    type: string
+                apiVersion:
+                    type: string
+                minimumAndroidVersionCode:
+                    type: integer
+                    format: int32
+        ChangePasswordRequest:
+            type: object
+            properties:
+                currentPassword:
+                    type: string
+                newPassword:
+                    type: string
         CreateAskConversationRequest:
             type: object
             properties:
@@ -1114,10 +1227,14 @@ components:
                 favoritedAt:
                     type: string
                     format: date-time
+                purgedAt:
+                    type: string
+                    format: date-time
             description: |-
                 Memo is Sillage's only content unit; user-facing clients present it as a record.
-                 Deletion is a tombstone: deleted_time is set while the row is retained so
-                 sync clients can converge.
+                 Deletion first creates a recoverable tombstone. After permanent purge,
+                 purged_time is set and user content has been scrubbed while the minimal row
+                 remains so sync clients can converge.
         MemoAI:
             type: object
             properties:
@@ -1223,6 +1340,13 @@ components:
                     type: string
                 hasMore:
                     type: boolean
+        PurgeMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
         PushSyncRequest:
             type: object
             properties:
@@ -1240,6 +1364,13 @@ components:
         RefreshRequest:
             type: object
             properties: {}
+        RestoreMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
         SetAIAutoSummaryRequest:
             type: object
             properties:
@@ -1313,12 +1444,12 @@ components:
                     type: string
                 action:
                     type: string
-                    description: action is "create" | "update" | "delete".
+                    description: action is "create" | "update" | "delete" | "restore" | "purge".
                 baseVersion:
                     type: string
                     description: |-
                         base_version is the memo version the client based this change on; used for
-                         conflict detection on update/delete.
+                         conflict detection on update/delete/restore/purge. Create omits it.
                 localChangedAt:
                     type: string
                 memo:
@@ -1407,8 +1538,8 @@ tags:
     - name: AuthService
       description: |-
         AuthService handles the single-account lifecycle: one-time initialization,
-         sign-in/out, and access-token refresh. After initialization, Initialize is
-         rejected (no second account).
+         sign-in/out, password changes, and access-token refresh. After initialization,
+         Initialize is rejected (no second account).
     - name: MemoService
       description: |-
         MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,

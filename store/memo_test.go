@@ -2,15 +2,145 @@ package store_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/getsillage/sillage/internal/profile"
 	"github.com/getsillage/sillage/store"
 	"github.com/getsillage/sillage/store/db"
 )
+
+func TestMemoDeleteRestoreAndPurgeLifecycle(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+	memo := seedMemo(t, s, account, "private body")
+	attachment, err := s.CreateAttachment(ctx, &store.CreateAttachment{
+		CreatorID:  account,
+		StorageRef: "assets/attachments/private-file",
+		Filename:   "private.txt",
+		ContentType: "text/plain",
+		Size:       7,
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachment() error = %v", err)
+	}
+	content := "private body\n[file](/file/attachments/" + attachment.UID + "/private.txt)"
+	memo, err = s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID: memo.ID, CreatorID: account, ExpectedVersion: memo.Version, Content: &content,
+	})
+	if err != nil {
+		t.Fatalf("attach memo content: %v", err)
+	}
+	if _, err := s.UpsertMemoAI(ctx, &store.UpsertMemoAI{
+		MemoID: memo.ID, Summary: "private summary", Provider: "test", Model: "test",
+		PromptVersion: "test-v1", SourceMemoIDs: `["` + memo.ID + `"]`, Status: "complete",
+	}); err != nil {
+		t.Fatalf("UpsertMemoAI() error = %v", err)
+	}
+
+	deleted := true
+	deletedMemo, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID: memo.ID, CreatorID: account, ExpectedVersion: memo.Version, Deleted: &deleted,
+	})
+	if err != nil {
+		t.Fatalf("delete memo: %v", err)
+	}
+	if !deletedMemo.DeletedAt.Valid || deletedMemo.PurgedAt.Valid || deletedMemo.Content != content {
+		t.Fatalf("recoverable tombstone = %+v", deletedMemo)
+	}
+	restored, err := s.RestoreMemo(ctx, account, memo.ID, deletedMemo.Version)
+	if err != nil {
+		t.Fatalf("RestoreMemo() error = %v", err)
+	}
+	if restored.DeletedAt.Valid || restored.Content != content {
+		t.Fatalf("restored memo = %+v", restored)
+	}
+	deletedMemo, err = s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID: restored.ID, CreatorID: account, ExpectedVersion: restored.Version, Deleted: &deleted,
+	})
+	if err != nil {
+		t.Fatalf("delete restored memo: %v", err)
+	}
+	purged, err := s.PurgeMemo(ctx, account, memo.ID, deletedMemo.Version)
+	if err != nil {
+		t.Fatalf("PurgeMemo() error = %v", err)
+	}
+	if !purged.DeletedAt.Valid || !purged.PurgedAt.Valid || purged.Content != "" || purged.EntryDate != "1970-01-01" {
+		t.Fatalf("purged tombstone = %+v", purged)
+	}
+	if _, err := s.GetMemoAI(ctx, memo.ID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("GetMemoAI() after purge error = %v, want no rows", err)
+	}
+	storedAttachment, err := s.GetAttachmentByUID(ctx, account, attachment.UID, true)
+	if err != nil || !storedAttachment.DeletedAt.Valid {
+		t.Fatalf("attachment after purge = %+v, %v", storedAttachment, err)
+	}
+	if _, err := s.RestoreMemo(ctx, account, memo.ID, purged.Version); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("restore purged memo error = %v, want no rows", err)
+	}
+}
+
+func TestPurgeMemoKeepsAttachmentReferencedByAnotherMemo(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+	attachment, err := s.CreateAttachment(ctx, &store.CreateAttachment{
+		CreatorID: account, StorageRef: "assets/attachments/shared-file", Filename: "shared.txt",
+	})
+	if err != nil {
+		t.Fatalf("CreateAttachment() error = %v", err)
+	}
+	content := "[shared](/file/attachments/" + attachment.UID + "/shared.txt)"
+	first := seedMemo(t, s, account, content)
+	seedMemo(t, s, account, content)
+	deleted := true
+	first, err = s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID: first.ID, CreatorID: account, ExpectedVersion: first.Version, Deleted: &deleted,
+	})
+	if err != nil {
+		t.Fatalf("delete first memo: %v", err)
+	}
+	if _, err := s.PurgeMemo(ctx, account, first.ID, first.Version); err != nil {
+		t.Fatalf("PurgeMemo() error = %v", err)
+	}
+	stored, err := s.GetAttachmentByUID(ctx, account, attachment.UID, true)
+	if err != nil || stored.DeletedAt.Valid {
+		t.Fatalf("shared attachment after purge = %+v, %v", stored, err)
+	}
+}
+
+func TestPurgeExpiredMemosUsesThirtyDayRecoveryWindow(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+	memo := seedMemo(t, s, account, "expires after recovery window")
+	deleted := true
+	memo, err := s.UpdateMemo(ctx, &store.UpdateMemo{
+		ID: memo.ID, CreatorID: account, ExpectedVersion: memo.Version, Deleted: &deleted,
+	})
+	if err != nil {
+		t.Fatalf("delete memo: %v", err)
+	}
+	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	oldDeletedAt := now.Add(-store.DeletedMemoRetention - time.Hour).UnixMilli()
+	if _, err := s.GetDriver().GetDB().ExecContext(ctx,
+		"UPDATE memo SET deleted_at = ? WHERE id = ?", oldDeletedAt, memo.ID); err != nil {
+		t.Fatalf("age deleted memo: %v", err)
+	}
+	count, err := s.PurgeExpiredMemos(ctx, now)
+	if err != nil || count != 1 {
+		t.Fatalf("PurgeExpiredMemos() = %d, %v; want 1, nil", count, err)
+	}
+	purged, err := s.GetMemo(ctx, account, memo.ID, true)
+	if err != nil || !purged.PurgedAt.Valid || purged.Content != "" {
+		t.Fatalf("expired memo after purge = %+v, %v", purged, err)
+	}
+}
 
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
@@ -102,6 +232,41 @@ func TestSearchMemosMatchesAndExcludesTombstones(t *testing.T) {
 	}
 	if len(blank) != 0 {
 		t.Fatalf("blank query returned %d memos, want 0", len(blank))
+	}
+}
+
+func TestSearchMemosMergesContentAndSummaryMatches(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	contentMatch := seedMemo(t, s, account, "sleep recovery appears in the record")
+	summaryMatch := seedMemo(t, s, account, "raw wording is different")
+	if _, err := s.UpsertMemoAI(ctx, &store.UpsertMemoAI{
+		MemoID:        summaryMatch.ID,
+		Summary:       "sleep recovery appears only in this summary",
+		Provider:      "test",
+		Model:         "test",
+		PromptVersion: "test-v1",
+		Status:        "complete",
+	}); err != nil {
+		t.Fatalf("UpsertMemoAI() error = %v", err)
+	}
+
+	got, err := s.SearchMemos(ctx, &store.SearchMemoOptions{
+		AccountID: account,
+		Query:     "sleep recovery",
+		Limit:     20,
+	})
+	if err != nil {
+		t.Fatalf("SearchMemos() error = %v", err)
+	}
+	ids := make(map[string]bool, len(got))
+	for _, memo := range got {
+		ids[memo.ID] = true
+	}
+	if !ids[contentMatch.ID] || !ids[summaryMatch.ID] {
+		t.Fatalf("SearchMemos() ids = %#v, want content %s and summary %s", ids, contentMatch.ID, summaryMatch.ID)
 	}
 }
 

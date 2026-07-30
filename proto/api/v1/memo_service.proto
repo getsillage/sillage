@@ -53,6 +53,20 @@ service MemoService {
     };
   }
 
+  rpc RestoreMemo(RestoreMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/{id}:restore"
+      body: "*"
+    };
+  }
+
+  rpc PurgeMemo(PurgeMemoRequest) returns (MemoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/{id}:purge"
+      body: "*"
+    };
+  }
+
   rpc GenerateMemoSummary(GenerateMemoSummaryRequest) returns (GenerateMemoSummaryResponse) {
     option (google.api.http) = {
       post: "/api/v1/memos/{id}:generate-summary"
@@ -75,6 +89,9 @@ message ListMemosRequest {
   // favorited filters both recent-list and search results before limit is
   // applied. When unset, both favorited and non-favorited memos are included.
   optional bool favorited = 5;
+  // deleted=true returns recoverable records from Recently Deleted. Purged
+  // tombstones are never returned by this user-facing list.
+  optional bool deleted = 6;
 }
 
 message ListMemosResponse {
@@ -124,6 +141,16 @@ message SetMemoArchivedRequest {
   string id = 1;
   int64 expected_version = 2;
   bool archived = 3;
+}
+
+message RestoreMemoRequest {
+  string id = 1;
+  int64 expected_version = 2;
+}
+
+message PurgeMemoRequest {
+  string id = 1;
+  int64 expected_version = 2;
 }
 
 message GenerateMemoSummaryRequest {

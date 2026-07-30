@@ -57,10 +57,10 @@ message SyncChange {
   string mutation_id = 1;
   string resource_type = 2;
   string resource_id = 3;
-  // action is "create" | "update" | "delete".
+  // action is "create" | "update" | "delete" | "restore" | "purge".
   string action = 4;
   // base_version is the memo version the client based this change on; used for
-  // conflict detection on update/delete.
+  // conflict detection on update/delete/restore/purge. Create omits it.
   int64 base_version = 5;
   string local_changed_at = 6;
   SyncMemoPayload memo = 7;

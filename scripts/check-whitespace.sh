@@ -7,12 +7,13 @@ cd "$ROOT"
 
 BASE_SHA="${BASE_SHA:-${BASE_REF:-}}"
 HEAD_SHA="${HEAD_SHA:-HEAD}"
+PATHS=(-- . ':(exclude)third_party/licenses/**')
 
 if [[ -n "$BASE_SHA" ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-  git diff --check "$BASE_SHA" "$HEAD_SHA"
+  git diff --check "$BASE_SHA" "$HEAD_SHA" "${PATHS[@]}"
 else
-  git diff --check
-  git diff --cached --check
+  git diff --check "${PATHS[@]}"
+  git diff --cached --check "${PATHS[@]}"
 fi
 
 echo "Whitespace checks passed."

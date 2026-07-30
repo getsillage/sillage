@@ -1,6 +1,6 @@
 # Path → required verification gates and documentation surfaces.
 # Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
-# Gates: go | proto | web | android | docs | container | e2e
+# Gates: go | proto | web | android | scale | docs | container | supply-chain | e2e | restore | upgrade
 
 version: 1
 
@@ -8,10 +8,14 @@ gates:
   go: "Go modules, tests, vet, and binary build"
   proto: "Buf lint, breaking, generate, and committed gen drift"
   web: "Web lint, typecheck, unit tests, and production build"
-  android: "Android unit tests, lint, and debug assemble"
+  android: "Android unit tests, lint, APK assembly, dependency integrity, notices, vulnerability scan, release manifest policy, and API 26/API 35 device journeys"
+  scale: "10k-record listing, search, sync pagination, and SQLite integrity budgets"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
-  e2e: "Fresh-instance Playwright smoke"
+  supply-chain: "Runtime dependency audit, CodeQL, license notices, SBOM, and image vulnerability scan"
+  e2e: "Fresh-instance Playwright release journeys in Chromium, Firefox, and WebKit"
+  restore: "Isolated backup/restore recovery drill"
+  upgrade: "Latest-stable data upgrade and backup-backed rollback drill"
 
 rules:
   - id: proto-contract
@@ -31,10 +35,18 @@ rules:
       - "store/migration/**"
       - "store/migrator.go"
       - "store/migrator_test.go"
-    gates: [go]
+    gates: [go, upgrade]
     docs:
       - "docs/user/data.md"
       - "docs/development/architecture.md"
+
+  - id: backup-restore-drill
+    paths:
+      - "integration/restore_drill/**"
+      - "docs/user/data.md"
+    gates: [go, restore, upgrade]
+    docs:
+      - "docs/user/data.md"
 
   - id: go-server
     paths:
@@ -44,8 +56,25 @@ rules:
       - "store/**"
       - "go.mod"
       - "go.sum"
-    gates: [go]
+    gates: [go, scale, upgrade]
     docs: []
+
+  - id: scale-acceptance
+    paths:
+      - "integration/scale/**"
+      - "docs/development/release-readiness.md"
+    gates: [go, scale]
+    docs:
+      - "docs/development/release-readiness.md"
+
+  - id: release-upgrade-acceptance
+    paths:
+      - "integration/upgrade/**"
+      - "scripts/check-upgrade.sh"
+    gates: [go, upgrade, docs]
+    docs:
+      - "docs/development/release-readiness.md"
+      - "docs/user/data.md"
 
   - id: web-client
     paths:
@@ -54,12 +83,31 @@ rules:
     docs:
       - "docs/development/design/**"
 
+  - id: web-artifact-policy
+    paths:
+      - "scripts/check-web-assets.sh"
+      - "scripts/check-web-bundle.mjs"
+    gates: [web, docs]
+    docs:
+      - "docs/development/architecture.md"
+      - "docs/development/governance.md"
+
   - id: android-client
     paths:
       - "android/**"
     gates: [android]
     docs:
       - "android/README.md"
+
+  - id: android-artifact-policy
+    paths:
+      - "scripts/check-android-supply-chain.sh"
+      - "scripts/generate-android-third-party-notices.mjs"
+      - "third_party/licenses/android/**"
+    gates: [android, docs]
+    docs:
+      - "android/README.md"
+      - "docs/development/security.md"
 
   - id: sync-contract
     paths:
@@ -90,8 +138,9 @@ rules:
       - "server/auth_*.go"
       - "server/attachment_*.go"
       - "internal/secret/**"
-    gates: [go]
+    gates: [go, proto, web, android]
     docs:
+      - "docs/development/api/**"
       - "docs/development/security.md"
       - "docs/user/deployment.md"
 
@@ -102,8 +151,27 @@ rules:
       - "scripts/compose.yaml"
       - "scripts/compose.build.yaml"
       - ".dockerignore"
-    gates: [container, docs]
+    gates: [container, supply-chain, docs]
     docs:
+      - "docs/user/deployment.md"
+
+  - id: supply-chain
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "web/package.json"
+      - "web/pnpm-lock.yaml"
+      - "NOTICE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "third_party/licenses/**"
+      - "scripts/check-sbom.mjs"
+      - "scripts/check-supply-chain.sh"
+      - "scripts/generate-third-party-notices.mjs"
+      - "scripts/scan-container.sh"
+      - "scripts/third-party-license-policy.json"
+    gates: [supply-chain, docs]
+    docs:
+      - "docs/development/governance.md"
       - "docs/user/deployment.md"
 
   - id: documentation
@@ -129,6 +197,17 @@ rules:
     docs:
       - "docs/development/governance.md"
       - "CONTRIBUTING.md"
+
+  - id: release-note-input
+    paths:
+      - ".github/release-notes/**"
+      - "android/app/build.gradle.kts"
+      - "scripts/check-release-notes.mjs"
+      - "scripts/check-release-notes.test.mjs"
+    gates: [android, docs, upgrade]
+    docs:
+      - "CONTRIBUTING.md"
+      - "docs/development/release-readiness.md"
 
 # Default when no rule matches (full local check still recommended before release).
 default_gates: [go, docs]

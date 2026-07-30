@@ -4,6 +4,10 @@ FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432
 WORKDIR /src
 ARG PNPM_VERSION=11.9.0
 ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+ARG VERSION=dev
+ARG REVISION=unknown
+ENV VITE_SILLAGE_VERSION=$VERSION \
+    VITE_SILLAGE_REVISION=$REVISION
 RUN npm install -g pnpm@$PNPM_VERSION --registry=$NPM_CONFIG_REGISTRY && \
     pnpm config set registry $NPM_CONFIG_REGISTRY
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./web/
@@ -14,7 +18,7 @@ COPY web ./web
 COPY server/router/frontend ./server/router/frontend
 RUN pnpm --dir web build
 
-FROM golang:1.25-alpine@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS backend
+FROM golang:1.25.12-alpine@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS backend
 WORKDIR /src
 ARG GOPROXY=https://proxy.golang.org,direct
 ARG VERSION=dev
@@ -38,6 +42,10 @@ FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d650
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Sillage" \
+      org.opencontainers.image.description="Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes." \
+      org.opencontainers.image.source="https://github.com/getsillage/sillage" \
+      org.opencontainers.image.url="https://github.com/getsillage/sillage" \
+      org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$REVISION"
 RUN apk add --no-cache ca-certificates tzdata su-exec && \
@@ -48,6 +56,8 @@ RUN apk add --no-cache ca-certificates tzdata su-exec && \
 
 COPY --from=backend /src/sillage /usr/local/sillage/sillage
 COPY --from=backend /src/scripts/entrypoint.sh /usr/local/sillage/entrypoint.sh
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/licenses/sillage/
+COPY third_party/licenses /usr/share/licenses/sillage/third-party
 RUN chmod 755 /usr/local/sillage/entrypoint.sh
 
 USER root

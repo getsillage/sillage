@@ -44,13 +44,16 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | API / Proto | `proto/api/v1/`, [api/README.md](api/README.md) | `make check-proto` | Active |
 | Database schema | `store/migration/sqlite/LATEST.sql`, migrator | `make check-go` + migration tests | Active |
 | Sync | [api/sync.md](api/sync.md) | Go/Android tests + review | Active |
-| Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + review | Active |
-| Web UI | [design/README.md](design/README.md) | Web lint/tests + manual checklist | Active |
+| Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + govulncheck + Go/TypeScript/Kotlin CodeQL + remote-settings audit + review | Active |
+| Web UI | [design/README.md](design/README.md) | Web lint/tests, production build, route-split and raw/gzip bundle budgets, Chromium/Firefox/WebKit E2E, manual checklist | Active |
+| Long-term personal-use scale | [release-readiness.md](release-readiness.md) | `make check-scale` / CI Scale job | Active |
 | Commits | Conventional Commits (below) | `make check-commits` / CI commits job | Active |
 | Documentation hygiene | This file, docs hub | Markdown links, doc-sync, whitespace | Active |
 | ADRs | [decisions/](decisions/) | Review for cross-module choices | Active |
 | Dependencies | Dependabot config | Weekly PRs (limited) | Active |
-| Release artifacts | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases | `release.yml` only | Active |
+| Dependencies and release supply chain | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases, [deployment.md](../user/deployment.md) | `make check-supply-chain`, pinned Syft/Grype, signed provenance and SPDX attestations | Active |
+| Release artifacts and curated notes | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases | checked `.github/release-notes/vX.Y.Z.md` input + `release.yml` only | Active |
+| Release acceptance | [release-readiness.md](release-readiness.md) | CI-required jobs including API 26/API 35 Android journeys + release-candidate and published-artifact verification | Active |
 | Agent session | [CLAUDE.md](../../CLAUDE.md) | Maintainer process | Active |
 | Path → gate matrix | [../../scripts/change-matrix.yml](../../scripts/change-matrix.yml) | `make print-affected` / `check-affected` | Active |
 
@@ -60,9 +63,11 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 
 | Command | Purpose |
 | --- | --- |
-| `make check` | go + proto + web + docs |
+| `make check` | all CI-equivalent code, secret, artifact, and E2E gates (requires Docker, gitleaks, and Playwright dependencies) |
+| `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
-| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-docs` / `check-container` / `check-e2e` | Individual gates |
+| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` / `check-upgrade` | Individual local gates |
+| `make check-repository-settings` | Authenticated audit of branch protection, required CI contexts, GitHub security features, private vulnerability reporting, and Pages HTTPS |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | `make print-affected` | Print matched rules and gates without running them |
 
@@ -109,13 +114,23 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 
 Dependabot runs weekly for Go, npm (`web/`), Gradle (`android/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
+Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
+
+The main CI workflow also performs CodeQL analysis for Go, JavaScript/TypeScript, and Java/Kotlin. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires all three language jobs on the exact release commit.
+
+Files under `third_party/licenses/` are copied byte-for-byte from upstream packages and are therefore exempt from Sillage's whitespace normalization rule. The notice generator's byte comparison remains authoritative for those files; all project-authored files continue to pass `git diff --check`.
+
+The release workflow adds signed GitHub provenance and SPDX attestations to the published image digest, and uploads the SBOMs, scanner report, and SHA-256 manifest as release assets. BuildKit's OCI provenance and SBOM attestations remain enabled as an additional registry-native record.
+
 ## Secrets scanning
 
-CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI and scans the checkout with [`.gitleaks.toml`](../../.gitleaks.toml). The marketplace `gitleaks-action` is not used because organization repositories require a paid `GITLEAKS_LICENSE`. Local optional run (if installed):
+CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI, verifies the pinned release archive against a repository-controlled SHA-256 digest, and scans the checkout with [`.gitleaks.toml`](../../.gitleaks.toml). The marketplace `gitleaks-action` is not used because organization repositories require a paid `GITLEAKS_LICENSE`. Local optional run (if installed):
 
 ```bash
 gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 ```
+
+Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, run `make check-repository-settings` with an authenticated `gh` CLI session and correct every reported remote setting. This audit is intentionally separate from ordinary local checks because branch protection and repository security controls are external state.
 
 ## Quality severity
 

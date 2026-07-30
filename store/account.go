@@ -102,10 +102,17 @@ WHERE id = ? AND deleted_at IS NULL`, id)
 	return scanAccount(row)
 }
 
-// UpdateAccountPassword replaces the password hash for an existing account.
-func (s *Store) UpdateAccountPassword(ctx context.Context, accountID, passwordHash, passwordAlgorithm string) error {
+// UpdateAccountPasswordAndRevokeSessions replaces the password hash and
+// revokes every refresh session in one transaction.
+func (s *Store) UpdateAccountPasswordAndRevokeSessions(ctx context.Context, accountID, passwordHash, passwordAlgorithm string) error {
+	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin password update: %w", err)
+	}
+	defer tx.Rollback()
+
 	now := time.Now().UTC().UnixMilli()
-	res, err := s.driver.GetDB().ExecContext(ctx, `
+	res, err := tx.ExecContext(ctx, `
 UPDATE account
 SET password_hash = ?, password_algorithm = ?, updated_at = ?
 WHERE id = ? AND deleted_at IS NULL`,
@@ -123,6 +130,15 @@ WHERE id = ? AND deleted_at IS NULL`,
 	}
 	if n == 0 {
 		return sql.ErrNoRows
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE session
+SET deleted_at = ?, updated_at = ?
+WHERE account_id = ? AND deleted_at IS NULL`, now, now, accountID); err != nil {
+		return fmt.Errorf("revoke account sessions: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit password update: %w", err)
 	}
 	return nil
 }

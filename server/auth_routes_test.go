@@ -23,6 +23,16 @@ func TestAuthInitializeSignInRefreshSignOut(t *testing.T) {
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"initialized":false`) {
 		t.Fatalf("bootstrap before init status/body = %d %s", res.Code, res.Body.String())
 	}
+	var bootstrap map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &bootstrap); err != nil {
+		t.Fatalf("decode bootstrap response: %v", err)
+	}
+	if bootstrap["serverVersion"] != "dev" || bootstrap["apiVersion"] != "v1" || bootstrap["minimumAndroidVersionCode"] != float64(9) {
+		t.Fatalf("bootstrap build metadata = %#v", bootstrap)
+	}
+	if got := res.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("bootstrap Cache-Control = %q, want no-store", got)
+	}
 
 	initBody := map[string]string{
 		"username":    "Felix",
@@ -229,6 +239,25 @@ func TestSignInRateLimit(t *testing.T) {
 	}, map[string]string{"X-Forwarded-For": "203.0.113.1"})
 	if res.Code != http.StatusTooManyRequests {
 		t.Fatalf("rate-limited signin status = %d, want 429", res.Code)
+	}
+}
+
+func TestAuthInitializationPasswordPolicy(t *testing.T) {
+	srv := newTestServer(t)
+	res := doJSON(t, srv, http.MethodPost, "/api/v1/auth/initialize", map[string]string{
+		"username": "felix",
+		"password": "short",
+	}, nil)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("short password status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/auth/initialize", map[string]string{
+		"username": strings.Repeat("用", 65),
+		"password": "passw0rd!",
+	}, nil)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "invalid_field") {
+		t.Fatalf("long username status/body = %d %s", res.Code, res.Body.String())
 	}
 }
 

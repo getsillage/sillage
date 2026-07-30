@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
 
 const (
+	MinPasswordRunes  = 8
+	MaxPasswordBytes  = 256
 	passwordAlgorithm = "argon2id"
 	argonMemory       = 64 * 1024
 	argonIterations   = 3
@@ -20,8 +23,8 @@ const (
 )
 
 func HashPassword(password string) (string, error) {
-	if password == "" {
-		return "", fmt.Errorf("password is required")
+	if err := ValidateNewPassword(password); err != nil {
+		return "", err
 	}
 	var salt [16]byte
 	if _, err := rand.Read(salt[:]); err != nil {
@@ -40,6 +43,9 @@ func HashPassword(password string) (string, error) {
 }
 
 func VerifyPassword(encoded, password string) (bool, error) {
+	if !utf8.ValidString(password) || len(password) > MaxPasswordBytes {
+		return false, nil
+	}
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 5 || parts[0] != passwordAlgorithm || parts[1] != "v=19" {
 		return false, fmt.Errorf("unsupported password hash")
@@ -68,4 +74,17 @@ func VerifyPassword(encoded, password string) (bool, error) {
 	}
 	actual := argon2.IDKey([]byte(password), salt, params["t"], params["m"], uint8(params["p"]), uint32(len(expected)))
 	return subtle.ConstantTimeCompare(actual, expected) == 1, nil
+}
+
+func ValidateNewPassword(password string) error {
+	if !utf8.ValidString(password) {
+		return fmt.Errorf("password must be valid UTF-8")
+	}
+	if utf8.RuneCountInString(password) < MinPasswordRunes {
+		return fmt.Errorf("password must contain at least %d characters", MinPasswordRunes)
+	}
+	if len(password) > MaxPasswordBytes {
+		return fmt.Errorf("password must not exceed %d bytes", MaxPasswordBytes)
+	}
+	return nil
 }

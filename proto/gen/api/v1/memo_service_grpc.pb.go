@@ -26,6 +26,8 @@ const (
 	MemoService_DeleteMemo_FullMethodName          = "/sillage.api.v1.MemoService/DeleteMemo"
 	MemoService_SetMemoFavorited_FullMethodName    = "/sillage.api.v1.MemoService/SetMemoFavorited"
 	MemoService_SetMemoArchived_FullMethodName     = "/sillage.api.v1.MemoService/SetMemoArchived"
+	MemoService_RestoreMemo_FullMethodName         = "/sillage.api.v1.MemoService/RestoreMemo"
+	MemoService_PurgeMemo_FullMethodName           = "/sillage.api.v1.MemoService/PurgeMemo"
 	MemoService_GenerateMemoSummary_FullMethodName = "/sillage.api.v1.MemoService/GenerateMemoSummary"
 )
 
@@ -48,6 +50,8 @@ type MemoServiceClient interface {
 	DeleteMemo(ctx context.Context, in *DeleteMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	SetMemoFavorited(ctx context.Context, in *SetMemoFavoritedRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	SetMemoArchived(ctx context.Context, in *SetMemoArchivedRequest, opts ...grpc.CallOption) (*MemoResponse, error)
+	RestoreMemo(ctx context.Context, in *RestoreMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
+	PurgeMemo(ctx context.Context, in *PurgeMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error)
 	GenerateMemoSummary(ctx context.Context, in *GenerateMemoSummaryRequest, opts ...grpc.CallOption) (*GenerateMemoSummaryResponse, error)
 }
 
@@ -129,6 +133,26 @@ func (c *memoServiceClient) SetMemoArchived(ctx context.Context, in *SetMemoArch
 	return out, nil
 }
 
+func (c *memoServiceClient) RestoreMemo(ctx context.Context, in *RestoreMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MemoResponse)
+	err := c.cc.Invoke(ctx, MemoService_RestoreMemo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memoServiceClient) PurgeMemo(ctx context.Context, in *PurgeMemoRequest, opts ...grpc.CallOption) (*MemoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MemoResponse)
+	err := c.cc.Invoke(ctx, MemoService_PurgeMemo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *memoServiceClient) GenerateMemoSummary(ctx context.Context, in *GenerateMemoSummaryRequest, opts ...grpc.CallOption) (*GenerateMemoSummaryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GenerateMemoSummaryResponse)
@@ -158,6 +182,8 @@ type MemoServiceServer interface {
 	DeleteMemo(context.Context, *DeleteMemoRequest) (*MemoResponse, error)
 	SetMemoFavorited(context.Context, *SetMemoFavoritedRequest) (*MemoResponse, error)
 	SetMemoArchived(context.Context, *SetMemoArchivedRequest) (*MemoResponse, error)
+	RestoreMemo(context.Context, *RestoreMemoRequest) (*MemoResponse, error)
+	PurgeMemo(context.Context, *PurgeMemoRequest) (*MemoResponse, error)
 	GenerateMemoSummary(context.Context, *GenerateMemoSummaryRequest) (*GenerateMemoSummaryResponse, error)
 	mustEmbedUnimplementedMemoServiceServer()
 }
@@ -189,6 +215,12 @@ func (UnimplementedMemoServiceServer) SetMemoFavorited(context.Context, *SetMemo
 }
 func (UnimplementedMemoServiceServer) SetMemoArchived(context.Context, *SetMemoArchivedRequest) (*MemoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetMemoArchived not implemented")
+}
+func (UnimplementedMemoServiceServer) RestoreMemo(context.Context, *RestoreMemoRequest) (*MemoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RestoreMemo not implemented")
+}
+func (UnimplementedMemoServiceServer) PurgeMemo(context.Context, *PurgeMemoRequest) (*MemoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PurgeMemo not implemented")
 }
 func (UnimplementedMemoServiceServer) GenerateMemoSummary(context.Context, *GenerateMemoSummaryRequest) (*GenerateMemoSummaryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GenerateMemoSummary not implemented")
@@ -340,6 +372,42 @@ func _MemoService_SetMemoArchived_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemoService_RestoreMemo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreMemoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).RestoreMemo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_RestoreMemo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).RestoreMemo(ctx, req.(*RestoreMemoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemoService_PurgeMemo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PurgeMemoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).PurgeMemo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_PurgeMemo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).PurgeMemo(ctx, req.(*PurgeMemoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MemoService_GenerateMemoSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GenerateMemoSummaryRequest)
 	if err := dec(in); err != nil {
@@ -392,6 +460,14 @@ var MemoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetMemoArchived",
 			Handler:    _MemoService_SetMemoArchived_Handler,
+		},
+		{
+			MethodName: "RestoreMemo",
+			Handler:    _MemoService_RestoreMemo_Handler,
+		},
+		{
+			MethodName: "PurgeMemo",
+			Handler:    _MemoService_PurgeMemo_Handler,
 		},
 		{
 			MethodName: "GenerateMemoSummary",

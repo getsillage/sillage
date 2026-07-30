@@ -7,8 +7,8 @@ import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
 // AuthService handles the single-account lifecycle: one-time initialization,
-// sign-in/out, and access-token refresh. After initialization, Initialize is
-// rejected (no second account).
+// sign-in/out, password changes, and access-token refresh. After initialization,
+// Initialize is rejected (no second account).
 service AuthService {
   // Bootstrap reports whether the instance has been initialized yet, so the
   // client knows whether to show initialization or sign-in.
@@ -47,12 +47,27 @@ service AuthService {
   rpc Me(MeRequest) returns (MeResponse) {
     option (google.api.http) = {get: "/api/v1/auth/me"};
   }
+
+  // ChangePassword verifies the current password, rotates all refresh sessions,
+  // and returns a fresh access/refresh token pair for the current client.
+  rpc ChangePassword(ChangePasswordRequest) returns (AuthResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/change-password"
+      body: "*"
+    };
+  }
 }
 
 message BootstrapRequest {}
 
 message BootstrapResponse {
   bool initialized = 1;
+  // Public build metadata lets operators and clients diagnose a stale bundle
+  // or an unsupported mobile client without relying on container logs.
+  string server_version = 2;
+  string server_revision = 3;
+  string api_version = 4;
+  int32 minimum_android_version_code = 5;
 }
 
 message InitializeRequest {
@@ -74,6 +89,11 @@ message MeRequest {}
 
 message MeResponse {
   Account account = 1;
+}
+
+message ChangePasswordRequest {
+  string current_password = 1;
+  string new_password = 2;
 }
 
 // AuthResponse carries the account plus a short-lived access token. The refresh

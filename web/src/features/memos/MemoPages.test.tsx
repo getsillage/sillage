@@ -27,6 +27,8 @@ vi.mock("../../lib/api", async (importOriginal) => {
     createMemo: vi.fn(),
     updateMemo: vi.fn(),
     deleteMemo: vi.fn(),
+    restoreMemo: vi.fn(),
+    purgeMemo: vi.fn(),
     setMemoFavorited: vi.fn(),
     setMemoArchived: vi.fn(),
     generateMemoSummary: vi.fn(),
@@ -45,6 +47,8 @@ import {
   generateMemoSummary,
   getMemo,
   listMemos,
+  purgeMemo,
+  restoreMemo,
   searchMemos,
   setMemoFavorited,
   updateMemo,
@@ -519,6 +523,87 @@ describe("TimelinePage", () => {
     expect(listMemos).toHaveBeenCalledWith("t", 200, undefined, {
       favorited: true,
     });
+  });
+
+  it("restores and permanently deletes records from Recently Deleted", async () => {
+    const user = userEvent.setup();
+    const restoreCandidate = memo({
+      id: "restore-candidate",
+      content: "准备恢复的记录",
+      version: 2,
+      deletedAt: "2026-07-30T01:00:00Z",
+    });
+    const purgeCandidate = memo({
+      id: "purge-candidate",
+      content: "准备永久删除的记录",
+      version: 4,
+      deletedAt: "2026-07-30T02:00:00Z",
+    });
+    let deleted = [restoreCandidate, purgeCandidate];
+    vi.mocked(listMemos).mockImplementation(
+      async (_token, _limit, _cursor, options = {}) => ({
+        memos: options.deleted ? deleted : [],
+      }),
+    );
+    vi.mocked(restoreMemo).mockImplementation(async (_token, candidate) => {
+      deleted = deleted.filter((item) => item.id !== candidate.id);
+      return {
+        memo: {
+          ...candidate,
+          version: candidate.version + 1,
+          deletedAt: null,
+        },
+      };
+    });
+    vi.mocked(purgeMemo).mockImplementation(async (_token, candidate) => {
+      deleted = deleted.filter((item) => item.id !== candidate.id);
+      return {
+        memo: {
+          ...candidate,
+          content: "",
+          entryDate: "1970-01-01",
+          version: candidate.version + 1,
+          purgedAt: "2026-07-30T03:00:00Z",
+        },
+      };
+    });
+    renderWithMemos(<TimelinePage />, "/timeline?filter=deleted");
+
+    expect(await screen.findByText("准备恢复的记录")).toBeInTheDocument();
+    expect(screen.getByText("准备永久删除的记录")).toBeInTheDocument();
+    expect(screen.getByText(/30 天内恢复/)).toBeInTheDocument();
+    expect(listMemos).toHaveBeenCalledWith("t", 200, undefined, {
+      deleted: true,
+    });
+
+    const restoreItem = screen.getByText("准备恢复的记录").closest("li");
+    expect(restoreItem).not.toBeNull();
+    await user.click(
+      within(restoreItem as HTMLElement).getByRole("button", { name: "恢复" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("准备恢复的记录")).not.toBeInTheDocument(),
+    );
+    expect(restoreMemo).toHaveBeenCalledWith("t", restoreCandidate);
+
+    const purgeItem = screen.getByText("准备永久删除的记录").closest("li");
+    expect(purgeItem).not.toBeNull();
+    await user.click(
+      within(purgeItem as HTMLElement).getByRole("button", {
+        name: "永久删除",
+      }),
+    );
+    expect(
+      within(purgeItem as HTMLElement).getByText(/立即清除正文/),
+    ).toBeInTheDocument();
+    await user.click(
+      within(purgeItem as HTMLElement).getByRole("button", {
+        name: "确认永久删除",
+      }),
+    );
+
+    expect(await screen.findByText("最近删除中没有记录。")).toBeInTheDocument();
+    expect(purgeMemo).toHaveBeenCalledWith("t", purgeCandidate);
   });
 });
 

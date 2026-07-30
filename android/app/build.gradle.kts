@@ -21,8 +21,9 @@ android {
         applicationId = "app.sillage"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.2.0"
+        versionCode = 10
+        versionName = "0.3.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -45,6 +46,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
@@ -55,6 +57,7 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        animationsDisabled = true
     }
 
     bundle {
@@ -63,8 +66,11 @@ android {
         }
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -93,5 +99,12 @@ dependencies {
     testImplementation("org.json:json:20250517")
     testImplementation("org.robolectric:robolectric:4.14.1")
 
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

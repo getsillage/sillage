@@ -30,6 +30,7 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 			Query:     query,
 			Archived:  req.Msg.Archived,
 			Favorited: req.Msg.Favorited,
+			Deleted:   req.Msg.Deleted,
 			Limit:     limit,
 		})
 	} else {
@@ -37,6 +38,7 @@ func (s *memoService) ListMemos(ctx context.Context, req *connect.Request[apiv1.
 		page, err = s.server.memos.List(ctx, account.ID, memoapp.ListInput{
 			Archived:  req.Msg.Archived,
 			Favorited: req.Msg.Favorited,
+			Deleted:   req.Msg.Deleted,
 			Limit:     limit,
 			Cursor:    req.Msg.GetCursor(),
 		})
@@ -112,6 +114,30 @@ func (s *memoService) DeleteMemo(ctx context.Context, req *connect.Request[apiv1
 		return nil, err
 	}
 	memo, err := s.server.memos.Delete(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
+}
+
+func (s *memoService) RestoreMemo(ctx context.Context, req *connect.Request[apiv1.RestoreMemoRequest]) (*connect.Response[apiv1.MemoResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	memo, err := s.server.memos.Restore(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.MemoResponse{Memo: memoPB(memo)}), nil
+}
+
+func (s *memoService) PurgeMemo(ctx context.Context, req *connect.Request[apiv1.PurgeMemoRequest]) (*connect.Response[apiv1.MemoResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	memo, err := s.server.memos.Purge(ctx, account.ID, req.Msg.GetId(), req.Msg.GetExpectedVersion())
 	if err != nil {
 		return nil, connectError(err)
 	}

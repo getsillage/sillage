@@ -49,6 +49,40 @@ func TestSelectAskSourceRefsCentersExcerptOnMatch(t *testing.T) {
 	}
 }
 
+func TestAskCandidateQueriesAreBoundedAndKeepFullQueryFirst(t *testing.T) {
+	question := "最近一周睡眠质量和运动恢复怎么样"
+	queries := askCandidateQueries(question)
+	if len(queries) == 0 || queries[0] != question {
+		t.Fatalf("askCandidateQueries() = %#v, want full question first", queries)
+	}
+	if len(queries) > askCandidateQueryLimit {
+		t.Fatalf("askCandidateQueries() len = %d, want <= %d", len(queries), askCandidateQueryLimit)
+	}
+	seen := map[string]struct{}{}
+	for _, query := range queries {
+		if _, duplicate := seen[query]; duplicate {
+			t.Fatalf("askCandidateQueries() contains duplicate %q: %#v", query, queries)
+		}
+		seen[query] = struct{}{}
+	}
+}
+
+func TestSelectAskCandidateSourceRefsKeepsSearchOnlyMatch(t *testing.T) {
+	candidates := []askMemoCandidate{{
+		memo: &store.Memo{
+			ID:        "memo-summary-match",
+			EntryDate: "2026-07-12",
+			Content:   "原始记录没有使用检索词。",
+		},
+		searchRank: 1,
+	}}
+
+	got := selectAskCandidateSourceRefs("睡眠恢复", candidates, "all")
+	if len(got) != 1 || got[0].MemoID != "memo-summary-match" {
+		t.Fatalf("selectAskCandidateSourceRefs() = %#v, want search-backed source", got)
+	}
+}
+
 func TestCitedAskSourceRefsKeepsOnlyValidUniqueCitations(t *testing.T) {
 	candidates := []askSourceRef{
 		{MemoID: "memo-1", Rank: 1},

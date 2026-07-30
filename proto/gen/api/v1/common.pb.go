@@ -101,8 +101,9 @@ func (x *Account) GetUpdatedTime() *timestamppb.Timestamp {
 }
 
 // Memo is Sillage's only content unit; user-facing clients present it as a record.
-// Deletion is a tombstone: deleted_time is set while the row is retained so
-// sync clients can converge.
+// Deletion first creates a recoverable tombstone. After permanent purge,
+// purged_time is set and user content has been scrubbed while the minimal row
+// remains so sync clients can converge.
 type Memo struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -119,6 +120,7 @@ type Memo struct {
 	// deleted_time set => the memo is tombstoned (soft-deleted).
 	DeletedTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=deleted_time,json=deletedTime,proto3" json:"deleted_time,omitempty"`
 	FavoritedTime *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=favorited_time,json=favoritedAt,proto3" json:"favorited_time,omitempty"`
+	PurgedTime    *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=purged_time,json=purgedAt,proto3" json:"purged_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -212,6 +214,13 @@ func (x *Memo) GetDeletedTime() *timestamppb.Timestamp {
 func (x *Memo) GetFavoritedTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.FavoritedTime
+	}
+	return nil
+}
+
+func (x *Memo) GetPurgedTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PurgedTime
 	}
 	return nil
 }
@@ -1056,7 +1065,7 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12=\n" +
 	"\fcreated_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcreatedTime\x12=\n" +
-	"\fupdated_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xbb\x03\n" +
+	"\fupdated_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\"\xf6\x03\n" +
 	"\x04Memo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
@@ -1068,7 +1077,8 @@ const file_api_v1_common_proto_rawDesc = "" +
 	"\fupdated_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedTime\x12=\n" +
 	"\fdeleted_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vdeletedTime\x12?\n" +
 	"\x0efavorited_time\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\vfavoritedAtJ\x04\b\x05\x10\x06R\vpinned_time\"\xc7\x03\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\vfavoritedAt\x129\n" +
+	"\vpurged_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bpurgedAtJ\x04\b\x05\x10\x06R\vpinned_time\"\xc7\x03\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
@@ -1195,29 +1205,30 @@ var file_api_v1_common_proto_depIdxs = []int32{
 	8,  // 4: sillage.api.v1.Memo.updated_time:type_name -> google.protobuf.Timestamp
 	8,  // 5: sillage.api.v1.Memo.deleted_time:type_name -> google.protobuf.Timestamp
 	8,  // 6: sillage.api.v1.Memo.favorited_time:type_name -> google.protobuf.Timestamp
-	8,  // 7: sillage.api.v1.Attachment.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 8: sillage.api.v1.Attachment.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 9: sillage.api.v1.Attachment.deleted_time:type_name -> google.protobuf.Timestamp
-	8,  // 10: sillage.api.v1.MemoAI.started_time:type_name -> google.protobuf.Timestamp
-	8,  // 11: sillage.api.v1.MemoAI.finished_time:type_name -> google.protobuf.Timestamp
-	8,  // 12: sillage.api.v1.MemoAI.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 13: sillage.api.v1.MemoAI.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 14: sillage.api.v1.AIProfile.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 15: sillage.api.v1.AIProfile.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 16: sillage.api.v1.AskConversation.pinned_time:type_name -> google.protobuf.Timestamp
-	8,  // 17: sillage.api.v1.AskConversation.archived_time:type_name -> google.protobuf.Timestamp
-	8,  // 18: sillage.api.v1.AskConversation.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 19: sillage.api.v1.AskConversation.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 20: sillage.api.v1.AskConversation.deleted_time:type_name -> google.protobuf.Timestamp
-	6,  // 21: sillage.api.v1.AskMessage.source_refs:type_name -> sillage.api.v1.AskSourceRef
-	8,  // 22: sillage.api.v1.AskMessage.created_time:type_name -> google.protobuf.Timestamp
-	8,  // 23: sillage.api.v1.AskMessage.updated_time:type_name -> google.protobuf.Timestamp
-	8,  // 24: sillage.api.v1.AskMessage.deleted_time:type_name -> google.protobuf.Timestamp
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	8,  // 7: sillage.api.v1.Memo.purged_time:type_name -> google.protobuf.Timestamp
+	8,  // 8: sillage.api.v1.Attachment.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 9: sillage.api.v1.Attachment.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 10: sillage.api.v1.Attachment.deleted_time:type_name -> google.protobuf.Timestamp
+	8,  // 11: sillage.api.v1.MemoAI.started_time:type_name -> google.protobuf.Timestamp
+	8,  // 12: sillage.api.v1.MemoAI.finished_time:type_name -> google.protobuf.Timestamp
+	8,  // 13: sillage.api.v1.MemoAI.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 14: sillage.api.v1.MemoAI.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 15: sillage.api.v1.AIProfile.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 16: sillage.api.v1.AIProfile.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 17: sillage.api.v1.AskConversation.pinned_time:type_name -> google.protobuf.Timestamp
+	8,  // 18: sillage.api.v1.AskConversation.archived_time:type_name -> google.protobuf.Timestamp
+	8,  // 19: sillage.api.v1.AskConversation.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 20: sillage.api.v1.AskConversation.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 21: sillage.api.v1.AskConversation.deleted_time:type_name -> google.protobuf.Timestamp
+	6,  // 22: sillage.api.v1.AskMessage.source_refs:type_name -> sillage.api.v1.AskSourceRef
+	8,  // 23: sillage.api.v1.AskMessage.created_time:type_name -> google.protobuf.Timestamp
+	8,  // 24: sillage.api.v1.AskMessage.updated_time:type_name -> google.protobuf.Timestamp
+	8,  // 25: sillage.api.v1.AskMessage.deleted_time:type_name -> google.protobuf.Timestamp
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_api_v1_common_proto_init() }

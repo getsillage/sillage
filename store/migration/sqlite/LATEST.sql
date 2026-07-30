@@ -63,11 +63,13 @@ CREATE TABLE memo (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER,
+  purged_at INTEGER,
   FOREIGN KEY (creator_id) REFERENCES account(id) ON DELETE SET NULL
 );
 CREATE INDEX idx_memo_updated_id ON memo (updated_at, id);
 CREATE INDEX idx_memo_entry_date ON memo (entry_date);
 CREATE INDEX idx_memo_deleted_at ON memo (deleted_at);
+CREATE INDEX idx_memo_purged_at ON memo (purged_at);
 CREATE INDEX idx_memo_archived_at ON memo (archived_at);
 CREATE INDEX idx_memo_favorited_at ON memo (favorited_at);
 

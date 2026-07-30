@@ -1,8 +1,9 @@
-const ACCESS_TOKEN_KEY = "sillage.accessToken";
-
 type TokenListener = (token: string | null) => void;
 
-let currentToken: string | null = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+// Access tokens intentionally remain in memory. The server-issued refresh
+// cookie is HttpOnly and restores a session after reload without exposing a
+// reusable bearer token to Web Storage or other script-readable persistence.
+let currentToken: string | null = null;
 const listeners = new Set<TokenListener>();
 
 function notify(token: string | null): void {
@@ -17,13 +18,11 @@ export function getAccessToken(): string | null {
 
 export function setAccessToken(token: string): void {
   currentToken = token;
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
   notify(token);
 }
 
 export function clearAccessToken(): void {
   currentToken = null;
-  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   notify(null);
 }
 

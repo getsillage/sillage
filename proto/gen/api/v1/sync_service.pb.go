@@ -230,10 +230,10 @@ type SyncChange struct {
 	MutationId   string `protobuf:"bytes,1,opt,name=mutation_id,json=mutationId,proto3" json:"mutation_id,omitempty"`
 	ResourceType string `protobuf:"bytes,2,opt,name=resource_type,json=resourceType,proto3" json:"resource_type,omitempty"`
 	ResourceId   string `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	// action is "create" | "update" | "delete".
+	// action is "create" | "update" | "delete" | "restore" | "purge".
 	Action string `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
 	// base_version is the memo version the client based this change on; used for
-	// conflict detection on update/delete.
+	// conflict detection on update/delete/restore/purge. Create omits it.
 	BaseVersion    int64            `protobuf:"varint,5,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
 	LocalChangedAt string           `protobuf:"bytes,6,opt,name=local_changed_at,json=localChangedAt,proto3" json:"local_changed_at,omitempty"`
 	Memo           *SyncMemoPayload `protobuf:"bytes,7,opt,name=memo,proto3" json:"memo,omitempty"`

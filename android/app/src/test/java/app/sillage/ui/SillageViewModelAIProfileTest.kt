@@ -3,6 +3,9 @@ package app.sillage.ui
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.data.AIProfileDraft
+import app.sillage.data.LocalDataStore
+import app.sillage.data.LocalStateStorage
+import app.sillage.data.SecureReadResult
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageExportCodec
 import app.sillage.data.SillageExportData
@@ -17,6 +20,8 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class SillageViewModelAIProfileTest {
+    private lateinit var localDataStore: LocalDataStore
+
     private val context: Context
         get() = ApplicationProvider.getApplicationContext()
 
@@ -24,6 +29,7 @@ class SillageViewModelAIProfileTest {
     fun clearPreferences() {
         context.getSharedPreferences("sillage.session", Context.MODE_PRIVATE).edit().clear().commit()
         context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE).edit().clear().commit()
+        localDataStore = LocalDataStore(InMemoryLocalStateStorage())
     }
 
     @Test
@@ -33,7 +39,7 @@ class SillageViewModelAIProfileTest {
             aiProfile(id = "profile-2", name = "新默认", active = false),
         )
         val storedJson = prepareOfflineProfiles(original)
-        val viewModel = SillageViewModel(context)
+        val viewModel = SillageViewModel(context, localDataStore = localDataStore)
         val requestId = viewModel.state.value.aiSettingsRequestId
 
         viewModel.setAIProfileDefault(1)
@@ -52,7 +58,7 @@ class SillageViewModelAIProfileTest {
             aiProfile(id = "profile-2", name = "保留档案", active = false),
         )
         val storedJson = prepareOfflineProfiles(original)
-        val viewModel = SillageViewModel(context)
+        val viewModel = SillageViewModel(context, localDataStore = localDataStore)
         val requestId = viewModel.state.value.aiSettingsRequestId
 
         assertTrue(viewModel.removeAIProfile(0))
@@ -68,7 +74,7 @@ class SillageViewModelAIProfileTest {
     @Test
     fun deletingAnEarlierNewDraftKeepsTheLaterDraftIdentityAndResult() {
         prepareOfflineProfiles(emptyList())
-        val viewModel = SillageViewModel(context)
+        val viewModel = SillageViewModel(context, localDataStore = localDataStore)
         viewModel.addAIProfile()
         viewModel.addAIProfile()
         val drafts = viewModel.state.value.aiProfiles
@@ -102,17 +108,12 @@ class SillageViewModelAIProfileTest {
                 askMessages = emptyList(),
             ),
         )
-        context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE)
-            .edit()
-            .putString("data", storedJson)
-            .commit()
+        localDataStore.mergeWith(SillageExportCodec.fromJson(storedJson))
         return storedJson
     }
 
     private fun assertStoredProfilesAreUnchanged(storedJson: String) {
-        val preferences = context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE)
-        assertEquals(storedJson, preferences.getString("data", null))
-        assertFalse(preferences.contains("secure.data"))
+        assertEquals(storedJson, SillageExportCodec.toLocalJson(localDataStore.exportData()))
     }
 
     private fun aiProfile(
@@ -126,5 +127,22 @@ class SillageViewModelAIProfileTest {
             enabled = true,
             active = active,
         )
+    }
+
+    private class InMemoryLocalStateStorage : LocalStateStorage {
+        private val values = mutableMapOf<String, String>()
+
+        override fun readString(key: String): SecureReadResult =
+            values[key]?.let(SecureReadResult::Value) ?: SecureReadResult.Missing
+
+        override fun contains(key: String): Boolean = values.containsKey(key)
+
+        override fun putString(key: String, value: String) {
+            values[key] = value
+        }
+
+        override fun putStrings(values: Map<String, String>) {
+            this.values.putAll(values)
+        }
     }
 }

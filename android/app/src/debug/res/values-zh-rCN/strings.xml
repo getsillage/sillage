@@ -1,0 +1,3 @@
+<resources>
+    <string name="server_supporting">填写后端服务地址。调试版在模拟器中可使用 http://10.0.2.2:5231 访问本机服务。</string>
+</resources>

@@ -102,6 +102,9 @@ func (s *Server) handleListAskConversations(c *echo.Context) error {
 		Archived: archived,
 	})
 	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取问答会话失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversations": askConversationDTOs(conversations)})
@@ -159,6 +162,9 @@ func (s *Server) handleCreateAskConversation(c *echo.Context) error {
 		ContextScope: req.ContextScope,
 	})
 	if err != nil {
+		if errors.Is(err, errValidation) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "创建问答会话失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"conversation": askConversationDTO(conversation)})
@@ -267,20 +273,20 @@ func (s *Server) prepareAskAnswer(ctx context.Context, accountID, question, scop
 
 	sources := make([]askSourceRef, 0)
 	if decision.Mode != askRouteGeneral {
-		memos, err := s.listAskCandidateMemos(ctx, accountID)
+		memos, err := s.listAskCandidateMemos(ctx, accountID, decision.SearchQuery)
 		if err != nil {
 			return nil, err
 		}
 		sort.Slice(memos, func(i, j int) bool {
-			if memos[i].EntryDate != memos[j].EntryDate {
-				return memos[i].EntryDate > memos[j].EntryDate
+			if memos[i].memo.EntryDate != memos[j].memo.EntryDate {
+				return memos[i].memo.EntryDate > memos[j].memo.EntryDate
 			}
-			if memos[i].CreatedAt != memos[j].CreatedAt {
-				return memos[i].CreatedAt > memos[j].CreatedAt
+			if memos[i].memo.CreatedAt != memos[j].memo.CreatedAt {
+				return memos[i].memo.CreatedAt > memos[j].memo.CreatedAt
 			}
-			return memos[i].ID > memos[j].ID
+			return memos[i].memo.ID > memos[j].memo.ID
 		})
-		sources = selectAskSourceRefs(decision.SearchQuery, memos, scope)
+		sources = selectAskCandidateSourceRefs(decision.SearchQuery, memos, scope)
 		// In summary mode, ground the answer in each source's stored AI summary
 		// (distilled) rather than its raw text, falling back to the raw excerpt.
 		if isSummarySourceKind(sourceKind) {

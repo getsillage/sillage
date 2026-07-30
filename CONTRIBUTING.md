@@ -77,30 +77,37 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 ### Web Artifacts
 
-`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary.
+`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary. `make check-web` also verifies route-level chunks and raw/gzip bundle budgets; update a budget only with measured output and a documented product reason.
 
 ## Verification
 
 Use the root **Makefile** so local runs match CI. Details and the path→gate matrix are in [Governance](docs/development/governance.md).
 
 ```bash
-make check              # go + proto + web + docs
+make check              # all CI-equivalent code, secret, artifact, and E2E gates
+make check-fast         # go + proto + web + docs
 make check-affected     # gates implied by current changes (set BASE_SHA for PR ranges)
 make print-affected     # show gates without running them
 ```
 
 | Gate | Make target | What it runs |
 | --- | --- | --- |
-| Go | `make check-go` | `go mod tidy -diff`, tests, vet, build |
+| Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
 | Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
-| Web | `make check-web` | lint, typecheck, unit tests, build, embed policy |
-| Android | `make check-android` | unit tests, lint, debug assemble |
-| Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync |
+| Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
+| Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy, min/target device-matrix consistency |
+| Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |
+| Scale | `make check-scale` | 10,000 active records, 2,000 recoverable deletions, HTTP list/search/sync pagination, and SQLite integrity budgets |
+| Upgrade | `make check-upgrade` | latest stable binary/data creation, candidate migration, representative data checks, old-binary schema rejection, and complete-backup rollback |
+| Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
 | Container | `make check-container` | Docker build + Compose config |
-| E2E | `make check-e2e` | fresh-instance Playwright smoke |
+| Supply Chain | `make check-supply-chain` | pnpm high-severity audit, runtime license/NOTICE drift, SPDX + CycloneDX SBOM, Grype final-image scan (high blocks) |
+| E2E | `make check-e2e` | complete fresh-instance journeys in Chromium, Firefox, and WebKit |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
+| Actions | `make check-actions` | full commit-SHA pins for every workflow action |
+| Remote settings | `make check-repository-settings` | authenticated branch-protection, security-feature, vulnerability-reporting, and Pages HTTPS audit |
 
-CI also runs gitleaks (`.gitleaks.toml`) and validates pull request titles as Conventional Commits subjects.
+The full `make check` requires Docker, gitleaks, Playwright system dependencies, complete Git tags, and `tar`. CI also validates pull request titles as Conventional Commits subjects.
 
 For a PR-shaped range:
 
@@ -112,11 +119,13 @@ make check-commits
 
 When contract-sensitive paths change, `check-doc-sync` expects a matching documentation path in the same range. To skip deliberately, include `Docs-skip: <reason>` in a commit message body.
 
-Web E2E (`make check-e2e`) starts a temporary server and requires Playwright browsers (`pnpm --dir web exec playwright install` on first use; CI installs Chromium with OS deps).
+Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir web exec playwright install` on first use; CI installs all three engines with their OS dependencies. The long-term personal-use budget is enforced separately by `make check-scale`; its dataset and thresholds are normative in [Release Readiness](docs/development/release-readiness.md).
 
-Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving editing, attachments, or network state must be checked on an emulator or physical device for system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer.
+Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an appropriate emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions clean API 26 and API 35 x86_64 emulators so the automated device suite covers both the oldest supported Android release and the current release target. A stable release candidate still requires a physical-device smoke test under [Release Readiness](docs/development/release-readiness.md).
 
 Dependabot opens a limited number of weekly dependency PRs; they must pass the same gates. See [ADR: limited Dependabot PRs](docs/development/decisions/2026-07-30-dependabot-limited-prs.md).
+
+The CI workflow uploads CodeQL analysis for Go, JavaScript/TypeScript, and Java/Kotlin. Before a stable release, maintainers must also run `make check-repository-settings` with an authenticated `gh` CLI session; source checks cannot prove external GitHub controls.
 
 ### Optional local hooks
 
@@ -131,15 +140,19 @@ Hooks are defined in `lefthook.yml` (`commit-msg` Conventional Commits; `pre-com
 
 ## Releases
 
-GitHub Releases are the only source of user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Release container images and optional APK assets must be produced by the [Release workflow](.github/workflows/release.yml). Do not attach hand-built server binaries, Docker images, or unsigned APKs to a Release.
+GitHub Releases are the canonical user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Each release commit contains a machine-checked input at `.github/release-notes/vX.Y.Z.md`; the Release workflow adds the exact image digest and verification evidence before publishing it. Release container images and optional APK assets must be produced by the [Release workflow](.github/workflows/release.yml). Do not attach hand-built server binaries, Docker images, or unsigned APKs to a Release.
 
-1. Merge release preparation to `main` after CI is green. Document user-visible changes and any compatibility impact on the database, configuration, synchronization, or data formats. Update the deployment and data documentation when special upgrade steps are required.
+The supported environment matrix, scale budgets, release-candidate journeys, published-artifact checks, and required remote repository controls are defined in [Release Readiness](docs/development/release-readiness.md). A stable release requires both the automated workflow and that manual acceptance evidence; neither substitutes for the other.
+
+1. Merge release preparation to `main` after CI is green. Add `.github/release-notes/vX.Y.Z.md` with the main changes, compatibility impact, known limitations, upgrade/rollback requirements, and automated/manual evidence. Candidate notes may state evidence that is still pending, but the Release preflight rejects `待完成`, `PENDING`, `TODO`, or `TBD`; update the notes in a new green release commit before creating the signed tag. Update deployment and data documentation when special upgrade steps are required.
 2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
-3. Create an annotated tag on the release commit: `git tag -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`.
-4. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes `ghcr.io/getsillage/sillage:vX.Y.Z` (and related tags), creates or updates the GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.
-5. Edit the generated Release notes so they include the main changes, known limitations, and upgrade or rollback requirements. Do not commit keystores, signing configuration, or build artifacts.
-6. To republish an image for an existing tag (for example after enabling GHCR), run the Release workflow with `workflow_dispatch` and the tag name. Set `create_release` only when the GitHub Release should be created or refreshed.
-7. After the **first** successful image publish, open [GitHub Packages](https://github.com/orgs/getsillage/packages) for `sillage`, set package visibility to **Public**, and link it to this repository if needed. Anonymous pulls of `ghcr.io/getsillage/sillage:latest` require a public package; `GITHUB_TOKEN` often cannot change org package visibility via the API.
+3. Before tagging an Android release, run the `Android Release Candidate` workflow from protected `main` with the exact 40-character release-commit SHA. It accepts only a commit with the complete successful CI job set, signs the APK with the configured release secrets, and retains the APK, checksum, certificate report, and package metadata for seven days. Download that artifact for the physical-device acceptance in [Release Readiness](docs/development/release-readiness.md); do not publish or redistribute it as a final release asset.
+4. Create a GitHub-verified signed annotated tag on the release commit: `git tag -s -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`. The workflow verifies the tag signature, exact commit, Android version, and all required CI jobs before publishing.
+5. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes immutable `ghcr.io/getsillage/sillage:vX.Y.Z` (and stable aliases), creates a new GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.
+6. The same workflow scans the published digest with the pinned Grype image, signs GitHub provenance and SPDX attestations, and uploads SPDX, CycloneDX, Grype, and SHA-256 evidence assets. A high-severity image finding blocks the release job.
+7. Published release tags, image tags, and APK assets are immutable and are never overwritten. If an APK needs to be added later, use `workflow_dispatch` with `mode=android-only`; this mode requires the existing GitHub Release and refuses an existing APK asset. Do not commit keystores, signing configuration, or build artifacts.
+8. The workflow composes the checked release-note input with a digest-pinned install command and signed evidence. Do not edit published notes to describe artifacts that differ from the immutable tag. Prerelease tags do not move `latest` or the `major.minor` stable alias.
+9. After the **first** successful image publish, open [GitHub Packages](https://github.com/orgs/getsillage/packages) for `sillage`, set package visibility to **Public**, and link it to this repository if needed. Anonymous pulls of `ghcr.io/getsillage/sillage:latest` require a public package; `GITHUB_TOKEN` often cannot change org package visibility via the API.
 
 `main` requires green CI status checks before merge. Force-pushes to `main` are blocked.
 

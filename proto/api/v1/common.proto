@@ -15,8 +15,9 @@ message Account {
 }
 
 // Memo is Sillage's only content unit; user-facing clients present it as a record.
-// Deletion is a tombstone: deleted_time is set while the row is retained so
-// sync clients can converge.
+// Deletion first creates a recoverable tombstone. After permanent purge,
+// purged_time is set and user content has been scrubbed while the minimal row
+// remains so sync clients can converge.
 message Memo {
   reserved 5;
   reserved "pinned_time";
@@ -35,6 +36,7 @@ message Memo {
   // deleted_time set => the memo is tombstoned (soft-deleted).
   google.protobuf.Timestamp deleted_time = 9;
   google.protobuf.Timestamp favorited_time = 10 [json_name = "favoritedAt"];
+  google.protobuf.Timestamp purged_time = 11 [json_name = "purgedAt"];
 }
 
 // Attachment is a file stored alongside a memo. Bytes live on disk; this

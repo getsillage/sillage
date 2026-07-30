@@ -17,6 +17,16 @@ import (
 	"github.com/getsillage/sillage/store"
 )
 
+const (
+	askCandidateLimit      = 200
+	askCandidateQueryLimit = 8
+)
+
+type askMemoCandidate struct {
+	memo       *store.Memo
+	searchRank int
+}
+
 // isSummarySourceKind reports whether the answer should be grounded in stored
 // summaries rather than raw memo text. "records" (or empty) means raw text.
 func isSummarySourceKind(kind string) bool {
@@ -44,34 +54,69 @@ func (s *Server) applySummaryExcerpts(ctx context.Context, sources []askSourceRe
 	return out
 }
 
-func (s *Server) listAskCandidateMemos(ctx context.Context, accountID string) ([]*store.Memo, error) {
-	const pageSize = 200
+func (s *Server) listAskCandidateMemos(ctx context.Context, accountID, question string) ([]askMemoCandidate, error) {
+	candidates := make([]askMemoCandidate, 0, askCandidateLimit)
+	seen := make(map[string]struct{}, askCandidateLimit)
+	appendMemos := func(memos []*store.Memo, searchable bool) {
+		for _, memo := range memos {
+			if memo == nil || memo.ID == "" {
+				continue
+			}
+			if _, duplicate := seen[memo.ID]; duplicate {
+				continue
+			}
+			seen[memo.ID] = struct{}{}
+			searchRank := 0
+			if searchable {
+				searchRank = len(candidates) + 1
+			}
+			candidates = append(candidates, askMemoCandidate{memo: memo, searchRank: searchRank})
+			if len(candidates) == askCandidateLimit {
+				return
+			}
+		}
+	}
 
-	memos := make([]*store.Memo, 0, pageSize)
-	var updatedAfter int64
-	var updatedAfterID string
-	for {
-		page, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
-			AccountID:      accountID,
-			Limit:          pageSize,
-			Sync:           true,
-			UpdatedAfter:   updatedAfter,
-			UpdatedAfterID: updatedAfterID,
+	// Reuse the account-scoped FTS5/LIKE search path before considering recent
+	// records. The full router query preserves phrase precision; a bounded set
+	// of individual terms broadens recall for natural-language questions.
+	for _, query := range askCandidateQueries(question) {
+		matches, err := s.Store.SearchMemos(ctx, &store.SearchMemoOptions{
+			AccountID: accountID,
+			Query:     query,
+			Limit:     askCandidateLimit,
 		})
 		if err != nil {
 			return nil, err
 		}
-		memos = append(memos, page...)
-		if len(page) < pageSize {
-			return memos, nil
+		appendMemos(matches, true)
+		if len(candidates) == askCandidateLimit {
+			return candidates, nil
 		}
-		last := page[len(page)-1]
-		updatedAfter = last.UpdatedAt
-		updatedAfterID = last.ID
 	}
+
+	// A bounded recent fallback keeps short or paraphrased questions useful
+	// without loading an account's entire history into memory.
+	recent, err := s.Store.ListMemos(ctx, &store.ListMemoOptions{
+		AccountID: accountID,
+		Limit:     askCandidateLimit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	appendMemos(recent, false)
+	return candidates, nil
 }
 
 func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []askSourceRef {
+	candidates := make([]askMemoCandidate, 0, len(memos))
+	for _, memo := range memos {
+		candidates = append(candidates, askMemoCandidate{memo: memo})
+	}
+	return selectAskCandidateSourceRefs(question, candidates, scope)
+}
+
+func selectAskCandidateSourceRefs(question string, candidates []askMemoCandidate, scope string) []askSourceRef {
 	const sourceLimit = 5
 
 	terms := askQueryTerms(question)
@@ -85,8 +130,9 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 		score int
 	}
 
-	scored := make([]scoredMemo, 0, len(memos))
-	for _, memo := range memos {
+	scored := make([]scoredMemo, 0, len(candidates))
+	for _, candidate := range candidates {
+		memo := candidate.memo
 		if memo == nil || memo.ID == "" {
 			continue
 		}
@@ -94,6 +140,16 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 			continue
 		}
 		score := askMemoScore(question, terms, memo)
+		if candidate.searchRank > 0 {
+			// Preserve a small signal from SQLite search. This matters when a
+			// stored summary matched even though its exact wording is absent
+			// from the raw memo content.
+			searchBonus := 21 - min(candidate.searchRank, 20)
+			if searchBonus < 1 {
+				searchBonus = 1
+			}
+			score += searchBonus
+		}
 		if score <= 0 {
 			continue
 		}
@@ -128,6 +184,33 @@ func selectAskSourceRefs(question string, memos []*store.Memo, scope string) []a
 		})
 	}
 	return sources
+}
+
+func askCandidateQueries(question string) []string {
+	question = strings.TrimSpace(question)
+	if question == "" {
+		return nil
+	}
+	queries := []string{question}
+	terms := askQueryTerms(question)
+	sort.SliceStable(terms, func(i, j int) bool {
+		left := utf8.RuneCountInString(terms[i])
+		right := utf8.RuneCountInString(terms[j])
+		if left != right {
+			return left > right
+		}
+		return terms[i] < terms[j]
+	})
+	for _, term := range terms {
+		if strings.EqualFold(term, question) {
+			continue
+		}
+		queries = append(queries, term)
+		if len(queries) == askCandidateQueryLimit {
+			break
+		}
+	}
+	return queries
 }
 
 // askScopeCutoff returns the earliest entryDate (inclusive window start) for a

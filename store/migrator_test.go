@@ -34,11 +34,14 @@ func TestMigrateFreshInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version != "0.1.4" {
-		t.Fatalf("schema version = %q, want 0.1.4", version)
+	if version != "0.1.5" {
+		t.Fatalf("schema version = %q, want 0.1.5", version)
 	}
 	if !columnExists(t, s, "memo", "favorited_at") {
 		t.Fatal("fresh memo schema is missing favorited_at")
+	}
+	if !columnExists(t, s, "memo", "purged_at") {
+		t.Fatal("fresh memo schema is missing purged_at")
 	}
 	if columnExists(t, s, "memo", "pinned_at") {
 		t.Fatal("fresh memo schema must not include legacy pinned_at")
@@ -193,6 +196,9 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	if !columnExists(t, s, "memo", "favorited_at") {
 		t.Fatal("memo favorited_at column was not added")
 	}
+	if !columnExists(t, s, "memo", "purged_at") {
+		t.Fatal("memo purged_at column was not added")
+	}
 	memo, err := s.GetMemo(ctx, "a1", "m1", false)
 	if err != nil {
 		t.Fatalf("GetMemo() after compat migration error = %v", err)
@@ -223,8 +229,8 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() after compat migration error = %v", err)
 	}
-	if version != "0.1.4" {
-		t.Fatalf("schema version after compat migration = %q, want 0.1.4", version)
+	if version != "0.1.5" {
+		t.Fatalf("schema version after compat migration = %q, want 0.1.5", version)
 	}
 	memo, err = s.GetMemo(ctx, "a1", "m1", false)
 	if err != nil {
@@ -314,8 +320,8 @@ INSERT INTO ask_messages (
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version != "0.1.4" {
-		t.Fatalf("schema version = %q, want 0.1.4", version)
+	if version != "0.1.5" {
+		t.Fatalf("schema version = %q, want 0.1.5", version)
 	}
 	legacy, err := s.GetAskMessage(ctx, "legacy-message")
 	if err != nil {

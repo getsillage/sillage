@@ -20,12 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_Bootstrap_FullMethodName  = "/sillage.api.v1.AuthService/Bootstrap"
-	AuthService_Initialize_FullMethodName = "/sillage.api.v1.AuthService/Initialize"
-	AuthService_SignIn_FullMethodName     = "/sillage.api.v1.AuthService/SignIn"
-	AuthService_Refresh_FullMethodName    = "/sillage.api.v1.AuthService/Refresh"
-	AuthService_SignOut_FullMethodName    = "/sillage.api.v1.AuthService/SignOut"
-	AuthService_Me_FullMethodName         = "/sillage.api.v1.AuthService/Me"
+	AuthService_Bootstrap_FullMethodName      = "/sillage.api.v1.AuthService/Bootstrap"
+	AuthService_Initialize_FullMethodName     = "/sillage.api.v1.AuthService/Initialize"
+	AuthService_SignIn_FullMethodName         = "/sillage.api.v1.AuthService/SignIn"
+	AuthService_Refresh_FullMethodName        = "/sillage.api.v1.AuthService/Refresh"
+	AuthService_SignOut_FullMethodName        = "/sillage.api.v1.AuthService/SignOut"
+	AuthService_Me_FullMethodName             = "/sillage.api.v1.AuthService/Me"
+	AuthService_ChangePassword_FullMethodName = "/sillage.api.v1.AuthService/ChangePassword"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -33,8 +34,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // AuthService handles the single-account lifecycle: one-time initialization,
-// sign-in/out, and access-token refresh. After initialization, Initialize is
-// rejected (no second account).
+// sign-in/out, password changes, and access-token refresh. After initialization,
+// Initialize is rejected (no second account).
 type AuthServiceClient interface {
 	// Bootstrap reports whether the instance has been initialized yet, so the
 	// client knows whether to show initialization or sign-in.
@@ -44,6 +45,9 @@ type AuthServiceClient interface {
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 	SignOut(ctx context.Context, in *SignOutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
+	// ChangePassword verifies the current password, rotates all refresh sessions,
+	// and returns a fresh access/refresh token pair for the current client.
+	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 }
 
 type authServiceClient struct {
@@ -114,13 +118,23 @@ func (c *authServiceClient) Me(ctx context.Context, in *MeRequest, opts ...grpc.
 	return out, nil
 }
 
+func (c *authServiceClient) ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AuthResponse)
+	err := c.cc.Invoke(ctx, AuthService_ChangePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
 //
 // AuthService handles the single-account lifecycle: one-time initialization,
-// sign-in/out, and access-token refresh. After initialization, Initialize is
-// rejected (no second account).
+// sign-in/out, password changes, and access-token refresh. After initialization,
+// Initialize is rejected (no second account).
 type AuthServiceServer interface {
 	// Bootstrap reports whether the instance has been initialized yet, so the
 	// client knows whether to show initialization or sign-in.
@@ -130,6 +144,9 @@ type AuthServiceServer interface {
 	Refresh(context.Context, *RefreshRequest) (*AuthResponse, error)
 	SignOut(context.Context, *SignOutRequest) (*emptypb.Empty, error)
 	Me(context.Context, *MeRequest) (*MeResponse, error)
+	// ChangePassword verifies the current password, rotates all refresh sessions,
+	// and returns a fresh access/refresh token pair for the current client.
+	ChangePassword(context.Context, *ChangePasswordRequest) (*AuthResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -157,6 +174,9 @@ func (UnimplementedAuthServiceServer) SignOut(context.Context, *SignOutRequest) 
 }
 func (UnimplementedAuthServiceServer) Me(context.Context, *MeRequest) (*MeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Me not implemented")
+}
+func (UnimplementedAuthServiceServer) ChangePassword(context.Context, *ChangePasswordRequest) (*AuthResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangePassword not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -287,6 +307,24 @@ func _AuthService_Me_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_ChangePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).ChangePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_ChangePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).ChangePassword(ctx, req.(*ChangePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -317,6 +355,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Me",
 			Handler:    _AuthService_Me_Handler,
+		},
+		{
+			MethodName: "ChangePassword",
+			Handler:    _AuthService_ChangePassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

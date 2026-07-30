@@ -42,12 +42,15 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,6 +67,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -118,6 +122,7 @@ import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
+import app.sillage.ui.localizedTimestamp
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -172,8 +177,10 @@ internal fun MemoListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::startNewMemo) {
-                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.records_new))
+            if (state.memoListFilter != MemoListFilter.Deleted) {
+                FloatingActionButton(onClick = viewModel::startNewMemo) {
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.records_new))
+                }
             }
         },
         bottomBar = {
@@ -239,6 +246,8 @@ internal fun MemoListScreen(
                         onMemoToggleFavorite = viewModel::toggleMemoFavorited,
                         onMemoToggleArchive = viewModel::toggleMemoArchived,
                         onMemoDelete = viewModel::deleteMemo,
+                        onMemoRestore = viewModel::restoreMemo,
+                        onMemoPurge = viewModel::purgeMemo,
                         filter = state.memoListFilter,
                     )
                 }
@@ -306,6 +315,7 @@ private fun MemoListFilterTabs(
                                     MemoListFilter.Unarchived -> stringResource(R.string.filter_unarchived)
                                     MemoListFilter.Archived -> stringResource(R.string.filter_archived)
                                     MemoListFilter.Favorited -> stringResource(R.string.filter_favorited)
+                                    MemoListFilter.Deleted -> stringResource(R.string.filter_deleted)
                                 },
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.onSurface
@@ -387,6 +397,8 @@ private fun MemoListView(
     onMemoToggleFavorite: (Memo) -> Unit,
     onMemoToggleArchive: (Memo) -> Unit,
     onMemoDelete: (Memo) -> Unit,
+    onMemoRestore: (Memo) -> Unit,
+    onMemoPurge: (Memo) -> Unit,
     filter: MemoListFilter,
 ) {
     if (searching && visibleMemos.isEmpty()) {
@@ -402,6 +414,7 @@ private fun MemoListView(
                     MemoListFilter.Unarchived -> stringResource(R.string.empty_unarchived)
                     MemoListFilter.Archived -> stringResource(R.string.empty_archived)
                     MemoListFilter.Favorited -> stringResource(R.string.empty_favorited)
+                    MemoListFilter.Deleted -> stringResource(R.string.empty_deleted)
                 }
             },
             if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
@@ -420,16 +433,25 @@ private fun MemoListView(
             }
         }
         items(visibleMemos, key = { it.id }) { memo ->
-            MemoSwipeRow(
-                memo = memo,
-                mutating = memo.id in memoMutationIds,
-                onClick = { onMemoClick(memo) },
-                onEdit = { onMemoEdit(memo) },
-                onDuplicate = { onMemoDuplicate(memo) },
-                onToggleFavorite = { onMemoToggleFavorite(memo) },
-                onToggleArchive = { onMemoToggleArchive(memo) },
-                onDelete = { onMemoDelete(memo) },
-            )
+            if (filter == MemoListFilter.Deleted) {
+                RecentlyDeletedMemoRow(
+                    memo = memo,
+                    mutating = memo.id in memoMutationIds,
+                    onRestore = { onMemoRestore(memo) },
+                    onPurge = { onMemoPurge(memo) },
+                )
+            } else {
+                MemoSwipeRow(
+                    memo = memo,
+                    mutating = memo.id in memoMutationIds,
+                    onClick = { onMemoClick(memo) },
+                    onEdit = { onMemoEdit(memo) },
+                    onDuplicate = { onMemoDuplicate(memo) },
+                    onToggleFavorite = { onMemoToggleFavorite(memo) },
+                    onToggleArchive = { onMemoToggleArchive(memo) },
+                    onDelete = { onMemoDelete(memo) },
+                )
+            }
         }
         if (hasMore) {
             item {
@@ -439,6 +461,90 @@ private fun MemoListView(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(if (loadingMore) R.string.loading_more else R.string.load_more))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentlyDeletedMemoRow(
+    memo: Memo,
+    mutating: Boolean,
+    onRestore: () -> Unit,
+    onPurge: () -> Unit,
+) {
+    var confirmingPurge by remember(memo.id) { mutableStateOf(false) }
+    val deletedAt = memo.deletedAt
+    val formattedDeletedAt = if (deletedAt != null) localizedTimestamp(deletedAt) else "—"
+    LaunchedEffect(mutating) {
+        if (mutating) confirmingPurge = false
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                excerpt(memo.content, 120).ifBlank { stringResource(R.string.blank_record) },
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                stringResource(
+                    R.string.deleted_at,
+                    formattedDeletedAt,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            if (confirmingPurge) {
+                Text(
+                    stringResource(R.string.purge_record_supporting),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onRestore,
+                    enabled = !mutating,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.action_restore))
+                }
+                Button(
+                    onClick = {
+                        if (confirmingPurge) onPurge() else confirmingPurge = true
+                    },
+                    enabled = !mutating,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        stringResource(
+                            if (confirmingPurge) R.string.action_confirm_delete else R.string.action_delete_forever,
+                        ),
+                    )
+                }
+            }
+            if (confirmingPurge) {
+                TextButton(
+                    onClick = { confirmingPurge = false },
+                    enabled = !mutating,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         }

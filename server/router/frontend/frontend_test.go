@@ -32,3 +32,21 @@ func TestFrontendFilesReturnsBuiltDirectory(t *testing.T) {
 		t.Fatalf("index.html = %q, want %q", index, "index")
 	}
 }
+
+func TestFrontendCacheControl(t *testing.T) {
+	tests := []struct {
+		path         string
+		servingIndex bool
+		want         string
+	}{
+		{path: "/", servingIndex: true, want: "no-cache"},
+		{path: "/settings", servingIndex: true, want: "no-cache"},
+		{path: "/assets/app-01234567.js", want: "public, max-age=31536000, immutable"},
+		{path: "/favicon.svg", want: "public, max-age=3600"},
+	}
+	for _, tt := range tests {
+		if got := frontendCacheControl(tt.path, tt.servingIndex); got != tt.want {
+			t.Fatalf("frontendCacheControl(%q, %t) = %q, want %q", tt.path, tt.servingIndex, got, tt.want)
+		}
+	}
+}

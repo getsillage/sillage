@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -197,17 +198,37 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	if change.MutationID == "" {
 		return syncRejected(change, "missing_mutation_id", "mutationId 不能为空")
 	}
-	if previous, ok, err := s.Store.GetSyncMutation(ctx, accountID, change.MutationID); err == nil && ok {
-		result, err := s.storedSyncResult(ctx, accountID, previous)
-		if err == nil {
-			return result
+	var result syncResult
+	err := s.Store.WithTransaction(ctx, func(txStore *store.Store) error {
+		if previous, ok, err := txStore.GetSyncMutation(ctx, accountID, change.MutationID); err == nil && ok {
+			stored, err := storedSyncResult(ctx, txStore, accountID, previous)
+			if err != nil {
+				return fmt.Errorf("read idempotency result: %w", err)
+			}
+			result = stored
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("read idempotency state: %w", err)
 		}
-		return syncRejected(change, "internal", "读取幂等状态失败")
-	} else if err != nil {
-		return syncRejected(change, "internal", "读取幂等状态失败")
+
+		result = s.applyNewSyncChange(ctx, txStore, accountID, change)
+		return persistSyncResult(ctx, txStore, accountID, change, result)
+	})
+	if err != nil {
+		slog.Warn("sync transaction failed", "action", change.Action, "resource", change.ResourceID, "error", err)
+		return syncRejected(change, "internal", "保存同步状态失败，请重试")
 	}
+	if result.Status == "applied" && !result.Idempotent && change.Action == "create" && result.ResourceID != "" {
+		// Auto-summary work starts only after both the memo and its idempotency
+		// result have committed successfully.
+		s.maybeScheduleAutoSummary(accountID, result.ResourceID)
+	}
+	return result
+}
+
+func (s *Server) applyNewSyncChange(ctx context.Context, txStore *store.Store, accountID string, change syncChange) syncResult {
 	if change.ResourceType != "memo" {
-		return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "unsupported_resource", "暂不支持该资源类型"))
+		return syncRejected(change, "unsupported_resource", "暂不支持该资源类型")
 	}
 
 	payload := syncMemoPayload{}
@@ -221,9 +242,10 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	var memo *store.Memo
 	var err error
 	favorited := payload.favoritedValue()
+	memos := memoapp.NewService(txStore, nil)
 	switch change.Action {
 	case "create":
-		memo, err = s.memos.Create(ctx, accountID, memoapp.CreateInput{
+		memo, err = memos.Create(ctx, accountID, memoapp.CreateInput{
 			ID:        payload.ID,
 			Content:   payload.Content,
 			EntryDate: payload.EntryDate,
@@ -232,12 +254,12 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 		})
 	case "update":
 		if change.BaseVersion <= 0 {
-			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "missing_base_version", "baseVersion 必须大于 0"))
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
 		}
 		if validateErr := memoapp.ValidateFields(payload.Content, payload.EntryDate); validateErr != nil {
-			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "invalid_field", validateErr.Error()))
+			return syncRejected(change, "invalid_field", validateErr.Error())
 		}
-		memo, err = s.memos.Update(ctx, accountID, memoapp.UpdateInput{
+		memo, err = memos.Update(ctx, accountID, memoapp.UpdateInput{
 			ID:              payload.ID,
 			ExpectedVersion: change.BaseVersion,
 			Content:         &payload.Content,
@@ -247,11 +269,56 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 		})
 	case "delete":
 		if change.BaseVersion <= 0 {
-			return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "missing_base_version", "baseVersion 必须大于 0"))
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
 		}
-		memo, err = s.memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				err = sql.ErrNoRows
+			case memo.DeletedAt.Valid:
+				// The desired deleted state already exists. This can happen when
+				// offline restore/delete edits collapse before the next push.
+			default:
+				memo, err = memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+			}
+		}
+	case "restore":
+		if change.BaseVersion <= 0 {
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+		}
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				err = sql.ErrNoRows
+			case !memo.DeletedAt.Valid:
+				// Already restored; return the known server state without adding a
+				// synthetic version solely because offline transitions collapsed.
+			default:
+				memo, err = memos.Restore(ctx, accountID, payload.ID, change.BaseVersion)
+			}
+		}
+	case "purge":
+		if change.BaseVersion <= 0 {
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+		}
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				// The permanent-deletion destination is already reached.
+			case memo.DeletedAt.Valid:
+				memo, err = memos.Purge(ctx, accountID, payload.ID, change.BaseVersion)
+			default:
+				memo, err = memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+				if err == nil {
+					memo, err = memos.Purge(ctx, accountID, payload.ID, memo.Version)
+				}
+			}
+		}
 	default:
-		return s.finishSyncChange(ctx, accountID, change, syncRejected(change, "unsupported_action", "暂不支持该同步动作"))
+		return syncRejected(change, "unsupported_action", "暂不支持该同步动作")
 	}
 
 	var conflict *store.MemoConflictError
@@ -267,21 +334,27 @@ func (s *Server) applySyncChange(ctx context.Context, accountID string, change s
 	default:
 		result = syncApplied(change, memo)
 	}
-	return s.finishSyncChange(ctx, accountID, change, result)
-}
-
-// finishSyncChange persists the per-mutation result for idempotency and returns
-// it. If persistence fails we must NOT report the change as applied: the client
-// would receive success yet a retry of the same mutationId would re-execute it.
-// We surface an internal rejection so the client retries the whole change.
-func (s *Server) finishSyncChange(ctx context.Context, accountID string, change syncChange, result syncResult) syncResult {
-	if err := s.persistSyncResult(ctx, accountID, change, result); err != nil {
-		return syncRejected(change, "internal", "保存同步状态失败，请重试")
-	}
 	return result
 }
 
-func (s *Server) storedSyncResult(ctx context.Context, accountID string, mutation *store.SyncMutation) (syncResult, error) {
+func syncMemoAtBaseVersion(
+	ctx context.Context,
+	txStore *store.Store,
+	accountID string,
+	id string,
+	baseVersion int64,
+) (*store.Memo, error) {
+	memo, err := txStore.GetMemo(ctx, accountID, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if memo.Version != baseVersion {
+		return nil, &store.MemoConflictError{ServerMemo: memo}
+	}
+	return memo, nil
+}
+
+func storedSyncResult(ctx context.Context, txStore *store.Store, accountID string, mutation *store.SyncMutation) (syncResult, error) {
 	var result syncResult
 	if err := json.Unmarshal([]byte(mutation.Result), &result); err != nil {
 		return syncResult{}, err
@@ -290,12 +363,12 @@ func (s *Server) storedSyncResult(ctx context.Context, accountID string, mutatio
 	if result.ResourceType == "memo" && result.ResourceID != "" {
 		switch result.Status {
 		case "applied":
-			memo, err := s.Store.GetMemo(ctx, accountID, result.ResourceID, true)
+			memo, err := txStore.GetMemo(ctx, accountID, result.ResourceID, true)
 			if err == nil {
 				result.Resource = memo
 			}
 		case "conflict":
-			memo, err := s.Store.GetMemo(ctx, accountID, result.ResourceID, true)
+			memo, err := txStore.GetMemo(ctx, accountID, result.ResourceID, true)
 			if err == nil {
 				result.ServerResource = memo
 			}
@@ -304,12 +377,12 @@ func (s *Server) storedSyncResult(ctx context.Context, accountID string, mutatio
 	return result, nil
 }
 
-func (s *Server) persistSyncResult(ctx context.Context, accountID string, change syncChange, result syncResult) error {
+func persistSyncResult(ctx context.Context, txStore *store.Store, accountID string, change syncChange, result syncResult) error {
 	payload, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("marshal sync result: %w", err)
 	}
-	if err := s.Store.PutSyncMutation(ctx, &store.SyncMutation{
+	if err := txStore.PutSyncMutation(ctx, &store.SyncMutation{
 		AccountID:    accountID,
 		MutationID:   change.MutationID,
 		ResourceType: change.ResourceType,

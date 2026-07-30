@@ -28,11 +28,13 @@ func Register(e *echo.Echo) {
 		}
 		if path == "/" || !hasFileExtension(path) {
 			if _, err := subFS.Open("index.html"); err == nil {
+				c.Response().Header().Set("Cache-Control", frontendCacheControl(path, true))
 				c.Request().URL.Path = "/"
 				fileServer.ServeHTTP(c.Response(), c.Request())
 				return nil
 			}
 		}
+		c.Response().Header().Set("Cache-Control", frontendCacheControl(path, false))
 		fileServer.ServeHTTP(c.Response(), c.Request())
 		return nil
 	})
@@ -54,8 +56,21 @@ func registerFallback(e *echo.Echo) {
 		if shouldSkip(c.Request().URL.Path) {
 			return echo.ErrNotFound
 		}
+		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.HTML(http.StatusOK, `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sillage</title></head><body><main style="font-family:system-ui,sans-serif;max-width:680px;margin:64px auto;padding:0 20px"><h1>Sillage</h1><p>前端构建产物尚未生成。请运行 <code>pnpm --dir web build</code>。</p></main></body></html>`)
 	})
+}
+
+func frontendCacheControl(path string, servingIndex bool) string {
+	if servingIndex {
+		// Revalidate the entry document on every navigation so a deployment does
+		// not leave the browser pointing at an obsolete hashed asset graph.
+		return "no-cache"
+	}
+	if strings.HasPrefix(path, "/assets/") {
+		return "public, max-age=31536000, immutable"
+	}
+	return "public, max-age=3600"
 }
 
 func shouldSkip(path string) bool {

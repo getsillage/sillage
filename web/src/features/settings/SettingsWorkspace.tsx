@@ -297,6 +297,13 @@ export function SettingsWorkspace({ token }: { token: string }) {
       reportError(t("settings.passwordSame"));
       return;
     }
+    if (
+      Array.from(next).length < 8 ||
+      new TextEncoder().encode(next).length > 256
+    ) {
+      reportError(t("settings.passwordPolicy"));
+      return;
+    }
     setPasswordSaving(true);
     setError("");
     setNotice("");
@@ -824,6 +831,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 type="password"
                 autoComplete="current-password"
                 value={currentPassword}
+                maxLength={256}
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 disabled={passwordSaving}
               />
@@ -835,6 +843,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 type="password"
                 autoComplete="new-password"
                 value={newPassword}
+                minLength={8}
+                maxLength={256}
                 onChange={(event) => setNewPassword(event.target.value)}
                 disabled={passwordSaving}
               />
@@ -848,6 +858,8 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
+                minLength={8}
+                maxLength={256}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 disabled={passwordSaving}
               />

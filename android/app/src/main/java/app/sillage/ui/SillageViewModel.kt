@@ -1,6 +1,5 @@
 package app.sillage.ui
 
-import app.sillage.R
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -10,6 +9,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.sillage.BuildConfig
+import app.sillage.R
 import app.sillage.data.Account
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskConversation
@@ -71,10 +72,11 @@ import kotlinx.coroutines.withContext
 class SillageViewModel(
     context: Context,
     private val savedStateHandle: SavedStateHandle? = null,
+    localDataStore: LocalDataStore? = null,
 ) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
-    private val localDataStore = LocalDataStore(appContext)
+    private val localDataStore = localDataStore ?: LocalDataStore(appContext)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null
@@ -496,7 +498,33 @@ class SillageViewModel(
             return
         }
         launchAuthBusy {
-            val initialized = api.bootstrap(state.value.baseUrl)
+            val bootstrap = api.bootstrap(state.value.baseUrl)
+            val updateRequired = bootstrap.minimumAndroidVersionCode > BuildConfig.VERSION_CODE
+            updateState {
+                it.copy(
+                    initialized = bootstrap.initialized,
+                    serverVersion = bootstrap.serverVersion,
+                    serverRevision = bootstrap.serverRevision,
+                    apiVersion = bootstrap.apiVersion,
+                    minimumAndroidVersionCode = bootstrap.minimumAndroidVersionCode,
+                    androidUpdateRequired = updateRequired,
+                )
+            }
+            if (updateRequired) {
+                updateState {
+                    it.copy(
+                        screen = Screen.Server,
+                        authError = uiString(
+                            R.string.error_android_update_required,
+                            BuildConfig.VERSION_CODE,
+                            bootstrap.minimumAndroidVersionCode,
+                        ),
+                        authErrorResourceId = null,
+                    )
+                }
+                return@launchAuthBusy
+            }
+            val initialized = bootstrap.initialized
             val token = sessionStore.accessToken()
             val account = sessionStore.account()
             if (!initialized) {
@@ -1026,7 +1054,7 @@ class SillageViewModel(
         searchJob = viewModelScope.launch {
             try {
                 val memos = if (request.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.searchMemos(request.query)
+                    localDataStore.searchMemos(request.query, request.filter)
                 } else {
                     searchOnlineMemos(request.query, request.filter)
                 }
@@ -1138,6 +1166,7 @@ class SillageViewModel(
     }
 
     fun syncFromServer() {
+        if (blockForRequiredAndroidUpdate()) return
         if (isOfflineMode()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
@@ -1162,6 +1191,7 @@ class SillageViewModel(
     }
 
     fun syncToServer() {
+        if (blockForRequiredAndroidUpdate()) return
         if (isOfflineMode()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
@@ -1176,6 +1206,7 @@ class SillageViewModel(
     }
 
     fun syncBothWays() {
+        if (blockForRequiredAndroidUpdate()) return
         if (isOfflineMode()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_sync_online_required), notice = null)
@@ -1690,6 +1721,56 @@ class SillageViewModel(
                 state.value.clientContextGeneration == clientContextGeneration
             ) {
                 refreshMemos()
+            }
+        }
+    }
+
+    fun restoreMemo(memo: Memo) {
+        val current = state.value
+        val appMode = current.appMode
+        val clientContextGeneration = current.clientContextGeneration
+        launchMemoMutation(
+            MemoMutationKey.Memo(memo.id, clientContextGeneration),
+            memoId = memo.id,
+        ) {
+            val restored = if (appMode == SessionStore.MODE_OFFLINE) {
+                localDataStore.restoreMemo(memo)
+            } else {
+                api.restoreMemo(memo)
+            }
+            if (applyMemo(restored, appMode, clientContextGeneration)) {
+                updateState { state ->
+                    if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
+                        state.copy(notice = uiString(R.string.notice_restored))
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    fun purgeMemo(memo: Memo) {
+        val current = state.value
+        val appMode = current.appMode
+        val clientContextGeneration = current.clientContextGeneration
+        launchMemoMutation(
+            MemoMutationKey.Memo(memo.id, clientContextGeneration),
+            memoId = memo.id,
+        ) {
+            val purged = if (appMode == SessionStore.MODE_OFFLINE) {
+                localDataStore.purgeMemo(memo)
+            } else {
+                api.purgeMemo(memo)
+            }
+            if (applyMemo(purged, appMode, clientContextGeneration)) {
+                updateState { state ->
+                    if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
+                        state.copy(notice = uiString(R.string.notice_purged))
+                    } else {
+                        state
+                    }
+                }
             }
         }
     }
@@ -3933,6 +4014,7 @@ class SillageViewModel(
             cursor = cursor,
             archived = query.archived,
             favorited = query.favorited,
+            deleted = query.deleted,
         )
     }
 
@@ -3942,6 +4024,7 @@ class SillageViewModel(
                 query = query,
                 archived = apiQuery.archived,
                 favorited = apiQuery.favorited,
+                deleted = apiQuery.deleted,
             )
         }
 
@@ -3986,6 +4069,26 @@ class SillageViewModel(
             return uiString(R.string.error_ai_request, normalized.substringAfter("AI 请求失败："))
         }
         return raw
+    }
+
+    private fun blockForRequiredAndroidUpdate(): Boolean {
+        if (
+            !state.value.androidUpdateRequired ||
+            state.value.appMode == SessionStore.MODE_OFFLINE
+        ) {
+            return false
+        }
+        updateState(forceFeedback = true) {
+            it.copy(
+                error = uiString(
+                    R.string.error_android_update_required,
+                    BuildConfig.VERSION_CODE,
+                    it.minimumAndroidVersionCode,
+                ),
+                notice = null,
+            )
+        }
+        return true
     }
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
@@ -4171,10 +4274,12 @@ internal suspend fun performSignOut(
 internal data class MemoApiQuery(
     val archived: Boolean?,
     val favorited: Boolean,
+    val deleted: Boolean,
 )
 
 internal fun MemoListFilter.apiQuery(): MemoApiQuery = when (this) {
-    MemoListFilter.Unarchived -> MemoApiQuery(archived = false, favorited = false)
-    MemoListFilter.Archived -> MemoApiQuery(archived = true, favorited = false)
-    MemoListFilter.Favorited -> MemoApiQuery(archived = null, favorited = true)
+    MemoListFilter.Unarchived -> MemoApiQuery(archived = false, favorited = false, deleted = false)
+    MemoListFilter.Archived -> MemoApiQuery(archived = true, favorited = false, deleted = false)
+    MemoListFilter.Favorited -> MemoApiQuery(archived = null, favorited = true, deleted = false)
+    MemoListFilter.Deleted -> MemoApiQuery(archived = null, favorited = false, deleted = true)
 }

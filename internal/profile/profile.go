@@ -3,6 +3,7 @@ package profile
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 
 const (
 	DefaultPort       = 5231
+	DefaultAddr       = "127.0.0.1"
 	DefaultDataDir    = "/var/opt/sillage"
 	DriverSQLite      = "sqlite"
 	DefaultSQLiteFile = "sillage.db"
@@ -18,18 +20,23 @@ const (
 
 // Profile contains the process configuration needed to start Sillage.
 type Profile struct {
-	Addr        string
-	Port        int
-	Data        string
-	Driver      string
-	DSN         string
-	MaxUploadMB int
-	LogFormat   string
-	LogLevel    string
+	Addr              string
+	Port              int
+	TrustedProxyCIDRs []string
+	Data              string
+	Driver            string
+	DSN               string
+	MaxUploadMB       int
+	LogFormat         string
+	LogLevel          string
 }
 
 // Validate normalizes defaults and creates the persistent directory layout.
 func (p *Profile) Validate() error {
+	p.Addr = strings.TrimSpace(p.Addr)
+	if p.Addr == "" {
+		p.Addr = DefaultAddr
+	}
 	if p.Port == 0 {
 		p.Port = DefaultPort
 	}
@@ -42,6 +49,19 @@ func (p *Profile) Validate() error {
 	if p.MaxUploadMB <= 0 {
 		p.MaxUploadMB = 30
 	}
+	trustedProxyCIDRs := make([]string, 0, len(p.TrustedProxyCIDRs))
+	for _, raw := range p.TrustedProxyCIDRs {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(raw)
+		if err != nil {
+			return fmt.Errorf("invalid trusted proxy CIDR %q: %w", raw, err)
+		}
+		trustedProxyCIDRs = append(trustedProxyCIDRs, prefix.String())
+	}
+	p.TrustedProxyCIDRs = trustedProxyCIDRs
 
 	dataDir, err := chooseDataDir(p.Data)
 	if err != nil {

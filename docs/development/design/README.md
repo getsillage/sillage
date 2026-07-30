@@ -29,7 +29,14 @@ Page headings and control labels must match the scale of their containers. Narro
 
 ## Interaction Requirements
 
+- Browser access tokens remain in memory only and must never be written to
+  `localStorage`, `sessionStorage`, IndexedDB, URLs, or document content. A
+  reload restores an eligible session only through the server's HttpOnly
+  refresh cookie; sign-out and password changes must revoke that path.
 - New and edited drafts are isolated by record. In-app navigation, closing the page, and signing out must not bypass unsaved-change protection.
+- Controlled editors must preserve the latest user input across asynchronous
+  uploads and intervening renders. An upload completion may append to the
+  current draft, but it must never replace newer text with an older prop value.
 - An edit submission includes the server version associated with the draft. Version conflicts must preserve the draft and ask the user to refresh or retry; they must never overwrite silently.
 - Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
 - Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.

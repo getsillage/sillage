@@ -57,7 +57,10 @@ export function MarkdownEditor({
   const latestValueRef = useRef(value);
   const uploadingRef = useRef(false);
   const feedbackLocaleRef = useRef(locale);
-  latestValueRef.current = value;
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     if (feedbackLocaleRef.current === locale) {
@@ -72,7 +75,9 @@ export function MarkdownEditor({
     const current = latestValueRef.current;
     const start = textarea?.selectionStart ?? current.length;
     const end = textarea?.selectionEnd ?? current.length;
-    onChange(current.slice(0, start) + snippet + current.slice(end));
+    const next = current.slice(0, start) + snippet + current.slice(end);
+    latestValueRef.current = next;
+    onChange(next);
     // Return focus to the text with the caret after the inserted snippet once
     // React has committed the new value (e.g. after the 附件 button flow).
     requestAnimationFrame(() => {
@@ -231,6 +236,7 @@ export function MarkdownEditor({
         disabled={disabled}
         onChange={(event) => {
           if (!disabled) {
+            latestValueRef.current = event.target.value;
             onChange(event.target.value);
           }
         }}

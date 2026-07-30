@@ -1,5 +1,6 @@
 import { localizeServerMessage } from "../i18n/messages";
 import { clearAccessToken, setAccessToken } from "./auth";
+import { webBuildInfo } from "./buildInfo";
 
 export class ApiError extends Error {
   constructor(
@@ -26,6 +27,14 @@ export type AuthResponse = {
   expiresAt: string;
 };
 
+export type BootstrapInfo = {
+  initialized: boolean;
+  serverVersion?: string;
+  serverRevision?: string;
+  apiVersion?: string;
+  minimumAndroidVersionCode?: number;
+};
+
 export type Memo = {
   id: string;
   content: string;
@@ -36,11 +45,13 @@ export type Memo = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  purgedAt?: string | null;
 };
 
 export type MemoListOptions = {
   archived?: boolean;
   favorited?: boolean;
+  deleted?: boolean;
 };
 
 export type Attachment = {
@@ -149,7 +160,7 @@ export type AIProfileInput = {
   apiKey?: string | null;
 };
 
-export async function getBootstrap(): Promise<{ initialized: boolean }> {
+export async function getBootstrap(): Promise<BootstrapInfo> {
   return request("/api/v1/auth/bootstrap");
 }
 
@@ -213,6 +224,9 @@ export async function listMemos(
   if (options.favorited !== undefined) {
     params.set("favorited", String(options.favorited));
   }
+  if (options.deleted !== undefined) {
+    params.set("deleted", String(options.deleted));
+  }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
   });
@@ -230,6 +244,9 @@ export async function searchMemos(
   }
   if (options.favorited !== undefined) {
     params.set("favorited", String(options.favorited));
+  }
+  if (options.deleted !== undefined) {
+    params.set("deleted", String(options.deleted));
   }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
@@ -302,6 +319,28 @@ export async function deleteMemo(
   return request(`/api/v1/memos/${memo.id}?expectedVersion=${memo.version}`, {
     method: "DELETE",
     headers: authHeaders(accessToken),
+  });
+}
+
+export async function restoreMemo(
+  accessToken: string,
+  memo: Memo,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}:restore`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version }),
+  });
+}
+
+export async function purgeMemo(
+  accessToken: string,
+  memo: Memo,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}:purge`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version }),
   });
 }
 
@@ -461,16 +500,15 @@ export async function streamAskMessage(
   const path = `/api/v1/ask/conversations/${conversationId}/messages:stream`;
   const body = JSON.stringify(input);
   const send = (token: string) =>
-    fetch(path, {
-      method: "POST",
-      headers: {
-        ...authHeaders(token),
-        "Content-Type": "application/json",
-      },
-      body,
-      credentials: "include",
-      signal,
-    });
+    fetch(
+      path,
+      buildRequestInit({
+        method: "POST",
+        headers: authHeaders(token),
+        body,
+        signal,
+      }),
+    );
 
   let res = await send(accessToken);
   if (res.status === 401) {
@@ -657,10 +695,10 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const res = await fetch("/api/v1/auth/refresh", {
-          method: "POST",
-          credentials: "include",
-        });
+        const res = await fetch(
+          "/api/v1/auth/refresh",
+          buildRequestInit({ method: "POST" }),
+        );
         if (!res.ok) {
           clearAccessToken();
           return null;
@@ -681,6 +719,9 @@ async function refreshAccessToken(): Promise<string | null> {
 
 function buildRequestInit(init: RequestInit): RequestInit {
   const headers = new Headers(init.headers);
+  headers.set("X-Sillage-Client", "web");
+  headers.set("X-Sillage-Client-Version", webBuildInfo.version);
+  headers.set("X-Sillage-Client-Revision", webBuildInfo.revision);
   if (
     init.body &&
     !(init.body instanceof FormData) &&

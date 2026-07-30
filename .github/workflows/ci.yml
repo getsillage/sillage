@@ -6,7 +6,61 @@ on:
       - main
   pull_request:
 
+env:
+  BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+
 jobs:
+  commits:
+    name: Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Conventional Commits
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000')
+        env:
+          BASE_SHA: ${{ env.BASE_SHA }}
+        run: make check-commits
+
+      - name: Pull request title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/check-commit-msg.mjs --message "$PR_TITLE"
+
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Use the official CLI binary. gitleaks-action@v2 requires a paid
+      # GITLEAKS_LICENSE for GitHub organization repositories.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan for secrets
+        # Scan the checked-out tree (tracked files only). Full git history
+        # scanning is optional for operators and needs curated allowlists.
+        run: gitleaks detect --source . --config .gitleaks.toml --no-git --verbose --redact
+
   go:
     name: Go
     runs-on: ubuntu-latest
@@ -20,17 +74,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Verify dependency metadata
-        run: go mod tidy -diff
-
-      - name: Test
-        run: go test -count=1 ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Build
-        run: go build ./cmd/sillage
+      - name: Check Go
+        run: make check-go
 
   proto:
     name: Proto
@@ -47,35 +92,14 @@ jobs:
           version: 1.71.0
           github_token: ${{ github.token }}
 
-      - name: Lint
-        uses: bufbuild/buf-lint-action@v1
-
-      - name: Check breaking changes against pull request base
-        if: github.event_name == 'pull_request'
-        run: buf breaking --against ".git#ref=${{ github.event.pull_request.base.sha }}"
-
-      - name: Check breaking changes against previous main commit
-        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
-        run: buf breaking --against ".git#ref=${{ github.event.before }}"
-
-      - name: Generate
-        run: buf generate
-
-      - name: Verify generated files
-        run: |
-          changes="$(git status --porcelain=v1 --untracked-files=all -- proto/gen)"
-          if [ -n "$changes" ]; then
-            printf '%s\n' "$changes"
-            git diff -- proto/gen
-            exit 1
-          fi
+      - name: Check Proto
+        env:
+          BASE_SHA: ${{ env.BASE_SHA }}
+        run: make check-proto
 
   web:
     name: Web
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,30 +117,10 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm --dir web install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
-
-      - name: Verify embedded assets
-        working-directory: .
-        run: |
-          test -f server/router/frontend/dist/index.html
-          tracked="$(git ls-files -- server/router/frontend/dist)"
-          if [ -n "$tracked" ]; then
-            printf 'Generated Web assets must not be tracked:\n%s\n' "$tracked"
-            exit 1
-          fi
-          git check-ignore -q server/router/frontend/dist/index.html
+      - name: Check Web
+        run: make check-web
 
   docs:
     name: Docs
@@ -132,21 +136,11 @@ jobs:
         with:
           node-version: 24
 
-      - name: Check Docker context policy
-        run: node scripts/check-docker-context.mjs
-
-      - name: Check Markdown links
-        run: node scripts/check-markdown-links.mjs
-
-      - name: Check whitespace
+      - name: Check docs and hygiene
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          if [ -n "$BASE_SHA" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-            git diff --check "$BASE_SHA" "$GITHUB_SHA"
-          else
-            git diff-tree --check --root --no-commit-id -r "$GITHUB_SHA"
-          fi
+          BASE_SHA: ${{ env.BASE_SHA }}
+          HEAD_SHA: ${{ github.sha }}
+        run: make check-docs
 
   container:
     name: Container
@@ -155,13 +149,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build --build-arg VERSION=ci --build-arg REVISION="$GITHUB_SHA" -t sillage:ci -f scripts/Dockerfile .
-
-      - name: Validate Compose configuration
-        run: |
-          docker compose -f scripts/compose.yaml config
-          docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config
+      - name: Check container
+        run: make check-container
 
   e2e:
     name: E2E
@@ -194,39 +183,12 @@ jobs:
       - name: Install browser
         run: pnpm --dir web exec playwright install --with-deps chromium
 
-      - name: Run fresh-instance E2E
-        run: |
-          pnpm --dir web build
-          e2e_data="$(mktemp -d)"
-          server_binary="$RUNNER_TEMP/sillage-e2e"
-          go build -o "$server_binary" ./cmd/sillage
-          SILLAGE_DATA="$e2e_data" SILLAGE_ADDR=127.0.0.1 "$server_binary" > /tmp/sillage.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
-          ready=0
-          for attempt in $(seq 1 30); do
-            if ! kill -0 "$server_pid" 2>/dev/null; then
-              cat /tmp/sillage.log
-              exit 1
-            fi
-            if curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          if [ "$ready" -ne 1 ]; then
-            cat /tmp/sillage.log
-            exit 1
-          fi
-          E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
+      - name: Fresh-instance E2E
+        run: make check-e2e
 
   android:
     name: Android
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: android
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -241,11 +203,5 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Unit tests
-        run: ./gradlew :app:testDebugUnitTest
-
-      - name: Lint
-        run: ./gradlew :app:lintDebug
-
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug
+      - name: Check Android
+        run: make check-android

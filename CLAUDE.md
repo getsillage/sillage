@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件只记录编码代理的协作约束。开发流程、架构和运维规则使用下方事实源，不在这里重复维护。
+本文件只记录编码代理的协作约束。开发流程、架构和运维规则使用下方事实源，不在这里重复维护。可由测试、lint 或 CI 强制的规则不要写进本文。
 
 ## 协作约定
 
@@ -17,33 +17,32 @@
 3. 只修改完成目标所需的文件，不顺手重构或扩展产品范围。
 4. 按风险补测试并运行对应门禁；失败要定位，不能用降低标准规避。
 5. 功能、配置、命令、契约或架构变化必须在同一提交更新主文档。
+6. 验证优先使用仓库统一入口（与 CI 同源）：
+   - `make print-affected` 查看应跑门禁；
+   - `make check-affected` 运行影响门禁（PR 范围设 `BASE_SHA`）；
+   - 发布级或跨模块改动再跑 `make check`；
+   - 个别门禁：`make check-go` / `check-proto` / `check-web` / `check-android` / `check-docs` / `check-container` / `check-e2e`。
 
-## 项目边界
+## 项目边界（L0 摘要）
 
-Sillage 是自托管的单人私密记录与 AI 反思工具：
-
-- Go + Echo 后端，SQLite 与本地附件存储；
-- React + TypeScript + Vite Web，构建产物嵌入 Go；
-- Kotlin + Jetpack Compose Android 客户端；
-- Protobuf 契约，同时提供 REST v1 与 Connect v1；
-- Docker 是主要部署方式，持久状态收敛在单一数据目录。
-
-必须保持：
+完整条文见 [Constitution](docs/development/constitution.md) 与 [Product Guidance](docs/development/product-guidance.md)。必须保持：
 
 - 一个实例只有一个账号；
-- `memo` 是唯一内容单位，中文 UI 使用“记录”；
+- `memo` 是唯一内容单位，中文 UI 使用「记录」，英文用户文案使用 record；
 - AI 总结和涉及个人记录事实的回答以来源记录为依据；通用问题可正常回答，但不得伪造来源；
 - 不引入多人、公开分享、社交、标签、任务、知识库或复杂网盘能力；
 - 不增加内置备份 UI、服务端备份 API 或备份 CLI；
-- 公网入口、TLS、DNS、隧道、CDN 和边缘网络服务由部署者在项目外独立管理，仓库不内置第三方网络平台连接器、令牌、专属配置或部署流程；
-- 边缘网络平台提供的 AI 服务只可由用户作为通用兼容端点自行配置，不增加平台专属 Provider 预设、适配器或默认值；
+- 公网入口、TLS、DNS、隧道、CDN 和边缘网络服务由部署者在项目外管理；仓库不内置第三方网络平台连接器或专属部署流程；
+- 边缘网络平台 AI 只可作为通用兼容端点配置，不增加平台专属 Provider 预设；
 - Android 同步由用户手动触发；离线附件字节通过在线上传 API 收敛，不进入 sync 载荷。
 
 ## 事实来源
 
 | 主题 | 入口 |
 | --- | --- |
-| 开发环境、生成物、验证、提交 | `CONTRIBUTING.md` |
+| 工程治理、双轨、门禁注册表 | `docs/development/governance.md` |
+| 宪法与红线 | `docs/development/constitution.md` |
+| 开发环境、验证、提交、发布 | `CONTRIBUTING.md` |
 | 模块职责、数据/API 边界 | `docs/development/architecture.md` |
 | 产品范围、术语、AI 行为 | `docs/development/product-guidance.md` |
 | 安全、认证与外部请求 | `docs/development/security.md` |
@@ -52,6 +51,7 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 | 部署与有效配置 | `docs/user/deployment.md` |
 | 数据、备份与恢复 | `docs/user/data.md` |
 | AI 使用与外部数据 | `docs/user/ai.md` |
+| 路径→门禁矩阵 | `scripts/change-matrix.yml` |
 
 文档与实现冲突时，以对应代码事实源为准，并修正文档：
 
@@ -60,28 +60,28 @@ Sillage 是自托管的单人私密记录与 AI 反思工具：
 - API：`proto/api/v1/`、`server/*_routes.go`、`server/api_service.go`
 - Web 样式：`web/src/styles/app.css`、`web/src/components/ui.ts`
 - 安全与密钥：`server/auth/`、`server/auth_routes.go`、`server/attachment_routes.go`、`internal/secret/`
-- CI 与容器：`.github/workflows/ci.yml`、`scripts/`
+- CI 与容器：`.github/workflows/ci.yml`、`Makefile`、`scripts/`
 
 ## 改动契约
 
-- Proto 变化：运行 `buf lint`、`buf generate`，提交生成物，并同步 REST、Web、Android 与测试。
+- Proto 变化：`make check-proto`，提交生成物，并同步 REST、Web、Android 与测试。
 - 数据库变化：同时更新新库 `LATEST.sql`、已存在数据库兼容迁移和迁移测试。
-- Web 变化：运行 Web lint/typecheck/test/build；`server/router/frontend/dist/` 是已忽略的构建产物，不提交到仓库。
+- Web 变化：`make check-web`；`server/router/frontend/dist/` 不提交。
+- 契约敏感路径变更须带文档更新（或提交说明含 `Docs-skip: 原因`），见 `scripts/check-doc-sync.mjs`。
 - 写操作：继续使用版本检查、tombstone 和同步幂等规则，不引入静默覆盖。
 - UI 异步流程：隔离迟到响应，进行中状态锁定冲突操作，失败保留用户输入并允许重试。
 - 认证、附件、密钥或外部数据流变化：先读安全开发边界，补泄漏、越权或迁移测试，并同步用户文档。
 - AI Prompt 或来源选择变化：同步服务端与 Android；语义变化更新 `promptVersion`，并测试来源约束和信息不足分支。
 - 部署或数据变化：先核对安全绑定、代理信任边界和可回滚的数据操作。
-
-完整命令和人工验收范围见 `CONTRIBUTING.md`。
+- 跨模块、难逆转的技术选择：写 `docs/development/decisions/YYYY-MM-DD-<topic>.md`。
 
 ## 指导维护
 
-- 本文件是项目代理规则的唯一来源，`AGENTS.md` 只负责引导读取。
-- 只记录稳定边界和反复出现的问题；版本、命令和实现事实放在对应工程文档或代码中。
+- 本文件是代理会话规则的入口；`AGENTS.md` 只负责引导读取。
+- 只记录稳定边界和反复出现的协作问题；版本、命令和实现事实放在治理文档、CONTRIBUTING 或代码中。
 - 用户纠正若揭示稳定、反复的问题，更新对应事实文档或测试；一次性要求不持久化。
 - 推送、部署、删除外部资源和轮换密钥必须由用户明确要求。
-- 可由测试、lint 或 CI 强制的规则，不在本文重复描述。
+- 外部贡献者流程以 `CONTRIBUTING.md` 与 PR/CI 为准；代理轨与外部轨共用同一质量门禁，见 governance 双轨说明。
 
 <!-- headroom:rtk-instructions -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

@@ -6,11 +6,12 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -58,13 +59,13 @@ class OfflineRecordJourneyTest {
         compose.waitUntilExactlyOneExists(hasText("内容") and hasSetTextAction(), TIMEOUT_MS)
         compose.onNode(hasText("内容") and hasSetTextAction()).performTextReplacement(record)
         compose.onNode(hasContentDescription("保存") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
+        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
 
         scenario?.close()
         scenario = null
         launch()
 
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
+        compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
     }
 
     @Test
@@ -75,9 +76,10 @@ class OfflineRecordJourneyTest {
         compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasText("设置") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("设置") and hasClickAction()).performClick()
+        compose.waitUntilExactlyOneExists(hasScrollAction(), TIMEOUT_MS)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("开源软件许可"))
         compose.waitUntilExactlyOneExists(hasText("开源软件许可") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("开源软件许可") and hasClickAction())
-            .performScrollTo()
             .performClick()
 
         compose.waitUntilAtLeastOneExists(
@@ -98,9 +100,9 @@ class OfflineRecordJourneyTest {
         compose.waitUntilExactlyOneExists(hasText("内容") and hasSetTextAction(), TIMEOUT_MS)
         compose.onNode(hasText("内容") and hasSetTextAction()).performTextReplacement(record)
         compose.onNode(hasContentDescription("保存") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
+        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
 
-        deleteRecordFromDetail(record)
+        deleteOpenRecordFromDetail()
         compose.waitUntilExactlyOneExists(hasText("最近删除") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
@@ -108,8 +110,8 @@ class OfflineRecordJourneyTest {
         compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
 
         compose.onNode(hasText("未归档") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
-        deleteRecordFromDetail(record)
+        openRecordDetail(record)
+        deleteOpenRecordFromDetail()
         compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
         compose.onNode(hasText("永久删除") and hasClickAction()).performClick()
@@ -119,8 +121,13 @@ class OfflineRecordJourneyTest {
         compose.onAllNodes(hasText(record)).assertCountEquals(0)
     }
 
-    private fun deleteRecordFromDetail(record: String) {
+    private fun openRecordDetail(record: String) {
+        compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText(record) and hasClickAction()).performClick()
+        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
+    }
+
+    private fun deleteOpenRecordFromDetail() {
         compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasContentDescription("更多操作") and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasText("删除") and hasClickAction(), TIMEOUT_MS)

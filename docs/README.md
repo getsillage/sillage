@@ -10,6 +10,7 @@ Choose an entry point based on your task:
 | Get setup or usage help | [Support Guide](../SUPPORT.md) |
 | Set up a development environment and validate changes | [Contributing Guide](../CONTRIBUTING.md) |
 | Engineering standards, dual track, and verification registry | [Engineering Governance](development/governance.md) |
+| Validate a stable release candidate and published artifacts | [Release Readiness](development/release-readiness.md) |
 | Product and engineering red lines | [Constitution](development/constitution.md) |
 | Understand module, data, and contract boundaries | [Architecture Guide](development/architecture.md) |
 | Change product semantics | [Product Guidance](development/product-guidance.md) |

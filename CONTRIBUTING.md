@@ -137,6 +137,8 @@ Hooks are defined in `lefthook.yml` (`commit-msg` Conventional Commits; `pre-com
 
 GitHub Releases are the only source of user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Release container images and optional APK assets must be produced by the [Release workflow](.github/workflows/release.yml). Do not attach hand-built server binaries, Docker images, or unsigned APKs to a Release.
 
+The supported environment matrix, scale budgets, release-candidate journeys, published-artifact checks, and required remote repository controls are defined in [Release Readiness](docs/development/release-readiness.md). A stable release requires both the automated workflow and that manual acceptance evidence; neither substitutes for the other.
+
 1. Merge release preparation to `main` after CI is green. Document user-visible changes and any compatibility impact on the database, configuration, synchronization, or data formats. Update the deployment and data documentation when special upgrade steps are required.
 2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
 3. Create a GitHub-verified signed annotated tag on the release commit: `git tag -s -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`. The workflow verifies the tag signature, exact commit, Android version, and all required CI jobs before publishing.

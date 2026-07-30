@@ -3,6 +3,7 @@
 See the root [Contributing Guide](../../CONTRIBUTING.md) for development setup, change workflows, generated artifacts, and validation commands. This directory contains only engineering decisions that require long-term maintenance:
 
 - [Engineering Governance](governance.md): standards registry, dual contribution tracks, Make/CI verification, commits, Dependabot, and severity levels.
+- [Release Readiness](release-readiness.md): supported environments, scale budgets, release-candidate acceptance, artifact verification, and remote controls.
 - [Constitution](constitution.md): product identity and non-negotiable red lines.
 - [Architecture Guide](architecture.md): module responsibilities, request paths, data boundaries, and sources of truth.
 - [Product Guidance](product-guidance.md): product scope, terminology, and AI behavior boundaries.

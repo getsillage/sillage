@@ -117,8 +117,8 @@ export function App() {
       setBuildInfo(state);
       setBootstrap("ready");
       try {
-        // A reopened tab has empty sessionStorage but may still hold a valid
-        // refresh cookie; request() transparently refreshes and retries on 401.
+        // Access tokens are memory-only, but a reload may still hold a valid
+        // HttpOnly refresh cookie; request() transparently refreshes and retries.
         const me = await getMe(getAccessToken() ?? "");
         if (!cancelled) {
           accountResolvedRef.current = true;

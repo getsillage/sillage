@@ -236,7 +236,7 @@ describe("AppShell mobile navigation", () => {
       ).not.toBeInTheDocument(),
     );
     expect(document.body).not.toHaveStyle({ overflow: "hidden" });
-    expect(menuButton).toHaveFocus();
+    await waitFor(() => expect(menuButton).toHaveFocus());
   });
 
   it("closes on Escape and backdrop click", async () => {
@@ -273,7 +273,7 @@ describe("AppShell mobile navigation", () => {
       ).not.toBeInTheDocument(),
     );
     expect(screen.queryByRole("dialog", { name: "速记" })).toBeNull();
-    expect(menuButton).toHaveFocus();
+    await waitFor(() => expect(menuButton).toHaveFocus());
   });
 
   it("closes Ask search with Escape without closing the mobile drawer", async () => {

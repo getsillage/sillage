@@ -109,9 +109,8 @@ test.describe("fresh-instance release journeys", () => {
       page.getByPlaceholder("Write what you want to remember..."),
     ).toBeVisible();
 
-    // The HttpOnly refresh cookie must reopen the app after the in-memory and
-    // sessionStorage access token are gone.
-    await page.evaluate(() => sessionStorage.removeItem("sillage.accessToken"));
+    // Reload clears the memory-only access token. The HttpOnly refresh cookie
+    // must reopen the app without script-readable token persistence.
     await page.reload();
     await expect(
       page.getByPlaceholder("Write what you want to remember..."),
@@ -272,7 +271,8 @@ test.describe("fresh-instance release journeys", () => {
       token,
       `${CONFLICT_MARKER} original server version`,
     );
-    await openWithToken(page, token, `/entries/${created.id}`);
+    await signInThroughUI(page, PASSWORD);
+    await page.goto(`/entries/${created.id}`);
 
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     const localDraft = `${CONFLICT_MARKER} local draft survives`;
@@ -352,7 +352,8 @@ test.describe("fresh-instance release journeys", () => {
       `${AI_MARKER} 最近睡眠更稳定，晚上也更平静。`,
     );
 
-    await openWithToken(page, token, `/entries/${memo.id}`);
+    await signInThroughUI(page, PASSWORD);
+    await page.goto(`/entries/${memo.id}`);
     await page.getByRole("button", { name: "Generate summary" }).click();
     await expect(
       page.getByText(
@@ -407,9 +408,8 @@ test.describe("fresh-instance release journeys", () => {
       await primary.getByRole("button", { name: "Account" }).click();
       await changePasswordThroughUI(primary, PASSWORD, UPDATED_PASSWORD);
 
-      await secondary.evaluate(() =>
-        sessionStorage.removeItem("sillage.accessToken"),
-      );
+      // Reload clears the memory-only access token and forces the revoked
+      // refresh session to prove it can no longer restore authentication.
       await secondary.reload();
       await expect(
         secondary.getByRole("heading", { name: "Sign in to Sillage" }),
@@ -456,14 +456,6 @@ async function setEnglishLocale(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem("sillage-language", "en");
   });
-}
-
-async function openWithToken(page: Page, token: string, path: string) {
-  await page.addInitScript((accessToken) => {
-    localStorage.setItem("sillage-language", "en");
-    sessionStorage.setItem("sillage.accessToken", accessToken);
-  }, token);
-  await page.goto(path);
 }
 
 async function signInThroughUI(page: Page, password: string) {

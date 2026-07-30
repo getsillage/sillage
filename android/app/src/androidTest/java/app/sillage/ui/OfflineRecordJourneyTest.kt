@@ -105,7 +105,7 @@ class OfflineRecordJourneyTest {
         deleteOpenRecordFromDetail()
         compose.waitUntilExactlyOneExists(hasText("最近删除") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
+        scrollToRecord(record)
         compose.onNode(hasText("恢复") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
 
@@ -113,7 +113,7 @@ class OfflineRecordJourneyTest {
         openRecordDetail(record)
         deleteOpenRecordFromDetail()
         compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
+        scrollToRecord(record)
         compose.onNode(hasText("永久删除") and hasClickAction()).performClick()
         compose.onNode(hasText("确认删除") and hasClickAction()).performClick()
 
@@ -125,6 +125,12 @@ class OfflineRecordJourneyTest {
         compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText(record) and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
+    }
+
+    private fun scrollToRecord(record: String) {
+        compose.waitUntilExactlyOneExists(hasScrollAction(), TIMEOUT_MS)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(record))
+        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
     }
 
     private fun deleteOpenRecordFromDetail() {

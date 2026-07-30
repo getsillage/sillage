@@ -64,7 +64,7 @@ Before creating the signed tag, verify the exact release commit and record the r
 4. Confirm sign-in, records, attachments, search, AI settings, sync metadata, and `/readyz` after the upgrade.
 5. Exercise the documented restore-backed rollback rather than attempting a database-only binary downgrade.
 6. Run the Web journey in Chromium, Firefox, and WebKit, then check narrow and desktop layouts, keyboard focus, English, Simplified Chinese, light theme, dark theme, console errors, and CSP failures.
-7. Install the signed APK over the latest stable APK and perform online, offline, attachment, conflict, Recently Deleted, and manual-sync smoke tests on a physical device.
+7. From the protected `main` release commit, run the `Android Release Candidate` workflow with the exact successful-CI revision. Download its short-lived signed artifact, verify its checksum and certificate, install it over the latest stable APK, and perform online, offline, attachment, conflict, Recently Deleted, and manual-sync smoke tests on a physical device. Candidate artifacts are acceptance evidence only and must never be attached to a GitHub Release.
 8. Verify the APK package, version code, checksum, signing certificate, bundled notices, and HTTPS-only release manifest.
 
 Any failed item blocks a stable release. A prerelease may document an explicit limitation, but it must not overwrite or weaken the stable acceptance contract.

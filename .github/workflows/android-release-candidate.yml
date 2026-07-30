@@ -1,0 +1,197 @@
+name: Android Release Candidate
+
+# Build a short-lived signed APK from the protected default branch so the
+# physical-device acceptance contract can be completed before an immutable tag
+# or GitHub Release is created.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_revision:
+        description: "Exact 40-character main commit SHA to sign"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: android-release-candidate-${{ inputs.expected_revision }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Signed Android release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout protected release commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify revision and required CI
+        id: revision
+        env:
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Release candidates must run from the protected main branch (got: $GITHUB_REF)" >&2
+            exit 1
+          fi
+          if ! [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_revision must be a full lowercase commit SHA" >&2
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_REVISION" ]; then
+            echo "Checked out $actual, expected $EXPECTED_REVISION" >&2
+            exit 1
+          fi
+
+          ci_run="$(gh run list --workflow CI --commit "$actual" --limit 20 --json databaseId,conclusion --jq '[.[] | select(.conclusion == "success")][0].databaseId // empty')"
+          if [ -z "$ci_run" ]; then
+            echo "No successful CI run found for release-candidate commit $actual" >&2
+            exit 1
+          fi
+          jobs="$(gh run view "$ci_run" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
+          for required in Commits Secrets Go Proto Scale Upgrade Web Docs Container "Supply Chain" E2E Android \
+            "Android Device (API 26)" "Android Device (API 35)" \
+            "CodeQL (go)" "CodeQL (javascript-typescript)" "CodeQL (java-kotlin)"; do
+            if ! grep -Fqx "$required"$'\t'"success" <<< "$jobs"; then
+              echo "CI run $ci_run is missing successful required job: $required" >&2
+              exit 1
+            fi
+          done
+
+          echo "short=${actual:0:12}" >> "$GITHUB_OUTPUT"
+          echo "ci_run=$ci_run" >> "$GITHUB_OUTPUT"
+
+      - name: Require signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "Missing secret: $name" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Set up JDK
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Recheck Android release inputs
+        run: make check-android
+
+      - name: Decode release keystore
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+          cat > signing.properties <<EOF
+          storeFile=release.keystore
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          EOF
+          sed -i 's/^[[:space:]]*//' signing.properties
+
+      - name: Build signed release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease
+
+      - name: Verify and stage candidate
+        id: apk
+        working-directory: android
+        env:
+          SHORT_REVISION: ${{ steps.revision.outputs.short }}
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/app-release.apk"
+          test -f "$apk"
+          apksigner_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name apksigner | sort | tail -1)"
+          aapt2_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name aapt2 | sort | tail -1)"
+          test -n "$apksigner_bin"
+          test -n "$aapt2_bin"
+
+          version_name="$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)"
+          version_code="$(sed -nE 's/.*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts)"
+          test -n "$version_name"
+          test -n "$version_code"
+
+          output_dir="$RUNNER_TEMP/android-release-candidate"
+          filename="Sillage-v${version_name}-${SHORT_REVISION}.apk"
+          mkdir -p "$output_dir"
+          cp "$apk" "$output_dir/$filename"
+
+          "$apksigner_bin" verify --verbose --print-certs "$output_dir/$filename" \
+            | tee "$output_dir/$filename.certs.txt"
+          badging="$("$aapt2_bin" dump badging "$output_dir/$filename")"
+          printf '%s\n' "$badging" > "$output_dir/$filename.metadata.txt"
+          grep -Fq "package: name='app.sillage' versionCode='${version_code}' versionName='${version_name}'" <<< "$badging"
+          grep -Fq "minSdkVersion:'26'" <<< "$badging"
+          grep -Fq "targetSdkVersion:'35'" <<< "$badging"
+          (
+            cd "$output_dir"
+            sha256sum "$filename" > "$filename.sha256"
+          )
+
+          echo "directory=$output_dir" >> "$GITHUB_OUTPUT"
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Sillage-Android-RC-${{ steps.revision.outputs.short }}
+          path: |
+            ${{ steps.apk.outputs.directory }}/${{ steps.apk.outputs.filename }}
+            ${{ steps.apk.outputs.directory }}/${{ steps.apk.outputs.filename }}.sha256
+            ${{ steps.apk.outputs.directory }}/${{ steps.apk.outputs.filename }}.certs.txt
+            ${{ steps.apk.outputs.directory }}/${{ steps.apk.outputs.filename }}.metadata.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Summary
+        env:
+          REVISION: ${{ inputs.expected_revision }}
+          CI_RUN: ${{ steps.revision.outputs.ci_run }}
+          ARTIFACT: Sillage-Android-RC-${{ steps.revision.outputs.short }}
+        run: |
+          {
+            echo "## Signed Android release candidate"
+            echo ""
+            echo "- Revision: \`$REVISION\`"
+            echo "- Required CI run: \`$CI_RUN\`"
+            echo "- Artifact: \`$ARTIFACT\`"
+            echo "- Retention: 7 days"
+          } >> "$GITHUB_STEP_SUMMARY"

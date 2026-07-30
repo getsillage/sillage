@@ -107,6 +107,60 @@ class SillageApiTest {
         assertEquals(4L, JSONObject(purgeRequest.body.readUtf8()).getLong("expectedVersion"))
     }
 
+    @Test
+    fun pushMemosPreservesConflictDetailsForUiResolution() = runBlocking {
+        oldServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    JSONObject()
+                        .put(
+                            "results",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("status", "conflict")
+                                    .put("mutationId", "mutation-conflict")
+                                    .put("resourceId", "memo-1")
+                                    .put("clientVersion", 4)
+                                    .put("serverVersion", 5)
+                                    .put(
+                                        "serverResource",
+                                        JSONObject(memoJson(deleted = false, purged = false))
+                                            .put("version", 5)
+                                            .put("content", "服务端并发版本"),
+                                    ),
+                            ),
+                        )
+                        .toString(),
+                ),
+        )
+        val sessionStore = SessionStore(context).apply {
+            saveBaseUrl(oldServer.url("/").toString())
+        }
+        setLegacyAccessToken("token")
+
+        val summary = SillageApi(sessionStore).pushMemos(
+            listOf(
+                PendingMemoSync(
+                    memo = testMemo(),
+                    baseVersion = 3,
+                    mutationId = "mutation-conflict",
+                    action = "update",
+                ),
+            ),
+        )
+
+        assertEquals(0, summary.applied)
+        assertEquals(1, summary.conflict)
+        assertEquals(0, summary.rejected)
+        val conflict = summary.conflictMemoSyncs.single()
+        assertEquals("mutation-conflict", conflict.mutationId)
+        assertEquals("memo-1", conflict.resourceId)
+        assertEquals(4L, conflict.clientVersion)
+        assertEquals(5L, conflict.serverVersion)
+        assertEquals("服务端并发版本", conflict.serverMemo?.content)
+    }
+
     @After
     fun tearDown() {
         oldServer.shutdown()

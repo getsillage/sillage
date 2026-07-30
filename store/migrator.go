@@ -18,7 +18,7 @@ var migrationFS embed.FS
 const (
 	latestSchemaFileName = "migration/sqlite/LATEST.sql"
 	minimumSchemaVersion = "0.1.0"
-	currentSchemaVersion = "0.1.4"
+	currentSchemaVersion = "0.1.5"
 	schemaVersionKey     = "schema_version"
 )
 
@@ -141,8 +141,46 @@ func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	if err := s.ensureMemoFavoritedCompat(ctx); err != nil {
 		return err
 	}
+	if err := s.ensureMemoPurgeCompat(ctx); err != nil {
+		return err
+	}
 	if err := s.ensureAskMessageCompat(ctx); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *Store) ensureMemoPurgeCompat(ctx context.Context) error {
+	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin memo purge compat migration: %w", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			slog.Warn("failed to rollback memo purge compat migration", "error", rollbackErr)
+		}
+	}()
+	exists, err := tableExists(ctx, tx, "memo")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return tx.Commit()
+	}
+	hasPurgedAt, err := tableColumnExists(ctx, tx, "memo", "purged_at")
+	if err != nil {
+		return err
+	}
+	if !hasPurgedAt {
+		if _, err := tx.ExecContext(ctx, "ALTER TABLE memo ADD COLUMN purged_at INTEGER"); err != nil {
+			return fmt.Errorf("ensure memo purged_at column: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_memo_purged_at ON memo (purged_at)"); err != nil {
+		return fmt.Errorf("ensure memo purged index: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit memo purge compat migration: %w", err)
 	}
 	return nil
 }

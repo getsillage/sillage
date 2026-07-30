@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/getsillage/sillage/store"
 )
@@ -92,6 +94,44 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 	if deleted["deletedAt"] == nil {
 		t.Fatal("deleted memo must include tombstone deletedAt")
 	}
+	if deleted["purgedAt"] != nil || deleted["content"] == "" {
+		t.Fatalf("deleted memo must remain recoverable: %#v", deleted)
+	}
+	version = int64(deleted["version"].(float64))
+
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/memos?deleted=true", nil, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), memoID) {
+		t.Fatalf("recently deleted list status/body = %d %s", res.Code, res.Body.String())
+	}
+
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":restore", map[string]any{
+		"expectedVersion": version,
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("restore memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	restored := decodeMemoResponse(t, res.Body.Bytes())
+	if restored["deletedAt"] != nil {
+		t.Fatalf("restored memo still deleted: %#v", restored)
+	}
+	version = int64(restored["version"].(float64))
+
+	res = doJSON(t, srv, http.MethodDelete, "/api/v1/memos/"+memoID+"?expectedVersion="+strconv.FormatInt(version, 10), nil, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("delete restored memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	deleted = decodeMemoResponse(t, res.Body.Bytes())
+	version = int64(deleted["version"].(float64))
+	res = doJSON(t, srv, http.MethodPost, "/api/v1/memos/"+memoID+":purge", map[string]any{
+		"expectedVersion": version,
+	}, bearer(token))
+	if res.Code != http.StatusOK {
+		t.Fatalf("purge memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	purged := decodeMemoResponse(t, res.Body.Bytes())
+	if purged["purgedAt"] == nil || purged["content"] != "" {
+		t.Fatalf("purged memo was not scrubbed: %#v", purged)
+	}
 
 	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
 	if res.Code != http.StatusOK {
@@ -108,6 +148,9 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 	syncedMemo := memos[0].(map[string]any)
 	if syncedMemo["deletedAt"] == nil {
 		t.Fatal("sync must include tombstone")
+	}
+	if syncedMemo["purgedAt"] == nil || syncedMemo["content"] != "" {
+		t.Fatalf("sync must include scrubbed purge tombstone: %#v", syncedMemo)
 	}
 	if syncRes["cursor"].(string) == "" || syncRes["hasMore"].(bool) {
 		t.Fatalf("unexpected sync cursor/hasMore: %#v", syncRes)
@@ -404,7 +447,7 @@ func TestMemoListIsChronologicalAndAcceptsLegacyCursors(t *testing.T) {
 			if err := json.Unmarshal(decoded, &marker); err != nil {
 				t.Fatalf("decode cursor JSON: %v", err)
 			}
-			if marker.Version != 2 || marker.Pinned != nil {
+			if marker.Version != 3 || marker.Pinned != nil {
 				t.Fatalf("new cursor marker = %#v", marker)
 			}
 		}
@@ -505,6 +548,93 @@ func TestMemoListIsChronologicalAndAcceptsLegacyCursors(t *testing.T) {
 	}
 }
 
+func TestRecentlyDeletedUsesDeletionOrderAndLifecycleCursor(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	type seededMemo struct {
+		id        string
+		deletedAt int64
+		favorite  bool
+	}
+	seeded := []seededMemo{
+		{deletedAt: time.Date(2026, 7, 30, 1, 0, 0, 0, time.UTC).UnixMilli()},
+		{deletedAt: time.Date(2026, 7, 30, 3, 0, 0, 0, time.UTC).UnixMilli(), favorite: true},
+		{deletedAt: time.Date(2026, 7, 30, 2, 0, 0, 0, time.UTC).UnixMilli()},
+	}
+	entryDates := []string{"2030-01-01", "2020-01-01", "2025-01-01"}
+	for index := range seeded {
+		res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
+			"content":   fmt.Sprintf("deleted order %d", index),
+			"entryDate": entryDates[index],
+		}, bearer(token))
+		if res.Code != http.StatusOK {
+			t.Fatalf("create memo %d status = %d body=%s", index, res.Code, res.Body.String())
+		}
+		seeded[index].id = decodeMemoResponse(t, res.Body.Bytes())["id"].(string)
+		var favoriteAt any
+		if seeded[index].favorite {
+			favoriteAt = seeded[index].deletedAt - 1
+		}
+		if _, err := srv.Store.GetDriver().GetDB().ExecContext(
+			context.Background(),
+			"UPDATE memo SET favorited_at = ?, deleted_at = ?, updated_at = ?, version = version + 1 WHERE id = ?",
+			favoriteAt,
+			seeded[index].deletedAt,
+			seeded[index].deletedAt,
+			seeded[index].id,
+		); err != nil {
+			t.Fatalf("seed deleted memo %d: %v", index, err)
+		}
+	}
+
+	readPage := func(path string) struct {
+		Memos []struct {
+			ID string `json:"id"`
+		} `json:"memos"`
+		NextCursor string `json:"nextCursor"`
+	} {
+		t.Helper()
+		res := doJSON(t, srv, http.MethodGet, path, nil, bearer(token))
+		if res.Code != http.StatusOK {
+			t.Fatalf("list recently deleted status = %d body=%s", res.Code, res.Body.String())
+		}
+		var page struct {
+			Memos []struct {
+				ID string `json:"id"`
+			} `json:"memos"`
+			NextCursor string `json:"nextCursor"`
+		}
+		if err := json.Unmarshal(res.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+
+	first := readPage("/api/v1/memos?limit=2&deleted=true&favorited=false")
+	if len(first.Memos) != 2 || first.Memos[0].ID != seeded[1].id || first.Memos[1].ID != seeded[2].id {
+		t.Fatalf("first recently deleted page = %+v", first.Memos)
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(first.NextCursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marker struct {
+		Version   int   `json:"version"`
+		Deleted   bool  `json:"deleted"`
+		DeletedAt int64 `json:"deletedAt"`
+	}
+	if err := json.Unmarshal(decoded, &marker); err != nil {
+		t.Fatal(err)
+	}
+	if marker.Version != 3 || !marker.Deleted || marker.DeletedAt != seeded[2].deletedAt {
+		t.Fatalf("recently deleted cursor = %+v", marker)
+	}
+	second := readPage("/api/v1/memos?limit=2&deleted=true&favorited=false&cursor=" + url.QueryEscape(first.NextCursor))
+	if len(second.Memos) != 1 || second.Memos[0].ID != seeded[0].id || second.NextCursor != "" {
+		t.Fatalf("second recently deleted page = %+v cursor=%q", second.Memos, second.NextCursor)
+	}
+}
+
 func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
@@ -587,6 +717,98 @@ func TestSyncPushIdempotencyAndConflict(t *testing.T) {
 	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushMissingBaseVersion, bearer(token))
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"reason":"missing_base_version"`) {
 		t.Fatalf("sync missing base version status/body = %d %s", res.Code, res.Body.String())
+	}
+}
+
+func TestSyncPushLifecycleActionsConvergeToDesiredState(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+
+	createMemo := func(content string) map[string]any {
+		res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
+			"content":   content,
+			"entryDate": "2026-07-30",
+		}, bearer(token))
+		if res.Code != http.StatusOK {
+			t.Fatalf("create memo status = %d body=%s", res.Code, res.Body.String())
+		}
+		return decodeMemoResponse(t, res.Body.Bytes())
+	}
+	type lifecycleResource struct {
+		ID        string  `json:"id"`
+		Content   string  `json:"content"`
+		Version   int64   `json:"version"`
+		DeletedAt *string `json:"deletedAt"`
+		PurgedAt  *string `json:"purgedAt"`
+	}
+	pushLifecycle := func(mutationID, action, id string, baseVersion int64) lifecycleResource {
+		t.Helper()
+		res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", map[string]any{
+			"changes": []map[string]any{{
+				"mutationId":   mutationID,
+				"resourceType": "memo",
+				"resourceId":   id,
+				"action":       action,
+				"baseVersion":  baseVersion,
+				"memo": map[string]any{
+					"id": id,
+				},
+			}},
+		}, bearer(token))
+		if res.Code != http.StatusOK {
+			t.Fatalf("sync %s status = %d body=%s", action, res.Code, res.Body.String())
+		}
+		var body struct {
+			Results []struct {
+				Status   string            `json:"status"`
+				Reason   string            `json:"reason"`
+				Resource lifecycleResource `json:"resource"`
+			} `json:"results"`
+		}
+		if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if len(body.Results) != 1 || body.Results[0].Status != "applied" {
+			t.Fatalf("sync %s results = %+v", action, body.Results)
+		}
+		return body.Results[0].Resource
+	}
+
+	active := createMemo("连续离线生命周期")
+	id := active["id"].(string)
+	version := int64(active["version"].(float64))
+	restored := pushLifecycle("lifecycle-restore-active", "restore", id, version)
+	if restored.Version != version || restored.DeletedAt != nil || restored.PurgedAt != nil {
+		t.Fatalf("restore active resource = %+v, want unchanged active memo", restored)
+	}
+	purged := pushLifecycle("lifecycle-purge-active", "purge", id, version)
+	if purged.Version != version+2 || purged.DeletedAt == nil || purged.PurgedAt == nil || purged.Content != "" {
+		t.Fatalf("purge active resource = %+v, want scrubbed tombstone at version %d", purged, version+2)
+	}
+
+	deletedMemo := createMemo("删除幂等收敛")
+	deletedID := deletedMemo["id"].(string)
+	deletedVersion := int64(deletedMemo["version"].(float64))
+	res := doJSON(
+		t,
+		srv,
+		http.MethodDelete,
+		fmt.Sprintf("/api/v1/memos/%s?expectedVersion=%d", deletedID, deletedVersion),
+		nil,
+		bearer(token),
+	)
+	if res.Code != http.StatusOK {
+		t.Fatalf("delete memo status = %d body=%s", res.Code, res.Body.String())
+	}
+	deleted := decodeMemoResponse(t, res.Body.Bytes())
+	deletedVersion = int64(deleted["version"].(float64))
+	deletedAgain := pushLifecycle("lifecycle-delete-deleted", "delete", deletedID, deletedVersion)
+	if deletedAgain.Version != deletedVersion || deletedAgain.DeletedAt == nil {
+		t.Fatalf("delete deleted resource = %+v, want unchanged deleted memo", deletedAgain)
+	}
+	restoredDeleted := pushLifecycle("lifecycle-restore-deleted", "restore", deletedID, deletedVersion)
+	if restoredDeleted.Version != deletedVersion+1 || restoredDeleted.DeletedAt != nil {
+		t.Fatalf("restore deleted resource = %+v, want active version %d", restoredDeleted, deletedVersion+1)
 	}
 }
 

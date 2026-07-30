@@ -4,6 +4,8 @@ The native Android client supports Android 8.0 and later. It can connect to a se
 
 Download released APKs from [GitHub Releases](https://github.com/getsillage/sillage/releases). Before installing, verify the version, SHA-256 checksum, and signature information in the Release. The server and Android client should use the same release version or a version combination explicitly documented as compatible in the release notes.
 
+On connection, the app reads the server/API version and minimum supported Android `versionCode` from the public bootstrap response. If the installed build is too old, online connection and synchronization are blocked to prevent incompatible writes. The blocking prompt links only to the project's GitHub Releases page because Sillage does not provide Play Store or in-app automatic updates; Offline mode remains available. Settings → About shows the app version code plus the server, revision, API, and minimum-version metadata used for support diagnostics.
+
 ## Connecting to an Instance
 
 Release APKs require HTTPS. Debug builds permit HTTP so local development can reach an emulator or a trusted LAN host:
@@ -12,7 +14,7 @@ Release APKs require HTTPS. Debug builds permit HTTP so local development can re
 - From a debug build on a physical device to a trusted LAN host: for example, `http://192.168.1.10:5231`
 - For a public instance: use the HTTPS address of its operator-managed external entry point
 
-Both online and offline modes support records, calendar, search, favorites, archives, AI settings, summaries, and Ask. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
+Both online and offline modes support records, calendar, search, favorites, archives, Recently Deleted, AI settings, summaries, and Ask. Deletion is recoverable for 30 days; restoring clears the deletion state, while permanent deletion scrubs the record and related derived data. Online mode additionally supports initialization and sign-in, attachment uploads, and authenticated downloads. Local data can be imported and exported, and synchronization can be run manually as a pull, push, or two-way sync.
 
 The interface supports English and Simplified Chinese. Simplified Chinese is used by default; change the language in Settings under Appearance. The choice is stored on this device and does not translate or modify existing records, summaries, or Ask content.
 
@@ -38,7 +40,7 @@ This runs unit tests, Android Lint, debug and instrumentation APK assembly, the 
 make check-android-device
 ```
 
-CI provisions a clean API 35 x86_64 emulator and runs this device gate for every Android change. The device suite verifies real Android Keystore migration and encrypted database persistence, cold-relaunch offline record persistence, and access to the bundled open-source notices.
+CI provisions a clean API 35 x86_64 emulator and runs this device gate for every Android change. The device suite verifies real Android Keystore migration and encrypted database persistence, cold-relaunch offline record persistence, the Recently Deleted restore/permanent-delete journey, and access to the bundled open-source notices.
 
 The debug APK is located at:
 

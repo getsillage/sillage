@@ -39,6 +39,7 @@ internal fun memoToJson(memo: Memo): JSONObject {
         .putNullable("favoritedAt", memo.favoritedAt)
         .putNullable("archivedAt", memo.archivedAt)
         .putNullable("deletedAt", memo.deletedAt)
+        .putNullable("purgedAt", memo.purgedAt)
 }
 
 internal fun jsonToMemo(body: JSONObject): Memo {
@@ -52,6 +53,7 @@ internal fun jsonToMemo(body: JSONObject): Memo {
         favoritedAt = body.nullableString("favoritedAt") ?: body.nullableString("pinnedAt"),
         archivedAt = body.nullableString("archivedAt"),
         deletedAt = body.nullableString("deletedAt"),
+        purgedAt = body.nullableString("purgedAt"),
     )
 }
 

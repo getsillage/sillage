@@ -83,8 +83,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import app.sillage.data.AIProfileDraft
+import app.sillage.BuildConfig
 import app.sillage.R
+import app.sillage.data.AIProfileDraft
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
@@ -357,11 +358,41 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     item {
                         SettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
+                            val unavailable = stringResource(R.string.settings_value_unavailable)
+                            SettingsInfoRow(
+                                label = stringResource(R.string.settings_app_version),
+                                value = stringResource(
+                                    R.string.settings_app_version_value,
+                                    BuildConfig.VERSION_NAME,
+                                    BuildConfig.VERSION_CODE,
+                                ),
+                            )
+                            SettingsInfoRow(
+                                label = stringResource(R.string.settings_server_version),
+                                value = state.serverVersion.ifBlank { unavailable },
+                                showDivider = true,
+                            )
+                            SettingsInfoRow(
+                                label = stringResource(R.string.settings_server_revision),
+                                value = state.serverRevision.ifBlank { unavailable },
+                                showDivider = true,
+                            )
+                            SettingsInfoRow(
+                                label = stringResource(R.string.settings_api_version),
+                                value = state.apiVersion.ifBlank { unavailable },
+                                showDivider = true,
+                            )
+                            SettingsInfoRow(
+                                label = stringResource(R.string.settings_minimum_android_version_code),
+                                value = state.minimumAndroidVersionCode.takeIf { it > 0 }?.toString() ?: unavailable,
+                                showDivider = true,
+                            )
                             SettingsActionRow(
                                 icon = Icons.Rounded.Info,
                                 title = stringResource(R.string.settings_open_source_licenses),
                                 supporting = stringResource(R.string.settings_open_source_licenses_supporting),
                                 onClick = { showOpenSourceLicenses = true },
+                                showDivider = true,
                             )
                         }
                     }
@@ -636,6 +667,45 @@ private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(content = content)
+        }
+    }
+}
+
+@Composable
+private fun SettingsInfoRow(
+    label: String,
+    value: String,
+    showDivider: Boolean = false,
+) {
+    Column {
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 14.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            SelectionContainer {
+                Text(
+                    value,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
     }
 }

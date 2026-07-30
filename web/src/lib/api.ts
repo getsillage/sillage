@@ -45,11 +45,13 @@ export type Memo = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  purgedAt?: string | null;
 };
 
 export type MemoListOptions = {
   archived?: boolean;
   favorited?: boolean;
+  deleted?: boolean;
 };
 
 export type Attachment = {
@@ -222,6 +224,9 @@ export async function listMemos(
   if (options.favorited !== undefined) {
     params.set("favorited", String(options.favorited));
   }
+  if (options.deleted !== undefined) {
+    params.set("deleted", String(options.deleted));
+  }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
   });
@@ -239,6 +244,9 @@ export async function searchMemos(
   }
   if (options.favorited !== undefined) {
     params.set("favorited", String(options.favorited));
+  }
+  if (options.deleted !== undefined) {
+    params.set("deleted", String(options.deleted));
   }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
@@ -311,6 +319,28 @@ export async function deleteMemo(
   return request(`/api/v1/memos/${memo.id}?expectedVersion=${memo.version}`, {
     method: "DELETE",
     headers: authHeaders(accessToken),
+  });
+}
+
+export async function restoreMemo(
+  accessToken: string,
+  memo: Memo,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}:restore`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version }),
+  });
+}
+
+export async function purgeMemo(
+  accessToken: string,
+  memo: Memo,
+): Promise<{ memo: Memo }> {
+  return request(`/api/v1/memos/${memo.id}:purge`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ expectedVersion: memo.version }),
   });
 }
 

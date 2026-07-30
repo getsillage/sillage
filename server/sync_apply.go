@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -270,7 +271,52 @@ func (s *Server) applyNewSyncChange(ctx context.Context, txStore *store.Store, a
 		if change.BaseVersion <= 0 {
 			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
 		}
-		memo, err = memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				err = sql.ErrNoRows
+			case memo.DeletedAt.Valid:
+				// The desired deleted state already exists. This can happen when
+				// offline restore/delete edits collapse before the next push.
+			default:
+				memo, err = memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+			}
+		}
+	case "restore":
+		if change.BaseVersion <= 0 {
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+		}
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				err = sql.ErrNoRows
+			case !memo.DeletedAt.Valid:
+				// Already restored; return the known server state without adding a
+				// synthetic version solely because offline transitions collapsed.
+			default:
+				memo, err = memos.Restore(ctx, accountID, payload.ID, change.BaseVersion)
+			}
+		}
+	case "purge":
+		if change.BaseVersion <= 0 {
+			return syncRejected(change, "missing_base_version", "baseVersion 必须大于 0")
+		}
+		memo, err = syncMemoAtBaseVersion(ctx, txStore, accountID, payload.ID, change.BaseVersion)
+		if err == nil {
+			switch {
+			case memo.PurgedAt.Valid:
+				// The permanent-deletion destination is already reached.
+			case memo.DeletedAt.Valid:
+				memo, err = memos.Purge(ctx, accountID, payload.ID, change.BaseVersion)
+			default:
+				memo, err = memos.Delete(ctx, accountID, payload.ID, change.BaseVersion)
+				if err == nil {
+					memo, err = memos.Purge(ctx, accountID, payload.ID, memo.Version)
+				}
+			}
+		}
 	default:
 		return syncRejected(change, "unsupported_action", "暂不支持该同步动作")
 	}
@@ -289,6 +335,23 @@ func (s *Server) applyNewSyncChange(ctx context.Context, txStore *store.Store, a
 		result = syncApplied(change, memo)
 	}
 	return result
+}
+
+func syncMemoAtBaseVersion(
+	ctx context.Context,
+	txStore *store.Store,
+	accountID string,
+	id string,
+	baseVersion int64,
+) (*store.Memo, error) {
+	memo, err := txStore.GetMemo(ctx, accountID, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if memo.Version != baseVersion {
+		return nil, &store.MemoConflictError{ServerMemo: memo}
+	}
+	return memo, nil
 }
 
 func storedSyncResult(ctx context.Context, txStore *store.Store, accountID string, mutation *store.SyncMutation) (syncResult, error) {

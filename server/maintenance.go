@@ -44,6 +44,12 @@ func (s *Server) stopMaintenance() {
 }
 
 func (s *Server) runMaintenance(ctx context.Context, now time.Time) {
+	purged, err := s.Store.PurgeExpiredMemos(ctx, now)
+	if err != nil {
+		slog.Warn("purge expired deleted memos", "error", err)
+	} else if purged > 0 {
+		slog.Info("purged expired deleted memos", "purged", purged)
+	}
 	stats, err := s.Store.CleanupEphemeralData(ctx, now)
 	if err != nil {
 		slog.Warn("cleanup ephemeral data", "error", err)

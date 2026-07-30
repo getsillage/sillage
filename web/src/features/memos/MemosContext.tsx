@@ -13,6 +13,8 @@ import {
   createMemo as apiCreate,
   deleteMemo as apiDelete,
   getMemo as apiGetMemo,
+  purgeMemo as apiPurge,
+  restoreMemo as apiRestore,
   searchMemos as apiSearch,
   setMemoArchived as apiSetArchived,
   setMemoFavorited as apiSetFavorited,
@@ -58,6 +60,8 @@ interface MemosContextValue {
   setFavorited: (memo: Memo, favorited: boolean) => Promise<Memo>;
   setArchived: (memo: Memo, archived: boolean) => Promise<Memo>;
   remove: (memo: Memo) => Promise<void>;
+  restore: (memo: Memo) => Promise<Memo>;
+  purge: (memo: Memo) => Promise<void>;
   summarize: (memo: Memo) => Promise<MemoAI>;
   listPage: (
     options: MemoListOptions,
@@ -314,6 +318,30 @@ export function MemosProvider({
     [token],
   );
 
+  const restore = useCallback(
+    async (memo: Memo) => {
+      const res = await apiRestore(token, memo);
+      return apply(res.memo);
+    },
+    [token, apply],
+  );
+
+  const purge = useCallback(
+    async (memo: Memo) => {
+      await apiPurge(token, memo);
+      cacheGenerationRef.current += 1;
+      setMemos((current) => current.filter((item) => item.id !== memo.id));
+      setSummaries((current) => {
+        if (!(memo.id in current)) {
+          return current;
+        }
+        const { [memo.id]: _removed, ...rest } = current;
+        return rest;
+      });
+    },
+    [token],
+  );
+
   const summarize = useCallback(
     async (memo: Memo) => {
       const res = await apiSummary(token, memo);
@@ -371,6 +399,8 @@ export function MemosProvider({
       setFavorited,
       setArchived,
       remove,
+      restore,
+      purge,
       summarize,
       listPage,
       search,
@@ -393,6 +423,8 @@ export function MemosProvider({
       setFavorited,
       setArchived,
       remove,
+      restore,
+      purge,
       summarize,
       listPage,
       search,

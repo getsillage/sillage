@@ -36,7 +36,10 @@ type ListMemosRequest struct {
 	Cursor string `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// favorited filters both recent-list and search results before limit is
 	// applied. When unset, both favorited and non-favorited memos are included.
-	Favorited     *bool `protobuf:"varint,5,opt,name=favorited,proto3,oneof" json:"favorited,omitempty"`
+	Favorited *bool `protobuf:"varint,5,opt,name=favorited,proto3,oneof" json:"favorited,omitempty"`
+	// deleted=true returns recoverable records from Recently Deleted. Purged
+	// tombstones are never returned by this user-facing list.
+	Deleted       *bool `protobuf:"varint,6,opt,name=deleted,proto3,oneof" json:"deleted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,6 +105,13 @@ func (x *ListMemosRequest) GetCursor() string {
 func (x *ListMemosRequest) GetFavorited() bool {
 	if x != nil && x.Favorited != nil {
 		return *x.Favorited
+	}
+	return false
+}
+
+func (x *ListMemosRequest) GetDeleted() bool {
+	if x != nil && x.Deleted != nil {
+		return *x.Deleted
 	}
 	return false
 }
@@ -523,6 +533,110 @@ func (x *SetMemoArchivedRequest) GetArchived() bool {
 	return false
 }
 
+type RestoreMemoRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion int64                  `protobuf:"varint,2,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RestoreMemoRequest) Reset() {
+	*x = RestoreMemoRequest{}
+	mi := &file_api_v1_memo_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreMemoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreMemoRequest) ProtoMessage() {}
+
+func (x *RestoreMemoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_memo_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreMemoRequest.ProtoReflect.Descriptor instead.
+func (*RestoreMemoRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RestoreMemoRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RestoreMemoRequest) GetExpectedVersion() int64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type PurgeMemoRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion int64                  `protobuf:"varint,2,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PurgeMemoRequest) Reset() {
+	*x = PurgeMemoRequest{}
+	mi := &file_api_v1_memo_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PurgeMemoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PurgeMemoRequest) ProtoMessage() {}
+
+func (x *PurgeMemoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_memo_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PurgeMemoRequest.ProtoReflect.Descriptor instead.
+func (*PurgeMemoRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PurgeMemoRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PurgeMemoRequest) GetExpectedVersion() int64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
 type GenerateMemoSummaryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -532,7 +646,7 @@ type GenerateMemoSummaryRequest struct {
 
 func (x *GenerateMemoSummaryRequest) Reset() {
 	*x = GenerateMemoSummaryRequest{}
-	mi := &file_api_v1_memo_service_proto_msgTypes[8]
+	mi := &file_api_v1_memo_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +658,7 @@ func (x *GenerateMemoSummaryRequest) String() string {
 func (*GenerateMemoSummaryRequest) ProtoMessage() {}
 
 func (x *GenerateMemoSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_memo_service_proto_msgTypes[8]
+	mi := &file_api_v1_memo_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +671,7 @@ func (x *GenerateMemoSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateMemoSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GenerateMemoSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GenerateMemoSummaryRequest) GetId() string {
@@ -576,7 +690,7 @@ type GenerateMemoSummaryResponse struct {
 
 func (x *GenerateMemoSummaryResponse) Reset() {
 	*x = GenerateMemoSummaryResponse{}
-	mi := &file_api_v1_memo_service_proto_msgTypes[9]
+	mi := &file_api_v1_memo_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -588,7 +702,7 @@ func (x *GenerateMemoSummaryResponse) String() string {
 func (*GenerateMemoSummaryResponse) ProtoMessage() {}
 
 func (x *GenerateMemoSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_memo_service_proto_msgTypes[9]
+	mi := &file_api_v1_memo_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -601,7 +715,7 @@ func (x *GenerateMemoSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateMemoSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GenerateMemoSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{9}
+	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GenerateMemoSummaryResponse) GetAi() *MemoAI {
@@ -623,7 +737,7 @@ type MemoResponse struct {
 
 func (x *MemoResponse) Reset() {
 	*x = MemoResponse{}
-	mi := &file_api_v1_memo_service_proto_msgTypes[10]
+	mi := &file_api_v1_memo_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -635,7 +749,7 @@ func (x *MemoResponse) String() string {
 func (*MemoResponse) ProtoMessage() {}
 
 func (x *MemoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_memo_service_proto_msgTypes[10]
+	mi := &file_api_v1_memo_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -648,7 +762,7 @@ func (x *MemoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoResponse.ProtoReflect.Descriptor instead.
 func (*MemoResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{10}
+	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MemoResponse) GetMemo() *Memo {
@@ -669,16 +783,19 @@ var File_api_v1_memo_service_proto protoreflect.FileDescriptor
 
 const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\xb5\x01\n" +
+	"\x19api/v1/memo_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\"\xe0\x01\n" +
 	"\x10ListMemosRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x1f\n" +
 	"\barchived\x18\x03 \x01(\bH\x00R\barchived\x88\x01\x01\x12\x16\n" +
 	"\x06cursor\x18\x04 \x01(\tR\x06cursor\x12!\n" +
-	"\tfavorited\x18\x05 \x01(\bH\x01R\tfavorited\x88\x01\x01B\v\n" +
+	"\tfavorited\x18\x05 \x01(\bH\x01R\tfavorited\x88\x01\x01\x12\x1d\n" +
+	"\adeleted\x18\x06 \x01(\bH\x02R\adeleted\x88\x01\x01B\v\n" +
 	"\t_archivedB\f\n" +
 	"\n" +
-	"_favorited\"`\n" +
+	"_favoritedB\n" +
+	"\n" +
+	"\b_deleted\"`\n" +
 	"\x11ListMemosResponse\x12*\n" +
 	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
@@ -714,14 +831,20 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\x16SetMemoArchivedRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\x12\x1a\n" +
-	"\barchived\x18\x03 \x01(\bR\barchived\",\n" +
+	"\barchived\x18\x03 \x01(\bR\barchived\"O\n" +
+	"\x12RestoreMemoRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\"M\n" +
+	"\x10PurgeMemoRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x02 \x01(\x03R\x0fexpectedVersion\",\n" +
 	"\x1aGenerateMemoSummaryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"E\n" +
 	"\x1bGenerateMemoSummaryResponse\x12&\n" +
 	"\x02ai\x18\x01 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai\"`\n" +
 	"\fMemoResponse\x12(\n" +
 	"\x04memo\x18\x01 \x01(\v2\x14.sillage.api.v1.MemoR\x04memo\x12&\n" +
-	"\x02ai\x18\x02 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai2\xcb\a\n" +
+	"\x02ai\x18\x02 \x01(\v2\x16.sillage.api.v1.MemoAIR\x02ai2\xb5\t\n" +
 	"\vMemoService\x12g\n" +
 	"\tListMemos\x12 .sillage.api.v1.ListMemosRequest\x1a!.sillage.api.v1.ListMemosResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/api/v1/memos\x12g\n" +
 	"\n" +
@@ -732,7 +855,9 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\n" +
 	"DeleteMemo\x12!.sillage.api.v1.DeleteMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/api/v1/memos/{id}\x12\x85\x01\n" +
 	"\x10SetMemoFavorited\x12'.sillage.api.v1.SetMemoFavoritedRequest\x1a\x1c.sillage.api.v1.MemoResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/memos/{id}:setFavorited\x12\x82\x01\n" +
-	"\x0fSetMemoArchived\x12&.sillage.api.v1.SetMemoArchivedRequest\x1a\x1c.sillage.api.v1.MemoResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/memos/{id}:setArchived\x12\x9e\x01\n" +
+	"\x0fSetMemoArchived\x12&.sillage.api.v1.SetMemoArchivedRequest\x1a\x1c.sillage.api.v1.MemoResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/memos/{id}:setArchived\x12v\n" +
+	"\vRestoreMemo\x12\".sillage.api.v1.RestoreMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/memos/{id}:restore\x12p\n" +
+	"\tPurgeMemo\x12 .sillage.api.v1.PurgeMemoRequest\x1a\x1c.sillage.api.v1.MemoResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/v1/memos/{id}:purge\x12\x9e\x01\n" +
 	"\x13GenerateMemoSummary\x12*.sillage.api.v1.GenerateMemoSummaryRequest\x1a+.sillage.api.v1.GenerateMemoSummaryResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/memos/{id}:generate-summaryB\xb6\x01\n" +
 	"\x12com.sillage.api.v1B\x10MemoServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
@@ -748,7 +873,7 @@ func file_api_v1_memo_service_proto_rawDescGZIP() []byte {
 	return file_api_v1_memo_service_proto_rawDescData
 }
 
-var file_api_v1_memo_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_api_v1_memo_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_api_v1_memo_service_proto_goTypes = []any{
 	(*ListMemosRequest)(nil),            // 0: sillage.api.v1.ListMemosRequest
 	(*ListMemosResponse)(nil),           // 1: sillage.api.v1.ListMemosResponse
@@ -758,17 +883,19 @@ var file_api_v1_memo_service_proto_goTypes = []any{
 	(*DeleteMemoRequest)(nil),           // 5: sillage.api.v1.DeleteMemoRequest
 	(*SetMemoFavoritedRequest)(nil),     // 6: sillage.api.v1.SetMemoFavoritedRequest
 	(*SetMemoArchivedRequest)(nil),      // 7: sillage.api.v1.SetMemoArchivedRequest
-	(*GenerateMemoSummaryRequest)(nil),  // 8: sillage.api.v1.GenerateMemoSummaryRequest
-	(*GenerateMemoSummaryResponse)(nil), // 9: sillage.api.v1.GenerateMemoSummaryResponse
-	(*MemoResponse)(nil),                // 10: sillage.api.v1.MemoResponse
-	(*Memo)(nil),                        // 11: sillage.api.v1.Memo
-	(*MemoAI)(nil),                      // 12: sillage.api.v1.MemoAI
+	(*RestoreMemoRequest)(nil),          // 8: sillage.api.v1.RestoreMemoRequest
+	(*PurgeMemoRequest)(nil),            // 9: sillage.api.v1.PurgeMemoRequest
+	(*GenerateMemoSummaryRequest)(nil),  // 10: sillage.api.v1.GenerateMemoSummaryRequest
+	(*GenerateMemoSummaryResponse)(nil), // 11: sillage.api.v1.GenerateMemoSummaryResponse
+	(*MemoResponse)(nil),                // 12: sillage.api.v1.MemoResponse
+	(*Memo)(nil),                        // 13: sillage.api.v1.Memo
+	(*MemoAI)(nil),                      // 14: sillage.api.v1.MemoAI
 }
 var file_api_v1_memo_service_proto_depIdxs = []int32{
-	11, // 0: sillage.api.v1.ListMemosResponse.memos:type_name -> sillage.api.v1.Memo
-	12, // 1: sillage.api.v1.GenerateMemoSummaryResponse.ai:type_name -> sillage.api.v1.MemoAI
-	11, // 2: sillage.api.v1.MemoResponse.memo:type_name -> sillage.api.v1.Memo
-	12, // 3: sillage.api.v1.MemoResponse.ai:type_name -> sillage.api.v1.MemoAI
+	13, // 0: sillage.api.v1.ListMemosResponse.memos:type_name -> sillage.api.v1.Memo
+	14, // 1: sillage.api.v1.GenerateMemoSummaryResponse.ai:type_name -> sillage.api.v1.MemoAI
+	13, // 2: sillage.api.v1.MemoResponse.memo:type_name -> sillage.api.v1.Memo
+	14, // 3: sillage.api.v1.MemoResponse.ai:type_name -> sillage.api.v1.MemoAI
 	0,  // 4: sillage.api.v1.MemoService.ListMemos:input_type -> sillage.api.v1.ListMemosRequest
 	2,  // 5: sillage.api.v1.MemoService.CreateMemo:input_type -> sillage.api.v1.CreateMemoRequest
 	3,  // 6: sillage.api.v1.MemoService.GetMemo:input_type -> sillage.api.v1.GetMemoRequest
@@ -776,17 +903,21 @@ var file_api_v1_memo_service_proto_depIdxs = []int32{
 	5,  // 8: sillage.api.v1.MemoService.DeleteMemo:input_type -> sillage.api.v1.DeleteMemoRequest
 	6,  // 9: sillage.api.v1.MemoService.SetMemoFavorited:input_type -> sillage.api.v1.SetMemoFavoritedRequest
 	7,  // 10: sillage.api.v1.MemoService.SetMemoArchived:input_type -> sillage.api.v1.SetMemoArchivedRequest
-	8,  // 11: sillage.api.v1.MemoService.GenerateMemoSummary:input_type -> sillage.api.v1.GenerateMemoSummaryRequest
-	1,  // 12: sillage.api.v1.MemoService.ListMemos:output_type -> sillage.api.v1.ListMemosResponse
-	10, // 13: sillage.api.v1.MemoService.CreateMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 14: sillage.api.v1.MemoService.GetMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 15: sillage.api.v1.MemoService.UpdateMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 16: sillage.api.v1.MemoService.DeleteMemo:output_type -> sillage.api.v1.MemoResponse
-	10, // 17: sillage.api.v1.MemoService.SetMemoFavorited:output_type -> sillage.api.v1.MemoResponse
-	10, // 18: sillage.api.v1.MemoService.SetMemoArchived:output_type -> sillage.api.v1.MemoResponse
-	9,  // 19: sillage.api.v1.MemoService.GenerateMemoSummary:output_type -> sillage.api.v1.GenerateMemoSummaryResponse
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
+	8,  // 11: sillage.api.v1.MemoService.RestoreMemo:input_type -> sillage.api.v1.RestoreMemoRequest
+	9,  // 12: sillage.api.v1.MemoService.PurgeMemo:input_type -> sillage.api.v1.PurgeMemoRequest
+	10, // 13: sillage.api.v1.MemoService.GenerateMemoSummary:input_type -> sillage.api.v1.GenerateMemoSummaryRequest
+	1,  // 14: sillage.api.v1.MemoService.ListMemos:output_type -> sillage.api.v1.ListMemosResponse
+	12, // 15: sillage.api.v1.MemoService.CreateMemo:output_type -> sillage.api.v1.MemoResponse
+	12, // 16: sillage.api.v1.MemoService.GetMemo:output_type -> sillage.api.v1.MemoResponse
+	12, // 17: sillage.api.v1.MemoService.UpdateMemo:output_type -> sillage.api.v1.MemoResponse
+	12, // 18: sillage.api.v1.MemoService.DeleteMemo:output_type -> sillage.api.v1.MemoResponse
+	12, // 19: sillage.api.v1.MemoService.SetMemoFavorited:output_type -> sillage.api.v1.MemoResponse
+	12, // 20: sillage.api.v1.MemoService.SetMemoArchived:output_type -> sillage.api.v1.MemoResponse
+	12, // 21: sillage.api.v1.MemoService.RestoreMemo:output_type -> sillage.api.v1.MemoResponse
+	12, // 22: sillage.api.v1.MemoService.PurgeMemo:output_type -> sillage.api.v1.MemoResponse
+	11, // 23: sillage.api.v1.MemoService.GenerateMemoSummary:output_type -> sillage.api.v1.GenerateMemoSummaryResponse
+	14, // [14:24] is the sub-list for method output_type
+	4,  // [4:14] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -806,7 +937,7 @@ func file_api_v1_memo_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_memo_service_proto_rawDesc), len(file_api_v1_memo_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

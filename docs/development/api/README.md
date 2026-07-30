@@ -54,6 +54,16 @@ uploads use the separate configured upload limit. Record, Ask, search, and AI
 configuration fields have stricter per-field limits and return the normal
 `invalid_field` error when exceeded.
 
+## Record Lifecycle
+
+Normal record listing and search omit deleted records. `GET /api/v1/memos?deleted=true` returns recoverable records newest-deletion first; it excludes already purged tombstones and does not subdivide the lifecycle view by favorite/archive state. The response shape includes both `deletedAt` and `purgedAt`. A pagination cursor is tied to the filter set that produced it and must not be reused across normal and Recently Deleted views.
+
+- `DELETE /api/v1/memos/{id}?expectedVersion={version}` moves a record to Recently Deleted.
+- `POST /api/v1/memos/{id}:restore` with `{"expectedVersion": version}` restores a recoverable record.
+- `POST /api/v1/memos/{id}:purge` with `{"expectedVersion": version}` permanently scrubs a deleted record.
+
+The corresponding Connect methods are `DeleteMemo`, `RestoreMemo`, and `PurgeMemo`. Restore and purge require optimistic concurrency and return the normalized record. After the 30-day recovery window, server maintenance performs purge automatically. Purged rows retain a minimal tombstone for synchronization; they do not reappear in normal or Recently Deleted REST lists. See the [Sync API](sync.md) for offline convergence semantics.
+
 ## Versioning and Compatibility
 
 `/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.
@@ -70,6 +80,6 @@ configuration fields have stricter per-field limits and return the normal
 }
 ```
 
-The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. Clients must tolerate additive bootstrap fields and must not infer compatibility from a display version alone: `apiVersion` and the platform-specific minimum remain authoritative.
+The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. Clients must tolerate additive bootstrap fields and must not infer compatibility from a display version alone: `apiVersion` and the platform-specific minimum remain authoritative. Android blocks online connection and synchronization when its `versionCode` is below `minimumAndroidVersionCode`, links users to GitHub Releases, and keeps Offline mode available.
 
 Proto changes must run `buf lint`, `buf breaking`, and `buf generate`. When REST and Connect share semantics, tests must cover both transports. Handwritten REST-only extensions must also retain equivalent REST regression coverage.

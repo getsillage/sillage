@@ -23,6 +23,7 @@ func memoPB(memo *store.Memo) *apiv1.Memo {
 		CreatedTime:   timestamppb.New(unixMilliTime(memo.CreatedAt)),
 		UpdatedTime:   timestamppb.New(unixMilliTime(memo.UpdatedAt)),
 		DeletedTime:   timestampPB(memo.DeletedAt),
+		PurgedTime:    timestampPB(memo.PurgedAt),
 	}
 }
 

@@ -1,7 +1,17 @@
-import { Archive, CalendarDays, List, Search, Star, X } from "lucide-react";
+import {
+  Archive,
+  CalendarDays,
+  List,
+  RotateCcw,
+  Search,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
+  dangerButtonClass,
   emptyStateClass,
   ghostLinkClass,
   iconButtonClass,
@@ -24,17 +34,19 @@ import {
 } from "../../lib/date";
 import { CalendarView } from "./CalendarView";
 import { EntryCard } from "./EntryCard";
+import { formatLocalDateTime } from "./LocalDateTime";
 import { useMemos } from "./MemosContext";
 import {
   entriesByDate,
   entryDateCounts,
+  excerpt,
   isActive,
   mergeMemos,
   onThisDay,
 } from "./memos";
 import { OnThisDay } from "./OnThisDay";
 
-type TimelineFilter = "active" | "archived" | "favorite";
+type TimelineFilter = "active" | "archived" | "favorite" | "deleted";
 
 type MemoSearchSnapshot = {
   query: string;
@@ -43,12 +55,17 @@ type MemoSearchSnapshot = {
 
 function timelineFilter(searchParams: URLSearchParams): TimelineFilter {
   const filter = searchParams.get("filter");
-  return filter === "archived" || filter === "favorite" ? filter : "active";
+  return filter === "archived" || filter === "favorite" || filter === "deleted"
+    ? filter
+    : "active";
 }
 
 function listOptionsFor(filter: TimelineFilter): MemoListOptions {
   if (filter === "favorite") {
     return { favorited: true };
+  }
+  if (filter === "deleted") {
+    return { deleted: true };
   }
   return {
     archived: filter === "archived",
@@ -441,6 +458,14 @@ function ListView({
             <Star className="hidden h-4 w-4 sm:block" aria-hidden="true" />
             {t("timeline.favorite")}
           </Link>
+          <Link
+            to="/timeline?filter=deleted"
+            className={`${segmentedItemClass(filter === "deleted")} min-w-0 flex-1 px-2 sm:flex-none sm:px-3`}
+            aria-current={filter === "deleted" ? "page" : undefined}
+          >
+            <Trash2 className="hidden h-4 w-4 sm:block" aria-hidden="true" />
+            {t("timeline.deleted")}
+          </Link>
         </fieldset>
         <p
           className="text-gray-500 text-xs dark:text-gray-400"
@@ -468,9 +493,13 @@ function ListView({
                         ? list.length === 1
                           ? "timeline.archivedCountOne"
                           : "timeline.archivedCountMany"
-                        : list.length === 1
-                          ? "timeline.favoriteCountOne"
-                          : "timeline.favoriteCountMany",
+                        : filter === "favorite"
+                          ? list.length === 1
+                            ? "timeline.favoriteCountOne"
+                            : "timeline.favoriteCountMany"
+                          : list.length === 1
+                            ? "timeline.deletedCountOne"
+                            : "timeline.deletedCountMany",
                     { count: list.length },
                   )}
         </p>
@@ -505,8 +534,12 @@ function ListView({
                 ? t("timeline.noArchived")
                 : filter === "favorite"
                   ? t("timeline.noFavorites")
-                  : t("timeline.noRecords")}
+                  : filter === "deleted"
+                    ? t("timeline.noDeleted")
+                    : t("timeline.noRecords")}
           </div>
+        ) : filter === "deleted" ? (
+          <RecentlyDeletedList memos={list} onChanged={refresh} />
         ) : (
           <div className="space-y-7">
             {groups.map((group) => (
@@ -585,6 +618,132 @@ function ListView({
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function RecentlyDeletedList({
+  memos,
+  onChanged,
+}: {
+  memos: Memo[];
+  onChanged: () => Promise<void>;
+}) {
+  const { locale, t } = useI18n();
+  const { restore, purge } = useMemos();
+  const [busyId, setBusyId] = useState("");
+  const [confirmId, setConfirmId] = useState("");
+  const [actionError, setActionError] = useState("");
+  const ordered = useMemo(
+    () =>
+      [...memos].sort((left, right) =>
+        (right.deletedAt ?? "").localeCompare(left.deletedAt ?? ""),
+      ),
+    [memos],
+  );
+
+  async function run(memo: Memo, action: "restore" | "purge") {
+    if (busyId) {
+      return;
+    }
+    setBusyId(memo.id);
+    setActionError("");
+    try {
+      if (action === "restore") {
+        await restore(memo);
+      } else {
+        await purge(memo);
+      }
+      setConfirmId("");
+      await onChanged();
+    } catch (cause) {
+      setActionError(
+        cause instanceof Error ? cause.message : t("entry.actionFailed"),
+      );
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-amber-900 text-sm dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+        {t("timeline.deletedRetention")}
+      </p>
+      {actionError ? (
+        <p role="alert" className="text-red-700 text-sm dark:text-red-300">
+          {actionError}
+        </p>
+      ) : null}
+      <ul className="space-y-2">
+        {ordered.map((memo) => {
+          const confirming = confirmId === memo.id;
+          const busy = busyId === memo.id;
+          return (
+            <li
+              key={memo.id}
+              className="rounded-lg border border-gray-200 bg-white/75 p-4 dark:border-gray-800 dark:bg-gray-900/55"
+            >
+              <p className="text-gray-900 leading-7 dark:text-gray-100">
+                {excerpt(memo.content) || t("records.blank")}
+              </p>
+              <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">
+                {t("timeline.deletedAt", {
+                  date: memo.deletedAt
+                    ? formatLocalDateTime(
+                        new Date(memo.deletedAt),
+                        "short",
+                        locale,
+                      )
+                    : "—",
+                })}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  disabled={busy || Boolean(busyId)}
+                  onClick={() => void run(memo, "restore")}
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  {t("timeline.restore")}
+                </button>
+                <button
+                  type="button"
+                  className={dangerButtonClass}
+                  disabled={busy || Boolean(busyId)}
+                  onClick={() => {
+                    if (confirming) {
+                      void run(memo, "purge");
+                    } else {
+                      setConfirmId(memo.id);
+                      setActionError("");
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  {t(confirming ? "timeline.confirmPurge" : "timeline.purge")}
+                </button>
+                {confirming ? (
+                  <button
+                    type="button"
+                    className={ghostLinkClass}
+                    disabled={busy}
+                    onClick={() => setConfirmId("")}
+                  >
+                    {t("common.cancel")}
+                  </button>
+                ) : null}
+              </div>
+              {confirming ? (
+                <p className="mt-2 text-red-700 text-xs dark:text-red-300">
+                  {t("timeline.purgeDescription")}
+                </p>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

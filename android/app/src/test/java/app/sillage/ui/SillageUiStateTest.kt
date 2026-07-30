@@ -502,16 +502,20 @@ class SillageUiStateTest {
     @Test
     fun memoListFiltersMapToMutuallyExclusiveApiQueries() {
         assertEquals(
-            MemoApiQuery(archived = false, favorited = false),
+            MemoApiQuery(archived = false, favorited = false, deleted = false),
             MemoListFilter.Unarchived.apiQuery(),
         )
         assertEquals(
-            MemoApiQuery(archived = true, favorited = false),
+            MemoApiQuery(archived = true, favorited = false, deleted = false),
             MemoListFilter.Archived.apiQuery(),
         )
         assertEquals(
-            MemoApiQuery(archived = null, favorited = true),
+            MemoApiQuery(archived = null, favorited = true, deleted = false),
             MemoListFilter.Favorited.apiQuery(),
+        )
+        assertEquals(
+            MemoApiQuery(archived = null, favorited = false, deleted = true),
+            MemoListFilter.Deleted.apiQuery(),
         )
     }
 

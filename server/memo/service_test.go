@@ -16,6 +16,8 @@ type fakeRepository struct {
 	createMemo  func(context.Context, *store.CreateMemo) (*store.Memo, error)
 	getMemo     func(context.Context, string, string, bool) (*store.Memo, error)
 	updateMemo  func(context.Context, *store.UpdateMemo) (*store.Memo, error)
+	restoreMemo func(context.Context, string, string, int64) (*store.Memo, error)
+	purgeMemo   func(context.Context, string, string, int64) (*store.Memo, error)
 	getMemoAI   func(context.Context, string) (*store.MemoAI, error)
 }
 
@@ -37,6 +39,20 @@ func (f *fakeRepository) GetMemo(ctx context.Context, accountID, id string, incl
 
 func (f *fakeRepository) UpdateMemo(ctx context.Context, input *store.UpdateMemo) (*store.Memo, error) {
 	return f.updateMemo(ctx, input)
+}
+
+func (f *fakeRepository) RestoreMemo(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
+	if f.restoreMemo == nil {
+		return nil, sql.ErrNoRows
+	}
+	return f.restoreMemo(ctx, accountID, id, expectedVersion)
+}
+
+func (f *fakeRepository) PurgeMemo(ctx context.Context, accountID, id string, expectedVersion int64) (*store.Memo, error) {
+	if f.purgeMemo == nil {
+		return nil, sql.ErrNoRows
+	}
+	return f.purgeMemo(ctx, accountID, id, expectedVersion)
 }
 
 func (f *fakeRepository) GetMemoAI(ctx context.Context, memoID string) (*store.MemoAI, error) {

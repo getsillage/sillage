@@ -110,6 +110,27 @@ class SillageExportCodecTest {
                 mutationId = "mutation-update",
             ),
         )
+        val restore = pendingMemoSyncToJson(
+            PendingMemoSync(
+                memo = memo(),
+                baseVersion = 4,
+                mutationId = "mutation-restore",
+                action = "restore",
+            ),
+        )
+        val purge = pendingMemoSyncToJson(
+            PendingMemoSync(
+                memo = memo().copy(
+                    content = "",
+                    entryDate = "1970-01-01",
+                    deletedAt = "2026-07-30T00:00:00Z",
+                    purgedAt = "2026-07-30T01:00:00Z",
+                ),
+                baseVersion = 5,
+                mutationId = "mutation-purge",
+                action = "purge",
+            ),
+        )
 
         assertEquals("mutation-create", create.getString("mutationId"))
         assertEquals("create", create.getString("action"))
@@ -122,6 +143,12 @@ class SillageExportCodecTest {
         assertEquals(false, update.getJSONObject("memo").getBoolean("pinned"))
         assertEquals(false, update.getJSONObject("memo").getBoolean("archived"))
         assertEquals(3L, update.getLong("baseVersion"))
+        assertEquals("restore", restore.getString("action"))
+        assertEquals(4L, restore.getLong("baseVersion"))
+        assertEquals("purge", purge.getString("action"))
+        assertEquals(5L, purge.getLong("baseVersion"))
+        assertFalse(purge.getJSONObject("memo").has("favorited"))
+        assertFalse(purge.getJSONObject("memo").has("archived"))
     }
 
     @Test

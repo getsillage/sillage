@@ -395,6 +395,13 @@ paths:
                      applied. When unset, both favorited and non-favorited memos are included.
                   schema:
                     type: boolean
+                - name: deleted
+                  in: query
+                  description: |-
+                    deleted=true returns recoverable records from Recently Deleted. Purged
+                     tombstones are never returned by this user-facing list.
+                  schema:
+                    type: boolean
             responses:
                 "200":
                     description: OK
@@ -535,6 +542,66 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/GenerateMemoSummaryResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:purge:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_PurgeMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PurgeMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/{id}:restore:
+        post:
+            tags:
+                - MemoService
+            operationId: MemoService_RestoreMemo
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RestoreMemoRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MemoResponse'
                 default:
                     description: Default error response
                     content:
@@ -1160,10 +1227,14 @@ components:
                 favoritedAt:
                     type: string
                     format: date-time
+                purgedAt:
+                    type: string
+                    format: date-time
             description: |-
                 Memo is Sillage's only content unit; user-facing clients present it as a record.
-                 Deletion is a tombstone: deleted_time is set while the row is retained so
-                 sync clients can converge.
+                 Deletion first creates a recoverable tombstone. After permanent purge,
+                 purged_time is set and user content has been scrubbed while the minimal row
+                 remains so sync clients can converge.
         MemoAI:
             type: object
             properties:
@@ -1269,6 +1340,13 @@ components:
                     type: string
                 hasMore:
                     type: boolean
+        PurgeMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
         PushSyncRequest:
             type: object
             properties:
@@ -1286,6 +1364,13 @@ components:
         RefreshRequest:
             type: object
             properties: {}
+        RestoreMemoRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                expectedVersion:
+                    type: string
         SetAIAutoSummaryRequest:
             type: object
             properties:
@@ -1359,12 +1444,12 @@ components:
                     type: string
                 action:
                     type: string
-                    description: action is "create" | "update" | "delete".
+                    description: action is "create" | "update" | "delete" | "restore" | "purge".
                 baseVersion:
                     type: string
                     description: |-
                         base_version is the memo version the client based this change on; used for
-                         conflict detection on update/delete.
+                         conflict detection on update/delete/restore/purge. Create omits it.
                 localChangedAt:
                     type: string
                 memo:

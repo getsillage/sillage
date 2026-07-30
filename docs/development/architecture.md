@@ -93,6 +93,7 @@ messages from the previous locale.
 
 - An instance has exactly one account; initialization rejects creation of a second account.
 - `memo` is the only content unit in code, the database, Proto, and APIs; English user-facing documentation and copy use `record`; the Simplified Chinese UI uses `记录`.
+- Record deletion has two durable states: `deletedAt` is recoverable for 30 days, while `purgedAt` marks a scrubbed synchronization tombstone that must never re-enter active or Recently Deleted views.
 - `entry_date` is the date selected by the user and must not be replaced with `created_at`.
 - Body content, date, favorite state, archive state, and deletion use `version` for optimistic concurrency control.
 - Deletions retain tombstones so sync clients can converge.

@@ -3,6 +3,7 @@ package app.sillage.ui
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +52,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import app.sillage.BuildConfig
 import app.sillage.R
+import app.sillage.data.SessionStore
 import app.sillage.ui.ask.AskScreen
 import app.sillage.ui.auth.InitializeScreen
 import app.sillage.ui.auth.LoginScreen
@@ -161,7 +164,25 @@ internal fun SillageApp(viewModel: SillageViewModel) {
         }
     }
     val activeConflict = state.syncConflicts.firstOrNull()
-    if (activeConflict != null) {
+    if (state.androidUpdateRequired && state.appMode == SessionStore.MODE_ONLINE) {
+        RequiredAndroidUpdateDialog(
+            minimumVersionCode = state.minimumAndroidVersionCode,
+            currentVersionCode = BuildConfig.VERSION_CODE,
+            onOpenReleases = {
+                try {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/getsillage/sillage/releases/latest"),
+                        ),
+                    )
+                } catch (_: ActivityNotFoundException) {
+                    // Keep the blocking dialog visible; Offline mode remains available.
+                }
+            },
+            onUseOfflineMode = viewModel::useOfflineMode,
+        )
+    } else if (activeConflict != null) {
         SyncConflictDialog(
             item = activeConflict,
             onKeepLocal = {
@@ -228,6 +249,38 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun RequiredAndroidUpdateDialog(
+    minimumVersionCode: Int,
+    currentVersionCode: Int,
+    onOpenReleases: () -> Unit,
+    onUseOfflineMode: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(R.string.update_required_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.update_required_description,
+                    minimumVersionCode,
+                    currentVersionCode,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenReleases) {
+                Text(stringResource(R.string.update_required_releases))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onUseOfflineMode) {
+                Text(stringResource(R.string.update_required_offline))
+            }
+        },
+    )
 }
 
 @Composable

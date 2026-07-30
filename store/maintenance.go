@@ -3,11 +3,13 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
 
 const SyncMutationRetention = 90 * 24 * time.Hour
+const DeletedMemoRetention = 30 * 24 * time.Hour
 
 type MaintenanceStats struct {
 	Sessions      int64
@@ -18,6 +20,50 @@ type MaintenanceStats struct {
 type AttachmentStorageRef struct {
 	StorageRef string
 	Deleted    bool
+}
+
+// PurgeExpiredMemos scrubs records after the recovery window while retaining
+// a minimal tombstone so long-offline clients can still converge.
+func (s *Store) PurgeExpiredMemos(ctx context.Context, now time.Time) (int64, error) {
+	rows, err := s.driver.GetDB().QueryContext(ctx, `
+SELECT id, creator_id, version
+FROM memo
+WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at <= ? AND creator_id IS NOT NULL
+ORDER BY deleted_at ASC, id ASC`, now.Add(-DeletedMemoRetention).UTC().UnixMilli())
+	if err != nil {
+		return 0, fmt.Errorf("list expired deleted memos: %w", err)
+	}
+	type expiredMemo struct {
+		id        string
+		accountID string
+		version   int64
+	}
+	var expired []expiredMemo
+	for rows.Next() {
+		var item expiredMemo
+		if err := rows.Scan(&item.id, &item.accountID, &item.version); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan expired deleted memo: %w", err)
+		}
+		expired = append(expired, item)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close expired deleted memo rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate expired deleted memos: %w", err)
+	}
+	var purged int64
+	for _, item := range expired {
+		if _, err := s.PurgeMemo(ctx, item.accountID, item.id, item.version); err != nil {
+			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrVersionConflict) {
+				continue
+			}
+			return purged, fmt.Errorf("purge expired memo %s: %w", item.id, err)
+		}
+		purged++
+	}
+	return purged, nil
 }
 
 // CleanupEphemeralData removes rows that are no longer part of durable user

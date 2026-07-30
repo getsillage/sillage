@@ -131,7 +131,7 @@ test.describe("fresh-instance release journeys", () => {
     ).toBeVisible();
   });
 
-  test("creates, searches, edits, archives, downloads, and deletes a record", async ({
+  test("creates, searches, edits, archives, downloads, restores, and permanently deletes a record", async ({
     page,
     request,
   }) => {
@@ -227,17 +227,34 @@ test.describe("fresh-instance release journeys", () => {
       ).status(),
     ).toBe(404);
 
-    const attachmentUID = attachmentUIDFromURL(attachmentURL);
+    await page.goto("/timeline?filter=deleted");
+    await expect(page.getByText(LIFECYCLE_MARKER).first()).toBeVisible();
+    await expect(
+      page.getByText(/Records can be restored for 30 days/),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Restore", exact: true }).click();
+    await expect(page.getByText(LIFECYCLE_MARKER)).toHaveCount(0);
+
+    await page.goto("/timeline");
+    await expect(page.getByText(LIFECYCLE_MARKER).first()).toBeVisible();
+    await page.getByText(LIFECYCLE_MARKER).first().click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page
+      .getByRole("alertdialog", { name: "Delete this record?" })
+      .getByRole("button", { name: "Confirm delete" })
+      .click();
+    await page.goto("/timeline?filter=deleted");
+    await expect(page.getByText(LIFECYCLE_MARKER).first()).toBeVisible();
+    await page
+      .getByRole("button", { name: "Delete permanently", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm permanent delete", exact: true })
+      .click();
+    await expect(page.getByText("Recently Deleted is empty.")).toBeVisible();
     expect(
       (
-        await request.delete(`/api/v1/attachments/${attachmentUID}`, {
-          headers: bearer(token),
-        })
-      ).ok(),
-    ).toBeTruthy();
-    expect(
-      (
-        await request.get(`/api/v1/attachments/${attachmentUID}`, {
+        await request.get(attachmentURL, {
           headers: bearer(token),
         })
       ).status(),
@@ -579,6 +596,21 @@ async function cleanupE2EState(
     }
   }
 
+  const deleted = await json<{ memos: Memo[] }>(
+    await request.get(
+      `/api/v1/memos?query=${encodeURIComponent(marker)}&limit=100&deleted=true`,
+      { headers: bearer(token) },
+    ),
+  );
+  for (const memo of deleted.memos) {
+    await json(
+      await request.post(`/api/v1/memos/${memo.id}:purge`, {
+        headers: bearer(token),
+        data: { expectedVersion: memo.version },
+      }),
+    );
+  }
+
   const sync = await json<{
     attachments: Array<{
       uid: string;
@@ -603,14 +635,6 @@ function extractAttachmentURL(markdown: string) {
   const match = markdown.match(/\((\/file\/attachments\/[^)]+)\)/);
   if (!match) {
     throw new Error(`uploaded attachment URL missing from draft: ${markdown}`);
-  }
-  return match[1];
-}
-
-function attachmentUIDFromURL(url: string) {
-  const match = url.match(/^\/file\/attachments\/([^/]+)\//);
-  if (!match) {
-    throw new Error(`invalid attachment URL: ${url}`);
   }
   return match[1];
 }

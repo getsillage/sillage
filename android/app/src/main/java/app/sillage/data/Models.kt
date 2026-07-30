@@ -17,6 +17,14 @@ data class AuthSession(
     val expiresAt: String,
 )
 
+data class BootstrapInfo(
+    val initialized: Boolean,
+    val serverVersion: String,
+    val serverRevision: String,
+    val apiVersion: String,
+    val minimumAndroidVersionCode: Int,
+)
+
 data class Memo(
     val id: String,
     val content: String,
@@ -27,6 +35,7 @@ data class Memo(
     val favoritedAt: String?,
     val archivedAt: String?,
     val deletedAt: String?,
+    val purgedAt: String? = null,
 )
 
 data class MemoDetail(
@@ -188,16 +197,21 @@ enum class MemoListFilter {
     Unarchived,
     Archived,
     Favorited,
+    Deleted,
 }
 
 fun Memo.matchesListFilter(filter: MemoListFilter): Boolean {
-    if (deletedAt != null) {
+    if (filter == MemoListFilter.Deleted) {
+        return deletedAt != null && purgedAt == null
+    }
+    if (deletedAt != null || purgedAt != null) {
         return false
     }
     return when (filter) {
         MemoListFilter.Unarchived -> archivedAt == null && favoritedAt == null
         MemoListFilter.Archived -> archivedAt != null && favoritedAt == null
         MemoListFilter.Favorited -> favoritedAt != null
+        MemoListFilter.Deleted -> false
     }
 }
 

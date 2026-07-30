@@ -19,6 +19,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.SocketPolicy
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -41,6 +42,69 @@ class SillageApiTest {
         context.getSharedPreferences("sillage.session", Context.MODE_PRIVATE).edit().clear().commit()
         oldServer = MockWebServer()
         newServer = MockWebServer()
+    }
+
+    @Test
+    fun bootstrapParsesReleaseCompatibilityMetadata() = runBlocking {
+        oldServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """{"initialized":true,"serverVersion":"0.3.0","serverRevision":"abc123","apiVersion":"v1","minimumAndroidVersionCode":12}""",
+                ),
+        )
+        val sessionStore = SessionStore(context).apply {
+            saveBaseUrl(oldServer.url("/").toString())
+        }
+
+        val bootstrap = SillageApi(sessionStore).bootstrap()
+
+        assertTrue(bootstrap.initialized)
+        assertEquals("0.3.0", bootstrap.serverVersion)
+        assertEquals("abc123", bootstrap.serverRevision)
+        assertEquals("v1", bootstrap.apiVersion)
+        assertEquals(12, bootstrap.minimumAndroidVersionCode)
+        assertEquals("/api/v1/auth/bootstrap", oldServer.takeRequest().path)
+    }
+
+    @Test
+    fun recentlyDeletedAndLifecycleRequestsUseCanonicalRoutes() = runBlocking {
+        oldServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"memos":[],"nextCursor":""}"""),
+        )
+        oldServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"memo":${memoJson(deleted = false, purged = false)}}"""),
+        )
+        oldServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"memo":${memoJson(deleted = true, purged = true)}}"""),
+        )
+        val sessionStore = SessionStore(context).apply {
+            saveBaseUrl(oldServer.url("/").toString())
+        }
+        setLegacyAccessToken("token")
+        val api = SillageApi(sessionStore)
+        val deletedMemo = testMemo(deletedAt = "2026-07-30T01:00:00Z")
+
+        api.listMemos(archived = null, deleted = true)
+        api.restoreMemo(deletedMemo)
+        api.purgeMemo(deletedMemo)
+
+        val listRequest = oldServer.takeRequest()
+        assertEquals("/api/v1/memos?limit=200&favorited=false&deleted=true", listRequest.path)
+        val restoreRequest = oldServer.takeRequest()
+        assertEquals("POST", restoreRequest.method)
+        assertEquals("/api/v1/memos/memo-1:restore", restoreRequest.path)
+        assertEquals(4L, JSONObject(restoreRequest.body.readUtf8()).getLong("expectedVersion"))
+        val purgeRequest = oldServer.takeRequest()
+        assertEquals("POST", purgeRequest.method)
+        assertEquals("/api/v1/memos/memo-1:purge", purgeRequest.path)
+        assertEquals(4L, JSONObject(purgeRequest.body.readUtf8()).getLong("expectedVersion"))
     }
 
     @After
@@ -209,7 +273,10 @@ class SillageApiTest {
         }
 
         val staleRequest = oldServer.takeRequest(1, TimeUnit.SECONDS)
-        assertEquals("/tenant/api/v1/memos?limit=200&archived=false&favorited=false", staleRequest?.path)
+        assertEquals(
+            "/tenant/api/v1/memos?limit=200&archived=false&favorited=false&deleted=false",
+            staleRequest?.path,
+        )
         assertEquals("Bearer tenant-token", staleRequest?.getHeader("Authorization"))
         assertEquals(null, staleRequest?.getHeader("Cookie"))
         assertTrue(sessionStore.cookieHeaders().any { "root-cookie" in it })
@@ -222,7 +289,10 @@ class SillageApiTest {
         )
         SillageApi(sessionStore).listMemos()
         val rootRequest = oldServer.takeRequest(1, TimeUnit.SECONDS)
-        assertEquals("/api/v1/memos?limit=200&archived=false&favorited=false", rootRequest?.path)
+        assertEquals(
+            "/api/v1/memos?limit=200&archived=false&favorited=false&deleted=false",
+            rootRequest?.path,
+        )
         assertEquals("sillage_refresh=root-cookie", rootRequest?.getHeader("Cookie"))
     }
 
@@ -296,7 +366,10 @@ class SillageApiTest {
 
         assertEquals("服务器配置已更改", failure?.message)
         val initialRequest = oldServer.takeRequest(1, TimeUnit.SECONDS)
-        assertEquals("/tenant/api/v1/memos?limit=200&archived=false&favorited=false", initialRequest?.path)
+        assertEquals(
+            "/tenant/api/v1/memos?limit=200&archived=false&favorited=false&deleted=false",
+            initialRequest?.path,
+        )
         assertEquals("Bearer tenant-token", initialRequest?.getHeader("Authorization"))
         assertEquals(1, oldServer.requestCount)
     }
@@ -386,6 +459,35 @@ class SillageApiTest {
         val secondRequest = oldServer.takeRequest(1, TimeUnit.SECONDS)
         assertEquals("/api/v1/auth/signin", secondRequest?.path)
         assertEquals(2, oldServer.requestCount)
+    }
+
+    private fun testMemo(deletedAt: String? = null): Memo {
+        return Memo(
+            id = "memo-1",
+            content = "正文",
+            entryDate = "2026-07-30",
+            version = 4,
+            createdAt = "2026-07-30T00:00:00Z",
+            updatedAt = "2026-07-30T01:00:00Z",
+            favoritedAt = null,
+            archivedAt = null,
+            deletedAt = deletedAt,
+        )
+    }
+
+    private fun memoJson(deleted: Boolean, purged: Boolean): String {
+        return JSONObject()
+            .put("id", "memo-1")
+            .put("content", if (purged) "" else "正文")
+            .put("entryDate", if (purged) "1970-01-01" else "2026-07-30")
+            .put("version", if (purged) 5 else 4)
+            .put("createdAt", "2026-07-30T00:00:00Z")
+            .put("updatedAt", "2026-07-30T02:00:00Z")
+            .put("favoritedAt", JSONObject.NULL)
+            .put("archivedAt", JSONObject.NULL)
+            .put("deletedAt", if (deleted) "2026-07-30T01:00:00Z" else JSONObject.NULL)
+            .put("purgedAt", if (purged) "2026-07-30T02:00:00Z" else JSONObject.NULL)
+            .toString()
     }
 
     private fun setLegacyAccessToken(token: String) {

@@ -36,7 +36,7 @@
     <string name="mode_online">在线模式</string>
     <string name="mode_online_supporting">连接自托管服务，使用附件、同步和 AI 功能。</string>
     <string name="server_title">连接 Sillage</string>
-    <string name="server_supporting">填写后端服务地址。模拟器访问本机服务可使用 http://10.0.2.2:5231。</string>
+    <string name="server_supporting">填写 Sillage 实例的 HTTPS 地址。正式版只允许 HTTPS 连接。</string>
     <string name="server_address">服务器地址</string>
     <string name="server_address_placeholder">https://sillage.example</string>
     <string name="server_connecting">连接中</string>

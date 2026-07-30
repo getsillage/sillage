@@ -37,7 +37,7 @@
     <string name="mode_online">Online mode</string>
     <string name="mode_online_supporting">Connect to your self-hosted service to use attachments, sync, and AI.</string>
     <string name="server_title">Connect to Sillage</string>
-    <string name="server_supporting">Enter the server address. From an emulator, use http://10.0.2.2:5231 to reach your computer.</string>
+    <string name="server_supporting">Enter the HTTPS address of your Sillage instance. Release builds require HTTPS.</string>
     <string name="server_address">Server address</string>
     <string name="server_address_placeholder">https://sillage.example</string>
     <string name="server_connecting">Connecting</string>

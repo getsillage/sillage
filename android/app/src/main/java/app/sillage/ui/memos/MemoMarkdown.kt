@@ -414,12 +414,12 @@ private fun MarkdownText(
 }
 
 internal data class MarkdownRenderStyle(
-    @ColorInt val textColor: Int,
-    @ColorInt val linkColor: Int,
-    @ColorInt val secondaryTextColor: Int,
-    @ColorInt val outlineColor: Int,
-    @ColorInt val codeBackgroundColor: Int,
-    @ColorInt val surfaceColor: Int,
+    @param:ColorInt val textColor: Int,
+    @param:ColorInt val linkColor: Int,
+    @param:ColorInt val secondaryTextColor: Int,
+    @param:ColorInt val outlineColor: Int,
+    @param:ColorInt val codeBackgroundColor: Int,
+    @param:ColorInt val surfaceColor: Int,
 )
 
 internal fun createMarkdownRenderer(

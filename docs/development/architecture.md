@@ -79,6 +79,8 @@ retained ahead of routine messages when the queue reaches its bound.
 
 `SillageApp` only composes the UI and hands attachments to external viewers. Feature screens depend on the root `SillageUiState`, `SillageViewModel`, and shared UI, while the state and data layers must not depend on feature screens. Manual sync, navigation history, request IDs, and online/offline modes are behavior contracts that span these directories and must be preserved.
 
+`LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
+
 Android transient feedback is emitted once by `SillageViewModel` and consumed
 by the top-level Toast host in `SillageApp`. Feature screens do not render a
 second copy of global error or notice messages; durable retry, conflict, and
@@ -97,6 +99,7 @@ messages from the previous locale.
 - AI-derived data is stored separately and does not increment a memo's `version` or `updated_at`.
 - Attachment downloads require authorization and filenames must be sanitized; attachment bytes do not enter sync payloads.
 - AI API keys are stored only in encrypted envelopes and must never be returned by APIs or sync.
+- Android offline state writes that span content and sync metadata are atomic, and unreadable encrypted state must never be replaced by an empty default.
 
 See the [Sync API](api/sync.md) for detailed pagination, idempotency, and conflict rules. See [Product Guidance](product-guidance.md) for product scope and [Security Development Boundaries](security.md) for authentication, attachment, secret, and external-request constraints.
 

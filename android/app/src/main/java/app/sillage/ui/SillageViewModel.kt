@@ -71,10 +71,11 @@ import kotlinx.coroutines.withContext
 class SillageViewModel(
     context: Context,
     private val savedStateHandle: SavedStateHandle? = null,
+    localDataStore: LocalDataStore? = null,
 ) : ViewModel() {
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
-    private val localDataStore = LocalDataStore(appContext)
+    private val localDataStore = localDataStore ?: LocalDataStore(appContext)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null

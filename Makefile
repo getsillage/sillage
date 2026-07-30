@@ -4,9 +4,9 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help check check-fast check-affected check-go check-proto check-web check-android \
+.PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device \
 	check-docs check-container check-supply-chain check-e2e check-restore check-commits \
-	check-secrets check-actions generate-third-party-notices print-affected
+	check-secrets check-actions generate-third-party-notices generate-android-third-party-notices print-affected
 
 help:
 	@printf '%s\n' \
@@ -17,7 +17,8 @@ help:
 		'  make check-go         Go mod tidy, test, vet, build' \
 		'  make check-proto      Buf lint/breaking/generate + gen drift' \
 		'  make check-web        Web lint, typecheck, test, build, embed policy' \
-		'  make check-android    Android unit tests, lint, debug APK, release manifest policy' \
+		'  make check-android    Android unit tests, lint, APKs, dependency integrity/security' \
+		'  make check-android-device  Android instrumentation journeys on a connected device' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
 		'  make check-supply-chain  Dependency audit, notices, SBOM, final-image vulnerability scan' \
@@ -27,6 +28,7 @@ help:
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
 		'  make generate-third-party-notices  Regenerate runtime license inventory' \
+		'  make generate-android-third-party-notices  Regenerate APK license inventory' \
 		'  make print-affected   Show gates for the current change set' \
 		'' \
 		'Environment:' \
@@ -60,8 +62,15 @@ check-web:
 	bash scripts/check-web-assets.sh
 
 check-android:
-	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:processReleaseMainManifest
+	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:processReleaseMainManifest
 	grep -Fq 'android:usesCleartextTraffic="false"' android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+	@aapt2_bin="$$(find "$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}/build-tools" -type f -name aapt2 | sort | tail -1)"; \
+		test -n "$$aapt2_bin"; \
+		"$$aapt2_bin" dump resources android/app/build/outputs/apk/release/app-release.apk | grep -Fq 'raw/third_party_notices'
+	bash scripts/check-android-supply-chain.sh
+
+check-android-device:
+	cd android && ./gradlew :app:connectedDebugAndroidTest
 
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
@@ -85,6 +94,9 @@ check-supply-chain: check-container
 
 generate-third-party-notices:
 	node scripts/generate-third-party-notices.mjs --write
+
+generate-android-third-party-notices:
+	node scripts/generate-android-third-party-notices.mjs --write
 
 check-e2e:
 	pnpm --dir web exec playwright install chromium

@@ -68,8 +68,11 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 ## Android
 
 - Release APKs require HTTPS. Cleartext HTTP is enabled only in debug builds for emulators and trusted LAN development.
-- Login data, offline data, and local AI API keys are encrypted through Android Keystore. Legacy plaintext SharedPreferences remain readable and migrate on the next save. Exported JSON must remove API keys and clearly warn that all remaining content is still sensitive plaintext.
+- Login data and local AI API keys are encrypted through Android Keystore. Offline records, Ask data, attachment metadata, and sync state are independently AES-GCM encrypted before entering the SQLite WAL database; database and WAL files must not contain plaintext user content.
+- The first database open migrates former encrypted or plaintext `sillage.local_data` SharedPreferences values. Migration is idempotent and must not replace a database value that already exists. Unreadable ciphertext or a lost Keystore key fails closed, retains the raw payload for diagnosis, and must never be interpreted as an empty library.
+- Multi-key state transitions that couple content and sync metadata must use one SQLite transaction. Android automatic backup remains disabled. Exported JSON must remove API keys and clearly warn that all remaining content is still sensitive plaintext.
 - Protected attachments are downloaded with authentication into the application cache, then passed to external viewers through read-only FileProvider URIs. Private application file paths must never be exposed.
+- Gradle dependency locks and verification metadata are release inputs. The APK release runtime must pass OSV scanning, every runtime coordinate must have a reviewed license mapping, and the generated notices must remain accessible from Settings.
 
 ## Changes and Validation
 
@@ -79,6 +82,6 @@ Security-related changes must cover the relevant tests at a minimum:
 - attachments: cross-account access, path traversal, size limits, download responses, and cleanup;
 - secrets or AI profiles: encryption and decryption, unavailable secrets, and absence of plaintext in responses;
 - AI data scope or prompts: update the server and Android together and verify the user privacy documentation;
-- Android storage or exports: Keystore compatibility, legacy-data migration, and export redaction.
+- Android storage or exports: Robolectric transaction/reopen tests, real-device Keystore and migration tests, cold-relaunch persistence, and export redaction.
 
 See the [Contributing Guide](../../CONTRIBUTING.md) for complete commands. Implementation sources of truth are `server/auth/`, `server/auth_routes.go`, `server/attachment_routes.go`, `server/ai_provider*.go`, `internal/secret/`, `store/`, `web/src/components/Markdown.tsx`, and the Android `data/` layer.

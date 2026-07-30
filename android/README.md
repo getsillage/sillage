@@ -20,16 +20,25 @@ The record editor supports Markdown editing and preview. The preview supports co
 
 The app provides neither automatic background sync nor push notifications; sync is always started by the user. Offline attachment bytes are stored on the device and uploaded through `POST /api/v1/attachments` during the next online push or two-way sync (attachment bytes never enter the sync payload). After upload, memo markdown is rewritten to the authenticated server URL so later downloads use `/file/attachments/...`. An Android export is not a substitute for a complete backup of the server's data directory.
 
+Offline records, Ask history, local AI configuration, attachment metadata, and sync state are stored as independently encrypted values in a SQLite WAL database. The encryption key is non-exportable and held by Android Keystore. On the first open after upgrading, the app migrates the former encrypted or plaintext `sillage.local_data` SharedPreferences entries into the database and removes the legacy copies. If the Keystore key or ciphertext is unavailable, the app fails closed and preserves the unreadable payload instead of treating it as an empty library and overwriting it. Android automatic backup remains disabled; use the explicit JSON export for device-to-device portability and protect that plaintext export as sensitive data.
+
 "Pull" reads all syncable data from the server and merges it into the device. "Push" uploads pending local records (after flushing offline attachment uploads). "Two-way sync" pushes first and then performs a full pull. When a version conflict occurs, the app keeps the local pending change and opens a conflict dialog that shows the local content and the server resource. You can keep the device version (adopt the server version as the next `baseVersion` and resubmit later), use the server version (drop the local pending change), or dismiss and decide later. Do not keep retrying to force an overwrite without resolving the conflict.
 
 ## Build and Test
 
-JDK 17 and Android SDK 35 are required:
+JDK 17 and Android SDK 35 are required. The repository pins Gradle, locks every resolvable dependency graph, verifies downloaded dependency SHA-256 values, and scans the complete release runtime with OSV Scanner. Run the CI-equivalent host gate from the repository root:
 
 ```bash
-cd android
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+make check-android
 ```
+
+This runs unit tests, Android Lint, debug and instrumentation APK assembly, the release manifest policy, license-notice drift checks, and the release-runtime vulnerability scan. To run Keystore/SQLite migration and critical Compose journeys on an API 35 emulator or connected device:
+
+```bash
+make check-android-device
+```
+
+CI provisions a clean API 35 x86_64 emulator and runs this device gate for every Android change. The device suite verifies real Android Keystore migration and encrypted database persistence, cold-relaunch offline record persistence, and access to the bundled open-source notices.
 
 The debug APK is located at:
 
@@ -69,6 +78,8 @@ The release build uses this keystore only when the local signing configuration e
 ## Security Boundaries
 
 Only debug builds permit cleartext HTTP for LAN and emulator development. Release APKs reject cleartext traffic and require an HTTPS instance. Login sessions and offline data are protected through Android Keystore, but exported JSON contains sensitive data in plaintext and should be shared and stored only in restricted locations.
+
+The APK includes the complete reviewed release-runtime dependency inventory and Apache 2.0, BSD 2-Clause, Mozilla Public License 2.0, and applicable NOTICE text. Users can read it under **Settings → About → Open-source licenses**. Regenerate it after dependency changes with `make generate-android-third-party-notices`; CI rejects stale or unreviewed license mappings.
 
 Attachment links accept only standard external `http(s)` URLs or same-origin `/file/attachments/...` paths. The app downloads protected attachments to its cache with authentication, then passes them to the system viewer through a read-only FileProvider URI.
 

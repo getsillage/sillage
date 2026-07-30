@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -31,12 +33,14 @@ import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SettingsEthernet
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,6 +72,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +101,7 @@ private val AI_PROVIDER_OPTIONS = listOf(AI_PROVIDER_ANTHROPIC, AI_PROVIDER_OPEN
 @Composable
 fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var selectedAIProfileIndex by remember { mutableStateOf<Int?>(null) }
+    var showOpenSourceLicenses by remember { mutableStateOf(false) }
     val selectedIndex = selectedAIProfileIndex?.takeIf { it in state.aiProfiles.indices }
     val aiProfileOperationInProgress = state.aiSettingsSaving ||
         state.aiTestingProfileId.isNotBlank() ||
@@ -350,6 +356,16 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
+                        SettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
+                            SettingsActionRow(
+                                icon = Icons.Rounded.Info,
+                                title = stringResource(R.string.settings_open_source_licenses),
+                                supporting = stringResource(R.string.settings_open_source_licenses_supporting),
+                                onClick = { showOpenSourceLicenses = true },
+                            )
+                        }
+                    }
+                    item {
                         AISettingsHeaderCard(
                             saving = state.aiSettingsSaving,
                             addEnabled = !aiProfileOperationInProgress,
@@ -400,6 +416,40 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             }
         }
     }
+    if (showOpenSourceLicenses) {
+        OpenSourceLicensesDialog(onDismiss = { showOpenSourceLicenses = false })
+    }
+}
+
+@Composable
+private fun OpenSourceLicensesDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val notices = remember(context) {
+        context.resources.openRawResource(R.raw.third_party_notices)
+            .bufferedReader()
+            .use { it.readText() }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_open_source_licenses)) },
+        text = {
+            SelectionContainer {
+                Text(
+                    text = notices,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
+        },
+    )
 }
 
 @Composable

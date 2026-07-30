@@ -6,9 +6,10 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
-class LocalDataStore(context: Context) {
-    private val prefs = context.getSharedPreferences("sillage.local_data", Context.MODE_PRIVATE)
-    private val securePrefs = SecurePreferences(prefs)
+class LocalDataStore internal constructor(private val stateStore: LocalStateStorage) {
+    constructor(context: Context) : this(LocalStateStore(context))
+
+    internal constructor(context: Context, cipher: ValueCipher) : this(LocalStateStore(context, cipher))
 
     fun exportData(): SillageExportData = loadData()
 
@@ -35,17 +36,12 @@ class LocalDataStore(context: Context) {
         memos.forEach { memo -> versions[memo.id] = memo.version }
         val syncedIds = memos.mapTo(mutableSetOf(), Memo::id)
         val mutations = pendingMemoMutations().filterKeys { it !in syncedIds }
-        val editor = prefs.edit()
-        securePrefs.putString(
-            editor,
-            KEY_CLOUD_MEMO_VERSIONS,
-            cloudMemoVersionsJson(versions),
+        stateStore.putStrings(
+            mapOf(
+                KEY_CLOUD_MEMO_VERSIONS to cloudMemoVersionsJson(versions),
+                KEY_PENDING_MEMO_MUTATIONS to pendingMemoMutationsJson(mutations),
+            ),
         )
-        securePrefs.putString(
-            editor,
-            KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(mutations),
-        ).apply()
     }
 
     fun applyCloudSyncedMemos(appliedMemos: List<AppliedMemoSync>) {
@@ -145,22 +141,13 @@ class LocalDataStore(context: Context) {
         pendingMutations: Map<String, PendingMemoMutation>,
     ) {
         val normalized = data.normalizedForLocalStorage()
-        val editor = prefs.edit()
-        securePrefs.putString(
-            editor,
-            KEY_DATA,
-            SillageExportCodec.toLocalJson(normalized),
+        stateStore.putStrings(
+            mapOf(
+                KEY_DATA to SillageExportCodec.toLocalJson(normalized),
+                KEY_CLOUD_MEMO_VERSIONS to cloudMemoVersionsJson(cloudVersions),
+                KEY_PENDING_MEMO_MUTATIONS to pendingMemoMutationsJson(pendingMutations),
+            ),
         )
-        securePrefs.putString(
-            editor,
-            KEY_CLOUD_MEMO_VERSIONS,
-            cloudMemoVersionsJson(cloudVersions),
-        )
-        securePrefs.putString(
-            editor,
-            KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(pendingMutations),
-        ).apply()
     }
 
     fun searchMemos(query: String): List<Memo> {
@@ -428,22 +415,13 @@ class LocalDataStore(context: Context) {
             pendingMutations = pendingMemoMutations(),
         )
         val mergedData = mergeData(currentData, normalized).copy(memos = mergedMemos.memos)
-        val editor = prefs.edit()
-        securePrefs.putString(
-            editor,
-            KEY_DATA,
-            SillageExportCodec.toLocalJson(mergedData),
+        stateStore.putStrings(
+            mapOf(
+                KEY_DATA to SillageExportCodec.toLocalJson(mergedData),
+                KEY_CLOUD_MEMO_VERSIONS to cloudMemoVersionsJson(mergedMemos.cloudVersions),
+                KEY_PENDING_MEMO_MUTATIONS to pendingMemoMutationsJson(mergedMemos.pendingMutations),
+            ),
         )
-        securePrefs.putString(
-            editor,
-            KEY_CLOUD_MEMO_VERSIONS,
-            cloudMemoVersionsJson(mergedMemos.cloudVersions),
-        )
-        securePrefs.putString(
-            editor,
-            KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(mergedMemos.pendingMutations),
-        ).apply()
     }
 
     private fun replaceMemo(memo: Memo) {
@@ -459,25 +437,20 @@ class LocalDataStore(context: Context) {
         }
         val mutations = pendingMemoMutations().toMutableMap()
         mutations[memo.id] = newPendingMemoMutation(memo)
-        val editor = prefs.edit()
-        securePrefs.putString(
-            editor,
-            KEY_DATA,
-            SillageExportCodec.toLocalJson(currentData.copy(memos = memos)),
+        stateStore.putStrings(
+            mapOf(
+                KEY_DATA to SillageExportCodec.toLocalJson(currentData.copy(memos = memos)),
+                KEY_PENDING_MEMO_MUTATIONS to pendingMemoMutationsJson(mutations),
+            ),
         )
-        securePrefs.putString(
-            editor,
-            KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(mutations),
-        ).apply()
     }
 
     private fun loadData(): SillageExportData {
-        return when (val stored = securePrefs.readString(KEY_DATA)) {
+        return when (val stored = stateStore.readString(KEY_DATA)) {
             is SecureReadResult.Missing -> emptyData()
-            is SecureReadResult.Unreadable -> throw corruptLocalData(stored.rawPayload)
+            is SecureReadResult.Unreadable -> throw corruptLocalState(KEY_DATA, stored.rawPayload)
             is SecureReadResult.Value -> runCatching { SillageExportCodec.fromJson(stored.value) }
-                .getOrElse { throw corruptLocalData(stored.value) }
+                .getOrElse { throw corruptLocalState(KEY_DATA, stored.value) }
         }
     }
 
@@ -485,9 +458,10 @@ class LocalDataStore(context: Context) {
      * Local data exists but cannot be decrypted or parsed. Preserve the raw
      * payload once and fail loudly so covering writes cannot wipe the diary.
      */
-    private fun corruptLocalData(rawPayload: String): ApiException {
-        if (!prefs.contains(KEY_DATA_CORRUPT_BACKUP)) {
-            prefs.edit().putString(KEY_DATA_CORRUPT_BACKUP, rawPayload).apply()
+    private fun corruptLocalState(key: String, rawPayload: String): ApiException {
+        val backupKey = if (key == KEY_DATA) KEY_DATA_CORRUPT_BACKUP else "${key}_corrupt_backup"
+        if (!stateStore.contains(backupKey)) {
+            stateStore.putString(backupKey, rawPayload)
         }
         return ApiException(LOCAL_DATA_CORRUPT_MESSAGE)
     }
@@ -497,11 +471,7 @@ class LocalDataStore(context: Context) {
     }
 
     private fun saveData(data: SillageExportData) {
-        securePrefs.putString(
-            prefs.edit(),
-            KEY_DATA,
-            SillageExportCodec.toLocalJson(data.normalizedForLocalStorage()),
-        ).apply()
+        stateStore.putString(KEY_DATA, SillageExportCodec.toLocalJson(data.normalizedForLocalStorage()))
     }
 
     private fun emptyData(): SillageExportData {
@@ -568,8 +538,9 @@ class LocalDataStore(context: Context) {
     }
 
     private fun cloudMemoVersions(): Map<String, Long> {
-        val raw = securePrefs.getString(KEY_CLOUD_MEMO_VERSIONS, "{}") ?: "{}"
-        val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
+        val raw = readStateValue(KEY_CLOUD_MEMO_VERSIONS, "{}")
+        val body = runCatching { JSONObject(raw) }
+            .getOrElse { throw corruptLocalState(KEY_CLOUD_MEMO_VERSIONS, raw) }
         return buildMap {
             body.keys().forEach { id ->
                 put(id, body.optLong(id))
@@ -578,9 +549,12 @@ class LocalDataStore(context: Context) {
     }
 
     private fun pendingLocalAttachments(): Map<String, PendingLocalAttachment> {
-        val raw = when (val stored = securePrefs.readString(KEY_PENDING_LOCAL_ATTACHMENTS)) {
+        val raw = when (val stored = stateStore.readString(KEY_PENDING_LOCAL_ATTACHMENTS)) {
             is SecureReadResult.Missing -> return emptyMap()
-            is SecureReadResult.Unreadable -> return emptyMap()
+            is SecureReadResult.Unreadable -> throw corruptLocalState(
+                KEY_PENDING_LOCAL_ATTACHMENTS,
+                stored.rawPayload,
+            )
             is SecureReadResult.Value -> stored.value
         }
         return runCatching {
@@ -597,7 +571,7 @@ class LocalDataStore(context: Context) {
                 )
             }
             out
-        }.getOrDefault(emptyMap())
+        }.getOrElse { throw corruptLocalState(KEY_PENDING_LOCAL_ATTACHMENTS, raw) }
     }
 
     private fun savePendingLocalAttachments(items: Map<String, PendingLocalAttachment>) {
@@ -612,12 +586,13 @@ class LocalDataStore(context: Context) {
                     .put("size", item.size),
             )
         }
-        securePrefs.putString(prefs.edit(), KEY_PENDING_LOCAL_ATTACHMENTS, body.toString()).apply()
+        stateStore.putString(KEY_PENDING_LOCAL_ATTACHMENTS, body.toString())
     }
 
     private fun pendingMemoMutations(): Map<String, PendingMemoMutation> {
-        val raw = securePrefs.getString(KEY_PENDING_MEMO_MUTATIONS, "{}") ?: "{}"
-        val body = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
+        val raw = readStateValue(KEY_PENDING_MEMO_MUTATIONS, "{}")
+        val body = runCatching { JSONObject(raw) }
+            .getOrElse { throw corruptLocalState(KEY_PENDING_MEMO_MUTATIONS, raw) }
         return buildMap {
             body.keys().forEach { id ->
                 val item = body.optJSONObject(id) ?: return@forEach
@@ -639,11 +614,15 @@ class LocalDataStore(context: Context) {
     }
 
     private fun savePendingMemoMutations(mutations: Map<String, PendingMemoMutation>) {
-        securePrefs.putString(
-            prefs.edit(),
-            KEY_PENDING_MEMO_MUTATIONS,
-            pendingMemoMutationsJson(mutations),
-        ).apply()
+        stateStore.putString(KEY_PENDING_MEMO_MUTATIONS, pendingMemoMutationsJson(mutations))
+    }
+
+    private fun readStateValue(key: String, fallback: String): String {
+        return when (val stored = stateStore.readString(key)) {
+            is SecureReadResult.Missing -> fallback
+            is SecureReadResult.Value -> stored.value
+            is SecureReadResult.Unreadable -> throw corruptLocalState(key, stored.rawPayload)
+        }
     }
 }
 

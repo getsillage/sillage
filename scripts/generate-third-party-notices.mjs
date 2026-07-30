@@ -175,6 +175,14 @@ function webDependencies() {
 }
 
 function generate() {
+  const androidLicenseRoot = path.join(licenseRoot, "android");
+  if (!existsSync(androidLicenseRoot)) {
+    throw new Error("Missing reviewed Android license source files");
+  }
+  cpSync(androidLicenseRoot, path.join(stagingLicenses, "android"), {
+    recursive: true,
+  });
+
   const goRows = [];
   for (const dependency of goDependencies()) {
     const files = licenseFiles(dependency.directory);
@@ -224,7 +232,7 @@ function generate() {
 
   const notice = `# Third-party notices
 
-Sillage is licensed under the [MIT License](LICENSE). The official server binary and container image also include the Go and Web runtime dependencies listed below. Each dependency remains subject to its own license; the exact license and notice files shipped by that dependency are preserved under \`third_party/licenses/\` and copied into the official container image at \`/usr/share/licenses/sillage/\`.
+Sillage is licensed under the [MIT License](LICENSE). The official server binary and container image also include the Go and Web runtime dependencies listed below. Each dependency remains subject to its own license; the exact license and notice files shipped by that dependency are preserved under \`third_party/licenses/\` and copied into the official container image at \`/usr/share/licenses/sillage/\`. The Android APK has a separate locked runtime graph and ships its generated inventory and license texts in Settings; the reviewed Android source texts are preserved under \`third_party/licenses/android/\`.
 
 This inventory is generated from the resolved Go build graph and the production pnpm dependency graph. Regenerate it with \`node scripts/generate-third-party-notices.mjs --write\`; CI rejects dependency or notice drift.
 

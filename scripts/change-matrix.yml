@@ -8,7 +8,7 @@ gates:
   go: "Go modules, tests, vet, and binary build"
   proto: "Buf lint, breaking, generate, and committed gen drift"
   web: "Web lint, typecheck, unit tests, and production build"
-  android: "Android unit tests, lint, debug assemble, and release manifest policy"
+  android: "Android unit/device tests, lint, APK assembly, dependency integrity, notices, vulnerability scan, and release manifest policy"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
   supply-chain: "Runtime dependency audit, license notices, SBOM, and image vulnerability scan"
@@ -70,6 +70,16 @@ rules:
     gates: [android]
     docs:
       - "android/README.md"
+
+  - id: android-artifact-policy
+    paths:
+      - "scripts/check-android-supply-chain.sh"
+      - "scripts/generate-android-third-party-notices.mjs"
+      - "third_party/licenses/android/**"
+    gates: [android, docs]
+    docs:
+      - "android/README.md"
+      - "docs/development/security.md"
 
   - id: sync-contract
     paths:

@@ -636,7 +636,7 @@ class SillageApi(
         val call = newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         val callback = object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
+            override fun onFailure(call: Call, e: IOException) {
                 val token = continuation.tryResumeWithException(ApiException("附件下载失败"))
                 if (token != null) {
                     continuation.completeResume(token)

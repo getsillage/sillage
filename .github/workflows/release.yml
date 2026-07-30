@@ -462,8 +462,16 @@ jobs:
           java-version: 17
           cache: gradle
 
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Recheck Android release inputs
+        run: make check-android
 
       - name: Decode keystore
         working-directory: android

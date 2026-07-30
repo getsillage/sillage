@@ -110,7 +110,7 @@ class OfflineRecordJourneyTest {
         compose.onNode(hasText("恢复") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
 
-        compose.onNode(hasText("未归档") and hasClickAction()).performClick()
+        relaunchOfflineRecords()
         openRecordDetail(record)
         deleteOpenRecordFromDetail()
         relaunchOfflineRecords()

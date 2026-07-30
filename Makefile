@@ -55,6 +55,7 @@ check-android:
 
 check-docs:
 	node scripts/check-docker-context.mjs
+	node --test scripts/compose-release-notes.test.mjs
 	node scripts/check-markdown-links.mjs
 	node scripts/check-terminology.mjs
 	bash scripts/check-whitespace.sh

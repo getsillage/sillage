@@ -10,23 +10,27 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing git tag to build and publish (e.g. v0.1.7)"
+        description: "Existing git tag (e.g. v0.3.0)"
         required: true
         type: string
-      create_release:
-        description: "Create or refresh a GitHub Release for the tag"
-        required: false
-        type: boolean
-        default: false
+      mode:
+        description: "Publish a new immutable release or attach the missing Android APK only"
+        required: true
+        type: choice
+        options:
+          - release
+          - android-only
+        default: release
 
 permissions:
+  actions: read
   contents: write
   packages: write
   attestations: write
   id-token: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.tag || github.ref_name }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -34,52 +38,131 @@ env:
   IMAGE_NAME: getsillage/sillage
 
 jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.verify.outputs.tag }}
+      revision: ${{ steps.verify.outputs.revision }}
+      mode: ${{ steps.verify.outputs.mode }}
+      stable: ${{ steps.verify.outputs.stable }}
+    steps:
+      - name: Resolve release request
+        id: request
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.request.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Checkout release tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tooling
+          sparse-checkout: scripts/check-release-version.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Verify tag, version, CI, and release state
+        id: verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.request.outputs.tag }}
+          MODE: ${{ steps.request.outputs.mode }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must match vX.Y.Z or vX.Y.Z-prerelease (got: $TAG)" >&2
+            exit 1
+          fi
+          if [ "$MODE" != "release" ] && [ "$MODE" != "android-only" ]; then
+            echo "Unsupported release mode: $MODE" >&2
+            exit 1
+          fi
+          if [ "$(git cat-file -t "$TAG")" != "tag" ]; then
+            echo "Release tag $TAG must be annotated" >&2
+            exit 1
+          fi
+          expected="$(git rev-parse "$TAG^{commit}")"
+          actual="$(git rev-parse HEAD)"
+          if [ "$expected" != "$actual" ]; then
+            echo "Checkout $actual does not match tag $TAG ($expected)" >&2
+            exit 1
+          fi
+          node .release-tooling/scripts/check-release-version.mjs "$TAG"
+
+          stable=true
+          if [[ "$TAG" == *-* ]]; then
+            stable=false
+          fi
+
+          if [ "$MODE" = "release" ]; then
+            tag_object="$(git rev-parse "$TAG")"
+            verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.verified')"
+            if [ "$verified" != "true" ]; then
+              echo "Release tag $TAG must carry a GitHub-verified signature" >&2
+              exit 1
+            fi
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "Release $TAG already exists; published versions are immutable" >&2
+              exit 1
+            fi
+
+            ci_run="$(gh run list --workflow CI --commit "$actual" --limit 20 --json databaseId,conclusion --jq '[.[] | select(.conclusion == "success")][0].databaseId // empty')"
+            if [ -z "$ci_run" ]; then
+              echo "No successful CI run found for release commit $actual" >&2
+              exit 1
+            fi
+            jobs="$(gh run view "$ci_run" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
+            for required in Commits Secrets Go Proto Web Docs Container E2E Android; do
+              if ! grep -Fqx "$required"$'\t'"success" <<< "$jobs"; then
+                echo "CI run $ci_run is missing successful required job: $required" >&2
+                exit 1
+              fi
+            done
+          else
+            if ! gh release view "$TAG" >/dev/null 2>&1; then
+              echo "android-only mode requires an existing GitHub Release for $TAG" >&2
+              exit 1
+            fi
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "revision=$actual" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+
   container:
     name: Container image
     runs-on: ubuntu-latest
+    needs: [preflight]
     outputs:
-      tag: ${{ steps.ref.outputs.tag }}
-      revision: ${{ steps.rev.outputs.revision }}
-      digest: ${{ steps.build.outputs.digest }}
+      tag: ${{ needs.preflight.outputs.tag }}
+      revision: ${{ needs.preflight.outputs.revision }}
+      digest: ${{ steps.image.outputs.digest }}
     steps:
-      - name: Resolve tag
-        id: ref
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            tag="${{ inputs.tag }}"
-          else
-            tag="${GITHUB_REF_NAME}"
-          fi
-          case "$tag" in
-            v[0-9]*) ;;
-            *)
-              echo "Tag must look like vX.Y.Z (got: $tag)" >&2
-              exit 1
-              ;;
-          esac
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.ref.outputs.tag }}
+          ref: ${{ needs.preflight.outputs.tag }}
           fetch-depth: 0
 
-      - name: Resolve revision
-        id: rev
-        run: |
-          tag="${{ steps.ref.outputs.tag }}"
-          if ! git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "Missing tag $tag" >&2
-            exit 1
-          fi
-          expected="$(git rev-parse "$tag^{commit}")"
-          actual="$(git rev-parse HEAD)"
-          if [ "$expected" != "$actual" ]; then
-            echo "Checkout $actual does not match tag $tag ($expected)" >&2
-            exit 1
-          fi
-          echo "revision=$actual" >> "$GITHUB_OUTPUT"
+      - name: Checkout release tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tooling
+          sparse-checkout: scripts/compose-release-notes.mjs
+          sparse-checkout-cone-mode: false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -94,16 +177,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Reject an existing immutable tag
+        if: needs.preflight.outputs.mode == 'release'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "${IMAGE}:${TAG}" >/dev/null 2>&1; then
+            echo "${IMAGE}:${TAG} already exists; refusing to overwrite an immutable release tag" >&2
+            exit 1
+          fi
+
       - name: Docker metadata
         id: meta
+        if: needs.preflight.outputs.mode == 'release'
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.ref.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.ref.outputs.tag }}
-            type=raw,value=${{ steps.ref.outputs.tag }}
-            type=raw,value=latest,enable=${{ github.event_name == 'push' || inputs.create_release }}
+            type=semver,pattern={{version}},value=${{ needs.preflight.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.preflight.outputs.tag }},enable=${{ needs.preflight.outputs.stable == 'true' }}
+            type=raw,value=${{ needs.preflight.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.preflight.outputs.stable == 'true' }}
           labels: |
             org.opencontainers.image.title=Sillage
             org.opencontainers.image.description=Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.
@@ -113,6 +209,7 @@ jobs:
 
       - name: Build and push
         id: build
+        if: needs.preflight.outputs.mode == 'release'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -122,12 +219,13 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ steps.ref.outputs.tag }}
-            REVISION=${{ steps.rev.outputs.revision }}
+            VERSION=${{ needs.preflight.outputs.tag }}
+            REVISION=${{ needs.preflight.outputs.revision }}
           provenance: true
           sbom: true
 
       - name: Make package public
+        if: needs.preflight.outputs.mode == 'release'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,100 +249,96 @@ jobs:
           echo "::warning::Could not set package visibility via API. If anonymous docker pull fails, open the package settings and set visibility to Public."
           exit 0
 
+      - name: Resolve published image digest
+        id: image
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          MODE: ${{ needs.preflight.outputs.mode }}
+          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "release" ]; then
+            digest="$BUILT_DIGEST"
+          else
+            digest="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" | awk '$1 == "Digest:" { print $2; exit }')"
+          fi
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve a valid image digest for ${IMAGE}:${TAG}: $digest" >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
       - name: Summary
+        env:
+          TAG: ${{ needs.preflight.outputs.tag }}
+          REVISION: ${{ needs.preflight.outputs.revision }}
+          DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           {
             echo "## Container"
             echo ""
-            echo "- Tag: \`${{ steps.ref.outputs.tag }}\`"
-            echo "- Revision: \`${{ steps.rev.outputs.revision }}\`"
+            echo "- Tag: \`$TAG\`"
+            echo "- Revision: \`$REVISION\`"
             echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`"
-            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo "- Digest: \`$DIGEST\`"
             echo ""
             echo '```bash'
-            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.tag }}"
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
   release-notes:
     name: GitHub Release
     runs-on: ubuntu-latest
-    needs: [container]
-    if: github.event_name == 'push' || inputs.create_release
+    needs: [preflight, container]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.container.outputs.tag }}
+          ref: ${{ needs.preflight.outputs.tag }}
           fetch-depth: 0
 
       - name: Compose release notes
         env:
-          TAG: ${{ needs.container.outputs.tag }}
+          TAG: ${{ needs.preflight.outputs.tag }}
           DIGEST: ${{ needs.container.outputs.digest }}
           IMAGE: ghcr.io/getsillage/sillage
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-
-          container_block() {
-            echo "## Install"
-            echo ""
-            echo "Quick start (always the newest non-prerelease image):"
-            echo ""
-            echo '```bash'
-            echo "docker run --rm \\"
-            echo "  -p 127.0.0.1:5231:5231 \\"
-            echo "  -v \"\$HOME/.sillage:/var/opt/sillage\" \\"
-            echo "  ${IMAGE}:latest"
-            echo '```'
-            echo ""
-            echo "This release is also tagged \`${IMAGE}:${TAG}\` (digest \`${DIGEST:-unknown}\`)."
-            echo ""
-            echo "Upgrade and rollback: [Data, Backup, and Recovery](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/data.md) · [Deployment](https://github.com/getsillage/sillage/blob/${TAG}/docs/user/deployment.md)"
-            echo ""
-            echo "---"
-            echo ""
-          }
-
-          notes="$(mktemp)"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            existing="$(gh release view "$TAG" --json body --jq '.body // ""')"
-            if printf '%s' "$existing" | grep -qE '^## (Install|Container image)'; then
-              printf '%s\n' "$existing" > "$notes"
-            else
-              {
-                container_block
-                if [ -n "$existing" ]; then
-                  printf '%s\n' "$existing"
-                else
-                  echo "## Changes"
-                  echo ""
-                  echo "See the commit history for ${TAG}."
-                fi
-              } > "$notes"
-            fi
-            gh release edit "$TAG" --notes-file "$notes"
+          existing_file="$(mktemp)"
+          generated_file="$(mktemp)"
+          notes_file="$(mktemp)"
+          if gh release view "$TAG" --json body --jq '.body // ""' > "$existing_file" 2>/dev/null; then
+            :
           else
-            {
-              container_block
-              echo "## Changes"
-              echo ""
-              gen="$(mktemp)"
-              if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-                -f tag_name="$TAG" \
-                -f target_commitish="$(git rev-parse HEAD)" \
-                --jq .body > "$gen" 2>/dev/null; then
-                cat "$gen"
-              else
-                echo "See the commit history for ${TAG}."
-              fi
-            } > "$notes"
-            gh release create "$TAG" \
-              --title "Sillage ${TAG}" \
-              --notes-file "$notes" \
-              --verify-tag
+            : > "$existing_file"
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$(git rev-parse HEAD)" \
+            --jq .body > "$generated_file" 2>/dev/null; then
+            :
+          else
+            echo "See the commit history for ${TAG}." > "$generated_file"
+          fi
+          node .release-tooling/scripts/compose-release-notes.mjs \
+            --tag "$TAG" \
+            --image "$IMAGE" \
+            --digest "$DIGEST" \
+            --existing "$existing_file" \
+            --generated "$generated_file" \
+            --output "$notes_file"
+
+          if [ "${{ needs.preflight.outputs.mode }}" = "release" ]; then
+            create_args=(--title "Sillage ${TAG}" --notes-file "$notes_file" --verify-tag)
+            if [ "${{ needs.preflight.outputs.stable }}" != "true" ]; then
+              create_args+=(--prerelease)
+            fi
+            gh release create "$TAG" "${create_args[@]}"
+          else
+            gh release edit "$TAG" --notes-file "$notes_file"
           fi
 
   # Optional signed Android APK when enabled and secrets are present.
@@ -254,15 +348,14 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
-    needs: [container, release-notes]
+    needs: [preflight, container, release-notes]
     if: >-
-      (github.event_name == 'push' || inputs.create_release)
-      && vars.RELEASE_ANDROID_APK == 'true'
+      vars.RELEASE_ANDROID_APK == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.container.outputs.tag }}
+          ref: ${{ needs.preflight.outputs.tag }}
 
       - name: Require signing secrets
         env:
@@ -325,7 +418,7 @@ jobs:
           apksigner_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name apksigner | sort | tail -1)"
           test -n "$apksigner_bin"
           "$apksigner_bin" verify --verbose --print-certs "$apk"
-          out="$RUNNER_TEMP/Sillage-${{ needs.container.outputs.tag }}.apk"
+          out="$RUNNER_TEMP/Sillage-${{ needs.preflight.outputs.tag }}.apk"
           cp "$apk" "$out"
           sha256sum "$out" | tee "$out.sha256"
           echo "apk=$out" >> "$GITHUB_OUTPUT"
@@ -334,9 +427,18 @@ jobs:
       - name: Upload APK to Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.container.outputs.tag }}
+          TAG: ${{ needs.preflight.outputs.tag }}
         run: |
+          set -euo pipefail
+          asset="Sillage-${TAG}.apk"
+          checksum="${asset}.sha256"
+          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          for candidate in "$asset" "$checksum"; do
+            if grep -Fqx "$candidate" <<< "$assets"; then
+              echo "Release $TAG already contains $candidate; refusing to overwrite an immutable asset" >&2
+              exit 1
+            fi
+          done
           gh release upload "$TAG" \
             "${{ steps.apk.outputs.apk }}" \
-            "${{ steps.apk.outputs.sum }}" \
-            --clobber
+            "${{ steps.apk.outputs.sum }}"

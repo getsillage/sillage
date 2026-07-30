@@ -16,6 +16,7 @@ const (
 	MinPasswordRunes  = 8
 	MaxPasswordBytes  = 256
 	passwordAlgorithm = "argon2id"
+	passwordSaltBytes = 16
 	argonMemory       = 64 * 1024
 	argonIterations   = 3
 	argonParallelism  = 2
@@ -26,7 +27,7 @@ func HashPassword(password string) (string, error) {
 	if err := ValidateNewPassword(password); err != nil {
 		return "", err
 	}
-	var salt [16]byte
+	var salt [passwordSaltBytes]byte
 	if _, err := rand.Read(salt[:]); err != nil {
 		return "", fmt.Errorf("generate password salt: %w", err)
 	}
@@ -51,11 +52,17 @@ func VerifyPassword(encoded, password string) (bool, error) {
 		return false, fmt.Errorf("unsupported password hash")
 	}
 
-	params := map[string]uint32{}
+	params := make(map[string]uint32, 3)
 	for _, item := range strings.Split(parts[2], ",") {
 		keyValue := strings.SplitN(item, "=", 2)
 		if len(keyValue) != 2 {
 			return false, fmt.Errorf("invalid password hash params")
+		}
+		if keyValue[0] != "m" && keyValue[0] != "t" && keyValue[0] != "p" {
+			return false, fmt.Errorf("unsupported password hash param %s", keyValue[0])
+		}
+		if _, exists := params[keyValue[0]]; exists {
+			return false, fmt.Errorf("duplicate password hash param %s", keyValue[0])
 		}
 		value, err := strconv.ParseUint(keyValue[1], 10, 32)
 		if err != nil {
@@ -63,16 +70,28 @@ func VerifyPassword(encoded, password string) (bool, error) {
 		}
 		params[keyValue[0]] = uint32(value)
 	}
+	if len(params) != 3 ||
+		params["m"] != argonMemory ||
+		params["t"] != argonIterations ||
+		params["p"] != argonParallelism {
+		return false, fmt.Errorf("unsupported password hash params")
+	}
 
 	salt, err := base64.RawStdEncoding.DecodeString(parts[3])
 	if err != nil {
 		return false, fmt.Errorf("decode password salt: %w", err)
 	}
+	if len(salt) != passwordSaltBytes {
+		return false, fmt.Errorf("invalid password salt length")
+	}
 	expected, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false, fmt.Errorf("decode password hash: %w", err)
 	}
-	actual := argon2.IDKey([]byte(password), salt, params["t"], params["m"], uint8(params["p"]), uint32(len(expected)))
+	if len(expected) != argonKeyLength {
+		return false, fmt.Errorf("invalid password hash length")
+	}
+	actual := argon2.IDKey([]byte(password), salt, argonIterations, argonMemory, argonParallelism, argonKeyLength)
 	return subtle.ConstantTimeCompare(actual, expected) == 1, nil
 }
 

@@ -23,6 +23,7 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 - Break-glass recovery is a local-only `admin reset-password` command. It requires the service to be stopped, the same exclusive data-directory lock used by the server, an explicit username, and a regular owner-only password file; it never exposes an unauthenticated HTTP route or accepts the password as a command-line value. The password update and refresh-session revocation are atomic.
 - Access tokens are signed by the server and expire after 15 minutes. Refresh tokens are stored only as hashes, expire after 30 days, and rotate on refresh. Signing out revokes the refresh session, but an already issued access token remains usable until it expires.
 - Cookies must retain `HttpOnly` and `SameSite=Lax`. They must also use `Secure` under TLS or trusted `X-Forwarded-Proto: https`.
+- Stored Argon2 password hashes are parsed as a canonical, fixed resource profile before verification; malformed, duplicate, unknown, or resource-amplifying parameters fail closed before Argon2 runs.
 - Protected business write endpoints accept only Bearer tokens. Cookie fallback is limited to safe GET requests where browsers cannot set an Authorization header, such as attachment reads, and must not be extended to business writes.
 - Sign-in rate limiting uses both account and client IP. Forwarded headers are ignored unless the direct peer matches an explicitly configured `SILLAGE_TRUSTED_PROXY` CIDR. A trusted proxy must overwrite rather than append client-supplied forwarded headers.
 

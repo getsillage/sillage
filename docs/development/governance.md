@@ -52,7 +52,7 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | ADRs | [decisions/](decisions/) | Review for cross-module choices | Active |
 | Dependencies | Dependabot config | Weekly PRs (limited) | Active |
 | Dependencies and release supply chain | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases, [deployment.md](../user/deployment.md) | `make check-supply-chain`, pinned Syft/Grype, signed provenance and SPDX attestations | Active |
-| Release artifacts | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases | `release.yml` only | Active |
+| Release artifacts and curated notes | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases | checked `.github/release-notes/vX.Y.Z.md` input + `release.yml` only | Active |
 | Release acceptance | [release-readiness.md](release-readiness.md) | CI-required jobs including API 26/API 35 Android journeys + release-candidate and published-artifact verification | Active |
 | Agent session | [CLAUDE.md](../../CLAUDE.md) | Maintainer process | Active |
 | Path → gate matrix | [../../scripts/change-matrix.yml](../../scripts/change-matrix.yml) | `make print-affected` / `check-affected` | Active |

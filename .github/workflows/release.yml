@@ -67,7 +67,9 @@ jobs:
         with:
           ref: ${{ github.sha }}
           path: .release-tooling
-          sparse-checkout: scripts/check-release-version.mjs
+          sparse-checkout: |
+            scripts/check-release-version.mjs
+            scripts/check-release-notes.mjs
           sparse-checkout-cone-mode: false
 
       - name: Verify tag, version, CI, and release state
@@ -97,6 +99,9 @@ jobs:
             exit 1
           fi
           node .release-tooling/scripts/check-release-version.mjs "$TAG"
+          if [ "$MODE" = "release" ]; then
+            node .release-tooling/scripts/check-release-notes.mjs "$TAG" --release
+          fi
 
           stable=true
           if [[ "$TAG" == *-* ]]; then
@@ -323,6 +328,7 @@ jobs:
           TAG: ${{ needs.preflight.outputs.tag }}
           DIGEST: ${{ needs.container.outputs.digest }}
           IMAGE: ghcr.io/getsillage/sillage
+          MODE: ${{ needs.preflight.outputs.mode }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -334,10 +340,13 @@ jobs:
           else
             : > "$existing_file"
           fi
-          if gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-            -f tag_name="$TAG" \
-            -f target_commitish="$(git rev-parse HEAD)" \
-            --jq .body > "$generated_file" 2>/dev/null; then
+          curated_file=".github/release-notes/${TAG}.md"
+          if [ "$MODE" = "release" ]; then
+            cp "$curated_file" "$generated_file"
+          elif gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="$TAG" \
+              -f target_commitish="$(git rev-parse HEAD)" \
+              --jq .body > "$generated_file" 2>/dev/null; then
             :
           else
             echo "See the commit history for ${TAG}." > "$generated_file"

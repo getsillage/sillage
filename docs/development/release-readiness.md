@@ -52,6 +52,8 @@ The release commit must have a successful CI run containing every required job c
 
 Do not release from a locally green commit that lacks the matching successful remote CI run. Local environment failures may be diagnosed independently, but the release workflow must never waive a required job.
 
+The same commit must contain `.github/release-notes/vX.Y.Z.md`. Candidate notes may explicitly identify unfinished manual evidence while work continues, but Release preflight validates the version metadata, required sections, comparison link, upgrade/rollback language, supported Android boundaries, and absence of pending markers before any image or GitHub Release is published.
+
 ## Release-Candidate Manual Acceptance
 
 Before creating the signed tag, verify the exact release commit and record the result in the release notes or maintainer release record:

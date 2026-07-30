@@ -83,8 +83,10 @@ check-scale:
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
 	node --test scripts/check-android-device-matrix.test.mjs
+	node --test scripts/check-release-notes.test.mjs
 	node --test scripts/compose-release-notes.test.mjs
 	node --test scripts/check-repository-settings.test.mjs
+	node scripts/check-release-notes.mjs
 	node scripts/check-markdown-links.mjs
 	node scripts/check-terminology.mjs
 	bash scripts/check-whitespace.sh

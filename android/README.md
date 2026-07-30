@@ -75,7 +75,7 @@ apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-relea
 zipalign -c -v 4 app/build/outputs/apk/release/app-release.apk
 ```
 
-The release build uses this keystore only when the local signing configuration exists. Do not publish artifacts with unverified signatures, and do not commit APK/AAB files, keystores, `signing.properties`, or `local.properties`.
+Before a release, increment `versionCode`, set `versionName` to the tag without its `v` prefix, and add the matching checked input at `.github/release-notes/vX.Y.Z.md`. The release build uses this keystore only when the local signing configuration exists. Do not publish artifacts with unverified signatures, and do not commit APK/AAB files, keystores, `signing.properties`, or `local.properties`.
 
 ## Security Boundaries
 

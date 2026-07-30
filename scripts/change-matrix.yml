@@ -198,5 +198,16 @@ rules:
       - "docs/development/governance.md"
       - "CONTRIBUTING.md"
 
+  - id: release-note-input
+    paths:
+      - ".github/release-notes/**"
+      - "android/app/build.gradle.kts"
+      - "scripts/check-release-notes.mjs"
+      - "scripts/check-release-notes.test.mjs"
+    gates: [android, docs, upgrade]
+    docs:
+      - "CONTRIBUTING.md"
+      - "docs/development/release-readiness.md"
+
 # Default when no rule matches (full local check still recommended before release).
 default_gates: [go, docs]

@@ -1,6 +1,6 @@
 module github.com/getsillage/sillage
 
-go 1.25.0
+go 1.25.12
 
 require (
 	connectrpc.com/connect v1.20.0

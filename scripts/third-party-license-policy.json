@@ -11,8 +11,6 @@
     "github.com/google/uuid": "BSD-3-Clause",
     "github.com/grpc-ecosystem/grpc-gateway/v2": "BSD-3-Clause",
     "github.com/labstack/echo/v5": "MIT",
-    "github.com/mattn/go-isatty": "MIT",
-    "github.com/ncruces/go-strftime": "MIT",
     "github.com/pelletier/go-toml/v2": "MIT",
     "github.com/remyoudompheng/bigfft": "BSD-3-Clause",
     "github.com/sagikazarmark/locafero": "MIT",

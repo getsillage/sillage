@@ -38,9 +38,10 @@ const stagingRoot = mkdtempSync(path.join(tmpdir(), "sillage-licenses-"));
 const stagingLicenses = path.join(stagingRoot, "third_party", "licenses");
 const stagingNotice = path.join(stagingRoot, "THIRD_PARTY_NOTICES.md");
 
-function command(commandName, commandArgs, cwd = root) {
+function command(commandName, commandArgs, cwd = root, env = process.env) {
   return execFileSync(commandName, commandArgs, {
     cwd,
+    env,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
     stdio: ["ignore", "pipe", "inherit"],
@@ -79,28 +80,44 @@ function linkList(base, files) {
 }
 
 function goDependencies() {
-  const output = command("go", [
-    "list",
-    "-deps",
-    "-f",
-    "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}{{end}}",
-    "./cmd/sillage",
-  ]);
   const modules = new Map();
-  for (const line of output.split("\n")) {
-    if (!line.trim()) continue;
-    const [modulePath, version, directory] = line.split("\t");
-    if (!modulePath || !version || !directory) {
-      throw new Error(`Could not parse Go dependency line: ${line}`);
+  const targets = [
+    { goos: "linux", goarch: "amd64" },
+    { goos: "linux", goarch: "arm64" },
+  ];
+  for (const target of targets) {
+    const output = command(
+      "go",
+      [
+        "list",
+        "-deps",
+        "-f",
+        "{{with .Module}}{{if not .Main}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}{{end}}",
+        "./cmd/sillage",
+      ],
+      root,
+      {
+        ...process.env,
+        CGO_ENABLED: "0",
+        GOOS: target.goos,
+        GOARCH: target.goarch,
+      },
+    );
+    for (const line of output.split("\n")) {
+      if (!line.trim()) continue;
+      const [modulePath, version, directory] = line.split("\t");
+      if (!modulePath || !version || !directory) {
+        throw new Error(`Could not parse Go dependency line: ${line}`);
+      }
+      const existing = modules.get(modulePath);
+      if (
+        existing &&
+        (existing.version !== version || existing.directory !== directory)
+      ) {
+        throw new Error(`Go dependency ${modulePath} resolved inconsistently`);
+      }
+      modules.set(modulePath, { modulePath, version, directory });
     }
-    const existing = modules.get(modulePath);
-    if (
-      existing &&
-      (existing.version !== version || existing.directory !== directory)
-    ) {
-      throw new Error(`Go dependency ${modulePath} resolved inconsistently`);
-    }
-    modules.set(modulePath, { modulePath, version, directory });
   }
 
   const expected = Object.keys(policy.goModules).sort();

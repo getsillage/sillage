@@ -12,7 +12,7 @@ gates:
   scale: "10k-record listing, search, sync pagination, and SQLite integrity budgets"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
-  supply-chain: "Runtime dependency audit, license notices, SBOM, and image vulnerability scan"
+  supply-chain: "Runtime dependency audit, CodeQL, license notices, SBOM, and image vulnerability scan"
   e2e: "Fresh-instance Playwright release journeys in Chromium, Firefox, and WebKit"
   restore: "Isolated backup/restore recovery drill"
 

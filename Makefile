@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device check-scale \
 	check-docs check-container check-supply-chain check-e2e check-restore check-commits \
-	check-secrets check-actions generate-third-party-notices generate-android-third-party-notices print-affected
+	check-secrets check-actions check-repository-settings generate-third-party-notices generate-android-third-party-notices print-affected
 
 help:
 	@printf '%s\n' \
@@ -28,6 +28,7 @@ help:
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
+		'  make check-repository-settings  Audit required GitHub repository controls' \
 		'  make generate-third-party-notices  Regenerate runtime license inventory' \
 		'  make generate-android-third-party-notices  Regenerate APK license inventory' \
 		'  make print-affected   Show gates for the current change set' \
@@ -80,6 +81,7 @@ check-scale:
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
 	node --test scripts/compose-release-notes.test.mjs
+	node --test scripts/check-repository-settings.test.mjs
 	node scripts/check-markdown-links.mjs
 	node scripts/check-terminology.mjs
 	bash scripts/check-whitespace.sh
@@ -87,6 +89,9 @@ check-docs: check-actions
 
 check-actions:
 	node scripts/check-actions-pinned.mjs
+
+check-repository-settings:
+	node scripts/check-repository-settings.mjs
 
 check-container:
 	node scripts/check-docker-context.mjs

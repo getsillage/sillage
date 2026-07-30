@@ -104,6 +104,7 @@ make print-affected     # show gates without running them
 | E2E | `make check-e2e` | complete fresh-instance journeys in Chromium, Firefox, and WebKit |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | Actions | `make check-actions` | full commit-SHA pins for every workflow action |
+| Remote settings | `make check-repository-settings` | authenticated branch-protection, security-feature, vulnerability-reporting, and Pages HTTPS audit |
 
 The full `make check` requires Docker, gitleaks, and Playwright system dependencies. CI also validates pull request titles as Conventional Commits subjects.
 
@@ -122,6 +123,8 @@ Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Fir
 Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an API 35 emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions a clean API 35 x86_64 emulator for the automated device suite.
 
 Dependabot opens a limited number of weekly dependency PRs; they must pass the same gates. See [ADR: limited Dependabot PRs](docs/development/decisions/2026-07-30-dependabot-limited-prs.md).
+
+The CI workflow uploads CodeQL analysis for Go, JavaScript/TypeScript, and Java/Kotlin. Before a stable release, maintainers must also run `make check-repository-settings` with an authenticated `gh` CLI session; source checks cannot prove external GitHub controls.
 
 ### Optional local hooks
 

@@ -90,4 +90,4 @@ Before a stable release, repository settings must enforce the same policy descri
 - private vulnerability reporting, Dependabot security updates, secret scanning, and push protection are enabled;
 - GitHub Pages uses HTTPS and the website deployment gate passes before publication.
 
-Repository settings are external state and cannot be proven by source review alone. Maintainers must inspect them as part of release acceptance.
+Repository settings are external state and cannot be proven by source review alone. Maintainers must run `make check-repository-settings` with an authenticated `gh` CLI session as part of release acceptance.

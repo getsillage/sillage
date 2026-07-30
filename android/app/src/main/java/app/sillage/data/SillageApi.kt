@@ -217,6 +217,7 @@ class SillageApi(
         var conflict = 0
         var rejected = 0
         val appliedMemoSyncs = mutableListOf<AppliedMemoSync>()
+        val conflictMemoSyncs = mutableListOf<ConflictMemoSync>()
         for (chunk in items.chunked(200)) {
             val changes = JSONArray()
             for (item in chunk) {
@@ -232,12 +233,14 @@ class SillageApi(
             conflict += chunkSummary.conflict
             rejected += chunkSummary.rejected
             appliedMemoSyncs += chunkSummary.appliedMemoSyncs
+            conflictMemoSyncs += chunkSummary.conflictMemoSyncs
         }
         return SyncPushSummary(
             applied = applied,
             conflict = conflict,
             rejected = rejected,
             appliedMemoSyncs = appliedMemoSyncs,
+            conflictMemoSyncs = conflictMemoSyncs,
         )
     }
 

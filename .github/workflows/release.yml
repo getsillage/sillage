@@ -122,6 +122,7 @@ jobs:
             fi
             jobs="$(gh run view "$ci_run" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
             for required in Commits Secrets Go Proto Scale Web Docs Container "Supply Chain" E2E Android \
+              "Android Device (API 26)" "Android Device (API 35)" \
               "CodeQL (go)" "CodeQL (javascript-typescript)" "CodeQL (java-kotlin)"; do
               if ! grep -Fqx "$required"$'\t'"success" <<< "$jobs"; then
                 echo "CI run $ci_run is missing successful required job: $required" >&2

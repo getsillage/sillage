@@ -18,6 +18,8 @@ export const repositoryPolicies = [
       "Supply Chain",
       "E2E",
       "Android",
+      "Android Device (API 26)",
+      "Android Device (API 35)",
       "CodeQL (go)",
       "CodeQL (javascript-typescript)",
       "CodeQL (java-kotlin)",

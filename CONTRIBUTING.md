@@ -95,7 +95,7 @@ make print-affected     # show gates without running them
 | Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
 | Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
 | Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
-| Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy |
+| Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy, min/target device-matrix consistency |
 | Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |
 | Scale | `make check-scale` | 10,000 active records, 2,000 recoverable deletions, HTTP list/search/sync pagination, and SQLite integrity budgets |
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
@@ -120,7 +120,7 @@ When contract-sensitive paths change, `check-doc-sync` expects a matching docume
 
 Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir web exec playwright install` on first use; CI installs all three engines with their OS dependencies. The long-term personal-use budget is enforced separately by `make check-scale`; its dataset and thresholds are normative in [Release Readiness](docs/development/release-readiness.md).
 
-Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an API 35 emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions a clean API 35 x86_64 emulator for the automated device suite.
+Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an appropriate emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions clean API 26 and API 35 x86_64 emulators so the automated device suite covers both the oldest supported Android release and the current release target. A stable release candidate still requires a physical-device smoke test under [Release Readiness](docs/development/release-readiness.md).
 
 Dependabot opens a limited number of weekly dependency PRs; they must pass the same gates. See [ADR: limited Dependabot PRs](docs/development/decisions/2026-07-30-dependabot-limited-prs.md).
 

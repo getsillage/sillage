@@ -18,7 +18,7 @@ help:
 		'  make check-proto      Buf lint/breaking/generate + gen drift' \
 		'  make check-web        Web lint, typecheck, test, build, embed policy' \
 		'  make check-android    Android unit tests, lint, APKs, dependency integrity/security' \
-		'  make check-android-device  Android instrumentation journeys on a connected device' \
+		'  make check-android-device  Android instrumentation journeys on a connected device/emulator' \
 		'  make check-scale      10k-record long-term listing, search, sync, and integrity budgets' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
@@ -65,6 +65,7 @@ check-web:
 	bash scripts/check-web-assets.sh
 
 check-android:
+	node scripts/check-android-device-matrix.mjs
 	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:processReleaseMainManifest
 	grep -Fq 'android:usesCleartextTraffic="false"' android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
 	@aapt2_bin="$$(find "$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}/build-tools" -type f -name aapt2 | sort | tail -1)"; \
@@ -80,6 +81,7 @@ check-scale:
 
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
+	node --test scripts/check-android-device-matrix.test.mjs
 	node --test scripts/compose-release-notes.test.mjs
 	node --test scripts/check-repository-settings.test.mjs
 	node scripts/check-markdown-links.mjs
@@ -89,6 +91,7 @@ check-docs: check-actions
 
 check-actions:
 	node scripts/check-actions-pinned.mjs
+	node scripts/check-android-device-matrix.mjs
 
 check-repository-settings:
 	node scripts/check-repository-settings.mjs

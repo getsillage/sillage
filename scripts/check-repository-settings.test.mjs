@@ -15,7 +15,7 @@ test("reports missing security controls, branch protection, and required checks"
   snapshot.repositories.sillage.repository.security_and_analysis.secret_scanning.status =
     "disabled";
   snapshot.repositories.sillage.protection.required_status_checks.checks = snapshot.repositories.sillage.protection.required_status_checks.checks.filter(
-    (check) => check.context !== "Supply Chain",
+    (check) => check.context !== "Supply Chain" && check.context !== "Android Device (API 26)",
   );
   snapshot.repositories.website.repository.security_and_analysis.dependabot_security_updates.status =
     "disabled";
@@ -26,6 +26,9 @@ test("reports missing security controls, branch protection, and required checks"
   const failures = auditRepositorySettings(snapshot);
   assert.ok(failures.includes("getsillage/sillage: Secret Scanning must be enabled"));
   assert.ok(failures.includes("getsillage/sillage: missing required status check Supply Chain"));
+  assert.ok(
+    failures.includes("getsillage/sillage: missing required status check Android Device (API 26)"),
+  );
   assert.ok(
     failures.includes("getsillage/website: Dependabot security updates must be enabled"),
   );

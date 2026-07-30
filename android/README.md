@@ -34,13 +34,13 @@ JDK 17 and Android SDK 35 are required. The repository pins Gradle, locks every 
 make check-android
 ```
 
-This runs unit tests, Android Lint, debug and instrumentation APK assembly, the release manifest policy, license-notice drift checks, and the release-runtime vulnerability scan. To run Keystore/SQLite migration and critical Compose journeys on an API 35 emulator or connected device:
+This runs unit tests, Android Lint, debug and instrumentation APK assembly, the release manifest policy, license-notice drift checks, the release-runtime vulnerability scan, and a consistency check that the CI device matrix still covers `minSdk` and `targetSdk`. To run Keystore/SQLite migration and critical Compose journeys on a connected emulator or physical device:
 
 ```bash
 make check-android-device
 ```
 
-CI provisions a clean API 35 x86_64 emulator and runs this device gate for every Android change. The device suite verifies real Android Keystore migration and encrypted database persistence, cold-relaunch offline record persistence, the Recently Deleted restore/permanent-delete journey, and access to the bundled open-source notices.
+CI provisions separate clean API 26 and API 35 x86_64 emulators and runs this device gate on both supported boundaries for every Android change. The device suite verifies real Android Keystore migration and encrypted database persistence, cold-relaunch offline record persistence, the Recently Deleted restore/permanent-delete journey, and access to the bundled open-source notices. Stable release candidates additionally require one physical-device smoke test because an emulator cannot validate OEM storage, keyboard, file-viewer, and lifecycle behavior completely.
 
 The debug APK is located at:
 

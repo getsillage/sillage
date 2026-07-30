@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android \
-	check-docs check-container check-e2e check-commits check-secrets print-affected
+	check-docs check-container check-e2e check-commits check-secrets check-actions print-affected
 
 help:
 	@printf '%s\n' \
@@ -22,6 +22,7 @@ help:
 		'  make check-e2e        Fresh-instance Playwright smoke' \
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
+		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
 		'  make print-affected   Show gates for the current change set' \
 		'' \
 		'Environment:' \
@@ -41,6 +42,7 @@ check-go:
 	go mod tidy -diff
 	go test -count=1 ./...
 	go vet ./...
+	go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 	go build ./cmd/sillage
 
 check-proto:
@@ -57,13 +59,16 @@ check-android:
 	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:processReleaseMainManifest
 	grep -Fq 'android:usesCleartextTraffic="false"' android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
 
-check-docs:
+check-docs: check-actions
 	node scripts/check-docker-context.mjs
 	node --test scripts/compose-release-notes.test.mjs
 	node scripts/check-markdown-links.mjs
 	node scripts/check-terminology.mjs
 	bash scripts/check-whitespace.sh
 	node scripts/check-doc-sync.mjs
+
+check-actions:
+	node scripts/check-actions-pinned.mjs
 
 check-container:
 	node scripts/check-docker-context.mjs

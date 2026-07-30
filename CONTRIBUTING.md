@@ -92,14 +92,15 @@ make print-affected     # show gates without running them
 
 | Gate | Make target | What it runs |
 | --- | --- | --- |
-| Go | `make check-go` | `go mod tidy -diff`, tests, vet, build |
+| Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
 | Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
 | Web | `make check-web` | lint, typecheck, unit tests, build, embed policy |
 | Android | `make check-android` | unit tests, lint, debug assemble, release manifest security policy |
-| Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync |
+| Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
 | Container | `make check-container` | Docker build + Compose config |
 | E2E | `make check-e2e` | fresh-instance Playwright smoke |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
+| Actions | `make check-actions` | full commit-SHA pins for every workflow action |
 
 The full `make check` requires Docker, gitleaks, and Playwright system dependencies. CI also validates pull request titles as Conventional Commits subjects.
 

@@ -121,7 +121,7 @@ jobs:
               exit 1
             fi
             jobs="$(gh run view "$ci_run" --json jobs --jq '.jobs[] | [.name, .conclusion] | @tsv')"
-            for required in Commits Secrets Go Proto Web Docs Container E2E Android; do
+            for required in Commits Secrets Go Proto Web Docs Container "Supply Chain" E2E Android; do
               if ! grep -Fqx "$required"$'\t'"success" <<< "$jobs"; then
                 echo "CI run $ci_run is missing successful required job: $required" >&2
                 exit 1
@@ -296,7 +296,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preflight, container]
     permissions:
+      attestations: write
       contents: write
+      id-token: write
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -304,7 +307,16 @@ jobs:
           ref: ${{ needs.preflight.outputs.tag }}
           fetch-depth: 0
 
+      - name: Checkout release tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tooling
+          sparse-checkout: scripts/compose-release-notes.mjs
+          sparse-checkout-cone-mode: false
+
       - name: Compose release notes
+        id: notes
         env:
           TAG: ${{ needs.preflight.outputs.tag }}
           DIGEST: ${{ needs.container.outputs.digest }}
@@ -314,7 +326,7 @@ jobs:
           set -euo pipefail
           existing_file="$(mktemp)"
           generated_file="$(mktemp)"
-          notes_file="$(mktemp)"
+          notes_file="$RUNNER_TEMP/release-notes.md"
           if gh release view "$TAG" --json body --jq '.body // ""' > "$existing_file" 2>/dev/null; then
             :
           else
@@ -336,14 +348,74 @@ jobs:
             --generated "$generated_file" \
             --output "$notes_file"
 
+          echo "path=$notes_file" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and scan release SBOM
+        id: supply_chain
+        if: needs.preflight.outputs.mode == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/getsillage/sillage
+          DIGEST: ${{ needs.container.outputs.digest }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/release-artifacts"
+          prefix="Sillage-${TAG}"
+          mkdir -p "$output_dir"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull "${IMAGE}@${DIGEST}"
+          scripts/scan-container.sh "docker:${IMAGE}@${DIGEST}" "$output_dir" "$prefix"
+          (
+            cd "$output_dir"
+            sha256sum \
+              "${prefix}.spdx.json" \
+              "${prefix}.cyclonedx.json" \
+              "${prefix}.grype.json" \
+              > "${prefix}.supply-chain.sha256"
+          )
+          echo "directory=$output_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Attest release provenance
+        if: needs.preflight.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ghcr.io/getsillage/sillage
+          subject-digest: ${{ needs.container.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SPDX SBOM
+        if: needs.preflight.outputs.mode == 'release'
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-name: ghcr.io/getsillage/sillage
+          subject-digest: ${{ needs.container.outputs.digest }}
+          predicate-type: https://spdx.dev/Document
+          predicate-path: ${{ runner.temp }}/release-artifacts/Sillage-${{ needs.preflight.outputs.tag }}.spdx.json
+          push-to-registry: true
+
+      - name: Publish release and supply-chain evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          NOTES_FILE: ${{ steps.notes.outputs.path }}
+          ARTIFACT_DIR: ${{ steps.supply_chain.outputs.directory }}
+        run: |
+          set -euo pipefail
+
           if [ "${{ needs.preflight.outputs.mode }}" = "release" ]; then
-            create_args=(--title "Sillage ${TAG}" --notes-file "$notes_file" --verify-tag)
+            create_args=(--title "Sillage ${TAG}" --notes-file "$NOTES_FILE" --verify-tag)
             if [ "${{ needs.preflight.outputs.stable }}" != "true" ]; then
               create_args+=(--prerelease)
             fi
             gh release create "$TAG" "${create_args[@]}"
+            gh release upload "$TAG" \
+              "$ARTIFACT_DIR/Sillage-${TAG}.spdx.json" \
+              "$ARTIFACT_DIR/Sillage-${TAG}.cyclonedx.json" \
+              "$ARTIFACT_DIR/Sillage-${TAG}.grype.json" \
+              "$ARTIFACT_DIR/Sillage-${TAG}.supply-chain.sha256"
           else
-            gh release edit "$TAG" --notes-file "$notes_file"
+            gh release edit "$TAG" --notes-file "$NOTES_FILE"
           fi
 
   # Optional signed Android APK when enabled and secrets are present.

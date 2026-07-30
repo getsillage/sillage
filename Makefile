@@ -5,7 +5,8 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android \
-	check-docs check-container check-e2e check-restore check-commits check-secrets check-actions print-affected
+	check-docs check-container check-supply-chain check-e2e check-restore check-commits \
+	check-secrets check-actions generate-third-party-notices print-affected
 
 help:
 	@printf '%s\n' \
@@ -19,17 +20,19 @@ help:
 		'  make check-android    Android unit tests, lint, debug APK, release manifest policy' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
+		'  make check-supply-chain  Dependency audit, notices, SBOM, final-image vulnerability scan' \
 		'  make check-e2e        Fresh-instance Playwright release journeys' \
 		'  make check-restore    Isolated backup/restore recovery drill' \
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
+		'  make generate-third-party-notices  Regenerate runtime license inventory' \
 		'  make print-affected   Show gates for the current change set' \
 		'' \
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-android check-docs check-secrets check-container check-e2e check-restore
+check: check-go check-proto check-web check-android check-docs check-secrets check-container check-supply-chain check-e2e check-restore
 
 check-fast: check-go check-proto check-web check-docs
 
@@ -76,6 +79,12 @@ check-container:
 	docker build --build-arg VERSION=dev --build-arg REVISION="$$(git rev-parse HEAD)" -t sillage:dev -f scripts/Dockerfile .
 	docker compose -f scripts/compose.yaml config >/dev/null
 	docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config >/dev/null
+
+check-supply-chain: check-container
+	bash scripts/check-supply-chain.sh
+
+generate-third-party-notices:
+	node scripts/generate-third-party-notices.mjs --write
 
 check-e2e:
 	pnpm --dir web exec playwright install chromium

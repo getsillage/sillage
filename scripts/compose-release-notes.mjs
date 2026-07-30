@@ -29,6 +29,18 @@ docker run --rm \\
 
 This release is also tagged \`${args.image}:${args.tag}\` (digest \`${args.digest}\`).
 
+## Verify
+
+The Release assets include \`Sillage-${args.tag}.spdx.json\`, \`Sillage-${args.tag}.cyclonedx.json\`, \`Sillage-${args.tag}.grype.json\`, and their \`Sillage-${args.tag}.supply-chain.sha256\` manifest. The workflow blocks high-severity Grype findings before publishing these assets.
+
+Verify the signed build provenance against this repository and release workflow:
+
+\`\`\`bash
+gh attestation verify "oci://${args.image}@${args.digest}" \\
+  --repo getsillage/sillage \\
+  --signer-workflow getsillage/sillage/.github/workflows/release.yml
+\`\`\`
+
 Upgrade and rollback: [Data, Backup, and Recovery](https://github.com/getsillage/sillage/blob/${args.tag}/docs/user/data.md) · [Deployment](https://github.com/getsillage/sillage/blob/${args.tag}/docs/user/deployment.md)
 ${end}`;
 

@@ -1,6 +1,6 @@
 # Path → required verification gates and documentation surfaces.
 # Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
-# Gates: go | proto | web | android | docs | container | e2e | restore
+# Gates: go | proto | web | android | docs | container | supply-chain | e2e | restore
 
 version: 1
 
@@ -11,6 +11,7 @@ gates:
   android: "Android unit tests, lint, debug assemble, and release manifest policy"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
+  supply-chain: "Runtime dependency audit, license notices, SBOM, and image vulnerability scan"
   e2e: "Fresh-instance Playwright release journeys"
   restore: "Isolated backup/restore recovery drill"
 
@@ -112,8 +113,27 @@ rules:
       - "scripts/compose.yaml"
       - "scripts/compose.build.yaml"
       - ".dockerignore"
-    gates: [container, docs]
+    gates: [container, supply-chain, docs]
     docs:
+      - "docs/user/deployment.md"
+
+  - id: supply-chain
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "web/package.json"
+      - "web/pnpm-lock.yaml"
+      - "NOTICE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "third_party/licenses/**"
+      - "scripts/check-sbom.mjs"
+      - "scripts/check-supply-chain.sh"
+      - "scripts/generate-third-party-notices.mjs"
+      - "scripts/scan-container.sh"
+      - "scripts/third-party-license-policy.json"
+    gates: [supply-chain, docs]
+    docs:
+      - "docs/development/governance.md"
       - "docs/user/deployment.md"
 
   - id: documentation

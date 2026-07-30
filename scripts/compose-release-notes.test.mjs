@@ -16,6 +16,9 @@ test("adds a digest-pinned install block to generated notes", () => {
 
   assert.match(body, /<!-- sillage-install:start -->/);
   assert.match(body, new RegExp(`ghcr\\.io/getsillage/sillage@${digest}`));
+  assert.match(body, /Sillage-v0\.2\.0\.spdx\.json/);
+  assert.match(body, /gh attestation verify/);
+  assert.match(body, /--signer-workflow getsillage\/sillage\/\.github\/workflows\/release\.yml/);
   assert.match(body, /## Changes\n\nGenerated changes\./);
 });
 

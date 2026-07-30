@@ -60,6 +60,7 @@ const targetByGate = {
   android: "check-android",
   docs: "check-docs",
   container: "check-container",
+  "supply-chain": "check-supply-chain",
   e2e: "check-e2e",
   restore: "check-restore",
 };

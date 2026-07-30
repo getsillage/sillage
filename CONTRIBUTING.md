@@ -98,6 +98,7 @@ make print-affected     # show gates without running them
 | Android | `make check-android` | unit tests, lint, debug assemble, release manifest security policy |
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
 | Container | `make check-container` | Docker build + Compose config |
+| Supply Chain | `make check-supply-chain` | pnpm high-severity audit, runtime license/NOTICE drift, SPDX + CycloneDX SBOM, Grype final-image scan (high blocks) |
 | E2E | `make check-e2e` | fresh-instance Playwright smoke |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | Actions | `make check-actions` | full commit-SHA pins for every workflow action |
@@ -139,9 +140,10 @@ GitHub Releases are the only source of user-visible release notes; the repositor
 2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
 3. Create a GitHub-verified signed annotated tag on the release commit: `git tag -s -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`. The workflow verifies the tag signature, exact commit, Android version, and all required CI jobs before publishing.
 4. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes immutable `ghcr.io/getsillage/sillage:vX.Y.Z` (and stable aliases), creates a new GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.
-5. Published release tags, image tags, and APK assets are immutable and are never overwritten. If an APK needs to be added later, use `workflow_dispatch` with `mode=android-only`; this mode requires the existing GitHub Release and refuses an existing APK asset. Do not commit keystores, signing configuration, or build artifacts.
-6. Release notes contain a digest-pinned install command. Edit them to include the main changes, known limitations, and upgrade or rollback requirements. Prerelease tags do not move `latest` or the `major.minor` stable alias.
-7. After the **first** successful image publish, open [GitHub Packages](https://github.com/orgs/getsillage/packages) for `sillage`, set package visibility to **Public**, and link it to this repository if needed. Anonymous pulls of `ghcr.io/getsillage/sillage:latest` require a public package; `GITHUB_TOKEN` often cannot change org package visibility via the API.
+5. The same workflow scans the published digest with the pinned Grype image, signs GitHub provenance and SPDX attestations, and uploads SPDX, CycloneDX, Grype, and SHA-256 evidence assets. A high-severity image finding blocks the release job.
+6. Published release tags, image tags, and APK assets are immutable and are never overwritten. If an APK needs to be added later, use `workflow_dispatch` with `mode=android-only`; this mode requires the existing GitHub Release and refuses an existing APK asset. Do not commit keystores, signing configuration, or build artifacts.
+7. Release notes contain a digest-pinned install command. Edit them to include the main changes, known limitations, and upgrade or rollback requirements. Prerelease tags do not move `latest` or the `major.minor` stable alias.
+8. After the **first** successful image publish, open [GitHub Packages](https://github.com/orgs/getsillage/packages) for `sillage`, set package visibility to **Public**, and link it to this repository if needed. Anonymous pulls of `ghcr.io/getsillage/sillage:latest` require a public package; `GITHUB_TOKEN` often cannot change org package visibility via the API.
 
 `main` requires green CI status checks before merge. Force-pushes to `main` are blocked.
 

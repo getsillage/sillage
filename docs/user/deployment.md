@@ -19,6 +19,39 @@ Open `http://localhost:5231` and create the instance's only account on the first
 
 Do not use `-p 5231:5231` on a host without a firewall and HTTPS. It publishes the port on the host's available interfaces.
 
+## Verify a release image
+
+Use the digest printed in the release notes instead of trusting a mutable tag. The release also provides SPDX and CycloneDX SBOMs, a Grype report, and a SHA-256 manifest:
+
+```bash
+TAG=vX.Y.Z
+IMAGE=ghcr.io/getsillage/sillage
+DIGEST=sha256:<digest-from-the-release-notes>
+
+docker pull "${IMAGE}@${DIGEST}"
+mkdir -p "sillage-${TAG}-evidence"
+gh release download "$TAG" \
+  --repo getsillage/sillage \
+  --pattern "Sillage-${TAG}.*.json" \
+  --pattern "Sillage-${TAG}.supply-chain.sha256" \
+  --dir "sillage-${TAG}-evidence"
+(cd "sillage-${TAG}-evidence" && sha256sum -c "Sillage-${TAG}.supply-chain.sha256")
+```
+
+The release workflow signs the image's SLSA provenance and SPDX SBOM with GitHub's artifact-attestation service. After authenticating to GHCR, verify both subjects against this repository and the release workflow identity:
+
+```bash
+gh attestation verify "oci://${IMAGE}@${DIGEST}" \
+  --repo getsillage/sillage \
+  --signer-workflow getsillage/sillage/.github/workflows/release.yml
+gh attestation verify "oci://${IMAGE}@${DIGEST}" \
+  --repo getsillage/sillage \
+  --signer-workflow getsillage/sillage/.github/workflows/release.yml \
+  --predicate-type https://spdx.dev/Document
+```
+
+The image contains the project license and runtime dependency notices at `/usr/share/licenses/sillage/`. The downloadable SBOM covers the resolved image platform selected by the verifier; the image digest and registry-native attestations remain the source of truth for the complete multi-architecture manifest.
+
 ## Compose
 
 From a checkout of this repository, start with the default image (`ghcr.io/getsillage/sillage:latest`):

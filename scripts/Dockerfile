@@ -38,6 +38,10 @@ FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d650
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Sillage" \
+      org.opencontainers.image.description="Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes." \
+      org.opencontainers.image.source="https://github.com/getsillage/sillage" \
+      org.opencontainers.image.url="https://github.com/getsillage/sillage" \
+      org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$REVISION"
 RUN apk add --no-cache ca-certificates tzdata su-exec && \
@@ -48,6 +52,8 @@ RUN apk add --no-cache ca-certificates tzdata su-exec && \
 
 COPY --from=backend /src/sillage /usr/local/sillage/sillage
 COPY --from=backend /src/scripts/entrypoint.sh /usr/local/sillage/entrypoint.sh
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /usr/share/licenses/sillage/
+COPY third_party/licenses /usr/share/licenses/sillage/third-party
 RUN chmod 755 /usr/local/sillage/entrypoint.sh
 
 USER root

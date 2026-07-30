@@ -17,7 +17,7 @@ services:
       # SESSION_SECRET and ENCRYPTION_SECRET are optional.
       # When omitted, Sillage generates and persists them on first start.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5231/api/v1/auth/bootstrap | grep -q '\"initialized\":true'"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5231/readyz | grep -q '\"status\":\"ready\"'"]
       interval: 5s
       timeout: 3s
       retries: 12

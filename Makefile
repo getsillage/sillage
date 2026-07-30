@@ -71,18 +71,23 @@ check-e2e:
 	pnpm --dir web build
 	@e2e_data="$$(mktemp -d)"; \
 	server_binary="$$(mktemp)"; \
+	e2e_log="$$(mktemp)"; \
+	e2e_port="$$(node -e 'const net=require("net"); const server=net.createServer(); server.listen(0,"127.0.0.1",()=>{console.log(server.address().port); server.close();});')"; \
 	go build -o "$$server_binary" ./cmd/sillage; \
-	SILLAGE_DATA="$$e2e_data" SILLAGE_ADDR=127.0.0.1 "$$server_binary" > /tmp/sillage-e2e.log 2>&1 & \
+	SILLAGE_DATA="$$e2e_data" SILLAGE_ADDR=127.0.0.1 SILLAGE_PORT="$$e2e_port" "$$server_binary" > "$$e2e_log" 2>&1 & \
 	server_pid=$$!; \
-	trap 'kill "$$server_pid" 2>/dev/null || true; wait "$$server_pid" 2>/dev/null || true; rm -f "$$server_binary"' EXIT; \
+	trap 'kill "$$server_pid" 2>/dev/null || true; wait "$$server_pid" 2>/dev/null || true; rm -f "$$server_binary" "$$e2e_log"; rm -rf "$$e2e_data"' EXIT; \
+	sleep 0.1; \
+	if ! kill -0 "$$server_pid" 2>/dev/null; then cat "$$e2e_log"; exit 1; fi; \
 	ready=0; \
 	for attempt in $$(seq 1 30); do \
-	  if ! kill -0 "$$server_pid" 2>/dev/null; then cat /tmp/sillage-e2e.log; exit 1; fi; \
-	  if curl --fail --silent http://127.0.0.1:5231/readyz >/dev/null; then ready=1; break; fi; \
+	  if ! kill -0 "$$server_pid" 2>/dev/null; then cat "$$e2e_log"; exit 1; fi; \
+	  if grep -q "Access Sillage at: http://localhost:$$e2e_port" "$$e2e_log" && \
+	     curl --fail --silent "http://127.0.0.1:$$e2e_port/readyz" >/dev/null; then ready=1; break; fi; \
 	  sleep 1; \
 	done; \
-	if [[ "$$ready" -ne 1 ]]; then cat /tmp/sillage-e2e.log; exit 1; fi; \
-	E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
+	if [[ "$$ready" -ne 1 ]]; then cat "$$e2e_log"; echo "E2E server did not become ready on its isolated port" >&2; exit 1; fi; \
+	PLAYWRIGHT_BASE_URL="http://127.0.0.1:$$e2e_port" E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
 
 check-commits:
 	node scripts/check-commit-msg.mjs --range

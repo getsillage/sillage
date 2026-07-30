@@ -24,7 +24,9 @@ When `SESSION_SECRET` / `ENCRYPTION_SECRET` or their corresponding `_FILE` varia
 
 ## Deletion and Browser Drafts
 
-Record deletion uses tombstones so offline clients can converge. The server's SQLite database retains the content of deleted records, related AI-derived data, and the deletion time. Deleting an AI profile clears the encrypted API key envelope stored in the current server database, but older backups may still contain it. There is currently no automatic cleanup for record or AI history and no workflow for permanently deleting an individual item, so this content remains in the server data directory and in backups created from it.
+Record deletion uses tombstones so offline clients can converge even after a long offline period. The server therefore retains the content of deleted records, related AI-derived data, and the deletion time; there is no automatic tombstone purge or single-item permanent-delete workflow. This is an intentional synchronization-safety tradeoff rather than a recycle bin: recovery still requires a matching backup. Deleting an AI profile clears the encrypted API key envelope stored in the current server database, but older backups may still contain it.
+
+Ephemeral data is cleaned automatically at startup and every six hours. Expired or revoked refresh sessions and expired runtime values are removed. Sync mutation results provide a 90-day idempotency window and are deleted afterward, so a retry older than 90 days must be treated as a new reconciliation event rather than a guaranteed replay. Deleted attachment metadata remains as a tombstone, while its file bytes are removed; unreferenced attachment files older than 24 hours are also removed to recover from interrupted uploads or metadata writes.
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
@@ -107,3 +109,9 @@ To move an instance to another directory or host:
 `.thumbnail_cache/` is currently only a reserved directory; the server recreates it as an empty directory at startup. The database, attachments, and `runtime/` cannot be reset independently.
 
 Android JSON exports and manual synchronization do not include server attachment bytes, the account, sessions, or runtime secrets. They cannot replace a complete server data-directory backup.
+
+## Recovery Objectives and Drills
+
+For a typical personal deployment, use a backup schedule that targets an RPO of 24 hours or less and an RTO of 2 hours or less. These are operator targets, not guarantees from the application: the actual data-loss window equals the time since the last complete, readable backup, and restore time depends on data size and host availability.
+
+Run a restore drill at least quarterly and before a high-risk upgrade. Restore the latest backup into an isolated directory or host, start one Sillage instance against it, then verify SQLite integrity, sign-in, representative records, search, attachments, AI settings, and sync bootstrap. Record the backup timestamp, restore duration, result, and any missing external secret or DSN dependency. Do not point the drill instance and production instance at the same SQLite files.

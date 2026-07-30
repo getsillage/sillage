@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -35,6 +36,9 @@ type Server struct {
 	memos      *memoapp.Service
 	memoAIJobs chan struct{}
 	askAIJobs  chan struct{}
+
+	maintenanceCancel context.CancelFunc
+	maintenanceWG     sync.WaitGroup
 }
 
 func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
@@ -87,7 +91,7 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 	return server, nil
 }
 
-func (s *Server) Start(_ context.Context) error {
+func (s *Server) Start(ctx context.Context) error {
 	address := fmt.Sprintf("%s:%d", s.Profile.Addr, s.Profile.Port)
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -107,10 +111,12 @@ func (s *Server) Start(_ context.Context) error {
 			slog.Error("http server stopped unexpectedly", "error", err)
 		}
 	}()
+	s.startMaintenance(ctx)
 	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.stopMaintenance()
 	if s.httpServer == nil {
 		return s.Store.Close()
 	}

@@ -93,7 +93,9 @@ Each result has one of these `status` values:
 - `conflict`: `baseVersion` is stale; the result includes `serverResource`, `clientVersion`, and `serverVersion`.
 - `rejected`: a field, resource, or action is invalid; the result includes a stable `reason` and a readable `message`.
 
-After the first result has been stored successfully, submitting the same `mutationId` again for the same account replays that result and sets `idempotent=true`. The resource write and result storage are not currently in the same transaction, so this is not an exactly-once guarantee. After an uncertain result such as `reason=internal`, first pull the server state before deciding whether to retry. Network retries should still reuse the original ID; a new logical mutation must generate a new ID.
+After the first result has been stored successfully, submitting the same `mutationId` again for the same account replays that result and sets `idempotent=true`. The resource write and result storage commit in one SQLite transaction: if the idempotency row cannot be written, the resource write is rolled back. A concurrent duplicate may receive `reason=internal` while the first transaction is finishing; retry the same mutation ID. A new logical mutation must generate a new ID.
+
+Committed mutation results are retained for 90 days. Clients must finish ordinary retry queues inside that window. Afterward, pull and reconcile server state before issuing a new logical mutation ID; replay of the expired ID is no longer guaranteed.
 
 ## Memo Semantics
 

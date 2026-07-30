@@ -32,6 +32,7 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 - `runtime/secrets.json` is not a cache. Secret rotation or storage-format changes require compatibility or explicit migration, backup, and rollback instructions.
 - The database, attachments, and backups do not have full at-rest encryption. Do not describe field-level AI API key encryption as complete data encryption.
 - Deleting an AI profile must clear the API key envelope from the current database row. Retention semantics for historical backups, record tombstones, and AI-derived data must remain explicit in the user data documentation.
+- Resource tombstones are retained for offline convergence. Ephemeral session/runtime rows and 90-day sync idempotency rows are cleaned periodically; attachment tombstones retain metadata but not deleted file bytes.
 
 ## Attachments and Content
 

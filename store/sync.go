@@ -22,7 +22,7 @@ type SyncMutation struct {
 
 func (s *Store) GetSyncMutation(ctx context.Context, accountID, mutationID string) (*SyncMutation, bool, error) {
 	var mutation SyncMutation
-	err := s.driver.GetDB().QueryRowContext(ctx, `
+	err := s.db().QueryRowContext(ctx, `
 SELECT account_id, mutation_id, resource_type, resource_id, result
 FROM sync_mutation
 WHERE account_id = ? AND mutation_id = ?`, accountID, mutationID).Scan(
@@ -42,7 +42,7 @@ WHERE account_id = ? AND mutation_id = ?`, accountID, mutationID).Scan(
 }
 
 func (s *Store) PutSyncMutation(ctx context.Context, mutation *SyncMutation) error {
-	if _, err := s.driver.GetDB().ExecContext(ctx, `
+	if _, err := s.db().ExecContext(ctx, `
 INSERT INTO sync_mutation (account_id, mutation_id, resource_type, resource_id, result, created_at)
 VALUES (?, ?, ?, ?, ?, ?)`,
 		mutation.AccountID,

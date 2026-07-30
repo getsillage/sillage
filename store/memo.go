@@ -83,7 +83,7 @@ func (s *Store) CreateMemo(ctx context.Context, create *CreateMemo) (*Memo, erro
 	if create.Archived {
 		memo.ArchivedAt = sql.NullInt64{Int64: now, Valid: true}
 	}
-	if _, err := s.driver.GetDB().ExecContext(ctx, `
+	if _, err := s.db().ExecContext(ctx, `
 INSERT INTO memo (id, creator_id, content, entry_date, version, favorited_at, archived_at, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		memo.ID,
@@ -110,7 +110,7 @@ WHERE id = ? AND creator_id = ?`
 	if !includeDeleted {
 		query += " AND deleted_at IS NULL"
 	}
-	row := s.driver.GetDB().QueryRowContext(ctx, query, args...)
+	row := s.db().QueryRowContext(ctx, query, args...)
 	return scanMemo(row)
 }
 
@@ -214,7 +214,7 @@ WHERE creator_id = ?`
 	}
 	args = append(args, limit)
 
-	rows, err := s.driver.GetDB().QueryContext(ctx, query, args...)
+	rows, err := s.db().QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list memos: %w", err)
 	}
@@ -255,7 +255,7 @@ WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoStateFilterClause("
   AND memo_fts MATCH ?
 ORDER BY rank, memo.entry_date DESC, memo.created_at DESC, memo.id DESC
 LIMIT ?`
-	rows, err := s.driver.GetDB().QueryContext(ctx, sqlQuery, accountID, ftsQuery(query), limit)
+	rows, err := s.db().QueryContext(ctx, sqlQuery, accountID, ftsQuery(query), limit)
 	if err != nil {
 		return nil, fmt.Errorf("search memos fts: %w", err)
 	}
@@ -274,7 +274,7 @@ WHERE memo.creator_id = ? AND memo.deleted_at IS NULL` + memoStateFilterClause("
   AND (memo.content LIKE ? ESCAPE '\' OR memo_ai.summary LIKE ? ESCAPE '\')
 ORDER BY memo.entry_date DESC, memo.created_at DESC, memo.id DESC
 LIMIT ?`
-	rows, err := s.driver.GetDB().QueryContext(ctx, sqlQuery, accountID, like, like, limit)
+	rows, err := s.db().QueryContext(ctx, sqlQuery, accountID, like, like, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search memos like: %w", err)
 	}
@@ -351,7 +351,7 @@ func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) (*Memo, erro
 	// Guard the version inside the UPDATE so the read-check-write is atomic:
 	// a concurrent writer that bumped the version between our GetMemo and here
 	// changes WHERE version, leaving RowsAffected == 0 instead of clobbering it.
-	result, err := s.driver.GetDB().ExecContext(ctx, `
+	result, err := s.db().ExecContext(ctx, `
 UPDATE memo
 SET content = ?, entry_date = ?, version = ?, favorited_at = ?, archived_at = ?, deleted_at = ?, updated_at = ?
 WHERE id = ? AND creator_id = ? AND version = ?`,

@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
 	"github.com/getsillage/sillage/internal/profile"
+	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
 	"github.com/getsillage/sillage/server/auth"
 	"github.com/getsillage/sillage/store"
 )
@@ -90,6 +90,25 @@ func (s *authService) Me(ctx context.Context, req *connect.Request[apiv1.MeReque
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.MeResponse{Account: accountPB(account)}), nil
+}
+
+func (s *authService) ChangePassword(ctx context.Context, req *connect.Request[apiv1.ChangePasswordRequest]) (*connect.Response[apiv1.AuthResponse], error) {
+	account, err := s.server.accountFromConnect(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	httpReq := requestFromConnectHeader(req.Header())
+	updated, tokens, err := s.server.changePassword(ctx, account.ID, changePasswordInput{
+		CurrentPassword: req.Msg.GetCurrentPassword(),
+		NewPassword:     req.Msg.GetNewPassword(),
+	}, httpReq)
+	if err != nil {
+		return nil, authConnectError(err)
+	}
+	res := connect.NewResponse(authResponsePB(updated, tokens))
+	setRefreshCookieHeader(res.Header(), httpReq, tokens.RefreshToken)
+	auth.SetAccessCookie(headerOnlyResponseWriter{res.Header()}, httpReq, tokens.AccessToken)
+	return res, nil
 }
 
 func authResponsePB(account *store.Account, tokens *auth.TokenPair) *apiv1.AuthResponse {

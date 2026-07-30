@@ -90,8 +90,9 @@ rules:
       - "server/auth_*.go"
       - "server/attachment_*.go"
       - "internal/secret/**"
-    gates: [go]
+    gates: [go, proto, web, android]
     docs:
+      - "docs/development/api/**"
       - "docs/development/security.md"
       - "docs/user/deployment.md"
 

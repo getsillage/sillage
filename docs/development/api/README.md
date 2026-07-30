@@ -33,7 +33,7 @@ The message value is localized, user-facing text. The example above is a placeho
 
 | Area | Route source of truth | Notes |
 | --- | --- | --- |
-| Authentication | `server/auth_routes.go` | Initialization, sign-in, refresh, sign-out, and the current account |
+| Authentication | `server/auth_routes.go`, `proto/api/v1/auth_service.proto` | Initialization, sign-in, refresh, sign-out, password change, and the current account |
 | Records and sync | `server/memo_routes.go`, `server/sync_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
 | Attachments | `server/attachment_routes.go` | Multipart upload, metadata, deletion, and authenticated download |
 | AI settings | `server/ai_routes.go` | Configuration, model listing, connection tests, and automatic summaries |
@@ -42,6 +42,11 @@ The message value is localized, user-facing text. The example above is a placeho
 SSE routes return `text/event-stream`. Uploads, attachment downloads, SSE, and action-style `POST` endpoints are all handwritten REST extensions; changes must update both this table and the tests.
 
 Ask message objects returned by list, create, stream, and sync routes use camelCase fields. `promptVersion` identifies the prompt semantics used to generate an answer: newly generated assistant answers use `ask-answer-v2`, while user messages and historical rows that were not backfilled return an empty string. `sourceRefs` contains only valid record citations retained from the answer and is empty for a general answer. The SSE `done` event carries the same message shape as the non-streaming routes.
+
+Authentication password changes are exposed through both the REST route
+`POST /api/v1/auth/change-password` and the Connect `AuthService.ChangePassword`
+method. Both transports verify the current password, revoke other refresh
+sessions, and return the rotated token pair for the current client.
 
 ## Versioning and Compatibility
 

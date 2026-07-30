@@ -218,6 +218,33 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/auth/change-password:
+        post:
+            tags:
+                - AuthService
+            description: |-
+                ChangePassword verifies the current password, rotates all refresh sessions,
+                 and returns a fresh access/refresh token pair for the current client.
+            operationId: AuthService_ChangePassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ChangePasswordRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuthResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/auth/initialize:
         post:
             tags:
@@ -972,6 +999,13 @@ components:
             properties:
                 initialized:
                     type: boolean
+        ChangePasswordRequest:
+            type: object
+            properties:
+                currentPassword:
+                    type: string
+                newPassword:
+                    type: string
         CreateAskConversationRequest:
             type: object
             properties:
@@ -1407,8 +1441,8 @@ tags:
     - name: AuthService
       description: |-
         AuthService handles the single-account lifecycle: one-time initialization,
-         sign-in/out, and access-token refresh. After initialization, Initialize is
-         rejected (no second account).
+         sign-in/out, password changes, and access-token refresh. After initialization,
+         Initialize is rejected (no second account).
     - name: MemoService
       description: |-
         MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,

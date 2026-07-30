@@ -367,6 +367,58 @@ func (x *MeResponse) GetAccount() *Account {
 	return nil
 }
 
+type ChangePasswordRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CurrentPassword string                 `protobuf:"bytes,1,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	NewPassword     string                 `protobuf:"bytes,2,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ChangePasswordRequest) Reset() {
+	*x = ChangePasswordRequest{}
+	mi := &file_api_v1_auth_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangePasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangePasswordRequest) ProtoMessage() {}
+
+func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_auth_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
+func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_auth_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ChangePasswordRequest) GetCurrentPassword() string {
+	if x != nil {
+		return x.CurrentPassword
+	}
+	return ""
+}
+
+func (x *ChangePasswordRequest) GetNewPassword() string {
+	if x != nil {
+		return x.NewPassword
+	}
+	return ""
+}
+
 // AuthResponse carries the account plus a short-lived access token. The refresh
 // token is delivered out-of-band as an HttpOnly cookie, not in this message.
 type AuthResponse struct {
@@ -380,7 +432,7 @@ type AuthResponse struct {
 
 func (x *AuthResponse) Reset() {
 	*x = AuthResponse{}
-	mi := &file_api_v1_auth_service_proto_msgTypes[8]
+	mi := &file_api_v1_auth_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +444,7 @@ func (x *AuthResponse) String() string {
 func (*AuthResponse) ProtoMessage() {}
 
 func (x *AuthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_auth_service_proto_msgTypes[8]
+	mi := &file_api_v1_auth_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +457,7 @@ func (x *AuthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthResponse.ProtoReflect.Descriptor instead.
 func (*AuthResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_auth_service_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_auth_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AuthResponse) GetAccount() *Account {
@@ -449,12 +501,15 @@ const file_api_v1_auth_service_proto_rawDesc = "" +
 	"\tMeRequest\"?\n" +
 	"\n" +
 	"MeResponse\x121\n" +
-	"\aaccount\x18\x01 \x01(\v2\x17.sillage.api.v1.AccountR\aaccount\"\x83\x01\n" +
+	"\aaccount\x18\x01 \x01(\v2\x17.sillage.api.v1.AccountR\aaccount\"e\n" +
+	"\x15ChangePasswordRequest\x12)\n" +
+	"\x10current_password\x18\x01 \x01(\tR\x0fcurrentPassword\x12!\n" +
+	"\fnew_password\x18\x02 \x01(\tR\vnewPassword\"\x83\x01\n" +
 	"\fAuthResponse\x121\n" +
 	"\aaccount\x18\x01 \x01(\v2\x17.sillage.api.v1.AccountR\aaccount\x12!\n" +
 	"\faccess_token\x18\x02 \x01(\tR\vaccessToken\x12\x1d\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\tR\texpiresAt2\xfd\x04\n" +
+	"expires_at\x18\x03 \x01(\tR\texpiresAt2\xfd\x05\n" +
 	"\vAuthService\x12p\n" +
 	"\tBootstrap\x12 .sillage.api.v1.BootstrapRequest\x1a!.sillage.api.v1.BootstrapResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/auth/bootstrap\x12q\n" +
 	"\n" +
@@ -462,7 +517,8 @@ const file_api_v1_auth_service_proto_rawDesc = "" +
 	"\x06SignIn\x12\x1d.sillage.api.v1.SignInRequest\x1a\x1c.sillage.api.v1.AuthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/api/v1/auth/signin\x12h\n" +
 	"\aRefresh\x12\x1e.sillage.api.v1.RefreshRequest\x1a\x1c.sillage.api.v1.AuthResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/auth/refresh\x12b\n" +
 	"\aSignOut\x12\x1e.sillage.api.v1.SignOutRequest\x1a\x16.google.protobuf.Empty\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/auth/signout\x12T\n" +
-	"\x02Me\x12\x19.sillage.api.v1.MeRequest\x1a\x1a.sillage.api.v1.MeResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/auth/meB\xb6\x01\n" +
+	"\x02Me\x12\x19.sillage.api.v1.MeRequest\x1a\x1a.sillage.api.v1.MeResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/auth/me\x12~\n" +
+	"\x0eChangePassword\x12%.sillage.api.v1.ChangePasswordRequest\x1a\x1c.sillage.api.v1.AuthResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/auth/change-passwordB\xb6\x01\n" +
 	"\x12com.sillage.api.v1B\x10AuthServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
@@ -477,37 +533,40 @@ func file_api_v1_auth_service_proto_rawDescGZIP() []byte {
 	return file_api_v1_auth_service_proto_rawDescData
 }
 
-var file_api_v1_auth_service_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_api_v1_auth_service_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_api_v1_auth_service_proto_goTypes = []any{
-	(*BootstrapRequest)(nil),  // 0: sillage.api.v1.BootstrapRequest
-	(*BootstrapResponse)(nil), // 1: sillage.api.v1.BootstrapResponse
-	(*InitializeRequest)(nil), // 2: sillage.api.v1.InitializeRequest
-	(*SignInRequest)(nil),     // 3: sillage.api.v1.SignInRequest
-	(*RefreshRequest)(nil),    // 4: sillage.api.v1.RefreshRequest
-	(*SignOutRequest)(nil),    // 5: sillage.api.v1.SignOutRequest
-	(*MeRequest)(nil),         // 6: sillage.api.v1.MeRequest
-	(*MeResponse)(nil),        // 7: sillage.api.v1.MeResponse
-	(*AuthResponse)(nil),      // 8: sillage.api.v1.AuthResponse
-	(*Account)(nil),           // 9: sillage.api.v1.Account
-	(*emptypb.Empty)(nil),     // 10: google.protobuf.Empty
+	(*BootstrapRequest)(nil),      // 0: sillage.api.v1.BootstrapRequest
+	(*BootstrapResponse)(nil),     // 1: sillage.api.v1.BootstrapResponse
+	(*InitializeRequest)(nil),     // 2: sillage.api.v1.InitializeRequest
+	(*SignInRequest)(nil),         // 3: sillage.api.v1.SignInRequest
+	(*RefreshRequest)(nil),        // 4: sillage.api.v1.RefreshRequest
+	(*SignOutRequest)(nil),        // 5: sillage.api.v1.SignOutRequest
+	(*MeRequest)(nil),             // 6: sillage.api.v1.MeRequest
+	(*MeResponse)(nil),            // 7: sillage.api.v1.MeResponse
+	(*ChangePasswordRequest)(nil), // 8: sillage.api.v1.ChangePasswordRequest
+	(*AuthResponse)(nil),          // 9: sillage.api.v1.AuthResponse
+	(*Account)(nil),               // 10: sillage.api.v1.Account
+	(*emptypb.Empty)(nil),         // 11: google.protobuf.Empty
 }
 var file_api_v1_auth_service_proto_depIdxs = []int32{
-	9,  // 0: sillage.api.v1.MeResponse.account:type_name -> sillage.api.v1.Account
-	9,  // 1: sillage.api.v1.AuthResponse.account:type_name -> sillage.api.v1.Account
+	10, // 0: sillage.api.v1.MeResponse.account:type_name -> sillage.api.v1.Account
+	10, // 1: sillage.api.v1.AuthResponse.account:type_name -> sillage.api.v1.Account
 	0,  // 2: sillage.api.v1.AuthService.Bootstrap:input_type -> sillage.api.v1.BootstrapRequest
 	2,  // 3: sillage.api.v1.AuthService.Initialize:input_type -> sillage.api.v1.InitializeRequest
 	3,  // 4: sillage.api.v1.AuthService.SignIn:input_type -> sillage.api.v1.SignInRequest
 	4,  // 5: sillage.api.v1.AuthService.Refresh:input_type -> sillage.api.v1.RefreshRequest
 	5,  // 6: sillage.api.v1.AuthService.SignOut:input_type -> sillage.api.v1.SignOutRequest
 	6,  // 7: sillage.api.v1.AuthService.Me:input_type -> sillage.api.v1.MeRequest
-	1,  // 8: sillage.api.v1.AuthService.Bootstrap:output_type -> sillage.api.v1.BootstrapResponse
-	8,  // 9: sillage.api.v1.AuthService.Initialize:output_type -> sillage.api.v1.AuthResponse
-	8,  // 10: sillage.api.v1.AuthService.SignIn:output_type -> sillage.api.v1.AuthResponse
-	8,  // 11: sillage.api.v1.AuthService.Refresh:output_type -> sillage.api.v1.AuthResponse
-	10, // 12: sillage.api.v1.AuthService.SignOut:output_type -> google.protobuf.Empty
-	7,  // 13: sillage.api.v1.AuthService.Me:output_type -> sillage.api.v1.MeResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
+	8,  // 8: sillage.api.v1.AuthService.ChangePassword:input_type -> sillage.api.v1.ChangePasswordRequest
+	1,  // 9: sillage.api.v1.AuthService.Bootstrap:output_type -> sillage.api.v1.BootstrapResponse
+	9,  // 10: sillage.api.v1.AuthService.Initialize:output_type -> sillage.api.v1.AuthResponse
+	9,  // 11: sillage.api.v1.AuthService.SignIn:output_type -> sillage.api.v1.AuthResponse
+	9,  // 12: sillage.api.v1.AuthService.Refresh:output_type -> sillage.api.v1.AuthResponse
+	11, // 13: sillage.api.v1.AuthService.SignOut:output_type -> google.protobuf.Empty
+	7,  // 14: sillage.api.v1.AuthService.Me:output_type -> sillage.api.v1.MeResponse
+	9,  // 15: sillage.api.v1.AuthService.ChangePassword:output_type -> sillage.api.v1.AuthResponse
+	9,  // [9:16] is the sub-list for method output_type
+	2,  // [2:9] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -525,7 +584,7 @@ func file_api_v1_auth_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_auth_service_proto_rawDesc), len(file_api_v1_auth_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

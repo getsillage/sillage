@@ -46,6 +46,9 @@ const (
 	AuthServiceSignOutProcedure = "/sillage.api.v1.AuthService/SignOut"
 	// AuthServiceMeProcedure is the fully-qualified name of the AuthService's Me RPC.
 	AuthServiceMeProcedure = "/sillage.api.v1.AuthService/Me"
+	// AuthServiceChangePasswordProcedure is the fully-qualified name of the AuthService's
+	// ChangePassword RPC.
+	AuthServiceChangePasswordProcedure = "/sillage.api.v1.AuthService/ChangePassword"
 )
 
 // AuthServiceClient is a client for the sillage.api.v1.AuthService service.
@@ -58,6 +61,9 @@ type AuthServiceClient interface {
 	Refresh(context.Context, *connect.Request[v1.RefreshRequest]) (*connect.Response[v1.AuthResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[emptypb.Empty], error)
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)
+	// ChangePassword verifies the current password, rotates all refresh sessions,
+	// and returns a fresh access/refresh token pair for the current client.
+	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.AuthResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the sillage.api.v1.AuthService service. By default,
@@ -107,17 +113,24 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("Me")),
 			connect.WithClientOptions(opts...),
 		),
+		changePassword: connect.NewClient[v1.ChangePasswordRequest, v1.AuthResponse](
+			httpClient,
+			baseURL+AuthServiceChangePasswordProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ChangePassword")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	bootstrap  *connect.Client[v1.BootstrapRequest, v1.BootstrapResponse]
-	initialize *connect.Client[v1.InitializeRequest, v1.AuthResponse]
-	signIn     *connect.Client[v1.SignInRequest, v1.AuthResponse]
-	refresh    *connect.Client[v1.RefreshRequest, v1.AuthResponse]
-	signOut    *connect.Client[v1.SignOutRequest, emptypb.Empty]
-	me         *connect.Client[v1.MeRequest, v1.MeResponse]
+	bootstrap      *connect.Client[v1.BootstrapRequest, v1.BootstrapResponse]
+	initialize     *connect.Client[v1.InitializeRequest, v1.AuthResponse]
+	signIn         *connect.Client[v1.SignInRequest, v1.AuthResponse]
+	refresh        *connect.Client[v1.RefreshRequest, v1.AuthResponse]
+	signOut        *connect.Client[v1.SignOutRequest, emptypb.Empty]
+	me             *connect.Client[v1.MeRequest, v1.MeResponse]
+	changePassword *connect.Client[v1.ChangePasswordRequest, v1.AuthResponse]
 }
 
 // Bootstrap calls sillage.api.v1.AuthService.Bootstrap.
@@ -150,6 +163,11 @@ func (c *authServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRe
 	return c.me.CallUnary(ctx, req)
 }
 
+// ChangePassword calls sillage.api.v1.AuthService.ChangePassword.
+func (c *authServiceClient) ChangePassword(ctx context.Context, req *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.AuthResponse], error) {
+	return c.changePassword.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the sillage.api.v1.AuthService service.
 type AuthServiceHandler interface {
 	// Bootstrap reports whether the instance has been initialized yet, so the
@@ -160,6 +178,9 @@ type AuthServiceHandler interface {
 	Refresh(context.Context, *connect.Request[v1.RefreshRequest]) (*connect.Response[v1.AuthResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[emptypb.Empty], error)
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)
+	// ChangePassword verifies the current password, rotates all refresh sessions,
+	// and returns a fresh access/refresh token pair for the current client.
+	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.AuthResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -205,6 +226,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("Me")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceChangePasswordHandler := connect.NewUnaryHandler(
+		AuthServiceChangePasswordProcedure,
+		svc.ChangePassword,
+		connect.WithSchema(authServiceMethods.ByName("ChangePassword")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/sillage.api.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceBootstrapProcedure:
@@ -219,6 +246,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceSignOutHandler.ServeHTTP(w, r)
 		case AuthServiceMeProcedure:
 			authServiceMeHandler.ServeHTTP(w, r)
+		case AuthServiceChangePasswordProcedure:
+			authServiceChangePasswordHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -250,4 +279,8 @@ func (UnimplementedAuthServiceHandler) SignOut(context.Context, *connect.Request
 
 func (UnimplementedAuthServiceHandler) Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.AuthService.Me is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.AuthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sillage.api.v1.AuthService.ChangePassword is not implemented"))
 }

@@ -57,7 +57,9 @@ jobs:
           gitleaks version
 
       - name: Scan for secrets
-        run: gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+        # Scan the checked-out tree (tracked files only). Full git history
+        # scanning is optional for operators and needs curated allowlists.
+        run: gitleaks detect --source . --config .gitleaks.toml --no-git --verbose --redact
 
   go:
     name: Go

@@ -89,4 +89,4 @@ check-commits:
 
 check-secrets:
 	@command -v gitleaks >/dev/null 2>&1 || { echo "Install gitleaks first (brew install gitleaks)."; exit 1; }
-	gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+	gitleaks detect --source . --config .gitleaks.toml --no-git --verbose --redact

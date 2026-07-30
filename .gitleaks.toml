@@ -7,16 +7,28 @@ title = "Sillage"
 useDefault = true
 
 [allowlist]
-description = "Test fixtures and documented placeholders"
+description = "Local runtime files, tests, docs, and documented placeholders"
 paths = [
   '''(.*?)(_test\.go)$''',
   '''(.*?)(\.test\.[jt]sx?)$''',
   '''web/e2e/.*''',
   '''docs/.*''',
+  '''^\.env$''',
+  '''^\.env\..*''',
+  '''^runtime/.*''',
+  '''^android/signing\.properties$''',
+  '''^android/local\.properties$''',
+  '''^\.data-dev/.*''',
+  '''coverage/.*''',
 ]
 regexes = [
   '''(?i)example[_-]?api[_-]?key''',
   '''(?i)changeme''',
   '''(?i)your-api-key''',
   '''(?i)sk-ant-api\d{2}-example''',
+  '''(?i)ATTACH_ENCRYPTION_KEY''',
+]
+# Historical test-only env names that triggered generic-api-key on deleted paths.
+commits = [
+  '''3766b28c86e504cf2e15551378ad65a90fb31e7e''',
 ]

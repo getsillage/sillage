@@ -61,6 +61,7 @@ const targetByGate = {
   docs: "check-docs",
   container: "check-container",
   e2e: "check-e2e",
+  restore: "check-restore",
 };
 
 const targets = gates.map((gate) => targetByGate[gate]).filter(Boolean);

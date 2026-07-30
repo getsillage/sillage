@@ -1,6 +1,6 @@
 # Path → required verification gates and documentation surfaces.
 # Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
-# Gates: go | proto | web | android | docs | container | e2e
+# Gates: go | proto | web | android | docs | container | e2e | restore
 
 version: 1
 
@@ -12,6 +12,7 @@ gates:
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
   e2e: "Fresh-instance Playwright release journeys"
+  restore: "Isolated backup/restore recovery drill"
 
 rules:
   - id: proto-contract
@@ -35,6 +36,14 @@ rules:
     docs:
       - "docs/user/data.md"
       - "docs/development/architecture.md"
+
+  - id: backup-restore-drill
+    paths:
+      - "integration/restore_drill/**"
+      - "docs/user/data.md"
+    gates: [go, restore]
+    docs:
+      - "docs/user/data.md"
 
   - id: go-server
     paths:

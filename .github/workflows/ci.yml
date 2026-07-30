@@ -84,6 +84,9 @@ jobs:
       - name: Check Go
         run: make check-go
 
+      - name: Backup and restore drill
+        run: make check-restore
+
   proto:
     name: Proto
     runs-on: ubuntu-latest

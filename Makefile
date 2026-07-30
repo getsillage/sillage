@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android \
-	check-docs check-container check-e2e check-commits check-secrets check-actions print-affected
+	check-docs check-container check-e2e check-restore check-commits check-secrets check-actions print-affected
 
 help:
 	@printf '%s\n' \
@@ -20,6 +20,7 @@ help:
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
 		'  make check-e2e        Fresh-instance Playwright release journeys' \
+		'  make check-restore    Isolated backup/restore recovery drill' \
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
 		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make check-actions    Verify GitHub Actions are pinned to commit SHAs' \
@@ -28,7 +29,7 @@ help:
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-android check-docs check-secrets check-container check-e2e
+check: check-go check-proto check-web check-android check-docs check-secrets check-container check-e2e check-restore
 
 check-fast: check-go check-proto check-web check-docs
 
@@ -105,6 +106,12 @@ check-e2e:
 	done; \
 	if [[ "$$ready" -ne 1 ]]; then cat "$$e2e_log"; cat "$$e2e_ai_log"; echo "E2E services did not become ready on their isolated ports" >&2; exit 1; fi; \
 	PLAYWRIGHT_BASE_URL="http://127.0.0.1:$$e2e_port" E2E_FRESH_INSTANCE=1 E2E_MOCK_AI_BASE_URL="http://127.0.0.1:$$e2e_ai_port" pnpm --dir web test:e2e
+
+check-restore:
+	@report="$$(mktemp)"; \
+	trap 'rm -f "$$report"' EXIT; \
+	SILLAGE_RESTORE_DRILL_REPORT="$$report" go test -tags=restore_drill -count=1 ./integration/restore_drill; \
+	cat "$$report"
 
 check-commits:
 	node scripts/check-commit-msg.mjs --range

@@ -222,7 +222,7 @@ jobs:
         run: pnpm --dir web install --frozen-lockfile
 
       - name: Install browser
-        run: pnpm --dir web exec playwright install --with-deps chromium
+        run: pnpm --dir web exec playwright install --with-deps chromium firefox webkit
 
       - name: Fresh-instance E2E
         run: make check-e2e

@@ -100,7 +100,7 @@ make print-affected     # show gates without running them
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |
 | Container | `make check-container` | Docker build + Compose config |
 | Supply Chain | `make check-supply-chain` | pnpm high-severity audit, runtime license/NOTICE drift, SPDX + CycloneDX SBOM, Grype final-image scan (high blocks) |
-| E2E | `make check-e2e` | fresh-instance Playwright smoke |
+| E2E | `make check-e2e` | complete fresh-instance journeys in Chromium, Firefox, and WebKit |
 | Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | Actions | `make check-actions` | full commit-SHA pins for every workflow action |
 
@@ -116,7 +116,7 @@ make check-commits
 
 When contract-sensitive paths change, `check-doc-sync` expects a matching documentation path in the same range. To skip deliberately, include `Docs-skip: <reason>` in a commit message body.
 
-Web E2E (`make check-e2e`) starts a temporary server and requires Playwright browsers (`pnpm --dir web exec playwright install` on first use; CI installs Chromium with OS deps).
+Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir web exec playwright install` on first use; CI installs all three engines with their OS dependencies.
 
 Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an API 35 emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions a clean API 35 x86_64 emulator for the automated device suite.
 

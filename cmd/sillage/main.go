@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/getsillage/sillage/internal/instancelock"
 	"github.com/getsillage/sillage/internal/profile"
 	"github.com/getsillage/sillage/internal/secret"
 	"github.com/getsillage/sillage/server"
@@ -62,6 +63,7 @@ func newRootCommand() *cobra.Command {
 	mustBindFlag(cmd, "trusted-proxy")
 	mustBindFlag(cmd, "log-format")
 	mustBindFlag(cmd, "log-level")
+	cmd.AddCommand(newAdminCommand())
 
 	viper.SetEnvPrefix("sillage")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
@@ -84,22 +86,29 @@ func run() error {
 	); err != nil {
 		return err
 	}
-	instanceProfile := &profile.Profile{
-		Addr:              viper.GetString("addr"),
-		Port:              viper.GetInt("port"),
-		TrustedProxyCIDRs: trustedProxyCIDRs(),
-		Data:              viper.GetString("data"),
-		Driver:            viper.GetString("driver"),
-		DSN:               viper.GetString("dsn"),
-		MaxUploadMB:       viper.GetInt("max-upload-mb"),
-		LogFormat:         viper.GetString("log-format"),
-		LogLevel:          viper.GetString("log-level"),
-	}
+	instanceProfile := configuredProfile()
 	if err := instanceProfile.Validate(); err != nil {
 		return fmt.Errorf("validate profile: %w", err)
 	}
 	configureLogger(instanceProfile)
 	slog.Info("starting Sillage", "version", version, "revision", revision)
+
+	databasePath, err := db.DatabaseFilePath(instanceProfile)
+	if err != nil {
+		return fmt.Errorf("resolve database path: %w", err)
+	}
+	instanceLock, err := instancelock.Acquire(instanceProfile.Data, databasePath)
+	if err != nil {
+		if errors.Is(err, instancelock.ErrInUse) {
+			return fmt.Errorf("data directory %s is already in use; stop the other Sillage process first", instanceProfile.Data)
+		}
+		return err
+	}
+	defer func() {
+		if err := instanceLock.Release(); err != nil {
+			slog.Warn("release instance lock", "error", err)
+		}
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -139,6 +148,28 @@ func run() error {
 		return fmt.Errorf("shutdown server: %w", err)
 	}
 	return nil
+}
+
+func configuredProfile() *profile.Profile {
+	return &profile.Profile{
+		Addr:              viper.GetString("addr"),
+		Port:              viper.GetInt("port"),
+		TrustedProxyCIDRs: trustedProxyCIDRs(),
+		Data:              viper.GetString("data"),
+		Driver:            viper.GetString("driver"),
+		DSN:               viper.GetString("dsn"),
+		MaxUploadMB:       viper.GetInt("max-upload-mb"),
+		LogFormat:         viper.GetString("log-format"),
+		LogLevel:          viper.GetString("log-level"),
+	}
+}
+
+func configuredStorageProfile() *profile.Profile {
+	return &profile.Profile{
+		Data:   viper.GetString("data"),
+		Driver: viper.GetString("driver"),
+		DSN:    viper.GetString("dsn"),
+	}
 }
 
 func trustedProxyCIDRs() []string {

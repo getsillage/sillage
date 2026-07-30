@@ -181,10 +181,7 @@ func (s *Service) ChangePassword(ctx context.Context, accountID, currentPassword
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := s.store.UpdateAccountPassword(ctx, account.ID, passwordHash, PasswordAlgorithmName); err != nil {
-		return nil, nil, err
-	}
-	if err := s.store.DeleteSessionsForAccount(ctx, account.ID); err != nil {
+	if err := s.store.UpdateAccountPasswordAndRevokeSessions(ctx, account.ID, passwordHash, PasswordAlgorithmName); err != nil {
 		return nil, nil, err
 	}
 	// Reload so UpdatedAt reflects the password write.

@@ -8,15 +8,19 @@ With the default configuration, the server's persistence unit is the complete da
 sillage.db
 sillage.db-wal
 sillage.db-shm
+sillage.db.sillage.lock
 assets/attachments/
 .thumbnail_cache/
 runtime/secrets.json
+runtime/instance.lock
 ```
 
 - SQLite stores the account, records, AI settings, and sessions.
+- `sillage.db.sillage.lock` prevents two supported processes from using the same SQLite file. A custom external DSN gets the same `.sillage.lock` sidecar next to its database path.
 - `assets/attachments/` stores attachment bytes.
 - `.thumbnail_cache/` is a regenerable cache.
 - `runtime/secrets.json` stores automatically generated session and encryption secrets. It is not a cache.
+- `runtime/instance.lock` coordinates exclusive access to the rest of the data directory. Lock sidecars are not secrets and may remain after exit; the operating-system lock, not file existence, indicates an active process.
 
 Records, attachments, and backups do not have additional whole-dataset encryption at rest. Losing `runtime/` invalidates existing sessions and may make saved AI API keys impossible to decrypt.
 
@@ -30,7 +34,53 @@ Ephemeral data is cleaned automatically at startup and every six hours. Expired 
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
-After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the browser that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password recovery that preserves data while you are locked out. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account.
+After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the browser that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password endpoint. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account; use the offline procedure below.
+
+## Offline Password Recovery
+
+The local `admin reset-password` command is the break-glass recovery path for an operator who already controls the complete data directory. It updates the password hash and revokes every refresh session in one SQLite transaction. Existing access tokens can remain valid for at most 15 minutes, so keep the service stopped until the command succeeds and then restart it. The command acquires the same data-directory lock as the server and refuses to run if another Sillage process is active.
+
+The new password must be supplied through a regular, non-symlink file. On Unix, the file must have no group or other permissions (mode `0600` is recommended). A single trailing newline is removed; additional lines are rejected. Do not put the password in a command argument, environment variable, shell history, or shared temporary directory.
+
+For Compose, stop the service and run the recovery command as the image's normal UID. This example reads the password without echoing it, creates the restricted file inside the mounted runtime directory, and removes it on exit:
+
+```bash
+docker compose -f scripts/compose.yaml stop sillage
+read -r -s NEW_PASSWORD && printf '\n'
+if printf '%s\n' "$NEW_PASSWORD" | docker compose -f scripts/compose.yaml run --rm -T sillage \
+  sh -eu -c '
+      umask 077
+      password_file=/var/opt/sillage/runtime/reset-password
+      trap "rm -f $password_file" EXIT
+      cat > "$password_file"
+      /usr/local/sillage/sillage admin reset-password \
+        --username YOUR_USERNAME \
+        --password-file "$password_file"
+    '
+then
+  unset NEW_PASSWORD
+  docker compose -f scripts/compose.yaml start sillage
+else
+  unset NEW_PASSWORD
+  printf 'Password reset failed; Sillage remains stopped.\n' >&2
+fi
+```
+
+For a local binary, use the same data directory and DSN as the stopped service:
+
+```bash
+umask 077
+PASSWORD_FILE="$(mktemp)"
+trap 'rm -f "$PASSWORD_FILE"' EXIT
+read -r -s NEW_PASSWORD && printf '\n'
+printf '%s\n' "$NEW_PASSWORD" > "$PASSWORD_FILE"
+unset NEW_PASSWORD
+./sillage --data "$HOME/.sillage" admin reset-password \
+  --username YOUR_USERNAME \
+  --password-file "$PASSWORD_FILE"
+```
+
+If the instance uses a custom `SILLAGE_DSN`, pass the same value or `_FILE` setting to the command. Back up the instance before recovery when practical. After restart, sign in with the new password. Previously issued access tokens may continue working until their 15-minute lifetime ends; after that, confirm that old devices must authenticate again.
 
 ## Back Up
 

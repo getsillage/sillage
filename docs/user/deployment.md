@@ -53,7 +53,7 @@ Check the initialization status locally:
 curl http://localhost:5231/api/v1/auth/bootstrap
 ```
 
-Open an external entry point only after the response is `{"initialized":true}`. Store the password in a password manager. After signing in, you can change the password in Settings under Account (`账号`). There is no unauthenticated forgot-password or break-glass recovery that preserves data while you are locked out.
+Open an external entry point only after the response is `{"initialized":true}`. Store the password in a password manager. After signing in, you can change the password in Settings under Account (`账号`). Sillage deliberately has no unauthenticated forgot-password endpoint; an operator who controls the data directory can use the offline recovery command documented in [Data, Backup, and Recovery](data.md#offline-password-recovery).
 
 ## Configuration
 
@@ -77,6 +77,8 @@ When running directly on the host, the application uses `/var/opt/sillage` by de
 `SILLAGE_DSN`, `SESSION_SECRET`, and `ENCRYPTION_SECRET` support corresponding `_FILE` variables, such as `ENCRYPTION_SECRET_FILE=/run/secrets/encryption`. A direct value and its `_FILE` variable cannot be set at the same time. To use `_FILE` in a container, mount the file and pass the variable explicitly; the host environment is not passed through automatically. External databases and secret files are outside `SILLAGE_DATA` and must be included in the same backup and restore process.
 
 The container entrypoint also supports `SILLAGE_UID` and `SILLAGE_GID`, both defaulting to `10001`. They adjust ownership of the mounted directory and run the process as a non-root user. Compose does not pass through these two variables; to customize them, explicitly change the Compose `environment` or use `docker run -e`.
+
+The server holds exclusive advisory locks at `runtime/instance.lock` and beside the SQLite database (`<database-path>.sillage.lock`) for its full process lifetime. A second server or an offline administrative command pointed at the same data directory or external DSN fails closed. The files remain after a normal or abnormal exit and record the last process ID; their presence alone does not mean the instance is running.
 
 Configure the AI API protocol, endpoint, model, and API key in the application settings after signing in; they are not configured through process environment variables. Read [AI Usage and Privacy](ai.md) before configuring them.
 

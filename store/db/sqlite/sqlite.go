@@ -43,6 +43,15 @@ func withPragmas(dsn string) string {
 	return dsn + separator + "_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=mmap_size(0)"
 }
 
+func DatabaseFilePath(dsn string) (string, error) {
+	path, _, _ := strings.Cut(dsn, "?")
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("sqlite database path is required")
+	}
+	return path, nil
+}
+
 func (d *DB) GetDB() *sql.DB {
 	return d.db
 }

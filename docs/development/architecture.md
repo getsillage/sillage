@@ -108,12 +108,14 @@ The default data unit is one complete `SILLAGE_DATA` directory:
 sillage.db
 sillage.db-wal
 sillage.db-shm
+sillage.db.sillage.lock
 assets/attachments/
 .thumbnail_cache/
 runtime/secrets.json
+runtime/instance.lock
 ```
 
-WAL and SHM files appear only while SQLite uses them. `.thumbnail_cache/` is a currently unused reserved directory that is created during startup; `runtime/` is not a cache. See [Data, Backup, and Recovery](../user/data.md) for backup rules.
+WAL and SHM files appear only while SQLite uses them. `.thumbnail_cache/` is a currently unused reserved directory that is created during startup; `runtime/` is not a cache. The server and offline administrative commands share operating-system advisory locks on `runtime/instance.lock` and `<database-path>.sillage.lock`, preventing two supported Sillage processes from using the same data directory or SQLite file concurrently. See [Data, Backup, and Recovery](../user/data.md) for backup and recovery rules.
 
 The repository commits generated Proto projections in `proto/gen/`; they are produced by `buf generate` and must not be edited manually.
 

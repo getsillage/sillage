@@ -1,0 +1,22 @@
+# Secret scan configuration for gitleaks (CI + optional local runs).
+# See docs/development/governance.md.
+
+title = "Sillage"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and documented placeholders"
+paths = [
+  '''(.*?)(_test\.go)$''',
+  '''(.*?)(\.test\.[jt]sx?)$''',
+  '''web/e2e/.*''',
+  '''docs/.*''',
+]
+regexes = [
+  '''(?i)example[_-]?api[_-]?key''',
+  '''(?i)changeme''',
+  '''(?i)your-api-key''',
+  '''(?i)sk-ant-api\d{2}-example''',
+]

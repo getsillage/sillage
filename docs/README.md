@@ -9,6 +9,8 @@ Choose an entry point based on your task:
 | Configure AI and understand external data sharing | [AI Usage and Privacy](user/ai.md) |
 | Get setup or usage help | [Support Guide](../SUPPORT.md) |
 | Set up a development environment and validate changes | [Contributing Guide](../CONTRIBUTING.md) |
+| Engineering standards, dual track, and verification registry | [Engineering Governance](development/governance.md) |
+| Product and engineering red lines | [Constitution](development/constitution.md) |
 | Understand module, data, and contract boundaries | [Architecture Guide](development/architecture.md) |
 | Change product semantics | [Product Guidance](development/product-guidance.md) |
 | Change authentication, attachments, secrets, or external requests | [Security Development Boundaries](development/security.md) |

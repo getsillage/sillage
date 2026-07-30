@@ -1,6 +1,6 @@
 # Contributing Guide
 
-This document is the single entry point for this repository's development environment, generated artifacts, and quality gates. See the [Product Guidance](docs/development/product-guidance.md) for product boundaries and the [Architecture Guide](docs/development/architecture.md) for module responsibilities.
+This document is the single entry point for this repository's development environment, generated artifacts, and quality gates. Project-wide standards, the dual contribution track, and the enforcement registry live in [Engineering Governance](docs/development/governance.md). Product boundaries are in the [Constitution](docs/development/constitution.md) and [Product Guidance](docs/development/product-guidance.md). Module responsibilities are in the [Architecture Guide](docs/development/architecture.md).
 
 ## Environment
 
@@ -11,6 +11,7 @@ This document is the single entry point for this repository's development enviro
 | Proto | Buf CLI 1.71 |
 | Android | JDK 17, Android SDK 35 |
 | Containers | Docker; Compose is optional |
+| Verification | GNU Make (for `make check*` targets) |
 
 ## Local Development
 
@@ -43,10 +44,12 @@ Open `http://localhost:5173`. Vite listens only on `127.0.0.1` and proxies API, 
 2. Open a Feature Request before implementing a substantial change to product scope, public contracts, data formats, authentication, or security boundaries. If the discussion could reveal a vulnerability or sensitive security detail, use the private process in the [Security Policy](SECURITY.md) instead.
 3. Fork the repository, create a focused branch from `main`, and keep the change limited to one purpose.
 4. Add the relevant tests, documentation, and tracked generated artifacts as part of the same change.
-5. Run the validation commands for every affected area.
+5. Run the verification targets for every affected area (see below).
 6. Open a pull request and complete the pull request template with the rationale, related Issue, and exact validation performed.
 
 All participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). Never report a vulnerability in a public Issue; follow the private process in the [Security Policy](SECURITY.md).
+
+Maintainer and coding-agent workflows may push `main` under [CLAUDE.md](CLAUDE.md), but they use the **same quality gates** as pull requests. See [Governance — dual tracks](docs/development/governance.md#dual-contribution-tracks).
 
 ## Change Rules
 
@@ -57,11 +60,12 @@ All participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). Neve
 - The backend, database, Proto, and API use `memo`; English user-facing documentation and copy use `record`; the Simplified Chinese UI uses `记录`.
 - Do not edit `proto/gen/` or `server/router/frontend/dist/` directly.
 - Do not commit real secrets, databases, attachments, APK/AAB files, keystores, `local.properties`, or device caches.
+- Significant cross-module technical choices need an ADR under `docs/development/decisions/` (Context / Decision / Consequences only).
 
 ### API Contracts
 
 1. Modify `proto/api/v1/`.
-2. Run `buf lint`, `buf breaking --against '.git#branch=main'`, and `buf generate`, then commit the generated output in `proto/gen/`.
+2. Run `make check-proto` (or `buf lint`, `buf breaking` with a base ref, and `buf generate`), then commit the generated output in `proto/gen/`.
 3. Update the affected handwritten REST routes, the [REST API Guide](docs/development/api/README.md), `web/src/lib/api.ts`, and Android's `SillageApi.kt`.
 4. Cover the behavior with both REST and Connect tests.
 
@@ -77,39 +81,42 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 ## Verification
 
-Run at least the commands appropriate for the affected area. CI runs Go test/vet/build, Buf lint/breaking/generate, Web lint/typecheck/test/build, Android test/lint/build, fresh-instance E2E, Docker build, and Compose parsing. It also checks dependency metadata, the Docker context policy, tracked Proto artifacts, successful Web output generation, Markdown links, and whitespace in the commit range. Dependabot checks Go, Web, Android, Docker, and GitHub Actions dependencies weekly; security updates must still pass the same gates. Before a Docker build, check the context policy to ensure that Git-ignored local data, secrets, and build artifacts are not sent to the builder.
-
-CI compares Proto compatibility with the exact pull request base or previous pushed commit, and authenticates Buf setup downloads with the workflow token to avoid anonymous GitHub API rate limits. The fresh-instance E2E job builds the Go binary before starting the readiness timeout so cold compilation cannot consume the server startup window.
-
-| Area | Commands |
-| --- | --- |
-| Go | `go mod tidy -diff`, `go test -count=1 ./...`, `go vet ./...`, `go build ./cmd/sillage` |
-| Web | `pnpm --dir web lint`, `pnpm --dir web typecheck`, `pnpm --dir web test`, `pnpm --dir web build` |
-| Proto | `buf lint`, `buf breaking --against '.git#branch=main'`, `buf generate`, then inspect the generated diff |
-| Android | `cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` |
-| Documentation and final checks | `node scripts/check-markdown-links.mjs`, `git diff --check` |
-| Deployment | `node scripts/check-docker-context.mjs`, `docker build --build-arg VERSION=dev --build-arg REVISION="$(git rev-parse HEAD)" -t sillage:dev -f scripts/Dockerfile .`, `docker compose -f scripts/compose.yaml config`, `docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config` |
-
-Web E2E tests run against a live instance. First prepare the browser and embedded artifacts:
+Use the root **Makefile** so local runs match CI. Details and the path→gate matrix are in [Governance](docs/development/governance.md).
 
 ```bash
-pnpm --dir web exec playwright install
-pnpm --dir web build
+make check              # go + proto + web + docs
+make check-affected     # gates implied by current changes (set BASE_SHA for PR ranges)
+make print-affected     # show gates without running them
 ```
 
-Start a fresh instance in the first terminal:
+| Gate | Make target | What it runs |
+| --- | --- | --- |
+| Go | `make check-go` | `go mod tidy -diff`, tests, vet, build |
+| Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
+| Web | `make check-web` | lint, typecheck, unit tests, build, embed policy |
+| Android | `make check-android` | unit tests, lint, debug assemble |
+| Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync |
+| Container | `make check-container` | Docker build + Compose config |
+| E2E | `make check-e2e` | fresh-instance Playwright smoke |
+| Commits | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
+
+CI also runs gitleaks (`.gitleaks.toml`) and validates pull request titles as Conventional Commits subjects.
+
+For a PR-shaped range:
 
 ```bash
-SILLAGE_DATA="$(mktemp -d)" SILLAGE_ADDR=127.0.0.1 go run ./cmd/sillage
+export BASE_SHA=origin/main   # or the PR base commit
+make check-affected
+make check-commits
 ```
 
-After the instance is ready, run the tests in a second terminal:
+When contract-sensitive paths change, `check-doc-sync` expects a matching documentation path in the same range. To skip deliberately, include `Docs-skip: <reason>` in a commit message body.
 
-```bash
-E2E_FRESH_INSTANCE=1 pnpm --dir web test:e2e
-```
+Web E2E (`make check-e2e`) starts a temporary server and requires Playwright browsers (`pnpm --dir web exec playwright install` on first use; CI installs Chromium with OS deps).
 
 Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving editing, attachments, or network state must be checked on an emulator or physical device for system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer.
+
+Dependabot opens a limited number of weekly dependency PRs; they must pass the same gates. See [ADR: limited Dependabot PRs](docs/development/decisions/2026-07-30-dependabot-limited-prs.md).
 
 ## Releases
 
@@ -130,7 +137,7 @@ GitHub Releases are the only source of user-visible release notes; the repositor
 Commit messages follow Conventional Commits:
 
 ```text
-<type>(<scope>): <subject>
+<type>(scope): <subject>
 ```
 
-Common `type` values are `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, and `ci`. Each commit should have a single purpose and include the corresponding tests, generated artifacts, and documentation.
+Common `type` values are `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `style`, `perf`, and `build`. Each commit should have a single purpose and include the corresponding tests, generated artifacts, and documentation. CI validates subjects on pull requests and pushes to `main`.

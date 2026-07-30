@@ -1,0 +1,134 @@
+# Path → required verification gates and documentation surfaces.
+# Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
+# Gates: go | proto | web | android | docs | container | e2e
+
+version: 1
+
+gates:
+  go: "Go modules, tests, vet, and binary build"
+  proto: "Buf lint, breaking, generate, and committed gen drift"
+  web: "Web lint, typecheck, unit tests, and production build"
+  android: "Android unit tests, lint, and debug assemble"
+  docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
+  container: "Docker image build and Compose config validation"
+  e2e: "Fresh-instance Playwright smoke"
+
+rules:
+  - id: proto-contract
+    paths:
+      - "proto/**"
+      - "buf.yaml"
+      - "buf.gen.yaml"
+      - "buf.lock"
+    gates: [proto, go, web, android]
+    docs:
+      - "docs/development/api/**"
+      - "docs/development/architecture.md"
+      - "CONTRIBUTING.md"
+
+  - id: database-schema
+    paths:
+      - "store/migration/**"
+      - "store/migrator.go"
+      - "store/migrator_test.go"
+    gates: [go]
+    docs:
+      - "docs/user/data.md"
+      - "docs/development/architecture.md"
+
+  - id: go-server
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "server/**"
+      - "store/**"
+      - "go.mod"
+      - "go.sum"
+    gates: [go]
+    docs: []
+
+  - id: web-client
+    paths:
+      - "web/**"
+    gates: [web]
+    docs:
+      - "docs/development/design/**"
+
+  - id: android-client
+    paths:
+      - "android/**"
+    gates: [android]
+    docs:
+      - "android/README.md"
+
+  - id: sync-contract
+    paths:
+      - "server/sync*.go"
+      - "store/sync.go"
+      - "proto/api/v1/sync_service.proto"
+      - "docs/development/api/sync.md"
+    gates: [go, proto, android]
+    docs:
+      - "docs/development/api/sync.md"
+
+  - id: ai-behavior
+    paths:
+      - "server/ai*.go"
+      - "server/ask*.go"
+      - "store/ai*.go"
+      - "store/ask*.go"
+      - "android/**/ai/**"
+      - "android/**/ask/**"
+    gates: [go, android]
+    docs:
+      - "docs/user/ai.md"
+      - "docs/development/product-guidance.md"
+
+  - id: security-auth
+    paths:
+      - "server/auth/**"
+      - "server/auth_*.go"
+      - "server/attachment_*.go"
+      - "internal/secret/**"
+    gates: [go]
+    docs:
+      - "docs/development/security.md"
+      - "docs/user/deployment.md"
+
+  - id: container-deploy
+    paths:
+      - "scripts/Dockerfile"
+      - "scripts/entrypoint.sh"
+      - "scripts/compose.yaml"
+      - "scripts/compose.build.yaml"
+      - ".dockerignore"
+    gates: [container, docs]
+    docs:
+      - "docs/user/deployment.md"
+
+  - id: documentation
+    paths:
+      - "docs/**"
+      - "*.md"
+      - "SUPPORT.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+    gates: [docs]
+    docs: []
+
+  - id: governance-tooling
+    paths:
+      - "Makefile"
+      - "scripts/**"
+      - ".github/**"
+      - ".gitleaks.toml"
+      - "docs/development/governance.md"
+      - "docs/development/constitution.md"
+      - "docs/development/decisions/**"
+    gates: [docs]
+    docs:
+      - "docs/development/governance.md"
+      - "CONTRIBUTING.md"
+
+# Default when no rule matches (full local check still recommended before release).
+default_gates: [go, docs]

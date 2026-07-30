@@ -1,0 +1,16 @@
+# Optional local hooks. CI remains the authority.
+# Install once: brew install lefthook && lefthook install
+# See docs/development/governance.md and CONTRIBUTING.md.
+
+commit-msg:
+  commands:
+    conventional:
+      run: node scripts/check-commit-msg.mjs --file {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    terminology:
+      run: node scripts/check-terminology.mjs
+    whitespace:
+      run: bash scripts/check-whitespace.sh

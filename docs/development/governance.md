@@ -111,10 +111,10 @@ Dependabot runs weekly for Go, npm (`web/`), Gradle (`android/`), Docker (`scrip
 
 ## Secrets scanning
 
-CI runs gitleaks against the checkout using [`.gitleaks.toml`](../../.gitleaks.toml). Local optional run (if installed):
+CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI and scans the checkout with [`.gitleaks.toml`](../../.gitleaks.toml). The marketplace `gitleaks-action` is not used because organization repositories require a paid `GITLEAKS_LICENSE`. Local optional run (if installed):
 
 ```bash
-gitleaks detect --source . --config .gitleaks.toml
+gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 ```
 
 ## Quality severity

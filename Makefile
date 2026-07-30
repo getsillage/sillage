@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: help check check-affected check-go check-proto check-web check-android \
-	check-docs check-container check-e2e check-commits print-affected
+	check-docs check-container check-e2e check-commits check-secrets print-affected
 
 help:
 	@printf '%s\n' \
@@ -20,6 +20,7 @@ help:
 		'  make check-container  Docker image build + Compose config' \
 		'  make check-e2e        Fresh-instance Playwright smoke' \
 		'  make check-commits    Conventional Commits for BASE_SHA..HEAD' \
+		'  make check-secrets    gitleaks scan (requires local gitleaks install)' \
 		'  make print-affected   Show gates for the current change set' \
 		'' \
 		'Environment:' \
@@ -85,3 +86,7 @@ check-e2e:
 
 check-commits:
 	node scripts/check-commit-msg.mjs --range
+
+check-secrets:
+	@command -v gitleaks >/dev/null 2>&1 || { echo "Install gitleaks first (brew install gitleaks)."; exit 1; }
+	gitleaks detect --source . --config .gitleaks.toml --verbose --redact

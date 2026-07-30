@@ -118,6 +118,17 @@ Changes that affect the UI must also follow the [Web Design Guidelines](docs/dev
 
 Dependabot opens a limited number of weekly dependency PRs; they must pass the same gates. See [ADR: limited Dependabot PRs](docs/development/decisions/2026-07-30-dependabot-limited-prs.md).
 
+### Optional local hooks
+
+[lefthook](https://github.com/evilmartians/lefthook) can run a subset of checks before each commit. CI remains authoritative.
+
+```bash
+brew install lefthook   # or see lefthook install docs
+lefthook install
+```
+
+Hooks are defined in `lefthook.yml` (`commit-msg` Conventional Commits; `pre-commit` terminology + whitespace). Install is optional for contributors; do not treat a local skip as permission to land failing CI.
+
 ## Releases
 
 GitHub Releases are the only source of user-visible release notes; the repository does not maintain a separate `CHANGELOG.md`. Release container images and optional APK assets must be produced by the [Release workflow](.github/workflows/release.yml). Do not attach hand-built server binaries, Docker images, or unsigned APKs to a Release.

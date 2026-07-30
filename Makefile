@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device \
+.PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device check-scale \
 	check-docs check-container check-supply-chain check-e2e check-restore check-commits \
 	check-secrets check-actions generate-third-party-notices generate-android-third-party-notices print-affected
 
@@ -19,6 +19,7 @@ help:
 		'  make check-web        Web lint, typecheck, test, build, embed policy' \
 		'  make check-android    Android unit tests, lint, APKs, dependency integrity/security' \
 		'  make check-android-device  Android instrumentation journeys on a connected device' \
+		'  make check-scale      10k-record long-term listing, search, sync, and integrity budgets' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
 		'  make check-container  Docker image build + Compose config' \
 		'  make check-supply-chain  Dependency audit, notices, SBOM, final-image vulnerability scan' \
@@ -34,7 +35,7 @@ help:
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-android check-docs check-secrets check-container check-supply-chain check-e2e check-restore
+check: check-go check-proto check-web check-android check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore
 
 check-fast: check-go check-proto check-web check-docs
 
@@ -72,6 +73,9 @@ check-android:
 
 check-android-device:
 	cd android && ./gradlew :app:connectedDebugAndroidTest
+
+check-scale:
+	go test -tags=scale_acceptance -count=1 -timeout=70s ./integration/scale
 
 check-docs: check-actions
 	node scripts/check-docker-context.mjs

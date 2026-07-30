@@ -46,6 +46,7 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Sync | [api/sync.md](api/sync.md) | Go/Android tests + review | Active |
 | Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + govulncheck + review | Active |
 | Web UI | [design/README.md](design/README.md) | Web lint/tests, production build, route-split and raw/gzip bundle budgets, Chromium/Firefox/WebKit E2E, manual checklist | Active |
+| Long-term personal-use scale | [release-readiness.md](release-readiness.md) | `make check-scale` / CI Scale job | Active |
 | Commits | Conventional Commits (below) | `make check-commits` / CI commits job | Active |
 | Documentation hygiene | This file, docs hub | Markdown links, doc-sync, whitespace | Active |
 | ADRs | [decisions/](decisions/) | Review for cross-module choices | Active |
@@ -65,7 +66,7 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 | `make check` | all CI-equivalent code, secret, artifact, and E2E gates (requires Docker, gitleaks, and Playwright dependencies) |
 | `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
-| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` | Individual gates |
+| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` | Individual gates |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | `make print-affected` | Print matched rules and gates without running them |
 

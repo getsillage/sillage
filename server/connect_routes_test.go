@@ -270,6 +270,9 @@ func TestConnectAuthServiceInitializeMeAndSettings(t *testing.T) {
 	if bootstrapRes.Msg.GetInitialized() {
 		t.Fatal("Bootstrap initialized = true before initialization")
 	}
+	if bootstrapRes.Msg.GetServerVersion() != "dev" || bootstrapRes.Msg.GetApiVersion() != "v1" || bootstrapRes.Msg.GetMinimumAndroidVersionCode() != 9 {
+		t.Fatalf("Bootstrap build metadata = %#v", bootstrapRes.Msg)
+	}
 
 	initRes, err := authClient.Initialize(context.Background(), connect.NewRequest(&apiv1.InitializeRequest{
 		Username:    "Felix",

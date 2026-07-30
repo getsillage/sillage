@@ -34,7 +34,12 @@ func TestHealthzAndReadyz(t *testing.T) {
 	if err != nil {
 		t.Fatalf("secret.Load() error = %v", err)
 	}
-	srv, err := server.New(ctx, p, storeInstance, secrets)
+	srv, err := server.NewWithBuildInfo(ctx, p, storeInstance, secrets, server.BuildInfo{
+		Version:                   "v0.3.0-test",
+		Revision:                  "0123456789abcdef",
+		APIVersion:                "v1",
+		MinimumAndroidVersionCode: 9,
+	})
 	if err != nil {
 		t.Fatalf("server.New() error = %v", err)
 	}
@@ -50,6 +55,9 @@ func TestHealthzAndReadyz(t *testing.T) {
 			"X-Content-Type-Options": "nosniff",
 			"X-Frame-Options":        "DENY",
 			"Referrer-Policy":        "no-referrer",
+			"X-Sillage-Version":      "v0.3.0-test",
+			"X-Sillage-Revision":     "0123456789abcdef",
+			"X-Sillage-API-Version":  "v1",
 		} {
 			if got := rec.Header().Get(header); got != want {
 				t.Fatalf("GET %s header %s = %q, want %q", path, header, got, want)
@@ -60,6 +68,9 @@ func TestHealthzAndReadyz(t *testing.T) {
 		}
 		if rec.Header().Get("X-Request-ID") == "" {
 			t.Fatalf("GET %s missing request id", path)
+		}
+		if got := rec.Header().Get("X-Sillage-Min-Android-Version-Code"); got != "9" {
+			t.Fatalf("GET %s minimum Android version code = %q, want 9", path, got)
 		}
 
 		var body map[string]string

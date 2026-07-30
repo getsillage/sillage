@@ -143,6 +143,14 @@ curl --fail http://localhost:5231/readyz
 
 If a startup migration fails, the service does not enter the ready state. An older binary may not be compatible with an upgraded database, so you cannot roll back only the image without restoring the matching data.
 
+After an upgrade, open Settings → Version and compatibility, or inspect the public bootstrap metadata:
+
+```bash
+curl --fail --silent http://localhost:5231/api/v1/auth/bootstrap
+```
+
+The server and Web revisions should match for a published build. If the application reports a mismatch, hard-refresh the browser and verify that a reverse proxy or CDN is not caching the HTML entry document. Hashed assets may be cached immutably, but `index.html` and client-side routes must be revalidated. The bootstrap response also reports the API generation and minimum supported Android `versionCode`; update an older Android client before relying on it for sync.
+
 Probes do not require authentication, and `readyz` may include diagnostic text when a dependency fails. A public reverse proxy should allow only monitoring sources to access `/healthz` and `/readyz`; do not expose them as a public status page.
 
 ## Appendix: Build from source

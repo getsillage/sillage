@@ -62,6 +62,12 @@ message BootstrapRequest {}
 
 message BootstrapResponse {
   bool initialized = 1;
+  // Public build metadata lets operators and clients diagnose a stale bundle
+  // or an unsupported mobile client without relying on container logs.
+  string server_version = 2;
+  string server_revision = 3;
+  string api_version = 4;
+  int32 minimum_android_version_code = 5;
 }
 
 message InitializeRequest {

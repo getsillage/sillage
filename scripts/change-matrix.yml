@@ -64,6 +64,15 @@ rules:
     docs:
       - "docs/development/design/**"
 
+  - id: web-artifact-policy
+    paths:
+      - "scripts/check-web-assets.sh"
+      - "scripts/check-web-bundle.mjs"
+    gates: [web, docs]
+    docs:
+      - "docs/development/architecture.md"
+      - "docs/development/governance.md"
+
   - id: android-client
     paths:
       - "android/**"

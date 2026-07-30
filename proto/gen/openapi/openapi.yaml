@@ -999,6 +999,18 @@ components:
             properties:
                 initialized:
                     type: boolean
+                serverVersion:
+                    type: string
+                    description: |-
+                        Public build metadata lets operators and clients diagnose a stale bundle
+                         or an unsupported mobile client without relying on container logs.
+                serverRevision:
+                    type: string
+                apiVersion:
+                    type: string
+                minimumAndroidVersionCode:
+                    type: integer
+                    format: int32
         ChangePasswordRequest:
             type: object
             properties:

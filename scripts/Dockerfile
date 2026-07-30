@@ -4,6 +4,10 @@ FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432
 WORKDIR /src
 ARG PNPM_VERSION=11.9.0
 ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+ARG VERSION=dev
+ARG REVISION=unknown
+ENV VITE_SILLAGE_VERSION=$VERSION \
+    VITE_SILLAGE_REVISION=$REVISION
 RUN npm install -g pnpm@$PNPM_VERSION --registry=$NPM_CONFIG_REGISTRY && \
     pnpm config set registry $NPM_CONFIG_REGISTRY
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./web/

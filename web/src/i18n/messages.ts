@@ -311,6 +311,15 @@ const zhCN = {
   "date.yesterday": "昨天",
   "settings.title": "设置",
   "settings.lead": "管理 AI 档案、账号安全和界面外观。",
+  "settings.buildInfoTitle": "版本与兼容性",
+  "settings.buildInfoDescription":
+    "用于排查部署版本、浏览器缓存和移动客户端兼容问题。",
+  "settings.serverBuild": "服务端构建",
+  "settings.webBuild": "Web 构建",
+  "settings.apiVersion": "API 版本",
+  "settings.minimumAndroidVersion": "最低 Android versionCode",
+  "settings.buildMismatch":
+    "Web 构建与服务端修订版本不一致。请强制刷新浏览器，并检查反向代理或 CDN 缓存。",
   "settings.aiTab": "AI",
   "settings.accountTab": "账号",
   "settings.appearanceTab": "外观",
@@ -712,6 +721,15 @@ const en = {
   "date.yesterday": "Yesterday",
   "settings.title": "Settings",
   "settings.lead": "Manage AI profiles, account security, and appearance.",
+  "settings.buildInfoTitle": "Version and compatibility",
+  "settings.buildInfoDescription":
+    "Use this information to diagnose deployment, browser cache, and mobile client compatibility issues.",
+  "settings.serverBuild": "Server build",
+  "settings.webBuild": "Web build",
+  "settings.apiVersion": "API version",
+  "settings.minimumAndroidVersion": "Minimum Android versionCode",
+  "settings.buildMismatch":
+    "The Web build does not match the server revision. Hard-refresh the browser and check reverse-proxy or CDN caching.",
   "settings.aiTab": "AI",
   "settings.accountTab": "Account",
   "settings.appearanceTab": "Appearance",

@@ -232,7 +232,7 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 		limit = 50
 	}
 	memos, err := s.searchMemosFTS(ctx, opts.AccountID, query, opts.Archived, opts.Favorited, limit)
-	if err == nil && len(memos) > 0 {
+	if err == nil && len(memos) >= limit {
 		return memos, nil
 	}
 	fallback, fallbackErr := s.searchMemosLike(ctx, opts.AccountID, query, opts.Archived, opts.Favorited, limit)
@@ -240,9 +240,34 @@ func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Me
 		if err != nil {
 			return nil, err
 		}
+		if len(memos) > 0 {
+			return memos, nil
+		}
 		return nil, fallbackErr
 	}
-	return fallback, nil
+	if err != nil {
+		return fallback, nil
+	}
+	// FTS ranks content efficiently, while LIKE also sees stored summaries.
+	// Merge both paths so one content hit does not suppress summary-only hits.
+	seen := make(map[string]struct{}, limit)
+	merged := make([]*Memo, 0, limit)
+	for _, group := range [][]*Memo{memos, fallback} {
+		for _, memo := range group {
+			if memo == nil {
+				continue
+			}
+			if _, duplicate := seen[memo.ID]; duplicate {
+				continue
+			}
+			seen[memo.ID] = struct{}{}
+			merged = append(merged, memo)
+			if len(merged) == limit {
+				return merged, nil
+			}
+		}
+	}
+	return merged, nil
 }
 
 func (s *Store) searchMemosFTS(ctx context.Context, accountID, query string, archived, favorited *bool, limit int) ([]*Memo, error) {

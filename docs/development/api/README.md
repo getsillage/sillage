@@ -58,4 +58,18 @@ configuration fields have stricter per-field limits and return the normal
 
 `/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.
 
+`GET /api/v1/auth/bootstrap` is public and returns initialization state plus operational compatibility metadata:
+
+```json
+{
+  "initialized": true,
+  "serverVersion": "v0.3.0",
+  "serverRevision": "0123456789abcdef",
+  "apiVersion": "v1",
+  "minimumAndroidVersionCode": 9
+}
+```
+
+The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. Clients must tolerate additive bootstrap fields and must not infer compatibility from a display version alone: `apiVersion` and the platform-specific minimum remain authoritative.
+
 Proto changes must run `buf lint`, `buf breaking`, and `buf generate`. When REST and Connect share semantics, tests must cover both transports. Handwritten REST-only extensions must also retain equivalent REST regression coverage.

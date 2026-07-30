@@ -20,6 +20,23 @@ const currentVersionCode = Number(matchRequired(currentBuild, /versionCode\s*=\s
 if (!Number.isInteger(currentVersionCode) || currentVersionCode <= 0) {
   fail(`Android versionCode must be a positive integer: ${currentVersionCode}`);
 }
+const buildInfo = readFile("server/build_info.go");
+const minimumAndroidVersionCode = Number(
+  matchRequired(
+    buildInfo,
+    /minimumAndroidVersionCode\s+int32\s*=\s*(\d+)/,
+    "minimumAndroidVersionCode",
+  ),
+);
+if (
+  !Number.isInteger(minimumAndroidVersionCode) ||
+  minimumAndroidVersionCode <= 0 ||
+  minimumAndroidVersionCode > currentVersionCode
+) {
+  fail(
+    `minimum Android versionCode ${minimumAndroidVersionCode} must be positive and no greater than the released versionCode ${currentVersionCode}`,
+  );
+}
 if (currentVersionName !== parsed.version) {
   fail(`Android versionName ${currentVersionName} does not match tag ${parsed.version}`);
 }

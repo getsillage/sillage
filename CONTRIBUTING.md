@@ -77,7 +77,7 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 ### Web Artifacts
 
-`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary.
+`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary. `make check-web` also verifies route-level chunks and raw/gzip bundle budgets; update a budget only with measured output and a documented product reason.
 
 ## Verification
 
@@ -94,7 +94,7 @@ make print-affected     # show gates without running them
 | --- | --- | --- |
 | Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
 | Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
-| Web | `make check-web` | lint, typecheck, unit tests, build, embed policy |
+| Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
 | Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy |
 | Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |
 | Docs | `make check-docs` | Docker context, Markdown links, terminology, whitespace, doc-sync, immutable Action refs |

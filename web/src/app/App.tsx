@@ -1,23 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { useToast } from "../components/Toast";
 import { AskProvider } from "../features/ask/AskContext";
-import { AskPage } from "../features/ask/AskPage";
 import {
   FullPageErrorState,
   FullPageState,
   InitializePage,
   LoginPage,
 } from "../features/auth/AuthPages";
-import { EntryPage } from "../features/memos/EntryPage";
-import { HomePage } from "../features/memos/HomePage";
 import { MemosProvider } from "../features/memos/MemosContext";
-import { TimelinePage } from "../features/memos/TimelinePage";
-import { SettingsPage } from "../features/settings/SettingsPage";
 import { useI18n } from "../i18n/I18nProvider";
 import {
   type Account,
   ApiError,
+  type BootstrapInfo,
   getBootstrap,
   getMe,
   signOut,
@@ -30,6 +26,32 @@ import {
 } from "../lib/auth";
 import { AppShell } from "./AppShell";
 import { RouteAccessibility } from "./RouteAccessibility";
+
+const HomePage = lazy(() =>
+  import("../features/memos/HomePage").then((module) => ({
+    default: module.HomePage,
+  })),
+);
+const TimelinePage = lazy(() =>
+  import("../features/memos/TimelinePage").then((module) => ({
+    default: module.TimelinePage,
+  })),
+);
+const EntryPage = lazy(() =>
+  import("../features/memos/EntryPage").then((module) => ({
+    default: module.EntryPage,
+  })),
+);
+const AskPage = lazy(() =>
+  import("../features/ask/AskPage").then((module) => ({
+    default: module.AskPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import("../features/settings/SettingsPage").then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
 
 type BootstrapState = "loading" | "needs-init" | "ready" | "error";
 
@@ -55,6 +77,7 @@ export function App() {
   const { t } = useI18n();
   const toast = useToast();
   const [bootstrap, setBootstrap] = useState<BootstrapState>("loading");
+  const [buildInfo, setBuildInfo] = useState<BootstrapInfo | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState(() => getAccessToken());
   const [authResolved, setAuthResolved] = useState(false);
@@ -86,10 +109,12 @@ export function App() {
         return;
       }
       if (!state.initialized) {
+        setBuildInfo(state);
         setBootstrap("needs-init");
         setAuthResolved(true);
         return;
       }
+      setBuildInfo(state);
       setBootstrap("ready");
       try {
         // A reopened tab has empty sessionStorage but may still hold a valid
@@ -170,55 +195,60 @@ export function App() {
   return (
     <>
       <RouteAccessibility />
-      <Routes>
-        <Route
-          path="/initialize"
-          element={
-            needsInit ? (
-              <InitializePage onDone={handleAuthed} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            needsInit ? (
-              <Navigate to="/initialize" replace />
-            ) : (
-              <LoginPage onDone={handleAuthed} />
-            )
-          }
-        />
-        {authed && account && token ? (
+      <Suspense fallback={<FullPageState text={t("app.opening")} />}>
+        <Routes>
           <Route
+            path="/initialize"
             element={
-              <AuthedArea
-                account={account}
-                token={token}
-                onSignOut={handleSignOut}
-              />
-            }
-          >
-            <Route index element={<HomePage />} />
-            <Route path="timeline" element={<TimelinePage />} />
-            <Route path="entries/:id" element={<EntryPage />} />
-            <Route path="ask" element={<AskPage />} />
-            {/* Legacy path: 照见/回顾 became 问答. */}
-            <Route path="review" element={<Navigate to="/ask" replace />} />
-            <Route path="settings" element={<SettingsPage token={token} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        ) : (
-          <Route
-            path="*"
-            element={
-              <Navigate to={needsInit ? "/initialize" : "/login"} replace />
+              needsInit ? (
+                <InitializePage onDone={handleAuthed} />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
-        )}
-      </Routes>
+          <Route
+            path="/login"
+            element={
+              needsInit ? (
+                <Navigate to="/initialize" replace />
+              ) : (
+                <LoginPage onDone={handleAuthed} />
+              )
+            }
+          />
+          {authed && account && token ? (
+            <Route
+              element={
+                <AuthedArea
+                  account={account}
+                  token={token}
+                  onSignOut={handleSignOut}
+                />
+              }
+            >
+              <Route index element={<HomePage />} />
+              <Route path="timeline" element={<TimelinePage />} />
+              <Route path="entries/:id" element={<EntryPage />} />
+              <Route path="ask" element={<AskPage />} />
+              {/* Legacy path: 照见/回顾 became 问答. */}
+              <Route path="review" element={<Navigate to="/ask" replace />} />
+              <Route
+                path="settings"
+                element={<SettingsPage token={token} buildInfo={buildInfo} />}
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          ) : (
+            <Route
+              path="*"
+              element={
+                <Navigate to={needsInit ? "/initialize" : "/login"} replace />
+              }
+            />
+          )}
+        </Routes>
+      </Suspense>
     </>
   );
 }

@@ -42,9 +42,20 @@ test.describe("fresh-instance release journeys", () => {
     page,
     request,
   }) => {
-    const bootstrap = await json<{ initialized: boolean }>(
-      await request.get("/api/v1/auth/bootstrap"),
-    );
+    const bootstrapResponse = await request.get("/api/v1/auth/bootstrap");
+    const bootstrap = await json<{
+      initialized: boolean;
+      serverVersion: string;
+      serverRevision: string;
+      apiVersion: string;
+      minimumAndroidVersionCode: number;
+    }>(bootstrapResponse);
+    expect(bootstrap.apiVersion).toBe("v1");
+    expect(bootstrap.minimumAndroidVersionCode).toBe(9);
+    expect(bootstrap.serverVersion).toBeTruthy();
+    expect(bootstrap.serverRevision).toBeTruthy();
+    expect(bootstrapResponse.headers()["cache-control"]).toBe("no-store");
+    expect(bootstrapResponse.headers()["x-sillage-api-version"]).toBe("v1");
     if (bootstrap.initialized) {
       // A serial-group retry reuses the disposable server. Restore the known
       // baseline and still prove the initialized instance remains usable.
@@ -364,6 +375,18 @@ test.describe("fresh-instance release journeys", () => {
       await signInThroughUI(secondary, PASSWORD);
 
       await primary.goto("/settings");
+      await expect(
+        primary.getByRole("heading", { name: "Version and compatibility" }),
+      ).toBeVisible();
+      await expect(
+        primary.getByText("Server build", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        primary.getByText("Web build", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        primary.getByText("API version", { exact: true }),
+      ).toBeVisible();
       await primary.getByRole("button", { name: "Account" }).click();
       await changePasswordThroughUI(primary, PASSWORD, UPDATED_PASSWORD);
 

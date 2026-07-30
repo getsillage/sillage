@@ -23,6 +23,16 @@ func TestAuthInitializeSignInRefreshSignOut(t *testing.T) {
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"initialized":false`) {
 		t.Fatalf("bootstrap before init status/body = %d %s", res.Code, res.Body.String())
 	}
+	var bootstrap map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &bootstrap); err != nil {
+		t.Fatalf("decode bootstrap response: %v", err)
+	}
+	if bootstrap["serverVersion"] != "dev" || bootstrap["apiVersion"] != "v1" || bootstrap["minimumAndroidVersionCode"] != float64(9) {
+		t.Fatalf("bootstrap build metadata = %#v", bootstrap)
+	}
+	if got := res.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("bootstrap Cache-Control = %q, want no-store", got)
+	}
 
 	initBody := map[string]string{
 		"username":    "Felix",

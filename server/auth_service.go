@@ -26,7 +26,13 @@ func (s *authService) Bootstrap(ctx context.Context, _ *connect.Request[apiv1.Bo
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&apiv1.BootstrapResponse{Initialized: initialized}), nil
+	return connect.NewResponse(&apiv1.BootstrapResponse{
+		Initialized:               initialized,
+		ServerVersion:             s.server.Build.Version,
+		ServerRevision:            s.server.Build.Revision,
+		ApiVersion:                s.server.Build.APIVersion,
+		MinimumAndroidVersionCode: s.server.Build.MinimumAndroidVersionCode,
+	}), nil
 }
 
 func (s *authService) Initialize(ctx context.Context, req *connect.Request[apiv1.InitializeRequest]) (*connect.Response[apiv1.AuthResponse], error) {

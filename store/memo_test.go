@@ -105,6 +105,41 @@ func TestSearchMemosMatchesAndExcludesTombstones(t *testing.T) {
 	}
 }
 
+func TestSearchMemosMergesContentAndSummaryMatches(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	account := newTestAccount(t, s)
+
+	contentMatch := seedMemo(t, s, account, "sleep recovery appears in the record")
+	summaryMatch := seedMemo(t, s, account, "raw wording is different")
+	if _, err := s.UpsertMemoAI(ctx, &store.UpsertMemoAI{
+		MemoID:        summaryMatch.ID,
+		Summary:       "sleep recovery appears only in this summary",
+		Provider:      "test",
+		Model:         "test",
+		PromptVersion: "test-v1",
+		Status:        "complete",
+	}); err != nil {
+		t.Fatalf("UpsertMemoAI() error = %v", err)
+	}
+
+	got, err := s.SearchMemos(ctx, &store.SearchMemoOptions{
+		AccountID: account,
+		Query:     "sleep recovery",
+		Limit:     20,
+	})
+	if err != nil {
+		t.Fatalf("SearchMemos() error = %v", err)
+	}
+	ids := make(map[string]bool, len(got))
+	for _, memo := range got {
+		ids[memo.ID] = true
+	}
+	if !ids[contentMatch.ID] || !ids[summaryMatch.ID] {
+		t.Fatalf("SearchMemos() ids = %#v, want content %s and summary %s", ids, contentMatch.ID, summaryMatch.ID)
+	}
+}
+
 func TestSearchMemosFiltersArchivedBeforeLimit(t *testing.T) {
 	tests := []struct {
 		name    string

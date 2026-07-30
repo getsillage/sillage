@@ -129,7 +129,10 @@ func run() error {
 		return fmt.Errorf("load runtime secrets: %w", err)
 	}
 
-	srv, err := server.New(ctx, instanceProfile, storeInstance, secrets)
+	srv, err := server.NewWithBuildInfo(ctx, instanceProfile, storeInstance, secrets, server.BuildInfo{
+		Version:  version,
+		Revision: revision,
+	})
 	if err != nil {
 		_ = storeInstance.Close()
 		return fmt.Errorf("create server: %w", err)

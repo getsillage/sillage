@@ -29,6 +29,7 @@ type Server struct {
 	Profile *profile.Profile
 	Store   *store.Store
 	Secrets *secret.Secrets
+	Build   BuildInfo
 
 	echoServer *echo.Echo
 	httpServer *http.Server
@@ -41,7 +42,11 @@ type Server struct {
 	maintenanceWG     sync.WaitGroup
 }
 
-func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
+func New(ctx context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets) (*Server, error) {
+	return NewWithBuildInfo(ctx, p, s, secrets, BuildInfo{})
+}
+
+func NewWithBuildInfo(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.Secrets, build BuildInfo) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(trustedProxyHeadersMiddleware(p.TrustedProxyCIDRs))
@@ -58,12 +63,14 @@ func New(_ context.Context, p *profile.Profile, s *store.Store, secrets *secret.
 		Profile:    p,
 		Store:      s,
 		Secrets:    secrets,
+		Build:      normalizeBuildInfo(build),
 		echoServer: e,
 		auth:       auth.NewService(s, secrets.SessionSecret),
 		memoAIJobs: make(chan struct{}, 2),
 		askAIJobs:  make(chan struct{}, 2),
 	}
 	server.memos = memoapp.NewService(s, server.maybeScheduleAutoSummary)
+	e.Use(server.buildInfoMiddleware())
 
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})

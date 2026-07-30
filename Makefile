@@ -59,6 +59,7 @@ check-web:
 	pnpm --dir web typecheck
 	pnpm --dir web test
 	pnpm --dir web build
+	node scripts/check-web-bundle.mjs
 	bash scripts/check-web-assets.sh
 
 check-android:

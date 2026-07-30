@@ -35,11 +35,14 @@ type changePasswordRequest struct {
 }
 
 func (s *Server) handleAuthBootstrap(c *echo.Context) error {
+	noStore(c)
 	initialized, err := s.authBootstrap(c.Request().Context())
 	if err != nil {
 		return apiError(c, http.StatusInternalServerError, "internal", "无法读取初始化状态")
 	}
-	return c.JSON(http.StatusOK, map[string]bool{"initialized": initialized})
+	response := buildInfoJSON(s.Build)
+	response["initialized"] = initialized
+	return c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) handleAuthInitialize(c *echo.Context) error {

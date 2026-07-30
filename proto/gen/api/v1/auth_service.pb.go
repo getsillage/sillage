@@ -60,10 +60,16 @@ func (*BootstrapRequest) Descriptor() ([]byte, []int) {
 }
 
 type BootstrapResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Initialized   bool                   `protobuf:"varint,1,opt,name=initialized,proto3" json:"initialized,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Initialized bool                   `protobuf:"varint,1,opt,name=initialized,proto3" json:"initialized,omitempty"`
+	// Public build metadata lets operators and clients diagnose a stale bundle
+	// or an unsupported mobile client without relying on container logs.
+	ServerVersion             string `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	ServerRevision            string `protobuf:"bytes,3,opt,name=server_revision,json=serverRevision,proto3" json:"server_revision,omitempty"`
+	ApiVersion                string `protobuf:"bytes,4,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	MinimumAndroidVersionCode int32  `protobuf:"varint,5,opt,name=minimum_android_version_code,json=minimumAndroidVersionCode,proto3" json:"minimum_android_version_code,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *BootstrapResponse) Reset() {
@@ -101,6 +107,34 @@ func (x *BootstrapResponse) GetInitialized() bool {
 		return x.Initialized
 	}
 	return false
+}
+
+func (x *BootstrapResponse) GetServerVersion() string {
+	if x != nil {
+		return x.ServerVersion
+	}
+	return ""
+}
+
+func (x *BootstrapResponse) GetServerRevision() string {
+	if x != nil {
+		return x.ServerRevision
+	}
+	return ""
+}
+
+func (x *BootstrapResponse) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
+}
+
+func (x *BootstrapResponse) GetMinimumAndroidVersionCode() int32 {
+	if x != nil {
+		return x.MinimumAndroidVersionCode
+	}
+	return 0
 }
 
 type InitializeRequest struct {
@@ -486,9 +520,14 @@ var File_api_v1_auth_service_proto protoreflect.FileDescriptor
 const file_api_v1_auth_service_proto_rawDesc = "" +
 	"\n" +
 	"\x19api/v1/auth_service.proto\x12\x0esillage.api.v1\x1a\x13api/v1/common.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x12\n" +
-	"\x10BootstrapRequest\"5\n" +
+	"\x10BootstrapRequest\"\xe7\x01\n" +
 	"\x11BootstrapResponse\x12 \n" +
-	"\vinitialized\x18\x01 \x01(\bR\vinitialized\"n\n" +
+	"\vinitialized\x18\x01 \x01(\bR\vinitialized\x12%\n" +
+	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion\x12'\n" +
+	"\x0fserver_revision\x18\x03 \x01(\tR\x0eserverRevision\x12\x1f\n" +
+	"\vapi_version\x18\x04 \x01(\tR\n" +
+	"apiVersion\x12?\n" +
+	"\x1cminimum_android_version_code\x18\x05 \x01(\x05R\x19minimumAndroidVersionCode\"n\n" +
 	"\x11InitializeRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1a\n" +

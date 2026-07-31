@@ -9,6 +9,7 @@
 <h1 align="center">Sillage</h1>
 
 <p align="center">
+  <a href="https://getsillage.github.io/website"><img src="https://img.shields.io/badge/website-getsillage.github.io-244E47" alt="Sillage 官网" /></a>
   <a href="https://github.com/getsillage/sillage/actions/workflows/ci.yml"><img src="https://github.com/getsillage/sillage/actions/workflows/ci.yml/badge.svg" alt="CI 状态" /></a>
   <a href="https://github.com/getsillage/sillage/releases"><img src="https://img.shields.io/github/v/release/getsillage/sillage?display_name=tag" alt="最新版本" /></a>
   <a href="https://github.com/getsillage/sillage/pkgs/container/sillage"><img src="https://img.shields.io/badge/ghcr.io-getsillage%2Fsillage-blue?logo=docker&label=image" alt="GHCR 镜像" /></a>

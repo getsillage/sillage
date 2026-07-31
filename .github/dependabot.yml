@@ -1,4 +1,5 @@
 version: 2
+# Keep coupled toolchains in one PR so CI validates a coherent upgrade.
 updates:
   - package-ecosystem: github-actions
     directory: /

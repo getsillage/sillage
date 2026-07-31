@@ -109,7 +109,7 @@ make print-affected     # show gates without running them
 
 The full `make check` requires Docker, gitleaks, Playwright system dependencies, complete Git tags, and `tar`. CI also validates pull request titles as Conventional Commits subjects.
 
-Pull request CI resolves the affected gates from `scripts/change-matrix.yml`; pushes to `main` always run the complete gate set. Superseded runs for the same pull request are cancelled automatically. Required check names remain visible when a gate is skipped. CI uses KVM-backed Android emulators, runs Chromium E2E for ordinary affected pull requests, and reserves the full Chromium/Firefox/WebKit and three-language CodeQL sweep for relevant CI changes and protected `main`.
+Pull request CI resolves the affected gates from `scripts/change-matrix.yml`; pushes to `main` always run the complete gate set. Superseded runs for the same pull request are cancelled automatically. Required check names remain visible when a gate is skipped; unaffected API 26/API 35 matrix entries complete as fast no-op checks so their names remain concrete. CI uses KVM-backed Android emulators, runs Chromium E2E for ordinary affected pull requests, and reserves the full Chromium/Firefox/WebKit and three-language CodeQL sweep for relevant CI changes and protected `main`.
 
 For a PR-shaped range:
 

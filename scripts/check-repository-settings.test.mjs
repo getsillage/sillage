@@ -12,12 +12,17 @@ test("accepts the complete release repository policy", () => {
 
 test("reports organization, repository, security, and branch protection drift", () => {
   const snapshot = completeSnapshot();
+  snapshot.organization.name = "Outdated name";
+  snapshot.organization.description = "Outdated description";
+  snapshot.organization.blog = "https://example.com/outdated";
   snapshot.organization.two_factor_requirement_enabled = false;
   snapshot.organization.members_can_delete_repositories = true;
   snapshot.organizationActions.sha_pinning_required = false;
   snapshot.organizationArtifactRetention.days = 90;
   snapshot.repositories.sillage.repository.security_and_analysis.secret_scanning.status =
     "disabled";
+  snapshot.repositories["getsillage.github.io"].repository.description =
+    "Outdated website description";
   snapshot.repositories.sillage.repository.allow_merge_commit = true;
   snapshot.repositories.sillage.actions.sha_pinning_required = false;
   snapshot.repositories.sillage.workflowPermissions.default_workflow_permissions = "write";
@@ -37,6 +42,19 @@ test("reports organization, repository, security, and branch protection drift", 
 
   const failures = auditRepositorySettings(snapshot);
   assert.ok(
+    failures.includes('getsillage: organization display name must be "Sillage"'),
+  );
+  assert.ok(
+    failures.includes(
+      'getsillage: organization description must be "Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes."',
+    ),
+  );
+  assert.ok(
+    failures.includes(
+      'getsillage: organization website must be "https://getsillage.github.io/"',
+    ),
+  );
+  assert.ok(
     failures.includes("getsillage: two-factor authentication requirement must be true"),
   );
   assert.ok(failures.includes("getsillage: member repository deletion must be false"));
@@ -51,6 +69,11 @@ test("reports organization, repository, security, and branch protection drift", 
     ),
   );
   assert.ok(failures.includes("getsillage/sillage: Secret Scanning must be enabled"));
+  assert.ok(
+    failures.includes(
+      'getsillage/getsillage.github.io: description must be "Bilingual product website for Sillage, with product guidance and a Docker quick start."',
+    ),
+  );
   assert.ok(failures.includes("getsillage/sillage: merge commits must be false"));
   assert.ok(
     failures.includes("getsillage/sillage: Actions must require full-length commit SHA pins"),
@@ -121,6 +144,10 @@ function completeSnapshot() {
   }
   return {
     organization: {
+      name: "Sillage",
+      description:
+        "Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.",
+      blog: "https://getsillage.github.io/",
       two_factor_requirement_enabled: true,
       default_repository_permission: "read",
       members_can_create_repositories: false,

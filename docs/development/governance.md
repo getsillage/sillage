@@ -77,6 +77,8 @@ Required check names remain stable: unaffected jobs are reported as skipped, whi
 
 Range-sensitive document-sync policy is enforced on pull requests, where the original commit messages and `Docs-skip` trailer are available. Protected `main` still reruns every other Docs check, but does not repeat document-sync after a squash merge because GitHub may replace the reviewed commit bodies. This keeps the PR authoritative and prevents an already-green change from becoming a false failure after merge.
 
+Dependabot pull requests receive a narrow automatic documentation exemption only when every changed path is a recognized dependency surface: manifests, lockfiles, pinned workflow Actions, Gradle verification metadata, container base images, or generated license inventories. The exemption is derived from the GitHub pull request owner, not a branch name or commit message. Source and ordinary configuration changes remain subject to documentation synchronization.
+
 ### Change matrix
 
 `scripts/change-matrix.yml` maps path globs to gates and expected documentation surfaces. Helpers:

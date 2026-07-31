@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
+import { isDependabotMaintenance } from "./lib/doc-sync-policy.mjs";
+
 test("allows main push verification to skip pull-request range policy", () => {
   const result = spawnSync(
     process.execPath,
@@ -15,4 +17,19 @@ test("allows main push verification to skip pull-request range policy", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /enforced at the pull request boundary/);
+});
+
+test("accepts trusted Dependabot dependency surfaces", () => {
+  assert.equal(
+    isDependabotMaintenance(
+      [".github/workflows/ci.yml", "web/package.json", "web/pnpm-lock.yaml"],
+      "true",
+    ),
+    true,
+  );
+});
+
+test("rejects source changes and untrusted pull requests", () => {
+  assert.equal(isDependabotMaintenance(["web/src/main.tsx"], "true"), false);
+  assert.equal(isDependabotMaintenance(["web/package.json"], "false"), false);
 });

@@ -12,6 +12,7 @@ import {
   matchGlob,
   runGit,
 } from "./lib/repo.mjs";
+import { isDependabotMaintenance } from "./lib/doc-sync-policy.mjs";
 
 const args = process.argv.slice(2);
 const baseIdx = args.indexOf("--base");
@@ -35,6 +36,13 @@ if (!baseRef) {
 const files = changedFiles(baseRef);
 const matrix = loadChangeMatrix();
 const failures = [];
+
+if (isDependabotMaintenance(files, process.env.DEPENDABOT_PR)) {
+  console.log(
+    "check-doc-sync: trusted Dependabot dependency surfaces do not require product documentation.",
+  );
+  process.exit(0);
+}
 
 let allowSkip = false;
 try {

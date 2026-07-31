@@ -82,7 +82,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -291,7 +290,6 @@ private fun MemoListFilterTabs(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
-                        .testTag("memo-filter-${filter.name}")
                         .selectable(
                             selected = isSelected,
                             onClick = { onSelect(filter) },
@@ -470,7 +468,7 @@ private fun MemoListView(
 }
 
 @Composable
-private fun RecentlyDeletedMemoRow(
+internal fun RecentlyDeletedMemoRow(
     memo: Memo,
     mutating: Boolean,
     onRestore: () -> Unit,

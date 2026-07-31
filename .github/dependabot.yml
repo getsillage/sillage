@@ -38,6 +38,16 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+    ignore:
+      - dependency-name: "tailwindcss"
+        versions:
+          - "4.3.3"
+      - dependency-name: "@tailwindcss/vite"
+        versions:
+          - "4.3.3"
+      - dependency-name: "react"
+        versions:
+          - "19.2.8"
     labels:
       - dependencies
 
@@ -50,6 +60,10 @@ updates:
       kotlin:
         patterns:
           - "org.jetbrains.kotlin*"
+    ignore:
+      - dependency-name: "org.jetbrains.kotlin*"
+        versions:
+          - "2.4.x"
     labels:
       - dependencies
 

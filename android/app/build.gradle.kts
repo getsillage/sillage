@@ -75,7 +75,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    implementation(platform("androidx.compose:compose-bom:2026.06.01"))
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.core:core:1.13.1")
@@ -99,7 +99,7 @@ dependencies {
     testImplementation("org.json:json:20250517")
     testImplementation("org.robolectric:robolectric:4.14.1")
 
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.06.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -53,6 +53,11 @@ updates:
       - dependency-name: "react-dom"
         versions:
           - "19.2.8"
+      # Node type definitions must not expose APIs newer than the Node 24
+      # runtime used by local tooling, CI, and the production build image.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
     labels:
       - dependencies
 
@@ -66,9 +71,14 @@ updates:
         patterns:
           - "org.jetbrains.kotlin*"
     ignore:
-      - dependency-name: "org.jetbrains.kotlin*"
+      # Dependabot's wildcard + 2.4.x version pattern did not suppress the
+      # rejected plugin pair, so keep the known-incompatible releases exact.
+      - dependency-name: "org.jetbrains.kotlin.android"
         versions:
-          - "2.4.x"
+          - "2.4.10"
+      - dependency-name: "org.jetbrains.kotlin.plugin.compose"
+        versions:
+          - "2.4.10"
     labels:
       - dependencies
 

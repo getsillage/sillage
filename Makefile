@@ -91,6 +91,7 @@ check-scale:
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
 	node --test scripts/check-android-device-matrix.test.mjs
+	node --test scripts/check-doc-sync.test.mjs
 	node --test scripts/check-release-notes.test.mjs
 	node --test scripts/compose-release-notes.test.mjs
 	node --test scripts/check-repository-settings.test.mjs

@@ -12,6 +12,8 @@ const complete = {
       matrix:
         api-level: [26, 35]
     steps:
+      - name: Skip unaffected Android device gate
+        run: echo skipped
       - uses: example/action@sha
         with:
           api-level: \${{ matrix.api-level }}
@@ -37,4 +39,15 @@ test("reports matrix and release-policy drift", () => {
   });
   assert.ok(result.failures.some((failure) => failure.includes("must contain exactly")));
   assert.ok(result.failures.includes("Release preflight must require successful job Android Device (API 26)"));
+});
+
+test("rejects job-level skipping that collapses required matrix check names", () => {
+  const result = auditAndroidDeviceMatrix({
+    ...complete,
+    ci: complete.ci.replace(
+      "    strategy:",
+      "    if: needs.commits.outputs.android == 'true'\n    strategy:",
+    ),
+  });
+  assert.ok(result.failures.some((failure) => failure.includes("job-level condition")));
 });

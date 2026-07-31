@@ -109,7 +109,7 @@ make print-affected     # show gates without running them
 
 The full `make check` requires Docker, gitleaks, Playwright system dependencies, complete Git tags, and `tar`. CI also validates pull request titles as Conventional Commits subjects.
 
-Pull request CI resolves the affected gates from `scripts/change-matrix.yml`; pushes to `main` always run the complete gate set. Superseded runs for the same pull request are cancelled automatically. Required check names remain visible when a gate is skipped. CI uses KVM-backed Android emulators, runs Chromium E2E for ordinary affected pull requests, and reserves the full Chromium/Firefox/WebKit and three-language CodeQL sweep for relevant CI changes and protected `main`.
+Pull request CI resolves the affected gates from `scripts/change-matrix.yml`; pushes to `main` always run the complete gate set. Superseded runs for the same pull request are cancelled automatically. Required check names remain visible when a gate is skipped; unaffected API 26/API 35 matrix entries complete as fast no-op checks so their names remain concrete. CI uses KVM-backed Android emulators, runs Chromium E2E for ordinary affected pull requests, and reserves the full Chromium/Firefox/WebKit and three-language CodeQL sweep for relevant CI changes and protected `main`.
 
 For a PR-shaped range:
 
@@ -120,6 +120,8 @@ make check-commits
 ```
 
 When contract-sensitive paths change, `check-doc-sync` expects a matching documentation path in the same range. To skip deliberately, include `Docs-skip: <reason>` in a commit message body.
+
+CI enforces this range-sensitive rule on the pull request before merge. Pushes to protected `main` rerun the remaining Docs checks but do not re-evaluate `Docs-skip`, because squash merging may replace the reviewed commit bodies.
 
 Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir web exec playwright install` on first use; CI installs all three engines with their OS dependencies. The long-term personal-use budget is enforced separately by `make check-scale`; its dataset and thresholds are normative in [Release Readiness](docs/development/release-readiness.md).
 

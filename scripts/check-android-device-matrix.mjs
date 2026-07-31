@@ -16,6 +16,14 @@ export function auditAndroidDeviceMatrix({ gradle, ci, release, repositorySettin
   if (job && !job.includes('api-level: ${{ matrix.api-level }}')) {
     failures.push("Android emulator runner must use the API level from the device matrix");
   }
+  if (job && /^    if:/m.test(job)) {
+    failures.push(
+      "Android device matrix must not use a job-level condition because skipped matrices lose their required API-specific check names",
+    );
+  }
+  if (job && !job.includes("Skip unaffected Android device gate")) {
+    failures.push("Android device matrix must expose a no-op path for unaffected pull requests");
+  }
 
   if (minSdk && targetSdk && apiLevels.length > 0) {
     const expected = [...new Set([minSdk, targetSdk])].sort((a, b) => a - b);

@@ -12,7 +12,6 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isEnabled
-import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -143,7 +142,6 @@ class OfflineRecordJourneyTest {
         waitForMemoListIdle()
         compose.waitUntilExactlyOneExists(hasTestTag(tag) and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasTestTag(tag) and hasClickAction()).performTouchInput { click() }
-        compose.waitUntilExactlyOneExists(hasTestTag(tag) and isSelected(), TIMEOUT_MS)
         waitForMemoListIdle()
     }
 

@@ -45,7 +45,12 @@ updates:
       - dependency-name: "@tailwindcss/vite"
         versions:
           - "4.3.3"
+      # React and React DOM enforce exact runtime version parity. Keep both
+      # halves of a rejected release suppressed so grouping cannot split them.
       - dependency-name: "react"
+        versions:
+          - "19.2.8"
+      - dependency-name: "react-dom"
         versions:
           - "19.2.8"
     labels:

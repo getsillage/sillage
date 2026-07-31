@@ -8,7 +8,7 @@ Sillage's official distribution channels are:
 
 - multi-architecture container images from `ghcr.io/getsillage/sillage` for `linux/amd64` and `linux/arm64`;
 - a signed Android APK attached to GitHub Releases when Android publishing is enabled;
-- the static product website deployed from the separate `getsillage/website` repository.
+- the static product website deployed from the separate `getsillage/getsillage.github.io` repository.
 
 Sillage does not currently publish through Google Play, an Apple app store, or an official hosted service. Store listing policy, hosted-service SLA, billing, central telemetry, and platform-operated data processing are therefore outside the current release scope. Adding one of those channels changes the product's operational and legal responsibilities and requires a separate decision and acceptance contract before implementation.
 

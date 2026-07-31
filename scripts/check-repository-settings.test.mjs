@@ -28,8 +28,9 @@ test("reports organization, repository, security, and branch protection drift", 
       check.context !== "Upgrade" &&
       check.context !== "Android Device (API 26)",
   );
-  snapshot.repositories.website.repository.security_and_analysis.dependabot_security_updates.status =
-    "disabled";
+  snapshot.repositories[
+    "getsillage.github.io"
+  ].repository.security_and_analysis.dependabot_security_updates.status = "disabled";
   snapshot.repositories[".github"].protection = null;
   snapshot.vulnerabilityReporting.enabled = false;
   snapshot.pages.https_enforced = false;
@@ -64,11 +65,13 @@ test("reports organization, repository, security, and branch protection drift", 
     failures.includes("getsillage/sillage: missing required status check Android Device (API 26)"),
   );
   assert.ok(
-    failures.includes("getsillage/website: Dependabot security updates must be enabled"),
+    failures.includes(
+      "getsillage/getsillage.github.io: Dependabot security updates must be enabled",
+    ),
   );
   assert.ok(failures.includes("getsillage/.github: main branch protection is missing"));
   assert.ok(failures.includes("sillage: private vulnerability reporting must be enabled"));
-  assert.ok(failures.includes("website: GitHub Pages HTTPS must be enforced"));
+  assert.ok(failures.includes("getsillage.github.io: GitHub Pages HTTPS must be enforced"));
 });
 
 function completeSnapshot() {
@@ -77,7 +80,7 @@ function completeSnapshot() {
     repositories[policy.name] = {
       repository: {
         description: policy.description,
-        homepage: "https://getsillage.github.io/website/",
+        homepage: "https://getsillage.github.io/",
         has_issues: policy.issues,
         has_projects: false,
         has_wiki: false,

@@ -31,7 +31,7 @@ export const repositoryPolicies = [
     dependabot: true,
   },
   {
-    name: "website",
+    name: "getsillage.github.io",
     description: "Bilingual product website for Sillage, with product guidance and a Docker quick start.",
     issues: false,
     checks: ["Check"],
@@ -46,7 +46,7 @@ export const repositoryPolicies = [
   },
 ];
 
-const productHomepage = "https://getsillage.github.io/website/";
+const productHomepage = "https://getsillage.github.io/";
 
 export function auditRepositorySettings(snapshot, owner = "getsillage") {
   const failures = [];
@@ -167,12 +167,20 @@ export function auditRepositorySettings(snapshot, owner = "getsillage") {
   }
   const pages = snapshot.pages;
   if (!pages) {
-    failures.push("website: GitHub Pages settings are unavailable");
+    failures.push("getsillage.github.io: GitHub Pages settings are unavailable");
   } else {
-    if (pages.https_enforced !== true) failures.push("website: GitHub Pages HTTPS must be enforced");
-    if (pages.build_type !== "workflow") failures.push("website: GitHub Pages must deploy through Actions");
-    if (pages.source?.branch !== "main") failures.push("website: GitHub Pages source branch must be main");
-    if (pages.public !== true) failures.push("website: GitHub Pages site must be public");
+    if (pages.https_enforced !== true) {
+      failures.push("getsillage.github.io: GitHub Pages HTTPS must be enforced");
+    }
+    if (pages.build_type !== "workflow") {
+      failures.push("getsillage.github.io: GitHub Pages must deploy through Actions");
+    }
+    if (pages.source?.branch !== "main") {
+      failures.push("getsillage.github.io: GitHub Pages source branch must be main");
+    }
+    if (pages.public !== true) {
+      failures.push("getsillage.github.io: GitHub Pages site must be public");
+    }
   }
   return failures;
 }
@@ -287,7 +295,11 @@ function readRemoteSnapshot(owner) {
         "read private vulnerability reporting",
         failures,
       ),
-      pages: ghJSON(`repos/${owner}/website/pages`, "read website Pages settings", failures),
+      pages: ghJSON(
+        `repos/${owner}/${owner}.github.io/pages`,
+        `read ${owner}.github.io Pages settings`,
+        failures,
+      ),
     },
   };
 }

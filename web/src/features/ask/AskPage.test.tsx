@@ -338,7 +338,7 @@ describe("AskPage", () => {
 
     expect(createMemo).toHaveBeenCalledTimes(1);
     expect(saveButton).toBeDisabled();
-    rejectRequest(new Error("保存失败"));
+    await act(async () => rejectRequest(new Error("保存失败")));
     expect(await screen.findByText("保存失败")).toBeInTheDocument();
     expect(saveButton).toBeEnabled();
   });

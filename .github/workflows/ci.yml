@@ -220,6 +220,7 @@ jobs:
       - name: Check docs and hygiene
         env:
           BASE_SHA: ${{ env.BASE_SHA }}
+          DEPENDABOT_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
           DOC_SYNC_ENFORCE: ${{ github.event_name == 'pull_request' }}
           HEAD_SHA: ${{ github.sha }}
         run: make check-docs

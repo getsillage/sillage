@@ -19,6 +19,7 @@ import {
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const run = args.includes("--run");
+const githubOutput = args.includes("--github-output");
 const baseIdx = args.indexOf("--base");
 const baseRef =
   baseIdx >= 0
@@ -29,7 +30,15 @@ const matrix = loadChangeMatrix();
 const files = changedFiles(baseRef || undefined);
 const { gates, matchedRules } = resolveGates(files, matrix);
 
-if (json) {
+if (githubOutput) {
+  const selected = new Set(gates);
+  const knownGates = Object.keys(matrix.gates || {});
+  for (const gate of knownGates) {
+    const outputName = gate.replaceAll("-", "_");
+    process.stdout.write(`${outputName}=${selected.has(gate)}\n`);
+  }
+  process.stdout.write(`full=${knownGates.every((gate) => selected.has(gate))}\n`);
+} else if (json) {
   process.stdout.write(
     `${JSON.stringify({ baseRef: baseRef || null, files, matchedRules, gates }, null, 2)}\n`,
   );

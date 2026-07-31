@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sillage-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
 
@@ -16,6 +20,19 @@ jobs:
   commits:
     name: Commits
     runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.affected.outputs.go }}
+      proto: ${{ steps.affected.outputs.proto }}
+      web: ${{ steps.affected.outputs.web }}
+      android: ${{ steps.affected.outputs.android }}
+      scale: ${{ steps.affected.outputs.scale }}
+      docs: ${{ steps.affected.outputs.docs }}
+      container: ${{ steps.affected.outputs.container }}
+      supply_chain: ${{ steps.affected.outputs.supply_chain }}
+      e2e: ${{ steps.affected.outputs.e2e }}
+      restore: ${{ steps.affected.outputs.restore }}
+      upgrade: ${{ steps.affected.outputs.upgrade }}
+      full: ${{ steps.affected.outputs.full }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -26,6 +43,14 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
+
+      - name: Resolve affected gates
+        id: affected
+        env:
+          BASE_SHA: ${{ env.BASE_SHA }}
+        run: |
+          node scripts/affected.mjs >> "$GITHUB_STEP_SUMMARY"
+          node scripts/affected.mjs --github-output >> "$GITHUB_OUTPUT"
 
       - name: Conventional Commits
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000')
@@ -70,6 +95,8 @@ jobs:
 
   go:
     name: Go
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.go == 'true' || needs.commits.outputs.restore == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -85,10 +112,13 @@ jobs:
         run: make check-go
 
       - name: Backup and restore drill
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.restore == 'true' }}
         run: make check-restore
 
   proto:
     name: Proto
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.proto == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -109,6 +139,8 @@ jobs:
 
   scale:
     name: Scale
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.scale == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -125,6 +157,8 @@ jobs:
 
   upgrade:
     name: Upgrade
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.upgrade == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -144,6 +178,8 @@ jobs:
 
   web:
     name: Web
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -189,6 +225,8 @@ jobs:
 
   container:
     name: Container
+    needs: commits
+    if: ${{ github.event_name == 'push' || (needs.commits.outputs.container == 'true' && needs.commits.outputs.supply_chain != 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -199,6 +237,8 @@ jobs:
 
   supply-chain:
     name: Supply Chain
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.supply_chain == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -230,7 +270,12 @@ jobs:
 
   e2e:
     name: E2E
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.e2e == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      E2E_PROJECTS: ${{ (github.event_name == 'push' || needs.commits.outputs.full == 'true') && 'chromium,firefox,webkit' || 'chromium' }}
+      PLAYWRIGHT_INSTALL_FLAGS: --with-deps
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -256,14 +301,13 @@ jobs:
       - name: Install Web dependencies
         run: pnpm --dir web install --frozen-lockfile
 
-      - name: Install browser
-        run: pnpm --dir web exec playwright install --with-deps chromium firefox webkit
-
       - name: Fresh-instance E2E
         run: make check-e2e
 
   android:
     name: Android
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -289,6 +333,8 @@ jobs:
 
   android-device:
     name: Android Device (API ${{ matrix.api-level }})
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -309,6 +355,17 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
+      - name: Enable KVM acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            sudo chmod 666 /dev/kvm
+          else
+            echo "::warning::/dev/kvm is unavailable; the emulator will use software acceleration."
+          fi
+
       - name: Android device journeys
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
@@ -317,8 +374,10 @@ jobs:
           disable-animations: true
           script: make check-android-device
 
-  codeql:
-    name: CodeQL (${{ matrix.language }})
+  codeql-go:
+    name: CodeQL (go)
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.go == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -326,40 +385,87 @@ jobs:
       contents: read
       packages: read
       security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language:
-          - go
-          - javascript-typescript
-          - java-kotlin
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Go
-        if: matrix.language == 'go'
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          languages: go
+
+      - name: Build Go
+        run: go build ./cmd/sillage
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: /language:go
+
+  codeql-web:
+    name: CodeQL (javascript-typescript)
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - name: Set up pnpm
-        if: matrix.language == 'javascript-typescript'
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.9.0
 
       - name: Set up Node
-        if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          languages: javascript-typescript
+
+      - name: Build Web
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          pnpm --dir web build
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: /language:javascript-typescript
+
+  codeql-android:
+    name: CodeQL (java-kotlin)
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - name: Set up JDK
-        if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
@@ -367,29 +473,17 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        if: matrix.language == 'java-kotlin'
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
-          languages: ${{ matrix.language }}
-
-      - name: Build Go
-        if: matrix.language == 'go'
-        run: go build ./cmd/sillage
-
-      - name: Build Web
-        if: matrix.language == 'javascript-typescript'
-        run: |
-          pnpm --dir web install --frozen-lockfile
-          pnpm --dir web build
+          languages: java-kotlin
 
       - name: Build Android
-        if: matrix.language == 'java-kotlin'
         run: cd android && ./gradlew :app:assembleDebug --no-daemon
 
       - name: Analyze
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
-          category: /language:${{ matrix.language }}
+          category: /language:java-kotlin

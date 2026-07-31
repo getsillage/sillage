@@ -12,7 +12,7 @@ gates:
   scale: "10k-record listing, search, sync pagination, and SQLite integrity budgets"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"
-  supply-chain: "Runtime dependency audit, CodeQL, license notices, SBOM, and image vulnerability scan"
+  supply-chain: "Runtime dependency audit, license notices, SBOM, and image vulnerability scan"
   e2e: "Fresh-instance Playwright release journeys in Chromium, Firefox, and WebKit"
   restore: "Isolated backup/restore recovery drill"
   upgrade: "Latest-stable data upgrade and backup-backed rollback drill"
@@ -79,7 +79,7 @@ rules:
   - id: web-client
     paths:
       - "web/**"
-    gates: [web]
+    gates: [web, e2e]
     docs:
       - "docs/development/design/**"
 
@@ -115,7 +115,7 @@ rules:
       - "store/sync.go"
       - "proto/api/v1/sync_service.proto"
       - "docs/development/api/sync.md"
-    gates: [go, proto, android]
+    gates: [go, proto, android, e2e]
     docs:
       - "docs/development/api/sync.md"
 
@@ -138,7 +138,7 @@ rules:
       - "server/auth_*.go"
       - "server/attachment_*.go"
       - "internal/secret/**"
-    gates: [go, proto, web, android]
+    gates: [go, proto, web, android, e2e]
     docs:
       - "docs/development/api/**"
       - "docs/development/security.md"
@@ -183,6 +183,24 @@ rules:
       - "CODE_OF_CONDUCT.md"
     gates: [docs]
     docs: []
+
+  - id: e2e-acceptance
+    paths:
+      - "web/e2e/**"
+      - "scripts/run-e2e.mjs"
+    gates: [web, e2e]
+    docs:
+      - "docs/development/governance.md"
+
+  - id: ci-workflow
+    paths:
+      - ".github/workflows/ci.yml"
+      - "scripts/affected.mjs"
+      - "scripts/change-matrix.yml"
+    gates: [go, proto, web, android, scale, docs, container, supply-chain, e2e, restore, upgrade]
+    docs:
+      - "docs/development/governance.md"
+      - "CONTRIBUTING.md"
 
   - id: governance-tooling
     paths:

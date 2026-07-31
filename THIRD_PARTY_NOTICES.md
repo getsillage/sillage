@@ -28,7 +28,7 @@ This inventory is generated from the resolved Go build graph and the production 
 | go.yaml.in/yaml/v3 | v3.0.4 | MIT | [LICENSE](third_party/licenses/go/go.yaml.in/yaml/v3@v3.0.4/LICENSE), [NOTICE](third_party/licenses/go/go.yaml.in/yaml/v3@v3.0.4/NOTICE) |
 | golang.org/x/crypto | v0.53.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/crypto@v0.53.0/LICENSE) |
 | golang.org/x/net | v0.56.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/net@v0.56.0/LICENSE) |
-| golang.org/x/sys | v0.46.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/sys@v0.46.0/LICENSE) |
+| golang.org/x/sys | v0.47.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/sys@v0.47.0/LICENSE) |
 | golang.org/x/text | v0.39.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/text@v0.39.0/LICENSE) |
 | golang.org/x/time | v0.14.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/time@v0.14.0/LICENSE) |
 | google.golang.org/genproto/googleapis/api | v0.0.0-20260622175928-b703f567277d | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/api@v0.0.0-20260622175928-b703f567277d/LICENSE) |

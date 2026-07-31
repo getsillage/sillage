@@ -160,6 +160,8 @@ class OfflineRecordJourneyTest {
         compose.waitUntilExactlyOneExists(hasText("确认删除") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("确认删除") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("已移至最近删除。"), TIMEOUT_MS)
+        compose.waitUntilDoesNotExist(hasText("确认删除") and hasClickAction(), TIMEOUT_MS)
+        waitForMemoListIdle()
     }
 
     private fun launch() {

@@ -231,7 +231,13 @@ test.describe("fresh-instance release journeys", () => {
     await expect(
       page.getByText(/Records can be restored for 30 days/),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Restore", exact: true }).click();
+    const deletedItem = page
+      .locator("li")
+      .filter({ hasText: LIFECYCLE_MARKER })
+      .first();
+    await deletedItem
+      .getByRole("button", { name: "Restore", exact: true })
+      .click();
     await expect(page.getByText(LIFECYCLE_MARKER)).toHaveCount(0);
 
     await page.goto("/timeline");
@@ -243,14 +249,18 @@ test.describe("fresh-instance release journeys", () => {
       .getByRole("button", { name: "Confirm delete" })
       .click();
     await page.goto("/timeline?filter=deleted");
-    await expect(page.getByText(LIFECYCLE_MARKER).first()).toBeVisible();
-    await page
+    const purgeItem = page
+      .locator("li")
+      .filter({ hasText: LIFECYCLE_MARKER })
+      .first();
+    await expect(purgeItem).toBeVisible();
+    await purgeItem
       .getByRole("button", { name: "Delete permanently", exact: true })
       .click();
-    await page
+    await purgeItem
       .getByRole("button", { name: "Confirm permanent delete", exact: true })
       .click();
-    await expect(page.getByText("Recently Deleted is empty.")).toBeVisible();
+    await expect(page.getByText(LIFECYCLE_MARKER)).toHaveCount(0);
     expect(
       (
         await request.get(attachmentURL, {

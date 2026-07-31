@@ -20,6 +20,11 @@ const baseRef =
     ? args[baseIdx + 1]
     : process.env.BASE_SHA || process.env.BASE_REF || "";
 
+if (["0", "false", "no"].includes((process.env.DOC_SYNC_ENFORCE || "").toLowerCase())) {
+  console.log("check-doc-sync: range policy is enforced at the pull request boundary; skipping.");
+  process.exit(0);
+}
+
 // Working-tree-only runs without a base are advisory (print and pass) so local
 // partial edits are not blocked mid-change. CI must pass BASE_SHA.
 if (!baseRef) {

@@ -468,7 +468,7 @@ private fun MemoListView(
 }
 
 @Composable
-private fun RecentlyDeletedMemoRow(
+internal fun RecentlyDeletedMemoRow(
     memo: Memo,
     mutating: Boolean,
     onRestore: () -> Unit,

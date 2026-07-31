@@ -3,7 +3,6 @@ package app.sillage.ui
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -86,64 +85,6 @@ class OfflineRecordJourneyTest {
             hasText("Sillage Android — Open-source software notices", substring = true),
             TIMEOUT_MS,
         )
-    }
-
-    @Test
-    fun restoresAndPermanentlyDeletesARecordFromRecentlyDeleted() {
-        val record = "最近删除生命周期 ${System.nanoTime()}"
-        launch()
-
-        compose.waitUntilExactlyOneExists(hasText("离线模式") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasContentDescription("新建记录") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasContentDescription("新建记录") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText("内容") and hasSetTextAction(), TIMEOUT_MS)
-        compose.onNode(hasText("内容") and hasSetTextAction()).performTextReplacement(record)
-        compose.onNode(hasContentDescription("保存") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
-
-        deleteOpenRecordFromDetail()
-        relaunchOfflineRecords()
-        compose.waitUntilExactlyOneExists(hasText("最近删除") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
-        compose.onNode(hasText("恢复") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
-
-        relaunchOfflineRecords()
-        openRecordDetail(record)
-        deleteOpenRecordFromDetail()
-        relaunchOfflineRecords()
-        compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
-        compose.onNode(hasText("永久删除") and hasClickAction()).performClick()
-        compose.onNode(hasText("确认删除") and hasClickAction()).performClick()
-
-        compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
-        compose.onAllNodes(hasText(record)).assertCountEquals(0)
-    }
-
-    private fun openRecordDetail(record: String) {
-        compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText(record) and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
-    }
-
-    private fun relaunchOfflineRecords() {
-        scenario?.close()
-        scenario = null
-        launch()
-        compose.waitUntilExactlyOneExists(hasContentDescription("新建记录") and hasClickAction(), TIMEOUT_MS)
-    }
-
-    private fun deleteOpenRecordFromDetail() {
-        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasContentDescription("更多操作") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText("删除") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText("删除") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText("确认删除") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText("确认删除") and hasClickAction()).performClick()
-        compose.waitUntilAtLeastOneExists(hasText("已移至最近删除。"), TIMEOUT_MS)
     }
 
     private fun launch() {

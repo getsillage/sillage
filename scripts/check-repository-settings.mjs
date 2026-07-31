@@ -3,11 +3,15 @@
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
+const organizationDisplayName = "Sillage";
+const productDescription =
+  "Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.";
+const productHomepage = "https://getsillage.github.io/";
+
 export const repositoryPolicies = [
   {
     name: "sillage",
-    description:
-      "Self-hosted, single-user space for private records, history review, and AI answers grounded in your own notes.",
+    description: productDescription,
     issues: true,
     checks: [
       "Commits",
@@ -45,8 +49,6 @@ export const repositoryPolicies = [
     dependabot: false,
   },
 ];
-
-const productHomepage = "https://getsillage.github.io/";
 
 export function auditRepositorySettings(snapshot, owner = "getsillage") {
   const failures = [];
@@ -190,6 +192,30 @@ function auditOrganizationSettings(snapshot, failures, owner) {
   if (!organization) {
     failures.push(`${owner}: organization settings are unavailable`);
   } else {
+    requireEqual(
+      failures,
+      owner,
+      organization,
+      "name",
+      organizationDisplayName,
+      "organization display name",
+    );
+    requireEqual(
+      failures,
+      owner,
+      organization,
+      "description",
+      productDescription,
+      "organization description",
+    );
+    requireEqual(
+      failures,
+      owner,
+      organization,
+      "blog",
+      productHomepage,
+      "organization website",
+    );
     const required = [
       ["two_factor_requirement_enabled", true, "two-factor authentication requirement"],
       ["default_repository_permission", "read", "default repository permission"],

@@ -71,14 +71,16 @@ updates:
         patterns:
           - "org.jetbrains.kotlin*"
     ignore:
-      # Dependabot's wildcard + 2.4.x version pattern did not suppress the
-      # rejected plugin pair, so keep the known-incompatible releases exact.
+      # Kotlin and Compose compiler plugins are a coordinated toolchain. Allow
+      # 2.2.x patches, but require deliberate review for minor/major upgrades.
       - dependency-name: "org.jetbrains.kotlin.android"
-        versions:
-          - "2.4.10"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
       - dependency-name: "org.jetbrains.kotlin.plugin.compose"
-        versions:
-          - "2.4.10"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
     labels:
       - dependencies
 

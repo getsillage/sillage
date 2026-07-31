@@ -35,10 +35,10 @@ This inventory is generated from the resolved Go build graph and the production 
 | google.golang.org/genproto/googleapis/rpc | v0.0.0-20260618152121-87f3d3e198d3 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260618152121-87f3d3e198d3/LICENSE) |
 | google.golang.org/grpc | v1.82.1 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/grpc@v1.82.1/LICENSE), [NOTICE.txt](third_party/licenses/go/google.golang.org/grpc@v1.82.1/NOTICE.txt) |
 | google.golang.org/protobuf | v1.36.11 | BSD-3-Clause | [LICENSE](third_party/licenses/go/google.golang.org/protobuf@v1.36.11/LICENSE) |
-| modernc.org/libc | v1.73.4 | BSD-3-Clause AND LicenseRef-modernc-libc-third-party | [LICENSE](third_party/licenses/go/modernc.org/libc@v1.73.4/LICENSE), [LICENSE-3RD-PARTY.md](third_party/licenses/go/modernc.org/libc@v1.73.4/LICENSE-3RD-PARTY.md) |
+| modernc.org/libc | v1.74.1 | BSD-3-Clause AND LicenseRef-modernc-libc-third-party | [LICENSE](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE), [LICENSE-3RD-PARTY.md](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE-3RD-PARTY.md) |
 | modernc.org/mathutil | v1.7.1 | BSD-3-Clause | [LICENSE](third_party/licenses/go/modernc.org/mathutil@v1.7.1/LICENSE) |
 | modernc.org/memory | v1.11.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/modernc.org/memory@v1.11.0/LICENSE), [LICENSE-GO](third_party/licenses/go/modernc.org/memory@v1.11.0/LICENSE-GO), [LICENSE-LOGO](third_party/licenses/go/modernc.org/memory@v1.11.0/LICENSE-LOGO), [LICENSE-MMAP-GO](third_party/licenses/go/modernc.org/memory@v1.11.0/LICENSE-MMAP-GO) |
-| modernc.org/sqlite | v1.53.0 | BSD-3-Clause AND LicenseRef-SQLite-Public-Domain | [LICENSE](third_party/licenses/go/modernc.org/sqlite@v1.53.0/LICENSE), [SQLITE-LICENSE](third_party/licenses/go/modernc.org/sqlite@v1.53.0/SQLITE-LICENSE) |
+| modernc.org/sqlite | v1.55.0 | BSD-3-Clause AND LicenseRef-SQLite-Public-Domain | [LICENSE](third_party/licenses/go/modernc.org/sqlite@v1.55.0/LICENSE), [SQLITE-LICENSE](third_party/licenses/go/modernc.org/sqlite@v1.55.0/SQLITE-LICENSE) |
 
 ## Web runtime dependencies
 

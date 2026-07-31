@@ -220,6 +220,7 @@ jobs:
       - name: Check docs and hygiene
         env:
           BASE_SHA: ${{ env.BASE_SHA }}
+          DOC_SYNC_ENFORCE: ${{ github.event_name == 'pull_request' }}
           HEAD_SHA: ${{ github.sha }}
         run: make check-docs
 

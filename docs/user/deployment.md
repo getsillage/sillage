@@ -57,10 +57,11 @@ The image contains the project license and runtime dependency notices at `/usr/s
 From a checkout of this repository, start with the default image (`ghcr.io/getsillage/sillage:latest`):
 
 ```bash
+cp .env.example .env
 docker compose -f scripts/compose.yaml up -d
 ```
 
-To use another image, set `SILLAGE_IMAGE` before `up` (for example a release tag from GitHub Releases).
+The checked-in `.env.example` contains only the two Compose-level overrides: the image and the host publish address. The copied `.env` is ignored by Git. To use another image, change `SILLAGE_IMAGE` before `up` (for example a release tag from GitHub Releases).
 
 To allow trusted devices on a local network to connect directly, explicitly set `SILLAGE_HOST_PORT=5231` and configure the host firewall at the same time. Public deployments should remain bound to the loopback address, with the separately managed HTTPS entry point reaching that port through an operator-controlled network path.
 

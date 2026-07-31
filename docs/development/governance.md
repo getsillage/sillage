@@ -3,7 +3,7 @@
 **Audience:** maintainers, external contributors, coding agents
 **Owner:** project maintainers
 **Enforcement:** `Makefile` targets, `scripts/*`, GitHub Actions, Dependabot, branch protection
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-07-31
 
 This document is the **standards registry** for Sillage. It explains how norms are layered, who they apply to, and how they are enforced. Product intent lives in the [Constitution](constitution.md) and [Product Guidance](product-guidance.md). Day-to-day commands live in [Contributing](../../CONTRIBUTING.md).
 
@@ -67,7 +67,7 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 | `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
 | `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` / `check-upgrade` | Individual local gates |
-| `make check-repository-settings` | Authenticated audit of branch protection, required CI contexts, GitHub security features, private vulnerability reporting, and Pages HTTPS |
+| `make check-repository-settings` | Authenticated audit of organization least privilege, 2FA, Actions policy, repository metadata/merge policy, branch protection, required CI contexts, GitHub security features, private vulnerability reporting, and Pages HTTPS |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | `make print-affected` | Print matched rules and gates without running them |
 
@@ -136,7 +136,7 @@ CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI, v
 gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 ```
 
-Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, run `make check-repository-settings` with an authenticated `gh` CLI session and correct every reported remote setting. This audit is intentionally separate from ordinary local checks because branch protection and repository security controls are external state.
+Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, authenticate `gh`, add organization administration scope with `gh auth refresh -h github.com -s admin:org`, then run `make check-repository-settings` and correct every reported remote setting. The audit covers the `getsillage` organization plus `sillage`, `website`, and `.github`; it is intentionally separate from ordinary local checks because organization policy, branch protection, merge policy, Actions permissions, and repository security controls are external state.
 
 ## Quality severity
 

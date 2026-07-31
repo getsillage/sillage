@@ -10,8 +10,9 @@ afterEach(() => {
   document.documentElement.lang = "zh-CN";
 });
 
-// This jsdom build does not expose Web Storage; provide a minimal in-memory
-// implementation so token storage and theme preference code runs under test.
+// Install deterministic in-memory Web Storage before application code runs.
+// Defining the properties directly also avoids touching Node's experimental
+// global Web Storage getter on runtimes that expose one without a backing file.
 function memoryStorage(): Storage {
   const data = new Map<string, string>();
   return {
@@ -33,12 +34,10 @@ function memoryStorage(): Storage {
 }
 
 for (const key of ["localStorage", "sessionStorage"] as const) {
-  if (!window[key]) {
-    Object.defineProperty(window, key, {
-      value: memoryStorage(),
-      configurable: true,
-    });
-  }
+  Object.defineProperty(window, key, {
+    value: memoryStorage(),
+    configurable: true,
+  });
 }
 
 // jsdom lacks matchMedia, which ThemeToggle and others probe defensively.

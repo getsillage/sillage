@@ -4,20 +4,28 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.sillage.MainActivity
+import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalStateStore
+import app.sillage.data.MemoListFilter
+import java.time.LocalDate
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -91,30 +99,22 @@ class OfflineRecordJourneyTest {
     @Test
     fun restoresAndPermanentlyDeletesARecordFromRecentlyDeleted() {
         val record = "最近删除生命周期 ${System.nanoTime()}"
+        seedOfflineMemo(record)
         launch()
 
         compose.waitUntilExactlyOneExists(hasText("离线模式") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasContentDescription("新建记录") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasContentDescription("新建记录") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasText("内容") and hasSetTextAction(), TIMEOUT_MS)
-        compose.onNode(hasText("内容") and hasSetTextAction()).performTextReplacement(record)
-        compose.onNode(hasContentDescription("保存") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
-
+        openRecordDetail(record)
         deleteOpenRecordFromDetail()
-        relaunchOfflineRecords()
-        compose.waitUntilExactlyOneExists(hasText("最近删除") and hasClickAction(), TIMEOUT_MS)
-        compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
+        selectMemoFilter(MemoListFilter.Deleted)
         compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
         compose.onNode(hasText("恢复") and hasClickAction()).performClick()
         compose.waitUntilAtLeastOneExists(hasText("最近删除中没有记录。"), TIMEOUT_MS)
 
-        relaunchOfflineRecords()
+        selectMemoFilter(MemoListFilter.Unarchived)
         openRecordDetail(record)
         deleteOpenRecordFromDetail()
-        relaunchOfflineRecords()
-        compose.onNode(hasText("最近删除") and hasClickAction()).performClick()
+        selectMemoFilter(MemoListFilter.Deleted)
         compose.waitUntilAtLeastOneExists(hasText(record), TIMEOUT_MS)
         compose.onNode(hasText("永久删除") and hasClickAction()).performClick()
         compose.onNode(hasText("确认删除") and hasClickAction()).performClick()
@@ -123,17 +123,35 @@ class OfflineRecordJourneyTest {
         compose.onAllNodes(hasText(record)).assertCountEquals(0)
     }
 
+    private fun seedOfflineMemo(content: String) {
+        val stateStore = LocalStateStore(context)
+        try {
+            LocalDataStore(stateStore).createMemo(content, LocalDate.now().toString())
+        } finally {
+            stateStore.close()
+        }
+    }
+
     private fun openRecordDetail(record: String) {
         compose.waitUntilExactlyOneExists(hasText(record) and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText(record) and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasContentDescription("更多操作") and hasClickAction(), TIMEOUT_MS)
     }
 
-    private fun relaunchOfflineRecords() {
-        scenario?.close()
-        scenario = null
-        launch()
-        compose.waitUntilExactlyOneExists(hasContentDescription("新建记录") and hasClickAction(), TIMEOUT_MS)
+    private fun selectMemoFilter(filter: MemoListFilter) {
+        val tag = "memo-filter-${filter.name}"
+        waitForMemoListIdle()
+        compose.waitUntilExactlyOneExists(hasTestTag(tag) and hasClickAction(), TIMEOUT_MS)
+        compose.onNode(hasTestTag(tag) and hasClickAction()).performTouchInput { click() }
+        compose.waitUntilExactlyOneExists(hasTestTag(tag) and isSelected(), TIMEOUT_MS)
+        waitForMemoListIdle()
+    }
+
+    private fun waitForMemoListIdle() {
+        compose.waitUntilExactlyOneExists(
+            hasContentDescription("刷新记录") and hasClickAction() and isEnabled(),
+            TIMEOUT_MS,
+        )
     }
 
     private fun deleteOpenRecordFromDetail() {

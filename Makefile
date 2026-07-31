@@ -91,6 +91,7 @@ check-scale:
 check-docs: check-actions
 	node scripts/check-docker-context.mjs
 	node --test scripts/check-android-device-matrix.test.mjs
+	node --test scripts/check-content-copy.test.mjs
 	node --test scripts/check-doc-sync.test.mjs
 	node --test scripts/check-release-notes.test.mjs
 	node --test scripts/compose-release-notes.test.mjs
@@ -98,6 +99,7 @@ check-docs: check-actions
 	node --test scripts/affected.test.mjs
 	node scripts/check-release-notes.mjs
 	node scripts/check-markdown-links.mjs
+	node scripts/check-content-copy.mjs
 	node scripts/check-terminology.mjs
 	bash scripts/check-whitespace.sh
 	node scripts/check-doc-sync.mjs

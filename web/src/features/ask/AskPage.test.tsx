@@ -448,7 +448,9 @@ describe("AskPage", () => {
       await screen.findByRole("heading", { name: "归档后的睡眠问答" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/需要时参考全部记录内的相关记录/),
+      await screen.findByText(
+        /当前范围：全部记录。涉及你的记录时，Sillage 会查找并引用相关内容/,
+      ),
     ).toBeInTheDocument();
     expect(getAskConversation).toHaveBeenCalledWith(
       "t",
@@ -737,7 +739,9 @@ describe("AskPage", () => {
     await user.type(input, firstQuestion.content);
     await user.click(screen.getByRole("button", { name: "发送" }));
 
-    expect(await screen.findByText("正在整理问答")).toBeInTheDocument();
+    expect(
+      await screen.findByText("正在判断是否需要查找记录"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "你说", level: 2 }),
     ).toBeInTheDocument();
@@ -750,7 +754,7 @@ describe("AskPage", () => {
     await waitFor(() =>
       expect(screen.getAllByText(firstQuestion.content)).toHaveLength(1),
     );
-    expect(screen.getByText("正在整理问答")).toBeInTheDocument();
+    expect(screen.getByText("正在判断是否需要查找记录")).toBeInTheDocument();
 
     await act(async () => {
       finishStream?.();
@@ -897,7 +901,9 @@ describe("AskPage", () => {
     expect(await screen.findByText("原回答")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "重新生成" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("正在整理问答");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "正在判断是否需要查找记录",
+    );
     expect(screen.queryByText("原回答")).not.toBeInTheDocument();
 
     act(() => streamHandlers?.onDelta?.("新回答"));

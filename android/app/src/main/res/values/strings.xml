@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name" translatable="false">Sillage</string>
-    <string name="brand_tagline">Private records and AI reflection</string>
+    <string name="brand_tagline">Private records with source-grounded AI</string>
 
     <string name="action_back">Back</string>
     <string name="action_cancel">Cancel</string>
@@ -134,7 +134,7 @@
     <string name="summary_generate">Generate summary</string>
     <string name="summary_regenerate">Summarize again</string>
     <string name="summary_loading_body">Loading the summary…</string>
-    <string name="summary_empty_body">Ask AI to create a short summary based on this record.</string>
+    <string name="summary_empty_body">Send this record to your configured AI endpoint to create a short summary.</string>
 
     <string name="discard_changes_title">Discard unsaved changes?</string>
     <string name="discard_changes_supporting">Your changes will not be saved when you go back.</string>
@@ -213,7 +213,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_ai" translatable="false">AI</string>
     <string name="settings_auto_summary">Automatically summarize</string>
-    <string name="settings_auto_summary_supporting">Generate a summary after creating a record.</string>
+    <string name="settings_auto_summary_supporting">After creating a record, use the default AI profile to send its content to your configured endpoint and generate a summary.</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_dark_mode">Dark mode</string>
     <string name="settings_dark_mode_on">Using the dark theme.</string>
@@ -290,7 +290,7 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_summary_manual">Manual</string>
     <string name="settings_ai_profiles">AI profiles</string>
-    <string name="settings_ai_profiles_supporting">Manage the model configurations used for summaries and Ask. Keys are encrypted by the local server and are never shown again.</string>
+    <string name="settings_ai_profiles_supporting">Manage the model configurations used for summaries and Ask. Keys are encrypted on the Sillage server and are never shown again after saving.</string>
     <string name="settings_profile_unnamed">Unnamed profile</string>
     <string name="settings_default">Default</string>
     <string name="settings_model_unset">Model not set</string>
@@ -415,7 +415,7 @@
     <string name="notice_auto_summary_off">Automatic summaries disabled.</string>
     <string name="notice_ai_profiles_saved">AI profiles saved.</string>
     <string name="notice_ai_test_success">Connection successful (%1$s)</string>
-    <string name="error_ai_models_offline">Cloud model lists are unavailable in Offline mode.</string>
+    <string name="error_ai_models_offline">Model lists are unavailable in Offline mode.</string>
     <string name="notice_ai_models_empty">No models available.</string>
     <string name="notice_ai_models_loaded">Model list loaded.</string>
     <string name="error_ask_question_required">Write a question first.</string>

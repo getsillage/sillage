@@ -45,6 +45,7 @@
 | 开发环境、验证、提交、发布 | `CONTRIBUTING.md` |
 | 模块职责、数据/API 边界 | `docs/development/architecture.md` |
 | 产品范围、术语、AI 行为 | `docs/development/product-guidance.md` |
+| 用户文案、双语术语与 AI 数据提示 | `docs/development/content-design.md` |
 | 安全、认证与外部请求 | `docs/development/security.md` |
 | 同步、幂等、冲突 | `docs/development/api/sync.md` |
 | Web 视觉与交互 | `docs/development/design/README.md` |

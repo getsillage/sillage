@@ -7,6 +7,7 @@ See the root [Contributing Guide](../../CONTRIBUTING.md) for development setup, 
 - [Constitution](constitution.md): product identity and non-negotiable red lines.
 - [Architecture Guide](architecture.md): module responsibilities, request paths, data boundaries, and sources of truth.
 - [Product Guidance](product-guidance.md): product scope, terminology, and AI behavior boundaries.
+- [Content Design](content-design.md): user-facing terminology, localization, status, error, self-hosting, and AI disclosure rules.
 - [Security Development Boundaries](security.md): authentication, attachments, secrets, external requests, and sensitive-data constraints.
 - [Sync API](api/sync.md): offline sync, idempotency, and conflict semantics.
 - [REST API Guide](api/README.md): REST authentication, error model, route boundaries, and versioning rules.

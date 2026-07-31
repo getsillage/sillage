@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="brand_tagline">私密记录与 AI 反思</string>
+    <string name="brand_tagline">私密记录与有来源的 AI 问答</string>
 
     <string name="action_back">返回</string>
     <string name="action_cancel">取消</string>
@@ -133,7 +133,7 @@
     <string name="summary_generate">生成总结</string>
     <string name="summary_regenerate">重新总结</string>
     <string name="summary_loading_body">正在读取总结…</string>
-    <string name="summary_empty_body">让 AI 基于这条记录生成一段简短的总结。</string>
+    <string name="summary_empty_body">将这条记录发送到你配置的 AI 端点，并生成一段简短总结。</string>
 
     <string name="discard_changes_title">放弃未保存的修改？</string>
     <string name="discard_changes_supporting">返回后，本次修改不会保存。</string>
@@ -210,7 +210,7 @@
 
     <string name="settings_title">设置</string>
     <string name="settings_auto_summary">自动总结</string>
-    <string name="settings_auto_summary_supporting">新建记录后自动生成总结。</string>
+    <string name="settings_auto_summary_supporting">新建记录后，使用默认 AI 档案将记录内容发送到你配置的端点，并生成总结。</string>
     <string name="settings_section_appearance">外观</string>
     <string name="settings_dark_mode">深色模式</string>
     <string name="settings_dark_mode_on">当前使用深色主题。</string>
@@ -232,7 +232,7 @@
     <string name="settings_server_supporting">修改服务地址和重新连接。</string>
     <string name="settings_sync_local">同步到本地</string>
     <string name="settings_sync_local_supporting">把服务端数据保存到本机离线库。</string>
-    <string name="settings_sync_cloud">同步到云端</string>
+    <string name="settings_sync_cloud">同步到服务端</string>
     <string name="settings_sync_cloud_supporting">把本机离线记录推送到服务端。</string>
     <string name="settings_sync_both">双向同步</string>
     <string name="settings_sync_both_supporting">先推送本地更改，再拉取服务端数据。</string>
@@ -285,7 +285,7 @@
     <string name="settings_theme_light">浅色</string>
     <string name="settings_summary_manual">手动</string>
     <string name="settings_ai_profiles">AI 档案</string>
-    <string name="settings_ai_profiles_supporting">管理总结和问答使用的模型配置。密钥加密保存在本地服务端，不会回显。</string>
+    <string name="settings_ai_profiles_supporting">管理总结和问答使用的模型配置。密钥加密保存在 Sillage 服务端，保存后不再显示。</string>
     <string name="settings_profile_unnamed">未命名档案</string>
     <string name="settings_default">默认</string>
     <string name="settings_model_unset">未设置模型</string>
@@ -381,15 +381,15 @@
     <string name="notice_auto_summary_off">已关闭自动总结。</string>
     <string name="notice_ai_profiles_saved">AI 档案已保存。</string>
     <string name="notice_ai_test_success">连接成功（%1$s）</string>
-    <string name="error_ai_models_offline">离线模式无法获取云端模型列表。</string>
+    <string name="error_ai_models_offline">离线模式无法从 AI 端点获取模型列表。</string>
     <string name="notice_ai_models_empty">没有可用模型。</string>
     <string name="notice_ai_models_loaded">已获取模型列表。</string>
     <string name="error_ask_question_required">先写下要问的问题。</string>
     <string name="notice_ask_generation_stopped">已停止生成，已生成内容会保留。</string>
     <string name="notice_ask_variant_saving">正在保存回答选择，请稍后再返回。</string>
     <string name="notice_ask_saved_record">已存为记录。</string>
-    <string name="sync_none">没有需要同步到云端的记录。</string>
-    <string name="sync_summary">同步到云端：成功 %1$d，冲突 %2$d，失败 %3$d</string>
+    <string name="sync_none">没有需要同步到服务端的记录。</string>
+    <string name="sync_summary">同步到服务端：成功 %1$d，冲突 %2$d，失败 %3$d</string>
     <string name="error_ask_regenerate_missing">找不到要重新生成的问题。</string>
     <string name="error_request_failed">请求失败。</string>
     <string name="error_operation_failed">操作失败。</string>

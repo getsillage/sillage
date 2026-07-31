@@ -1,6 +1,6 @@
 # Product Guidance
 
-This document defines Sillage's product scope, terminology, and AI behavior. See the [Architecture Guide](architecture.md) and the code for implementation details, and the [Web Design Guidelines](design/README.md) for visual rules.
+This document defines Sillage's product scope, terminology, and AI behavior. See the [Architecture Guide](architecture.md) and the code for implementation details, the [Content Design Guidelines](content-design.md) for user-facing language, and the [Web Design Guidelines](design/README.md) for visual rules.
 
 ## Positioning
 
@@ -100,6 +100,10 @@ For personal-record questions, recommended phrasing should communicate the equiv
 - Use the localized equivalents of Record / All Records / Ask / Summary / Source (`记录 / 全部记录 / 问答 / 总结 / 来源`) and do not expose `memo` or the English word `Ask` to users in the Simplified Chinese UI.
 - Button labels describe actions, such as Save, Continue Asking, View Sources, and Save as Record.
 - Empty states explain the current state and the next action instead of advertising features.
+- Distinguish the current device, Sillage server, machine running Sillage, data directory, and configured AI endpoint. Do not use `cloud` (`云端`) as a synonym for the user's Sillage server.
+- Summary and automatic-summary supporting text states when record content is sent to the configured AI endpoint.
+
+See [Content Design](content-design.md) for interface patterns, localization style, self-hosting terminology, AI disclosure requirements, and the content review checklist.
 
 ## Accessibility and Status Feedback
 

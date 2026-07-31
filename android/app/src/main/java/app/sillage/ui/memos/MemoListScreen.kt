@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -515,7 +516,9 @@ internal fun RecentlyDeletedMemoRow(
                 OutlinedButton(
                     onClick = onRestore,
                     enabled = !mutating,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(RECENTLY_DELETED_RESTORE_TEST_TAG),
                 ) {
                     Icon(Icons.Rounded.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -527,7 +530,9 @@ internal fun RecentlyDeletedMemoRow(
                     },
                     enabled = !mutating,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(RECENTLY_DELETED_PURGE_TEST_TAG),
                 ) {
                     Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -550,6 +555,9 @@ internal fun RecentlyDeletedMemoRow(
         }
     }
 }
+
+internal const val RECENTLY_DELETED_RESTORE_TEST_TAG = "recently-deleted-restore"
+internal const val RECENTLY_DELETED_PURGE_TEST_TAG = "recently-deleted-purge"
 
 @Composable
 private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {

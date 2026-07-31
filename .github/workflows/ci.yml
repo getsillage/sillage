@@ -334,7 +334,6 @@ jobs:
   android-device:
     name: Android Device (API ${{ matrix.api-level }})
     needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -342,10 +341,16 @@ jobs:
       matrix:
         api-level: [26, 35]
     steps:
+      - name: Skip unaffected Android device gate
+        if: ${{ github.event_name == 'pull_request' && needs.commits.outputs.android != 'true' }}
+        run: echo "Android device verification is not required for this change set."
+
       - name: Checkout
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
@@ -353,9 +358,11 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
 
       - name: Enable KVM acceleration
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         run: |
           if [ -e /dev/kvm ]; then
             echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -367,6 +374,7 @@ jobs:
           fi
 
       - name: Android device journeys
+        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}

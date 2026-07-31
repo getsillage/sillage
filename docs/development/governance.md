@@ -73,7 +73,7 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 
 CI jobs call the same scripts and Make targets. Prefer fixing a script once over copying commands into workflow YAML. Pull requests use the change matrix to run only affected gates, while pushes to protected `main` remain full verification runs. A new commit automatically cancels the older in-progress CI run for the same pull request.
 
-Required check names remain stable: unaffected jobs are reported as skipped, so branch protection stays explicit without spending runner time. Android device jobs enable KVM acceleration before starting the API 26/API 35 emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
+Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
 
 ### Change matrix
 

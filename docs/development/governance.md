@@ -136,7 +136,7 @@ CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI, v
 gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 ```
 
-Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, authenticate `gh`, add organization administration scope with `gh auth refresh -h github.com -s admin:org`, then run `make check-repository-settings` and correct every reported remote setting. The audit covers the `getsillage` organization plus `sillage`, `website`, and `.github`; it is intentionally separate from ordinary local checks because organization policy, branch protection, merge policy, Actions permissions, and repository security controls are external state.
+Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, authenticate `gh`, add organization administration scope with `gh auth refresh -h github.com -s admin:org`, then run `make check-repository-settings` and correct every reported remote setting. The audit covers the `getsillage` organization plus `sillage`, `getsillage.github.io`, and `.github`; the organization Pages repository publishes the canonical product site at `https://getsillage.github.io/`. The audit is intentionally separate from ordinary local checks because organization policy, branch protection, merge policy, Actions permissions, repository security controls, and Pages configuration are external state.
 
 ## Quality severity
 

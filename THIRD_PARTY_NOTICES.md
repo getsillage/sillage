@@ -80,7 +80,7 @@ This inventory is generated from the resolved Go build graph and the production 
 | [is-hexadecimal](https://github.com/wooorm/is-hexadecimal#readme) | 2.0.1 | MIT | [license](third_party/licenses/web/is-hexadecimal@2.0.1/license) |
 | [is-plain-obj](https://github.com/sindresorhus/is-plain-obj#readme) | 4.1.0 | MIT | [license](third_party/licenses/web/is-plain-obj@4.1.0/license) |
 | [longest-streak](https://github.com/wooorm/longest-streak#readme) | 3.1.0 | MIT | [license](third_party/licenses/web/longest-streak@3.1.0/license) |
-| [lucide-react](https://lucide.dev) | 0.562.0 | ISC | [LICENSE](third_party/licenses/web/lucide-react@0.562.0/LICENSE) |
+| [lucide-react](https://lucide.dev) | 1.27.0 | ISC | [LICENSE](third_party/licenses/web/lucide-react@1.27.0/LICENSE) |
 | [markdown-table](https://github.com/wooorm/markdown-table#readme) | 3.0.4 | MIT | [license](third_party/licenses/web/markdown-table@3.0.4/license) |
 | [mdast-util-find-and-replace](https://github.com/syntax-tree/mdast-util-find-and-replace#readme) | 3.0.2 | MIT | [license](third_party/licenses/web/mdast-util-find-and-replace@3.0.2/license) |
 | [mdast-util-from-markdown](https://github.com/syntax-tree/mdast-util-from-markdown#readme) | 2.0.3 | MIT | [license](third_party/licenses/web/mdast-util-from-markdown@2.0.3/license) |

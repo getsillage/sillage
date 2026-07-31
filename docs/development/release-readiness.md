@@ -8,7 +8,7 @@ Sillage's official distribution channels are:
 
 - multi-architecture container images from `ghcr.io/getsillage/sillage` for `linux/amd64` and `linux/arm64`;
 - a signed Android APK attached to GitHub Releases when Android publishing is enabled;
-- the static product website deployed from the separate `getsillage/getsillage.github.io` repository.
+- the static product website at `https://getsillage.github.io/`, deployed from the separate `getsillage/getsillage.github.io` repository.
 
 Sillage does not currently publish through Google Play, an Apple app store, or an official hosted service. Store listing policy, hosted-service SLA, billing, central telemetry, and platform-operated data processing are therefore outside the current release scope. Adding one of those channels changes the product's operational and legal responsibilities and requires a separate decision and acceptance contract before implementation.
 
@@ -79,7 +79,7 @@ After the workflow completes:
 4. Verify the SPDX, CycloneDX, Grype, and SHA-256 manifest assets.
 5. Download the APK and checksum from an unauthenticated environment, verify the checksum and signing certificate, and install that downloaded artifact.
 6. Confirm release notes contain the exact published digest, compatibility impact, upgrade/rollback instructions, known limitations, and test evidence.
-7. Confirm the website and fallback release tag point to the new stable release after publication.
+7. Confirm `https://getsillage.github.io/` and its fallback release tag point to the new stable release after publication.
 
 Published tags, image version tags, APK assets, checksums, and attestations are immutable. If evidence is wrong, publish a correction notice; never replace an artifact under the same version.
 
@@ -90,6 +90,6 @@ Before a stable release, repository settings must enforce the same policy descri
 - every CI job required by the Release workflow is a required `main` status check;
 - force pushes and branch deletion remain disabled and administrator enforcement remains enabled;
 - private vulnerability reporting, Dependabot security updates, secret scanning, and push protection are enabled;
-- GitHub Pages uses HTTPS and the website deployment gate passes before publication.
+- GitHub Pages publishes `getsillage/getsillage.github.io` at `https://getsillage.github.io/` with HTTPS, and the website deployment gate passes before publication.
 
 Repository settings are external state and cannot be proven by source review alone. Maintainers must run `make check-repository-settings` with an authenticated `gh` CLI session as part of release acceptance.

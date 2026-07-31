@@ -138,6 +138,8 @@ gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 
 Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, authenticate `gh`, add organization administration scope with `gh auth refresh -h github.com -s admin:org`, then run `make check-repository-settings` and correct every reported remote setting. The audit covers the `getsillage` organization plus `sillage`, `getsillage.github.io`, and `.github`; the organization Pages repository publishes the canonical product site at `https://getsillage.github.io/`. The audit is intentionally separate from ordinary local checks because organization policy, branch protection, merge policy, Actions permissions, repository security controls, and Pages configuration are external state.
 
+Public-facing website links use `https://getsillage.github.io/`. Source and contribution links use `https://github.com/getsillage/getsillage.github.io`. Retired project-site subpaths are not canonical addresses and must not appear in current public copy or documentation.
+
 ## Quality severity
 
 | Level | Meaning | CI |

@@ -32,6 +32,12 @@ updates:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
+      react-core:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
     labels:
       - dependencies
 

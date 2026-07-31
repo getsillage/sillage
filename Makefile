@@ -3,6 +3,9 @@
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
+comma := ,
+E2E_PROJECTS ?= chromium,firefox,webkit
+PLAYWRIGHT_INSTALL_FLAGS ?=
 
 .PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device check-scale \
 	check-docs check-container check-supply-chain check-e2e check-restore check-upgrade check-commits \
@@ -91,6 +94,7 @@ check-docs: check-actions
 	node --test scripts/check-release-notes.test.mjs
 	node --test scripts/compose-release-notes.test.mjs
 	node --test scripts/check-repository-settings.test.mjs
+	node --test scripts/affected.test.mjs
 	node scripts/check-release-notes.mjs
 	node scripts/check-markdown-links.mjs
 	node scripts/check-terminology.mjs
@@ -120,7 +124,7 @@ generate-android-third-party-notices:
 	node scripts/generate-android-third-party-notices.mjs --write
 
 check-e2e:
-	pnpm --dir web exec playwright install chromium firefox webkit
+	pnpm --dir web exec playwright install $(PLAYWRIGHT_INSTALL_FLAGS) $(subst $(comma), ,$(E2E_PROJECTS))
 	pnpm --dir web build
 	node scripts/run-e2e.mjs
 

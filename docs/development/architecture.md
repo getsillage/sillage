@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
 | `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |
-| `packages/kmp-core/` | Reserved shared native domain, data, sync, and security modules |
+| `packages/kmp-core/` | Shared native domain, data, sync, and security modules; `domain` is buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Reserved feature-scoped native state and presentation modules |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
 | `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |

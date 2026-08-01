@@ -8,7 +8,7 @@ gates:
   go: "Go modules, tests, vet, and binary build"
   proto: "Buf lint, breaking, generate, and committed gen drift"
   web: "Web lint, typecheck, unit tests, and production build"
-  android: "Android unit tests, lint, APK assembly, dependency integrity, notices, vulnerability scan, release manifest policy, and API 26/API 35 device journeys"
+  android: "Shared native common tests, Android unit tests, lint, APK assembly, dependency integrity, notices, vulnerability scan, release manifest policy, and API 26/API 35 device journeys"
   scale: "10k-record listing, search, sync pagination, and SQLite integrity budgets"
   docs: "Markdown links, Docker context policy, terminology, whitespace, doc-sync"
   container: "Docker image build and Compose config validation"

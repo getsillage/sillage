@@ -16,3 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "SillageNative"
 include(":androidApp")
+include(":kmp-core:domain")
+
+project(":kmp-core:domain").projectDir = file("../../packages/kmp-core/domain")

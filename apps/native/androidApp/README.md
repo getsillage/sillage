@@ -34,7 +34,12 @@ JDK 17 and Android SDK 35 are required. The repository pins Gradle, locks every 
 make check-android
 ```
 
-This runs unit tests, Android Lint, debug and instrumentation APK assembly, the release manifest policy, license-notice drift checks, the release-runtime vulnerability scan, and a consistency check that the CI device matrix still covers `minSdk` and `targetSdk`. To run Keystore/SQLite migration and critical Compose journeys on a connected emulator or physical device:
+This runs shared native common tests, Android unit tests, Android Lint, debug
+and instrumentation APK assembly, the release manifest policy, license-notice
+drift checks, the release-runtime vulnerability scan, and a consistency check
+that the CI device matrix still covers `minSdk` and `targetSdk`. To run
+Keystore/SQLite migration and critical Compose journeys on a connected emulator
+or physical device:
 
 ```bash
 make check-android-device

@@ -63,7 +63,9 @@ tests.
 ## Shared Native Modules
 
 `packages/kmp-core/` owns domain, application, network, database,
-synchronization, and security foundations. `packages/kmp-features/` owns
+synchronization, and security foundations. Its `domain` module is the first
+buildable Kotlin Multiplatform module and produces Android, desktop JVM, and
+Apple targets from common source. `packages/kmp-features/` owns
 feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.

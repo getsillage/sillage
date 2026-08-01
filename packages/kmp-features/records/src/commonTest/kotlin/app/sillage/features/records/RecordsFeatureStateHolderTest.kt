@@ -1,6 +1,7 @@
 package app.sillage.features.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -8,6 +9,98 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RecordsFeatureStateHolderTest {
+    @Test
+    fun clearPresentedMemoClearsSelectionAndSummaryWithoutTouchingCache() {
+        val selected = memo("memo-1")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected), cacheGeneration = 2),
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true),
+            editor = RecordsEditorStateHolder(uploadingAttachment = true, draftContent = "draft"),
+        )
+
+        val cleared = state.clearPresentedMemo(stopAttachmentUpload = true)
+
+        assertEquals(listOf(selected), cleared.records)
+        assertEquals(2, cleared.cacheGeneration)
+        assertNull(cleared.selection.selectedMemo)
+        assertFalse(cleared.summary.loading)
+        assertFalse(cleared.editor.uploadingAttachment)
+        assertEquals("draft", cleared.editor.draftContent)
+    }
+
+    @Test
+    fun presentMemoSelectsMemoAndSummaryPresentation() {
+        val selected = memo("memo-2")
+        val summary = MemoAI(
+            memoId = selected.id,
+            summary = "摘要",
+            sentiment = null,
+            provider = "openai",
+            model = "model",
+            profileId = "p1",
+            promptVersion = "v1",
+            sourceMemoIds = selected.id,
+            status = "complete",
+            errorCode = null,
+            startedAt = null,
+            finishedAt = null,
+            inputTokens = 1,
+            outputTokens = 1,
+            totalTokens = 2,
+            createdAt = "2026-08-01T00:00:00Z",
+            updatedAt = "2026-08-01T00:00:00Z",
+        )
+
+        val presented = RecordsFeatureStateHolder().presentMemo(
+            memo = selected,
+            summary = summary,
+            summaryLoading = false,
+        )
+
+        assertEquals(selected, presented.selection.selectedMemo)
+        assertEquals(summary, presented.summary.summary)
+        assertFalse(presented.summary.loading)
+    }
+
+    @Test
+    fun beginNewEditorDraftClearsSelectionAndOpensEditor() {
+        val selected = memo("memo-3")
+        val state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true),
+        )
+
+        val opened = state.beginNewEditorDraft(
+            draftContent = "新内容",
+            draftEntryDate = "2026-08-02",
+        )
+
+        assertNull(opened.selection.selectedMemo)
+        assertFalse(opened.summary.loading)
+        assertEquals("新内容", opened.editor.draftContent)
+        assertEquals("2026-08-02", opened.editor.draftEntryDate)
+        assertEquals(1, opened.editor.sessionId)
+    }
+
+    @Test
+    fun beginMemoEditorKeepsSelectionAndOpensDraft() {
+        val selected = memo("memo-4")
+        val opened = RecordsFeatureStateHolder().beginMemoEditor(
+            memo = selected,
+            draftContent = "编辑中",
+            draftEntryDate = selected.entryDate,
+            initialDraftContent = selected.content,
+            initialDraftEntryDate = selected.entryDate,
+            summaryLoading = true,
+        )
+
+        assertEquals(selected, opened.selection.selectedMemo)
+        assertTrue(opened.summary.loading)
+        assertEquals("编辑中", opened.editor.draftContent)
+        assertEquals(selected.content, opened.editor.initialDraftContent)
+    }
+
     @Test
     fun clearInteractiveSurfaceResetsListMutationSelectionSummaryUploadAndSearch() {
         val selected = memo("memo-1")

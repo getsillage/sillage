@@ -1,6 +1,7 @@
 package app.sillage.features.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 
 /**
  * Aggregated immutable ownership for the records feature.
@@ -58,6 +59,82 @@ data class RecordsFeatureStateHolder(
             summary = summary.replacePresentation(null, loading = false),
             editor = editor.stopAttachmentUpload(),
             search = search.clear(),
+        )
+    }
+
+    /**
+     * Clears selected-memo presentation when leaving detail/editor destinations.
+     * Optionally stops an in-flight attachment upload or resets the editor draft.
+     */
+    fun clearPresentedMemo(
+        stopAttachmentUpload: Boolean = false,
+        resetEditorEntryDate: String? = null,
+    ): RecordsFeatureStateHolder {
+        val nextEditor = when {
+            resetEditorEntryDate != null -> editor.reset(resetEditorEntryDate)
+            stopAttachmentUpload -> editor.stopAttachmentUpload()
+            else -> editor
+        }
+        return copy(
+            selection = selection.clear(),
+            summary = summary.replacePresentation(null, loading = false),
+            editor = nextEditor,
+        )
+    }
+
+    /**
+     * Selects [memo] and replaces summary presentation for detail/editor hosts.
+     */
+    fun presentMemo(
+        memo: Memo,
+        summary: MemoAI? = null,
+        summaryLoading: Boolean = false,
+    ): RecordsFeatureStateHolder {
+        return copy(
+            selection = selection.select(memo),
+            summary = this.summary.replacePresentation(summary, summaryLoading),
+        )
+    }
+
+    /**
+     * Opens a new or duplicated editor draft without a selected memo.
+     */
+    fun beginNewEditorDraft(
+        draftContent: String,
+        draftEntryDate: String,
+        initialDraftContent: String = "",
+        initialDraftEntryDate: String = draftEntryDate,
+    ): RecordsFeatureStateHolder {
+        val cleared = clearPresentedMemo()
+        return cleared.copy(
+            editor = cleared.editor.open(
+                draftContent = draftContent,
+                draftEntryDate = draftEntryDate,
+                initialDraftContent = initialDraftContent,
+                initialDraftEntryDate = initialDraftEntryDate,
+            ),
+        )
+    }
+
+    /**
+     * Opens the editor for an existing memo while keeping that memo selected.
+     */
+    fun beginMemoEditor(
+        memo: Memo,
+        draftContent: String,
+        draftEntryDate: String,
+        initialDraftContent: String,
+        initialDraftEntryDate: String,
+        summaryLoading: Boolean = false,
+    ): RecordsFeatureStateHolder {
+        val presented = presentMemo(memo, summaryLoading = summaryLoading)
+        return presented.copy(
+            editor = presented.editor.open(
+                draftContent = draftContent,
+                draftEntryDate = draftEntryDate,
+                initialDraftContent = initialDraftContent,
+                initialDraftEntryDate = initialDraftEntryDate,
+            ),
         )
     }
 

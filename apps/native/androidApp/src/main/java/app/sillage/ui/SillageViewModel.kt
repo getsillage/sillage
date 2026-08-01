@@ -1005,15 +1005,11 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.copy(
-                    selection = it.records.selection.clear(),
-                    summary = it.records.summary.replacePresentation(null, loading = false),
-                    editor = it.records.editor.open(
+                records = it.records.beginNewEditorDraft(
                     draftContent = restored?.content ?: "",
                     draftEntryDate = restored?.entryDate?.ifBlank { today } ?: today,
                     initialDraftContent = "",
                     initialDraftEntryDate = today,
-                ),
                 ),
                 error = null,
                 notice = null,
@@ -1028,12 +1024,10 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.MemoDetail,
                 screenHistory = it.historyFor(Screen.MemoDetail),
-                records = it.records.copy(
-                    selection = it.records.selection.select(memo),
-                    summary = it.records.summary.replacePresentation(
-                    null,
-                    loading = !isOfflineMode(),
-                ),
+                records = it.records.presentMemo(
+                    memo = memo,
+                    summaryLoading = !isOfflineMode(),
+                ).copy(
                     editor = it.records.editor.setMarkdownPreview(false),
                 ),
                 error = null,
@@ -1062,15 +1056,11 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.copy(
-                    selection = it.records.selection.clear(),
-                    summary = it.records.summary.replacePresentation(null, loading = false),
-                    editor = it.records.editor.open(
+                records = it.records.beginNewEditorDraft(
                     draftContent = memo.content,
                     draftEntryDate = today,
                     initialDraftContent = "",
                     initialDraftEntryDate = today,
-                ),
                 ),
                 error = null,
                 notice = null,
@@ -1239,11 +1229,8 @@ class SillageViewModel(
             updateState {
             it.copy(
                 themeMode = result.themeMode,
-                records = it.records.copy(
+                records = it.records.clearPresentedMemo(stopAttachmentUpload = true).copy(
                     browse = it.records.browse.copy(viewMode = result.memoViewMode),
-                    selection = it.records.selection.clear(),
-                    summary = it.records.summary.replacePresentation(null, loading = false),
-                    editor = it.records.editor.stopAttachmentUpload(),
                     search = it.records.search.clear(),
                 ),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(result.aiProfiles),
@@ -1559,12 +1546,15 @@ class SillageViewModel(
                     it.copy(
                         screen = Screen.MemoDetail,
                         screenHistory = history,
-                        records = it.records.copy(
-                            selection = it.records.selection.select(saved),
-                            summary = it.records.summary.replacePresentation(
-                            if (current.selectedMemo?.id == saved.id) it.selectedSummary else null,
-                            loading = current.appMode != SessionStore.MODE_OFFLINE,
-                        ),
+                        records = it.records.presentMemo(
+                            memo = saved,
+                            summary = if (current.selectedMemo?.id == saved.id) {
+                                it.selectedSummary
+                            } else {
+                                null
+                            },
+                            summaryLoading = current.appMode != SessionStore.MODE_OFFLINE,
+                        ).copy(
                             editor = it.records.editor.reset(LocalDate.now().toString()),
                             search = it.records.search.clear(),
                         ),
@@ -1617,10 +1607,9 @@ class SillageViewModel(
                     it.copy(
                         screen = Screen.Memos,
                         screenHistory = emptyList(),
-                        records = it.records.copy(
-                            selection = it.records.selection.clear(),
-                            summary = it.records.summary.replacePresentation(null, loading = false),
-                            editor = it.records.editor.reset(LocalDate.now().toString()),
+                        records = it.records.clearPresentedMemo(
+                            resetEditorEntryDate = LocalDate.now().toString(),
+                        ).copy(
                             search = it.records.search.clear(),
                         ),
                         notice = uiString(R.string.notice_deleted),
@@ -2954,15 +2943,13 @@ class SillageViewModel(
                         current.copy(
                             screen = Screen.MemoDetail,
                             screenHistory = current.historyFor(Screen.MemoDetail),
-                            records = current.records.copy(
-                                selection = current.records.selection.select(memo),
-                                summary = current.records.summary.replacePresentation(
-                            null,
-                            loading = request.appMode != SessionStore.MODE_OFFLINE,
-                        ),
+                            records = current.records.presentMemo(
+                                memo = memo,
+                                summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+                            ).copy(
                                 editor = current.records.editor
-                            .stopAttachmentUpload()
-                            .setMarkdownPreview(false),
+                                    .stopAttachmentUpload()
+                                    .setMarkdownPreview(false),
                             ),
                             error = null,
                             notice = uiString(R.string.notice_ask_saved_record),
@@ -3016,20 +3003,19 @@ class SillageViewModel(
                 current.copy(
                     screen = Screen.MemoDetail,
                     screenHistory = request.destinationHistory(),
-                    records = current.records.copy(
+                    records = current.records.presentMemo(
+                        memo = detail.memo,
+                        summary = detail.ai,
+                        summaryLoading = false,
+                    ).copy(
                         collection = current.records.collection.replace(cached),
                         search = current.records.search.mergeResultMemo(
-                                detail.memo,
-                                current.memoListFilter,
-                            ),
-                        selection = current.records.selection.select(detail.memo),
-                        summary = current.records.summary.replacePresentation(
-                                detail.ai,
-                                loading = false,
-                            ),
+                            detail.memo,
+                            current.memoListFilter,
+                        ),
                         editor = current.records.editor
-                                .stopAttachmentUpload()
-                                .setMarkdownPreview(false),
+                            .stopAttachmentUpload()
+                            .setMarkdownPreview(false),
                     ),
                     askSourceNavigation = current.askSourceNavigation.finish(request)
                                 ?: return@updateState current,
@@ -3061,11 +3047,7 @@ class SillageViewModel(
             it.copy(
                 screen = navigation.screen,
                 screenHistory = navigation.history,
-                records = it.records.copy(
-                    selection = it.records.selection.clear(),
-                    summary = it.records.summary.replacePresentation(null, loading = false),
-                    editor = it.records.editor.stopAttachmentUpload(),
-                ),
+                records = it.records.clearPresentedMemo(stopAttachmentUpload = true),
                 error = null,
                 notice = null,
             )
@@ -4134,18 +4116,13 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.copy(
-                    selection = it.records.selection.select(memo),
-                    summary = it.records.summary.replacePresentation(
-                    null,
-                    loading = !isOfflineMode(),
-                ),
-                    editor = it.records.editor.open(
+                records = it.records.beginMemoEditor(
+                    memo = memo,
                     draftContent = restored?.content ?: memo.content,
                     draftEntryDate = restored?.entryDate?.ifBlank { memo.entryDate } ?: memo.entryDate,
                     initialDraftContent = memo.content,
                     initialDraftEntryDate = memo.entryDate,
-                ),
+                    summaryLoading = !isOfflineMode(),
                 ),
                 error = null,
                 notice = null,

@@ -25,7 +25,19 @@ import androidx.compose.ui.unit.dp
 import app.sillage.features.settings.SettingsFeatureStateHolder
 import app.sillage.features.settings.editorKey
 
-private const val AnthropicProvider = "anthropic"
+internal const val SillageAnthropicProvider = "anthropic"
+internal const val SillageOpenAIProvider = "openai"
+internal val SillageAIProviderOptions = listOf(SillageAnthropicProvider, SillageOpenAIProvider)
+
+internal fun sillageAIProviderLabel(
+    provider: String,
+    anthropicCompatible: String,
+    openAICompatible: String,
+) = if (provider.equals(SillageAnthropicProvider, ignoreCase = true)) {
+    anthropicCompatible
+} else {
+    openAICompatible
+}
 
 data class SillageAIProfileSummaryStrings(
     val unnamedProfile: String,
@@ -179,11 +191,11 @@ internal fun sillageAIProfileSummaryPresentation(
     val profile = state.profiles[profileIndex]
     return SillageAIProfileSummaryPresentation(
         name = profile.name.ifBlank { strings.unnamedProfile },
-        providerLabel = if (profile.provider.equals(AnthropicProvider, ignoreCase = true)) {
-            strings.anthropicCompatible
-        } else {
-            strings.openAICompatible
-        },
+        providerLabel = sillageAIProviderLabel(
+            provider = profile.provider,
+            anthropicCompatible = strings.anthropicCompatible,
+            openAICompatible = strings.openAICompatible,
+        ),
         model = profile.model.ifBlank { strings.modelUnset },
         keyStatus = if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) {
             strings.keyPresent

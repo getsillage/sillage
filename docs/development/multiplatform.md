@@ -139,8 +139,10 @@ client-context mutation gates.
 The buildable `shared-ui:settings` module begins with AI profile summary cards.
 It consumes `SettingsFeatureStateHolder` directly for editable profile metadata,
 diagnostics feedback, selection colors, fallbacks, and action-enabled policy.
-Hosts supply localized strings, selection state, and callbacks; persistence,
-protocol clients, native dialogs, and file pickers remain platform adapters.
+Its detail editor also consumes draft fields, model results, and diagnostic
+request state while owning provider selection and deletion confirmation. Hosts
+supply localized strings, selection state, and callbacks; persistence, protocol
+clients, native dialogs, and file pickers remain platform adapters.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

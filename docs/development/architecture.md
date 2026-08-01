@@ -155,7 +155,9 @@ The same module consumes the auth aggregate for settings password-change drafts
 and request state; Android supplies account metadata and client-context gating.
 `shared-ui:settings` consumes `SettingsFeatureStateHolder` directly for AI profile
 summary cards, including diagnostics feedback and profile/action presentation.
-Android supplies localized strings, selection state, and ViewModel callbacks.
+The same module owns AI profile detail editing, provider selection, model-result
+chips, connection feedback, and delete confirmation. Android supplies localized
+strings, selection state, and ViewModel callbacks while retaining adapters.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

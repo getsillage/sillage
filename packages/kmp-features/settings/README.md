@@ -44,4 +44,6 @@ validation. Storage and REST remain platform adapters behind
 
 The buildable `shared-ui:settings` module directly consumes
 `SettingsFeatureStateHolder` for AI profile summary and diagnostics presentation;
-hosts retain localized resources, callbacks, persistence, and protocol adapters.
+the shared detail editor also reads profile drafts, model results, and test state
+from the aggregate. Hosts retain localized resources, callbacks, persistence,
+and protocol adapters.

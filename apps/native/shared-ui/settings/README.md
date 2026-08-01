@@ -6,6 +6,9 @@ and macOS hosts.
 `SillageAIProfileSummaryCard` consumes `SettingsFeatureStateHolder` directly for
 AI profile drafts and diagnostics feedback. It owns profile-name, provider,
 model, API-key, default-profile, selection-color, and action-enabled presentation.
+`SillageAIProfileDetailCard` consumes the same aggregate for editable fields,
+model discovery, connection-test feedback, provider selection, and deletion
+confirmation while exposing host callbacks for mutations and operations.
 
 Hosts supply localized strings, selection state, and callbacks. Protocol clients,
 encrypted key persistence, file pickers, native dialogs, navigation, and platform

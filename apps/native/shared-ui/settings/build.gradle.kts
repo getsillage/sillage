@@ -7,6 +7,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":kmp-features:settings"))
+            implementation(project(":shared-ui:design-system"))
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.runtime)

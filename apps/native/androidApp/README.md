@@ -99,6 +99,8 @@ The settings account section also comes from `shared-ui:auth`; Android supplies
 the account summary, localized strings, mutation gate, icon, and callbacks.
 AI profile summary cards come from `shared-ui:settings` and consume the settings
 feature aggregate directly; Android supplies localized strings and callbacks.
+AI profile detail editing also comes from that module; Android retains ViewModel
+event routing plus encrypted persistence and remote/local protocol adapters.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

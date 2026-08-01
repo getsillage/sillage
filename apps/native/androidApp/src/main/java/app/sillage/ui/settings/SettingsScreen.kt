@@ -3,7 +3,6 @@ package app.sillage.ui.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
@@ -37,22 +35,14 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SettingsEthernet
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.UploadFile
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -74,15 +64,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.features.settings.AIProfileDraft
 import app.sillage.features.settings.editorKey
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
@@ -98,12 +85,11 @@ import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.settings.SillageAIProfileDetailCard
+import app.sillage.ui.settings.SillageAIProfileDetailStrings
 import app.sillage.ui.settings.SillageAIProfileSummaryCard
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 
-private const val AI_PROVIDER_ANTHROPIC = "anthropic"
-private const val AI_PROVIDER_OPENAI = "openai"
-private val AI_PROVIDER_OPTIONS = listOf(AI_PROVIDER_ANTHROPIC, AI_PROVIDER_OPENAI)
 internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
 
@@ -389,8 +375,6 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].editorKey(index) }) { index ->
-                            val profile = state.aiProfiles[index]
-                            val profileKey = profile.editorKey(index)
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SillageAIProfileSummaryCard(
                                     state = state.settings,
@@ -419,16 +403,60 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     onSetDefault = { viewModel.setAIProfileDefault(index) },
                                 )
                                 if (selectedIndex == index) {
-                                    AIProfileDetailCard(
-                                        index = index,
-                                        profile = profile,
-                                        testing = state.aiTestingProfileId == profileKey,
-                                        loadingModels = state.aiLoadingModelsProfileId == profileKey,
-                                        modelOptions = state.aiModelResults[profileKey].orEmpty(),
-                                        testResult = state.aiTestResults[profileKey],
+                                    SillageAIProfileDetailCard(
+                                        state = state.settings,
+                                        profileIndex = index,
+                                        strings = SillageAIProfileDetailStrings(
+                                            title = stringResource(R.string.settings_profile_details),
+                                            supporting = stringResource(
+                                                R.string.settings_profile_details_supporting,
+                                            ),
+                                            collapse = stringResource(R.string.action_collapse),
+                                            nameLabel = stringResource(R.string.settings_profile_name),
+                                            providerLabel = stringResource(R.string.settings_provider),
+                                            anthropicCompatible = stringResource(
+                                                R.string.settings_provider_anthropic_compatible,
+                                            ),
+                                            openAICompatible = stringResource(
+                                                R.string.settings_provider_openai_compatible,
+                                            ),
+                                            baseUrlLabel = stringResource(R.string.settings_base_url),
+                                            modelLabel = stringResource(R.string.settings_model),
+                                            modelsLoading = stringResource(R.string.settings_models_loading),
+                                            getModels = stringResource(R.string.settings_models_get),
+                                            temperatureLabel = stringResource(R.string.settings_temperature),
+                                            maxTokensLabel = stringResource(R.string.settings_max_tokens),
+                                            apiKeyLabel = stringResource(R.string.settings_api_key),
+                                            keepApiKey = stringResource(R.string.settings_key_keep),
+                                            apiKeyNotConfigured = stringResource(
+                                                R.string.settings_key_not_configured,
+                                            ),
+                                            keyDecryptError = stringResource(
+                                                R.string.settings_key_decrypt_error,
+                                            ),
+                                            testing = stringResource(R.string.settings_test_testing),
+                                            testConnection = stringResource(
+                                                R.string.settings_test_connection,
+                                            ),
+                                            confirmDelete = stringResource(R.string.action_confirm_delete),
+                                            delete = stringResource(R.string.action_delete),
+                                        ),
                                         editingBlocked = aiProfileOperationInProgress,
                                         mutationBlocked = aiProfileMutationBlocked,
-                                        viewModel = viewModel,
+                                        onNameChange = { viewModel.updateAIProfileName(index, it) },
+                                        onProviderChange = { viewModel.updateAIProfileProvider(index, it) },
+                                        onBaseUrlChange = { viewModel.updateAIProfileBaseUrl(index, it) },
+                                        onModelChange = { viewModel.updateAIProfileModel(index, it) },
+                                        onLoadModels = { viewModel.loadAIModels(index) },
+                                        onTemperatureChange = {
+                                            viewModel.updateAIProfileTemperature(index, it)
+                                        },
+                                        onMaxTokensChange = {
+                                            viewModel.updateAIProfileMaxTokens(index, it)
+                                        },
+                                        onApiKeyChange = { viewModel.updateAIProfileApiKey(index, it) },
+                                        onTestConnection = { viewModel.testAIProfile(index) },
+                                        onDelete = { viewModel.removeAIProfile(index) },
                                         onClose = { selectedAIProfileIndex = null },
                                     )
                                 }
@@ -671,218 +699,6 @@ private fun SettingsLanguageRow(
                     label = {
                         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun aiProviderProtocolLabel(provider: String): String {
-    val label = if (provider.equals(AI_PROVIDER_ANTHROPIC, ignoreCase = true)) {
-        R.string.settings_provider_anthropic_compatible
-    } else {
-        R.string.settings_provider_openai_compatible
-    }
-    return stringResource(label)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AIProfileDetailCard(
-    index: Int,
-    profile: AIProfileDraft,
-    testing: Boolean,
-    loadingModels: Boolean,
-    modelOptions: List<String>,
-    testResult: String?,
-    editingBlocked: Boolean,
-    mutationBlocked: Boolean,
-    viewModel: SillageViewModel,
-    onClose: () -> Unit,
-) {
-    val profileKey = profile.editorKey(index)
-    var confirmingDelete by remember(profileKey) { mutableStateOf(false) }
-    var providerMenuExpanded by remember(profileKey) { mutableStateOf(false) }
-    val controlsEnabled = !editingBlocked && !testing && !loadingModels
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_profile_details),
-                        modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        stringResource(R.string.settings_profile_details_supporting),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-                TextButton(onClick = onClose) {
-                    Text(stringResource(R.string.action_collapse))
-                }
-            }
-            OutlinedTextField(
-                value = profile.name,
-                onValueChange = { viewModel.updateAIProfileName(index, it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.settings_profile_name)) },
-                enabled = controlsEnabled,
-            )
-            ExposedDropdownMenuBox(
-                expanded = providerMenuExpanded,
-                onExpandedChange = { expanded ->
-                    providerMenuExpanded = controlsEnabled && expanded
-                },
-            ) {
-                OutlinedTextField(
-                    value = aiProviderProtocolLabel(profile.provider),
-                    onValueChange = {},
-                    modifier = Modifier
-                        .menuAnchor(
-                            type = MenuAnchorType.PrimaryNotEditable,
-                            enabled = controlsEnabled,
-                        )
-                        .fillMaxWidth(),
-                    readOnly = true,
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_provider)) },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerMenuExpanded)
-                    },
-                    enabled = controlsEnabled,
-                )
-                ExposedDropdownMenu(
-                    expanded = providerMenuExpanded,
-                    onDismissRequest = { providerMenuExpanded = false },
-                ) {
-                    AI_PROVIDER_OPTIONS.forEach { provider ->
-                        DropdownMenuItem(
-                            text = { Text(aiProviderProtocolLabel(provider)) },
-                            enabled = controlsEnabled,
-                            onClick = {
-                                viewModel.updateAIProfileProvider(index, provider)
-                                providerMenuExpanded = false
-                            },
-                        )
-                    }
-                }
-            }
-            OutlinedTextField(
-                value = profile.baseUrl,
-                onValueChange = { viewModel.updateAIProfileBaseUrl(index, it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.settings_base_url)) },
-                enabled = controlsEnabled,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = profile.model,
-                    onValueChange = { viewModel.updateAIProfileModel(index, it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_model)) },
-                    enabled = controlsEnabled,
-                )
-                TextButton(
-                    onClick = { viewModel.loadAIModels(index) },
-                    enabled = controlsEnabled,
-                ) {
-                    Text(stringResource(if (loadingModels) R.string.settings_models_loading else R.string.settings_models_get))
-                }
-            }
-            if (modelOptions.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    modelOptions.forEach { model ->
-                        AssistChip(
-                            onClick = { viewModel.updateAIProfileModel(index, model) },
-                            label = { Text(model, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            enabled = controlsEnabled,
-                        )
-                    }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = profile.temperatureInput,
-                    onValueChange = { viewModel.updateAIProfileTemperature(index, it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_temperature)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    enabled = controlsEnabled,
-                )
-                OutlinedTextField(
-                    value = profile.maxTokensInput,
-                    onValueChange = { viewModel.updateAIProfileMaxTokens(index, it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_max_tokens)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    enabled = controlsEnabled,
-                )
-            }
-            OutlinedTextField(
-                value = profile.apiKeyInput,
-                onValueChange = { viewModel.updateAIProfileApiKey(index, it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.settings_api_key)) },
-                placeholder = {
-                    Text(stringResource(if (profile.hasApiKey) R.string.settings_key_keep else R.string.settings_key_not_configured))
-                },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                enabled = controlsEnabled,
-            )
-            if (profile.keyUnavailable) {
-                Text(
-                    stringResource(R.string.settings_key_decrypt_error),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.testAIProfile(index) }, enabled = controlsEnabled) {
-                    Text(stringResource(if (testing) R.string.settings_test_testing else R.string.settings_test_connection))
-                }
-                TextButton(
-                    onClick = {
-                        if (confirmingDelete) {
-                            confirmingDelete = false
-                            if (viewModel.removeAIProfile(index)) {
-                                onClose()
-                            }
-                        } else {
-                            confirmingDelete = true
-                        }
-                    },
-                    enabled = controlsEnabled && !mutationBlocked,
-                ) {
-                    Text(stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete))
-                }
-            }
-            if (testResult != null) {
-                Text(
-                    testResult,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }

@@ -1,5 +1,8 @@
 package app.sillage.data
 
+import app.sillage.core.application.records.AttachmentUploadCommand
+import app.sillage.core.application.records.UploadedAttachment
+
 import app.sillage.core.application.auth.AuthSession
 import app.sillage.core.application.auth.BootstrapInfo
 import app.sillage.core.application.records.RecordDetail
@@ -364,7 +367,7 @@ class SillageApi(
         return parseMemoAI(execute(request).getJSONObject("ai"))
     }
 
-    suspend fun uploadAttachment(input: AttachmentUpload): Attachment {
+    suspend fun uploadAttachment(input: AttachmentUploadCommand): UploadedAttachment {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("mutation_id", UUID.randomUUID().toString())
@@ -978,8 +981,8 @@ class SillageApi(
         }
     }
 
-    private fun parseAttachment(body: JSONObject): Attachment {
-        return Attachment(
+    private fun parseAttachment(body: JSONObject): UploadedAttachment {
+        return UploadedAttachment(
             uid = body.getString("uid"),
             url = body.getString("url"),
             filename = body.getString("filename"),

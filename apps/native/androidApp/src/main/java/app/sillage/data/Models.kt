@@ -3,6 +3,7 @@ package app.sillage.data
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
+import app.sillage.core.application.records.UploadedAttachment
 import app.sillage.features.settings.AIProfileDraft
 import org.json.JSONArray
 import java.time.DayOfWeek
@@ -12,21 +13,6 @@ import java.time.YearMonth
 data class MemoPage(
     val memos: List<Memo>,
     val nextCursor: String,
-)
-
-data class Attachment(
-    val uid: String,
-    val url: String,
-    val filename: String,
-    val contentType: String,
-    val size: Long,
-    val sha256: String?,
-)
-
-data class AttachmentUpload(
-    val filename: String,
-    val contentType: String,
-    val bytes: ByteArray,
 )
 
 data class AIProfileInput(
@@ -82,7 +68,7 @@ private fun firstWeekday(day: DayOfWeek, firstDayOfWeek: DayOfWeek): Int {
     return (day.value - firstDayOfWeek.value + 7) % 7
 }
 
-fun attachmentMarkdown(attachment: Attachment): String {
+fun attachmentMarkdown(attachment: UploadedAttachment): String {
     return if (attachment.contentType.startsWith("image/")) {
         "\n![${attachment.filename}](${attachment.url})\n"
     } else {

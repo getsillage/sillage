@@ -287,6 +287,10 @@ retains platform date arithmetic and refresh scheduling.
 invalidation so late staging or viewer events cannot cross navigation context.
 Android retains authenticated download, cache/content-URI staging, MIME mapping,
 and native viewer launch.
+Remote upload crosses `AttachmentUploadRepository` through
+`UploadAttachmentUseCase`; the shared command/result contain only content and
+canonical metadata, while multipart encoding and response parsing remain in the
+Android adapter.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,

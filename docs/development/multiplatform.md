@@ -240,7 +240,10 @@ local or remote AI execution adapters.
 Records editor is the sixth extracted state slice. Its shared holder owns editor
 session identity, draft and initial snapshots, dirty state, Markdown preview,
 and attachment-upload request ownership. Android retains SavedStateHandle draft
-restoration, content-URI access, and local or remote attachment execution.
+restoration and content-URI access. Remote uploads cross
+`AttachmentUploadRepository` and `UploadAttachmentUseCase`; Android maps the
+shared byte command to multipart HTTP while uploaded metadata remains
+platform-neutral.
 
 Records mutation is the seventh extracted state slice. Its shared holder owns
 the active record identities used by concurrent mutation presentation state;

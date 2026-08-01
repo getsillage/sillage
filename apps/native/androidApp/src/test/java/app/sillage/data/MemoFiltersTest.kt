@@ -9,6 +9,7 @@ import app.sillage.core.domain.ask.AskSourceRef
 
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.isActive
+import app.sillage.core.application.records.UploadedAttachment
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.activeMemos
 import app.sillage.features.records.calendarMemoCoverage
@@ -404,8 +405,8 @@ class MemoFiltersTest {
         )
     }
 
-    private fun attachment(filename: String, contentType: String): Attachment {
-        return Attachment(
+    private fun attachment(filename: String, contentType: String): UploadedAttachment {
+        return UploadedAttachment(
             uid = "a",
             url = "/file/attachments/a/$filename",
             filename = filename,

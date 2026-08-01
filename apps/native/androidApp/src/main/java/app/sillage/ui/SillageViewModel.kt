@@ -14,7 +14,6 @@ import app.sillage.R
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
-import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalAIAutoSummaryRepository
@@ -36,6 +35,7 @@ import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAskAnswerStreamer
 import app.sillage.data.RemoteAuthenticationRepository
+import app.sillage.data.RemoteAttachmentUploadRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteAISettingsRepository
@@ -43,6 +43,8 @@ import app.sillage.data.RemoteAIProfileDiagnostics
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
+import app.sillage.core.application.records.AttachmentUploadCommand
+import app.sillage.core.application.records.UploadAttachmentUseCase
 import app.sillage.core.application.auth.ChangePasswordCommand
 import app.sillage.core.application.auth.ChangePasswordUseCase
 import app.sillage.core.application.auth.GetCurrentAccountUseCase
@@ -205,6 +207,9 @@ class SillageViewModel(
     private val getCurrentRemoteAccount = GetCurrentAccountUseCase(remoteAuthenticationRepository)
     private val changeRemotePassword = ChangePasswordUseCase(remoteAuthenticationRepository)
     private val signOutUseCase = SignOutUseCase(remoteAuthenticationRepository)
+    private val uploadRemoteAttachment = UploadAttachmentUseCase(
+        RemoteAttachmentUploadRepository(api),
+    )
     private val remoteAIProfileDiagnostics = RemoteAIProfileDiagnostics(api)
     private val testRemoteAIProfile =
         TestAIProfileConnectionUseCase(remoteAIProfileDiagnostics)
@@ -1929,7 +1934,7 @@ class SillageViewModel(
                         localAttachmentMarkdown(pending)
                     } else {
                         val upload = readAttachmentUpload(uri)
-                        attachmentMarkdown(api.uploadAttachment(upload))
+                        attachmentMarkdown(uploadRemoteAttachment(upload))
                     }
                 }.getOrElse { error ->
                     if (error is CancellationException) {
@@ -3120,7 +3125,9 @@ class SillageViewModel(
         }
     }
 
-    private suspend fun readAttachmentUpload(uri: Uri): AttachmentUpload = withContext(Dispatchers.IO) {
+    private suspend fun readAttachmentUpload(
+        uri: Uri,
+    ): AttachmentUploadCommand = withContext(Dispatchers.IO) {
         val resolver = appContext.contentResolver
         val filename = displayName(uri).ifBlank { uri.lastPathSegment ?: "attachment" }
         // Reject oversized files before materializing them in memory.
@@ -3138,7 +3145,7 @@ class SillageViewModel(
                 uiString(R.string.error_attachment_too_large, filename, MAX_ATTACHMENT_UPLOAD_MB),
             )
         }
-        AttachmentUpload(
+        AttachmentUploadCommand(
             filename = filename,
             contentType = contentType,
             bytes = bytes,
@@ -3473,8 +3480,8 @@ class SillageViewModel(
                 continue
             }
             val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-            val uploaded = api.uploadAttachment(
-                AttachmentUpload(
+            val uploaded = uploadRemoteAttachment(
+                AttachmentUploadCommand(
                     filename = item.filename,
                     contentType = item.contentType,
                     bytes = bytes,

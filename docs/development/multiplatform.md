@@ -129,6 +129,9 @@ platform adapters alone serialize encrypted keys or map save/test commands.
 optimistic save, rollback, request identity, and client-context validation.
 Android's root state exposes transitional profile accessors while composing this
 holder directly.
+`AISettingsLoadStateHolder` separately owns settings-load progress, durable retry
+failure, and stale-response rejection. Load and profile-mutation starts cancel
+the opposite lifecycle instead of sharing an ambiguous request counter.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

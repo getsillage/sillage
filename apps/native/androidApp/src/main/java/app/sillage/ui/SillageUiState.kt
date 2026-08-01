@@ -58,6 +58,9 @@ import app.sillage.features.settings.AIProfileDraft
 import app.sillage.features.settings.AIProfilesMutationContext
 import app.sillage.features.settings.AIProfilesMutationRequest
 import app.sillage.features.settings.AIProfilesMutationStateHolder
+import app.sillage.features.settings.AISettingsLoadContext
+import app.sillage.features.settings.AISettingsLoadRequest
+import app.sillage.features.settings.AISettingsLoadStateHolder
 import java.time.LocalDate
 
 data class SillageUiState(
@@ -86,8 +89,7 @@ data class SillageUiState(
         RecordsAttachmentOpenStateHolder(),
     val aiProfilesMutation: AIProfilesMutationStateHolder = AIProfilesMutationStateHolder(),
     val aiAutoSummaryState: AIAutoSummaryStateHolder = AIAutoSummaryStateHolder(),
-    val aiSettingsLoading: Boolean = false,
-    val aiSettingsLoadError: String? = null,
+    val aiSettingsLoad: AISettingsLoadStateHolder = AISettingsLoadStateHolder(),
     val aiTestingProfileId: String = "",
     val aiLoadingModelsProfileId: String = "",
     val aiTestResults: Map<String, String> = emptyMap(),
@@ -190,6 +192,8 @@ data class SillageUiState(
     val aiProfiles: List<AIProfileDraft> get() = aiProfilesMutation.profiles
     val aiSettingsSaving: Boolean get() = aiProfilesMutation.saving
     val aiSettingsRequestId: Long get() = aiProfilesMutation.requestId
+    val aiSettingsLoading: Boolean get() = aiSettingsLoad.loading
+    val aiSettingsLoadError: String? get() = aiSettingsLoad.errorMessage
 }
 
 /**
@@ -482,8 +486,7 @@ internal fun SillageUiState.startAIProfilesMutation(
     val started = aiProfilesMutation.begin(request, aiProfilesMutationContext()) ?: return this
     return copy(
         aiProfilesMutation = started,
-        aiSettingsLoading = false,
-        aiSettingsLoadError = null,
+        aiSettingsLoad = aiSettingsLoad.cancel(),
     )
 }
 
@@ -520,6 +523,50 @@ private fun SillageUiState.aiProfilesMutationContext(): AIProfilesMutationContex
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
         anotherOperationInProgress = loading || aiSettingsLoading || aiAutoSummarySaving,
+    )
+}
+
+internal fun SillageUiState.nextAISettingsLoadRequest(): AISettingsLoadRequest? {
+    return aiSettingsLoad.nextRequest(aiSettingsLoadContext())
+}
+
+internal fun SillageUiState.startAISettingsLoad(
+    request: AISettingsLoadRequest,
+): SillageUiState {
+    val started = aiSettingsLoad.begin(request, aiSettingsLoadContext()) ?: return this
+    return copy(
+        aiSettingsLoad = started,
+        aiAutoSummaryState = aiAutoSummaryState.invalidate(),
+        aiProfilesMutation = aiProfilesMutation.invalidate(),
+    )
+}
+
+internal fun SillageUiState.canApplyAISettingsLoad(request: AISettingsLoadRequest): Boolean {
+    return aiSettingsLoad.canApply(request, aiSettingsLoadContext())
+}
+
+internal fun SillageUiState.completeAISettingsLoad(request: AISettingsLoadRequest): SillageUiState {
+    val completed = aiSettingsLoad.complete(request, aiSettingsLoadContext()) ?: return this
+    return copy(aiSettingsLoad = completed)
+}
+
+internal fun SillageUiState.failAISettingsLoad(
+    request: AISettingsLoadRequest,
+    message: String,
+): SillageUiState {
+    val failed = aiSettingsLoad.fail(request, message, aiSettingsLoadContext()) ?: return this
+    return copy(aiSettingsLoad = failed)
+}
+
+internal fun SillageUiState.invalidateAISettingsLoad(): SillageUiState {
+    return copy(aiSettingsLoad = aiSettingsLoad.cancel())
+}
+
+private fun SillageUiState.aiSettingsLoadContext(): AISettingsLoadContext {
+    return AISettingsLoadContext(
+        appMode = appMode,
+        clientContextGeneration = clientContextGeneration,
+        anotherOperationInProgress = loading || aiSettingsSaving || aiAutoSummarySaving,
     )
 }
 

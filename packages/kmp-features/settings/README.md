@@ -13,6 +13,10 @@ may keep editing presentation and load state outside this holder, but profile
 save callbacks cannot cross workspace or mode changes.
 Profile-name validation and active-profile normalization are shared save policy,
 so every native host submits the same enabled/default configuration.
+`AISettingsLoadStateHolder` owns load and retry presentation, request identity,
+and mode/client-context validation. Starting a load or profile mutation
+explicitly invalidates the other lifecycle so late responses cannot replace a
+newer editor snapshot.
 
 `AIAutoSummaryStateHolder` owns the independently saved automatic-summary
 preference, optimistic mutation, rollback, request identity, and client-context

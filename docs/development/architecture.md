@@ -164,6 +164,10 @@ metadata.
 profile-save state, rollback, and request ownership across mode or client-context
 changes. Android keeps transitional read accessors while all profile writes go
 through the shared holder.
+`AISettingsLoadStateHolder` owns load progress, retry failure, and request
+ownership independently from profile saves. The host explicitly cancels the
+opposite lifecycle when either begins, preventing stale loads from replacing a
+newer optimistic editor snapshot.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

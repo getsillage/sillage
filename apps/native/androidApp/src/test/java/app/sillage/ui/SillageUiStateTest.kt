@@ -744,7 +744,11 @@ class SillageUiStateTest {
         assertEquals(6L, invalidated.aiAutoSummaryRequestId)
         assertFalse(invalidated.canApplyAIAutoSummaryRequest(request))
         assertEquals(null, idle.nextAIAutoSummaryRequest(false))
-        assertEquals(null, idle.copy(aiSettingsLoading = true).nextAIAutoSummaryRequest(true))
+        assertEquals(
+            null,
+            idle.copy(aiSettingsLoad = idle.aiSettingsLoad.copy(loading = true))
+                .nextAIAutoSummaryRequest(true),
+        )
     }
 
     @Test

@@ -367,8 +367,7 @@ class SillageViewModel(
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
-                aiSettingsLoading = false,
-                aiSettingsLoadError = null,
+                aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),
@@ -412,8 +411,7 @@ class SillageViewModel(
                 recordsSummary = it.recordsSummary.replaceSummary(null),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
-                aiSettingsLoading = false,
-                aiSettingsLoadError = null,
+                aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),
@@ -823,8 +821,7 @@ class SillageViewModel(
                             aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(
                                 if (offlineMode) localDataStore.autoSummaryEnabled() else false,
                             ),
-                            aiSettingsLoading = false,
-                            aiSettingsLoadError = null,
+                            aiSettingsLoad = it.aiSettingsLoad.cancel(),
                             aiTestingProfileId = "",
                             aiLoadingModelsProfileId = "",
                             aiTestResults = emptyMap(),
@@ -2186,24 +2183,13 @@ class SillageViewModel(
 
     fun loadAISettings() {
         val current = state.value
-        if (current.aiSettingsLoading || current.aiSettingsSaving) {
-            return
-        }
-        val mode = current.appMode
-        val loadRequestId = current.aiSettingsRequestId + 1
+        val request = current.nextAISettingsLoadRequest() ?: return
         var started = false
         updateState { latest ->
-            if (
-                latest.appMode == mode &&
-                latest.aiSettingsRequestId == current.aiSettingsRequestId &&
-                !latest.aiSettingsLoading &&
-                !latest.aiSettingsSaving
-            ) {
+            val loading = latest.startAISettingsLoad(request)
+            if (loading.canApplyAISettingsLoad(request)) {
                 started = true
-                latest.invalidateAIAutoSummaryRequest().copy(
-                    aiSettingsLoading = true,
-                    aiSettingsLoadError = null,
-                    aiProfilesMutation = latest.aiProfilesMutation.invalidate(),
+                loading.copy(
                     error = null,
                     notice = null,
                 )
@@ -2217,7 +2203,7 @@ class SillageViewModel(
         cancelAIAutoSummarySave()
         viewModelScope.launch {
             runCatching {
-                val snapshot = if (mode == SessionStore.MODE_OFFLINE) {
+                val snapshot = if (request.appMode == SessionStore.MODE_OFFLINE) {
                     loadLocalAISettings()
                 } else {
                     loadRemoteAISettings()
@@ -2226,18 +2212,12 @@ class SillageViewModel(
             }
                 .onSuccess { settings ->
                     updateState { current ->
-                        if (
-                            current.appMode == mode &&
-                            current.aiSettingsRequestId == loadRequestId &&
-                            current.aiSettingsLoading
-                        ) {
-                            current.copy(
+                        if (current.canApplyAISettingsLoad(request)) {
+                            current.completeAISettingsLoad(request).copy(
                                 aiProfilesMutation = current.aiProfilesMutation.replace(settings.profiles),
                                 aiAutoSummaryState = current.aiAutoSummaryState.replace(
                                     settings.autoSummary,
                                 ),
-                                aiSettingsLoading = false,
-                                aiSettingsLoadError = null,
                                 aiTestResults = emptyMap(),
                                 aiModelResults = emptyMap(),
                                 error = null,
@@ -2249,15 +2229,9 @@ class SillageViewModel(
                 }
                 .onFailure { error ->
                     updateState { current ->
-                        if (
-                            current.appMode == mode &&
-                            current.aiSettingsRequestId == loadRequestId &&
-                            current.aiSettingsLoading
-                        ) {
+                        if (current.canApplyAISettingsLoad(request)) {
                             val message = error.readableMessage()
-                            current.copy(
-                                aiSettingsLoading = false,
-                                aiSettingsLoadError = message,
+                            current.failAISettingsLoad(request, message).copy(
                                 error = message,
                             )
                         } else {
@@ -3941,8 +3915,7 @@ class SillageViewModel(
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(aiProfiles),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
-                aiSettingsLoading = false,
-                aiSettingsLoadError = null,
+                aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),

@@ -13,8 +13,8 @@ import app.sillage.BuildConfig
 import app.sillage.R
 import app.sillage.data.Account
 import app.sillage.data.AIProfileDraft
-import app.sillage.data.AskConversation
-import app.sillage.data.AskMessage
+import app.sillage.core.domain.ask.AskConversation
+import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient

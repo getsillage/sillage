@@ -1,16 +1,13 @@
 package app.sillage.data
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.ask.AskMessage
+import app.sillage.core.domain.ask.AskSourceRef
+import app.sillage.core.domain.settings.AIProfile
 import org.json.JSONArray
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-
-typealias AIProfile = app.sillage.core.domain.settings.AIProfile
-typealias AISettings = app.sillage.core.domain.settings.AISettings
-typealias AskConversation = app.sillage.core.domain.ask.AskConversation
-typealias AskSourceRef = app.sillage.core.domain.ask.AskSourceRef
-typealias AskMessage = app.sillage.core.domain.ask.AskMessage
 
 data class Account(
     val id: String,

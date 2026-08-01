@@ -1,8 +1,13 @@
 package app.sillage.data
 
 import app.sillage.core.application.records.RecordDetail
+import app.sillage.core.domain.ask.AskConversation
+import app.sillage.core.domain.ask.AskMessage
+import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.core.domain.settings.AIProfile
+import app.sillage.core.domain.settings.AISettings
 import app.sillage.core.sync.AppliedMemoSync
 import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.sync.PendingMemoSync

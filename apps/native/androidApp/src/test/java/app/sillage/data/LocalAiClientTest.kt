@@ -1,5 +1,7 @@
 package app.sillage.data
 
+import app.sillage.core.domain.ask.AskMessage
+import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse

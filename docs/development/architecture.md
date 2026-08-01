@@ -106,8 +106,9 @@ entities. Remaining Android-local models are migration sources for later domain,
 application, or feature slices.
 
 Ask conversation/message/source-reference values and secret-free AI settings
-metadata also live in `kmp-core:domain`. Android retains temporary data-package
-type aliases while transport, persistence, and feature call sites migrate.
+metadata also live in `kmp-core:domain`. Android transport, persistence, feature,
+and test call sites import these values directly; UI drafts and API inputs remain
+adapter-side types.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

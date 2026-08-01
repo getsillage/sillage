@@ -2,8 +2,8 @@ package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
-import app.sillage.data.AskConversation
-import app.sillage.data.AskMessage
+import app.sillage.core.domain.ask.AskConversation
+import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo

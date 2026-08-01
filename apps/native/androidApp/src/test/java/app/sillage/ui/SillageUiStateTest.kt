@@ -1,7 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
-import app.sillage.data.AskMessage
+import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery

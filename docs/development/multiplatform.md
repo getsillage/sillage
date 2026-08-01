@@ -153,6 +153,8 @@ Its appearance section composes theme selection with that row while hosts map
 stored preference values and persistence callbacks.
 Its service/sync section owns mode-selection and conditional server/sync action
 composition while hosts retain navigation, client-context mutation, and protocols.
+Its data section owns import/export action presentation while hosts retain native
+file pickers, serialization, and storage adapters.
 Its overview card accepts localized mode, record-count, appearance, and AI values,
 leaving cross-feature state mapping in each host adapter.
 

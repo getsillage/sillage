@@ -72,6 +72,8 @@ import app.sillage.ui.settings.SillageAIProfilesEditorStrings
 import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
 import app.sillage.ui.settings.SillageSettingsAppearanceSection
 import app.sillage.ui.settings.SillageSettingsAppearanceStrings
+import app.sillage.ui.settings.SillageSettingsDataSection
+import app.sillage.ui.settings.SillageSettingsDataStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
 import app.sillage.ui.settings.SillageSettingsOverviewCard
@@ -344,25 +346,24 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onSyncBoth = viewModel::syncBothWays,
                     )
                 }
-                    item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
-            SillageSettingsActionRow(
-                                icon = Icons.Rounded.Download,
-                                title = stringResource(R.string.settings_export),
-                                supporting = stringResource(R.string.settings_export_supporting),
-                                onClick = { exportLauncher.launch("sillage-data.json") },
-                                enabled = !clientContextChangeBlocked,
-                            )
-            SillageSettingsActionRow(
-                                icon = Icons.Rounded.UploadFile,
-                                title = stringResource(R.string.settings_import),
-                                supporting = stringResource(R.string.settings_import_supporting),
-                                onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                                enabled = !clientContextChangeBlocked,
-                                showDivider = true,
-                            )
-                        }
-                    }
+                item {
+                    SillageSettingsDataSection(
+                        strings = SillageSettingsDataStrings(
+                            sectionTitle = stringResource(R.string.settings_section_data),
+                            exportTitle = stringResource(R.string.settings_export),
+                            exportSupporting = stringResource(R.string.settings_export_supporting),
+                            importTitle = stringResource(R.string.settings_import),
+                            importSupporting = stringResource(R.string.settings_import_supporting),
+                        ),
+                        exportIcon = Icons.Rounded.Download,
+                        importIcon = Icons.Rounded.UploadFile,
+                        enabled = !clientContextChangeBlocked,
+                        onExport = { exportLauncher.launch("sillage-data.json") },
+                        onImport = {
+                            importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                        },
+                    )
+                }
                     if (state.appMode == SessionStore.MODE_ONLINE) {
                         item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_account)) {

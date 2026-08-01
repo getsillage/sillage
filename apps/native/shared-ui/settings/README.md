@@ -17,6 +17,8 @@ presentation while hosts supply supported language identifiers and persistence.
 shared enable-state presentation.
 `SillageSettingsServiceSyncSection` owns online/offline selection and conditional
 server/sync action composition while hosts execute client-context operations.
+`SillageSettingsDataSection` owns import/export action layout and shared blocking;
+hosts retain native file pickers and serialization callbacks.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

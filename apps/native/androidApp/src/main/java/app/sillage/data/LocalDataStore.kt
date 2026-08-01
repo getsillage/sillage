@@ -15,6 +15,8 @@ import app.sillage.core.sync.SyncAISettingsSection
 import app.sillage.core.sync.SyncSnapshot
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.matchesListFilter
+import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.toDraft
 import java.io.File
 import java.time.Instant
 import java.util.UUID

@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import app.sillage.features.settings.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo

@@ -107,8 +107,9 @@ application, or feature slices.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,
-and test call sites import these values directly; UI drafts and API inputs remain
-adapter-side types.
+and test call sites import these values directly. Cross-platform AI profile
+editor drafts live in `kmp-features:settings`; platform API inputs, encrypted
+storage mapping, and transport DTOs remain adapter-side types.
 
 Ask conversation/message reads, conversation creation, and branch-head
 selection cross `AskRepository` and focused use cases in
@@ -146,6 +147,10 @@ REST mutation; the root ViewModel no longer selects those mechanisms directly.
 `packages/kmp-features/settings` owns `AIAutoSummaryStateHolder`, including
 optimistic mutation, rollback, and request ownership. Android supplies client
 context and user-facing feedback around the shared transition result.
+The module also owns `AIProfileDraft` and its editor-only identity, raw input,
+validation, and safe API-key reconciliation policy. Platform adapters must omit
+editor identity from persistence and must not expose secret input as domain
+metadata.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

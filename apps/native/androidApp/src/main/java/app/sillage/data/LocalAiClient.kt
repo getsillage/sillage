@@ -5,6 +5,7 @@ import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.core.domain.records.isActive
+import app.sillage.features.settings.AIProfileDraft
 import app.sillage.core.domain.ask.isActive
 import java.io.IOException
 import java.net.URL

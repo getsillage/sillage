@@ -3,7 +3,7 @@ package app.sillage.data
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
-import app.sillage.core.domain.settings.AIProfile
+import app.sillage.features.settings.AIProfileDraft
 import org.json.JSONArray
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -47,28 +47,6 @@ data class AttachmentUpload(
     val filename: String,
     val contentType: String,
     val bytes: ByteArray,
-)
-
-data class AIProfileDraft(
-    val id: String = "",
-    // Stable editor identity for unsaved profiles. Manual JSON/API mappings
-    // intentionally omit it so it never becomes part of a persistence contract.
-    val draftKey: String = "",
-    val name: String = "",
-    val provider: String = "anthropic",
-    val baseUrl: String = "",
-    val model: String = "",
-    val temperature: Double = 0.3,
-    val maxTokens: Long = 1000,
-    val enabled: Boolean = true,
-    val active: Boolean = false,
-    val hasApiKey: Boolean = false,
-    val keyUnavailable: Boolean = false,
-    val apiKeyInput: String = "",
-    // Raw input drafts avoid coercing transient values such as "" or "0." while
-    // the user types. Parse only when saving/testing.
-    val temperatureInput: String = temperature.toString(),
-    val maxTokensInput: String = maxTokens.toString(),
 )
 
 data class AIProfileInput(
@@ -213,24 +191,6 @@ enum class MarkdownFormatStyle {
     Quote,
 }
 
-fun AIProfile.toDraft(): AIProfileDraft {
-    return AIProfileDraft(
-        id = id,
-        name = name,
-        provider = provider,
-        baseUrl = baseUrl,
-        model = model,
-        temperature = temperature,
-        maxTokens = maxTokens,
-        enabled = enabled,
-        active = active,
-        hasApiKey = hasApiKey,
-        keyUnavailable = keyUnavailable,
-        temperatureInput = temperature.toString(),
-        maxTokensInput = maxTokens.toString(),
-    )
-}
-
 fun AIProfileDraft.toInput(): AIProfileInput {
     val trimmedKey = apiKeyInput.trim()
     return AIProfileInput(
@@ -245,32 +205,6 @@ fun AIProfileDraft.toInput(): AIProfileInput {
         active = active,
         apiKey = trimmedKey.takeIf { it.isNotBlank() },
     )
-}
-
-fun firstBlankAIProfileNameIndex(profiles: List<AIProfileDraft>): Int? {
-    return profiles.indexOfFirst { it.name.isBlank() }.takeIf { it >= 0 }
-}
-
-fun mergeSavedAIProfilesForLocalStorage(
-    currentProfiles: List<AIProfileDraft>,
-    remoteProfiles: List<AIProfileDraft>,
-    submittedProfiles: List<AIProfileDraft>,
-): List<AIProfileDraft> {
-    val currentById = currentProfiles.associateBy { it.id }
-    return remoteProfiles.mapIndexed { index, profile ->
-        val submitted = submittedProfiles.getOrNull(index)
-        val existing = currentById[profile.id]
-        val apiKeyInput = when {
-            submitted?.apiKeyInput.orEmpty().isNotBlank() -> submitted?.apiKeyInput?.trim().orEmpty()
-            existing?.apiKeyInput.orEmpty().isNotBlank() -> existing?.apiKeyInput?.trim().orEmpty()
-            else -> ""
-        }
-        profile.copy(
-            hasApiKey = profile.hasApiKey || apiKeyInput.isNotBlank(),
-            apiKeyInput = apiKeyInput,
-            keyUnavailable = false,
-        )
-    }
 }
 
 fun activeAskMessages(messages: List<AskMessage>): List<AskMessage> {

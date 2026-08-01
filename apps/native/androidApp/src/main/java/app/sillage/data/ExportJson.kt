@@ -5,6 +5,7 @@ import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.features.settings.AIProfileDraft
 import org.json.JSONArray
 import org.json.JSONObject
 

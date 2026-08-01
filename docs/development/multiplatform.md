@@ -111,6 +111,10 @@ implementation to shared callers.
 The buildable `kmp-features:settings` module starts with
 `AIAutoSummaryStateHolder`, which owns optimistic preference mutation, rollback,
 request identity, and client-context validation.
+It also owns `AIProfileDraft`, including raw editor input, validation helpers,
+and safe reconciliation of secret-free server responses with locally held API
+key input. Canonical secret-free profile metadata remains in `kmp-core:domain`;
+platform adapters alone serialize encrypted keys or map save/test commands.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

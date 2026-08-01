@@ -1,6 +1,5 @@
 package app.sillage.ui
 
-import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
@@ -55,6 +54,7 @@ import app.sillage.features.records.memosForFilter
 import app.sillage.features.settings.AIAutoSummaryContext
 import app.sillage.features.settings.AIAutoSummaryRequest
 import app.sillage.features.settings.AIAutoSummaryStateHolder
+import app.sillage.features.settings.AIProfileDraft
 import java.time.LocalDate
 
 data class SillageUiState(

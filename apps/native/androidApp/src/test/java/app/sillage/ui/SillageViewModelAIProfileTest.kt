@@ -2,7 +2,7 @@ package app.sillage.ui
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import app.sillage.data.AIProfileDraft
+import app.sillage.features.settings.AIProfileDraft
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalStateStorage
 import app.sillage.data.SecureReadResult

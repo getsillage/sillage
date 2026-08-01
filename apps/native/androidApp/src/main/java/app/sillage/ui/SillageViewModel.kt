@@ -12,7 +12,6 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import app.sillage.BuildConfig
 import app.sillage.R
 import app.sillage.data.Account
-import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AttachmentUpload
@@ -78,7 +77,8 @@ import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
-import app.sillage.data.firstBlankAIProfileNameIndex
+import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.firstBlankAIProfileNameIndex
 import app.sillage.core.domain.ask.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
@@ -86,11 +86,11 @@ import app.sillage.data.localAttachmentPath
 import app.sillage.data.markdownFormatSnippet
 import app.sillage.features.records.memosForFilter
 import app.sillage.features.sync.MemoSyncConflictItem
-import app.sillage.data.mergeSavedAIProfilesForLocalStorage
+import app.sillage.features.settings.mergeSavedAIProfilesForLocalStorage
 import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
-import app.sillage.data.toDraft
+import app.sillage.features.settings.toDraft
 import app.sillage.data.toInput
 import java.io.File
 import java.io.IOException

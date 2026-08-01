@@ -1,6 +1,6 @@
 package app.sillage.ui
 
-import app.sillage.data.AIProfileDraft
+import app.sillage.features.settings.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskComposerStateHolder

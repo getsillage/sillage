@@ -59,13 +59,17 @@ Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared
 application use case; Android local and remote adapters retain SQLite and REST.
 Its optimistic update, rollback, and single-flight request identity live in the
 shared `kmp-features:settings` module.
+AI profile editor drafts, raw numeric inputs, validation, and secret-safe save
+response reconciliation also live in that module. Android keeps encrypted
+storage, REST inputs, and device-local AI execution as adapters.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.
 Shared `kmp-features:sync` conflict state and core resolution commands own the explicit choice workflow;
 Android retains the confirmation UI and transactional local-storage adapter.
 Ask and secret-free AI settings values are imported directly from shared domain;
-Android-local models are limited to UI drafts, API inputs, and platform adapters.
+cross-platform AI profile drafts come from the settings feature, while
+Android-local models are limited to API inputs and platform adapters.
 Full pull runs through shared `SyncSnapshot` gateway/repository contracts and
 `PullSyncUseCase`. Android maps REST pages and atomically merges the snapshot;
 the versioned JSON export remains a separate adapter DTO and keeps its v1 schema.

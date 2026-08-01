@@ -85,7 +85,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.data.AIProfileDraft
+import app.sillage.features.settings.AIProfileDraft
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel

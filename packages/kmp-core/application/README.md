@@ -22,8 +22,9 @@ The records slice currently exposes seven distinct boundaries:
 The Ask slice exposes `AskRepository` with focused use cases for listing
 conversations, listing messages, creating a conversation, and selecting its
 branch head. Android provides local and remote adapters. Streaming answer
-generation and device-local AI execution remain platform adapter concerns until
-their asynchronous boundaries are extracted separately.
+delivery crosses `AskAnswerStreamer` and `StreamAskAnswerUseCase` as ordered
+start, delta, and failure events. Android retains SSE parsing, HTTP, session
+retry, and device-local AI execution in platform adapters.
 
 The settings slice exposes `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase` for the independently persisted automatic-summary

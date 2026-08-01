@@ -114,8 +114,9 @@ storage mapping, and transport DTOs remain adapter-side types.
 Ask conversation/message reads, conversation creation, and branch-head
 selection cross `AskRepository` and focused use cases in
 `packages/kmp-core/application`. Android local and remote adapters own SQLite and
-REST translation. Streaming answer generation and device-local AI execution
-remain adapter-side until their asynchronous contracts are extracted later.
+REST translation. Remote answer delivery crosses `AskAnswerStreamer` and
+`StreamAskAnswerUseCase` as ordered start, delta, and failure events. Android
+retains SSE parsing, HTTP/session behavior, and device-local AI execution.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded

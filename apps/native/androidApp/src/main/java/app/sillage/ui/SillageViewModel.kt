@@ -32,6 +32,7 @@ import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
+import app.sillage.data.RemoteAskAnswerStreamer
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteAISettingsRepository
@@ -59,6 +60,9 @@ import app.sillage.core.application.ask.CreateAskConversationUseCase
 import app.sillage.core.application.ask.ListAskConversationsUseCase
 import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
+import app.sillage.core.application.ask.AskAnswerStreamEvent
+import app.sillage.core.application.ask.StreamAskAnswerCommand
+import app.sillage.core.application.ask.StreamAskAnswerUseCase
 import app.sillage.core.application.settings.SetAIAutoSummaryUseCase
 import app.sillage.core.application.settings.AIProfileConfigurationCommand
 import app.sillage.core.application.settings.AISettingsSnapshot
@@ -174,6 +178,7 @@ class SillageViewModel(
     private val listRemoteAIProfileModels =
         ListAIProfileModelsUseCase(remoteAIProfileDiagnostics)
     private val remoteAskRepository = RemoteAskRepository(api)
+    private val streamRemoteAskAnswer = StreamAskAnswerUseCase(RemoteAskAnswerStreamer(api))
     private val setRemoteAIAutoSummary =
         SetAIAutoSummaryUseCase(RemoteAIAutoSummaryRepository(api))
     private val saveRemoteAIProfiles =
@@ -3600,46 +3605,53 @@ class SillageViewModel(
                         return@launch
                     }
                 }
-                api.streamAskMessage(
-                    conversationId = conversationId,
-                    content = content,
-                    contextScope = contextScope,
-                    sourceKind = sourceKind,
-                    forkOfId = forkOfId,
-                    onStart = { userMessage, regenerate ->
-                        updateState { currentState ->
+                streamRemoteAskAnswer(
+                    command = StreamAskAnswerCommand(
+                        conversationId = conversationId,
+                        content = content,
+                        contextScope = contextScope,
+                        sourceKind = sourceKind,
+                        forkOfMessageId = forkOfId,
+                    ),
+                ) { event ->
+                    when (event) {
+                        is AskAnswerStreamEvent.Started -> {
+                            updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
                                         askStream = currentState.askStream.startStreaming(
-                                            if (regenerate) null else userMessage,
+                                            if (event.regenerating) null else event.userMessage,
                                         ),
-                                )
-                            } else {
-                                currentState
-                            }
-                        }
-                    },
-                    onDelta = { text ->
-                        updateState { currentState ->
-                                if (currentState.canApplyAskStream(request)) {
-                                    currentState.copy(
-                                        askStream = currentState.askStream.appendDelta(text),
                                     )
                             } else {
                                 currentState
+                                }
                             }
                         }
-                    },
-                    onError = { message ->
-                        updateState { currentState ->
-                            if (currentState.canApplyAskStream(request)) {
-                                currentState.copy(error = IllegalStateException(message).readableMessage())
+                        is AskAnswerStreamEvent.Delta -> {
+                            updateState { currentState ->
+                                if (currentState.canApplyAskStream(request)) {
+                                    currentState.copy(
+                                            askStream = currentState.askStream.appendDelta(event.text),
+                                    )
                             } else {
                                 currentState
+                                }
                             }
                         }
-                    },
-                )
+                        is AskAnswerStreamEvent.Failed -> {
+                            updateState { currentState ->
+                                if (currentState.canApplyAskStream(request)) {
+                                    currentState.copy(
+                                        error = IllegalStateException(event.message).readableMessage(),
+                                    )
+                                } else {
+                                    currentState
+                                }
+                            }
+                        }
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 // Stop is user-initiated; the server persists whatever streamed before cancellation.
             } catch (error: Throwable) {

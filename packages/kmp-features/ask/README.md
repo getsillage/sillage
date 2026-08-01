@@ -3,11 +3,9 @@
 Ask conversation, streaming, branching, regeneration, archive, and
 answer-to-record feature-scoped state.
 
-The first buildable slice is `AskConversationStateHolder`. It owns the
+`AskConversationStateHolder` owns the
 conversation collection, current conversation, selected branch head, and loaded
 messages. Its transitions reject cross-conversation messages and stale snapshots.
-Streaming and request lifecycle state move in later slices without moving
-persistence or SSE transport into the feature module.
 
 `AskVariantStateHolder` owns the single-flight branch-selection request identity.
 It captures screen session, conversation, source mode, and client generation so a
@@ -27,6 +25,9 @@ navigation model.
 presentation, regeneration identity, and completion events. Android retains the
 SSE client and device-local model execution; callbacks update shared state only
 while the captured conversation and client context still match.
+Remote streaming crosses the application `AskAnswerStreamer` contract as ordered
+start, delta, and failure events; SSE parsing and HTTP stay in the platform
+adapter.
 
 `AskLoadStateHolder` owns conversation/message loading and its durable retry
 message, with explicit begin, complete, fail, and cancel transitions.

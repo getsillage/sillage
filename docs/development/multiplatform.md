@@ -181,7 +181,9 @@ Ask conversation and message reads, conversation creation, and branch-head
 selection cross the shared `AskRepository` through focused application use
 cases. Android local and remote adapters translate storage and REST calls.
 Streaming answer generation and device-local AI execution stay adapter-side
-until those asynchronous execution contracts are extracted independently.
+at the implementation boundary. Remote streaming crosses `AskAnswerStreamer`
+and `StreamAskAnswerUseCase` through ordered start, delta, and failure events;
+Android retains SSE parsing, HTTP/session behavior, and device-local execution.
 
 Record creation and update cross `RecordWriteRepository` and
 `SaveRecordUseCase`. Shared commands carry only domain records and draft values;

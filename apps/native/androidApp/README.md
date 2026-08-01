@@ -35,7 +35,9 @@ listing, search, detail retrieval, editor saves, lifecycle mutations, and summar
 local and remote adapters implement the same application contracts. Ask conversation
 and message reads, conversation creation, and branch-head selection also cross
 the shared application boundary. Streaming answer generation and device-local AI
-execution remain Android adapters for now. Reusable record
+execution use Android adapters; remote delivery crosses the shared
+`AskAnswerStreamer` contract, while SSE parsing and HTTP/session behavior remain
+inside the remote adapter. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.

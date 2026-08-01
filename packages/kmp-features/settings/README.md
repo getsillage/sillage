@@ -43,7 +43,7 @@ validation. Storage and REST remain platform adapters behind
 `kmp-core:application`.
 
 The buildable `shared-ui:settings` module directly consumes
-`SettingsFeatureStateHolder` for AI profile summary and diagnostics presentation;
-the shared detail editor also reads profile drafts, model results, and test state
-from the aggregate. Hosts retain localized resources, callbacks, persistence,
-and protocol adapters.
+`SettingsFeatureStateHolder` for the profile editor header, save progress, summary,
+and diagnostics presentation; the shared detail editor also reads profile drafts,
+model results, and test state from the aggregate. Hosts retain localized resources,
+icons, callbacks, persistence, and protocol adapters.

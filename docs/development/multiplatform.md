@@ -136,9 +136,10 @@ The shared auth module also owns settings account/password-change content and
 consumes the auth aggregate directly; hosts supply account metadata and
 client-context mutation gates.
 
-The buildable `shared-ui:settings` module begins with AI profile summary cards.
-It consumes `SettingsFeatureStateHolder` directly for editable profile metadata,
-diagnostics feedback, selection colors, fallbacks, and action-enabled policy.
+The buildable `shared-ui:settings` module owns the AI profile editor header and
+summary cards. It consumes `SettingsFeatureStateHolder` directly for save
+progress, editable profile metadata, diagnostics feedback, selection colors,
+fallbacks, and action-enabled policy.
 Its detail editor also consumes draft fields, model results, and diagnostic
 request state while owning provider selection and deletion confirmation. Hosts
 supply localized strings, selection state, and callbacks; persistence, protocol

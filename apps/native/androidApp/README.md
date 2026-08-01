@@ -97,8 +97,9 @@ shared authentication scaffold and header receive Android launcher resources,
 localized brand text, language state, and the language-toggle callback.
 The settings account section also comes from `shared-ui:auth`; Android supplies
 the account summary, localized strings, mutation gate, icon, and callbacks.
-AI profile summary cards come from `shared-ui:settings` and consume the settings
-feature aggregate directly; Android supplies localized strings and callbacks.
+The AI profile editor header and summary cards come from `shared-ui:settings` and
+consume the settings feature aggregate directly; Android supplies localized
+strings, icons, and callbacks.
 AI profile detail editing also comes from that module; Android retains ViewModel
 event routing plus encrypted persistence and remote/local protocol adapters.
 Ask conversation selection, branch-head identity, and loaded message snapshots

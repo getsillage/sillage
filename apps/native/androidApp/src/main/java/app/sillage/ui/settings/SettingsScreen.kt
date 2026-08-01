@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -36,14 +34,11 @@ import androidx.compose.material.icons.rounded.SettingsEthernet
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -89,6 +84,8 @@ import app.sillage.ui.settings.SillageAIProfileDetailCard
 import app.sillage.ui.settings.SillageAIProfileDetailStrings
 import app.sillage.ui.settings.SillageAIProfileSummaryCard
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
+import app.sillage.ui.settings.SillageAIProfilesHeaderCard
+import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
 
 internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
@@ -358,13 +355,22 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        AISettingsHeaderCard(
-                            saving = state.aiSettingsSaving,
-                            addEnabled = !aiProfileOperationInProgress,
-                            saveEnabled = !aiProfileMutationBlocked,
-                            onAdd = {
-                                selectedAIProfileIndex = state.aiProfiles.size
-                                viewModel.addAIProfile()
+                    SillageAIProfilesHeaderCard(
+                        state = state.settings,
+                        strings = SillageAIProfilesHeaderStrings(
+                            title = stringResource(R.string.settings_ai_profiles),
+                            supporting = stringResource(R.string.settings_ai_profiles_supporting),
+                            newProfile = stringResource(R.string.action_new),
+                            saving = stringResource(R.string.action_saving),
+                            save = stringResource(R.string.action_save),
+                        ),
+                        addIcon = Icons.Rounded.Add,
+                        saveIcon = Icons.Rounded.Save,
+                        editingBlocked = aiProfileOperationInProgress,
+                        mutationBlocked = aiProfileMutationBlocked,
+                        onAdd = {
+                            selectedAIProfileIndex = state.aiProfiles.size
+                            viewModel.addAIProfile()
                             },
                             onSave = viewModel::saveAIProfiles,
                         )
@@ -566,76 +572,6 @@ private fun OverviewItem(label: String, value: String, modifier: Modifier = Modi
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun AISettingsHeaderCard(
-    saving: Boolean,
-    addEnabled: Boolean,
-    saveEnabled: Boolean,
-    onAdd: () -> Unit,
-    onSave: () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.settings_ai_profiles),
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .semantics { applySillageHeadingSemantics() },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.settings_ai_profiles_supporting),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onAdd,
-                        enabled = addEnabled,
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp),
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.action_new))
-                    }
-                    Button(
-                        onClick = onSave,
-                        enabled = saveEnabled,
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp),
-                    ) {
-                        if (saving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = LocalContentColor.current,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(if (saving) R.string.action_saving else R.string.action_save))
-                    }
-                }
-            }
-        }
     }
 }
 

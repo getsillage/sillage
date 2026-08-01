@@ -19,6 +19,8 @@ import app.sillage.features.records.entriesByDate
 import app.sillage.features.records.entryDateCounts
 import app.sillage.features.records.excerpt
 import app.sillage.features.records.memosForFilter
+import app.sillage.features.records.markdownFormatSnippet
+import app.sillage.features.records.MarkdownFormatStyle
 import app.sillage.features.records.onThisDay
 import app.sillage.features.records.sortMemos
 import java.time.DayOfWeek

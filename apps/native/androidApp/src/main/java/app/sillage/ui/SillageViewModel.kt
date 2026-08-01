@@ -101,7 +101,7 @@ import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskStreamRequest
 import app.sillage.features.auth.PasswordChangeValidation
 import app.sillage.features.settings.AIAutoSummaryRequest
-import app.sillage.data.MarkdownFormatStyle
+import app.sillage.features.records.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
@@ -127,7 +127,7 @@ import app.sillage.core.domain.ask.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
 import app.sillage.data.localAttachmentPath
-import app.sillage.data.markdownFormatSnippet
+import app.sillage.features.records.markdownFormatSnippet
 import app.sillage.features.records.memosForFilter
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.settings.mergeSavedAIProfilesForLocalStorage
@@ -653,7 +653,7 @@ class SillageViewModel(
 
     fun updateUsername(value: String) = updateState {
         it.copy(
-            authentication = it.authentication.updateUsername(value),
+            auth = it.auth.updateUsername(value),
             authError = null,
             authErrorResourceId = null,
         )
@@ -661,7 +661,7 @@ class SillageViewModel(
 
     fun updateDisplayName(value: String) = updateState {
         it.copy(
-            authentication = it.authentication.updateDisplayName(value),
+            auth = it.auth.updateDisplayName(value),
             authError = null,
             authErrorResourceId = null,
         )
@@ -669,22 +669,22 @@ class SillageViewModel(
 
     fun updatePassword(value: String) = updateState {
         it.copy(
-            authentication = it.authentication.updatePassword(value),
+            auth = it.auth.updatePassword(value),
             authError = null,
             authErrorResourceId = null,
         )
     }
 
     fun updateCurrentPassword(value: String) = updateState {
-        it.copy(authentication = it.authentication.updateCurrentPassword(value), error = null)
+        it.copy(auth = it.auth.updateCurrentPassword(value), error = null)
     }
 
     fun updateNewPassword(value: String) = updateState {
-        it.copy(authentication = it.authentication.updateNewPassword(value), error = null)
+        it.copy(auth = it.auth.updateNewPassword(value), error = null)
     }
 
     fun updateConfirmPassword(value: String) = updateState {
-        it.copy(authentication = it.authentication.updateConfirmPassword(value), error = null)
+        it.copy(auth = it.auth.updateConfirmPassword(value), error = null)
     }
 
     fun changePassword() {
@@ -758,7 +758,7 @@ class SillageViewModel(
             updateState {
                 it.copy(
                     account = session.account,
-                    authentication = it.authentication.clearPrimaryCredentials(
+                    auth = it.auth.clearPrimaryCredentials(
                         clearDisplayName = true,
                     ),
                     screen = Screen.Memos,
@@ -779,7 +779,7 @@ class SillageViewModel(
             updateState {
                 it.copy(
                     account = session.account,
-                    authentication = it.authentication.clearPrimaryCredentials(
+                    auth = it.auth.clearPrimaryCredentials(
                         clearDisplayName = false,
                     ),
                     screen = Screen.Memos,

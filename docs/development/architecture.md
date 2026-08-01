@@ -118,6 +118,7 @@ remote invalidation and conditional local clearing to one captured session, so a
 late failure cannot clear credentials established by a newer sign-in.
 
 Authentication presentation state lives in `packages/kmp-features/auth`.
+`AuthFeatureStateHolder` is the feature aggregate nested on Android root state;
 `AuthenticationStateHolder` owns credential drafts and password-change
 validation/request identity, including client-context checks that discard late
 callbacks. It contains no session token or transport type; Android supplies

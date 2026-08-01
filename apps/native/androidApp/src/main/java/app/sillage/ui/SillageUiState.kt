@@ -20,6 +20,7 @@ import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
+import app.sillage.features.auth.AuthFeatureStateHolder
 import app.sillage.features.auth.AuthenticationStateHolder
 import app.sillage.features.auth.PasswordChangeContext
 import app.sillage.features.auth.PasswordChangeRequest
@@ -106,7 +107,7 @@ data class SillageUiState(
     val account: Account? = null,
     val records: RecordsFeatureStateHolder = defaultRecordsFeatureState(),
     val settings: SettingsFeatureStateHolder = SettingsFeatureStateHolder(),
-    val authentication: AuthenticationStateHolder = AuthenticationStateHolder(),
+    val auth: AuthFeatureStateHolder = AuthFeatureStateHolder(),
     val ask: AskFeatureStateHolder = AskFeatureStateHolder(),
     val sync: SyncFeatureStateHolder = SyncFeatureStateHolder(),
     val loading: Boolean = false,
@@ -140,6 +141,7 @@ data class SillageUiState(
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
+    val authentication: AuthenticationStateHolder get() = auth.authentication
     val syncConflictState: MemoSyncConflictStateHolder get() = sync.conflicts
 
     val memoNextCursor: String get() = records.pagination.nextCursor
@@ -211,13 +213,13 @@ data class SillageUiState(
     val aiLoadingModelsProfileId: String get() = settings.loadingModelsProfileKey
     val aiTestResults: Map<String, String> get() = settings.testResults
     val aiModelResults: Map<String, List<String>> get() = settings.modelResults
-    val username: String get() = authentication.username
-    val displayName: String get() = authentication.displayName
-    val password: String get() = authentication.password
-    val currentPassword: String get() = authentication.currentPassword
-    val newPassword: String get() = authentication.newPassword
-    val confirmPassword: String get() = authentication.confirmPassword
-    val passwordChanging: Boolean get() = authentication.passwordChanging
+    val username: String get() = auth.username
+    val displayName: String get() = auth.displayName
+    val password: String get() = auth.password
+    val currentPassword: String get() = auth.currentPassword
+    val newPassword: String get() = auth.newPassword
+    val confirmPassword: String get() = auth.confirmPassword
+    val passwordChanging: Boolean get() = auth.passwordChanging
 }
 
 /** Applies a pure records-feature transition without touching host-only fields. */
@@ -239,6 +241,11 @@ internal inline fun SillageUiState.withSettings(
 internal inline fun SillageUiState.withSync(
     transform: (SyncFeatureStateHolder) -> SyncFeatureStateHolder,
 ): SillageUiState = copy(sync = transform(sync))
+
+/** Applies a pure auth-feature transition without touching host-only fields. */
+internal inline fun SillageUiState.withAuth(
+    transform: (AuthFeatureStateHolder) -> AuthFeatureStateHolder,
+): SillageUiState = copy(auth = transform(auth))
 
 /**
  * Clears records/settings/ask interactive ownership for a client-context or
@@ -345,7 +352,7 @@ internal fun SillageUiState.nextPasswordChangeRequest(): PasswordChangeRequest? 
 
 internal fun SillageUiState.startPasswordChange(request: PasswordChangeRequest): SillageUiState {
     val started = authentication.beginPasswordChange(request, passwordChangeContext()) ?: return this
-    return copy(authentication = started)
+    return withAuth { it.copy(authentication = started) }
 }
 
 internal fun SillageUiState.canApplyPasswordChange(request: PasswordChangeRequest): Boolean {
@@ -357,12 +364,12 @@ internal fun SillageUiState.completePasswordChange(request: PasswordChangeReques
         request,
         passwordChangeContext(),
     ) ?: return this
-    return copy(authentication = completed)
+    return withAuth { it.copy(authentication = completed) }
 }
 
 internal fun SillageUiState.failPasswordChange(request: PasswordChangeRequest): SillageUiState {
     val failed = authentication.failPasswordChange(request, passwordChangeContext()) ?: return this
-    return copy(authentication = failed)
+    return withAuth { it.copy(authentication = failed) }
 }
 
 private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {

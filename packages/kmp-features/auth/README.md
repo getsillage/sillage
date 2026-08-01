@@ -1,9 +1,12 @@
 # Authentication feature
 
 This buildable Kotlin Multiplatform feature owns platform-neutral authentication
-presentation state. `AuthenticationStateHolder` currently owns initialization and
-sign-in form drafts plus the password-change lifecycle: validation, single-flight
-request identity, client-context validation, and secret clearing after success.
+presentation state.
+
+`AuthFeatureStateHolder` is the feature aggregate nested by Android root UI
+state. `AuthenticationStateHolder` owns initialization and sign-in form drafts
+plus the password-change lifecycle: validation, single-flight request identity,
+client-context validation, and secret clearing after success.
 
 The module does not own tokens, secure session persistence, HTTP mapping, or
 platform navigation. Those remain behind `kmp-core:application` repository ports

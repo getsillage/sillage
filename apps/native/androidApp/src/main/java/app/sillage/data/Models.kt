@@ -132,25 +132,6 @@ fun memoSummarySourceCount(sourceMemoIds: String): Int? {
     return uniqueIds.size.takeIf { it > 0 }
 }
 
-fun markdownFormatSnippet(style: MarkdownFormatStyle, sample: String): String {
-    return when (style) {
-        MarkdownFormatStyle.Heading -> "\n# $sample\n"
-        MarkdownFormatStyle.Bold -> "**$sample**"
-        MarkdownFormatStyle.Italic -> "*$sample*"
-        MarkdownFormatStyle.Code -> "`$sample`"
-        MarkdownFormatStyle.List -> "\n- $sample\n"
-        MarkdownFormatStyle.Quote -> "\n> $sample\n"
-    }
-}
-
-enum class MarkdownFormatStyle {
-    Heading,
-    Bold,
-    Italic,
-    Code,
-    List,
-    Quote,
-}
 
 fun AIProfileDraft.toInput(): AIProfileInput {
     val trimmedKey = apiKeyInput.trim()

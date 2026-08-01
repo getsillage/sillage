@@ -52,7 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import app.sillage.data.MarkdownFormatStyle
+import app.sillage.features.records.MarkdownFormatStyle
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.resolveMarkdownLinkTarget
 import app.sillage.R

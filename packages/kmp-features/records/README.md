@@ -1,5 +1,10 @@
 # Records feature
 
+Shared record-list policy and editor Markdown snippet helpers.
+
+`MarkdownFormatStyle` / `markdownFormatSnippet` provide platform-neutral editor
+toolbar inserts.
+
 Shared record-list policy and immutable feature state derived from presentation
 data. The module owns mutually exclusive list filters, deterministic ordering,
 On This Day calendar selectors, excerpts, and pagination-coverage decisions.

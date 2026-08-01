@@ -85,7 +85,8 @@ offline clearing, remote-failure fallback, cancellation, and stale-session
 rejection without exposing token-bearing platform snapshots.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
-and password-change presentation state. `AuthenticationStateHolder` performs
+and password-change presentation state. `AuthFeatureStateHolder` is the feature
+aggregate composed by Android root state; `AuthenticationStateHolder` performs
 platform-neutral validation, allocates single-flight request identities, captures
 the active app/client context, rejects stale completions, and clears password
 material after a successful change. Hosts provide localized validation messages

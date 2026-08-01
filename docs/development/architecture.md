@@ -142,9 +142,11 @@ persistence transaction.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded
-messages consistent. Android's root state exposes transitional read accessors;
-all writes go through the holder, while persistence and streaming stay outside
-the feature module.
+messages consistent. `AskFeatureStateHolder` composes the extracted Ask holders
+and owns coordinated workspace teardown, screen-entry session advancement,
+blank-composition starts, and conversation load transitions. Android's root
+state exposes transitional read accessors; coordinated writes move onto the
+aggregate, while persistence and streaming stay outside the feature module.
 The same module's `AskVariantStateHolder` owns branch-selection request identity;
 Android supplies navigation and client context, then applies completion only when
 the shared holder still owns that request.

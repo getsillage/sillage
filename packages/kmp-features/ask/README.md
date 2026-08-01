@@ -3,6 +3,12 @@
 Ask conversation, streaming, branching, regeneration, archive, and
 answer-to-record feature-scoped state.
 
+`AskFeatureStateHolder` composes the holders below and owns coordinated
+multi-holder transitions for workspace teardown, Ask-screen entry, blank
+composition starts, and conversation selection/load completion. Individual
+holders remain the unit of request identity; hosts keep transitional accessors
+while writes move onto the aggregate.
+
 `AskConversationStateHolder` owns the
 conversation collection, current conversation, selected branch head, and loaded
 messages. Its transitions reject cross-conversation messages and stale snapshots.

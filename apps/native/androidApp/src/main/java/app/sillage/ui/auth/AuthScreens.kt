@@ -3,18 +3,10 @@ package app.sillage.ui.auth
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -36,14 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.designsystem.SillageInlineError
-import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 @Composable
 internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -190,95 +179,55 @@ private fun AuthScaffold(
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding(),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 460.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+    SillageAuthScaffold(
+        title = title,
+        supporting = supporting,
+        errorMessage = state.authError,
+        errorIcon = Icons.Rounded.ErrorOutline,
+        trailing = trailing,
+        header = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = colorResource(R.color.ic_launcher_background),
                 ) {
-                    Surface(
-                        modifier = Modifier.size(48.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        color = colorResource(R.color.ic_launcher_background),
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_launcher_foreground),
-                            contentDescription = null,
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
-                    ) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            stringResource(R.string.brand_tagline),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    IconButton(onClick = onLanguageToggle, enabled = !state.loading) {
-                        Icon(
-                            Icons.Rounded.Language,
-                            contentDescription = stringResource(
-                                if (state.languageMode == app.sillage.data.SessionStore.LANGUAGE_ZH_CN) {
-                                    R.string.language_switch_to_english
-                                } else {
-                                    R.string.language_switch_to_chinese
-                                },
-                            ),
-                        )
-                    }
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = null,
+                    )
                 }
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        Text(
-                            title,
-                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                            style = MaterialTheme.typography.headlineSmall,
-                        )
-                        Text(
-                            supporting,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                    if (trailing != null) {
-                        Box(modifier = Modifier.padding(start = 8.dp)) {
-                            trailing()
-                        }
-                    }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        stringResource(R.string.brand_tagline),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    state.authError?.let { message ->
-                        SillageInlineError(
-                            message = message,
-                            icon = Icons.Rounded.ErrorOutline,
-                        )
-                    }
-                    content()
+                IconButton(onClick = onLanguageToggle, enabled = !state.loading) {
+                    Icon(
+                        Icons.Rounded.Language,
+                        contentDescription = stringResource(
+                            if (state.languageMode == app.sillage.data.SessionStore.LANGUAGE_ZH_CN) {
+                                R.string.language_switch_to_english
+                            } else {
+                                R.string.language_switch_to_chinese
+                            },
+                        ),
+                    )
                 }
             }
-        }
-    }
+        },
+        content = content,
+    )
 }

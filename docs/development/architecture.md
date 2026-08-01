@@ -147,8 +147,9 @@ application-level loading remains outside the auth aggregate.
 initialization forms and also owns the server-address form plus reusable
 password-field, authentication-action, and mode-selection-card presentation.
 Android supplies localized strings, icons, accent colors, root loading state,
-navigation, protocol execution, and ViewModel callbacks while retaining the
-branded authentication scaffold.
+navigation, protocol execution, and ViewModel callbacks. The shared scaffold owns
+centered layout, heading semantics, and inline-error placement while Android
+supplies the branded header and language switcher.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

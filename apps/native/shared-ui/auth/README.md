@@ -13,6 +13,8 @@ display-name, and password drafts and owns the account-creation field layout.
 presentation, and the secondary offline action while hosts execute protocols.
 `SillageModeOptionCard` owns the mode-selection card layout and semantic card
 colors while hosts supply localized content, accent colors, icons, and callbacks.
+`SillageAuthScaffold` owns the centered scroll/IME layout, heading semantics,
+inline-error placement, and content spacing while hosts provide a brand header.
 
 Hosts supply localized strings, icons, root loading state, navigation, and
 callbacks. Brand assets, secure session persistence, protocol clients, and

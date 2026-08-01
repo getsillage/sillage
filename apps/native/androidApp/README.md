@@ -93,7 +93,8 @@ authentication action content, and mode-selection cards come from the buildable
 `shared-ui:auth` module. The credential forms consume `AuthFeatureStateHolder`
 directly. Android supplies localized strings, Material icons, accent colors, root
 loading state, navigation, protocol execution, and ViewModel callbacks; the
-branded authentication scaffold remains the host boundary.
+shared authentication scaffold receives an Android-owned branded header and
+language switcher.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

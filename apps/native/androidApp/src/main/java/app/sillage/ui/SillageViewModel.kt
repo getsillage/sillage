@@ -18,6 +18,7 @@ import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalAIAutoSummaryRepository
+import app.sillage.data.LocalAIProfilesRepository
 import app.sillage.data.LocalAskRepository
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
@@ -30,6 +31,7 @@ import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
+import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
@@ -54,6 +56,8 @@ import app.sillage.core.application.ask.ListAskConversationsUseCase
 import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.core.application.settings.SetAIAutoSummaryUseCase
+import app.sillage.core.application.settings.AIProfileSaveCommand
+import app.sillage.core.application.settings.SaveAIProfilesUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
@@ -132,6 +136,8 @@ class SillageViewModel(
     private val localAskRepository = LocalAskRepository(this.localDataStore)
     private val setLocalAIAutoSummary =
         SetAIAutoSummaryUseCase(LocalAIAutoSummaryRepository(this.localDataStore))
+    private val saveLocalAIProfiles =
+        SaveAIProfilesUseCase(LocalAIProfilesRepository(this.localDataStore))
     private val listLocalAskConversations = ListAskConversationsUseCase(localAskRepository)
     private val listLocalAskMessages = ListAskMessagesUseCase(localAskRepository)
     private val createLocalAskConversation = CreateAskConversationUseCase(localAskRepository)
@@ -153,6 +159,8 @@ class SillageViewModel(
     private val remoteAskRepository = RemoteAskRepository(api)
     private val setRemoteAIAutoSummary =
         SetAIAutoSummaryUseCase(RemoteAIAutoSummaryRepository(api))
+    private val saveRemoteAIProfiles =
+        SaveAIProfilesUseCase(RemoteAIProfilesRepository(api))
     private val listRemoteAskConversations = ListAskConversationsUseCase(remoteAskRepository)
     private val listRemoteAskMessages = ListAskMessagesUseCase(remoteAskRepository)
     private val createRemoteAskConversation = CreateAskConversationUseCase(remoteAskRepository)
@@ -2360,25 +2368,27 @@ class SillageViewModel(
             )
         }
         val normalized = normalizeAIProfilesForSave(profiles)
-        return if (appMode == SessionStore.MODE_OFFLINE) {
-            localDataStore.saveAIProfiles(normalized)
+        val commands = normalized.map { it.toSaveCommand() }
+        val savedProfiles = if (appMode == SessionStore.MODE_OFFLINE) {
+            saveLocalAIProfiles(commands)
         } else {
-            api.patchAISettings(normalized.map { it.toInput() }).let { settings ->
-                val remoteProfiles = settings.profiles.map { it.toDraft() }
-                if (
-                    state.value.appMode != appMode ||
-                    state.value.clientContextGeneration != clientContextGeneration
-                ) {
-                    return@let remoteProfiles
-                }
-                val localProfiles = mergeSavedAIProfilesForLocalStorage(
-                    currentProfiles = localDataStore.listAIProfiles(),
-                    remoteProfiles = remoteProfiles,
-                    submittedProfiles = normalized,
-                )
-                localDataStore.saveAIProfiles(localProfiles)
-            }
+            saveRemoteAIProfiles(commands)
         }
+        if (
+            state.value.appMode != appMode ||
+            state.value.clientContextGeneration != clientContextGeneration
+        ) {
+            return savedProfiles.map { it.toDraft() }
+        }
+        if (appMode == SessionStore.MODE_OFFLINE) {
+            return localDataStore.listAIProfiles()
+        }
+        val localProfiles = mergeSavedAIProfilesForLocalStorage(
+            currentProfiles = localDataStore.listAIProfiles(),
+            remoteProfiles = savedProfiles.map { it.toDraft() },
+            submittedProfiles = normalized,
+        )
+        return localDataStore.saveAIProfiles(localProfiles)
     }
 
     private suspend fun persistAIAutoSummary(request: AIAutoSummaryRequest): Boolean {
@@ -2393,6 +2403,25 @@ class SillageViewModel(
             localDataStore.saveAutoSummary(savedValue)
         }
         return savedValue
+    }
+
+    private fun AIProfileDraft.toSaveCommand(): AIProfileSaveCommand {
+        return AIProfileSaveCommand(
+            id = id.takeIf { it.isNotBlank() },
+            name = name,
+            provider = provider,
+            baseUrl = baseUrl,
+            model = model,
+            temperature = temperatureInput.trim().toDoubleOrNull(),
+            maxTokens = maxTokensInput.trim().toLongOrNull()?.takeIf { it > 0 },
+            storedTemperature = temperature,
+            storedMaxTokens = maxTokens,
+            enabled = enabled,
+            active = active,
+            hasApiKey = hasApiKey,
+            keyUnavailable = keyUnavailable,
+            apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
+        )
     }
 
     fun testAIProfile(index: Int) {

@@ -57,6 +57,9 @@ All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared
 application use case; Android local and remote adapters retain SQLite and REST.
+AI profile saves cross `AIProfilesRepository` and `SaveAIProfilesUseCase`;
+Android adapters translate the shared write command to encrypted local storage
+or REST and reconcile secret-free server responses with the local key cache.
 Its optimistic update, rollback, and single-flight request identity live in the
 shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save

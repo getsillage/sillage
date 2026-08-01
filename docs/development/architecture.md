@@ -144,6 +144,11 @@ Ask request holder for navigation-safe callback invalidation.
 `AIAutoSummaryRepository` and `SetAIAutoSummaryUseCase` own the first settings
 application boundary. Android adapters implement encrypted local persistence and
 REST mutation; the root ViewModel no longer selects those mechanisms directly.
+`AIProfilesRepository` and `SaveAIProfilesUseCase` similarly own profile-save
+intent. Their command carries write-only key input and parsed numeric values;
+their result is canonical secret-free domain metadata. Android local and remote
+adapters retain encrypted persistence, REST mapping, and local cache
+reconciliation.
 `packages/kmp-features/settings` owns `AIAutoSummaryStateHolder`, including
 optimistic mutation, rollback, and request ownership. Android supplies client
 context and user-facing feedback around the shared transition result.

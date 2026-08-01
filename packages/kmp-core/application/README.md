@@ -27,8 +27,11 @@ their asynchronous boundaries are extracted separately.
 
 The settings slice exposes `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase` for the independently persisted automatic-summary
-preference. Local and remote Android adapters own encrypted storage and REST
-translation.
+preference. `AIProfilesRepository` and `SaveAIProfilesUseCase` accept an explicit
+write command and return secret-free domain metadata. Parsed numeric input stays
+nullable for transport omission semantics, while local adapters retain the last
+valid stored value. Local and remote Android adapters own encrypted storage and
+REST translation.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

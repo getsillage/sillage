@@ -108,6 +108,11 @@ The settings application slice begins with `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase`. Platform adapters persist the independently saved
 preference through encrypted local storage or REST without exposing either
 implementation to shared callers.
+AI profile saves cross `AIProfilesRepository` and `SaveAIProfilesUseCase` using
+an explicit platform-neutral write command. The application result contains
+canonical secret-free `AIProfile` metadata; Android adapters map commands to
+encrypted local storage or REST inputs, and API-key material never enters the
+domain result.
 The buildable `kmp-features:settings` module starts with
 `AIAutoSummaryStateHolder`, which owns optimistic preference mutation, rollback,
 request identity, and client-context validation.

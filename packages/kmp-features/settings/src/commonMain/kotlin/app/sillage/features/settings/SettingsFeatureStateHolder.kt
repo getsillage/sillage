@@ -32,6 +32,19 @@ data class SettingsFeatureStateHolder(
         return copy(profilesMutation = profilesMutation.replace(profiles))
     }
 
+    /** Clears provider diagnostic results without changing request ownership. */
+    fun clearDiagnosticsResults(): SettingsFeatureStateHolder {
+        return copy(diagnostics = diagnostics.clearResults())
+    }
+
+    /** Records host feedback through the settings aggregate. */
+    fun recordDiagnosticsFeedback(
+        profileKey: String,
+        message: String,
+    ): SettingsFeatureStateHolder {
+        return copy(diagnostics = diagnostics.recordFeedback(profileKey, message))
+    }
+
     /**
      * Clears editable settings ownership for a workspace or client-context change.
      * [profiles] and [autoSummaryEnabled] seed the post-clear snapshot (empty/false

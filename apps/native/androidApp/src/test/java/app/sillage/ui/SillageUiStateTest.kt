@@ -1,6 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.AIProfileDiagnosticsStateHolder
 import app.sillage.features.settings.AIProfilesMutationStateHolder
 import app.sillage.features.settings.AISettingsLoadStateHolder
 import app.sillage.features.settings.SettingsFeatureStateHolder
@@ -445,6 +446,28 @@ class SillageUiStateTest {
         val state = editorState()
         assertEquals(emptyList<MemoSyncConflictItem>(), state.syncConflicts)
         assertEquals(state.sync.conflicts, state.syncConflictState)
+    }
+
+    @Test
+    fun rootSettingsDiagnosticsTransitionsPreserveHostState() {
+        val state = editorState().copy(
+            error = "keep",
+            settings = SettingsFeatureStateHolder(
+                diagnostics = AIProfileDiagnosticsStateHolder(
+                    testResults = mapOf("p1" to "old"),
+                    modelResults = mapOf("p1" to listOf("model-a")),
+                ),
+            ),
+        )
+
+        val recorded = state.recordAIProfileDiagnosticsFeedback("p2", "offline")
+        val cleared = recorded.clearAIProfileDiagnosticsResults()
+
+        assertEquals("offline", recorded.aiTestResults["p2"])
+        assertEquals(listOf("model-a"), recorded.aiModelResults["p1"])
+        assertTrue(cleared.aiTestResults.isEmpty())
+        assertTrue(cleared.aiModelResults.isEmpty())
+        assertEquals("keep", cleared.error)
     }
 
     @Test

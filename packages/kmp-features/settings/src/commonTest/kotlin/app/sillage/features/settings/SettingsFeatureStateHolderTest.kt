@@ -61,6 +61,32 @@ class SettingsFeatureStateHolderTest {
     }
 
     @Test
+    fun diagnosticsTransitionsPreserveOtherSettingsOwnership() {
+        val state = SettingsFeatureStateHolder(
+            profilesMutation = AIProfilesMutationStateHolder(
+                profiles = listOf(draft("p1")),
+            ),
+            autoSummary = AIAutoSummaryStateHolder(enabled = true),
+            load = AISettingsLoadStateHolder(loading = true),
+            diagnostics = AIProfileDiagnosticsStateHolder(
+                testResults = mapOf("p1" to "old"),
+                modelResults = mapOf("p1" to listOf("model-a")),
+            ),
+        )
+
+        val recorded = state.recordDiagnosticsFeedback("p2", "offline")
+        val cleared = recorded.clearDiagnosticsResults()
+
+        assertEquals("offline", recorded.testResults["p2"])
+        assertEquals(listOf("model-a"), recorded.modelResults["p1"])
+        assertTrue(cleared.testResults.isEmpty())
+        assertTrue(cleared.modelResults.isEmpty())
+        assertEquals(state.profiles, cleared.profiles)
+        assertTrue(cleared.autoSummaryEnabled)
+        assertTrue(cleared.loading)
+    }
+
+    @Test
     fun replaceProfilesPreservesOtherSettingsOwnership() {
         val replacement = listOf(draft("p2", name = "Two"))
         val state = SettingsFeatureStateHolder(

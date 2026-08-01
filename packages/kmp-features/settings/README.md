@@ -29,7 +29,9 @@ newer editor snapshot.
 `AIProfileDiagnosticsStateHolder` owns connection-test and model-list progress,
 per-profile results, and independent request identities. Requests capture the
 full draft plus its stable editor key and reject completion after edits,
-removal, mode changes, or client-context replacement.
+removal, mode changes, or client-context replacement. The settings aggregate also
+owns diagnostic-result clearing and host feedback recording without changing
+diagnostic request identity.
 
 `AIAutoSummaryStateHolder` owns the independently saved automatic-summary
 preference, optimistic mutation, rollback, request identity, and client-context

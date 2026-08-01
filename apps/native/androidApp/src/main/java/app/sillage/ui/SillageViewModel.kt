@@ -2282,11 +2282,12 @@ class SillageViewModel(
                 )
                 updateState { current ->
                     if (current.canApplyAIProfilesMutation(request)) {
-                        current.completeAIProfilesMutation(request, savedProfiles).copy(
-                            settings = current.settings.copy(diagnostics = current.settings.diagnostics.clearResults()),
-                            error = null,
-                            notice = uiString(successNoticeResourceId),
-                        )
+                        current.completeAIProfilesMutation(request, savedProfiles)
+                            .clearAIProfileDiagnosticsResults()
+                            .copy(
+                                error = null,
+                                notice = uiString(successNoticeResourceId),
+                            )
                     } else {
                         current
                     }
@@ -2436,8 +2437,7 @@ class SillageViewModel(
         if (current.appMode == SessionStore.MODE_OFFLINE) {
             val message = uiString(R.string.error_ai_models_offline)
             updateState(forceFeedback = true) {
-                it.copy(
-                    settings = it.settings.copy(diagnostics = it.settings.diagnostics.recordFeedback(key, message)),
+                it.recordAIProfileDiagnosticsFeedback(key, message).copy(
                     error = message,
                     notice = null,
                 )

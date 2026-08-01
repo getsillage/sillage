@@ -171,7 +171,9 @@ the full draft snapshot, stable editor key, mode, and client context, so edited
 or removed profiles cannot receive late diagnostic results.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
 workspace teardown, editable profile-draft replacement, and loaded/imported
-editable-settings snapshot application.
+editable-settings snapshot application. Diagnostic-result clearing and host
+feedback recording also go through the settings aggregate; request identity
+remains owned by the diagnostics holder.
 Android's root `SillageUiState` stores one `settings` aggregate field with
 transitional slice getters for the former top-level settings holders.
 

@@ -275,6 +275,19 @@ internal fun SillageUiState.withAIProfiles(
     return withSettings { it.replaceProfiles(profiles) }
 }
 
+/** Clears AI profile diagnostic results through the settings aggregate. */
+internal fun SillageUiState.clearAIProfileDiagnosticsResults(): SillageUiState {
+    return withSettings { it.clearDiagnosticsResults() }
+}
+
+/** Records AI profile diagnostic feedback through the settings aggregate. */
+internal fun SillageUiState.recordAIProfileDiagnosticsFeedback(
+    profileKey: String,
+    message: String,
+): SillageUiState {
+    return withSettings { it.recordDiagnosticsFeedback(profileKey, message) }
+}
+
 /** Applies a pure sync-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withSync(
     transform: (SyncFeatureStateHolder) -> SyncFeatureStateHolder,

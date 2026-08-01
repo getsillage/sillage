@@ -299,9 +299,10 @@ detail/editor presentation, source-memo absorption, and canonical-memo
 transitions. Android's root UI state now owns one `records` aggregate value with
 transitional slice getters for the former top-level holder fields. Coordinated
 list-surface, browse mode/filter, workspace teardown, selected-memo
-presentation, editor session starts/returns, source-record absorption, and
-canonical memo writes go through the aggregate; request identity and
-late-response checks stay on the individual holders.
+presentation, detail-request acceptance, editor session starts/returns,
+source-record absorption, and canonical memo writes go through the aggregate;
+request identity and late-response checks stay on the individual holders.
+Android request helpers update that aggregate through `withRecords`.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,

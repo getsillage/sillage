@@ -267,16 +267,19 @@ retains content-URI/cache staging, MIME resolution, and native viewer launch.
 
 `RecordsFeatureStateHolder` is the records feature aggregate. It composes the
 extracted holders and owns cross-holder transitions for visible-list reset/
-replace, browse filter/view-mode application, interactive workspace teardown,
-detail/editor presentation, source-memo absorption, and canonical memo
-application so list loads, search ownership, and selection stay consistent.
-Android's root `SillageUiState` now stores one `records` aggregate field and
-keeps transitional slice getters (`recordsCollection`, `recordsPagination`, and
-the other former top-level fields) for existing call sites. Coordinated host
-writes such as cache mutation, visible-list clear/replace/append, browse mode
-and filter changes, workspace teardown, selected-memo presentation, editor
-session starts/returns, source-record absorption, and filter reset go through
-the aggregate; individual holders still own request identity.
+replace, pre-refresh loading marks, browse filter/view-mode application,
+interactive workspace teardown, detail/editor presentation, source-memo
+absorption, and canonical memo application so list loads, search ownership, and
+selection stay consistent. Android's root `SillageUiState` now stores one
+`records` aggregate field and keeps transitional slice getters
+(`recordsCollection`, `recordsPagination`, and the other former top-level
+fields) for existing call sites. Coordinated host writes such as cache mutation,
+visible-list clear/replace/append, browse mode and filter changes, workspace
+teardown, selected-memo presentation, detail-request acceptance, editor session
+starts/returns, source-record absorption, and filter reset go through the
+aggregate; individual holders still own request identity. Android request
+helpers write through `withRecords` rather than assigning nested holder fields
+directly.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,

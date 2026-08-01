@@ -532,7 +532,7 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.AISettings,
                 screenHistory = emptyList(),
-                records = it.records.copy(summary = it.records.summary.finishDetail()),
+                records = it.records.finishDetailSummary(),
                 error = null,
                 notice = null,
             )
@@ -549,7 +549,7 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
-                records = it.records.copy(summary = it.records.summary.finishDetail()),
+                records = it.records.finishDetailSummary(),
                 askSession = if (it.askLoading || it.askSending || it.askVariantLoading) {
                     it.askSession
                 } else {
@@ -668,7 +668,7 @@ class SillageViewModel(
                     screen = Screen.Memos,
                     initialized = true,
                     account = verified,
-                    records = it.records.copy(refresh = it.records.refresh.copy(status = MemoListLoadStatus.Loading)),
+                    records = it.records.markListLoading(),
                     notice = uiString(R.string.notice_connected),
                 )
             }
@@ -789,7 +789,7 @@ class SillageViewModel(
                     screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
-                    records = it.records.copy(refresh = it.records.refresh.copy(status = MemoListLoadStatus.Loading)),
+                    records = it.records.markListLoading(),
                     notice = uiString(R.string.notice_account_initialized),
                 )
             }
@@ -810,7 +810,7 @@ class SillageViewModel(
                     screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
-                    records = it.records.copy(refresh = it.records.refresh.copy(status = MemoListLoadStatus.Loading)),
+                    records = it.records.markListLoading(),
                     notice = uiString(R.string.notice_signed_in),
                 )
             }
@@ -1352,11 +1352,9 @@ class SillageViewModel(
                     it.copy(
                         syncConflictState = it.syncConflictState.remove(resourceId),
                         notice = uiString(R.string.notice_conflict_take_server),
-                        records = it.records.copy(
-                            selection = it.records.selection.replaceIfSelected(
-                        resourceId,
-                        item.conflict.serverMemo,
-                    ),
+                        records = it.records.replaceSelectedMemo(
+                            resourceId,
+                            item.conflict.serverMemo,
                         ),
                     )
                 }

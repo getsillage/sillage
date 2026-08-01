@@ -311,6 +311,68 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun markListLoadingPreservesVisibleCache() {
+        val existing = memo("memo-13")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(existing), cacheGeneration = 4),
+            refresh = RecordsRefreshStateHolder(status = RecordsRefreshStatus.Idle),
+        )
+
+        val loading = state.markListLoading()
+
+        assertEquals(listOf(existing), loading.records)
+        assertEquals(4, loading.cacheGeneration)
+        assertEquals(RecordsRefreshStatus.Loading, loading.refreshStatus)
+    }
+
+    @Test
+    fun acceptDetailRequestPairsSelectionWithSummaryLoad() {
+        val selected = memo("memo-14")
+        val selection = RecordsSelectionStateHolder(
+            selectedMemo = selected,
+            detailRequestId = 9,
+        )
+        val state = RecordsFeatureStateHolder(
+            summary = RecordsSummaryStateHolder(loading = false),
+        )
+
+        val started = state.acceptDetailRequest(selection, loadSummary = true)
+
+        assertEquals(selected, started.selection.selectedMemo)
+        assertEquals(9, started.selection.detailRequestId)
+        assertTrue(started.summary.loading)
+    }
+
+    @Test
+    fun finishDetailSummaryStopsLoadingWithoutClearingSelection() {
+        val selected = memo("memo-15")
+        val state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true),
+        )
+
+        val finished = state.finishDetailSummary()
+
+        assertEquals(selected, finished.selection.selectedMemo)
+        assertFalse(finished.summary.loading)
+    }
+
+    @Test
+    fun replaceSelectedMemoOnlyUpdatesMatchingSelection() {
+        val selected = memo("memo-16")
+        val replacement = selected.copy(content = "冲突后", version = 3)
+        val state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+        )
+
+        val replaced = state.replaceSelectedMemo(selected.id, replacement)
+        val ignored = state.replaceSelectedMemo("other", replacement)
+
+        assertEquals(replacement, replaced.selection.selectedMemo)
+        assertEquals(selected, ignored.selection.selectedMemo)
+    }
+
+    @Test
     fun clearInteractiveSurfaceResetsListMutationSelectionSummaryUploadAndSearch() {
         val selected = memo("memo-1")
         val state = RecordsFeatureStateHolder(

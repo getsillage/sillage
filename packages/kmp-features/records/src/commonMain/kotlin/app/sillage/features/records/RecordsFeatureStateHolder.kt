@@ -305,6 +305,46 @@ data class RecordsFeatureStateHolder(
     }
 
     /**
+     * Marks the list surface as loading before the host starts a real refresh
+     * request identity. Does not clear the visible cache.
+     */
+    fun markListLoading(): RecordsFeatureStateHolder {
+        return copy(refresh = refresh.copy(status = RecordsRefreshStatus.Loading))
+    }
+
+    /**
+     * Accepts a validated detail-request selection and starts optional summary
+     * loading for the detail/editor destination.
+     */
+    fun acceptDetailRequest(
+        selection: RecordsSelectionStateHolder,
+        loadSummary: Boolean,
+    ): RecordsFeatureStateHolder {
+        return copy(
+            selection = selection,
+            summary = summary.beginDetailLoad(loadSummary = loadSummary),
+        )
+    }
+
+    /**
+     * Stops detail-summary loading without replacing the selected memo.
+     */
+    fun finishDetailSummary(): RecordsFeatureStateHolder {
+        return copy(summary = summary.finishDetail())
+    }
+
+    /**
+     * Replaces the selected memo when it matches [memoId], used after explicit
+     * conflict resolution that keeps the user on the current destination.
+     */
+    fun replaceSelectedMemo(
+        memoId: String,
+        memo: Memo?,
+    ): RecordsFeatureStateHolder {
+        return copy(selection = selection.replaceIfSelected(memoId, memo))
+    }
+
+    /**
      * Resets list surface and search after the semantic filter changes. Selection
      * and summary are left to the host when navigation context also changes.
      */

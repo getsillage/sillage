@@ -330,7 +330,7 @@ internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
     if (attachmentOpen === recordsAttachmentOpen) {
         return this
     }
-    return copy(records = records.copy(attachmentOpen = attachmentOpen))
+    return withRecords { it.copy(attachmentOpen = attachmentOpen) }
 }
 
 internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {
@@ -359,11 +359,9 @@ internal fun SillageUiState.nextMemoDetailRequest(memoId: String): RecordsDetail
 internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest): SillageUiState {
     val selection = recordsSelection.beginDetailRequest(request, recordsDetailContext()) ?: return this
     return withRecords {
-        it.copy(
+        it.acceptDetailRequest(
             selection = selection,
-            summary = it.summary.beginDetailLoad(
-                loadSummary = request.sourceKey != SessionStore.MODE_OFFLINE,
-            ),
+            loadSummary = request.sourceKey != SessionStore.MODE_OFFLINE,
         )
     }
 }
@@ -380,7 +378,7 @@ internal fun SillageUiState.completeMemoDetailRequest(
         )
     ) {
         RecordsDetailResponseDisposition.Ignore -> this
-        RecordsDetailResponseDisposition.Superseded -> withRecords { it.copy(summary = it.summary.finishDetail()) }
+        RecordsDetailResponseDisposition.Superseded -> withRecords { it.finishDetailSummary() }
         RecordsDetailResponseDisposition.Apply -> withRecords {
             it.completePresentedDetail(detail.memo, detail.ai)
         }
@@ -393,8 +391,8 @@ internal fun SillageUiState.failMemoDetailRequest(
 ): SillageUiState {
     return when (recordsSelection.detailFailureDisposition(request, recordsDetailContext())) {
         RecordsDetailResponseDisposition.Ignore -> this
-        RecordsDetailResponseDisposition.Superseded -> withRecords { it.copy(summary = it.summary.finishDetail()) }
-        RecordsDetailResponseDisposition.Apply -> withRecords { it.copy(summary = it.summary.finishDetail()) }
+        RecordsDetailResponseDisposition.Superseded -> withRecords { it.finishDetailSummary() }
+        RecordsDetailResponseDisposition.Apply -> withRecords { it.finishDetailSummary() }
             .copy(error = message)
     }
 }
@@ -419,8 +417,7 @@ internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
 internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
     val summaryState = recordsSummary.begin(request, selectedMemo, recordsSummaryContext())
         ?: return this
-    return copy(
-        records = records.copy(summary = summaryState),
+    return withRecords { it.copy(summary = summaryState) }.copy(
         error = null,
         notice = null,
     )
@@ -464,20 +461,19 @@ internal fun SillageUiState.failMemoSummaryRequest(
     if (!canApplyMemoSummaryRequest(request)) {
         return this
     }
-    return copy(
-        records = records.copy(summary = records.summary.fail(request, selectedMemo, recordsSummaryContext())),
-        error = message,
-    )
+    return withRecords {
+        it.copy(summary = it.summary.fail(request, selectedMemo, recordsSummaryContext()))
+    }.copy(error = message)
 }
 
 internal fun SillageUiState.finishMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
     if (!ownsMemoSummaryRequest(request)) return this
-    return copy(records = records.copy(summary = records.summary.finish(request)))
+    return withRecords { it.copy(summary = it.summary.finish(request)) }
 }
 
 internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
     if (!summaryLoading) return this
-    return copy(records = records.copy(summary = records.summary.invalidate()))
+    return withRecords { it.copy(summary = it.summary.invalidate()) }
 }
 
 internal fun SillageUiState.aiAutoSummaryContext(): AIAutoSummaryContext =
@@ -740,8 +736,7 @@ internal fun SillageUiState.nextMemoPageRequest(): RecordsPageRequest? {
 
 internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageUiState? {
     val pagination = recordsPagination.begin(request, recordsPageContext()) ?: return null
-    return copy(
-        records = records.copy(pagination = pagination),
+    return withRecords { it.copy(pagination = pagination) }.copy(
         error = null,
         notice = null,
     )
@@ -756,12 +751,12 @@ internal fun SillageUiState.completeMemoPage(
     nextCursor: String,
 ): SillageUiState? {
     val pagination = recordsPagination.complete(request, recordsPageContext(), nextCursor) ?: return null
-    return copy(records = records.copy(pagination = pagination))
+    return withRecords { it.copy(pagination = pagination) }
 }
 
 internal fun SillageUiState.failMemoPage(request: RecordsPageRequest): SillageUiState? {
     val pagination = recordsPagination.fail(request, recordsPageContext()) ?: return null
-    return copy(records = records.copy(pagination = pagination))
+    return withRecords { it.copy(pagination = pagination) }
 }
 
 private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
@@ -780,7 +775,7 @@ internal fun SillageUiState.nextMemoRefreshRequest(): RecordsRefreshRequest {
 
 internal fun SillageUiState.beginMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
     val refresh = recordsRefresh.begin(request, recordsRefreshContext()) ?: return null
-    return copy(records = records.copy(refresh = refresh))
+    return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.canApplyMemoRefresh(request: RecordsRefreshRequest): Boolean {
@@ -789,12 +784,12 @@ internal fun SillageUiState.canApplyMemoRefresh(request: RecordsRefreshRequest):
 
 internal fun SillageUiState.completeMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
     val refresh = recordsRefresh.complete(request, recordsRefreshContext()) ?: return null
-    return copy(records = records.copy(refresh = refresh))
+    return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.failMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
     val refresh = recordsRefresh.fail(request, recordsRefreshContext()) ?: return null
-    return copy(records = records.copy(refresh = refresh))
+    return withRecords { it.copy(refresh = refresh) }
 }
 
 private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
@@ -812,8 +807,7 @@ internal fun SillageUiState.nextMemoSearchRequest(): RecordsSearchRequest? {
 
 internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): SillageUiState {
     val search = recordsSearch.begin(request, recordsSearchContext()) ?: return this
-    return copy(
-        records = records.copy(search = search),
+    return withRecords { it.copy(search = search) }.copy(
         error = null,
         notice = null,
     )
@@ -836,7 +830,7 @@ internal fun SillageUiState.completeMemoSearch(
     results: List<Memo>,
 ): SillageUiState {
     val search = recordsSearch.complete(request, recordsSearchContext(), results) ?: return this
-    return copy(records = records.copy(search = search), error = null)
+    return withRecords { it.copy(search = search) }.copy(error = null)
 }
 
 internal fun SillageUiState.failMemoSearch(
@@ -844,7 +838,7 @@ internal fun SillageUiState.failMemoSearch(
     message: String,
 ): SillageUiState {
     val search = recordsSearch.fail(request, recordsSearchContext()) ?: return this
-    return copy(records = records.copy(search = search), error = message)
+    return withRecords { it.copy(search = search) }.copy(error = message)
 }
 
 internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {

@@ -19,10 +19,12 @@ import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
+import app.sillage.data.LocalMemoSyncOutbox
 import app.sillage.data.LocalRecordsRepository
 import app.sillage.data.LocalRecordSummaryRepository
 import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.RemoteRecordSummaryRepository
+import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
 import app.sillage.core.application.records.GenerateRecordSummaryUseCase
@@ -50,6 +52,7 @@ import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
 import app.sillage.core.sync.SyncPushSummary
+import app.sillage.core.sync.PushPendingMemosUseCase
 import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
@@ -97,6 +100,7 @@ class SillageViewModel(
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = localDataStore ?: LocalDataStore(appContext)
+    private val localMemoSyncOutbox = LocalMemoSyncOutbox(this.localDataStore)
     private val localRecordsRepository = LocalRecordsRepository(this.localDataStore)
     private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
     private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
@@ -111,6 +115,10 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
+    private val pushPendingMemos = PushPendingMemosUseCase(
+        localMemoSyncOutbox,
+        RemoteMemoSyncGateway(api),
+    )
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
     private val listRemoteRecords = ListRecordsPageUseCase(remoteRecordsRepository)
     private val searchRemoteRecords = SearchRecordsUseCase(remoteRecordsRepository)
@@ -3293,13 +3301,7 @@ class SillageViewModel(
     }
 
     private suspend fun pushLocalMemosToServer(): SyncPushSummary {
-        val pending = localDataStore.pendingCloudMemos()
-        if (pending.isEmpty()) {
-            return SyncPushSummary(applied = 0, conflict = 0, rejected = 0)
-        }
-        val summary = api.pushMemos(pending)
-        localDataStore.applyCloudSyncedMemos(summary.appliedMemoSyncs)
-        return summary
+        return pushPendingMemos()
     }
 
     private fun presentSyncPushResult(summary: SyncPushSummary) {

@@ -193,6 +193,10 @@ version-conflict, and push-summary models. Android REST/JSON mapping,
 transactional outbox persistence, attachment staging, and conflict resolution
 remain adapter-side migration sources for later sync ports and state-machine
 slices.
+`PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
+it skips empty pushes, sends one pending batch, and acknowledges only applied
+results through the transactional outbox. Android retains conflict presentation
+and resolution orchestration.
 
 ## Core Invariants
 

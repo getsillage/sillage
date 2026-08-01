@@ -38,7 +38,8 @@ lives in `kmp-features:records`. Android UI code may compose those shared featur
 must not duplicate domain, storage, synchronization, or protocol rules.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
-adapters.
+adapters. Pending memo pushes run through the shared outbox/gateway use case;
+conflict presentation and resolution remain Android orchestration for now.
 
 See [Multiplatform Development](../../../docs/development/multiplatform.md) and
 [Architecture](../../../docs/development/architecture.md) for module ownership and

@@ -162,6 +162,9 @@ The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,
 transactional outbox persistence, attachment staging, and conflict resolution
 until later sync ports and state-machine slices are extracted.
+`PushPendingMemosUseCase` already composes shared `MemoSyncOutbox` and
+`MemoSyncGateway` ports so empty-push handling and applied-result acknowledgement
+are platform-independent.
 
 ## Platform Hosts
 

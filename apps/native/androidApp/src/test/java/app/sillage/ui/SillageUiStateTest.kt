@@ -4,6 +4,7 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskMessage
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
+import app.sillage.core.application.records.RecordsSearchQuery
 import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
@@ -530,20 +531,20 @@ class SillageUiStateTest {
         )
 
         assertEquals(
-            MemoApiQuery(archived = false, favorited = false, deleted = false),
-            MemoListFilter.Unarchived.apiQuery(),
+            RecordsSearchQuery("query", RecordsQueryScope.Unarchived),
+            MemoListFilter.Unarchived.recordsSearchQuery("query"),
         )
         assertEquals(
-            MemoApiQuery(archived = true, favorited = false, deleted = false),
-            MemoListFilter.Archived.apiQuery(),
+            RecordsSearchQuery("query", RecordsQueryScope.Archived),
+            MemoListFilter.Archived.recordsSearchQuery("query"),
         )
         assertEquals(
-            MemoApiQuery(archived = null, favorited = true, deleted = false),
-            MemoListFilter.Favorited.apiQuery(),
+            RecordsSearchQuery("query", RecordsQueryScope.Favorited),
+            MemoListFilter.Favorited.recordsSearchQuery("query"),
         )
         assertEquals(
-            MemoApiQuery(archived = null, favorited = false, deleted = true),
-            MemoListFilter.Deleted.apiQuery(),
+            RecordsSearchQuery("query", RecordsQueryScope.Deleted),
+            MemoListFilter.Deleted.recordsSearchQuery("query"),
         )
     }
 

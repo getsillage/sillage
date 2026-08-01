@@ -8,6 +8,8 @@ The records slice currently exposes two distinct boundaries:
   snapshot without exposing storage implementation types.
 - `RecordsPageRepository` and `ListRecordsPageUseCase` request a semantic,
   server-backed page without exposing HTTP parameters or transport DTOs.
+- `RecordsSearchRepository` and `SearchRecordsUseCase` perform semantic,
+  server-backed full-text search with the same query scopes.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

@@ -104,6 +104,10 @@ Records refresh is the second extracted state slice. Its shared holder owns
 loading/failure status and request identity independently from pagination, while
 validating the same query context before replacing the visible snapshot.
 
+Server-backed records search also crosses an application port: shared callers
+provide text and semantic scope, while the platform adapter owns REST query
+parameters and response mapping.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

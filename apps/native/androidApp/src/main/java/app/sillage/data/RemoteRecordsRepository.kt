@@ -4,11 +4,14 @@ import app.sillage.core.application.records.RecordsPage
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsPageRepository
 import app.sillage.core.application.records.RecordsQueryScope
+import app.sillage.core.application.records.RecordsSearchQuery
+import app.sillage.core.application.records.RecordsSearchRepository
+import app.sillage.core.domain.records.Memo
 
 /** Android HTTP adapter for the shared records page application port. */
 class RemoteRecordsRepository(
     private val api: SillageApi,
-) : RecordsPageRepository {
+) : RecordsPageRepository, RecordsSearchRepository {
     override suspend fun listPage(query: RecordsPageQuery): RecordsPage {
         val transportQuery = query.scope.transportQuery()
         val page = api.listMemos(
@@ -20,6 +23,16 @@ class RemoteRecordsRepository(
         return RecordsPage(
             memos = page.memos,
             nextCursor = page.nextCursor,
+        )
+    }
+
+    override suspend fun search(query: RecordsSearchQuery): List<Memo> {
+        val transportQuery = query.scope.transportQuery()
+        return api.searchMemos(
+            query = query.text,
+            archived = transportQuery.archived,
+            favorited = transportQuery.favorited,
+            deleted = transportQuery.deleted,
         )
     }
 }

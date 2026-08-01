@@ -157,8 +157,9 @@ and request state; Android supplies account metadata and client-context gating.
 profile editor header and summary cards, including save progress, diagnostics
 feedback, and profile/action presentation.
 The same module owns AI profile detail editing, provider selection, model-result
-chips, connection feedback, and delete confirmation. Android supplies localized
-strings, selection state, and ViewModel callbacks while retaining adapters.
+chips, connection feedback, delete confirmation, lazy-list composition, and
+expanded-profile selection. Android supplies localized strings, icons, and
+ViewModel callbacks while retaining adapters.
 It also owns settings language-selection layout; Android supplies supported
 language identifiers, localized labels, and preference persistence.
 The shared settings overview card receives localized display values derived from

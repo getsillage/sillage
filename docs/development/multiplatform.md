@@ -141,9 +141,10 @@ summary cards. It consumes `SettingsFeatureStateHolder` directly for save
 progress, editable profile metadata, diagnostics feedback, selection colors,
 fallbacks, and action-enabled policy.
 Its detail editor also consumes draft fields, model results, and diagnostic
-request state while owning provider selection and deletion confirmation. Hosts
-supply localized strings, selection state, and callbacks; persistence, protocol
-clients, native dialogs, and file pickers remain platform adapters.
+request state while owning provider selection and deletion confirmation. Shared
+lazy-list orchestration owns header/empty/profile composition and expanded-profile
+selection. Hosts supply localized strings, icons, and callbacks; persistence,
+protocol clients, native dialogs, and file pickers remain platform adapters.
 The module also owns settings language-selection layout and option presentation;
 hosts provide supported language identifiers, localized labels, and persistence.
 Its overview card accepts localized mode, record-count, appearance, and AI values,

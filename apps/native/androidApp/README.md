@@ -102,6 +102,8 @@ consume the settings feature aggregate directly; Android supplies localized
 strings, icons, and callbacks.
 AI profile detail editing also comes from that module; Android retains ViewModel
 event routing plus encrypted persistence and remote/local protocol adapters.
+Shared lazy-list orchestration now owns profile expansion selection, empty-state,
+summary, and detail composition instead of Android screen-local UI state.
 The settings language selector also comes from `shared-ui:settings`; Android
 supplies supported language identifiers, localized labels, and persistence callback.
 The settings overview card is shared as well; Android maps app mode, record count,

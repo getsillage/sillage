@@ -45,5 +45,6 @@ validation. Storage and REST remain platform adapters behind
 The buildable `shared-ui:settings` module directly consumes
 `SettingsFeatureStateHolder` for the profile editor header, save progress, summary,
 and diagnostics presentation; the shared detail editor also reads profile drafts,
-model results, and test state from the aggregate. Hosts retain localized resources,
-icons, callbacks, persistence, and protocol adapters.
+model results, and test state from the aggregate. Shared lazy-list orchestration
+owns empty/profile composition and expanded-profile selection. Hosts retain
+localized resources, icons, callbacks, persistence, and protocol adapters.

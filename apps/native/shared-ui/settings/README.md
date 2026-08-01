@@ -16,6 +16,9 @@ presentation while hosts supply supported language identifiers and persistence.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 
-Hosts supply localized strings, selection state, and callbacks. Protocol clients,
+`SillageAIProfilesEditor` emits the lazy-list header, empty state, profile cards,
+and detail editors while its remembered state owns expanded-profile selection.
+
+Hosts supply localized strings, icons, and callbacks. Protocol clients,
 encrypted key persistence, file pickers, native dialogs, navigation, and platform
 lifecycle remain outside this module.

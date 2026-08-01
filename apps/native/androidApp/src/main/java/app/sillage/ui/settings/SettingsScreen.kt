@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -54,7 +53,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.features.settings.editorKey
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
@@ -62,24 +60,23 @@ import app.sillage.ui.auth.SillageAccountSettingsContent
 import app.sillage.ui.auth.SillageAccountSettingsStrings
 import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.designsystem.SillageSettingsActionRow
-import app.sillage.ui.designsystem.SillageSettingsEmptyCard
 import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
 import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
-import app.sillage.ui.settings.SillageAIProfileDetailCard
 import app.sillage.ui.settings.SillageAIProfileDetailStrings
-import app.sillage.ui.settings.SillageAIProfileSummaryCard
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
-import app.sillage.ui.settings.SillageAIProfilesHeaderCard
+import app.sillage.ui.settings.SillageAIProfilesEditorStrings
 import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageRow
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
 import app.sillage.ui.settings.SillageSettingsOverviewCard
 import app.sillage.ui.settings.SillageSettingsOverviewItem
+import app.sillage.ui.settings.rememberSillageAIProfilesEditorState
+import app.sillage.ui.settings.sillageAIProfilesEditorItems
 
 internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
@@ -87,15 +84,64 @@ internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
-    var selectedAIProfileIndex by remember { mutableStateOf<Int?>(null) }
     var showOpenSourceLicenses by remember { mutableStateOf(false) }
-    val selectedIndex = selectedAIProfileIndex?.takeIf { it in state.aiProfiles.indices }
+    val aiProfilesEditorState = rememberSillageAIProfilesEditorState()
     val aiProfileOperationInProgress = state.aiSettingsSaving ||
         state.aiTestingProfileId.isNotBlank() ||
         state.aiLoadingModelsProfileId.isNotBlank() ||
         state.loading
     val aiProfileMutationBlocked = aiProfileOperationInProgress || state.aiAutoSummarySaving
     val clientContextChangeBlocked = state.hasClientContextOperationInProgress()
+    val aiProfilesEditorStrings = SillageAIProfilesEditorStrings(
+        header = SillageAIProfilesHeaderStrings(
+            title = stringResource(R.string.settings_ai_profiles),
+            supporting = stringResource(R.string.settings_ai_profiles_supporting),
+            newProfile = stringResource(R.string.action_new),
+            saving = stringResource(R.string.action_saving),
+            save = stringResource(R.string.action_save),
+        ),
+        empty = stringResource(R.string.settings_no_ai_profiles),
+        summary = SillageAIProfileSummaryStrings(
+            unnamedProfile = stringResource(R.string.settings_profile_unnamed),
+            anthropicCompatible = stringResource(
+                R.string.settings_provider_anthropic_compatible,
+            ),
+            openAICompatible = stringResource(R.string.settings_provider_openai_compatible),
+            defaultProfile = stringResource(R.string.settings_default),
+            modelUnset = stringResource(R.string.settings_model_unset),
+            keyPresent = stringResource(R.string.settings_key_present),
+            keyMissing = stringResource(R.string.settings_key_missing),
+            keyError = stringResource(R.string.settings_key_error),
+            configure = stringResource(R.string.action_configure),
+            currentDefault = stringResource(R.string.settings_default_current),
+            setDefault = stringResource(R.string.settings_set_default),
+        ),
+        detail = SillageAIProfileDetailStrings(
+            title = stringResource(R.string.settings_profile_details),
+            supporting = stringResource(R.string.settings_profile_details_supporting),
+            collapse = stringResource(R.string.action_collapse),
+            nameLabel = stringResource(R.string.settings_profile_name),
+            providerLabel = stringResource(R.string.settings_provider),
+            anthropicCompatible = stringResource(
+                R.string.settings_provider_anthropic_compatible,
+            ),
+            openAICompatible = stringResource(R.string.settings_provider_openai_compatible),
+            baseUrlLabel = stringResource(R.string.settings_base_url),
+            modelLabel = stringResource(R.string.settings_model),
+            modelsLoading = stringResource(R.string.settings_models_loading),
+            getModels = stringResource(R.string.settings_models_get),
+            temperatureLabel = stringResource(R.string.settings_temperature),
+            maxTokensLabel = stringResource(R.string.settings_max_tokens),
+            apiKeyLabel = stringResource(R.string.settings_api_key),
+            keepApiKey = stringResource(R.string.settings_key_keep),
+            apiKeyNotConfigured = stringResource(R.string.settings_key_not_configured),
+            keyDecryptError = stringResource(R.string.settings_key_decrypt_error),
+            testing = stringResource(R.string.settings_test_testing),
+            testConnection = stringResource(R.string.settings_test_connection),
+            confirmDelete = stringResource(R.string.action_confirm_delete),
+            delete = stringResource(R.string.action_delete),
+        ),
+    )
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -404,121 +450,28 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             )
                         }
                     }
-                    item {
-                    SillageAIProfilesHeaderCard(
-                        state = state.settings,
-                        strings = SillageAIProfilesHeaderStrings(
-                            title = stringResource(R.string.settings_ai_profiles),
-                            supporting = stringResource(R.string.settings_ai_profiles_supporting),
-                            newProfile = stringResource(R.string.action_new),
-                            saving = stringResource(R.string.action_saving),
-                            save = stringResource(R.string.action_save),
-                        ),
-                        addIcon = Icons.Rounded.Add,
-                        saveIcon = Icons.Rounded.Save,
-                        editingBlocked = aiProfileOperationInProgress,
-                        mutationBlocked = aiProfileMutationBlocked,
-                        onAdd = {
-                            selectedAIProfileIndex = state.aiProfiles.size
-                            viewModel.addAIProfile()
-                            },
-                            onSave = viewModel::saveAIProfiles,
-                        )
-                    }
-                    if (state.aiProfiles.isEmpty()) {
-                        item {
-                        SillageSettingsEmptyCard(stringResource(R.string.settings_no_ai_profiles))
-                        }
-                    } else {
-                        items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].editorKey(index) }) { index ->
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SillageAIProfileSummaryCard(
-                                    state = state.settings,
-                                    profileIndex = index,
-                                    strings = SillageAIProfileSummaryStrings(
-                                        unnamedProfile = stringResource(R.string.settings_profile_unnamed),
-                                        anthropicCompatible = stringResource(
-                                            R.string.settings_provider_anthropic_compatible,
-                                        ),
-                                        openAICompatible = stringResource(
-                                            R.string.settings_provider_openai_compatible,
-                                        ),
-                                        defaultProfile = stringResource(R.string.settings_default),
-                                        modelUnset = stringResource(R.string.settings_model_unset),
-                                        keyPresent = stringResource(R.string.settings_key_present),
-                                        keyMissing = stringResource(R.string.settings_key_missing),
-                                        keyError = stringResource(R.string.settings_key_error),
-                                        configure = stringResource(R.string.action_configure),
-                                        currentDefault = stringResource(R.string.settings_default_current),
-                                        setDefault = stringResource(R.string.settings_set_default),
-                                    ),
-                                    selected = selectedIndex == index,
-                                    editingBlocked = aiProfileOperationInProgress,
-                                    mutationBlocked = aiProfileMutationBlocked,
-                                    onConfigure = { selectedAIProfileIndex = index },
-                                    onSetDefault = { viewModel.setAIProfileDefault(index) },
-                                )
-                                if (selectedIndex == index) {
-                                    SillageAIProfileDetailCard(
-                                        state = state.settings,
-                                        profileIndex = index,
-                                        strings = SillageAIProfileDetailStrings(
-                                            title = stringResource(R.string.settings_profile_details),
-                                            supporting = stringResource(
-                                                R.string.settings_profile_details_supporting,
-                                            ),
-                                            collapse = stringResource(R.string.action_collapse),
-                                            nameLabel = stringResource(R.string.settings_profile_name),
-                                            providerLabel = stringResource(R.string.settings_provider),
-                                            anthropicCompatible = stringResource(
-                                                R.string.settings_provider_anthropic_compatible,
-                                            ),
-                                            openAICompatible = stringResource(
-                                                R.string.settings_provider_openai_compatible,
-                                            ),
-                                            baseUrlLabel = stringResource(R.string.settings_base_url),
-                                            modelLabel = stringResource(R.string.settings_model),
-                                            modelsLoading = stringResource(R.string.settings_models_loading),
-                                            getModels = stringResource(R.string.settings_models_get),
-                                            temperatureLabel = stringResource(R.string.settings_temperature),
-                                            maxTokensLabel = stringResource(R.string.settings_max_tokens),
-                                            apiKeyLabel = stringResource(R.string.settings_api_key),
-                                            keepApiKey = stringResource(R.string.settings_key_keep),
-                                            apiKeyNotConfigured = stringResource(
-                                                R.string.settings_key_not_configured,
-                                            ),
-                                            keyDecryptError = stringResource(
-                                                R.string.settings_key_decrypt_error,
-                                            ),
-                                            testing = stringResource(R.string.settings_test_testing),
-                                            testConnection = stringResource(
-                                                R.string.settings_test_connection,
-                                            ),
-                                            confirmDelete = stringResource(R.string.action_confirm_delete),
-                                            delete = stringResource(R.string.action_delete),
-                                        ),
-                                        editingBlocked = aiProfileOperationInProgress,
-                                        mutationBlocked = aiProfileMutationBlocked,
-                                        onNameChange = { viewModel.updateAIProfileName(index, it) },
-                                        onProviderChange = { viewModel.updateAIProfileProvider(index, it) },
-                                        onBaseUrlChange = { viewModel.updateAIProfileBaseUrl(index, it) },
-                                        onModelChange = { viewModel.updateAIProfileModel(index, it) },
-                                        onLoadModels = { viewModel.loadAIModels(index) },
-                                        onTemperatureChange = {
-                                            viewModel.updateAIProfileTemperature(index, it)
-                                        },
-                                        onMaxTokensChange = {
-                                            viewModel.updateAIProfileMaxTokens(index, it)
-                                        },
-                                        onApiKeyChange = { viewModel.updateAIProfileApiKey(index, it) },
-                                        onTestConnection = { viewModel.testAIProfile(index) },
-                                        onDelete = { viewModel.removeAIProfile(index) },
-                                        onClose = { selectedAIProfileIndex = null },
-                                    )
-                                }
-                            }
-                        }
-                    }
+                sillageAIProfilesEditorItems(
+                    state = state.settings,
+                    editorState = aiProfilesEditorState,
+                    strings = aiProfilesEditorStrings,
+                    addIcon = Icons.Rounded.Add,
+                    saveIcon = Icons.Rounded.Save,
+                    editingBlocked = aiProfileOperationInProgress,
+                    mutationBlocked = aiProfileMutationBlocked,
+                    onAdd = viewModel::addAIProfile,
+                    onSave = viewModel::saveAIProfiles,
+                    onSetDefault = viewModel::setAIProfileDefault,
+                    onNameChange = viewModel::updateAIProfileName,
+                    onProviderChange = viewModel::updateAIProfileProvider,
+                    onBaseUrlChange = viewModel::updateAIProfileBaseUrl,
+                    onModelChange = viewModel::updateAIProfileModel,
+                    onLoadModels = viewModel::loadAIModels,
+                    onTemperatureChange = viewModel::updateAIProfileTemperature,
+                    onMaxTokensChange = viewModel::updateAIProfileMaxTokens,
+                    onApiKeyChange = viewModel::updateAIProfileApiKey,
+                    onTestConnection = viewModel::testAIProfile,
+                    onDelete = viewModel::removeAIProfile,
+                )
                 }
             }
         }

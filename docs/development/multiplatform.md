@@ -84,6 +84,10 @@ the current session before asynchronous work, and shared application policy owns
 offline clearing, remote-failure fallback, cancellation, and stale-session
 rejection without exposing token-bearing platform snapshots.
 
+Canonical theme, language, and app-mode tokens plus URL/mode normalization live in
+`kmp-core:application` (`ClientPreferenceValues`). Android `SessionStore` remains the
+secure/local preference adapter and reuses those shared normalizers.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

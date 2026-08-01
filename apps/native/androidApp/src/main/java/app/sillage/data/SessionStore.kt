@@ -1,5 +1,11 @@
 package app.sillage.data
 
+import app.sillage.core.application.preferences.ClientPreferenceValues
+import app.sillage.core.application.preferences.normalizeAppMode as sharedNormalizeAppMode
+import app.sillage.core.application.preferences.normalizeBaseUrl as sharedNormalizeBaseUrl
+import app.sillage.core.application.preferences.normalizeLanguageMode as sharedNormalizeLanguageMode
+import app.sillage.core.application.preferences.normalizeThemeMode as sharedNormalizeThemeMode
+
 import android.content.Context
 import android.content.SharedPreferences
 import app.sillage.core.application.auth.AuthSession
@@ -261,12 +267,12 @@ class SessionStore(context: Context) {
         private val SESSION_LOCK = Any()
 
         const val DEFAULT_BASE_URL = ""
-        const val THEME_LIGHT = "light"
-        const val THEME_DARK = "dark"
-        const val LANGUAGE_EN = "en"
-        const val LANGUAGE_ZH_CN = "zh-CN"
-        const val MODE_ONLINE = "online"
-        const val MODE_OFFLINE = "offline"
+        const val THEME_LIGHT = ClientPreferenceValues.THEME_LIGHT
+        const val THEME_DARK = ClientPreferenceValues.THEME_DARK
+        const val LANGUAGE_EN = ClientPreferenceValues.LANGUAGE_EN
+        const val LANGUAGE_ZH_CN = ClientPreferenceValues.LANGUAGE_ZH_CN
+        const val MODE_ONLINE = ClientPreferenceValues.MODE_ONLINE
+        const val MODE_OFFLINE = ClientPreferenceValues.MODE_OFFLINE
 
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
@@ -291,25 +297,12 @@ class SessionStore(context: Context) {
             KEY_COOKIE_ORIGIN,
         )
 
-        fun normalizeBaseUrl(value: String): String {
-            val trimmed = value.trim().trimEnd('/')
-            return when {
-                trimmed.isBlank() -> ""
-                trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
-                else -> "https://$trimmed"
-            }
-        }
+        fun normalizeBaseUrl(value: String): String = sharedNormalizeBaseUrl(value)
 
-        fun normalizeThemeMode(value: String): String {
-            return if (value == THEME_DARK) THEME_DARK else THEME_LIGHT
-        }
+        fun normalizeThemeMode(value: String): String = sharedNormalizeThemeMode(value)
 
-        fun normalizeLanguageMode(value: String): String {
-            return if (value.trim().lowercase().startsWith(LANGUAGE_EN)) LANGUAGE_EN else LANGUAGE_ZH_CN
-        }
+        fun normalizeLanguageMode(value: String): String = sharedNormalizeLanguageMode(value)
 
-        fun normalizeAppMode(value: String): String {
-            return if (value == MODE_OFFLINE) MODE_OFFLINE else MODE_ONLINE
-        }
+        fun normalizeAppMode(value: String): String = sharedNormalizeAppMode(value)
     }
 }

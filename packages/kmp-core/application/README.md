@@ -69,3 +69,7 @@ Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage
 and transport clients. Shared APIs must not expose Android, SQLite, JSON, HTTP,
 or generated protocol types.
+
+The preferences slice owns canonical theme/language/app-mode tokens and
+normalization helpers. Platform adapters retain encrypted or OS preference
+storage while sharing the same accepted values.

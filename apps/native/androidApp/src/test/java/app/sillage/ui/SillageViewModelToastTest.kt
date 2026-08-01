@@ -75,6 +75,20 @@ class SillageViewModelToastTest {
     }
 
     @Test
+    fun openingOfflineSettingsReusesTheHydratedWorkspace() {
+        val sessionStore = SessionStore(context)
+        sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
+        val viewModel = SillageViewModel(context)
+        val profiles = viewModel.state.value.aiProfiles
+
+        viewModel.openAISettings()
+
+        assertEquals(Screen.AISettings, viewModel.state.value.screen)
+        assertFalse(viewModel.state.value.aiSettingsLoading)
+        assertEquals(profiles, viewModel.state.value.aiProfiles)
+    }
+
+    @Test
     fun secondaryMainDestinationsReturnToRecords() {
         val sessionStore = SessionStore(context)
         sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)

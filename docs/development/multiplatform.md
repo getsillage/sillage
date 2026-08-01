@@ -177,7 +177,10 @@ editable-settings snapshot application. Diagnostic-result clearing and host
 feedback recording also go through the settings aggregate; request identity
 remains owned by the diagnostics holder.
 Android's root `SillageUiState` stores one `settings` aggregate field with
-transitional slice getters for the former top-level settings holders.
+transitional slice getters for the former top-level settings holders. Offline
+workspace entry already hydrates this aggregate, so Android settings screen
+entry reuses that snapshot; online entry still loads through the shared
+application port and request-identity holder.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

@@ -11,6 +11,10 @@ Individual holders remain the unit of request identity. Android stores one
 remaining single-holder call sites finish moving onto `withSettings` / aggregate
 transitions.
 
+Android hydrates this aggregate while entering an offline workspace, so opening
+Settings reuses that snapshot instead of issuing a redundant local repository
+load. Online screen entry continues to refresh through the application use case.
+
 `AIProfileDraft` owns cross-platform editor values, transient raw numeric input,
 and unsaved presentation identity. Secret input is feature state only: platform
 adapters explicitly map it to encrypted storage or transport commands, and

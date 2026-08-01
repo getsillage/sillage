@@ -515,7 +515,9 @@ class SillageViewModel(
                 notice = null,
             )
         }
-        loadAISettings()
+        if (!isOfflineMode()) {
+            loadAISettings()
+        }
     }
 
     fun openAsk() {

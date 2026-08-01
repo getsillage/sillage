@@ -149,6 +149,8 @@ The automatic-summary section also consumes preference and save lifecycle from t
 aggregate, combining them with a host-provided wider operation gate.
 The module also owns settings language-selection layout and option presentation;
 hosts provide supported language identifiers, localized labels, and persistence.
+Its appearance section composes theme selection with that row while hosts map
+stored preference values and persistence callbacks.
 Its overview card accepts localized mode, record-count, appearance, and AI values,
 leaving cross-feature state mapping in each host adapter.
 

@@ -13,6 +13,8 @@ confirmation while exposing host callbacks for mutations and operations.
 new/save action layout, progress feedback, and operation-gate presentation.
 `SillageSettingsLanguageRow` owns settings language-selection layout and option
 presentation while hosts supply supported language identifiers and persistence.
+`SillageSettingsAppearanceSection` composes that row with theme selection and
+shared enable-state presentation.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

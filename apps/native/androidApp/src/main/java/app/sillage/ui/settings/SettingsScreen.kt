@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -62,7 +61,6 @@ import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.designsystem.SillageSettingsActionRow
 import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
-import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
@@ -72,8 +70,9 @@ import app.sillage.ui.settings.SillageAIProfileDetailStrings
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 import app.sillage.ui.settings.SillageAIProfilesEditorStrings
 import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
+import app.sillage.ui.settings.SillageSettingsAppearanceSection
+import app.sillage.ui.settings.SillageSettingsAppearanceStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
-import app.sillage.ui.settings.SillageSettingsLanguageRow
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
 import app.sillage.ui.settings.SillageSettingsOverviewCard
 import app.sillage.ui.settings.SillageSettingsOverviewItem
@@ -256,46 +255,39 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onCheckedChange = viewModel::setAISettingsAutoSummary,
                     )
                 }
-                    item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
-            SillageSettingsSwitchRow(
-                                icon = Icons.Rounded.DarkMode,
-                                title = stringResource(R.string.settings_dark_mode),
-                                supporting = if (state.themeMode == SessionStore.THEME_DARK) {
-                                    stringResource(R.string.settings_dark_mode_on)
-                                } else {
-                                    stringResource(R.string.settings_dark_mode_off)
-                                },
-                                checked = state.themeMode == SessionStore.THEME_DARK,
-                                enabled = !aiProfileOperationInProgress,
-                                onCheckedChange = { viewModel.toggleThemeMode() },
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 50.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            SillageSettingsLanguageRow(
-                                selectedLanguage = state.languageMode,
-                                options = listOf(
-                                    SillageSettingsLanguageOption(
-                                        value = SessionStore.LANGUAGE_ZH_CN,
-                                        label = stringResource(R.string.language_chinese),
-                                    ),
-                                    SillageSettingsLanguageOption(
-                                        value = SessionStore.LANGUAGE_EN,
-                                        label = stringResource(R.string.language_english),
-                                    ),
+                item {
+                    SillageSettingsAppearanceSection(
+                        darkMode = state.themeMode == SessionStore.THEME_DARK,
+                        selectedLanguage = state.languageMode,
+                        languageOptions = listOf(
+                            SillageSettingsLanguageOption(
+                                value = SessionStore.LANGUAGE_ZH_CN,
+                                label = stringResource(R.string.language_chinese),
+                            ),
+                            SillageSettingsLanguageOption(
+                                value = SessionStore.LANGUAGE_EN,
+                                label = stringResource(R.string.language_english),
+                            ),
+                        ),
+                        strings = SillageSettingsAppearanceStrings(
+                            sectionTitle = stringResource(R.string.settings_section_appearance),
+                            darkModeTitle = stringResource(R.string.settings_dark_mode),
+                            darkModeOn = stringResource(R.string.settings_dark_mode_on),
+                            darkModeOff = stringResource(R.string.settings_dark_mode_off),
+                            language = SillageSettingsLanguageStrings(
+                                title = stringResource(R.string.settings_language),
+                                supporting = stringResource(
+                                    R.string.settings_language_supporting,
                                 ),
-                                strings = SillageSettingsLanguageStrings(
-                                    title = stringResource(R.string.settings_language),
-                                    supporting = stringResource(R.string.settings_language_supporting),
-                                ),
-                                icon = Icons.Rounded.Language,
-                                enabled = !aiProfileOperationInProgress,
-                                onLanguageChange = viewModel::setLanguageMode,
-                            )
-                        }
-                    }
+                            ),
+                        ),
+                        darkModeIcon = Icons.Rounded.DarkMode,
+                        languageIcon = Icons.Rounded.Language,
+                        enabled = !aiProfileOperationInProgress,
+                        onDarkModeChange = { viewModel.toggleThemeMode() },
+                        onLanguageChange = viewModel::setLanguageMode,
+                    )
+                }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
             SillageSettingsActionRow(

@@ -119,6 +119,8 @@ The about section is shared while Android supplies BuildConfig/server metadata a
 loads the packaged third-party notice resource for its native dialog.
 The settings loading/error/list shell is shared; Android supplies localized retry
 content and emits the already shared sections into its lazy content slot.
+Shared settings content now owns section ordering and optional account placement;
+Android section slots only map localized values, icons, and callbacks.
 The settings overview card is shared as well; Android maps app mode, record count,
 theme, and AI preference into localized display values.
 Ask conversation selection, branch-head identity, and loaded message snapshots

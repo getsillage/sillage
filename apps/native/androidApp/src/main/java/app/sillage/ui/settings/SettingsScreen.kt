@@ -3,7 +3,6 @@ package app.sillage.ui.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -70,7 +69,7 @@ import app.sillage.ui.settings.SillageSettingsDataSection
 import app.sillage.ui.settings.SillageSettingsDataStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
-import app.sillage.ui.settings.SillageSettingsList
+import app.sillage.ui.settings.SillageSettingsContent
 import app.sillage.ui.settings.SillageSettingsOverviewCard
 import app.sillage.ui.settings.SillageSettingsOverviewItem
 import app.sillage.ui.settings.SillageSettingsServiceSyncIcons
@@ -170,20 +169,16 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             MainNavigationBar(state = state, viewModel = viewModel)
         },
     ) { padding ->
-        Column(
+        SillageSettingsContent(
+            loading = state.aiSettingsLoading,
+            errorMessage = state.aiSettingsLoadError,
+            retryLabel = stringResource(R.string.action_retry),
+            retryIcon = Icons.Rounded.Refresh,
+            onRetry = viewModel::loadAISettings,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-        ) {
-            SillageSettingsList(
-                loading = state.aiSettingsLoading,
-                errorMessage = state.aiSettingsLoadError,
-                retryLabel = stringResource(R.string.action_retry),
-                retryIcon = Icons.Rounded.Refresh,
-                onRetry = viewModel::loadAISettings,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                item {
+            overview = {
                 val online = state.appMode == SessionStore.MODE_ONLINE
                 SillageSettingsOverviewCard(
                     title = stringResource(R.string.settings_status_title),
@@ -226,8 +221,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         ),
                     ),
                 )
-            }
-            item {
+            },
+            autoSummary = {
                 SillageAIAutoSummarySection(
                     state = state.settings,
                     strings = SillageAIAutoSummaryStrings(
@@ -239,8 +234,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     operationBlocked = state.loading,
                     onCheckedChange = viewModel::setAISettingsAutoSummary,
                 )
-            }
-            item {
+            },
+            appearance = {
                 SillageSettingsAppearanceSection(
                     darkMode = state.themeMode == SessionStore.THEME_DARK,
                     selectedLanguage = state.languageMode,
@@ -272,8 +267,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     onDarkModeChange = { viewModel.toggleThemeMode() },
                     onLanguageChange = viewModel::setLanguageMode,
                 )
-            }
-            item {
+            },
+            serviceSync = {
                 SillageSettingsServiceSyncSection(
                     online = state.appMode == SessionStore.MODE_ONLINE,
                     baseUrl = state.baseUrl,
@@ -325,8 +320,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     onSyncCloud = viewModel::syncToServer,
                     onSyncBoth = viewModel::syncBothWays,
                 )
-            }
-            item {
+            },
+            data = {
                 SillageSettingsDataSection(
                     strings = SillageSettingsDataStrings(
                         sectionTitle = stringResource(R.string.settings_section_data),
@@ -343,9 +338,9 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                     },
                 )
-            }
-            if (state.appMode == SessionStore.MODE_ONLINE) {
-                item {
+            },
+            account = if (state.appMode == SessionStore.MODE_ONLINE) {
+                {
                     SillageAccountSettingsSection(
                         state = state.auth,
                         mutationBlocked = clientContextChangeBlocked,
@@ -373,8 +368,10 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onSignOut = viewModel::signOut,
                     )
                 }
-            }
-            item {
+            } else {
+                null
+            },
+            about = {
                 val unavailable = stringResource(R.string.settings_value_unavailable)
                 SillageSettingsAboutSection(
                     strings = SillageSettingsAboutStrings(
@@ -418,31 +415,32 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     licensesIcon = Icons.Rounded.Info,
                     onOpenLicenses = { showOpenSourceLicenses = true },
                 )
-            }
-            sillageAIProfilesEditorItems(
-                state = state.settings,
-                editorState = aiProfilesEditorState,
-                strings = aiProfilesEditorStrings,
-                addIcon = Icons.Rounded.Add,
-                saveIcon = Icons.Rounded.Save,
-                editingBlocked = aiProfileOperationInProgress,
-                mutationBlocked = aiProfileMutationBlocked,
-                onAdd = viewModel::addAIProfile,
-                onSave = viewModel::saveAIProfiles,
-                onSetDefault = viewModel::setAIProfileDefault,
-                onNameChange = viewModel::updateAIProfileName,
-                onProviderChange = viewModel::updateAIProfileProvider,
-                onBaseUrlChange = viewModel::updateAIProfileBaseUrl,
-                onModelChange = viewModel::updateAIProfileModel,
-                onLoadModels = viewModel::loadAIModels,
-                onTemperatureChange = viewModel::updateAIProfileTemperature,
-                onMaxTokensChange = viewModel::updateAIProfileMaxTokens,
-                onApiKeyChange = viewModel::updateAIProfileApiKey,
-                onTestConnection = viewModel::testAIProfile,
-                onDelete = viewModel::removeAIProfile,
-            )
-            }
-        }
+            },
+            profileItems = {
+                sillageAIProfilesEditorItems(
+                    state = state.settings,
+                    editorState = aiProfilesEditorState,
+                    strings = aiProfilesEditorStrings,
+                    addIcon = Icons.Rounded.Add,
+                    saveIcon = Icons.Rounded.Save,
+                    editingBlocked = aiProfileOperationInProgress,
+                    mutationBlocked = aiProfileMutationBlocked,
+                    onAdd = viewModel::addAIProfile,
+                    onSave = viewModel::saveAIProfiles,
+                    onSetDefault = viewModel::setAIProfileDefault,
+                    onNameChange = viewModel::updateAIProfileName,
+                    onProviderChange = viewModel::updateAIProfileProvider,
+                    onBaseUrlChange = viewModel::updateAIProfileBaseUrl,
+                    onModelChange = viewModel::updateAIProfileModel,
+                    onLoadModels = viewModel::loadAIModels,
+                    onTemperatureChange = viewModel::updateAIProfileTemperature,
+                    onMaxTokensChange = viewModel::updateAIProfileMaxTokens,
+                    onApiKeyChange = viewModel::updateAIProfileApiKey,
+                    onTestConnection = viewModel::testAIProfile,
+                    onDelete = viewModel::removeAIProfile,
+                )
+            },
+        )
     }
     if (showOpenSourceLicenses) {
         OpenSourceLicensesDialog(onDismiss = { showOpenSourceLicenses = false })

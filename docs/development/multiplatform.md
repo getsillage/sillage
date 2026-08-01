@@ -159,6 +159,8 @@ Its about section owns metadata-row and license-entry presentation while hosts
 provide build/protocol values and native notice resources.
 Its settings list owns loading, retry error, lazy spacing/padding, and list test
 semantics while hosts emit shared sections into the content slot.
+`SillageSettingsContent` owns section order, optional account placement, and the
+multi-item profile tail while host slots map resources and adapter callbacks.
 Its overview card accepts localized mode, record-count, appearance, and AI values,
 leaving cross-feature state mapping in each host adapter.
 

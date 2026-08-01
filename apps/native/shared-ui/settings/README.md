@@ -23,6 +23,8 @@ hosts retain native file pickers and serialization callbacks.
 hosts supply build/protocol values and native notice resources.
 `SillageSettingsList` owns settings loading, retry error, lazy-list spacing,
 content padding, and list test semantics while accepting shared section items.
+`SillageSettingsContent` fixes cross-platform section order, including optional
+account placement and multi-item AI profile content.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

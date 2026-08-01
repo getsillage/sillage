@@ -86,13 +86,13 @@ import androidx.compose.ui.unit.dp
 import app.sillage.BuildConfig
 import app.sillage.R
 import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.editorKey
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
-import app.sillage.ui.uiKey
 
 private const val AI_PROVIDER_ANTHROPIC = "anthropic"
 private const val AI_PROVIDER_OPENAI = "openai"
@@ -413,9 +413,9 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             EmptySettingsCard(stringResource(R.string.settings_no_ai_profiles))
                         }
                     } else {
-                        items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].uiKey(index) }) { index ->
+                        items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].editorKey(index) }) { index ->
                             val profile = state.aiProfiles[index]
-                            val profileKey = profile.uiKey(index)
+                            val profileKey = profile.editorKey(index)
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 AIProfileSummaryCard(
                                     profile = profile,
@@ -1064,7 +1064,7 @@ private fun AIProfileDetailCard(
     viewModel: SillageViewModel,
     onClose: () -> Unit,
 ) {
-    val profileKey = profile.uiKey(index)
+    val profileKey = profile.editorKey(index)
     var confirmingDelete by remember(profileKey) { mutableStateOf(false) }
     var providerMenuExpanded by remember(profileKey) { mutableStateOf(false) }
     val controlsEnabled = !editingBlocked && !testing && !loadingModels

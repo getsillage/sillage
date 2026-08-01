@@ -92,6 +92,7 @@ import app.sillage.data.buildAskActivePath
 import app.sillage.features.settings.AIProfileDraft
 import app.sillage.features.settings.AIProfilesMutationRequest
 import app.sillage.features.settings.firstBlankAIProfileNameIndex
+import app.sillage.features.settings.editorKey
 import app.sillage.core.domain.ask.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
@@ -378,10 +379,7 @@ class SillageViewModel(
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiTestingProfileId = "",
-                aiLoadingModelsProfileId = "",
-                aiTestResults = emptyMap(),
-                aiModelResults = emptyMap(),
+                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
@@ -422,10 +420,7 @@ class SillageViewModel(
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiTestingProfileId = "",
-                aiLoadingModelsProfileId = "",
-                aiTestResults = emptyMap(),
-                aiModelResults = emptyMap(),
+                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
@@ -832,10 +827,7 @@ class SillageViewModel(
                                 if (offlineMode) localDataStore.autoSummaryEnabled() else false,
                             ),
                             aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                            aiTestingProfileId = "",
-                            aiLoadingModelsProfileId = "",
-                            aiTestResults = emptyMap(),
-                            aiModelResults = emptyMap(),
+                            aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
                             askConversation = it.askConversation.clear(),
                             askComposer = it.askComposer.clearQuestion(),
                             askLoad = it.askLoad.cancel(),
@@ -2042,7 +2034,8 @@ class SillageViewModel(
             if (
                 !it.loading &&
                 !it.aiSettingsLoading &&
-                !it.aiSettingsSaving
+                !it.aiSettingsSaving &&
+                !it.aiProfileDiagnostics.busy
             ) {
                 it.copy(
                     aiProfilesMutation = it.aiProfilesMutation.replace(
@@ -2066,6 +2059,7 @@ class SillageViewModel(
                 !it.aiSettingsLoading &&
                 !it.aiSettingsSaving &&
                 !it.aiAutoSummarySaving &&
+                !it.aiProfileDiagnostics.busy &&
                 index in it.aiProfiles.indices
             ) {
                 removed = true
@@ -2128,6 +2122,7 @@ class SillageViewModel(
                 !it.aiSettingsLoading &&
                 !it.aiSettingsSaving &&
                 !it.aiAutoSummarySaving &&
+                !it.aiProfileDiagnostics.busy &&
                 index in it.aiProfiles.indices
             ) {
                 it.copy(
@@ -2228,8 +2223,7 @@ class SillageViewModel(
                                 aiAutoSummaryState = current.aiAutoSummaryState.replace(
                                     settings.autoSummary,
                                 ),
-                                aiTestResults = emptyMap(),
-                                aiModelResults = emptyMap(),
+                                aiProfileDiagnostics = current.aiProfileDiagnostics.clearResults(),
                                 error = null,
                             )
                         } else {
@@ -2325,8 +2319,7 @@ class SillageViewModel(
                 updateState { current ->
                     if (current.canApplyAIProfilesMutation(request)) {
                         current.completeAIProfilesMutation(request, savedProfiles).copy(
-                            aiTestResults = emptyMap(),
-                            aiModelResults = emptyMap(),
+                                aiProfileDiagnostics = current.aiProfileDiagnostics.clearResults(),
                             error = null,
                             notice = uiString(successNoticeResourceId),
                         )
@@ -2421,36 +2414,50 @@ class SillageViewModel(
 
     fun testAIProfile(index: Int) {
         val current = state.value
-        val profile = current.aiProfiles.getOrNull(index) ?: return
-        val key = profile.uiKey(index)
-        val configuration = profile.toConfigurationCommand()
-        val mode = current.appMode
+        val request = current.nextAIProfileTestRequest(index) ?: return
+        var started = false
+        updateState { latest ->
+            val testing = latest.startAIProfileTest(request)
+            if (testing.canApplyAIProfileTest(request)) {
+                started = true
+                testing.copy(error = null, notice = null)
+            } else {
+                latest
+            }
+        }
+        if (!started) {
+            return
+        }
+        val configuration = request.profile.toConfigurationCommand()
         viewModelScope.launch {
-            updateState { it.copy(aiTestingProfileId = key, error = null, notice = null) }
             try {
-                val model = if (mode == SessionStore.MODE_OFFLINE) {
+                val model = if (request.appMode == SessionStore.MODE_OFFLINE) {
                     testLocalAIProfile(configuration)
                 } else {
                     testRemoteAIProfile(configuration)
                 }
                 val message = uiString(R.string.notice_ai_test_success, model)
-                updateState {
-                    it.copy(
-                        aiTestingProfileId = "",
-                        aiTestResults = it.aiTestResults + (key to message),
-                        error = null,
-                        notice = message,
-                    )
+                updateState { latest ->
+                    if (latest.canApplyAIProfileTest(request)) {
+                        latest.completeAIProfileTest(request, message).copy(
+                            error = null,
+                            notice = message,
+                        )
+                    } else {
+                        latest
+                    }
                 }
             } catch (error: Throwable) {
                 val message = error.readableMessage()
-                updateState {
-                    it.copy(
-                        aiTestingProfileId = "",
-                        aiTestResults = it.aiTestResults + (key to message),
-                        error = message,
-                        notice = null,
-                    )
+                updateState { latest ->
+                    if (latest.canApplyAIProfileTest(request)) {
+                        latest.completeAIProfileTest(request, message).copy(
+                            error = message,
+                            notice = null,
+                        )
+                    } else {
+                        latest
+                    }
                 }
             }
         }
@@ -2459,45 +2466,61 @@ class SillageViewModel(
     fun loadAIModels(index: Int) {
         val current = state.value
         val profile = current.aiProfiles.getOrNull(index) ?: return
-        val key = profile.uiKey(index)
+        val key = profile.editorKey(index)
         if (current.appMode == SessionStore.MODE_OFFLINE) {
             val message = uiString(R.string.error_ai_models_offline)
             updateState(forceFeedback = true) {
                 it.copy(
-                    aiTestResults = it.aiTestResults + (key to message),
+                    aiProfileDiagnostics = it.aiProfileDiagnostics.recordFeedback(key, message),
                     error = message,
                     notice = null,
                 )
             }
             return
         }
-        val configuration = profile.toConfigurationCommand()
+        val request = current.nextAIProfileModelsRequest(index) ?: return
+        var started = false
+        updateState { latest ->
+            val loading = latest.startAIProfileModels(request)
+            if (loading.canApplyAIProfileModels(request)) {
+                started = true
+                loading.copy(error = null, notice = null)
+            } else {
+                latest
+            }
+        }
+        if (!started) {
+            return
+        }
+        val configuration = request.profile.toConfigurationCommand()
         viewModelScope.launch {
-            updateState { it.copy(aiLoadingModelsProfileId = key, error = null, notice = null) }
             runCatching { listRemoteAIProfileModels(configuration) }
                 .onSuccess { models ->
                     val message = uiString(
                         if (models.isEmpty()) R.string.notice_ai_models_empty else R.string.notice_ai_models_loaded,
                     )
-                    updateState {
-                        it.copy(
-                            aiLoadingModelsProfileId = "",
-                            aiModelResults = it.aiModelResults + (key to models),
-                            aiTestResults = it.aiTestResults + (key to message),
-                            error = null,
-                            notice = message,
-                        )
+                    updateState { latest ->
+                        if (latest.canApplyAIProfileModels(request)) {
+                            latest.completeAIProfileModels(request, models, message).copy(
+                                error = null,
+                                notice = message,
+                            )
+                        } else {
+                            latest
+                        }
                     }
                 }
                 .onFailure { error ->
                     val message = error.readableMessage()
-                    updateState {
-                        it.copy(
-                            aiLoadingModelsProfileId = "",
-                            aiTestResults = it.aiTestResults + (key to message),
-                            error = message,
-                            notice = null,
-                        )
+                    updateState { latest ->
+                        if (latest.canApplyAIProfileModels(request)) {
+                            latest.failAIProfileModels(request, message).copy(
+                                error = message,
+                                notice = null,
+                            )
+                        } else {
+                            latest
+                        }
                     }
                 }
         }
@@ -3022,7 +3045,8 @@ class SillageViewModel(
             if (
                 !it.loading &&
                 !it.aiSettingsLoading &&
-                !it.aiSettingsSaving
+                !it.aiSettingsSaving &&
+                !it.aiProfileDiagnostics.busy
             ) {
                 it.copy(
                     aiProfilesMutation = it.aiProfilesMutation.replace(
@@ -3929,10 +3953,7 @@ class SillageViewModel(
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(aiProfiles),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiTestingProfileId = "",
-                aiLoadingModelsProfileId = "",
-                aiTestResults = emptyMap(),
-                aiModelResults = emptyMap(),
+                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),

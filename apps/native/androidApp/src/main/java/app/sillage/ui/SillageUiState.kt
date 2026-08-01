@@ -61,6 +61,10 @@ import app.sillage.features.settings.AIProfilesMutationStateHolder
 import app.sillage.features.settings.AISettingsLoadContext
 import app.sillage.features.settings.AISettingsLoadRequest
 import app.sillage.features.settings.AISettingsLoadStateHolder
+import app.sillage.features.settings.AIProfileDiagnosticsContext
+import app.sillage.features.settings.AIProfileDiagnosticsStateHolder
+import app.sillage.features.settings.AIProfileModelsRequest
+import app.sillage.features.settings.AIProfileTestRequest
 import java.time.LocalDate
 
 data class SillageUiState(
@@ -90,10 +94,7 @@ data class SillageUiState(
     val aiProfilesMutation: AIProfilesMutationStateHolder = AIProfilesMutationStateHolder(),
     val aiAutoSummaryState: AIAutoSummaryStateHolder = AIAutoSummaryStateHolder(),
     val aiSettingsLoad: AISettingsLoadStateHolder = AISettingsLoadStateHolder(),
-    val aiTestingProfileId: String = "",
-    val aiLoadingModelsProfileId: String = "",
-    val aiTestResults: Map<String, String> = emptyMap(),
-    val aiModelResults: Map<String, List<String>> = emptyMap(),
+    val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder = AIProfileDiagnosticsStateHolder(),
     val askConversation: AskConversationStateHolder = AskConversationStateHolder(),
     val askComposer: AskComposerStateHolder = AskComposerStateHolder(),
     val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
@@ -194,16 +195,16 @@ data class SillageUiState(
     val aiSettingsRequestId: Long get() = aiProfilesMutation.requestId
     val aiSettingsLoading: Boolean get() = aiSettingsLoad.loading
     val aiSettingsLoadError: String? get() = aiSettingsLoad.errorMessage
+    val aiTestingProfileId: String get() = aiProfileDiagnostics.testingProfileKey
+    val aiLoadingModelsProfileId: String get() = aiProfileDiagnostics.loadingModelsProfileKey
+    val aiTestResults: Map<String, String> get() = aiProfileDiagnostics.testResults
+    val aiModelResults: Map<String, List<String>> get() = aiProfileDiagnostics.modelResults
 }
 
 /**
  * UI model for one push conflict: local pending content plus the server resource.
  */
 typealias SyncConflictItem = MemoSyncConflictItem
-
-internal fun AIProfileDraft.uiKey(index: Int): String {
-    return id.ifBlank { draftKey.ifBlank { "new-$index" } }
-}
 
 internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
     return screen == Screen.Editor && recordsEditor.dirty
@@ -426,7 +427,9 @@ internal fun SillageUiState.aiAutoSummaryContext(): AIAutoSummaryContext =
     AIAutoSummaryContext(
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
-        anotherMutationInProgress = aiSettingsLoading || aiSettingsSaving,
+        anotherMutationInProgress = aiSettingsLoading ||
+            aiSettingsSaving ||
+            aiProfileDiagnostics.busy,
     )
 
 internal fun SillageUiState.nextAIAutoSummaryRequest(
@@ -522,7 +525,10 @@ private fun SillageUiState.aiProfilesMutationContext(): AIProfilesMutationContex
     return AIProfilesMutationContext(
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
-        anotherOperationInProgress = loading || aiSettingsLoading || aiAutoSummarySaving,
+        anotherOperationInProgress = loading ||
+            aiSettingsLoading ||
+            aiAutoSummarySaving ||
+            aiProfileDiagnostics.busy,
     )
 }
 
@@ -566,7 +572,98 @@ private fun SillageUiState.aiSettingsLoadContext(): AISettingsLoadContext {
     return AISettingsLoadContext(
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
-        anotherOperationInProgress = loading || aiSettingsSaving || aiAutoSummarySaving,
+        anotherOperationInProgress = loading ||
+            aiSettingsSaving ||
+            aiAutoSummarySaving ||
+            aiProfileDiagnostics.busy,
+    )
+}
+
+internal fun SillageUiState.nextAIProfileTestRequest(index: Int): AIProfileTestRequest? {
+    val profile = aiProfiles.getOrNull(index) ?: return null
+    return aiProfileDiagnostics.nextTestRequest(profile, index, aiProfileDiagnosticsContext())
+}
+
+internal fun SillageUiState.startAIProfileTest(request: AIProfileTestRequest): SillageUiState {
+    val started = aiProfileDiagnostics.beginTest(
+        request,
+        aiProfiles,
+        aiProfileDiagnosticsContext(),
+    ) ?: return this
+    return copy(aiProfileDiagnostics = started)
+}
+
+internal fun SillageUiState.canApplyAIProfileTest(request: AIProfileTestRequest): Boolean {
+    return aiProfileDiagnostics.canApplyTest(request, aiProfiles, aiProfileDiagnosticsContext())
+}
+
+internal fun SillageUiState.completeAIProfileTest(
+    request: AIProfileTestRequest,
+    message: String,
+): SillageUiState {
+    val completed = aiProfileDiagnostics.completeTest(
+        request,
+        message,
+        aiProfiles,
+        aiProfileDiagnosticsContext(),
+    ) ?: return this
+    return copy(aiProfileDiagnostics = completed)
+}
+
+internal fun SillageUiState.nextAIProfileModelsRequest(index: Int): AIProfileModelsRequest? {
+    val profile = aiProfiles.getOrNull(index) ?: return null
+    return aiProfileDiagnostics.nextModelsRequest(profile, index, aiProfileDiagnosticsContext())
+}
+
+internal fun SillageUiState.startAIProfileModels(request: AIProfileModelsRequest): SillageUiState {
+    val started = aiProfileDiagnostics.beginModels(
+        request,
+        aiProfiles,
+        aiProfileDiagnosticsContext(),
+    ) ?: return this
+    return copy(aiProfileDiagnostics = started)
+}
+
+internal fun SillageUiState.canApplyAIProfileModels(request: AIProfileModelsRequest): Boolean {
+    return aiProfileDiagnostics.canApplyModels(request, aiProfiles, aiProfileDiagnosticsContext())
+}
+
+internal fun SillageUiState.completeAIProfileModels(
+    request: AIProfileModelsRequest,
+    models: List<String>,
+    message: String,
+): SillageUiState {
+    val completed = aiProfileDiagnostics.completeModels(
+        request,
+        models,
+        message,
+        aiProfiles,
+        aiProfileDiagnosticsContext(),
+    ) ?: return this
+    return copy(aiProfileDiagnostics = completed)
+}
+
+internal fun SillageUiState.failAIProfileModels(
+    request: AIProfileModelsRequest,
+    message: String,
+): SillageUiState {
+    val failed = aiProfileDiagnostics.failModels(
+        request,
+        message,
+        aiProfiles,
+        aiProfileDiagnosticsContext(),
+    ) ?: return this
+    return copy(aiProfileDiagnostics = failed)
+}
+
+private fun SillageUiState.aiProfileDiagnosticsContext(): AIProfileDiagnosticsContext {
+    return AIProfileDiagnosticsContext(
+        appMode = appMode,
+        clientContextGeneration = clientContextGeneration,
+        anotherOperationInProgress = loading ||
+            aiSettingsLoading ||
+            aiSettingsSaving ||
+            aiAutoSummarySaving,
     )
 }
 

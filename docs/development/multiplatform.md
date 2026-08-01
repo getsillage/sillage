@@ -136,6 +136,10 @@ holder directly.
 `AISettingsLoadStateHolder` separately owns settings-load progress, durable retry
 failure, and stale-response rejection. Load and profile-mutation starts cancel
 the opposite lifecycle instead of sharing an ambiguous request counter.
+`AIProfileDiagnosticsStateHolder` owns connection-test and model-list request
+identity, busy presentation, and per-profile results. It binds every callback to
+the full draft snapshot, stable editor key, mode, and client context, so edited
+or removed profiles cannot receive late diagnostic results.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

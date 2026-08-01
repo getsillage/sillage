@@ -76,6 +76,9 @@ optimistic save, rollback, and stale-callback rejection, with transitional read
 accessors for the existing Compose screens.
 It also composes `AISettingsLoadStateHolder`; settings loads and profile saves
 have separate request identities and invalidate one another at their boundary.
+Provider-test and model-list progress/results live in
+`AIProfileDiagnosticsStateHolder`, which rejects callbacks after profile edits,
+removal, mode changes, or client-context replacement.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

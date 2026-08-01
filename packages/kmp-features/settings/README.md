@@ -17,6 +17,10 @@ so every native host submits the same enabled/default configuration.
 and mode/client-context validation. Starting a load or profile mutation
 explicitly invalidates the other lifecycle so late responses cannot replace a
 newer editor snapshot.
+`AIProfileDiagnosticsStateHolder` owns connection-test and model-list progress,
+per-profile results, and independent request identities. Requests capture the
+full draft plus its stable editor key and reject completion after edits,
+removal, mode changes, or client-context replacement.
 
 `AIAutoSummaryStateHolder` owns the independently saved automatic-summary
 preference, optimistic mutation, rollback, request identity, and client-context

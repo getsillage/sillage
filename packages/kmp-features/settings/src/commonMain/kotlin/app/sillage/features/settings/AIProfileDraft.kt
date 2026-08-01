@@ -29,6 +29,11 @@ data class AIProfileDraft(
     val maxTokensInput: String = maxTokens.toString(),
 )
 
+/** Stable presentation identity for persisted and unsaved editor rows. */
+fun AIProfileDraft.editorKey(index: Int): String {
+    return id.ifBlank { draftKey.ifBlank { "new-$index" } }
+}
+
 /** Create editable, secret-free state from canonical profile metadata. */
 fun AIProfile.toDraft(): AIProfileDraft {
     return AIProfileDraft(

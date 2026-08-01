@@ -3,6 +3,7 @@ package app.sillage.ui
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.editorKey
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalStateStorage
 import app.sillage.data.SecureReadResult
@@ -78,7 +79,7 @@ class SillageViewModelAIProfileTest {
         viewModel.addAIProfile()
         viewModel.addAIProfile()
         val drafts = viewModel.state.value.aiProfiles
-        val laterDraftKey = drafts[1].uiKey(1)
+        val laterDraftKey = drafts[1].editorKey(1)
         assertTrue(drafts[0].draftKey.isNotBlank())
         assertTrue(drafts[1].draftKey.isNotBlank())
         assertFalse(drafts[0].draftKey == drafts[1].draftKey)
@@ -87,7 +88,7 @@ class SillageViewModelAIProfileTest {
         val result = requireNotNull(viewModel.state.value.aiTestResults[laterDraftKey])
         assertTrue(viewModel.removeAIProfile(0))
 
-        val remainingKey = viewModel.state.value.aiProfiles.single().uiKey(0)
+        val remainingKey = viewModel.state.value.aiProfiles.single().editorKey(0)
         assertEquals(laterDraftKey, remainingKey)
         assertEquals(result, viewModel.state.value.aiTestResults[remainingKey])
     }

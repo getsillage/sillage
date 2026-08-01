@@ -172,6 +172,10 @@ through the shared holder.
 ownership independently from profile saves. The host explicitly cancels the
 opposite lifecycle when either begins, preventing stale loads from replacing a
 newer optimistic editor snapshot.
+`AIProfileDiagnosticsStateHolder` owns provider-test and model-catalog request
+state and results. Completion requires the same stable editor key, complete
+draft snapshot, mode, and client generation; adapter callbacks cannot attach
+results to a removed or subsequently edited profile.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

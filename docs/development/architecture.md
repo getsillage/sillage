@@ -285,8 +285,11 @@ is owned by `RecordsSummaryStateHolder`, including request identity and
 detail/editor context validation. Android retains AI execution orchestration and
 localized feedback. `RecordsEditorStateHolder` owns editor session identity,
 draft snapshots, dirty state, preview state, and attachment-upload ownership;
-Android retains draft persistence, URI access, and attachment execution. The
-underlying `MemoAI` value already belongs to the shared domain.
+Android retains draft persistence, URI access, and attachment execution. Shared
+editor-action policy combines host destination/operation context with editor,
+selection, and mutation state to decide unsaved-draft and Back-blocking behavior;
+Android maps the result to localized feedback. The underlying `MemoAI` value
+already belongs to the shared domain.
 
 `RecordsMutationStateHolder` owns the active record identities exposed to list
 and editor presentation while lifecycle mutations run. Android retains keyed

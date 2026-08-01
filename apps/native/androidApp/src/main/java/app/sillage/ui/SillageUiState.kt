@@ -49,6 +49,8 @@ import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
@@ -56,6 +58,9 @@ import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
+import app.sillage.features.records.canRunEditorAction
+import app.sillage.features.records.editorBusyReason
+import app.sillage.features.records.hasUnsavedEditorDraft
 import app.sillage.features.records.MemoViewMode
 import app.sillage.data.SessionStore
 import app.sillage.features.settings.AIAutoSummaryContext
@@ -401,23 +406,13 @@ internal fun SillageUiState.enterOfflineClientWorkspace(
 typealias SyncConflictItem = MemoSyncConflictItem
 
 internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
-    return screen == Screen.Editor && recordsEditor.dirty
+    return records.hasUnsavedEditorDraft(recordsEditorActionContext())
 }
 
-internal enum class MemoEditorBusyReason {
-    AttachmentUpload,
-    Operation,
-}
+internal typealias MemoEditorBusyReason = RecordsEditorBusyReason
 
 internal fun SillageUiState.memoEditorBusyReason(): MemoEditorBusyReason? {
-    if (screen != Screen.Editor) {
-        return null
-    }
-    return when {
-        uploadingAttachment -> MemoEditorBusyReason.AttachmentUpload
-        loading || selectedMemo?.id in memoMutationIds -> MemoEditorBusyReason.Operation
-        else -> null
-    }
+    return records.editorBusyReason(recordsEditorActionContext())
 }
 
 internal fun SillageUiState.withMemoEditorBackBlockedNotice(
@@ -433,7 +428,14 @@ internal fun SillageUiState.withMemoEditorBackBlockedNotice(
 }
 
 internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
-    return screen == Screen.Editor && memoEditorBusyReason() == null
+    return records.canRunEditorAction(recordsEditorActionContext())
+}
+
+private fun SillageUiState.recordsEditorActionContext(): RecordsEditorActionContext {
+    return RecordsEditorActionContext(
+        destinationAvailable = screen == Screen.Editor,
+        hostOperationInProgress = loading,
+    )
 }
 
 internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {

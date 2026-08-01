@@ -51,7 +51,10 @@ inside the remote adapter. Offline generation and turn persistence cross
 and local storage adapters. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
-must not duplicate domain, storage, synchronization, or protocol rules. Remote
+must not duplicate domain, storage, synchronization, or protocol rules. Editor
+unsaved-draft and Back-blocking policy also lives in that module; Android
+supplies destination/global-operation context and maps the shared busy reason to
+localized feedback. Remote
 attachment upload crosses `AttachmentUploadRepository` and
 `UploadAttachmentUseCase`; Android retains content-URI reading, multipart mapping,
 and offline file staging. Authenticated download crosses generic

@@ -276,6 +276,10 @@ restoration and content-URI access. Remote uploads cross
 shared byte command to multipart HTTP while uploaded metadata remains
 platform-neutral.
 
+Shared editor-action policy combines destination availability, host-operation
+state, attachment upload, and selected-record mutation to decide unsaved-draft
+and Back-blocking behavior; hosts provide localized feedback.
+
 Records mutation is the seventh extracted state slice. Its shared holder owns
 the active record identities used by concurrent mutation presentation state;
 Android retains coroutine gates, source selection, and localized feedback.

@@ -274,12 +274,12 @@ selection stay consistent. Android's root `SillageUiState` now stores one
 `records` aggregate field and keeps transitional slice getters
 (`recordsCollection`, `recordsPagination`, and the other former top-level
 fields) for existing call sites. Coordinated host writes such as cache mutation,
-visible-list clear/replace/append, browse mode and filter changes, workspace
-teardown, selected-memo presentation, detail-request acceptance, editor session
-starts/returns, source-record absorption, and filter reset go through the
-aggregate; individual holders still own request identity. Android request
-helpers write through `withRecords` rather than assigning nested holder fields
-directly.
+visible-list clear/replace/append, pagination cancel/stop-loading-more, browse
+mode/filter/calendar changes, workspace teardown, selected-memo presentation,
+detail-request acceptance, editor session starts/returns, source-record
+absorption, and filter reset go through the aggregate; individual holders still
+own request identity. Android request helpers write through `withRecords` rather
+than assigning nested holder fields directly.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,

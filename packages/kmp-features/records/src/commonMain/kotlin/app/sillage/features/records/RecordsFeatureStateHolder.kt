@@ -313,6 +313,37 @@ data class RecordsFeatureStateHolder(
     }
 
     /**
+     * Clears load-more busy presentation after a failed or cancelled page request.
+     */
+    fun stopLoadingMore(): RecordsFeatureStateHolder {
+        return copy(pagination = pagination.copy(loadingMore = false))
+    }
+
+    /**
+     * Cancels in-flight pagination ownership without changing the visible cache.
+     */
+    fun cancelPagination(): RecordsFeatureStateHolder {
+        return copy(pagination = pagination.cancel())
+    }
+
+    /**
+     * Updates calendar month selection and clears the selected day.
+     */
+    fun selectCalendarMonth(
+        year: Int,
+        month: Int,
+    ): RecordsFeatureStateHolder {
+        return copy(browse = browse.selectMonth(year, month))
+    }
+
+    /**
+     * Updates the selected calendar day key.
+     */
+    fun selectCalendarDay(date: String?): RecordsFeatureStateHolder {
+        return copy(browse = browse.selectCalendarDate(date))
+    }
+
+    /**
      * Accepts a validated detail-request selection and starts optional summary
      * loading for the detail/editor destination.
      */

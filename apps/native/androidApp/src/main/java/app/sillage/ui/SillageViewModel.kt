@@ -942,9 +942,7 @@ class SillageViewModel(
                     updateState { current ->
                         current.failMemoRefresh(request)?.let { failed ->
                             failed.copy(
-                                records = failed.records.copy(
-                                    pagination = failed.records.pagination.copy(loadingMore = false),
-                                ),
+                                records = failed.records.stopLoadingMore(),
                                 error = error.readableMessage(),
                             )
                         } ?: current
@@ -1453,14 +1451,14 @@ class SillageViewModel(
         updateState {
             val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
             it.copy(
-                records = it.records.copy(browse = it.records.browse.selectMonth(next.year, next.monthValue)),
+                records = it.records.selectCalendarMonth(next.year, next.monthValue),
             )
         }
     }
 
     fun selectCalendarDate(date: String) {
         updateState {
-            it.copy(records = it.records.copy(browse = it.records.browse.selectCalendarDate(date)))
+            it.copy(records = it.records.selectCalendarDay(date))
         }
     }
 
@@ -1874,7 +1872,7 @@ class SillageViewModel(
         val offline = isOfflineMode()
         updateState {
             if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
-                val editor = it.recordsEditor.beginAttachmentUpload(editorSessionId)
+                val editor = it.records.editor.beginAttachmentUpload(editorSessionId)
                     ?: return@updateState it
                 it.copy(
                     records = it.records.copy(editor = editor),
@@ -1974,12 +1972,12 @@ class SillageViewModel(
         if (current.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
             return
         }
-        val attachmentOpen = current.recordsAttachmentOpen.begin(target.path) ?: return
+        val attachmentOpen = current.records.attachmentOpen.begin(target.path) ?: return
         val requestId = attachmentOpen.requestId
         updateState {
             if (
-                !it.recordsAttachmentOpen.opening &&
-                it.recordsAttachmentOpen.requestId + 1 == requestId
+                !it.records.attachmentOpen.opening &&
+                it.records.attachmentOpen.requestId + 1 == requestId
             ) {
                 it.copy(
                     records = it.records.copy(attachmentOpen = attachmentOpen),
@@ -3208,7 +3206,7 @@ class SillageViewModel(
             loadMoreMemosJob = null
         }
         updateState {
-            it.copy(records = it.records.copy(pagination = it.records.pagination.cancel()))
+            it.copy(records = it.records.cancelPagination())
         }
     }
 
@@ -3492,12 +3490,12 @@ class SillageViewModel(
             return
         }
         val openPath = localAttachmentPath(pending)
-        val attachmentOpen = state.value.recordsAttachmentOpen.begin(openPath) ?: return
+        val attachmentOpen = state.value.records.attachmentOpen.begin(openPath) ?: return
         val requestId = attachmentOpen.requestId
         updateState {
             if (
-                !it.recordsAttachmentOpen.opening &&
-                it.recordsAttachmentOpen.requestId + 1 == requestId
+                !it.records.attachmentOpen.opening &&
+                it.records.attachmentOpen.requestId + 1 == requestId
             ) {
                 it.copy(
                     records = it.records.copy(attachmentOpen = attachmentOpen),

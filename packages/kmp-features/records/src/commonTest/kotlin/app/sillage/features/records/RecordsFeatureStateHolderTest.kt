@@ -326,6 +326,47 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun stopLoadingMoreAndCancelPaginationPreserveCache() {
+        val existing = memo("memo-13b")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(existing)),
+            pagination = RecordsPaginationStateHolder(
+                nextCursor = "c",
+                loadingMore = true,
+                requestId = 4,
+            ),
+        )
+
+        val stopped = state.stopLoadingMore()
+        val cancelled = state.cancelPagination()
+
+        assertEquals(listOf(existing), stopped.records)
+        assertFalse(stopped.loadingMore)
+        assertEquals("c", stopped.nextCursor)
+        assertFalse(cancelled.loadingMore)
+        assertEquals(5, cancelled.pageRequestId)
+    }
+
+    @Test
+    fun selectCalendarMonthAndDayUpdateBrowseState() {
+        val state = RecordsFeatureStateHolder(
+            browse = RecordsBrowseStateHolder(
+                calendarYear = 2026,
+                calendarMonth = 7,
+                selectedCalendarDate = "2026-07-10",
+            ),
+        )
+
+        val month = state.selectCalendarMonth(2026, 8)
+        val day = month.selectCalendarDay("2026-08-02")
+
+        assertEquals(2026, month.browse.calendarYear)
+        assertEquals(8, month.browse.calendarMonth)
+        assertNull(month.browse.selectedCalendarDate)
+        assertEquals("2026-08-02", day.browse.selectedCalendarDate)
+    }
+
+    @Test
     fun acceptDetailRequestPairsSelectionWithSummaryLoad() {
         val selected = memo("memo-14")
         val selection = RecordsSelectionStateHolder(

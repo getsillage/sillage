@@ -152,7 +152,8 @@ centered layout, heading semantics, and inline-error placement; the shared heade
 owns brand/language layout while Android supplies launcher resources, localized
 content, language state, and the toggle callback.
 The same module consumes the auth aggregate for settings password-change drafts
-and request state; Android supplies account metadata and client-context gating.
+and request state, and owns the account settings section wrapper. Android supplies
+account metadata and client-context gating.
 `shared-ui:settings` consumes `SettingsFeatureStateHolder` directly for the AI
 profile editor header and summary cards, including save progress, diagnostics
 feedback, and profile/action presentation.

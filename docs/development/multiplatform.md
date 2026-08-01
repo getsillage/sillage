@@ -133,8 +133,8 @@ localized strings, icons, accent colors, root loading state, navigation, protoco
 callbacks, brand resources, and language state; platform adapters retain resource
 lookup and language persistence.
 The shared auth module also owns settings account/password-change content and
-consumes the auth aggregate directly; hosts supply account metadata and
-client-context mutation gates.
+its section wrapper, consuming the auth aggregate directly; hosts supply account
+metadata and client-context mutation gates.
 
 The buildable `shared-ui:settings` module owns the AI profile editor header and
 summary cards. It consumes `SettingsFeatureStateHolder` directly for save

@@ -18,6 +18,7 @@ inline-error placement, and content spacing. `SillageAuthHeader` owns brand and
 language-action layout while hosts supply brand resources and localized content.
 `SillageAccountSettingsContent` consumes `AuthFeatureStateHolder` for password
 change drafts/request state and owns the account settings actions.
+`SillageAccountSettingsSection` also owns the settings section-card wrapper.
 
 Hosts supply localized strings, icons, root loading state, navigation, and
 callbacks. Brand assets, secure session persistence, protocol clients, and

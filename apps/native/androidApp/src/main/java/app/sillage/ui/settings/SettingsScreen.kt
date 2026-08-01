@@ -55,10 +55,10 @@ import app.sillage.R
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.auth.SillageAccountSettingsContent
 import app.sillage.ui.auth.SillageAccountSettingsStrings
+import app.sillage.ui.auth.SillageAccountSettingsSection
+import app.sillage.ui.auth.SillageAccountSettingsSectionStrings
 import app.sillage.ui.designsystem.SillageErrorCard
-import app.sillage.ui.designsystem.SillageSettingsSectionCard
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
@@ -365,34 +365,35 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         },
                     )
                 }
-                    if (state.appMode == SessionStore.MODE_ONLINE) {
-                        item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_account)) {
-                                SillageAccountSettingsContent(
-                                    state = state.auth,
-                                    mutationBlocked = clientContextChangeBlocked,
-                                    strings = SillageAccountSettingsStrings(
-                                        changePasswordTitle = stringResource(R.string.settings_change_password),
-                                        changePasswordSupporting = stringResource(
-                                            R.string.settings_change_password_supporting,
+                if (state.appMode == SessionStore.MODE_ONLINE) {
+                    item {
+                        SillageAccountSettingsSection(
+                            state = state.auth,
+                            mutationBlocked = clientContextChangeBlocked,
+                            strings = SillageAccountSettingsSectionStrings(
+                                sectionTitle = stringResource(R.string.settings_section_account),
+                                content = SillageAccountSettingsStrings(
+                                    changePasswordTitle = stringResource(R.string.settings_change_password),
+                                    changePasswordSupporting = stringResource(
+                                        R.string.settings_change_password_supporting,
                                         ),
                                         currentPasswordLabel = stringResource(R.string.settings_current_password),
                                         newPasswordLabel = stringResource(R.string.settings_new_password),
                                         confirmPasswordLabel = stringResource(R.string.settings_confirm_password),
-                                        savePassword = stringResource(R.string.settings_save_password),
-                                        signOut = stringResource(R.string.settings_sign_out),
-                                    ),
-                                    signOutSupporting = state.account?.displayName
-                                        ?: state.account?.username.orEmpty(),
-                                    signOutIcon = Icons.AutoMirrored.Rounded.Logout,
-                                    onCurrentPasswordChange = viewModel::updateCurrentPassword,
-                                    onNewPasswordChange = viewModel::updateNewPassword,
-                                    onConfirmPasswordChange = viewModel::updateConfirmPassword,
-                                    onSavePassword = viewModel::changePassword,
-                                    onSignOut = viewModel::signOut,
-                                )
-                            }
-                        }
+                                    savePassword = stringResource(R.string.settings_save_password),
+                                    signOut = stringResource(R.string.settings_sign_out),
+                                ),
+                            ),
+                            signOutSupporting = state.account?.displayName
+                                ?: state.account?.username.orEmpty(),
+                            signOutIcon = Icons.AutoMirrored.Rounded.Logout,
+                            onCurrentPasswordChange = viewModel::updateCurrentPassword,
+                            onNewPasswordChange = viewModel::updateNewPassword,
+                            onConfirmPasswordChange = viewModel::updateConfirmPassword,
+                            onSavePassword = viewModel::changePassword,
+                            onSignOut = viewModel::signOut,
+                        )
+                    }
                 }
                 item {
                     val unavailable = stringResource(R.string.settings_value_unavailable)

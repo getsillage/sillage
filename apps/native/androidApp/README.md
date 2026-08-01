@@ -97,6 +97,7 @@ shared authentication scaffold and header receive Android launcher resources,
 localized brand text, language state, and the language-toggle callback.
 The settings account section also comes from `shared-ui:auth`; Android supplies
 the account summary, localized strings, mutation gate, icon, and callbacks.
+The shared auth module owns its settings section wrapper as well.
 The AI profile editor header and summary cards come from `shared-ui:settings` and
 consume the settings feature aggregate directly; Android supplies localized
 strings, icons, and callbacks.

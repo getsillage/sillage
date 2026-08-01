@@ -5,8 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
@@ -17,6 +17,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.sillage.MainActivity
 import app.sillage.data.LocalStateStore
+import app.sillage.ui.settings.SETTINGS_LIST_TEST_TAG
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -75,8 +76,9 @@ class OfflineRecordJourneyTest {
         compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasText("设置") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("设置") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasScrollToIndexAction(), TIMEOUT_MS)
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("开源软件许可"))
+        compose.waitUntilExactlyOneExists(hasTestTag(SETTINGS_LIST_TEST_TAG), TIMEOUT_MS)
+        compose.onNode(hasTestTag(SETTINGS_LIST_TEST_TAG))
+            .performScrollToNode(hasText("开源软件许可"))
         compose.waitUntilExactlyOneExists(hasText("开源软件许可") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("开源软件许可") and hasClickAction())
             .performClick()

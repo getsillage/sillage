@@ -73,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -97,6 +98,7 @@ import app.sillage.ui.navigation.MainNavigationBar
 private const val AI_PROVIDER_ANTHROPIC = "anthropic"
 private const val AI_PROVIDER_OPENAI = "openai"
 private val AI_PROVIDER_OPTIONS = listOf(AI_PROVIDER_ANTHROPIC, AI_PROVIDER_OPENAI)
+internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,7 +150,9 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(SETTINGS_LIST_TEST_TAG),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {

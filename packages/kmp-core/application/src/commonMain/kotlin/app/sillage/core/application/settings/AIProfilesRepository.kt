@@ -10,7 +10,7 @@ import app.sillage.core.domain.settings.AIProfile
  * values when editor input is temporarily invalid. Secret input is write-only
  * and never appears in the returned domain profile metadata.
  */
-data class AIProfileSaveCommand(
+data class AIProfileConfigurationCommand(
     val id: String?,
     val name: String,
     val provider: String,
@@ -28,13 +28,13 @@ data class AIProfileSaveCommand(
 )
 
 interface AIProfilesRepository {
-    suspend fun save(profiles: List<AIProfileSaveCommand>): List<AIProfile>
+    suspend fun save(profiles: List<AIProfileConfigurationCommand>): List<AIProfile>
 }
 
 class SaveAIProfilesUseCase(
     private val repository: AIProfilesRepository,
 ) {
-    suspend operator fun invoke(profiles: List<AIProfileSaveCommand>): List<AIProfile> {
+    suspend operator fun invoke(profiles: List<AIProfileConfigurationCommand>): List<AIProfile> {
         return repository.save(profiles)
     }
 }

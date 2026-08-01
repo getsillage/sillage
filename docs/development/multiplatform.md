@@ -118,6 +118,10 @@ consistent snapshot. A snapshot may pair domain profile metadata with a
 device-local decrypted key for offline execution, but that key remains an
 application configuration value and is never added to the domain profile or a
 remote response.
+Connection tests and model discovery cross the focused
+`AIProfileConnectionTester` and `AIProfileModelCatalog` capabilities. Local
+device execution implements only testing; remote REST implements both, without
+forcing unsupported operations into either adapter.
 The buildable `kmp-features:settings` module starts with
 `AIAutoSummaryStateHolder`, which owns optimistic preference mutation, rollback,
 request identity, and client-context validation.

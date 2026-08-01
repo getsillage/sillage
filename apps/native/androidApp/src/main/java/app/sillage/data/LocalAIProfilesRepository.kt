@@ -1,6 +1,6 @@
 package app.sillage.data
 
-import app.sillage.core.application.settings.AIProfileSaveCommand
+import app.sillage.core.application.settings.AIProfileConfigurationCommand
 import app.sillage.core.application.settings.AIProfilesRepository
 import app.sillage.core.domain.settings.AIProfile
 import app.sillage.features.settings.AIProfileDraft
@@ -8,14 +8,14 @@ import app.sillage.features.settings.AIProfileDraft
 class LocalAIProfilesRepository(
     private val localDataStore: LocalDataStore,
 ) : AIProfilesRepository {
-    override suspend fun save(profiles: List<AIProfileSaveCommand>): List<AIProfile> {
+    override suspend fun save(profiles: List<AIProfileConfigurationCommand>): List<AIProfile> {
         val saved = localDataStore.saveAIProfiles(profiles.map { it.toLocalDraft() })
         val autoSummary = localDataStore.autoSummaryEnabled()
         return saved.map { it.toDomainProfile(autoSummary) }
     }
 }
 
-private fun AIProfileSaveCommand.toLocalDraft(): AIProfileDraft {
+internal fun AIProfileConfigurationCommand.toLocalDraft(): AIProfileDraft {
     return AIProfileDraft(
         id = id.orEmpty(),
         name = name,

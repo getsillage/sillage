@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 class AIProfilesRepositoryTest {
     @Test
     fun saveUseCaseDelegatesPlatformNeutralWriteIntent() = runAIProfilesSuspend {
-        val command = AIProfileSaveCommand(
+        val command = AIProfileConfigurationCommand(
             id = "profile-1",
             name = "Primary",
             provider = "anthropic",
@@ -38,9 +38,9 @@ class AIProfilesRepositoryTest {
     private class CapturingRepository(
         private val result: AIProfile,
     ) : AIProfilesRepository {
-        var commands: List<AIProfileSaveCommand> = emptyList()
+        var commands: List<AIProfileConfigurationCommand> = emptyList()
 
-        override suspend fun save(profiles: List<AIProfileSaveCommand>): List<AIProfile> {
+        override suspend fun save(profiles: List<AIProfileConfigurationCommand>): List<AIProfile> {
             commands = profiles
             return listOf(result)
         }

@@ -153,6 +153,10 @@ reconciliation.
 automatic-summary reads. The application snapshot can carry an optional
 device-local key beside canonical profile metadata for offline execution;
 remote adapters return no secret, and the domain entity remains secret-free.
+AI provider diagnostics use separate `AIProfileConnectionTester` and
+`AIProfileModelCatalog` application capabilities. Android's device-local adapter
+implements testing only, while its REST adapter implements testing and model
+discovery from the same platform-neutral configuration command.
 `packages/kmp-features/settings` owns `AIAutoSummaryStateHolder`, including
 optimistic mutation, rollback, and request ownership. Android supplies client
 context and user-facing feedback around the shared transition result.

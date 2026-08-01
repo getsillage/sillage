@@ -20,6 +20,7 @@ import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalAIAutoSummaryRepository
 import app.sillage.data.LocalAIProfilesRepository
 import app.sillage.data.LocalAISettingsRepository
+import app.sillage.data.LocalAIProfileConnectionTester
 import app.sillage.data.LocalAskRepository
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
@@ -34,6 +35,7 @@ import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteAISettingsRepository
+import app.sillage.data.RemoteAIProfileDiagnostics
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
@@ -58,10 +60,12 @@ import app.sillage.core.application.ask.ListAskConversationsUseCase
 import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.core.application.settings.SetAIAutoSummaryUseCase
-import app.sillage.core.application.settings.AIProfileSaveCommand
+import app.sillage.core.application.settings.AIProfileConfigurationCommand
 import app.sillage.core.application.settings.AISettingsSnapshot
 import app.sillage.core.application.settings.LoadAISettingsUseCase
+import app.sillage.core.application.settings.ListAIProfileModelsUseCase
 import app.sillage.core.application.settings.SaveAIProfilesUseCase
+import app.sillage.core.application.settings.TestAIProfileConnectionUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
@@ -101,7 +105,6 @@ import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
 import app.sillage.features.settings.toDraft
-import app.sillage.data.toInput
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -155,6 +158,8 @@ class SillageViewModel(
     private val saveLocalRecord = SaveRecordUseCase(localRecordsRepository)
     private val mutateLocalRecordLifecycle = MutateRecordLifecycleUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
+    private val testLocalAIProfile =
+        TestAIProfileConnectionUseCase(LocalAIProfileConnectionTester(localAiClient))
     private val localRecordSummaryRepository = LocalRecordSummaryRepository(
         this.localDataStore,
         localAiClient,
@@ -162,6 +167,11 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
+    private val remoteAIProfileDiagnostics = RemoteAIProfileDiagnostics(api)
+    private val testRemoteAIProfile =
+        TestAIProfileConnectionUseCase(remoteAIProfileDiagnostics)
+    private val listRemoteAIProfileModels =
+        ListAIProfileModelsUseCase(remoteAIProfileDiagnostics)
     private val remoteAskRepository = RemoteAskRepository(api)
     private val setRemoteAIAutoSummary =
         SetAIAutoSummaryUseCase(RemoteAIAutoSummaryRepository(api))
@@ -2341,7 +2351,7 @@ class SillageViewModel(
             )
         }
         val normalized = normalizeAIProfilesForSave(profiles)
-        val commands = normalized.map { it.toSaveCommand() }
+        val commands = normalized.map { it.toConfigurationCommand() }
         val savedProfiles = if (appMode == SessionStore.MODE_OFFLINE) {
             saveLocalAIProfiles(commands)
         } else {
@@ -2378,8 +2388,8 @@ class SillageViewModel(
         return savedValue
     }
 
-    private fun AIProfileDraft.toSaveCommand(): AIProfileSaveCommand {
-        return AIProfileSaveCommand(
+    private fun AIProfileDraft.toConfigurationCommand(): AIProfileConfigurationCommand {
+        return AIProfileConfigurationCommand(
             id = id.takeIf { it.isNotBlank() },
             name = name,
             provider = provider,
@@ -2410,17 +2420,18 @@ class SillageViewModel(
     }
 
     fun testAIProfile(index: Int) {
-        val profile = state.value.aiProfiles.getOrNull(index) ?: return
+        val current = state.value
+        val profile = current.aiProfiles.getOrNull(index) ?: return
         val key = profile.uiKey(index)
+        val configuration = profile.toConfigurationCommand()
+        val mode = current.appMode
         viewModelScope.launch {
             updateState { it.copy(aiTestingProfileId = key, error = null, notice = null) }
             try {
-                val model = if (isOfflineMode()) {
-                    localAiClient.testConnection(profile)
-                } else if (profile.id.isBlank()) {
-                    api.testAIConnection(profile.toInput())
+                val model = if (mode == SessionStore.MODE_OFFLINE) {
+                    testLocalAIProfile(configuration)
                 } else {
-                    api.testAIConnection(profile.id)
+                    testRemoteAIProfile(configuration)
                 }
                 val message = uiString(R.string.notice_ai_test_success, model)
                 updateState {
@@ -2446,9 +2457,10 @@ class SillageViewModel(
     }
 
     fun loadAIModels(index: Int) {
-        val profile = state.value.aiProfiles.getOrNull(index) ?: return
+        val current = state.value
+        val profile = current.aiProfiles.getOrNull(index) ?: return
         val key = profile.uiKey(index)
-        if (isOfflineMode()) {
+        if (current.appMode == SessionStore.MODE_OFFLINE) {
             val message = uiString(R.string.error_ai_models_offline)
             updateState(forceFeedback = true) {
                 it.copy(
@@ -2459,9 +2471,10 @@ class SillageViewModel(
             }
             return
         }
+        val configuration = profile.toConfigurationCommand()
         viewModelScope.launch {
             updateState { it.copy(aiLoadingModelsProfileId = key, error = null, notice = null) }
-            runCatching { api.listAIModels(profile.toInput()) }
+            runCatching { listRemoteAIProfileModels(configuration) }
                 .onSuccess { models ->
                     val message = uiString(
                         if (models.isEmpty()) R.string.notice_ai_models_empty else R.string.notice_ai_models_loaded,

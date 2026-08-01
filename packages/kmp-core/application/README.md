@@ -36,6 +36,11 @@ REST translation.
 snapshot. Each entry wraps canonical profile metadata and an optional secret
 available to that device; the secret remains outside the domain entity and is
 absent from remote responses.
+`AIProfileConnectionTester` and `AIProfileModelCatalog` keep provider diagnostics
+as separate capabilities. The local adapter implements connection testing with
+the device AI client; the remote adapter implements testing and model discovery
+through REST. Both consume the same `AIProfileConfigurationCommand` used by
+profile saves.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

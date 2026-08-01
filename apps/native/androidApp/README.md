@@ -71,7 +71,10 @@ must not duplicate domain, storage, synchronization, or protocol rules. Record-l
 filter tabs come from buildable `shared-ui:records` and consume the records aggregate
 directly; the shared search bar reads query/request/result state from the same
 aggregate, and shared records UI owns reusable empty/error states. Android supplies
-localized labels, icons, and ViewModel routing. Editor
+localized labels, icons, and ViewModel routing. Recently deleted record rows also
+come from shared records UI, which derives mutation ownership from the aggregate
+and owns permanent-delete confirmation; Android formats deletion timestamps and
+routes restore and purge callbacks. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

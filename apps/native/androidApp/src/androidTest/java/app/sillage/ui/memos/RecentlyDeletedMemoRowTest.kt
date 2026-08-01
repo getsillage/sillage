@@ -1,10 +1,18 @@
 package app.sillage.ui.memos
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.ui.records.RECENTLY_DELETED_PURGE_TEST_TAG
+import app.sillage.ui.records.RECENTLY_DELETED_RESTORE_TEST_TAG
+import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
+import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.theme.SillageTheme
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -23,9 +31,20 @@ class RecentlyDeletedMemoRowTest {
         var purged = false
         compose.setContent {
             SillageTheme(darkTheme = false) {
-                RecentlyDeletedMemoRow(
+                SillageRecentlyDeletedRecordRow(
+                    state = RecordsFeatureStateHolder(),
                     memo = deletedMemo(),
-                    mutating = false,
+                    strings = SillageRecentlyDeletedRecordStrings(
+                        blankRecord = "Blank record",
+                        deletedAtLabel = "Deleted just now",
+                        purgeSupporting = "This cannot be undone",
+                        restoreAction = "Restore",
+                        deleteForeverAction = "Delete forever",
+                        confirmDeleteAction = "Confirm delete",
+                        cancelAction = "Cancel",
+                    ),
+                    restoreIcon = Icons.Rounded.RestoreFromTrash,
+                    purgeIcon = Icons.Rounded.DeleteForever,
                     onRestore = { restored = true },
                     onPurge = { purged = true },
                 )

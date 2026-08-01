@@ -48,7 +48,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,7 +62,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,7 +76,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -96,6 +93,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.features.records.calendarMemoCoverage
@@ -120,6 +118,8 @@ import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordEmptyState
 import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStrings
+import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
+import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -258,7 +258,7 @@ internal fun MemoListScreen(
                         today = today,
                         hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
                         loadingMore = state.loadingMoreMemos,
-                        memoMutationIds = state.memoMutationIds,
+                        recordsState = state.records,
                         listState = listState,
                         onLoadMore = viewModel::loadMoreMemos,
                         onMemoClick = viewModel::openMemoDetail,
@@ -346,7 +346,7 @@ private fun MemoListView(
     today: String,
     hasMore: Boolean,
     loadingMore: Boolean,
-    memoMutationIds: Set<String>,
+    recordsState: RecordsFeatureStateHolder,
     listState: LazyListState,
     onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
@@ -395,16 +395,31 @@ private fun MemoListView(
         }
         items(visibleMemos, key = { it.id }) { memo ->
             if (filter == MemoListFilter.Deleted) {
-                RecentlyDeletedMemoRow(
+                val deletedAt = memo.deletedAt
+                SillageRecentlyDeletedRecordRow(
+                    state = recordsState,
                     memo = memo,
-                    mutating = memo.id in memoMutationIds,
+                    strings = SillageRecentlyDeletedRecordStrings(
+                        blankRecord = stringResource(R.string.blank_record),
+                        deletedAtLabel = stringResource(
+                            R.string.deleted_at,
+                            if (deletedAt != null) localizedTimestamp(deletedAt) else "—",
+                        ),
+                        purgeSupporting = stringResource(R.string.purge_record_supporting),
+                        restoreAction = stringResource(R.string.action_restore),
+                        deleteForeverAction = stringResource(R.string.action_delete_forever),
+                        confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                        cancelAction = stringResource(R.string.action_cancel),
+                    ),
+                    restoreIcon = Icons.Rounded.RestoreFromTrash,
+                    purgeIcon = Icons.Rounded.DeleteForever,
                     onRestore = { onMemoRestore(memo) },
                     onPurge = { onMemoPurge(memo) },
                 )
             } else {
                 MemoSwipeRow(
                     memo = memo,
-                    mutating = memo.id in memoMutationIds,
+                    mutating = recordsState.mutation.isActive(memo.id),
                     onClick = { onMemoClick(memo) },
                     onEdit = { onMemoEdit(memo) },
                     onDuplicate = { onMemoDuplicate(memo) },
@@ -427,97 +442,6 @@ private fun MemoListView(
         }
     }
 }
-
-@Composable
-internal fun RecentlyDeletedMemoRow(
-    memo: Memo,
-    mutating: Boolean,
-    onRestore: () -> Unit,
-    onPurge: () -> Unit,
-) {
-    var confirmingPurge by remember(memo.id) { mutableStateOf(false) }
-    val deletedAt = memo.deletedAt
-    val formattedDeletedAt = if (deletedAt != null) localizedTimestamp(deletedAt) else "—"
-    LaunchedEffect(mutating) {
-        if (mutating) confirmingPurge = false
-    }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                excerpt(memo.content, 120).ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stringResource(
-                    R.string.deleted_at,
-                    formattedDeletedAt,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            if (confirmingPurge) {
-                Text(
-                    stringResource(R.string.purge_record_supporting),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onRestore,
-                    enabled = !mutating,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(RECENTLY_DELETED_RESTORE_TEST_TAG),
-                ) {
-                    Icon(Icons.Rounded.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.action_restore))
-                }
-                Button(
-                    onClick = {
-                        if (confirmingPurge) onPurge() else confirmingPurge = true
-                    },
-                    enabled = !mutating,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(RECENTLY_DELETED_PURGE_TEST_TAG),
-                ) {
-                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        stringResource(
-                            if (confirmingPurge) R.string.action_confirm_delete else R.string.action_delete_forever,
-                        ),
-                    )
-                }
-            }
-            if (confirmingPurge) {
-                TextButton(
-                    onClick = { confirmingPurge = false },
-                    enabled = !mutating,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
-        }
-    }
-}
-
-internal const val RECENTLY_DELETED_RESTORE_TEST_TAG = "recently-deleted-restore"
-internal const val RECENTLY_DELETED_PURGE_TEST_TAG = "recently-deleted-purge"
 
 @Composable
 private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {

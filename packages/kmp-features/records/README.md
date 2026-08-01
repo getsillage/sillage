@@ -68,3 +68,7 @@ directly for list-filter tab selection and owns its selectable layout and semant
 Its search bar also reads aggregate query, request state, and result presence.
 Shared records UI also owns reusable empty/error presentation. Hosts retain
 localized resources, icons, and mutation callbacks.
+The shared recently deleted record row reads `RecordsFeatureStateHolder.mutation`
+directly for per-record busy state and owns restore/purge presentation plus the
+two-step permanent-delete confirmation. Hosts provide localized labels, icons,
+formatted deletion timestamps, and mutation routing.

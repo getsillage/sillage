@@ -9,6 +9,9 @@ active list filter and owns the selectable-tab layout, colors, and semantics.
 published-result presence while owning IME search, progress, clear, and action UI.
 `SillageRecordEmptyState` owns reusable records empty/error presentation, optional
 icon treatment, and optional action layout.
-Hosts supply localized labels and the filter mutation callback. Transport,
+`SillageRecentlyDeletedRecordRow` consumes aggregate mutation ownership and a
+record while owning the row layout and two-step permanent-delete confirmation.
+Hosts supply localized labels, icons, already-formatted deletion timestamps, and
+mutation callbacks. Transport,
 storage, navigation, native attachment handling, and platform lifecycle remain
 outside the module.

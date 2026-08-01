@@ -320,9 +320,10 @@ conflict-storage adapter remain platform-side migration sources for later sync
 ports and state-machine slices.
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
 it skips empty pushes, sends one pending batch, and acknowledges only applied
-results through the transactional outbox. `kmp-features:sync` owns pending
-conflict presentation identity through `MemoSyncConflictStateHolder`; core
-`ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Platform
+results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
+`SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
+`ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
+stores one `sync` aggregate with a transitional conflict-state getter. Platform
 hosts retain confirmation UI and implement the transactional conflict repository
 adapter.
 

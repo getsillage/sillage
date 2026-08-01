@@ -115,7 +115,7 @@ import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
 import app.sillage.core.sync.RunSyncPushUseCase
 import app.sillage.core.sync.RunTwoWaySyncUseCase
 import app.sillage.core.sync.SyncPushPreparation
-import app.sillage.data.askAnswerMemoContent
+import app.sillage.features.ask.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
@@ -1262,11 +1262,7 @@ class SillageViewModel(
                 noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
             ) {
                 it.copy(
-                    syncConflictState = if (conflicts.isEmpty()) {
-                        it.syncConflictState
-                    } else {
-                        it.syncConflictState.replace(conflicts)
-                    },
+                    sync = it.sync.applyPushConflicts(conflicts),
                     notice = if (warnAiSettings) {
                         uiString(R.string.error_sync_ai_settings_failed)
                     } else {
@@ -1290,7 +1286,7 @@ class SillageViewModel(
             }.onSuccess {
                 updateState(noticeType = UiToastType.SUCCESS) {
                     it.copy(
-                        syncConflictState = it.syncConflictState.remove(resourceId),
+                        sync = it.sync.removeConflict(resourceId),
                         notice = uiString(R.string.notice_conflict_keep_local),
                     )
                 }
@@ -1311,13 +1307,11 @@ class SillageViewModel(
                 }
             }.onSuccess {
                 updateState(noticeType = UiToastType.SUCCESS) {
-                    it.copy(
-                        syncConflictState = it.syncConflictState.remove(resourceId),
+                    it.applyResolvedSyncConflict(
+                        resourceId = resourceId,
+                        serverMemo = item.conflict.serverMemo,
+                    ).copy(
                         notice = uiString(R.string.notice_conflict_take_server),
-                        records = it.records.replaceSelectedMemo(
-                            resourceId,
-                            item.conflict.serverMemo,
-                        ),
                     )
                 }
                 refreshMemos()
@@ -1330,7 +1324,7 @@ class SillageViewModel(
     fun dismissSyncConflict(resourceId: String) {
         updateState {
             it.copy(
-                    syncConflictState = it.syncConflictState.remove(resourceId),
+                sync = it.sync.removeConflict(resourceId),
             )
         }
     }
@@ -3319,7 +3313,7 @@ class SillageViewModel(
         val conflicts = conflictItemsFromSummary(summary)
         updateState(noticeType = syncPushToastType(summary)) {
             it.copy(
-                syncConflictState = it.syncConflictState.replace(conflicts),
+                sync = it.sync.replaceConflicts(conflicts),
                 notice = syncPushNotice(summary),
             )
         }

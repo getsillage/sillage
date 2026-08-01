@@ -296,9 +296,10 @@ extracted.
 `PushPendingMemosUseCase` already composes shared `MemoSyncOutbox` and
 `MemoSyncGateway` ports so empty-push handling and applied-result acknowledgement
 are platform-independent.
-`kmp-features:sync` owns pending conflict presentation identity through
-`MemoSyncConflictStateHolder`; core `ResolveMemoSyncConflictUseCase` owns the
-explicit keep-local/take-server command workflow.
+`kmp-features:sync` owns pending conflict presentation through
+`SyncFeatureStateHolder` / `MemoSyncConflictStateHolder`; core
+`ResolveMemoSyncConflictUseCase` owns the explicit keep-local/take-server
+command workflow. Android stores one `sync` aggregate on root UI state.
 Platform hosts retain confirmation UI and implement the transactional repository
 port without duplicating conflict policy.
 

@@ -8,6 +8,8 @@ import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.ask.askAnswerMemoContent
+import app.sillage.features.ask.askSourceLabel
 import app.sillage.core.domain.records.isActive
 import app.sillage.core.application.records.UploadedAttachment
 import app.sillage.features.records.MemoListFilter

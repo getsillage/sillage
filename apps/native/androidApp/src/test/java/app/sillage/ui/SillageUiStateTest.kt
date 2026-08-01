@@ -34,6 +34,7 @@ import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.data.SessionStore
+import app.sillage.features.sync.MemoSyncConflictItem
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -356,6 +357,13 @@ class SillageUiStateTest {
         assertEquals(3L, applied.memoCacheGeneration)
         assertEquals(applied.records.collection, applied.recordsCollection)
         assertFalse(applied.loadingMoreMemos)
+    }
+
+    @Test
+    fun syncAggregateOwnsConflictPresentationWithTransitionalGetter() {
+        val state = editorState()
+        assertEquals(emptyList<MemoSyncConflictItem>(), state.syncConflicts)
+        assertEquals(state.sync.conflicts, state.syncConflictState)
     }
 
     @Test

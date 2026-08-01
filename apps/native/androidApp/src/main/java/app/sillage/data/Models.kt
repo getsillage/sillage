@@ -3,6 +3,7 @@ package app.sillage.data
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.core.domain.ask.AskSourceRef
+import app.sillage.features.ask.activeAskMessages
 import app.sillage.core.application.records.UploadedAttachment
 import app.sillage.features.settings.AIProfileDraft
 import org.json.JSONArray
@@ -116,13 +117,7 @@ fun pendingLocalAttachmentId(target: MarkdownLinkTarget.ProtectedAttachment): St
     return uid.removePrefix(LOCAL_PENDING_ATTACHMENT_UID_PREFIX).ifBlank { null }
 }
 
-fun askAnswerMemoContent(message: AskMessage): String {
-    return if (message.role == "assistant") message.content.trim() else ""
-}
 
-fun askSourceLabel(source: AskSourceRef): String {
-    return "${source.entryDate} · ${source.excerpt}"
-}
 
 fun memoSummarySourceCount(sourceMemoIds: String): Int? {
     val ids = runCatching { JSONArray(sourceMemoIds) }.getOrNull() ?: return null
@@ -173,9 +168,6 @@ fun AIProfileDraft.toInput(): AIProfileInput {
     )
 }
 
-fun activeAskMessages(messages: List<AskMessage>): List<AskMessage> {
-    return messages.filter { it.deletedAt == null }
-}
 
 fun buildAskActivePath(messages: List<AskMessage>, headId: String?): List<AskPathEntry> {
     val active = activeAskMessages(messages)

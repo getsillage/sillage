@@ -25,6 +25,7 @@ import app.sillage.features.auth.PasswordChangeContext
 import app.sillage.features.auth.PasswordChangeRequest
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.sync.MemoSyncConflictStateHolder
+import app.sillage.features.sync.SyncFeatureStateHolder
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.MemoAI
@@ -107,16 +108,15 @@ data class SillageUiState(
     val settings: SettingsFeatureStateHolder = SettingsFeatureStateHolder(),
     val authentication: AuthenticationStateHolder = AuthenticationStateHolder(),
     val ask: AskFeatureStateHolder = AskFeatureStateHolder(),
+    val sync: SyncFeatureStateHolder = SyncFeatureStateHolder(),
     val loading: Boolean = false,
     val authError: String? = null,
     val authErrorResourceId: Int? = null,
     val error: String? = null,
     val notice: String? = null,
-    /** Open sync version conflicts awaiting an explicit user choice. */
-    val syncConflictState: MemoSyncConflictStateHolder = MemoSyncConflictStateHolder(),
 ) {
     // Transitional slice accessors while hosts finish moving writes onto the
-    // aggregate records/ask/settings holders. Prefer the aggregates for
+    // aggregate records/ask/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsPagination: RecordsPaginationStateHolder get() = records.pagination
@@ -140,6 +140,7 @@ data class SillageUiState(
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
+    val syncConflictState: MemoSyncConflictStateHolder get() = sync.conflicts
 
     val memoNextCursor: String get() = records.pagination.nextCursor
     val memos: List<Memo> get() = records.collection.records
@@ -174,7 +175,7 @@ data class SillageUiState(
     val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
     val openingAttachmentPath: String? get() = records.attachmentOpen.path
     val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
-    val syncConflicts: List<MemoSyncConflictItem> get() = syncConflictState.items
+    val syncConflicts: List<MemoSyncConflictItem> get() = sync.items
     val askConversations: List<AskConversation> get() = ask.conversations
     val activeAskId: String get() = ask.activeConversationId
     val askHeadId: String? get() = ask.headMessageId
@@ -233,6 +234,11 @@ internal inline fun SillageUiState.withAsk(
 internal inline fun SillageUiState.withSettings(
     transform: (SettingsFeatureStateHolder) -> SettingsFeatureStateHolder,
 ): SillageUiState = copy(settings = transform(settings))
+
+/** Applies a pure sync-feature transition without touching host-only fields. */
+internal inline fun SillageUiState.withSync(
+    transform: (SyncFeatureStateHolder) -> SyncFeatureStateHolder,
+): SillageUiState = copy(sync = transform(sync))
 
 /**
  * Clears records/settings/ask interactive ownership for a client-context or
@@ -1079,6 +1085,22 @@ internal fun SillageUiState.openAskSourceDetail(
         ),
         ask = finishedAsk,
     )
+}
+
+/**
+ * Drops a resolved conflict and, when taking the server memo, updates the
+ * selected record presentation if it is still open.
+ */
+internal fun SillageUiState.applyResolvedSyncConflict(
+    resourceId: String,
+    serverMemo: Memo? = null,
+): SillageUiState {
+    val withoutConflict = withSync { it.removeConflict(resourceId) }
+    return if (serverMemo == null) {
+        withoutConflict
+    } else {
+        withoutConflict.withRecords { it.replaceSelectedMemo(resourceId, serverMemo) }
+    }
 }
 
 internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {

@@ -78,6 +78,7 @@ apps/native/.gradle/
 apps/native/.kotlin/
 apps/native/.idea/
 apps/native/**/build/
+packages/**/build/
 apps/native/local.properties
 apps/native/signing.properties
 apps/native/keystore.properties

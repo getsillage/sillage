@@ -13,6 +13,25 @@ This document is the single entry point for this repository's development enviro
 | Containers | Docker; Compose is optional |
 | Verification | GNU Make (for `make check*` targets) |
 
+## Repository Layout
+
+- `apps/` contains buildable applications and reserved platform hosts.
+- `packages/` contains reusable Web and Kotlin Multiplatform modules.
+- `contracts/` contains authored wire definitions, generated projections,
+  compatibility policy, and conformance fixtures.
+- `tests/` contains verification that crosses an application or language
+  boundary.
+- `tooling/` is the target boundary for repository code generation, CI, and
+  release tooling; existing runtime and migration scripts remain under
+  `scripts/` until moved by a dedicated phase.
+
+The Web client remains React. Android, iOS, Windows, and macOS use Compose
+Multiplatform as their primary UI technology and may use platform-native UI for
+system integration or materially better platform behavior. See
+[Multiplatform Client Architecture](docs/development/multiplatform.md). Reserved
+platform and package directories are not buildable modules until their build
+configuration and CI gates are introduced together.
+
 ## Local Development
 
 Install the Web dependencies:

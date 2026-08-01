@@ -190,7 +190,7 @@ func repositoryRoot(t *testing.T) string {
 
 func currentAndroidVersion(t *testing.T, root string) string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join(root, "android", "app", "build.gradle.kts"))
+	content, err := os.ReadFile(filepath.Join(root, "apps", "native", "androidApp", "build.gradle.kts"))
 	if err != nil {
 		t.Fatal(err)
 	}

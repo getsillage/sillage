@@ -3,7 +3,7 @@
 **Audience:** maintainers, external contributors, coding agents
 **Owner:** project maintainers
 **Enforcement:** `Makefile` targets, `scripts/*`, GitHub Actions, Dependabot, branch protection
-**Last reviewed:** 2026-07-31
+**Last reviewed:** 2026-08-01
 
 This document is the **standards registry** for Sillage. It explains how norms are layered, who they apply to, and how they are enforced. Product intent lives in the [Constitution](constitution.md) and [Product Guidance](product-guidance.md). Day-to-day commands live in [Contributing](../../CONTRIBUTING.md).
 
@@ -41,6 +41,7 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Product boundary | [constitution.md](constitution.md), [product-guidance.md](product-guidance.md) | Review + `scripts/check-terminology.mjs` (light) | Active |
 | Terminology (`memo` / record / 记录) | product-guidance, architecture | Terminology check + review | Active |
 | Module boundaries | [architecture.md](architecture.md) | Review | Active |
+| Native client architecture | [multiplatform.md](multiplatform.md) | Android gate today; platform gates added with each buildable host | Migrating |
 | API / Proto | `contracts/proto/api/v1/`, [api/README.md](api/README.md) | `make check-proto` | Active |
 | Database schema | `store/migration/sqlite/LATEST.sql`, migrator | `make check-go` + migration tests | Active |
 | Sync | [api/sync.md](api/sync.md) | Go/Android tests + review | Active |
@@ -72,6 +73,14 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 | `make print-affected` | Print matched rules and gates without running them |
 
 CI jobs call the same scripts and Make targets. Prefer fixing a script once over copying commands into workflow YAML. Pull requests use the change matrix to run only affected gates, while pushes to protected `main` remain full verification runs. A new commit automatically cancels the older in-progress CI run for the same pull request.
+
+The iOS, Windows, and macOS application directories and Kotlin Multiplatform
+package directories are documented placeholders during the initial migration.
+Their path rules require architecture documentation and the closest available
+Android shared-code gate. The first commit that makes another platform host
+buildable must add its dedicated Make target, CI job, release checks, and path
+mapping in the same change; placeholder status is not permission to land
+unverified product code.
 
 Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
 

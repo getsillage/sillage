@@ -115,6 +115,45 @@ rules:
       - "apps/native/androidApp/README.md"
       - "docs/development/security.md"
 
+  - id: shared-native-client
+    paths:
+      - "packages/kmp-core/**"
+      - "packages/kmp-features/**"
+      - "apps/native/shared-ui/**"
+    gates: [android, docs]
+    docs:
+      - "docs/development/multiplatform.md"
+      - "docs/development/architecture.md"
+
+  - id: reserved-native-hosts
+    paths:
+      - "apps/native/iosApp/**"
+      - "apps/native/desktopApp/**"
+    gates: [docs]
+    docs:
+      - "docs/development/multiplatform.md"
+      - "docs/development/architecture.md"
+
+  - id: client-shared-packages
+    paths:
+      - "packages/typescript-sdk/**"
+      - "packages/design-tokens/**"
+    gates: [web, android, docs]
+    docs:
+      - "docs/development/multiplatform.md"
+
+  - id: extended-contracts
+    paths:
+      - "contracts/http/**"
+      - "contracts/events/**"
+      - "contracts/schemas/**"
+      - "contracts/fixtures/**"
+      - "contracts/compatibility/**"
+    gates: [go, web, android, docs, e2e]
+    docs:
+      - "docs/development/api/**"
+      - "docs/development/architecture.md"
+
   - id: sync-contract
     paths:
       - "server/sync*.go"

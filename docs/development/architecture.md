@@ -4,14 +4,14 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Android is a separate client that accesses the same instance through REST and can also store data offline on the device.
+Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is currently implemented; iOS, Windows, and macOS have reserved application boundaries and will share a Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
 ```text
-Web SPA -------- REST / SSE --------┐
-Android -------- REST --------------+--> Echo adapters --> service / route orchestration --> Store --> SQLite
-Connect client -- Connect ----------┘                                               └--> attachments/
+React Web -------- REST / SSE -------┐
+Native KMP clients -- REST / SSE ----+--> Echo adapters --> service / route orchestration --> Store --> SQLite
+Connect client ----- Connect --------┘                                               └--> attachments/
 ```
 
 The REST and Connect adapters reuse the same domain constraints. Record validation, pagination, search, detail retrieval, and writes are centralized in `server/memo/`; REST, Connect, and sync translate their transport models into service inputs. The root `server` package coordinates automatic AI summaries after creation across features. Handwritten extensions such as attachment uploads and Ask SSE are orchestrated in routes and call the Store directly. They must still reuse the same authorization and domain constraints and must not introduce separate conflict semantics.
@@ -39,6 +39,14 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `contracts/proto/api/v1/` | Protobuf API contract source |
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
+| `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
+| `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
+| `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |
+| `packages/kmp-core/` | Reserved shared native domain, data, sync, and security modules |
+| `packages/kmp-features/` | Reserved feature-scoped native state and presentation modules |
+| `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
+| `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |
+| `tooling/` | Repository code generation, CI, and release-tooling boundaries |
 | `scripts/` | Container builds, startup, and Compose |
 
 ### Web Internal Boundaries
@@ -63,7 +71,17 @@ confirmation state remains owned by the feature that can resolve it.
 Error feedback preempts routine success or informational feedback and is
 retained ahead of routine messages when the queue reaches its bound.
 
-### Android Internal Boundaries
+### Native Client Boundaries
+
+The Web client remains React and is not a Compose target. Android, iOS,
+Windows, and macOS use Kotlin Multiplatform for shared runtime code and Compose
+Multiplatform as the primary UI technology. Platform-native UI is allowed for
+system integration, accessibility, performance, or platform-standard behavior,
+but it must consume shared feature state and use cases rather than duplicate
+domain, persistence, synchronization, or protocol logic. The complete rule is
+defined in [Multiplatform Client Architecture](multiplatform.md).
+
+The current Android code is the migration source for the shared native modules:
 
 | Path | Responsibility |
 | --- | --- |
@@ -77,7 +95,7 @@ retained ahead of routine messages when the queue reaches its bound.
 | `apps/native/androidApp/src/main/java/app/sillage/data/` | REST client, sessions, local storage, and data models |
 | `apps/native/androidApp/src/main/res/values*/` | English and Simplified Chinese interface resources |
 
-`SillageApp` only composes the UI and hands attachments to external viewers. Feature screens depend on the root `SillageUiState`, `SillageViewModel`, and shared UI, while the state and data layers must not depend on feature screens. Manual sync, navigation history, request IDs, and online/offline modes are behavior contracts that span these directories and must be preserved.
+`SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 
@@ -100,7 +118,7 @@ messages from the previous locale.
 - AI-derived data is stored separately and does not increment a memo's `version` or `updated_at`.
 - Attachment downloads require authorization and filenames must be sanitized; attachment bytes do not enter sync payloads.
 - AI API keys are stored only in encrypted envelopes and must never be returned by APIs or sync.
-- Android offline state writes that span content and sync metadata are atomic, and unreadable encrypted state must never be replaced by an empty default.
+- Native offline state writes that span content and sync metadata are atomic, and unreadable encrypted state must never be replaced by an empty default. Android currently enforces this invariant; new native clients must inherit it through the shared persistence boundary.
 
 See the [Sync API](api/sync.md) for detailed pagination, idempotency, and conflict rules. See [Product Guidance](product-guidance.md) for product scope and [Security Development Boundaries](security.md) for authentication, attachment, secret, and external-request constraints.
 
@@ -132,7 +150,7 @@ The repository commits generated Proto projections in `contracts/proto/gen/`; th
 - Protobuf is the Connect contract source. `contracts/proto/gen/openapi/openapi.yaml` is only a generated projection of Proto HTTP annotations, not the complete REST contract.
 - See the [REST API Guide](api/README.md) for REST v1 authentication, error models, versioning rules, and handwritten extensions. The implementation sources of truth are `server/*_routes.go`.
 - The Web client maintains handwritten types in `apps/web/src/lib/api.ts`; Android maintains REST mappings in `SillageApi.kt`.
-- Public bootstrap metadata and `X-Sillage-*` response headers expose the server version, revision, API generation, and minimum supported Android `versionCode`; they must never contain secrets or deployment identifiers.
+- Public bootstrap metadata and `X-Sillage-*` response headers currently expose the server version, revision, API generation, and minimum supported Android `versionCode`; they must never contain secrets or deployment identifiers. The Android-specific minimum is transitional: cross-platform compatibility will be expressed by protocol revision and capabilities rather than adding one server field per platform.
 
 Contract changes must update Proto, generated artifacts, affected REST/Connect adapters, clients, and tests. See the [Contributing Guide](../../CONTRIBUTING.md) for the procedure.
 

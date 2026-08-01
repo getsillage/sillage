@@ -13,7 +13,7 @@
 ## 工作方式
 
 1. 先确认目标、影响范围和代码事实；旧文档不能替代代码核验。
-2. 采用现有 Go store/service、Echo route、Vite Web、Android 和 Proto 组织方式。
+2. 采用现有 Go store/service、Echo route、`apps/web`、`apps/native` 和 `contracts` 组织方式；跨平台客户端遵守 Multiplatform Client Architecture。
 3. 只修改完成目标所需的文件，不顺手重构或扩展产品范围。
 4. 按风险补测试并运行对应门禁；失败要定位，不能用降低标准规避。
 5. 功能、配置、命令、契约或架构变化必须在同一提交更新主文档。

@@ -13,6 +13,7 @@ Choose an entry point based on your task:
 | Validate a stable release candidate and published artifacts | [Release Readiness](development/release-readiness.md) |
 | Product and engineering red lines | [Constitution](development/constitution.md) |
 | Understand module, data, and contract boundaries | [Architecture Guide](development/architecture.md) |
+| Change native client structure or UI technology | [Multiplatform Client Architecture](development/multiplatform.md) |
 | Change product semantics | [Product Guidance](development/product-guidance.md) |
 | Change authentication, attachments, secrets, or external requests | [Security Development Boundaries](development/security.md) |
 | Change synchronization behavior | [Sync API](development/api/sync.md) |

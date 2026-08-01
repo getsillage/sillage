@@ -137,8 +137,12 @@ The records feature now also owns the immutable
 slice. It validates source, client context, filter, cache generation, cursor,
 and request identity before accepting a late page response. Android's root UI
 state retains transitional read accessors, while pagination writes use the
-shared holder's explicit begin, complete, fail, and cancel transitions. Refresh,
-search, selection, and editor state remain later extraction slices.
+shared holder's explicit begin, complete, fail, and cancel transitions.
+
+The shared `RecordsRefreshStateHolder` now owns refresh status and request
+identity. It rejects responses after source, client context, filter, cache, or
+pagination generation changes, and a newer refresh supersedes an older one.
+Search, selection, and editor state remain later extraction slices.
 
 ## Core Invariants
 

@@ -100,6 +100,10 @@ snapshot and a server-backed page. Shared callers use semantic scope and cursor
 values; platform adapters own storage transactions, HTTP parameter mapping, and
 transport DTO conversion.
 
+Records refresh is the second extracted state slice. Its shared holder owns
+loading/failure status and request identity independently from pagination, while
+validating the same query context before replacing the visible snapshot.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

@@ -1,18 +1,19 @@
 # Records feature
 
-Shared record-list policy and feature state derived from presentation data. The
-module owns mutually exclusive list filters, deterministic ordering, On This
-Day calendar selectors, excerpts, pagination-coverage decisions, and the
-immutable `RecordsPaginationStateHolder`.
+Shared record-list policy and immutable feature state derived from presentation
+data. The module owns mutually exclusive list filters, deterministic ordering,
+On This Day calendar selectors, excerpts, and pagination-coverage decisions.
 
-The pagination holder is the first increment extracted from Android's records
-state. It owns cursor, single-flight, loading, completion, failure, and
-cancellation transitions. Every response is checked against its captured
-source, client context, filter, cache generation, cursor, and request identity
-before it may change state.
+`RecordsPaginationStateHolder` owns cursor, single-flight, loading, completion,
+failure, and cancellation transitions for load-more requests.
+`RecordsRefreshStateHolder` separately owns snapshot replacement status and
+request identity. Both holders validate their captured source, client context,
+filter, cache generation, and request identity before accepting a response;
+pagination also validates cursor and refresh also validates the active
+pagination request generation.
 
 The module depends only on `kmp-core:domain`. It must not perform transport,
 storage, synchronization, or platform UI work. Android consumes the policies
-and holder directly, retaining temporary read accessors while all pagination
-writes go through the shared holder. Refresh, search, selection, and editor
-state remain later extraction slices.
+and holders directly, retaining temporary read accessors while writes go
+through shared transitions. Search, selection, and editor state remain later
+extraction slices.

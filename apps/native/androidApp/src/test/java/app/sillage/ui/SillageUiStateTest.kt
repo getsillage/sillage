@@ -9,6 +9,7 @@ import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsPaginationStateHolder
+import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -227,9 +228,10 @@ class SillageUiStateTest {
             searchResultQuery = "记录",
             searchCompletionEventId = 4,
         )
-        val refresh = initial.memoRefreshRequest()
+        val refresh = initial.nextMemoRefreshRequest()
         val search = requireNotNull(initial.nextMemoSearchRequest())
-        val pending = initial.startMemoSearch(search)
+        val refreshing = requireNotNull(initial.beginMemoRefresh(refresh))
+        val pending = refreshing.startMemoSearch(search)
 
         assertTrue(pending.canApplyMemoRefresh(refresh))
         assertTrue(pending.canApplyMemoSearch(search))
@@ -550,13 +552,21 @@ class SillageUiStateTest {
         val failed = editorState().copy(
             screen = Screen.Memos,
             memos = emptyList(),
-            memoListLoadStatus = MemoListLoadStatus.Failed,
+            recordsRefresh = RecordsRefreshStateHolder(status = MemoListLoadStatus.Failed),
         )
 
         assertTrue(failed.shouldShowMemoListLoadFailure())
         assertFalse(failed.copy(searchQuery = "记录").shouldShowMemoListLoadFailure())
-        assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Loading).shouldShowMemoListLoadFailure())
-        assertFalse(failed.copy(memoListLoadStatus = MemoListLoadStatus.Idle).shouldShowMemoListLoadFailure())
+        assertFalse(
+            failed.copy(
+                recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
+            ).shouldShowMemoListLoadFailure(),
+        )
+        assertFalse(
+            failed.copy(
+                recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Idle),
+            ).shouldShowMemoListLoadFailure(),
+        )
         assertFalse(failed.copy(memos = listOf(memo())).shouldShowMemoListLoadFailure())
         assertFalse(failed.copy(searchResults = emptyList()).shouldShowMemoListLoadFailure())
     }

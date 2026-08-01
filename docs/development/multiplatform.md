@@ -70,6 +70,13 @@ feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
 
+Every shared module applies the repository `sillage.kmp-library` convention.
+The convention owns target and compiler configuration; module files own only
+their dependencies and optional capability plugins. `checkShared` discovers
+all convention modules, runs their desktop host tests, and enforces the native
+dependency direction as an executable architecture rule. Platform hosts do not
+apply this convention because they own platform lifecycle and packaging.
+
 There is no global feature ViewModel. Each feature owns its state holder and
 exposes an explicit contract. Application-wide state is limited to the active
 workspace, authenticated session, locale, theme, navigation root, and a summary

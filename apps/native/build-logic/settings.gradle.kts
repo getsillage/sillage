@@ -1,5 +1,4 @@
 pluginManagement {
-    includeBuild("build-logic")
     repositories {
         google()
         mavenCentral()
@@ -13,10 +12,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
 }
 
-rootProject.name = "SillageNative"
-include(":androidApp")
-include(":kmp-core:domain")
-
-project(":kmp-core:domain").projectDir = file("../../packages/kmp-core/domain")
+rootProject.name = "sillage-native-build-logic"

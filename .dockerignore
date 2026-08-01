@@ -75,6 +75,7 @@ profile.cov
 
 # Android / Gradle
 apps/native/.gradle/
+apps/native/**/.gradle/
 apps/native/.kotlin/
 apps/native/.idea/
 apps/native/**/build/

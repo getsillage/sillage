@@ -95,6 +95,7 @@ rules:
   - id: android-client
     paths:
       - "apps/native/androidApp/**"
+      - "apps/native/build-logic/**"
       - "apps/native/build.gradle.kts"
       - "apps/native/settings.gradle.kts"
       - "apps/native/gradle.properties"

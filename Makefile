@@ -70,7 +70,7 @@ check-web:
 
 check-android:
 	node scripts/check-android-device-matrix.mjs
-	cd apps/native && ./gradlew :kmp-core:domain:desktopTest :androidApp:testDebugUnitTest :androidApp:lintDebug :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest :androidApp:assembleRelease :androidApp:processReleaseMainManifest
+	cd apps/native && ./gradlew checkShared :androidApp:testDebugUnitTest :androidApp:lintDebug :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest :androidApp:assembleRelease :androidApp:processReleaseMainManifest
 	grep -Fq 'android:usesCleartextTraffic="false"' apps/native/androidApp/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
 	! grep -Rq 'http://10.0.2.2:5231' apps/native/androidApp/build/intermediates/packaged_res/release/packageReleaseResources
 	grep -Rq 'http://10.0.2.2:5231' apps/native/androidApp/build/intermediates/packaged_res/debug/packageDebugResources

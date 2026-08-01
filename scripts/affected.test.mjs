@@ -40,6 +40,12 @@ test("shared Kotlin modules use Android as the current compilation gate", () => 
   assert.ok(!gates.includes("web"));
 });
 
+test("native build conventions use the Android gate", () => {
+  const gates = gatesFor("apps/native/build-logic/src/main/kotlin/sillage.kmp-library.gradle.kts");
+  assert.ok(gates.includes("android"));
+  assert.ok(!gates.includes("web"));
+});
+
 test("reserved native hosts require architecture documentation", () => {
   assert.deepEqual(gatesFor("apps/native/iosApp/README.md"), ["docs"]);
 });

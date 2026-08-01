@@ -39,6 +39,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `contracts/proto/api/v1/` | Protobuf API contract source |
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
+| `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
 | `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |

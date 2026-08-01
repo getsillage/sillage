@@ -160,6 +160,8 @@ The same module owns AI profile detail editing, provider selection, model-result
 chips, connection feedback, delete confirmation, lazy-list composition, and
 expanded-profile selection. Android supplies localized strings, icons, and
 ViewModel callbacks while retaining adapters.
+The shared automatic-summary section reads preference and save lifecycle from the
+same aggregate, with Android supplying only its wider application operation gate.
 It also owns settings language-selection layout; Android supplies supported
 language identifiers, localized labels, and preference persistence.
 The shared settings overview card receives localized display values derived from

@@ -145,6 +145,8 @@ request state while owning provider selection and deletion confirmation. Shared
 lazy-list orchestration owns header/empty/profile composition and expanded-profile
 selection. Hosts supply localized strings, icons, and callbacks; persistence,
 protocol clients, native dialogs, and file pickers remain platform adapters.
+The automatic-summary section also consumes preference and save lifecycle from the
+aggregate, combining them with a host-provided wider operation gate.
 The module also owns settings language-selection layout and option presentation;
 hosts provide supported language identifiers, localized labels, and persistence.
 Its overview card accepts localized mode, record-count, appearance, and AI values,

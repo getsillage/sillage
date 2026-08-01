@@ -18,6 +18,8 @@ cross-feature state into localized mode, theme, record-count, and AI values.
 
 `SillageAIProfilesEditor` emits the lazy-list header, empty state, profile cards,
 and detail editors while its remembered state owns expanded-profile selection.
+`SillageAIAutoSummarySection` consumes the settings aggregate preference and save
+lifecycle directly, combining them with a host-wide operation gate.
 
 Hosts supply localized strings, icons, and callbacks. Protocol clients,
 encrypted key persistence, file pickers, native dialogs, navigation, and platform

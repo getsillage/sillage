@@ -48,3 +48,5 @@ and diagnostics presentation; the shared detail editor also reads profile drafts
 model results, and test state from the aggregate. Shared lazy-list orchestration
 owns empty/profile composition and expanded-profile selection. Hosts retain
 localized resources, icons, callbacks, persistence, and protocol adapters.
+The shared automatic-summary section reads `autoSummaryEnabled`,
+`autoSummarySaving`, and `profilesSaving` directly from the aggregate.

@@ -66,6 +66,8 @@ import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.settings.SillageAIAutoSummarySection
+import app.sillage.ui.settings.SillageAIAutoSummaryStrings
 import app.sillage.ui.settings.SillageAIProfileDetailStrings
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 import app.sillage.ui.settings.SillageAIProfilesEditorStrings
@@ -241,20 +243,19 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         ),
                     )
                 }
-                    item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
-            SillageSettingsSwitchRow(
-                                icon = Icons.Rounded.AutoAwesome,
-                                title = stringResource(R.string.settings_auto_summary),
-                                supporting = stringResource(R.string.settings_auto_summary_supporting),
-                                checked = state.aiAutoSummary,
-                                enabled = !state.aiAutoSummarySaving &&
-                                    !state.aiSettingsSaving &&
-                                    !state.loading,
-                                onCheckedChange = viewModel::setAISettingsAutoSummary,
-                            )
-                        }
-                    }
+                item {
+                    SillageAIAutoSummarySection(
+                        state = state.settings,
+                        strings = SillageAIAutoSummaryStrings(
+                            sectionTitle = stringResource(R.string.settings_section_ai),
+                            title = stringResource(R.string.settings_auto_summary),
+                            supporting = stringResource(R.string.settings_auto_summary_supporting),
+                        ),
+                        icon = Icons.Rounded.AutoAwesome,
+                        operationBlocked = state.loading,
+                        onCheckedChange = viewModel::setAISettingsAutoSummary,
+                    )
+                }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
             SillageSettingsSwitchRow(

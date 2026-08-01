@@ -52,6 +52,9 @@ import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
+import app.sillage.features.settings.AIAutoSummaryContext
+import app.sillage.features.settings.AIAutoSummaryRequest
+import app.sillage.features.settings.AIAutoSummaryStateHolder
 import java.time.LocalDate
 
 data class SillageUiState(
@@ -79,9 +82,7 @@ data class SillageUiState(
     val recordsAttachmentOpen: RecordsAttachmentOpenStateHolder =
         RecordsAttachmentOpenStateHolder(),
     val aiProfiles: List<AIProfileDraft> = emptyList(),
-    val aiAutoSummary: Boolean = false,
-    val aiAutoSummarySaving: Boolean = false,
-    val aiAutoSummaryRequestId: Long = 0,
+    val aiAutoSummaryState: AIAutoSummaryStateHolder = AIAutoSummaryStateHolder(),
     val aiSettingsLoading: Boolean = false,
     val aiSettingsLoadError: String? = null,
     val aiSettingsSaving: Boolean = false,
@@ -182,6 +183,9 @@ data class SillageUiState(
     val askScope: String get() = askComposer.contextScope
     val askSourceKind: String get() = askComposer.sourceKind
     val askScreenSessionId: Long get() = askSession.generation
+    val aiAutoSummary: Boolean get() = aiAutoSummaryState.enabled
+    val aiAutoSummarySaving: Boolean get() = aiAutoSummaryState.saving
+    val aiAutoSummaryRequestId: Long get() = aiAutoSummaryState.requestId
 }
 
 /**
@@ -410,75 +414,51 @@ internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
     return copy(recordsSummary = recordsSummary.invalidate())
 }
 
-internal data class AIAutoSummaryRequest(
-    val requestId: Long,
-    val previousValue: Boolean,
-    val targetValue: Boolean,
-    val appMode: String,
-    val clientContextGeneration: Long,
-)
-
-internal fun SillageUiState.nextAIAutoSummaryRequest(targetValue: Boolean): AIAutoSummaryRequest? {
-    if (aiSettingsLoading || aiSettingsSaving || aiAutoSummarySaving || targetValue == aiAutoSummary) {
-        return null
-    }
-    return AIAutoSummaryRequest(
-        requestId = aiAutoSummaryRequestId + 1,
-        previousValue = aiAutoSummary,
-        targetValue = targetValue,
+internal fun SillageUiState.aiAutoSummaryContext(): AIAutoSummaryContext =
+    AIAutoSummaryContext(
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
+        anotherMutationInProgress = aiSettingsLoading || aiSettingsSaving,
     )
+
+internal fun SillageUiState.nextAIAutoSummaryRequest(
+    targetValue: Boolean,
+): AIAutoSummaryRequest? {
+    return aiAutoSummaryState.nextRequest(targetValue, aiAutoSummaryContext())
 }
 
-internal fun SillageUiState.startAIAutoSummaryRequest(request: AIAutoSummaryRequest): SillageUiState {
-    if (
-        aiSettingsLoading ||
-        aiSettingsSaving ||
-        aiAutoSummarySaving ||
-        request.requestId != aiAutoSummaryRequestId + 1 ||
-        request.appMode != appMode ||
-        request.clientContextGeneration != clientContextGeneration ||
-        request.previousValue != aiAutoSummary
-    ) {
-        return this
-    }
-    return copy(
-        aiAutoSummary = request.targetValue,
-        aiAutoSummarySaving = true,
-        aiAutoSummaryRequestId = request.requestId,
-    )
+internal fun SillageUiState.startAIAutoSummaryRequest(
+    request: AIAutoSummaryRequest,
+): SillageUiState {
+    val pending = aiAutoSummaryState.begin(request, aiAutoSummaryContext()) ?: return this
+    return copy(aiAutoSummaryState = pending)
 }
 
-internal fun SillageUiState.canApplyAIAutoSummaryRequest(request: AIAutoSummaryRequest): Boolean {
-    return aiAutoSummarySaving &&
-        aiAutoSummaryRequestId == request.requestId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration
+internal fun SillageUiState.canApplyAIAutoSummaryRequest(
+    request: AIAutoSummaryRequest,
+): Boolean {
+    return aiAutoSummaryState.canApply(request, aiAutoSummaryContext())
 }
 
 internal fun SillageUiState.completeAIAutoSummaryRequest(
     request: AIAutoSummaryRequest,
     savedValue: Boolean,
 ): SillageUiState {
-    if (!canApplyAIAutoSummaryRequest(request)) {
-        return this
-    }
-    return copy(aiAutoSummary = savedValue, aiAutoSummarySaving = false)
+    val completed = aiAutoSummaryState.complete(
+        request,
+        savedValue,
+        aiAutoSummaryContext(),
+    ) ?: return this
+    return copy(aiAutoSummaryState = completed)
 }
 
 internal fun SillageUiState.failAIAutoSummaryRequest(request: AIAutoSummaryRequest): SillageUiState {
-    if (!canApplyAIAutoSummaryRequest(request)) {
-        return this
-    }
-    return copy(aiAutoSummary = request.previousValue, aiAutoSummarySaving = false)
+    val failed = aiAutoSummaryState.fail(request, aiAutoSummaryContext()) ?: return this
+    return copy(aiAutoSummaryState = failed)
 }
 
 internal fun SillageUiState.invalidateAIAutoSummaryRequest(): SillageUiState {
-    return copy(
-        aiAutoSummarySaving = false,
-        aiAutoSummaryRequestId = aiAutoSummaryRequestId + 1,
-    )
+    return copy(aiAutoSummaryState = aiAutoSummaryState.invalidate())
 }
 
 internal data class AIProfilesMutationRequest(

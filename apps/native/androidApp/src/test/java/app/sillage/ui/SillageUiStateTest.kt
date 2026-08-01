@@ -10,6 +10,7 @@ import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamStateHolder
 import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantStateHolder
+import app.sillage.features.settings.AIAutoSummaryStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
@@ -179,7 +180,7 @@ class SillageUiStateTest {
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
-        assertTrue(idle.copy(aiAutoSummarySaving = true).hasClientContextOperationInProgress())
+        assertTrue(idle.withAIAutoSummary(saving = true).hasClientContextOperationInProgress())
     }
 
     @Test
@@ -713,8 +714,7 @@ class SillageUiStateTest {
         val idle = editorState().copy(
             screen = Screen.AISettings,
             appMode = SessionStore.MODE_ONLINE,
-            aiAutoSummary = false,
-            aiAutoSummaryRequestId = 4,
+            aiAutoSummaryState = AIAutoSummaryStateHolder(requestId = 4),
         )
         val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
         val pending = idle.startAIAutoSummaryRequest(request)
@@ -749,7 +749,7 @@ class SillageUiStateTest {
         val idle = editorState().copy(
             screen = Screen.AISettings,
             aiProfiles = profiles,
-            aiAutoSummary = false,
+            aiAutoSummaryState = AIAutoSummaryStateHolder(enabled = false),
         )
         val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
         val pending = idle.startAIAutoSummaryRequest(request)
@@ -773,7 +773,7 @@ class SillageUiStateTest {
     fun autoSummaryCannotStartWhileProfilesAreSaving() {
         val idle = editorState().copy(
             screen = Screen.AISettings,
-            aiAutoSummary = false,
+            aiAutoSummaryState = AIAutoSummaryStateHolder(enabled = false),
         )
         val autoSummaryRequest = requireNotNull(idle.nextAIAutoSummaryRequest(true))
         val profiles = listOf(AIProfileDraft(id = "profile-1", name = "新名称"))
@@ -1167,6 +1167,18 @@ class SillageUiStateTest {
         assertFalse(state.copy(screen = Screen.MemoDetail).shouldReturnToRecordsOnBack())
         assertFalse(state.copy(screen = Screen.Editor).shouldReturnToRecordsOnBack())
     }
+
+    private fun SillageUiState.withAIAutoSummary(
+        enabled: Boolean = aiAutoSummary,
+        saving: Boolean = aiAutoSummarySaving,
+        requestId: Long = aiAutoSummaryRequestId,
+    ): SillageUiState = copy(
+        aiAutoSummaryState = AIAutoSummaryStateHolder(
+            enabled = enabled,
+            saving = saving,
+            requestId = requestId,
+        ),
+    )
 
     private fun SillageUiState.withAskConversation(
         activeConversationId: String = activeAskId,

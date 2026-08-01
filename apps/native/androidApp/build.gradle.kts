@@ -80,6 +80,7 @@ dependencies {
     implementation(project(":kmp-core:sync"))
     implementation(project(":kmp-features:ask"))
     implementation(project(":kmp-features:records"))
+    implementation(project(":kmp-features:settings"))
     implementation(project(":kmp-features:sync"))
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.9.3")

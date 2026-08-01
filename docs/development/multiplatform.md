@@ -108,6 +108,9 @@ The settings application slice begins with `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase`. Platform adapters persist the independently saved
 preference through encrypted local storage or REST without exposing either
 implementation to shared callers.
+The buildable `kmp-features:settings` module starts with
+`AIAutoSummaryStateHolder`, which owns optimistic preference mutation, rollback,
+request identity, and client-context validation.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

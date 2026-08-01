@@ -143,6 +143,9 @@ Ask request holder for navigation-safe callback invalidation.
 `AIAutoSummaryRepository` and `SetAIAutoSummaryUseCase` own the first settings
 application boundary. Android adapters implement encrypted local persistence and
 REST mutation; the root ViewModel no longer selects those mechanisms directly.
+`packages/kmp-features/settings` owns `AIAutoSummaryStateHolder`, including
+optimistic mutation, rollback, and request ownership. Android supplies client
+context and user-facing feedback around the shared transition result.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

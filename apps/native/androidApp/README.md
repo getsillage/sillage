@@ -57,6 +57,8 @@ All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared
 application use case; Android local and remote adapters retain SQLite and REST.
+Its optimistic update, rollback, and single-flight request identity live in the
+shared `kmp-features:settings` module.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

@@ -59,6 +59,7 @@ import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskStreamRequest
+import app.sillage.features.settings.AIAutoSummaryRequest
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.SessionStore
@@ -347,7 +348,7 @@ class SillageViewModel(
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                 aiProfiles = emptyList(),
-                aiAutoSummary = false,
+                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
                 aiSettingsSaving = false,
@@ -394,7 +395,7 @@ class SillageViewModel(
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replaceSummary(null),
                 aiProfiles = emptyList(),
-                aiAutoSummary = false,
+                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
                 aiSettingsSaving = false,
@@ -805,7 +806,9 @@ class SillageViewModel(
                         recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                         recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                             aiProfiles = emptyList(),
-                            aiAutoSummary = if (offlineMode) localDataStore.autoSummaryEnabled() else false,
+                            aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(
+                                if (offlineMode) localDataStore.autoSummaryEnabled() else false,
+                            ),
                             aiSettingsLoading = false,
                             aiSettingsLoadError = null,
                             aiSettingsSaving = false,
@@ -1168,7 +1171,7 @@ class SillageViewModel(
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                     aiProfiles = result.aiProfiles,
-                    aiAutoSummary = result.aiAutoSummary,
+                    aiAutoSummaryState = it.aiAutoSummaryState.replace(result.aiAutoSummary),
                     askConversation = it.askConversation.copy(
                         conversations = emptyList(),
                         messages = emptyList(),
@@ -2221,7 +2224,9 @@ class SillageViewModel(
                         ) {
                             current.copy(
                                 aiProfiles = settings.profiles,
-                                aiAutoSummary = settings.autoSummary,
+                                aiAutoSummaryState = current.aiAutoSummaryState.replace(
+                                    settings.autoSummary,
+                                ),
                                 aiSettingsLoading = false,
                                 aiSettingsLoadError = null,
                                 aiTestResults = emptyMap(),
@@ -3901,7 +3906,7 @@ class SillageViewModel(
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                 aiProfiles = aiProfiles,
-                aiAutoSummary = autoSummary,
+                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
                 aiSettingsSaving = false,

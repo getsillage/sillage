@@ -351,8 +351,7 @@ class SillageViewModel(
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
                 askQuestion = "",
-                askLoading = false,
-                askLoadError = null,
+                askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
@@ -399,8 +398,7 @@ class SillageViewModel(
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
                 askQuestion = "",
-                askLoading = false,
-                askLoadError = null,
+                askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
@@ -811,8 +809,7 @@ class SillageViewModel(
                             aiModelResults = emptyMap(),
                             askConversation = it.askConversation.clear(),
                             askQuestion = "",
-                            askLoading = false,
-                            askLoadError = null,
+                            askLoad = it.askLoad.cancel(),
                             askStream = it.askStream.invalidate(),
                             askVariant = it.askVariant.invalidate(),
                             askSourceNavigation = it.askSourceNavigation.invalidate(),
@@ -2502,8 +2499,7 @@ class SillageViewModel(
             ) {
                 started = true
                 current.copy(
-                    askLoading = true,
-                    askLoadError = null,
+                    askLoad = current.askLoad.begin(),
                     error = null,
                     notice = null,
                 )
@@ -2533,8 +2529,7 @@ class SillageViewModel(
                                 askConversation = current.askConversation.replaceConversations(
                                     conversations.filter(AskConversation::isActive),
                                 ),
-                                askLoading = false,
-                                askLoadError = null,
+                                askLoad = current.askLoad.complete(),
                                 error = null,
                             )
                         } else {
@@ -2551,8 +2546,7 @@ class SillageViewModel(
                         ) {
                             val message = error.readableMessage()
                             current.copy(
-                                askLoading = false,
-                                askLoadError = message,
+                                askLoad = current.askLoad.fail(message),
                                 error = message,
                             )
                         } else {
@@ -2597,8 +2591,7 @@ class SillageViewModel(
                         messages = emptyList(),
                     ),
                     askScope = conversation?.contextScope ?: latest.askScope,
-                    askLoading = true,
-                    askLoadError = null,
+                    askLoad = latest.askLoad.begin(),
                     askScreenSessionId = screenSessionId,
                     askVariant = latest.askVariant.invalidate(),
                     askSourceNavigation = latest.askSourceNavigation.invalidate(),
@@ -2634,8 +2627,7 @@ class SillageViewModel(
                                     headMessageId = latest.askHeadId,
                                     messages = messages,
                                 ),
-                                askLoading = false,
-                                askLoadError = null,
+                                askLoad = latest.askLoad.complete(),
                             )
                         } else {
                             latest
@@ -2652,8 +2644,7 @@ class SillageViewModel(
                         ) {
                             val message = error.readableMessage()
                             latest.copy(
-                                askLoading = false,
-                                askLoadError = message,
+                                askLoad = latest.askLoad.fail(message),
                                 error = message,
                             )
                         } else {
@@ -3909,8 +3900,7 @@ class SillageViewModel(
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
                 askQuestion = "",
-                askLoading = false,
-                askLoadError = null,
+                askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),

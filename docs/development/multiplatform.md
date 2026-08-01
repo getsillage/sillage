@@ -97,6 +97,8 @@ navigation types.
 messages, regeneration identity, and completion events. SSE parsing and
 device-local model execution remain platform adapters that may update the holder
 only while its captured conversation and client context match.
+`AskLoadStateHolder` owns conversation/message loading and retry presentation
+through explicit begin, complete, fail, and cancel transitions.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

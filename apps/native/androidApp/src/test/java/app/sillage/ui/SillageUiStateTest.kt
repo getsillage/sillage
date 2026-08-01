@@ -3,6 +3,7 @@ package app.sillage.ui
 import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamStateHolder
@@ -890,7 +891,7 @@ class SillageUiStateTest {
 
         assertEquals(firstAnswer.id, pending.askSavingMessageId)
         assertTrue(pending.canApplyAskMemoSave(request))
-        assertTrue(pending.copy(askLoading = true).canApplyAskMemoSave(request))
+        assertTrue(pending.withAskLoad(loading = true).canApplyAskMemoSave(request))
         assertEquals(
             null,
             pending.nextAskMemoSaveRequest(firstAnswer, memoContent = "第一条回答"),
@@ -965,7 +966,7 @@ class SillageUiStateTest {
                 .canApplyAskStream(request),
         )
         assertFalse(pending.withAskStream(sending = false).canApplyAskStream(request))
-        assertEquals(null, state.copy(askLoading = true).nextAskStreamRequest())
+        assertEquals(null, state.withAskLoad(loading = true).nextAskStreamRequest())
         assertEquals(null, state.withAskVariant(loading = true).nextAskStreamRequest())
     }
 
@@ -1009,7 +1010,7 @@ class SillageUiStateTest {
         assertEquals(1L, ask.nextAskVariantRequest()?.requestId)
         assertEquals(null, ask.withAskConversation(activeConversationId = "").nextAskVariantRequest())
         assertEquals(null, ask.copy(screen = Screen.Memos).nextAskVariantRequest())
-        assertEquals(null, ask.copy(askLoading = true).nextAskVariantRequest())
+        assertEquals(null, ask.withAskLoad(loading = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskStream(sending = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskVariant(loading = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskSourceNavigation(loading = true).nextAskVariantRequest())
@@ -1174,6 +1175,16 @@ class SillageUiStateTest {
             activeConversationId = activeConversationId,
             headMessageId = headMessageId,
             messages = messages,
+        ),
+    )
+
+    private fun SillageUiState.withAskLoad(
+        loading: Boolean = askLoading,
+        errorMessage: String? = askLoadError,
+    ): SillageUiState = copy(
+        askLoad = AskLoadStateHolder(
+            loading = loading,
+            errorMessage = errorMessage,
         ),
     )
 

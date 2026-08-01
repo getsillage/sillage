@@ -27,3 +27,6 @@ navigation model.
 presentation, regeneration identity, and completion events. Android retains the
 SSE client and device-local model execution; callbacks update shared state only
 while the captured conversation and client context still match.
+
+`AskLoadStateHolder` owns conversation/message loading and its durable retry
+message, with explicit begin, complete, fail, and cancel transitions.

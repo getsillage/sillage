@@ -5,6 +5,7 @@ import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
 import app.sillage.features.ask.AskMemoSaveStateHolder
@@ -91,8 +92,7 @@ data class SillageUiState(
     val askQuestion: String = "",
     val askScope: String = "recent_30_days",
     val askSourceKind: String = "records",
-    val askLoading: Boolean = false,
-    val askLoadError: String? = null,
+    val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
     val askStream: AskStreamStateHolder = AskStreamStateHolder(),
     val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
     val askScreenSessionId: Long = 0,
@@ -176,6 +176,8 @@ data class SillageUiState(
     val askRegeneratingId: String get() = askStream.regeneratingMessageId
     val askLiveUser: AskMessage? get() = askStream.liveUser
     val askLiveAnswer: String get() = askStream.liveAnswer
+    val askLoading: Boolean get() = askLoad.loading
+    val askLoadError: String? get() = askLoad.errorMessage
 }
 
 /**

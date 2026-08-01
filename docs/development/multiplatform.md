@@ -183,6 +183,9 @@ contain syncable domain values only, and an unavailable AI-settings section mean
 "preserve local settings" rather than "replace with empty settings".
 Android implements the gateway and atomic repository ports while retaining the
 versioned `SillageExportData` v1 codec solely for local storage and file backup.
+Shared `RunSyncPushUseCase` and `RunTwoWaySyncUseCase` enforce attachment
+preparation before push and push-before-pull ordering. Platform hosts implement
+attachment staging and present the resulting status.
 
 ## Platform Hosts
 

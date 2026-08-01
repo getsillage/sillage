@@ -220,6 +220,9 @@ Android `RemoteSyncSnapshotGateway` maps REST pagination into that snapshot and
 `LocalSyncSnapshotRepository` delegates one transactional merge. The Android
 `SillageExportData` v1 codec remains a separate backup/local-storage DTO; adapter
 mapping preserves client theme/view preferences and device-held AI secrets.
+`RunSyncPushUseCase` executes the platform attachment-preparation port before
+reading the outbox. `RunTwoWaySyncUseCase` then owns the required push-before-pull
+sequence while the host presents localized results.
 
 ## Core Invariants
 

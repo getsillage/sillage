@@ -23,3 +23,7 @@ syncable domain data and an explicit available/unavailable AI-settings section;
 backup format metadata and client presentation preferences are excluded.
 `PullSyncUseCase` composes `SyncSnapshotGateway` and `SyncSnapshotRepository`,
 requiring adapters to merge a completed snapshot atomically.
+
+`RunSyncPushUseCase` requires platform attachment preparation before reading the
+memo outbox. `RunTwoWaySyncUseCase` preserves the push-then-pull ordering and
+returns both results for feature presentation.

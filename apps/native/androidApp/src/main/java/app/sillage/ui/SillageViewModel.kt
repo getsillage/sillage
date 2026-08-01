@@ -59,6 +59,9 @@ import app.sillage.core.sync.PullSyncResult
 import app.sillage.core.sync.PullSyncUseCase
 import app.sillage.core.sync.ResolveMemoSyncConflictCommand
 import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
+import app.sillage.core.sync.RunSyncPushUseCase
+import app.sillage.core.sync.RunTwoWaySyncUseCase
+import app.sillage.core.sync.SyncPushPreparation
 import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
@@ -134,6 +137,11 @@ class SillageViewModel(
         localMemoSyncOutbox,
         RemoteMemoSyncGateway(api),
     )
+    private val runSyncPush = RunSyncPushUseCase(
+        SyncPushPreparation { flushPendingLocalAttachments() },
+        pushPendingMemos,
+    )
+    private val runTwoWaySync = RunTwoWaySyncUseCase(runSyncPush, pullSync)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
     private val listRemoteRecords = ListRecordsPageUseCase(remoteRecordsRepository)
     private val searchRemoteRecords = SearchRecordsUseCase(remoteRecordsRepository)
@@ -1200,8 +1208,7 @@ class SillageViewModel(
             return
         }
         launchDataTransfer {
-            flushPendingLocalAttachments()
-            val summary = pushLocalMemosToServer()
+            val summary = runSyncPush()
             presentSyncPushResult(summary)
         }
     }
@@ -1215,9 +1222,9 @@ class SillageViewModel(
             return
         }
         launchDataTransfer {
-            flushPendingLocalAttachments()
-            val push = pushLocalMemosToServer()
-            val pulled = pullOnlineData()
+            val result = runTwoWaySync()
+            val push = result.push
+            val pulled = result.pull
             val warnAiSettings = !pulled.aiSettingsAvailable
             val conflicts = conflictItemsFromSummary(push)
             updateState(
@@ -3309,10 +3316,6 @@ class SillageViewModel(
 
     private suspend fun pullOnlineData(): PullSyncResult = withContext(Dispatchers.IO) {
         pullSync()
-    }
-
-    private suspend fun pushLocalMemosToServer(): SyncPushSummary {
-        return pushPendingMemos()
     }
 
     private fun presentSyncPushResult(summary: SyncPushSummary) {

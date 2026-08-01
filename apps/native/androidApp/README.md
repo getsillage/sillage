@@ -44,6 +44,8 @@ Android retains the confirmation UI and transactional local-storage adapter.
 Full pull runs through shared `SyncSnapshot` gateway/repository contracts and
 `PullSyncUseCase`. Android maps REST pages and atomically merges the snapshot;
 the versioned JSON export remains a separate adapter DTO and keeps its v1 schema.
+Shared sync orchestration also owns attachment-preparation-before-push and the
+push-then-pull order; Android supplies attachment staging and localized feedback.
 
 See [Multiplatform Development](../../../docs/development/multiplatform.md) and
 [Architecture](../../../docs/development/architecture.md) for module ownership and

@@ -94,7 +94,10 @@ hydrates it from `SessionStore`, persists accepted changes through that adapter,
 and remains responsible for applying the system theme and locale. The module
 also owns native root destination identity, navigation-history updates, fallback
 back navigation, and return-to-Records policy; hosts retain system Back dispatch
-and platform navigation effects.
+and platform navigation effects. One-shot global feedback sequencing, error
+precedence, duplicate suppression, notice severity, and language binding also
+belong to the app shell; hosts retain localized message production and native
+feedback rendering.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

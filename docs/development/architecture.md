@@ -230,12 +230,15 @@ application port.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 
-Android transient feedback is emitted once by `SillageViewModel` and consumed
-by the top-level Toast host in `SillageApp`. Feature screens do not render a
+`shared-ui:app-shell` turns root-state feedback changes into one-shot events and
+owns event IDs, duplicate suppression, error precedence, notice severity, and
+language binding. Android supplies localized messages through `SillageViewModel`
+and consumes events in the top-level Toast host in `SillageApp`. Feature screens
+do not render a
 second copy of global error or notice messages; durable retry, conflict, and
 confirmation state remains part of the relevant screen.
-The event channel is bounded, new events replace the active Toast, warning and
-error feedback stays visible longer, and language changes discard buffered
+Android's event channel is bounded, new events replace the active Toast, warning
+and error feedback stays visible longer, and language changes discard buffered
 messages from the previous locale.
 
 The records application slice also exposes a semantic online page query through

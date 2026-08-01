@@ -124,6 +124,9 @@ the feature module.
 The same module's `AskVariantStateHolder` owns branch-selection request identity;
 Android supplies navigation and client context, then applies completion only when
 the shared holder still owns that request.
+`AskMemoSaveStateHolder` applies the same rule to answer-to-record requests and
+also captures source answer content and branch-head identity. It delegates the
+actual record creation to the records application boundary.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

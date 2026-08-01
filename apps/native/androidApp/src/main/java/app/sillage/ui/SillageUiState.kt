@@ -5,6 +5,9 @@ import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskMemoSaveContext
+import app.sillage.features.ask.AskMemoSaveRequest
+import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
@@ -95,8 +98,7 @@ data class SillageUiState(
     val askScreenSessionId: Long = 0,
     val askSourceRequestId: Long = 0,
     val askSourceLoading: Boolean = false,
-    val askMemoSaveRequestId: Long = 0,
-    val askSavingMessageId: String = "",
+    val askMemoSave: AskMemoSaveStateHolder = AskMemoSaveStateHolder(),
     val recordsEditor: RecordsEditorStateHolder = RecordsEditorStateHolder(
         draftEntryDate = LocalDate.now().toString(),
         initialDraftEntryDate = LocalDate.now().toString(),
@@ -164,6 +166,8 @@ data class SillageUiState(
     val askMessages: List<AskMessage> get() = askConversation.messages
     val askVariantRequestId: Long get() = askVariant.requestId
     val askVariantLoading: Boolean get() = askVariant.loading
+    val askMemoSaveRequestId: Long get() = askMemoSave.requestId
+    val askSavingMessageId: String get() = askMemoSave.savingMessageId
 }
 
 /**
@@ -768,91 +772,39 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
     return askVariant.canApply(request, askVariantContext())
 }
 
-internal data class AskMemoSaveRequest(
-    val requestId: Long,
-    val screenSessionId: Long,
-    val conversationId: String,
-    val headMessageId: String?,
-    val messageId: String,
-    val sourceMessageContent: String,
-    val memoContent: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
+internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
+    destinationAvailable = screen == Screen.Ask,
+    anotherRequestInProgress =
+        loading || askLoading || askSending || askVariantLoading || askSourceLoading,
+    screenSessionId = askScreenSessionId,
+    conversationId = activeAskId,
+    headMessageId = askHeadId,
+    messages = askMessages,
+    appMode = appMode,
+    clientContextGeneration = clientContextGeneration,
 )
 
 internal fun SillageUiState.nextAskMemoSaveRequest(
     message: AskMessage,
     memoContent: String,
-): AskMemoSaveRequest? {
-    val currentMessage = askMessages.find { it.id == message.id }
-    if (
-        screen != Screen.Ask ||
-        loading ||
-        askLoading ||
-        askSending ||
-        askVariantLoading ||
-        askSourceLoading ||
-        askSavingMessageId.isNotBlank() ||
-        activeAskId.isBlank() ||
-        message.role != "assistant" ||
-        message.conversationId != activeAskId ||
-        currentMessage?.content != message.content ||
-        memoContent.isBlank()
-    ) {
-        return null
-    }
-    return AskMemoSaveRequest(
-        requestId = askMemoSaveRequestId + 1,
-        screenSessionId = askScreenSessionId,
-        conversationId = activeAskId,
-        headMessageId = askHeadId,
-        messageId = message.id,
-        sourceMessageContent = message.content,
-        memoContent = memoContent,
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
-    )
-}
+): AskMemoSaveRequest? = askMemoSave.nextRequest(message, memoContent, askMemoSaveContext())
 
 internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    if (
-        nextAskMemoSaveRequest(
-            message = askMessages.find { it.id == request.messageId } ?: return this,
-            memoContent = request.memoContent,
-        ) != request
-    ) {
-        return this
-    }
+    val pending = askMemoSave.begin(request, askMemoSaveContext()) ?: return this
     return copy(
-        askMemoSaveRequestId = request.requestId,
-        askSavingMessageId = request.messageId,
+        askMemoSave = pending,
         error = null,
         notice = null,
     )
 }
 
 internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Boolean {
-    return screen == Screen.Ask &&
-        askMemoSaveRequestId == request.requestId &&
-        askSavingMessageId == request.messageId &&
-        askScreenSessionId == request.screenSessionId &&
-        activeAskId == request.conversationId &&
-        askHeadId == request.headMessageId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        askMessages.any {
-            it.id == request.messageId && it.content == request.sourceMessageContent
-        }
+    return askMemoSave.canApply(request, askMemoSaveContext())
 }
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    if (
-        askMemoSaveRequestId != request.requestId ||
-        askSavingMessageId != request.messageId
-    ) {
-        return this
-    }
-    return copy(askSavingMessageId = "")
+    val finished = askMemoSave.finish(request) ?: return this
+    return copy(askMemoSave = finished)
 }
 
 internal data class AskSourceNavigationRequest(

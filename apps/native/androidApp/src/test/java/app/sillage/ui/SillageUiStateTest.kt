@@ -3,6 +3,7 @@ package app.sillage.ui
 import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
@@ -168,7 +169,10 @@ class SillageUiStateTest {
             idle.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-1")))
                 .hasClientContextOperationInProgress(),
         )
-        assertTrue(idle.copy(askSavingMessageId = "answer-1").hasClientContextOperationInProgress())
+        assertTrue(
+            idle.copy(askMemoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1"))
+                .hasClientContextOperationInProgress(),
+        )
         assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
         assertTrue(idle.copy(aiAutoSummarySaving = true).hasClientContextOperationInProgress())
     }

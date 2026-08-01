@@ -12,3 +12,8 @@ persistence or SSE transport into the feature module.
 `AskVariantStateHolder` owns the single-flight branch-selection request identity.
 It captures screen session, conversation, source mode, and client generation so a
 late response cannot cross a navigation or workspace boundary.
+
+`AskMemoSaveStateHolder` owns the answer-to-record request identity and validates
+the captured answer content, conversation, branch head, screen session, source
+mode, and client generation. The actual record write remains behind the shared
+records application use case.

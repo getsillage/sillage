@@ -22,7 +22,7 @@ import app.sillage.data.LocalDataStore
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
-import app.sillage.data.MemoListFilter
+import app.sillage.features.records.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.PulledSyncData
@@ -40,7 +40,7 @@ import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
 import app.sillage.data.localAttachmentPath
 import app.sillage.data.markdownFormatSnippet
-import app.sillage.data.memosForFilter
+import app.sillage.features.records.memosForFilter
 import app.sillage.data.mergeSavedAIProfilesForLocalStorage
 import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename

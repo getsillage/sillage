@@ -26,6 +26,7 @@ val checkNativeArchitecture = tasks.register("checkNativeArchitecture") {
                         val source = sourceProject.path
                         val target = dependency.path
                         val allowed = when {
+                            source == target -> true
                             source.startsWith(":kmp-core:") -> target.startsWith(":kmp-core:")
                             source.startsWith(":kmp-features:") -> target.startsWith(":kmp-core:")
                             source.startsWith(":shared-ui:") ->

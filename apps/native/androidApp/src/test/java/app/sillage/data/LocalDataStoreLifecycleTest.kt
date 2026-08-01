@@ -1,6 +1,8 @@
 package app.sillage.data
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.matchesListFilter
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

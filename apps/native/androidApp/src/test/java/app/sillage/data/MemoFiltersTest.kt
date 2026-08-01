@@ -2,6 +2,15 @@ package app.sillage.data
 
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.isActive
+import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.activeMemos
+import app.sillage.features.records.calendarMemoCoverage
+import app.sillage.features.records.entriesByDate
+import app.sillage.features.records.entryDateCounts
+import app.sillage.features.records.excerpt
+import app.sillage.features.records.memosForFilter
+import app.sillage.features.records.onThisDay
+import app.sillage.features.records.sortMemos
 import java.time.DayOfWeek
 import org.junit.Assert.assertEquals
 import org.junit.Test

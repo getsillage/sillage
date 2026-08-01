@@ -8,9 +8,9 @@ import app.sillage.data.ConflictMemoSync
 import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
-import app.sillage.data.MemoListFilter
+import app.sillage.features.records.MemoListFilter
 import app.sillage.data.SessionStore
-import app.sillage.data.memosForFilter
+import app.sillage.features.records.memosForFilter
 import java.time.LocalDate
 
 data class SillageUiState(

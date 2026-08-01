@@ -44,7 +44,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
 | `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |
 | `packages/kmp-core/` | Shared native domain, data, sync, and security modules; `domain` is buildable for Android, desktop JVM, and Apple targets |
-| `packages/kmp-features/` | Reserved feature-scoped native state and presentation modules |
+| `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
 | `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |
 | `tooling/` | Repository code generation, CI, and release-tooling boundaries |
@@ -103,6 +103,13 @@ policy. Android REST mappings, local persistence, feature state, tests, and UI
 consume that type directly; `data/Models.kt` no longer defines an Android-only
 record entity. Remaining Android-local models are migration sources for later
 domain, application, or feature slices.
+
+`packages/kmp-features/records` owns record list filters, ordering, On This Day,
+calendar aggregation, excerpts, and cursor-coverage selectors. Android storage,
+feature state, ViewModel orchestration, Compose UI, and tests consume these
+shared policies. Calendar grid construction remains Android presentation code;
+transport query mapping remains an Android adapter until application ports are
+extracted.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 

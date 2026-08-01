@@ -70,6 +70,12 @@ feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
 
+The buildable `kmp-features:records` module is the first shared feature slice.
+It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;
+Android remains its first host and adapter provider. Feature state holders move
+into the module incrementally without moving transport or persistence details
+with them.
+
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only
 their dependencies and optional capability plugins. `checkShared` discovers

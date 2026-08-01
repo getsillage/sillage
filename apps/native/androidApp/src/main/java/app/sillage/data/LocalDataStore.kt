@@ -2,6 +2,8 @@ package app.sillage.data
 
 import android.content.Context
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.matchesListFilter
 import java.io.File
 import java.time.Instant
 import java.util.UUID

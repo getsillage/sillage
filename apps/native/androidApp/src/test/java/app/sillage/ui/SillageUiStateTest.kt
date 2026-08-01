@@ -5,7 +5,7 @@ import app.sillage.data.AskMessage
 import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
-import app.sillage.data.MemoListFilter
+import app.sillage.features.records.MemoListFilter
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals

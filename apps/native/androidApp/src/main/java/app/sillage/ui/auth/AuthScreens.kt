@@ -156,49 +156,27 @@ internal fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel
             }
         },
     ) {
-        OutlinedTextField(
-            value = state.username,
-            onValueChange = viewModel::updateUsername,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.account_username)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            enabled = !state.loading,
-        )
-        OutlinedTextField(
-            value = state.displayName,
-            onValueChange = viewModel::updateDisplayName,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.account_display_name)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            enabled = !state.loading,
-        )
-        SillagePasswordField(
-            value = state.password,
-            onValueChange = viewModel::updatePassword,
-            enabled = !state.loading,
-            onDone = viewModel::initialize,
-            strings = SillagePasswordFieldStrings(
-                label = stringResource(R.string.account_password),
-                showPassword = stringResource(R.string.account_show_password),
-                hidePassword = stringResource(R.string.account_hide_password),
+        SillageInitializeForm(
+            state = state.auth,
+            loading = state.loading,
+            strings = SillageInitializeFormStrings(
+                usernameLabel = stringResource(R.string.account_username),
+                displayNameLabel = stringResource(R.string.account_display_name),
+                password = SillagePasswordFieldStrings(
+                    label = stringResource(R.string.account_password),
+                    showPassword = stringResource(R.string.account_show_password),
+                    hidePassword = stringResource(R.string.account_hide_password),
+                ),
+                submit = stringResource(R.string.account_create_enter),
+                submitting = stringResource(R.string.account_creating),
             ),
             showPasswordIcon = Icons.Rounded.Visibility,
             hidePasswordIcon = Icons.Rounded.VisibilityOff,
+            onUsernameChange = viewModel::updateUsername,
+            onDisplayNameChange = viewModel::updateDisplayName,
+            onPasswordChange = viewModel::updatePassword,
+            onSubmit = viewModel::initialize,
         )
-        Button(
-            onClick = viewModel::initialize,
-            enabled = !state.loading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),
-        ) {
-            SillageAuthButtonContent(
-                loading = state.loading,
-                text = stringResource(if (state.loading) R.string.account_creating else R.string.account_create_enter),
-            )
-        }
     }
 }
 

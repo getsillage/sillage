@@ -120,6 +120,8 @@ labels, icons, and callbacks.
 The design system also owns heading and concise status-announcement semantics;
 hosts provide localized status descriptions while common tests preserve the
 accessibility contract.
+`SillageInlineError` owns compact error layout, semantic colors, and assertive
+live-region/error semantics; hosts supply localized messages and icons.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

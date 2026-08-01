@@ -55,11 +55,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.error
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -71,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.designsystem.SillageInlineError
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 @Composable
@@ -460,46 +456,14 @@ private fun AuthScaffold(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     state.authError?.let { message ->
-                        AuthErrorMessage(message)
+                        SillageInlineError(
+                            message = message,
+                            icon = Icons.Rounded.ErrorOutline,
+                        )
                     }
                     content()
                 }
             }
         }
     }
-}
-
-@Composable
-private fun AuthErrorMessage(message: String) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics { applyAuthErrorSemantics(message) },
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(
-                Icons.Rounded.ErrorOutline,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-internal fun SemanticsPropertyReceiver.applyAuthErrorSemantics(message: String) {
-    liveRegion = LiveRegionMode.Assertive
-    error(message)
 }

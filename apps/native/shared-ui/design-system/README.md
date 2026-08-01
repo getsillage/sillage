@@ -31,3 +31,6 @@ colors. Hosts supply localized messages, action labels, icons, and callbacks.
 `applySillageHeadingSemantics` and `applySillageStatusSemantics` centralize
 cross-platform heading and concise status-announcement semantics. Hosts supply
 localized status descriptions.
+
+`SillageInlineError` owns compact error presentation plus assertive live-region
+and error semantics. Hosts supply localized messages and icons.

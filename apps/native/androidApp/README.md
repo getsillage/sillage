@@ -50,6 +50,8 @@ Ask and Settings loading failures use the shared `SillageErrorCard`; Android
 supplies localized messages, retry labels, icons, and retry callbacks.
 Heading and status accessibility semantics also come from the shared design
 system; Android supplies localized status descriptions at call sites.
+Authentication form failures use the shared `SillageInlineError`; Android
+supplies the localized message and Material error icon.
 
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record

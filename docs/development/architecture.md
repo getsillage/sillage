@@ -113,6 +113,8 @@ Settings; hosts retain localized messages, action labels, icons, and retry
 callbacks.
 Shared heading and status semantics are exposed by the design system and covered
 by common tests; Android call sites retain localized status-description assembly.
+Authentication form failures use shared `SillageInlineError` presentation and
+assertive error semantics; Android supplies localized messages and icons.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

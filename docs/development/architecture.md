@@ -191,6 +191,9 @@ The shared recently deleted record row consumes the same aggregate plus `Memo`,
 derives mutation ownership, and owns two-step permanent-delete confirmation.
 Hosts retain localized labels, icons, formatted deletion timestamps, and mutation
 callbacks.
+The shared calendar coverage notice consumes `CalendarMemoCoverage` and aggregate
+pagination state, then owns partial-month copy selection, progress, and the
+load-earlier layout. Hosts format localized record-count copy and route pagination.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

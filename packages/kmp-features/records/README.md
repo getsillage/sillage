@@ -72,3 +72,6 @@ The shared recently deleted record row reads `RecordsFeatureStateHolder.mutation
 directly for per-record busy state and owns restore/purge presentation plus the
 two-step permanent-delete confirmation. Hosts provide localized labels, icons,
 formatted deletion timestamps, and mutation routing.
+The shared calendar coverage notice reads `RecordsFeatureStateHolder.pagination`
+and `CalendarMemoCoverage` directly for partial-month and loading presentation;
+hosts provide localized record-count copy and the load-more callback.

@@ -58,7 +58,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -113,6 +112,8 @@ import app.sillage.ui.designsystem.applySillageStatusSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.records.SillageCalendarCoverageNotice
+import app.sillage.ui.records.SillageCalendarCoverageStrings
 import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordEmptyState
@@ -551,10 +552,22 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         }
         if (coverage.hasMoreOlderRecords) {
             item {
-                CalendarCoverageNotice(
-                    loadedCount = state.memos.size,
-                    currentMonthMayBeIncomplete = coverage.currentMonthMayBeIncomplete,
-                    loading = state.loadingMoreMemos,
+                SillageCalendarCoverageNotice(
+                    state = state.records,
+                    coverage = coverage,
+                    strings = SillageCalendarCoverageStrings(
+                        partialMonth = stringResource(
+                            R.string.calendar_partial_month,
+                            pluralStringResource(
+                                R.plurals.quantity_records,
+                                state.memos.size,
+                                state.memos.size,
+                            ),
+                        ),
+                        completeMonth = stringResource(R.string.calendar_complete_month),
+                        loadEarlierAction = stringResource(R.string.calendar_load_earlier),
+                        loadingEarlierAction = stringResource(R.string.calendar_loading_earlier),
+                    ),
                     onLoadMore = viewModel::loadMoreMemos,
                 )
             }
@@ -583,53 +596,6 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onToggleArchive = { viewModel.toggleMemoArchived(memo) },
                 onDelete = { viewModel.deleteMemo(memo) },
             )
-        }
-    }
-}
-
-@Composable
-private fun CalendarCoverageNotice(
-    loadedCount: Int,
-    currentMonthMayBeIncomplete: Boolean,
-    loading: Boolean,
-    onLoadMore: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                if (currentMonthMayBeIncomplete) {
-                    stringResource(
-                        R.string.calendar_partial_month,
-                        pluralStringResource(R.plurals.quantity_records, loadedCount, loadedCount),
-                    )
-                } else {
-                    stringResource(R.string.calendar_complete_month)
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(
-                onClick = onLoadMore,
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(modifier = Modifier.size(8.dp))
-                }
-                Text(stringResource(if (loading) R.string.calendar_loading_earlier else R.string.calendar_load_earlier))
-            }
         }
     }
 }

@@ -175,6 +175,9 @@ action layout while hosts choose localized condition-specific content.
 Its recently deleted record row also consumes the records aggregate and `Memo`,
 owns mutation-aware restore and two-step permanent-delete presentation, and leaves
 localized labels, icons, formatted deletion timestamps, and callbacks to hosts.
+Its calendar coverage notice consumes shared coverage and pagination state, owns
+partial-coverage selection and loading presentation, and leaves localized
+record-count copy plus pagination routing to hosts.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

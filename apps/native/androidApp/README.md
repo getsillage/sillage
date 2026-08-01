@@ -74,7 +74,9 @@ aggregate, and shared records UI owns reusable empty/error states. Android suppl
 localized labels, icons, and ViewModel routing. Recently deleted record rows also
 come from shared records UI, which derives mutation ownership from the aggregate
 and owns permanent-delete confirmation; Android formats deletion timestamps and
-routes restore and purge callbacks. Editor
+routes restore and purge callbacks. Calendar coverage notices also come from the
+shared module and derive loading state from the records aggregate; Android formats
+record-count copy and routes pagination. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

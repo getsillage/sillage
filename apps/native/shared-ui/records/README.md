@@ -14,6 +14,8 @@ record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and
 `CalendarMemoCoverage` while owning partial-coverage copy selection, progress,
 and the load-earlier action layout.
+`SillageCalendarEmptySelection` consumes the same coverage value and selects the
+definitive-empty or possibly-incomplete calendar message.
 `SillageOnThisDayCard` consumes record entries and the current date while owning
 anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and

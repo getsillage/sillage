@@ -111,6 +111,8 @@ import app.sillage.ui.designsystem.applySillageStatusSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.records.SillageCalendarEmptySelection
+import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
 import app.sillage.ui.records.SillageCalendarCoverageNotice
 import app.sillage.ui.records.SillageCalendarCoverageStrings
 import app.sillage.ui.records.SillageOnThisDayCard
@@ -540,7 +542,13 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         }
         if (state.selectedCalendarDate != null && selectedEntries.isEmpty()) {
             item {
-                EmptyCalendarSelection(mayBeIncomplete = coverage.currentMonthMayBeIncomplete)
+                    SillageCalendarEmptySelection(
+                        coverage = coverage,
+                        strings = SillageCalendarEmptySelectionStrings(
+                            empty = stringResource(R.string.calendar_day_empty),
+                            mayBeIncomplete = stringResource(R.string.calendar_day_maybe_incomplete),
+                        ),
+                    )
             }
         }
         items(selectedEntries, key = { it.id }) { memo ->
@@ -724,27 +732,6 @@ internal fun SemanticsPropertyReceiver.applyCalendarDaySemantics(
 ) {
     contentDescription = description
     selected = isSelected
-}
-
-@Composable
-private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-    ) {
-        Text(
-            if (mayBeIncomplete) {
-                stringResource(R.string.calendar_day_maybe_incomplete)
-            } else {
-                stringResource(R.string.calendar_day_empty)
-            },
-            modifier = Modifier.padding(14.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
 }
 
 @Composable

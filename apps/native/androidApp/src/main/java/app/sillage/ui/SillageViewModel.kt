@@ -21,11 +21,13 @@ import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
 import app.sillage.data.LocalMemoSyncOutbox
+import app.sillage.data.LocalSyncSnapshotRepository
 import app.sillage.data.LocalRecordsRepository
 import app.sillage.data.LocalRecordSummaryRepository
 import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
+import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
 import app.sillage.core.application.records.GenerateRecordSummaryUseCase
@@ -48,12 +50,13 @@ import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
-import app.sillage.data.PulledSyncData
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
 import app.sillage.core.sync.SyncPushSummary
 import app.sillage.core.sync.PushPendingMemosUseCase
+import app.sillage.core.sync.PullSyncResult
+import app.sillage.core.sync.PullSyncUseCase
 import app.sillage.core.sync.ResolveMemoSyncConflictCommand
 import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
 import app.sillage.data.askAnswerMemoContent
@@ -122,6 +125,10 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
+    private val pullSync = PullSyncUseCase(
+        RemoteSyncSnapshotGateway(api),
+        LocalSyncSnapshotRepository(this.localDataStore),
+    )
     private val pushPendingMemos = PushPendingMemosUseCase(
         localMemoSyncOutbox,
         RemoteMemoSyncGateway(api),
@@ -1099,11 +1106,8 @@ class SillageViewModel(
         launchDataTransfer {
             var aiSettingsFetched = true
             if (!isOfflineMode()) {
-                val pulled = exportOnlineData()
-                aiSettingsFetched = pulled.aiSettingsFetched
-                withContext(Dispatchers.Default) {
-                    localDataStore.mergeFromServer(pulled.data)
-                }
+                val pulled = pullOnlineData()
+                aiSettingsFetched = pulled.aiSettingsAvailable
             }
             val json = withContext(Dispatchers.Default) {
                 val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
@@ -1173,13 +1177,10 @@ class SillageViewModel(
             return
         }
         launchDataTransfer {
-            val pulled = exportOnlineData()
-            withContext(Dispatchers.Default) {
-                localDataStore.mergeFromServer(pulled.data)
-            }
-            updateState(noticeType = if (pulled.aiSettingsFetched) UiToastType.SUCCESS else UiToastType.WARNING) {
+            val pulled = pullOnlineData()
+            updateState(noticeType = if (pulled.aiSettingsAvailable) UiToastType.SUCCESS else UiToastType.WARNING) {
                 it.copy(
-                    notice = if (pulled.aiSettingsFetched) {
+                    notice = if (pulled.aiSettingsAvailable) {
                         uiString(R.string.notice_synced_local)
                     } else {
                         uiString(R.string.error_sync_ai_settings_failed)
@@ -1215,11 +1216,8 @@ class SillageViewModel(
         launchDataTransfer {
             flushPendingLocalAttachments()
             val push = pushLocalMemosToServer()
-            val pulled = exportOnlineData()
-            withContext(Dispatchers.Default) {
-                localDataStore.mergeFromServer(pulled.data)
-            }
-            val warnAiSettings = !pulled.aiSettingsFetched
+            val pulled = pullOnlineData()
+            val warnAiSettings = !pulled.aiSettingsAvailable
             val conflicts = conflictItemsFromSummary(push)
             updateState(
                 noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
@@ -3308,14 +3306,8 @@ class SillageViewModel(
         )
     }
 
-    private suspend fun exportOnlineData(): PulledSyncData = withContext(Dispatchers.IO) {
-        val pulled = api.pullFullSync()
-        pulled.copy(
-            data = pulled.data.copy(
-                themeMode = state.value.themeMode,
-                memoViewMode = state.value.memoViewMode.name,
-            ),
-        )
+    private suspend fun pullOnlineData(): PullSyncResult = withContext(Dispatchers.IO) {
+        pullSync()
     }
 
     private suspend fun pushLocalMemosToServer(): SyncPushSummary {

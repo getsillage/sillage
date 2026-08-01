@@ -180,6 +180,8 @@ Full pull uses a distinct shared `SyncSnapshot`; it is not a backup-file DTO.
 `PullSyncUseCase` composes transport and atomic-merge ports. Snapshot sections
 contain syncable domain values only, and an unavailable AI-settings section means
 "preserve local settings" rather than "replace with empty settings".
+Android implements the gateway and atomic repository ports while retaining the
+versioned `SillageExportData` v1 codec solely for local storage and file backup.
 
 ## Platform Hosts
 

@@ -8,6 +8,8 @@ import app.sillage.core.domain.ask.isActive
 import app.sillage.core.sync.AppliedMemoSync
 import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.sync.PendingMemoSync
+import app.sillage.core.sync.SyncAISettingsSection
+import app.sillage.core.sync.SyncSnapshot
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.matchesListFilter
 import java.io.File
@@ -480,9 +482,12 @@ class LocalDataStore internal constructor(private val stateStore: LocalStateStor
         saveData(mergeData(loadData(), data.normalizedForLocalStorage()))
     }
 
-    fun mergeFromServer(data: SillageExportData) {
-        val normalized = data.normalizedForLocalStorage()
+    fun mergeFromServer(snapshot: SyncSnapshot) {
         val currentData = loadData()
+        val normalized = snapshot.toStorageData(
+            themeMode = currentData.themeMode,
+            memoViewMode = currentData.memoViewMode,
+        ).normalizedForLocalStorage()
         val mergedMemos = mergePulledCloudMemos(
             localMemos = currentData.memos,
             pulledMemos = normalized.memos,
@@ -504,6 +509,26 @@ class LocalDataStore internal constructor(private val stateStore: LocalStateStor
                 KEY_CLOUD_MEMO_VERSIONS to cloudMemoVersionsJson(mergedMemos.cloudVersions),
                 KEY_PENDING_MEMO_MUTATIONS to pendingMemoMutationsJson(mergedMemos.pendingMutations),
             ),
+        )
+    }
+
+    private fun SyncSnapshot.toStorageData(
+        themeMode: String,
+        memoViewMode: String,
+    ): SillageExportData {
+        val settings = (aiSettings as? SyncAISettingsSection.Available)?.settings
+        return SillageExportData(
+            formatVersion = SillageExportCodec.FORMAT_VERSION,
+            exportedAt = now(),
+            themeMode = themeMode,
+            memoViewMode = memoViewMode,
+            autoSummary = settings?.autoSummary ?: false,
+            autoSummaryDefined = settings != null,
+            memos = memos,
+            memoAI = memoAI,
+            aiProfiles = settings?.profiles?.map { it.toDraft() }.orEmpty(),
+            askConversations = askConversations,
+            askMessages = askMessages,
         )
     }
 

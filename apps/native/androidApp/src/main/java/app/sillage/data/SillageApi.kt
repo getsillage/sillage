@@ -6,6 +6,8 @@ import app.sillage.core.domain.records.MemoAI
 import app.sillage.core.sync.AppliedMemoSync
 import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.sync.PendingMemoSync
+import app.sillage.core.sync.SyncAISettingsSection
+import app.sillage.core.sync.SyncSnapshot
 import app.sillage.core.sync.SyncPushSummary
 import java.io.File
 import java.io.IOException
@@ -169,7 +171,7 @@ class SillageApi(
         )
     }
 
-    suspend fun pullFullSync(limit: Int = 200): PulledSyncData {
+    suspend fun pullFullSync(limit: Int = 200): SyncSnapshot {
         val memos = mutableListOf<Memo>()
         val memoAI = mutableListOf<MemoAI>()
         val askConversations = mutableListOf<AskConversation>()
@@ -178,7 +180,6 @@ class SillageApi(
         // mark them undefined so the merge keeps the local values, and report
         // the partial failure to the caller.
         val aiSettings = runCatching { getAISettings() }
-        val aiSettingsFetched = aiSettings.isSuccess
         aiSettings.exceptionOrNull()?.let { error ->
             if (error is CancellationException) {
                 throw error
@@ -200,22 +201,15 @@ class SillageApi(
             cursor = body.optString("nextCursor")
             val hasMore = body.optBoolean("hasMore")
         } while (hasMore && cursor.isNotBlank())
-        val settings = aiSettings.getOrDefault(AISettings(emptyList(), false))
-        return PulledSyncData(
-            data = SillageExportData(
-                formatVersion = SillageExportCodec.FORMAT_VERSION,
-                exportedAt = java.time.Instant.now().toString(),
-                themeMode = "",
-                memoViewMode = "",
-                autoSummary = settings.autoSummary,
-                autoSummaryDefined = aiSettingsFetched,
-                memos = memos,
-                memoAI = memoAI,
-                aiProfiles = if (aiSettingsFetched) settings.profiles.map { it.toDraft() } else emptyList(),
-                askConversations = askConversations,
-                askMessages = askMessages,
+        return SyncSnapshot(
+            memos = memos,
+            memoAI = memoAI,
+            aiSettings = aiSettings.fold(
+                onSuccess = SyncAISettingsSection::Available,
+                onFailure = { SyncAISettingsSection.Unavailable },
             ),
-            aiSettingsFetched = aiSettingsFetched,
+            askConversations = askConversations,
+            askMessages = askMessages,
         )
     }
 
@@ -1267,11 +1261,6 @@ internal fun Throwable.isAuthRejection(): Boolean {
     val statusCode = (this as? ApiException)?.statusCode ?: return false
     return statusCode == 401 || statusCode == 403
 }
-
-data class PulledSyncData(
-    val data: SillageExportData,
-    val aiSettingsFetched: Boolean,
-)
 
 internal fun syncPushSummaryFromResults(results: JSONArray): SyncPushSummary {
     var applied = 0

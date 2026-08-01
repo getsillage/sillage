@@ -2,6 +2,10 @@ package app.sillage.data
 
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.core.domain.settings.AIProfile
+import app.sillage.core.domain.settings.AISettings
+import app.sillage.core.sync.SyncAISettingsSection
+import app.sillage.core.sync.SyncSnapshot
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.matchesListFilter
 import java.nio.file.Files
@@ -91,7 +95,7 @@ class LocalDataStoreLifecycleTest {
         store.mergeWith(exportData(memos = listOf(memo), memoAI = listOf(memoAI(memo.id))))
 
         store.mergeFromServer(
-            exportData(
+            syncSnapshot(
                 memos = listOf(
                     memo.copy(
                         content = "",
@@ -110,6 +114,62 @@ class LocalDataStoreLifecycleTest {
         assertNotNull(store.getMemoOrNull(memo.id)?.purgedAt)
     }
 
+    @Test
+    fun unavailableSyncSettingsPreserveLocalSettingsAndClientPreferences() {
+        val store = LocalDataStore(InMemoryLocalStateStorage())
+        val localProfile = AIProfileDraft(
+            id = "profile-1",
+            name = "Local",
+            apiKeyInput = "device-secret",
+        )
+        store.mergeWith(
+            exportData(emptyList(), emptyList()).copy(
+                themeMode = SessionStore.THEME_DARK,
+                memoViewMode = "Calendar",
+                autoSummary = true,
+                aiProfiles = listOf(localProfile),
+            ),
+        )
+
+        store.mergeFromServer(syncSnapshot(emptyList(), emptyList()))
+
+        val stored = store.exportData()
+        assertEquals(SessionStore.THEME_DARK, stored.themeMode)
+        assertEquals("Calendar", stored.memoViewMode)
+        assertTrue(stored.autoSummary)
+        assertEquals("device-secret", stored.aiProfiles.single().apiKeyInput)
+    }
+
+    @Test
+    fun availableSyncSettingsReplaceMetadataButPreserveDeviceSecret() {
+        val store = LocalDataStore(InMemoryLocalStateStorage())
+        store.saveAIProfiles(
+            listOf(
+                AIProfileDraft(
+                    id = "profile-1",
+                    name = "Local",
+                    apiKeyInput = "device-secret",
+                ),
+            ),
+        )
+        store.saveAutoSummary(true)
+        val snapshot = syncSnapshot(emptyList(), emptyList()).copy(
+            aiSettings = SyncAISettingsSection.Available(
+                AISettings(
+                    profiles = listOf(aiProfile(name = "Server")),
+                    autoSummary = false,
+                ),
+            ),
+        )
+
+        store.mergeFromServer(snapshot)
+
+        val stored = store.exportData()
+        assertFalse(stored.autoSummary)
+        assertEquals("Server", stored.aiProfiles.single().name)
+        assertEquals("device-secret", stored.aiProfiles.single().apiKeyInput)
+    }
+
     private fun exportData(memos: List<Memo>, memoAI: List<MemoAI>): SillageExportData {
         return SillageExportData(
             formatVersion = SillageExportCodec.FORMAT_VERSION,
@@ -124,6 +184,33 @@ class LocalDataStoreLifecycleTest {
             askMessages = emptyList(),
         )
     }
+
+    private fun syncSnapshot(memos: List<Memo>, memoAI: List<MemoAI>): SyncSnapshot {
+        return SyncSnapshot(
+            memos = memos,
+            memoAI = memoAI,
+            aiSettings = SyncAISettingsSection.Unavailable,
+            askConversations = emptyList(),
+            askMessages = emptyList(),
+        )
+    }
+
+    private fun aiProfile(name: String) = AIProfile(
+        id = "profile-1",
+        name = name,
+        provider = "anthropic",
+        baseUrl = "https://example.com",
+        model = "model",
+        temperature = 0.3,
+        maxTokens = 1_000,
+        enabled = true,
+        active = true,
+        hasApiKey = true,
+        keyUnavailable = false,
+        autoSummary = false,
+        createdAt = "2026-08-01T00:00:00Z",
+        updatedAt = "2026-08-01T00:00:00Z",
+    )
 
     private fun memo(id: String, version: Long): Memo {
         return Memo(

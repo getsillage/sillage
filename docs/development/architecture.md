@@ -215,6 +215,11 @@ and client presentation preferences. `PullSyncUseCase` fetches one completed
 snapshot and hands it to an atomic merge adapter; an unavailable AI-settings
 section preserves existing local settings.
 
+Android `RemoteSyncSnapshotGateway` maps REST pagination into that snapshot and
+`LocalSyncSnapshotRepository` delegates one transactional merge. The Android
+`SillageExportData` v1 codec remains a separate backup/local-storage DTO; adapter
+mapping preserves client theme/view preferences and device-held AI secrets.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

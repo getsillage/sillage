@@ -41,6 +41,9 @@ Pure outbox, applied-result, conflict, and push-summary models live in
 adapters. Pending memo pushes run through the shared outbox/gateway use case.
 Shared conflict state and resolution commands own the explicit choice workflow;
 Android retains the confirmation UI and transactional local-storage adapter.
+Full pull runs through shared `SyncSnapshot` gateway/repository contracts and
+`PullSyncUseCase`. Android maps REST pages and atomically merges the snapshot;
+the versioned JSON export remains a separate adapter DTO and keeps its v1 schema.
 
 See [Multiplatform Development](../../../docs/development/multiplatform.md) and
 [Architecture](../../../docs/development/architecture.md) for module ownership and

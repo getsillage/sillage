@@ -39,6 +39,8 @@ const packageLicense = (coordinate) => {
     coordinate.startsWith("com.squareup.okhttp3:") ||
     coordinate.startsWith("com.squareup.okio:") ||
     coordinate.startsWith("io.noties.markwon:") ||
+    coordinate.startsWith("org.jetbrains.androidx.") ||
+    coordinate.startsWith("org.jetbrains.compose.") ||
     coordinate.startsWith("org.jetbrains.kotlin:") ||
     coordinate.startsWith("org.jetbrains.kotlinx:") ||
     coordinate.startsWith("org.jetbrains:annotations:")

@@ -99,6 +99,12 @@ precedence, duplicate suppression, notice severity, and language binding also
 belong to the app shell; hosts retain localized message production and native
 feedback rendering.
 
+The buildable `shared-ui:design-system` module is the first shared Compose
+surface. It owns Sillage's semantic light/dark color schemes, typography, shapes,
+and common `MaterialTheme`. Android consumes the shared theme and keeps only its
+`WindowCompat` status/navigation-bar icon adaptation; Apple and desktop hosts can
+consume the same common theme without inheriting Android system APIs.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

@@ -37,6 +37,10 @@ navigation effects. Global feedback event sequencing, duplicate suppression,
 error precedence, and language binding are shared as well; Android still
 generates localized messages and renders the top-level Toast.
 
+The semantic light/dark colors, typography, shapes, and common `MaterialTheme`
+come from the buildable `shared-ui:design-system` module. Android's theme wrapper
+only applies status/navigation-bar icon appearance through `WindowCompat`.
+
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record
 listing, search, detail retrieval, editor saves, lifecycle mutations, and summary generation cross repository ports and use cases in

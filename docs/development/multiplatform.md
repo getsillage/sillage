@@ -176,6 +176,11 @@ conflict identity and the explicit keep-local/take-server command workflow.
 Platform hosts retain confirmation UI and implement the transactional repository
 port without duplicating conflict policy.
 
+Full pull uses a distinct shared `SyncSnapshot`; it is not a backup-file DTO.
+`PullSyncUseCase` composes transport and atomic-merge ports. Snapshot sections
+contain syncable domain values only, and an unavailable AI-settings section means
+"preserve local settings" rather than "replace with empty settings".
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

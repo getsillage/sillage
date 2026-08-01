@@ -17,3 +17,9 @@ batch, and acknowledges only applied results through the transactional outbox.
 `ResolveMemoSyncConflictUseCase` dispatches explicit keep-local and take-server
 commands through `MemoSyncConflictRepository`; platform hosts provide confirmation
 UI and a transactional local-storage adapter.
+
+`SyncSnapshot` is the platform-neutral full-pull value. It contains only
+syncable domain data and an explicit available/unavailable AI-settings section;
+backup format metadata and client presentation preferences are excluded.
+`PullSyncUseCase` composes `SyncSnapshotGateway` and `SyncSnapshotRepository`,
+requiring adapters to merge a completed snapshot atomically.

@@ -209,6 +209,12 @@ results through the transactional outbox. `MemoSyncConflictStateHolder` and
 resolution commands; platform hosts retain confirmation UI and implement the
 transactional conflict repository adapter.
 
+Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
+`SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata
+and client presentation preferences. `PullSyncUseCase` fetches one completed
+snapshot and hands it to an atomic merge adapter; an unavailable AI-settings
+section preserves existing local settings.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

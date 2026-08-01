@@ -2,13 +2,11 @@ package app.sillage.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -17,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
@@ -38,7 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,8 +49,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -84,6 +78,8 @@ import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageRow
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
+import app.sillage.ui.settings.SillageSettingsOverviewCard
+import app.sillage.ui.settings.SillageSettingsOverviewItem
 
 internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
@@ -156,8 +152,49 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsOverviewCard(state)
-                    }
+                    val online = state.appMode == SessionStore.MODE_ONLINE
+                    SillageSettingsOverviewCard(
+                        title = stringResource(R.string.settings_status_title),
+                        items = listOf(
+                            SillageSettingsOverviewItem(
+                                label = stringResource(
+                                    if (online) R.string.status_online else R.string.status_offline,
+                                ),
+                                value = if (online) {
+                                    state.baseUrl.ifBlank {
+                                        stringResource(R.string.settings_not_configured)
+                                    }
+                                } else {
+                                    pluralStringResource(
+                                        R.plurals.quantity_records,
+                                        state.memos.size,
+                                        state.memos.size,
+                                    )
+                                },
+                            ),
+                            SillageSettingsOverviewItem(
+                                label = stringResource(R.string.settings_theme_label),
+                                value = stringResource(
+                                    if (state.themeMode == SessionStore.THEME_DARK) {
+                                        R.string.settings_theme_dark
+                                    } else {
+                                        R.string.settings_theme_light
+                                    },
+                                ),
+                            ),
+                            SillageSettingsOverviewItem(
+                                label = stringResource(R.string.settings_section_ai),
+                                value = stringResource(
+                                    if (state.aiAutoSummary) {
+                                        R.string.settings_auto_summary
+                                    } else {
+                                        R.string.settings_summary_manual
+                                    },
+                                ),
+                            ),
+                        ),
+                    )
+                }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
             SillageSettingsSwitchRow(
@@ -520,70 +557,4 @@ private fun OpenSourceLicensesDialog(onDismiss: () -> Unit) {
             }
         },
     )
-}
-
-@Composable
-private fun SettingsOverviewCard(state: SillageUiState) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                stringResource(R.string.settings_status_title),
-                modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OverviewItem(
-                    label = stringResource(if (state.appMode == SessionStore.MODE_ONLINE) R.string.status_online else R.string.status_offline),
-                    value = if (state.appMode == SessionStore.MODE_ONLINE) {
-                        state.baseUrl.ifBlank { stringResource(R.string.settings_not_configured) }
-                    } else {
-                        pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size)
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                OverviewItem(
-                    label = stringResource(R.string.settings_theme_label),
-                    value = stringResource(if (state.themeMode == SessionStore.THEME_DARK) R.string.settings_theme_dark else R.string.settings_theme_light),
-                    modifier = Modifier.weight(1f),
-                )
-                OverviewItem(
-                    label = stringResource(R.string.settings_section_ai),
-                    value = stringResource(if (state.aiAutoSummary) R.string.settings_auto_summary else R.string.settings_summary_manual),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun OverviewItem(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Text(
-            label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
 }

@@ -161,6 +161,8 @@ chips, connection feedback, and delete confirmation. Android supplies localized
 strings, selection state, and ViewModel callbacks while retaining adapters.
 It also owns settings language-selection layout; Android supplies supported
 language identifiers, localized labels, and preference persistence.
+The shared settings overview card receives localized display values derived from
+Android app-mode, records, appearance, and AI state without owning those adapters.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

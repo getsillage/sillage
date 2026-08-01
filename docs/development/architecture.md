@@ -144,9 +144,10 @@ localized messages and implements the application ports. Android credential-draf
 updates and primary-credential clearing pass through root `withAuth` thin wrappers;
 application-level loading remains outside the auth aggregate.
 `shared-ui:auth` consumes `AuthFeatureStateHolder` directly for the login form and
-owns reusable password-field and authentication-action presentation. Android
-supplies localized strings, icons, root loading state, navigation, and ViewModel
-callbacks while retaining the branded authentication scaffold.
+owns reusable password-field, authentication-action, and mode-selection-card
+presentation. Android supplies localized strings, icons, accent colors, root
+loading state, navigation, and ViewModel callbacks while retaining the branded
+authentication scaffold.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

@@ -7,6 +7,8 @@ Windows, and macOS hosts.
 password drafts. `SillagePasswordField` owns password visibility presentation,
 IME submission, and accessibility labels. `SillageAuthButtonContent` owns the
 loading/icon/action-content treatment used by authentication actions.
+`SillageModeOptionCard` owns the mode-selection card layout and semantic card
+colors while hosts supply localized content, accent colors, icons, and callbacks.
 
 Hosts supply localized strings, icons, root loading state, navigation, and
 callbacks. Brand assets, secure session persistence, protocol clients, and

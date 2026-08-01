@@ -1,7 +1,6 @@
 package app.sillage.ui.auth
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +31,6 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,13 +41,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,8 +63,9 @@ internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewMo
         state = state,
         onLanguageToggle = viewModel::toggleLanguageMode,
     ) {
-        ModeOptionCard(
+        SillageModeOptionCard(
             icon = Icons.Rounded.OfflineBolt,
+            trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             title = stringResource(R.string.mode_offline),
             supporting = stringResource(R.string.mode_offline_supporting),
             iconContainer = MaterialTheme.colorScheme.secondaryContainer,
@@ -78,8 +73,9 @@ internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewMo
             onClick = viewModel::useOfflineMode,
             enabled = !state.loading,
         )
-        ModeOptionCard(
+        SillageModeOptionCard(
             icon = Icons.Rounded.CloudSync,
+            trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             title = stringResource(R.string.mode_online),
             supporting = stringResource(R.string.mode_online_supporting),
             iconContainer = MaterialTheme.colorScheme.primaryContainer,
@@ -87,59 +83,6 @@ internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewMo
             onClick = viewModel::chooseOnlineMode,
             enabled = !state.loading,
         )
-    }
-}
-
-@Composable
-private fun ModeOptionCard(
-    icon: ImageVector,
-    title: String,
-    supporting: String,
-    iconContainer: Color,
-    iconContent: Color,
-    onClick: () -> Unit,
-    enabled: Boolean,
-) {
-    Card(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = iconContainer,
-                contentColor = iconContent,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null)
-                }
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(
-                    supporting,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 

@@ -7,7 +7,7 @@ data class RecordsSearchQuery(
     val scope: RecordsQueryScope,
 )
 
-/** Application-facing port for server-backed full-text record search. */
+/** Application-facing port for full-text record search in one selected source. */
 interface RecordsSearchRepository {
     suspend fun search(query: RecordsSearchQuery): List<Memo>
 }

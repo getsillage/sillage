@@ -2,14 +2,14 @@
 
 Platform-neutral repository ports and use cases for native clients.
 
-The records slice currently exposes two distinct boundaries:
+The records slice currently exposes three distinct boundaries:
 
 - `RecordsRepository` and `ListRecordsUseCase` read one consistent local
   snapshot without exposing storage implementation types.
 - `RecordsPageRepository` and `ListRecordsPageUseCase` request a semantic,
   server-backed page without exposing HTTP parameters or transport DTOs.
-- `RecordsSearchRepository` and `SearchRecordsUseCase` perform semantic,
-  server-backed full-text search with the same query scopes.
+- `RecordsSearchRepository` and `SearchRecordsUseCase` perform semantic
+  full-text search against a selected local or remote source.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

@@ -132,7 +132,8 @@ The records application slice also exposes a semantic online page query through
 `RemoteRecordsRepository` maps its scope and cursor to REST parameters and
 maps the Android transport page back to the shared application result.
 `RecordsSearchRepository` and `SearchRecordsUseCase` expose the corresponding
-full-text search boundary through the same semantic scopes and Android adapter.
+full-text search boundary through the same semantic scopes. Android's local and
+remote repository adapters translate that query into storage and REST calls.
 
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state

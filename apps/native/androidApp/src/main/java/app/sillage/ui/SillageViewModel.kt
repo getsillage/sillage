@@ -85,7 +85,9 @@ class SillageViewModel(
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = localDataStore ?: LocalDataStore(appContext)
-    private val listLocalRecords = ListRecordsUseCase(LocalRecordsRepository(this.localDataStore))
+    private val localRecordsRepository = LocalRecordsRepository(this.localDataStore)
+    private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
+    private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
@@ -1011,7 +1013,7 @@ class SillageViewModel(
         searchJob = viewModelScope.launch {
             try {
                 val memos = if (request.sourceKey == SessionStore.MODE_OFFLINE) {
-                    localDataStore.searchMemos(request.query, request.filter)
+                    searchLocalRecords(request.filter.recordsSearchQuery(request.query))
                 } else {
                     searchOnlineMemos(request.query, request.filter)
                 }

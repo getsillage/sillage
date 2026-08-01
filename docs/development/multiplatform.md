@@ -157,6 +157,8 @@ Its data section owns import/export action presentation while hosts retain nativ
 file pickers, serialization, and storage adapters.
 Its about section owns metadata-row and license-entry presentation while hosts
 provide build/protocol values and native notice resources.
+Its settings list owns loading, retry error, lazy spacing/padding, and list test
+semantics while hosts emit shared sections into the content slot.
 Its overview card accepts localized mode, record-count, appearance, and AI values,
 leaving cross-feature state mapping in each host adapter.
 

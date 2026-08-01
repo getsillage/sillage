@@ -21,6 +21,8 @@ server/sync action composition while hosts execute client-context operations.
 hosts retain native file pickers and serialization callbacks.
 `SillageSettingsAboutSection` owns metadata-row and license-entry layout while
 hosts supply build/protocol values and native notice resources.
+`SillageSettingsList` owns settings loading, retry error, lazy-list spacing,
+content padding, and list test semantics while accepting shared section items.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

@@ -173,6 +173,8 @@ The data section owns import/export action presentation; Android retains documen
 launchers, serialization, and storage adapters.
 The about section owns metadata-row and license-entry presentation; Android maps
 build/server protocol values and loads packaged notice resources.
+The shared settings list owns loading, retry error, list spacing/padding, and test
+semantics while Android supplies localized values and shared section items.
 The shared settings overview card receives localized display values derived from
 Android app-mode, records, appearance, and AI state without owning those adapters.
 

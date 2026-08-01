@@ -28,15 +28,17 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   mutation generation.
 - `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
   calendar month/day selection.
-- `RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
-  invalidation while platform hosts stage bytes and launch native viewers.
+- `RecordsAttachmentOpenStateHolder` owns prepared attachment-open request
+  identity, start/completion, and invalidation while platform hosts stage bytes
+  and launch native viewers.
 - `RecordsFeatureStateHolder` composes the holders above and owns coordinated
   multi-holder transitions for the visible list surface (clear/reset/replace/
   append, pre-refresh loading marks, and pagination cancel/stop-loading-more),
   browse filter/view-mode/calendar selection, interactive workspace teardown,
   detail/editor presentation (present/clear/save/return selected memo, begin
-  editor drafts, update draft/Markdown presentation, own attachment-upload
-  request transitions, accept detail requests, finish/complete detail summary,
+  editor drafts, update draft/Markdown presentation, own attachment-upload and
+  attachment-open request transitions, accept detail requests, finish/complete
+  detail summary,
   absorb a source memo into cache/search, and replace a conflict-selected memo), and
   canonical memo application (cache mutation plus load/search/selection
   invalidation). Individual holders remain the unit of request identity; the

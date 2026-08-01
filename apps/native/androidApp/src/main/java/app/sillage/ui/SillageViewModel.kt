@@ -1926,21 +1926,13 @@ class SillageViewModel(
         if (current.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
             return
         }
-        val attachmentOpen = current.records.attachmentOpen.begin(target.path) ?: return
-        val requestId = attachmentOpen.requestId
+        val request = current.nextAttachmentOpenRequest(target.path) ?: return
+        val requestId = request.requestId
         updateState {
-            if (
-                !it.records.attachmentOpen.opening &&
-                it.records.attachmentOpen.requestId + 1 == requestId
-            ) {
-                it.copy(
-                    records = it.records.copy(attachmentOpen = attachmentOpen),
+            it.beginAttachmentOpenRequest(request)?.copy(
                     error = null,
                     notice = null,
-                )
-            } else {
-                it
-            }
+                ) ?: it
         }
         if (!state.value.canHandleAttachmentOpen(requestId)) {
             return
@@ -1976,12 +1968,11 @@ class SillageViewModel(
                 clearAttachmentOpenRequest(requestId)
                 throw error
             } catch (error: Throwable) {
-                updateState {
-                    if (it.canHandleAttachmentOpen(requestId)) {
-                        it.copy(
-                            records = it.records.copy(attachmentOpen = it.records.attachmentOpen.complete(requestId)),
-                            error = error.readableMessage(),
-                        )
+            updateState {
+                if (it.canHandleAttachmentOpen(requestId)) {
+                    it.completeAttachmentOpenRequest(requestId).copy(
+                        error = error.readableMessage(),
+                    )
                     } else {
                         it
                     }
@@ -2003,8 +1994,7 @@ class SillageViewModel(
     fun onAttachmentOpenFailed(requestId: Long, message: String) {
         updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
-                it.copy(
-                    records = it.records.copy(attachmentOpen = it.records.attachmentOpen.complete(requestId)),
+                it.completeAttachmentOpenRequest(requestId).copy(
                     error = message,
                     notice = null,
                 )
@@ -3216,9 +3206,7 @@ class SillageViewModel(
     private fun clearAttachmentOpenRequest(requestId: Long) {
         updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
-                it.copy(
-                    records = it.records.copy(attachmentOpen = it.records.attachmentOpen.complete(requestId)),
-                )
+                it.completeAttachmentOpenRequest(requestId)
             } else {
                 it
             }
@@ -3424,21 +3412,13 @@ class SillageViewModel(
             return
         }
         val openPath = localAttachmentPath(pending)
-        val attachmentOpen = state.value.records.attachmentOpen.begin(openPath) ?: return
-        val requestId = attachmentOpen.requestId
+        val request = state.value.nextAttachmentOpenRequest(openPath) ?: return
+        val requestId = request.requestId
         updateState {
-            if (
-                !it.records.attachmentOpen.opening &&
-                it.records.attachmentOpen.requestId + 1 == requestId
-            ) {
-                it.copy(
-                    records = it.records.copy(attachmentOpen = attachmentOpen),
+            it.beginAttachmentOpenRequest(request)?.copy(
                     error = null,
                     notice = null,
-                )
-            } else {
-                it
-            }
+                ) ?: it
         }
         if (!state.value.canHandleAttachmentOpen(requestId)) {
             return
@@ -3473,12 +3453,11 @@ class SillageViewModel(
                 clearAttachmentOpenRequest(requestId)
                 throw error
             } catch (error: Throwable) {
-                updateState {
-                    if (it.canHandleAttachmentOpen(requestId)) {
-                        it.copy(
-                            records = it.records.copy(attachmentOpen = it.records.attachmentOpen.complete(requestId)),
-                            error = error.readableMessage(),
-                        )
+            updateState {
+                if (it.canHandleAttachmentOpen(requestId)) {
+                    it.completeAttachmentOpenRequest(requestId).copy(
+                        error = error.readableMessage(),
+                    )
                     } else {
                         it
                     }

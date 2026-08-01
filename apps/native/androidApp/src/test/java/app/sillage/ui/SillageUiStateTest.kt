@@ -240,6 +240,23 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootAttachmentOpenRequestUsesAggregateIdentityChecks() {
+        val idle = editorState()
+        val request = checkNotNull(
+            idle.nextAttachmentOpenRequest("/api/v1/attachments/file-1"),
+        )
+
+        val opening = checkNotNull(idle.beginAttachmentOpenRequest(request))
+        val completed = opening.completeAttachmentOpenRequest(request.requestId)
+
+        assertTrue(opening.canHandleAttachmentOpen(request.requestId))
+        assertEquals("/api/v1/attachments/file-1", opening.openingAttachmentPath)
+        assertEquals(null, completed.openingAttachmentPath)
+        assertFalse(completed.canHandleAttachmentOpen(request.requestId))
+        assertEquals(null, completed.beginAttachmentOpenRequest(request))
+    }
+
+    @Test
     fun leavingAttachmentContextInvalidatesAQueuedOpenEvent() {
         val opening = editorState().let { base -> base.copy(
             records = base.records.copy(

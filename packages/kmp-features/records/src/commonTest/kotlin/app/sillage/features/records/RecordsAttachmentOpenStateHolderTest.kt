@@ -24,6 +24,23 @@ class RecordsAttachmentOpenStateHolderTest {
     }
 
     @Test
+    fun preparedRequestMustMatchNextIdentity() {
+        val idle = RecordsAttachmentOpenStateHolder(requestId = 4)
+        val request = checkNotNull(idle.nextRequest("/attachments/file-1"))
+
+        assertEquals(5L, request.requestId)
+        assertEquals("/attachments/file-1", request.path)
+        assertNull(
+            idle.begin(request.copy(requestId = 6)),
+        )
+
+        val opening = checkNotNull(idle.begin(request))
+
+        assertTrue(opening.owns(request.requestId))
+        assertNull(opening.begin(request))
+    }
+
+    @Test
     fun onlyOwnerCanCompleteRequest() {
         val opening = checkNotNull(RecordsAttachmentOpenStateHolder().begin("file-1"))
 

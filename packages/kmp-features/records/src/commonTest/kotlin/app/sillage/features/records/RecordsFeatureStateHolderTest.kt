@@ -693,6 +693,31 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun attachmentOpenTransitionsStayInsideAggregate() {
+        val selected = memo("memo-attachment")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected)),
+            attachmentOpen = RecordsAttachmentOpenStateHolder(requestId = 4),
+        )
+        val request = assertNotNull(
+            state.nextAttachmentOpenRequest("/attachments/file-1"),
+        )
+
+        val started = assertNotNull(state.beginAttachmentOpen(request))
+        val completed = started.completeAttachmentOpen(request.requestId)
+        val invalidated = started.invalidateAttachmentOpen()
+
+        assertEquals("/attachments/file-1", started.attachmentOpen.path)
+        assertEquals(5L, started.attachmentOpen.requestId)
+        assertNull(completed.attachmentOpen.path)
+        assertEquals(5L, completed.attachmentOpen.requestId)
+        assertNull(invalidated.attachmentOpen.path)
+        assertEquals(6L, invalidated.attachmentOpen.requestId)
+        assertEquals(listOf(selected), invalidated.records)
+        assertNull(invalidated.beginAttachmentOpen(request))
+    }
+
+    @Test
     fun editorDraftTransitionsStayInsideAggregate() {
         val selected = memo("memo-editor")
         val state = RecordsFeatureStateHolder(

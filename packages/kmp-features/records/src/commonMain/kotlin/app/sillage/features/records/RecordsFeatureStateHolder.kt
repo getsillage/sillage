@@ -34,6 +34,37 @@ data class RecordsFeatureStateHolder(
     val filter: MemoListFilter get() = browse.filter
     val viewMode: MemoViewMode get() = browse.viewMode
 
+    /** Allocates the next attachment-open identity without starting platform work. */
+    fun nextAttachmentOpenRequest(path: String): RecordsAttachmentOpenRequest? {
+        return attachmentOpen.nextRequest(path)
+    }
+
+    /** Begins a prepared attachment-open request only while its identity is current. */
+    fun beginAttachmentOpen(
+        request: RecordsAttachmentOpenRequest,
+    ): RecordsFeatureStateHolder? {
+        val nextAttachmentOpen = attachmentOpen.begin(request) ?: return null
+        return copy(attachmentOpen = nextAttachmentOpen)
+    }
+
+    /** Completes an attachment-open request only while it still owns the surface. */
+    fun completeAttachmentOpen(requestId: Long): RecordsFeatureStateHolder {
+        val nextAttachmentOpen = attachmentOpen.complete(requestId)
+        if (nextAttachmentOpen === attachmentOpen) {
+            return this
+        }
+        return copy(attachmentOpen = nextAttachmentOpen)
+    }
+
+    /** Invalidates any queued attachment-open result when navigation context changes. */
+    fun invalidateAttachmentOpen(): RecordsFeatureStateHolder {
+        val nextAttachmentOpen = attachmentOpen.invalidate()
+        if (nextAttachmentOpen === attachmentOpen) {
+            return this
+        }
+        return copy(attachmentOpen = nextAttachmentOpen)
+    }
+
     /**
      * Clears the visible cache and stops in-flight list loads without inventing
      * a mutation generation. Used when the active source or client context ends.

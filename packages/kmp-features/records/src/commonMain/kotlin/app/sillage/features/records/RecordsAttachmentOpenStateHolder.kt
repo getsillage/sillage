@@ -1,5 +1,10 @@
 package app.sillage.features.records
 
+data class RecordsAttachmentOpenRequest(
+    val requestId: Long,
+    val path: String,
+)
+
 /**
  * Platform-neutral ownership for one attachment-open preparation request.
  *
@@ -13,11 +18,30 @@ data class RecordsAttachmentOpenStateHolder(
 ) {
     val opening: Boolean get() = path != null
 
-    fun begin(path: String): RecordsAttachmentOpenStateHolder? {
+    fun nextRequest(path: String): RecordsAttachmentOpenRequest? {
         if (opening || path.isBlank()) {
             return null
         }
-        return copy(path = path, requestId = requestId + 1)
+        return RecordsAttachmentOpenRequest(
+            requestId = requestId + 1,
+            path = path,
+        )
+    }
+
+    fun begin(request: RecordsAttachmentOpenRequest): RecordsAttachmentOpenStateHolder? {
+        if (
+            opening ||
+            request.path.isBlank() ||
+            request.requestId != requestId + 1
+        ) {
+            return null
+        }
+        return copy(path = request.path, requestId = request.requestId)
+    }
+
+    fun begin(path: String): RecordsAttachmentOpenStateHolder? {
+        val request = nextRequest(path) ?: return null
+        return begin(request)
     }
 
     fun owns(requestId: Long): Boolean {

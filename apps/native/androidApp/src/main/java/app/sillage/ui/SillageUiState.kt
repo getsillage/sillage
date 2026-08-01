@@ -44,6 +44,7 @@ import app.sillage.features.records.RecordsSummaryRequest
 import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
+import app.sillage.features.records.RecordsAttachmentOpenRequest
 import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsCollectionStateHolder
@@ -410,12 +411,29 @@ internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
     return recordsAttachmentOpen.owns(requestId)
 }
 
+internal fun SillageUiState.nextAttachmentOpenRequest(
+    path: String,
+): RecordsAttachmentOpenRequest? {
+    return records.nextAttachmentOpenRequest(path)
+}
+
+internal fun SillageUiState.beginAttachmentOpenRequest(
+    request: RecordsAttachmentOpenRequest,
+): SillageUiState? {
+    val nextRecords = records.beginAttachmentOpen(request) ?: return null
+    return copy(records = nextRecords)
+}
+
+internal fun SillageUiState.completeAttachmentOpenRequest(
+    requestId: Long,
+): SillageUiState {
+    val nextRecords = records.completeAttachmentOpen(requestId)
+    return if (nextRecords === records) this else copy(records = nextRecords)
+}
+
 internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
-    val attachmentOpen = recordsAttachmentOpen.invalidate()
-    if (attachmentOpen === recordsAttachmentOpen) {
-        return this
-    }
-    return withRecords { it.copy(attachmentOpen = attachmentOpen) }
+    val nextRecords = records.invalidateAttachmentOpen()
+    return if (nextRecords === records) this else copy(records = nextRecords)
 }
 
 internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {

@@ -40,8 +40,9 @@ generates localized messages and renders the top-level Toast.
 The semantic light/dark colors, typography, shapes, and common `MaterialTheme`
 come from the buildable `shared-ui:design-system` module. Android's theme wrapper
 only applies status/navigation-bar icon appearance through `WindowCompat`.
-Primary navigation items also come from that module; Android supplies translated
-labels, Material icons, current destination state, and ViewModel callbacks.
+The primary-navigation bar shell and items also come from that module; Android
+supplies translated labels, Material icons, current destination state, and
+ViewModel callbacks.
 
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record

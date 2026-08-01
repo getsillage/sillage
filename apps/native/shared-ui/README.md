@@ -3,8 +3,8 @@
 Owns Compose Multiplatform design primitives, application shell, and UI shared
 by Android, iOS, Windows, and macOS. The buildable `app-shell` module owns
 application-wide presentation state and policy. The buildable `design-system`
-module owns semantic theme tokens and the common `MaterialTheme`; Android
-consumes it through a thin wrapper that applies system-bar appearance.
+module owns semantic theme tokens, the common `MaterialTheme`, and reusable
+navigation components; Android consumes them through thin host adapters.
 
 Platform integration and packaging do not belong in this module. Feature state
 and use cases belong under `packages/kmp-features/`. Shared UI is the default,

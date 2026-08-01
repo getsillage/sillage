@@ -98,10 +98,11 @@ The current Android code is the migration source for the shared native modules:
 
 `SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
 
-`shared-ui:design-system` owns the common Compose theme and reusable
-`SillageNavigationItem`. Android's `MainNavigationBar` supplies translated labels,
-Material icons, selected destinations, and ViewModel callbacks; it does not own a
-second copy of the item's layout, color, animation, or accessibility policy.
+`shared-ui:design-system` owns the common Compose theme plus reusable
+`SillageNavigationBar` and `SillageNavigationItem` components. Android's
+`MainNavigationBar` supplies translated labels, Material icons, selected
+destinations, and ViewModel callbacks; it does not own a second copy of the bar
+layout, insets, colors, item animation, or accessibility policy.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

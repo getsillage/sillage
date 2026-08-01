@@ -20,6 +20,10 @@ import app.sillage.features.records.CompletedRecordsSearch
 import app.sillage.features.records.RecordsSearchContext
 import app.sillage.features.records.RecordsSearchRequest
 import app.sillage.features.records.RecordsSearchStateHolder
+import app.sillage.features.records.RecordsDetailContext
+import app.sillage.features.records.RecordsDetailRequest
+import app.sillage.features.records.RecordsDetailResponseDisposition
+import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
 import java.time.LocalDate
@@ -44,9 +48,8 @@ data class SillageUiState(
     val recordsPagination: RecordsPaginationStateHolder = RecordsPaginationStateHolder(),
     val recordsRefresh: RecordsRefreshStateHolder = RecordsRefreshStateHolder(),
     val memoCacheGeneration: Long = 0,
-    val memoDetailRequestId: Long = 0,
+    val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
     val memoMutationIds: Set<String> = emptySet(),
-    val selectedMemo: Memo? = null,
     val selectedSummary: MemoAI? = null,
     val summaryLoading: Boolean = false,
     val memoSummaryRequestId: Long = 0,
@@ -116,7 +119,8 @@ data class SillageUiState(
     val syncConflicts: List<SyncConflictItem> = emptyList(),
 ) {
     // Transitional read accessors while the remaining records state moves into
-    // shared feature holders. Pagination, refresh, and search writes use them.
+    // shared feature holders. Pagination, refresh, search, and selection writes
+    // use those holders.
     val memoNextCursor: String get() = recordsPagination.nextCursor
     val loadingMoreMemos: Boolean get() = recordsPagination.loadingMore
     val memoPageRequestId: Long get() = recordsPagination.requestId
@@ -128,6 +132,8 @@ data class SillageUiState(
     val memoSearchRequestId: Long get() = recordsSearch.requestId
     val searchCompletionEventId: Long get() = recordsSearch.completionEventId
     val searching: Boolean get() = recordsSearch.searching
+    val selectedMemo: Memo? get() = recordsSelection.selectedMemo
+    val memoDetailRequestId: Long get() = recordsSelection.detailRequestId
 }
 
 /**
@@ -221,88 +227,58 @@ internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): Sill
     return copy(error = null, notice = message)
 }
 
-internal data class MemoDetailRequest(
-    val requestId: Long,
-    val memoId: String,
-    val memoVersion: Long,
-    val appMode: String,
-    val clientContextGeneration: Long,
-    val screen: Screen,
-    val editorSessionId: Long,
-    val cacheGeneration: Long,
-)
-
-internal fun SillageUiState.nextMemoDetailRequest(memoId: String): MemoDetailRequest? {
-    val selected = selectedMemo ?: return null
-    if (selected.id != memoId || (screen != Screen.MemoDetail && screen != Screen.Editor)) {
-        return null
-    }
-    return MemoDetailRequest(
-        requestId = memoDetailRequestId + 1,
-        memoId = memoId,
-        memoVersion = selected.version,
-        appMode = appMode,
+private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
+    val detailAvailable = screen == Screen.MemoDetail || screen == Screen.Editor
+    return RecordsDetailContext(
+        sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
-        screen = screen,
-        editorSessionId = editorSessionId,
+        destinationKey = screen.name,
+        destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
         cacheGeneration = memoCacheGeneration,
+        detailAvailable = detailAvailable,
     )
 }
 
-internal fun SillageUiState.startMemoDetailRequest(request: MemoDetailRequest): SillageUiState {
-    if (nextMemoDetailRequest(request.memoId) != request) {
-        return this
-    }
+internal fun SillageUiState.nextMemoDetailRequest(memoId: String): RecordsDetailRequest? {
+    return recordsSelection.nextDetailRequest(memoId, recordsDetailContext())
+}
+
+internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest): SillageUiState {
+    val selection = recordsSelection.beginDetailRequest(request, recordsDetailContext()) ?: return this
     return copy(
-        memoDetailRequestId = request.requestId,
-        summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+        recordsSelection = selection,
+        summaryLoading = request.sourceKey != SessionStore.MODE_OFFLINE,
     )
-}
-
-private fun SillageUiState.matchesMemoDetailRequest(request: MemoDetailRequest): Boolean {
-    return memoDetailRequestId == request.requestId &&
-        selectedMemo?.id == request.memoId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        screen == request.screen &&
-        (request.screen != Screen.Editor || editorSessionId == request.editorSessionId)
 }
 
 internal fun SillageUiState.completeMemoDetailRequest(
-    request: MemoDetailRequest,
+    request: RecordsDetailRequest,
     detail: MemoDetail,
 ): SillageUiState {
-    if (!matchesMemoDetailRequest(request)) {
-        return this
-    }
-    val currentVersion = selectedMemo?.version ?: return copy(summaryLoading = false)
-    if (
-        memoCacheGeneration != request.cacheGeneration ||
-        detail.memo.id != request.memoId ||
-        detail.memo.version < request.memoVersion ||
-        detail.memo.version < currentVersion
+    return when (
+        recordsSelection.detailResponseDisposition(
+            request,
+            recordsDetailContext(),
+            detail.memo,
+        )
     ) {
-        return copy(summaryLoading = false)
+        RecordsDetailResponseDisposition.Ignore -> this
+        RecordsDetailResponseDisposition.Superseded -> copy(summaryLoading = false)
+        RecordsDetailResponseDisposition.Apply -> applyMemoToCache(detail.memo).copy(
+            selectedSummary = detail.ai,
+            summaryLoading = false,
+        )
     }
-    return applyMemoToCache(detail.memo).copy(
-        selectedSummary = detail.ai,
-        summaryLoading = false,
-    )
 }
 
 internal fun SillageUiState.failMemoDetailRequest(
-    request: MemoDetailRequest,
+    request: RecordsDetailRequest,
     message: String,
 ): SillageUiState {
-    if (!matchesMemoDetailRequest(request)) {
-        return this
-    }
-    val superseded = memoCacheGeneration != request.cacheGeneration ||
-        (selectedMemo?.version ?: Long.MIN_VALUE) > request.memoVersion
-    return if (superseded) {
-        copy(summaryLoading = false)
-    } else {
-        copy(summaryLoading = false, error = message)
+    return when (recordsSelection.detailFailureDisposition(request, recordsDetailContext())) {
+        RecordsDetailResponseDisposition.Ignore -> this
+        RecordsDetailResponseDisposition.Superseded -> copy(summaryLoading = false)
+        RecordsDetailResponseDisposition.Apply -> copy(summaryLoading = false, error = message)
     }
 }
 
@@ -353,7 +329,7 @@ private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): 
 internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
     return ownsMemoSummaryRequest(request) &&
         selectedMemo?.id == request.memoId &&
-        selectedMemo.version == request.memoVersion &&
+        selectedMemo?.version == request.memoVersion &&
         appMode == request.appMode &&
         clientContextGeneration == request.clientContextGeneration &&
         screen == request.screen &&
@@ -686,7 +662,7 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
         recordsPagination = recordsPagination.cancel(),
         recordsRefresh = recordsRefresh.cancel(),
         memoCacheGeneration = memoCacheGeneration + 1,
-        selectedMemo = if (selectedMemo?.id == memo.id) memo else selectedMemo,
+        recordsSelection = recordsSelection.mergeMemo(memo),
     )
 }
 

@@ -112,6 +112,11 @@ Records search is the third extracted state slice. The shared holder owns query,
 result, failure, completion-event, and request-identity transitions; hosts own
 debounce scheduling and choose the active local or remote application adapter.
 
+Records selection/detail is the fourth extracted state slice. The shared holder
+owns the selected `Memo` and detail request validation; Android retains
+AI-summary presentation because its current `MemoAI` model is still
+platform-local.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

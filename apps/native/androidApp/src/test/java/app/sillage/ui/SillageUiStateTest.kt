@@ -12,6 +12,7 @@ import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
+import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -62,7 +63,7 @@ class SillageUiStateTest {
         assertFalse(editorState().copy(screen = Screen.Memos).canRunMemoEditorAction())
         assertFalse(
             editorState().copy(
-                selectedMemo = memo(),
+                recordsSelection = RecordsSelectionStateHolder(selectedMemo = memo()),
                 memoMutationIds = setOf("memo-1"),
             ).canRunMemoEditorAction(),
         )
@@ -70,7 +71,9 @@ class SillageUiStateTest {
 
     @Test
     fun memoEditorBusyReasonOnlyCoversBlockingOperations() {
-        val selected = editorState().copy(selectedMemo = memo())
+        val selected = editorState().copy(
+            recordsSelection = RecordsSelectionStateHolder(selectedMemo = memo()),
+        )
 
         assertEquals(null, selected.memoEditorBusyReason())
         assertEquals(
@@ -273,7 +276,7 @@ class SillageUiStateTest {
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
             memos = listOf(original),
-            selectedMemo = original,
+            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
             summaryLoading = true,
         )
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
@@ -303,7 +306,7 @@ class SillageUiStateTest {
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
             memos = listOf(original),
-            selectedMemo = original,
+            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
         )
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
@@ -330,7 +333,7 @@ class SillageUiStateTest {
         val initial = editorState().copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            selectedMemo = original,
+            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
         )
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
@@ -355,9 +358,11 @@ class SillageUiStateTest {
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_OFFLINE,
             clientContextGeneration = 3,
-            selectedMemo = original,
+            recordsSelection = RecordsSelectionStateHolder(
+                selectedMemo = original,
+                detailRequestId = 11,
+            ),
             editorSessionId = 7,
-            memoDetailRequestId = 11,
         )
         val request = requireNotNull(initial.nextMemoSummaryRequest())
         val pending = initial.startMemoSummaryRequest(request)
@@ -365,11 +370,15 @@ class SillageUiStateTest {
         assertTrue(pending.canApplyMemoSummaryRequest(request))
         assertEquals(null, pending.nextMemoSummaryRequest())
         assertFalse(
-            pending.copy(selectedMemo = original.copy(id = "memo-2"))
+            pending.copy(
+                recordsSelection = pending.recordsSelection.select(original.copy(id = "memo-2")),
+            )
                 .canApplyMemoSummaryRequest(request),
         )
         assertFalse(
-            pending.copy(selectedMemo = original.copy(version = 2))
+            pending.copy(
+                recordsSelection = pending.recordsSelection.select(original.copy(version = 2)),
+            )
                 .canApplyMemoSummaryRequest(request),
         )
         assertFalse(pending.copy(screen = Screen.Memos).canApplyMemoSummaryRequest(request))
@@ -378,7 +387,9 @@ class SillageUiStateTest {
                 .canApplyMemoSummaryRequest(request),
         )
         assertFalse(
-            pending.copy(memoDetailRequestId = 12)
+            pending.copy(
+                recordsSelection = pending.recordsSelection.copy(detailRequestId = 12),
+            )
                 .canApplyMemoSummaryRequest(request),
         )
 
@@ -395,7 +406,9 @@ class SillageUiStateTest {
         )
         assertEquals(stale, stale.failMemoSummaryRequest(request, "旧请求失败"))
 
-        val versionChanged = pending.copy(selectedMemo = original.copy(version = 2))
+        val versionChanged = pending.copy(
+            recordsSelection = pending.recordsSelection.select(original.copy(version = 2)),
+        )
         val finished = versionChanged.finishMemoSummaryRequest(request)
         assertFalse(finished.summaryLoading)
         assertEquals(null, finished.selectedSummary)

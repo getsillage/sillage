@@ -26,6 +26,20 @@ Offline records, Ask history, local AI configuration, attachment metadata, and s
 
 "Pull" reads all syncable data from the server and merges it into the device. "Push" uploads pending local records (after flushing offline attachment uploads). "Two-way sync" pushes first and then performs a full pull. When a version conflict occurs, the app keeps the local pending change and opens a conflict dialog that shows the local content and the server resource. You can keep the device version (adopt the server version as the next `baseVersion` and resubmit later), use the server version (drop the local pending change), or dismiss and decide later. Do not keep retrying to force an overwrite without resolving the conflict.
 
+## Architecture
+
+Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
+storage, networking, attachment handling, and other platform integrations. Record
+listing and search cross the repository ports and use cases in `kmp-core:application`;
+local and remote adapters implement the same application contracts. Reusable record
+refresh, search, selection, and detail-request validation state lives in
+`kmp-features:records`. Android UI code may compose those shared feature states, but
+must not duplicate domain, storage, synchronization, or protocol rules.
+
+See [Multiplatform Development](../../../docs/development/multiplatform.md) and
+[Architecture](../../../docs/development/architecture.md) for module ownership and
+dependency rules.
+
 ## Build and Test
 
 JDK 17 and Android SDK 35 are required. The repository pins Gradle, locks every resolvable dependency graph, verifies downloaded dependency SHA-256 values, and scans the complete release runtime with OSV Scanner. Run the CI-equivalent host gate from the repository root:

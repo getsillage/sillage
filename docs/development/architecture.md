@@ -148,8 +148,13 @@ pagination generation changes, and a newer refresh supersedes an older one.
 The shared `RecordsSearchStateHolder` owns normalized query state, results,
 failure binding, completion events, and request identity. Android retains
 debounce timing and local/remote source orchestration, while every state
-transition and late-response check is shared. Selection and editor state remain
-later extraction slices.
+transition and late-response check is shared.
+
+The shared `RecordsSelectionStateHolder` owns the selected domain record and
+detail request identity. It validates source, client session, navigation
+destination, editor generation, cache generation, and record version before an
+Android detail response may update state. AI-derived summary presentation and
+editor state remain later extraction slices.
 
 ## Core Invariants
 

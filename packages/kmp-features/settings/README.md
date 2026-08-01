@@ -5,8 +5,10 @@ provider capability presentation.
 
 `SettingsFeatureStateHolder` composes the holders below and owns coordinated
 workspace teardown plus loaded/imported editable-settings snapshot application.
-Individual holders remain the unit of request identity; Android stores one
-aggregate on root UI state with transitional slice getters.
+Individual holders remain the unit of request identity. Android stores one
+`settings` aggregate on root UI state and keeps transitional slice getters while
+remaining single-holder call sites finish moving onto `withSettings` / aggregate
+transitions.
 
 `AIProfileDraft` owns cross-platform editor values, transient raw numeric input,
 and unsaved presentation identity. Secret input is feature state only: platform

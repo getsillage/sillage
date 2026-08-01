@@ -203,8 +203,8 @@ draft snapshot, mode, and client generation; adapter callbacks cannot attach
 results to a removed or subsequently edited profile.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
 workspace teardown plus loaded/imported editable-settings snapshot application.
-Android's root `SillageUiState` stores one `settings` aggregate with transitional
-slice getters; coordinated writes move onto the aggregate.
+Android's root `SillageUiState` stores one `settings` aggregate field with
+transitional slice getters; coordinated writes move onto the aggregate.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

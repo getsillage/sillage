@@ -419,10 +419,7 @@ class SillageViewModel(
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
                 records = it.records.clearInteractiveSurface(),
-                aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
-                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
-                aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
+                settings = it.settings.clearWorkspace(),
                 ask = it.ask.clearWorkspace(),
                 serverReturnScreen = null,
                 authError = null,
@@ -449,10 +446,7 @@ class SillageViewModel(
                 screen = Screen.Loading,
                 screenHistory = emptyList(),
                 records = it.records.clearInteractiveSurface(),
-                aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
-                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
-                aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
+                settings = it.settings.clearWorkspace(),
                 ask = it.ask.clearWorkspace(),
                 authError = null,
                 authErrorResourceId = null,
@@ -860,12 +854,9 @@ class SillageViewModel(
                             clientContextGeneration = it.clientContextGeneration + 1,
                             account = null,
                             records = it.records.clearInteractiveSurface(),
-                            aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
-                            aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(
-                            if (offlineMode) it.aiAutoSummary else false,
+                            settings = it.settings.clearWorkspace(
+                                autoSummaryEnabled = if (offlineMode) it.aiAutoSummary else false,
                             ),
-                            aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                            aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
                             ask = it.ask.clearWorkspace(
                                 invalidateStream = true,
                                 invalidateVariant = true,
@@ -1215,8 +1206,10 @@ class SillageViewModel(
                 ).copy(
                     browse = it.records.browse.copy(viewMode = result.memoViewMode),
                 ),
-                aiProfilesMutation = it.aiProfilesMutation.invalidate(result.aiProfiles),
-                aiAutoSummaryState = it.aiAutoSummaryState.replace(result.aiAutoSummary),
+                settings = it.settings.applyImportedPreferences(
+                    profiles = result.aiProfiles,
+                    autoSummaryEnabled = result.aiAutoSummary,
+                ),
                 ask = it.ask.copy(
                     conversation = it.ask.conversation.copy(
                         conversations = emptyList(),
@@ -2055,11 +2048,13 @@ class SillageViewModel(
                 !it.aiProfileDiagnostics.busy
             ) {
                 it.copy(
-                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                    settings = it.settings.copy(
+                        profilesMutation = it.settings.profilesMutation.replace(
                         it.aiProfiles + AIProfileDraft(
                             draftKey = UUID.randomUUID().toString(),
                             active = it.aiProfiles.isEmpty(),
                         ),
+                    ),
                     ),
                 )
             } else {
@@ -2081,10 +2076,12 @@ class SillageViewModel(
             ) {
                 removed = true
                 it.copy(
-                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                    settings = it.settings.copy(
+                        profilesMutation = it.settings.profilesMutation.replace(
                         normalizeAIProfilesForSave(
                             it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
                         ),
+                    ),
                     ),
                 )
             } else {
@@ -2143,10 +2140,12 @@ class SillageViewModel(
                 index in it.aiProfiles.indices
             ) {
                 it.copy(
-                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                    settings = it.settings.copy(
+                        profilesMutation = it.settings.profilesMutation.replace(
                         it.aiProfiles.mapIndexed { profileIndex, profile ->
                             profile.copy(enabled = true, active = profileIndex == index)
                         },
+                    ),
                     ),
                 )
             } else {
@@ -2236,11 +2235,10 @@ class SillageViewModel(
                     updateState { current ->
                         if (current.canApplyAISettingsLoad(request)) {
                             current.completeAISettingsLoad(request).copy(
-                                aiProfilesMutation = current.aiProfilesMutation.replace(settings.profiles),
-                                aiAutoSummaryState = current.aiAutoSummaryState.replace(
-                                    settings.autoSummary,
+                                settings = current.settings.applyLoadedSnapshot(
+                                    profiles = settings.profiles,
+                                    autoSummaryEnabled = settings.autoSummary,
                                 ),
-                                aiProfileDiagnostics = current.aiProfileDiagnostics.clearResults(),
                                 error = null,
                             )
                         } else {
@@ -2336,7 +2334,7 @@ class SillageViewModel(
                 updateState { current ->
                     if (current.canApplyAIProfilesMutation(request)) {
                         current.completeAIProfilesMutation(request, savedProfiles).copy(
-                                aiProfileDiagnostics = current.aiProfileDiagnostics.clearResults(),
+                            settings = current.settings.copy(diagnostics = current.settings.diagnostics.clearResults()),
                             error = null,
                             notice = uiString(successNoticeResourceId),
                         )
@@ -2490,7 +2488,7 @@ class SillageViewModel(
             val message = uiString(R.string.error_ai_models_offline)
             updateState(forceFeedback = true) {
                 it.copy(
-                    aiProfileDiagnostics = it.aiProfileDiagnostics.recordFeedback(key, message),
+                    settings = it.settings.copy(diagnostics = it.settings.diagnostics.recordFeedback(key, message)),
                     error = message,
                     notice = null,
                 )
@@ -3034,10 +3032,12 @@ class SillageViewModel(
                 !it.aiProfileDiagnostics.busy
             ) {
                 it.copy(
-                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                    settings = it.settings.copy(
+                        profilesMutation = it.settings.profilesMutation.replace(
                         it.aiProfiles.mapIndexed { i, profile ->
                             if (i == index) transform(profile) else profile
                         },
+                    ),
                     ),
                 )
             } else {
@@ -3956,10 +3956,10 @@ class SillageViewModel(
                 initialized = true,
                 account = null,
                 records = it.records.clearInteractiveSurface().replaceVisibleRecords(memos),
-                aiProfilesMutation = it.aiProfilesMutation.invalidate(aiProfiles),
-                aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
-                aiSettingsLoad = it.aiSettingsLoad.cancel(),
-                aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
+                settings = it.settings.clearWorkspace(
+                    profiles = aiProfiles,
+                    autoSummaryEnabled = autoSummary,
+                ),
                 ask = it.ask.clearWorkspace(),
                 screen = Screen.Memos,
                 screenHistory = emptyList(),

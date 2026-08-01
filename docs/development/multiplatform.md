@@ -165,8 +165,8 @@ the full draft snapshot, stable editor key, mode, and client context, so edited
 or removed profiles cannot receive late diagnostic results.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
 workspace teardown plus loaded/imported editable-settings snapshot application.
-Android's root `SillageUiState` stores one `settings` aggregate with transitional
-slice getters for the former top-level settings holders.
+Android's root `SillageUiState` stores one `settings` aggregate field with
+transitional slice getters for the former top-level settings holders.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

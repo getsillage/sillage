@@ -114,6 +114,12 @@ sign-in, account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android's remote adapter
 retains REST, refresh coordination, and context-safe encrypted session storage.
 
+Authentication presentation state lives in `packages/kmp-features/auth`.
+`AuthenticationStateHolder` owns credential drafts and password-change
+validation/request identity, including client-context checks that discard late
+callbacks. It contains no session token or transport type; Android supplies
+localized messages and implements the application ports.
+
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,
 and test call sites import these values directly. Cross-platform AI profile

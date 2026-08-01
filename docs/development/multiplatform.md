@@ -80,6 +80,14 @@ Initialization, sign-in, current-account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android retains REST,
 refresh coordination, and context-safe encrypted session persistence.
 
+The buildable `kmp-features:auth` module owns native authentication form drafts
+and password-change presentation state. `AuthenticationStateHolder` performs
+platform-neutral validation, allocates single-flight request identities, captures
+the active app/client context, rejects stale completions, and clears password
+material after a successful change. Hosts provide localized validation messages
+and execute the application use case; tokens and secure session storage never
+enter feature state.
+
 The buildable `kmp-features:records` module is the first shared feature slice.
 It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;
 Android remains its first host and adapter provider. Feature state holders move

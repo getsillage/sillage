@@ -1,4 +1,11 @@
 # Authentication feature
 
-Reserved for connection, initialization, sign-in, session, and compatibility
-state shared by native clients.
+This buildable Kotlin Multiplatform feature owns platform-neutral authentication
+presentation state. `AuthenticationStateHolder` currently owns initialization and
+sign-in form drafts plus the password-change lifecycle: validation, single-flight
+request identity, client-context validation, and secret clearing after success.
+
+The module does not own tokens, secure session persistence, HTTP mapping, or
+platform navigation. Those remain behind `kmp-core:application` repository ports
+and host adapters. Native hosts may expose transitional accessors while screens
+move to the shared holder, but must route mutations through the holder contracts.

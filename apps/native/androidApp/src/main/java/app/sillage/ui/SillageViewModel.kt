@@ -91,6 +91,7 @@ import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskStreamRequest
+import app.sillage.features.auth.PasswordChangeValidation
 import app.sillage.features.settings.AIAutoSummaryRequest
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
@@ -674,27 +675,39 @@ class SillageViewModel(
     }
 
     fun updateUsername(value: String) = updateState {
-        it.copy(username = value, authError = null, authErrorResourceId = null)
+        it.copy(
+            authentication = it.authentication.updateUsername(value),
+            authError = null,
+            authErrorResourceId = null,
+        )
     }
 
     fun updateDisplayName(value: String) = updateState {
-        it.copy(displayName = value, authError = null, authErrorResourceId = null)
+        it.copy(
+            authentication = it.authentication.updateDisplayName(value),
+            authError = null,
+            authErrorResourceId = null,
+        )
     }
 
     fun updatePassword(value: String) = updateState {
-        it.copy(password = value, authError = null, authErrorResourceId = null)
+        it.copy(
+            authentication = it.authentication.updatePassword(value),
+            authError = null,
+            authErrorResourceId = null,
+        )
     }
 
     fun updateCurrentPassword(value: String) = updateState {
-        it.copy(currentPassword = value, error = null)
+        it.copy(authentication = it.authentication.updateCurrentPassword(value), error = null)
     }
 
     fun updateNewPassword(value: String) = updateState {
-        it.copy(newPassword = value, error = null)
+        it.copy(authentication = it.authentication.updateNewPassword(value), error = null)
     }
 
     fun updateConfirmPassword(value: String) = updateState {
-        it.copy(confirmPassword = value, error = null)
+        it.copy(authentication = it.authentication.updateConfirmPassword(value), error = null)
     }
 
     fun changePassword() {
@@ -705,48 +718,55 @@ class SillageViewModel(
             return
         }
         val current = state.value
-        val currentPassword = current.currentPassword
-        val newPassword = current.newPassword
-        val confirmPassword = current.confirmPassword
-        if (currentPassword.isBlank() || newPassword.isBlank()) {
+        val validationError = when (current.authentication.passwordChangeValidation()) {
+            PasswordChangeValidation.RequiredFields -> R.string.error_password_required
+            PasswordChangeValidation.ConfirmationMismatch -> R.string.error_password_mismatch
+            PasswordChangeValidation.Unchanged -> R.string.error_password_same
+            null -> null
+        }
+        if (validationError != null) {
             updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_password_required), notice = null)
+                it.copy(error = uiString(validationError), notice = null)
             }
             return
         }
-        if (newPassword != confirmPassword) {
-            updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_password_mismatch), notice = null)
+        val request = current.nextPasswordChangeRequest() ?: return
+        var started = false
+        updateState { latest ->
+            val changing = latest.startPasswordChange(request)
+            if (changing.canApplyPasswordChange(request)) {
+                started = true
+                changing.copy(error = null, notice = null)
+            } else {
+                latest
             }
-            return
         }
-        if (currentPassword == newPassword) {
-            updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_password_same), notice = null)
-            }
+        if (!started) {
             return
         }
         viewModelScope.launch {
-            updateState { it.copy(passwordChanging = true, error = null, notice = null) }
             runCatching {
-                changeRemotePassword(ChangePasswordCommand(currentPassword, newPassword))
+                changeRemotePassword(
+                    ChangePasswordCommand(request.currentPassword, request.newPassword),
+                )
             }.onSuccess { session ->
-                updateState(noticeType = UiToastType.SUCCESS) {
-                    it.copy(
-                        account = session.account,
-                        currentPassword = "",
-                        newPassword = "",
-                        confirmPassword = "",
-                        passwordChanging = false,
-                        notice = uiString(R.string.notice_password_changed),
-                    )
+                updateState(noticeType = UiToastType.SUCCESS) { latest ->
+                    if (latest.canApplyPasswordChange(request)) {
+                        latest.completePasswordChange(request).copy(
+                            account = session.account,
+                            notice = uiString(R.string.notice_password_changed),
+                        )
+                    } else {
+                        latest
+                    }
                 }
             }.onFailure { error ->
-                updateState {
-                    it.copy(
-                        passwordChanging = false,
-                        error = error.readableMessage(),
-                    )
+                updateState { latest ->
+                    if (latest.canApplyPasswordChange(request)) {
+                        latest.failPasswordChange(request).copy(error = error.readableMessage())
+                    } else {
+                        latest
+                    }
                 }
             }
         }
@@ -761,9 +781,9 @@ class SillageViewModel(
             updateState {
                 it.copy(
                     account = session.account,
-                    username = "",
-                    displayName = "",
-                    password = "",
+                    authentication = it.authentication.clearPrimaryCredentials(
+                        clearDisplayName = true,
+                    ),
                             screen = Screen.Memos,
                             screenHistory = emptyList(),
                             initialized = true,
@@ -782,8 +802,9 @@ class SillageViewModel(
             updateState {
                 it.copy(
                     account = session.account,
-                    username = "",
-                    password = "",
+                    authentication = it.authentication.clearPrimaryCredentials(
+                        clearDisplayName = false,
+                    ),
                             screen = Screen.Memos,
                             screenHistory = emptyList(),
                             initialized = true,

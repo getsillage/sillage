@@ -79,6 +79,7 @@ dependencies {
     implementation(project(":kmp-core:domain"))
     implementation(project(":kmp-core:sync"))
     implementation(project(":kmp-features:ask"))
+    implementation(project(":kmp-features:auth"))
     implementation(project(":kmp-features:records"))
     implementation(project(":kmp-features:settings"))
     implementation(project(":kmp-features:sync"))

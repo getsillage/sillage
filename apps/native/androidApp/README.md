@@ -49,7 +49,10 @@ HTTP parsing and encrypted session persistence.
 Bootstrap discovery and authenticated account operations cross
 `InstanceBootstrapRepository`, `AuthenticationRepository`, and focused shared
 use cases. The Android adapter retains REST, refresh coordination, and
-context-safe session writes.
+context-safe session writes. The root UI state composes
+`AuthenticationStateHolder` from `kmp-features:auth` for credential drafts and
+password-change request lifecycle. Transitional screen accessors delegate to that
+holder; token storage and REST execution remain Android adapter responsibilities.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

@@ -19,6 +19,9 @@ import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
+import app.sillage.features.auth.AuthenticationStateHolder
+import app.sillage.features.auth.PasswordChangeContext
+import app.sillage.features.auth.PasswordChangeRequest
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo
@@ -95,6 +98,7 @@ data class SillageUiState(
     val aiAutoSummaryState: AIAutoSummaryStateHolder = AIAutoSummaryStateHolder(),
     val aiSettingsLoad: AISettingsLoadStateHolder = AISettingsLoadStateHolder(),
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder = AIProfileDiagnosticsStateHolder(),
+    val authentication: AuthenticationStateHolder = AuthenticationStateHolder(),
     val askConversation: AskConversationStateHolder = AskConversationStateHolder(),
     val askComposer: AskComposerStateHolder = AskComposerStateHolder(),
     val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
@@ -112,13 +116,6 @@ data class SillageUiState(
         calendarYear = LocalDate.now().year,
         calendarMonth = LocalDate.now().monthValue,
     ),
-    val username: String = "",
-    val displayName: String = "",
-    val password: String = "",
-    val currentPassword: String = "",
-    val newPassword: String = "",
-    val confirmPassword: String = "",
-    val passwordChanging: Boolean = false,
     val loading: Boolean = false,
     val authError: String? = null,
     val authErrorResourceId: Int? = null,
@@ -199,6 +196,13 @@ data class SillageUiState(
     val aiLoadingModelsProfileId: String get() = aiProfileDiagnostics.loadingModelsProfileKey
     val aiTestResults: Map<String, String> get() = aiProfileDiagnostics.testResults
     val aiModelResults: Map<String, List<String>> get() = aiProfileDiagnostics.modelResults
+    val username: String get() = authentication.username
+    val displayName: String get() = authentication.displayName
+    val password: String get() = authentication.password
+    val currentPassword: String get() = authentication.currentPassword
+    val newPassword: String get() = authentication.newPassword
+    val confirmPassword: String get() = authentication.confirmPassword
+    val passwordChanging: Boolean get() = authentication.passwordChanging
 }
 
 /**
@@ -254,7 +258,49 @@ internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
         aiSettingsSaving ||
         aiAutoSummarySaving ||
         aiTestingProfileId.isNotBlank() ||
-        aiLoadingModelsProfileId.isNotBlank()
+        aiLoadingModelsProfileId.isNotBlank() ||
+        passwordChanging
+}
+
+internal fun SillageUiState.nextPasswordChangeRequest(): PasswordChangeRequest? {
+    return authentication.nextPasswordChangeRequest(passwordChangeContext())
+}
+
+internal fun SillageUiState.startPasswordChange(request: PasswordChangeRequest): SillageUiState {
+    val started = authentication.beginPasswordChange(request, passwordChangeContext()) ?: return this
+    return copy(authentication = started)
+}
+
+internal fun SillageUiState.canApplyPasswordChange(request: PasswordChangeRequest): Boolean {
+    return authentication.canApplyPasswordChange(request, passwordChangeContext())
+}
+
+internal fun SillageUiState.completePasswordChange(request: PasswordChangeRequest): SillageUiState {
+    val completed = authentication.completePasswordChange(
+        request,
+        passwordChangeContext(),
+    ) ?: return this
+    return copy(authentication = completed)
+}
+
+internal fun SillageUiState.failPasswordChange(request: PasswordChangeRequest): SillageUiState {
+    val failed = authentication.failPasswordChange(request, passwordChangeContext()) ?: return this
+    return copy(authentication = failed)
+}
+
+private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
+    return PasswordChangeContext(
+        appMode = appMode,
+        clientContextGeneration = clientContextGeneration,
+        online = appMode == SessionStore.MODE_ONLINE,
+        anotherOperationInProgress = loading ||
+            summaryLoading ||
+            recordsMutation.active ||
+            askSavingMessageId.isNotBlank() ||
+            aiSettingsSaving ||
+            aiAutoSummarySaving ||
+            aiProfileDiagnostics.busy,
+    )
 }
 
 internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {

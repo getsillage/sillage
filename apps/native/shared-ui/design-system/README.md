@@ -18,3 +18,9 @@ selection, and callbacks.
 `SillageSettingsSectionCard` owns settings section title hierarchy, spacing,
 shape, semantic colors, and border treatment. Hosts supply localized titles and
 section content.
+
+`SillageSettingsInfoRow`, `SillageSettingsActionRow`,
+`SillageSettingsSwitchRow`, and `SillageSettingsEmptyCard` own common settings
+layout, selection and disabled colors, divider treatment, value selection, and
+Switch semantics. Hosts supply localized text, icons, values, state, and
+callbacks.

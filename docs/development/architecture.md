@@ -104,8 +104,10 @@ The current Android code is the migration source for the shared native modules:
 destinations, and ViewModel callbacks; it does not own a second copy of the bar
 layout, insets, colors, item animation, or accessibility policy.
 `SillageSettingsSectionCard` similarly owns settings section heading semantics,
-spacing, shape, surface color, and border; Android supplies localized titles and
-the platform-specific content rows.
+spacing, shape, surface color, and border. Shared info, action, switch, and
+empty-state rows own common layout, disabled/selection colors, dividers, value
+selection, and Switch semantics. Android supplies localized text, icons, values,
+state, callbacks, and the remaining platform-specific controls.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

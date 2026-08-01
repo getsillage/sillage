@@ -43,8 +43,9 @@ only applies status/navigation-bar icon appearance through `WindowCompat`.
 The primary-navigation bar shell and items also come from that module; Android
 supplies translated labels, Material icons, current destination state, and
 ViewModel callbacks.
-Settings section cards likewise come from the shared design system; Android
-supplies localized section titles and platform-specific row content.
+Settings section cards and common info, action, switch, and empty-state rows
+likewise come from the shared design system. Android supplies localized labels,
+icons, values, state, and callbacks; platform-specific controls remain in host UI.
 
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record

@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,13 +72,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -91,7 +88,11 @@ import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.designsystem.SillageSettingsActionRow
+import app.sillage.ui.designsystem.SillageSettingsEmptyCard
+import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
+import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
 
@@ -171,7 +172,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
-                            SettingsSwitchRow(
+            SillageSettingsSwitchRow(
                                 icon = Icons.Rounded.AutoAwesome,
                                 title = stringResource(R.string.settings_auto_summary),
                                 supporting = stringResource(R.string.settings_auto_summary_supporting),
@@ -185,7 +186,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
-                            SettingsSwitchRow(
+            SillageSettingsSwitchRow(
                                 icon = Icons.Rounded.DarkMode,
                                 title = stringResource(R.string.settings_dark_mode),
                                 supporting = if (state.themeMode == SessionStore.THEME_DARK) {
@@ -210,14 +211,14 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
-                            SettingsActionRow(
+            SillageSettingsActionRow(
                                 icon = Icons.Rounded.Refresh,
                                 title = stringResource(R.string.settings_refresh_records),
                                 supporting = stringResource(R.string.settings_refresh_records_supporting),
                                 onClick = viewModel::refreshMemos,
                                 enabled = !state.loading,
                             )
-                            SettingsActionRow(
+            SillageSettingsActionRow(
                                 icon = Icons.Rounded.CloudSync,
                                 title = stringResource(
                                     if (state.appMode == SessionStore.MODE_ONLINE) R.string.settings_online_current else R.string.settings_online_switch,
@@ -228,7 +229,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 selected = state.appMode == SessionStore.MODE_ONLINE,
                                 showDivider = true,
                             )
-                            SettingsActionRow(
+            SillageSettingsActionRow(
                                 icon = Icons.Rounded.Storage,
                                 title = stringResource(
                                     if (state.appMode == SessionStore.MODE_OFFLINE) R.string.settings_offline_current else R.string.settings_offline_switch,
@@ -240,7 +241,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 showDivider = true,
                             )
                             if (state.appMode == SessionStore.MODE_ONLINE) {
-                                SettingsActionRow(
+            SillageSettingsActionRow(
                                     icon = Icons.Rounded.SettingsEthernet,
                                     title = stringResource(R.string.settings_server),
                                     supporting = stringResource(R.string.settings_server_supporting),
@@ -248,7 +249,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
-                                SettingsActionRow(
+            SillageSettingsActionRow(
                                     icon = Icons.Rounded.Download,
                                     title = stringResource(R.string.settings_sync_local),
                                     supporting = stringResource(R.string.settings_sync_local_supporting),
@@ -256,7 +257,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
-                                SettingsActionRow(
+            SillageSettingsActionRow(
                                     icon = Icons.Rounded.UploadFile,
                                     title = stringResource(R.string.settings_sync_cloud),
                                     supporting = stringResource(R.string.settings_sync_cloud_supporting),
@@ -264,7 +265,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     enabled = !clientContextChangeBlocked,
                                     showDivider = true,
                                 )
-                                SettingsActionRow(
+            SillageSettingsActionRow(
                                     icon = Icons.Rounded.CloudSync,
                                     title = stringResource(R.string.settings_sync_both),
                                     supporting = stringResource(R.string.settings_sync_both_supporting),
@@ -277,14 +278,14 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
-                            SettingsActionRow(
+            SillageSettingsActionRow(
                                 icon = Icons.Rounded.Download,
                                 title = stringResource(R.string.settings_export),
                                 supporting = stringResource(R.string.settings_export_supporting),
                                 onClick = { exportLauncher.launch("sillage-data.json") },
                                 enabled = !clientContextChangeBlocked,
                             )
-                            SettingsActionRow(
+            SillageSettingsActionRow(
                                 icon = Icons.Rounded.UploadFile,
                                 title = stringResource(R.string.settings_import),
                                 supporting = stringResource(R.string.settings_import_supporting),
@@ -352,7 +353,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     Text(stringResource(R.string.settings_save_password))
                                 }
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                SettingsActionRow(
+        SillageSettingsActionRow(
                                     icon = Icons.AutoMirrored.Rounded.Logout,
                                     title = stringResource(R.string.settings_sign_out),
                                     supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
@@ -365,7 +366,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
                             val unavailable = stringResource(R.string.settings_value_unavailable)
-                            SettingsInfoRow(
+            SillageSettingsInfoRow(
                                 label = stringResource(R.string.settings_app_version),
                                 value = stringResource(
                                     R.string.settings_app_version_value,
@@ -373,27 +374,27 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                     BuildConfig.VERSION_CODE,
                                 ),
                             )
-                            SettingsInfoRow(
+            SillageSettingsInfoRow(
                                 label = stringResource(R.string.settings_server_version),
                                 value = state.serverVersion.ifBlank { unavailable },
                                 showDivider = true,
                             )
-                            SettingsInfoRow(
+                        SillageSettingsInfoRow(
                                 label = stringResource(R.string.settings_server_revision),
                                 value = state.serverRevision.ifBlank { unavailable },
                                 showDivider = true,
                             )
-                            SettingsInfoRow(
+                        SillageSettingsInfoRow(
                                 label = stringResource(R.string.settings_api_version),
                                 value = state.apiVersion.ifBlank { unavailable },
                                 showDivider = true,
                             )
-                            SettingsInfoRow(
+                        SillageSettingsInfoRow(
                                 label = stringResource(R.string.settings_minimum_android_version_code),
                                 value = state.minimumAndroidVersionCode.takeIf { it > 0 }?.toString() ?: unavailable,
                                 showDivider = true,
                             )
-                            SettingsActionRow(
+                        SillageSettingsActionRow(
                                 icon = Icons.Rounded.Info,
                                 title = stringResource(R.string.settings_open_source_licenses),
                                 supporting = stringResource(R.string.settings_open_source_licenses_supporting),
@@ -416,7 +417,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     if (state.aiProfiles.isEmpty()) {
                         item {
-                            EmptySettingsCard(stringResource(R.string.settings_no_ai_profiles))
+                        SillageSettingsEmptyCard(stringResource(R.string.settings_no_ai_profiles))
                         }
                     } else {
                         items(state.aiProfiles.size, key = { index -> state.aiProfiles[index].editorKey(index) }) { index ->
@@ -654,180 +655,6 @@ private fun AISettingsHeaderCard(
     }
 }
 
-@Composable
-private fun SettingsInfoRow(
-    label: String,
-    value: String,
-    showDivider: Boolean = false,
-) {
-    Column {
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 14.dp),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                label,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            SelectionContainer {
-                Text(
-                    value,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsActionRow(
-    icon: ImageVector,
-    title: String,
-    supporting: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    selected: Boolean = false,
-    showDivider: Boolean = false,
-) {
-    val titleColor = if (enabled || selected) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
-    val supportingColor = if (enabled || selected) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-    }
-    Column {
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 50.dp),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-        }
-        Surface(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            color = if (selected) {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 68.dp)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = if (selected) MaterialTheme.colorScheme.primary else supportingColor,
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        title,
-                        color = titleColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    if (supporting.isNotBlank()) {
-                        Text(
-                            supporting,
-                            color = supportingColor,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSwitchRow(
-    icon: ImageVector,
-    title: String,
-    supporting: String,
-    checked: Boolean,
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    val titleColor = if (enabled) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
-    val supportingColor = if (enabled) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                onValueChange = onCheckedChange,
-            )
-            .heightIn(min = 68.dp)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(22.dp),
-            tint = supportingColor,
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(title, color = titleColor, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                supporting,
-                color = supportingColor,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = null,
-            enabled = enabled,
-        )
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsLanguageRow(
@@ -891,23 +718,6 @@ private fun SettingsLanguageRow(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun EmptySettingsCard(text: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(14.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
     }
 }
 

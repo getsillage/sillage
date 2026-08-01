@@ -228,6 +228,16 @@ internal inline fun SillageUiState.withRecords(
     transform: (RecordsFeatureStateHolder) -> RecordsFeatureStateHolder,
 ): SillageUiState = copy(records = transform(records))
 
+/** Updates records search presentation through the aggregate holder. */
+internal fun SillageUiState.withMemoSearchQuery(value: String): SillageUiState {
+    return withRecords { it.updateSearchQuery(value) }
+}
+
+/** Clears records search presentation through the aggregate holder. */
+internal fun SillageUiState.clearMemoSearchState(): SillageUiState {
+    return withRecords { it.clearSearch() }
+}
+
 /** Applies a pure Ask-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withAsk(
     transform: (AskFeatureStateHolder) -> AskFeatureStateHolder,

@@ -1079,7 +1079,7 @@ class SillageViewModel(
         val blank = value.isBlank()
         val previousJob = searchJob
         updateState {
-            it.copy(records = it.records.copy(search = it.records.search.updateQuery(value)), error = null)
+            it.withMemoSearchQuery(value).copy(error = null)
         }
         previousJob?.cancel()
         searchJob = null
@@ -1131,7 +1131,7 @@ class SillageViewModel(
     fun clearSearch() {
         val previousJob = searchJob
         updateState {
-            it.copy(records = it.records.copy(search = it.records.search.clear()), error = null)
+            it.clearMemoSearchState().copy(error = null)
         }
         previousJob?.cancel()
         searchJob = null

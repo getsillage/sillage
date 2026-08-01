@@ -377,6 +377,21 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootSearchTransitionsPreserveHostState() {
+        val state = editorState().copy(error = "keep")
+
+        val updated = state.withMemoSearchQuery("memo")
+        val cleared = updated.clearMemoSearchState()
+
+        assertEquals("memo", updated.searchQuery)
+        assertTrue(updated.searching)
+        assertEquals("", cleared.searchQuery)
+        assertFalse(cleared.searching)
+        assertEquals("keep", cleared.error)
+        assertEquals(state.screen, cleared.screen)
+    }
+
+    @Test
     fun rootMemoMutationTransitionsPreserveHostState() {
         val state = editorState().copy(loading = true, error = "keep")
 

@@ -77,6 +77,16 @@ data class RecordsFeatureStateHolder(
         return if (nextMutation === mutation) this else copy(mutation = nextMutation)
     }
 
+    /** Updates search input and invalidates stale search ownership. */
+    fun updateSearchQuery(value: String): RecordsFeatureStateHolder {
+        return copy(search = search.updateQuery(value))
+    }
+
+    /** Clears search input, results, and in-flight request ownership. */
+    fun clearSearch(): RecordsFeatureStateHolder {
+        return copy(search = search.clear())
+    }
+
     /**
      * Clears the visible cache and stops in-flight list loads without inventing
      * a mutation generation. Used when the active source or client context ends.

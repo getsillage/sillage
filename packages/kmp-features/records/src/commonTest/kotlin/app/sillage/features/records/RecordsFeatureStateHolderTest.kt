@@ -693,6 +693,35 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun searchPresentationTransitionsStayInsideAggregate() {
+        val result = memo("memo-search")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(result)),
+            search = RecordsSearchStateHolder(
+                query = "old",
+                results = listOf(result),
+                resultQuery = "old",
+                failureQuery = "old",
+                requestId = 3,
+            ),
+        )
+
+        val updated = state.updateSearchQuery("next")
+        val cleared = updated.clearSearch()
+
+        assertEquals("next", updated.search.query)
+        assertEquals(listOf(result), updated.search.results)
+        assertEquals("", updated.search.failureQuery)
+        assertEquals(4L, updated.search.requestId)
+        assertTrue(updated.search.searching)
+        assertEquals("", cleared.search.query)
+        assertNull(cleared.search.results)
+        assertEquals(5L, cleared.search.requestId)
+        assertFalse(cleared.search.searching)
+        assertEquals(listOf(result), cleared.records)
+    }
+
+    @Test
     fun memoMutationTransitionsStayInsideAggregate() {
         val selected = memo("memo-mutation")
         val state = RecordsFeatureStateHolder(

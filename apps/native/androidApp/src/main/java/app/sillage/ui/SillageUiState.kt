@@ -232,6 +232,21 @@ internal inline fun SillageUiState.withAsk(
     transform: (AskFeatureStateHolder) -> AskFeatureStateHolder,
 ): SillageUiState = copy(ask = transform(ask))
 
+/** Updates the Ask composer draft through the aggregate holder. */
+internal fun SillageUiState.withAskQuestion(value: String): SillageUiState {
+    return withAsk { it.updateQuestion(value) }
+}
+
+/** Updates the Ask retrieval scope through the aggregate holder. */
+internal fun SillageUiState.withAskContextScope(value: String): SillageUiState {
+    return withAsk { it.updateContextScope(value) }
+}
+
+/** Updates the Ask source kind through the aggregate holder. */
+internal fun SillageUiState.withAskSourceKind(value: String): SillageUiState {
+    return withAsk { it.updateSourceKind(value) }
+}
+
 /** Applies a pure settings-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withSettings(
     transform: (SettingsFeatureStateHolder) -> SettingsFeatureStateHolder,
@@ -1028,7 +1043,7 @@ internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Bo
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
     val finished = ask.finishMemoSave(request) ?: return this
-    return copy(ask = finished)
+    return withAsk { finished }
 }
 
 internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationContext =
@@ -1070,7 +1085,7 @@ internal fun SillageUiState.finishAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
     val finished = ask.finishSourceNavigation(request) ?: return this
-    return copy(ask = finished)
+    return withAsk { finished }
 }
 
 /**
@@ -1081,16 +1096,18 @@ internal fun SillageUiState.openAskSourceDetail(
     request: AskSourceNavigationRequest,
     detail: RecordDetail,
 ): SillageUiState {
-    val finishedAsk = ask.finishSourceNavigation(request) ?: return this
-    return copy(
+    val finished = finishAskSourceNavigation(request)
+    if (finished === this) {
+        return this
+    }
+    return finished.copy(
         screen = Screen.MemoDetail,
         screenHistory = request.destinationHistory(),
-        records = records.absorbVisibleMemo(
+        records = finished.records.absorbVisibleMemo(
             memo = detail.memo,
             summary = detail.ai,
-            filter = memoListFilter,
+            filter = finished.memoListFilter,
         ),
-        ask = finishedAsk,
     )
 }
 

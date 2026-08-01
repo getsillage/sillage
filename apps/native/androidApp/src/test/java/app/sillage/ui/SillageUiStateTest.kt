@@ -1051,6 +1051,25 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun askComposerUpdatesFlowThroughAggregateWrappers() {
+        val original = editorState().copy(
+            screen = Screen.Ask,
+            notice = "保留提示",
+        )
+
+        val updated = original
+            .withAskQuestion("问题")
+            .withAskContextScope("recent_30_days")
+            .withAskSourceKind("summaries")
+
+        assertEquals("问题", updated.askQuestion)
+        assertEquals("recent_30_days", updated.askScope)
+        assertEquals("summaries", updated.askSourceKind)
+        assertEquals(original.notice, updated.notice)
+        assertEquals(original.records, updated.records)
+    }
+
+    @Test
     fun lateAskMemoSaveCannotApplyButStillClearsItsBusyState() {
         val answer = askMessage(id = "answer-1", content = "原回答")
         val idle = editorState().let { base -> base.copy(
@@ -1207,6 +1226,27 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun askSourceNavigationStartAndFinishFlowThroughAggregateWrappers() {
+        val origin = editorState().copy(
+            screen = Screen.Ask,
+            error = "旧错误",
+            notice = "旧提示",
+        )
+        val request = requireNotNull(origin.nextAskSourceNavigationRequest("memo-1"))
+
+        val pending = origin.startAskSourceNavigation(request)
+        val finished = pending.finishAskSourceNavigation(request)
+
+        assertTrue(pending.askSourceLoading)
+        assertEquals(request.requestId, pending.askSourceRequestId)
+        assertEquals(null, pending.error)
+        assertEquals(null, pending.notice)
+        assertFalse(finished.askSourceLoading)
+        assertEquals(request.requestId, finished.askSourceRequestId)
+        assertEquals(finished.records, pending.records)
+    }
+
+    @Test
     fun askSourceNavigationCannotStartOutsideAskScreenOrWithoutMemo() {
         val ask = editorState().copy(screen = Screen.Ask)
 
@@ -1341,51 +1381,57 @@ class SillageUiStateTest {
         activeConversationId: String = activeAskId,
         headMessageId: String? = askHeadId,
         messages: List<AskMessage> = askMessages,
-    ): SillageUiState = copy(ask = ask.copy(
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(
             conversation = ask.conversation.copy(
-            activeConversationId = activeConversationId,
-            headMessageId = headMessageId,
-            messages = messages,
-        ),
-        ),
-    )
+                activeConversationId = activeConversationId,
+                headMessageId = headMessageId,
+                messages = messages,
+            ),
+        )
+    }
 
     private fun SillageUiState.withAskLoad(
         loading: Boolean = askLoading,
         errorMessage: String? = askLoadError,
-    ): SillageUiState = copy(ask = ask.copy(
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(
             load = AskLoadStateHolder(
-            loading = loading,
-            errorMessage = errorMessage,
-        ),
-        ),
-    )
+                loading = loading,
+                errorMessage = errorMessage,
+            ),
+        )
+    }
 
     private fun SillageUiState.withAskVariant(
         requestId: Long = askVariantRequestId,
         loading: Boolean = askVariantLoading,
-    ): SillageUiState = copy(ask = ask.copy(
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(
             variant = AskVariantStateHolder(
-            requestId = requestId,
-            loading = loading,
-        ),
-        ),
-    )
+                requestId = requestId,
+                loading = loading,
+            ),
+        )
+    }
 
     private fun SillageUiState.withAskSourceNavigation(
         requestId: Long = askSourceRequestId,
         loading: Boolean = askSourceLoading,
-    ): SillageUiState = copy(ask = ask.copy(
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(
             sourceNavigation = AskSourceNavigationStateHolder(
-            requestId = requestId,
-            loading = loading,
-        ),
-        ),
-    )
+                requestId = requestId,
+                loading = loading,
+            ),
+        )
+    }
 
     private fun SillageUiState.withAskSession(
         generation: Long,
-    ): SillageUiState = copy(ask = ask.copy(session = AskSessionStateHolder(generation = generation)))
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(session = AskSessionStateHolder(generation = generation))
+    }
 
     private fun SillageUiState.withAskStream(
         sending: Boolean = askSending,
@@ -1395,18 +1441,19 @@ class SillageUiStateTest {
         regeneratingMessageId: String = askRegeneratingId,
         liveUser: AskMessage? = askLiveUser,
         liveAnswer: String = askLiveAnswer,
-    ): SillageUiState = copy(ask = ask.copy(
+    ): SillageUiState = withAsk { ask ->
+        ask.copy(
             stream = AskStreamStateHolder(
-            sending = sending,
-            streaming = streaming,
-            requestId = requestId,
-            completionEventId = completionEventId,
-            regeneratingMessageId = regeneratingMessageId,
-            liveUser = liveUser,
-            liveAnswer = liveAnswer,
-        ),
-        ),
-    )
+                sending = sending,
+                streaming = streaming,
+                requestId = requestId,
+                completionEventId = completionEventId,
+                regeneratingMessageId = regeneratingMessageId,
+                liveUser = liveUser,
+                liveAnswer = liveAnswer,
+            ),
+        )
+    }
 
     private fun editorState(
         draftContent: String = "",

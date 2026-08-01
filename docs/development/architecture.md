@@ -150,8 +150,9 @@ application, stream finish coordination, composer updates, source-detail opening
 records/settings/ask clears through `clearClientWorkspace` for client-context
 changes without enlarging a global ViewModel. Android's root
 `SillageUiState` stores one `ask` aggregate value with transitional slice getters
-for the former top-level Ask holders; coordinated writes move onto the
-aggregate, while persistence and streaming stay outside the feature module.
+for the former top-level Ask holders. Android routes pure Ask mutations through
+`withAsk`, with thin composer and source-navigation wrappers at the root-state
+boundary, while persistence and streaming stay outside the feature module.
 The same module's `AskVariantStateHolder` owns branch-selection request identity;
 Android supplies navigation and client context, then applies completion only when
 the shared holder still owns that request.

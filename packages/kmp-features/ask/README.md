@@ -8,8 +8,10 @@ multi-holder transitions for workspace teardown, Ask-screen entry, blank
 composition starts, conversation selection/load completion, variant head
 application, stream begin/delta/finish, composer updates, memo-save/source-navigation ownership, active snapshot replacement, and catalog clearing. Individual
 holders remain the unit of request identity. Android stores one aggregate on
-root UI state and keeps transitional slice getters while remaining single-holder
-call sites finish moving onto `withAsk` / aggregate transitions.
+root UI state, keeps transitional slice getters, and routes single-holder writes
+through `withAsk` / aggregate transitions. Android's root-state boundary provides
+thin composer and source-navigation wrappers so platform callbacks do not replace
+nested Ask slices directly.
 
 `AskConversationStateHolder` owns the
 conversation collection, current conversation, selected branch head, and loaded

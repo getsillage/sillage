@@ -4,14 +4,17 @@ import app.sillage.core.application.auth.AuthSession
 import app.sillage.core.application.auth.AuthenticationRepository
 import app.sillage.core.application.auth.BootstrapInfo
 import app.sillage.core.application.auth.ChangePasswordCommand
+import app.sillage.core.application.auth.CapturedSignOutSession
 import app.sillage.core.application.auth.InitializeAccountCommand
 import app.sillage.core.application.auth.InstanceBootstrapRepository
 import app.sillage.core.application.auth.SignInCommand
+import app.sillage.core.application.auth.SignOutRepository
 import app.sillage.core.domain.auth.Account
 
 class RemoteAuthenticationRepository(
     private val api: SillageApi,
-) : AuthenticationRepository, InstanceBootstrapRepository {
+    private val sessionStore: SessionStore,
+) : AuthenticationRepository, InstanceBootstrapRepository, SignOutRepository {
     override suspend fun load(baseUrl: String): BootstrapInfo = api.bootstrap(baseUrl)
 
     override suspend fun initialize(command: InitializeAccountCommand): AuthSession {
@@ -26,5 +29,18 @@ class RemoteAuthenticationRepository(
 
     override suspend fun changePassword(command: ChangePasswordCommand): AuthSession {
         return api.changePassword(command.currentPassword, command.newPassword)
+    }
+
+    override fun captureSession(): CapturedSignOutSession {
+        val snapshot = sessionStore.clientSessionSnapshot()
+        return object : CapturedSignOutSession {
+            override suspend fun signOutRemote() {
+                api.signOut(snapshot)
+            }
+
+            override fun clearLocalSession(): Boolean {
+                return sessionStore.clearSession(snapshot)
+            }
+        }
     }
 }

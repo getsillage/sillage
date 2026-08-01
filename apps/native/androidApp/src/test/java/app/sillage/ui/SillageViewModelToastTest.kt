@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.R
 import app.sillage.data.SessionStore
-import kotlinx.coroutines.CancellationException
+import app.sillage.core.application.auth.SignOutResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -136,79 +136,27 @@ class SillageViewModelToastTest {
     }
 
     @Test
-    fun remoteSignOutFailureClearsLocalSessionAndReportsLocalOnlyError() = runBlocking {
-        var localSessionCleared = false
-        val feedback = performSignOut(
-            offlineMode = false,
-            remoteSignOut = { throw IllegalStateException("server unavailable") },
-            clearLocalSession = {
-                localSessionCleared = true
-                true
-            },
-        )
-
-        assertTrue(localSessionCleared)
+    fun signOutResultsMapToPlatformFeedback() {
         assertEquals(
             SignOutFeedback(
                 noticeResourceId = null,
                 errorResourceId = R.string.error_sign_out_local_only,
             ),
-            feedback,
+            signOutFeedback(SignOutResult.RemoteFailedLocalSessionCleared),
         )
-    }
-
-    @Test
-    fun offlineSignOutSkipsRemoteCallAndStillClearsLocalSession() = runBlocking {
-        var remoteSignOutCalled = false
-        var localSessionCleared = false
-
-        val feedback = performSignOut(
-            offlineMode = true,
-            remoteSignOut = { remoteSignOutCalled = true },
-            clearLocalSession = {
-                localSessionCleared = true
-                true
-            },
-        )
-
-        assertFalse(remoteSignOutCalled)
-        assertTrue(localSessionCleared)
         assertEquals(
             SignOutFeedback(
                 noticeResourceId = R.string.notice_online_session_cleared,
                 errorResourceId = null,
             ),
-            feedback,
+            signOutFeedback(SignOutResult.OfflineSessionCleared),
         )
-    }
-
-    @Test
-    fun staleSignOutDoesNotReportSuccessWhenConditionalClearIsRejected() = runBlocking {
-        val feedback = performSignOut(
-            offlineMode = false,
-            remoteSignOut = { throw IllegalStateException("old request failed") },
-            clearLocalSession = { false },
+        assertEquals(
+            SignOutFeedback(
+                noticeResourceId = R.string.notice_signed_out,
+                errorResourceId = null,
+            ),
+            signOutFeedback(SignOutResult.SignedOut),
         )
-
-        assertNull(feedback)
-    }
-
-    @Test
-    fun signOutCancellationIsRethrownAfterConditionalLocalClear() = runBlocking {
-        var localSessionCleared = false
-
-        val failure = runCatching {
-            performSignOut(
-                offlineMode = false,
-                remoteSignOut = { throw CancellationException("cancelled") },
-                clearLocalSession = {
-                    localSessionCleared = true
-                    true
-                },
-            )
-        }.exceptionOrNull()
-
-        assertTrue(localSessionCleared)
-        assertTrue(failure is CancellationException)
     }
 }

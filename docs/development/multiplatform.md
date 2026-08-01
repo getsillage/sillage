@@ -79,6 +79,10 @@ Public capability discovery crosses `InstanceBootstrapRepository`.
 Initialization, sign-in, current-account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android retains REST,
 refresh coordination, and context-safe encrypted session persistence.
+Sign-out crosses a separate `SignOutRepository`: its prepared operation captures
+the current session before asynchronous work, and shared application policy owns
+offline clearing, remote-failure fallback, cancellation, and stale-session
+rejection without exposing token-bearing platform snapshots.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthenticationStateHolder` performs

@@ -113,6 +113,9 @@ Instance discovery crosses `InstanceBootstrapRepository`; initialization,
 sign-in, account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android's remote adapter
 retains REST, refresh coordination, and context-safe encrypted session storage.
+Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
+remote invalidation and conditional local clearing to one captured session, so a
+late failure cannot clear credentials established by a newer sign-in.
 
 Authentication presentation state lives in `packages/kmp-features/auth`.
 `AuthenticationStateHolder` owns credential drafts and password-change

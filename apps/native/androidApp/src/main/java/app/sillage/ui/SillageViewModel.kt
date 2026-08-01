@@ -51,6 +51,9 @@ import app.sillage.core.application.auth.InitializeAccountUseCase
 import app.sillage.core.application.auth.LoadInstanceBootstrapUseCase
 import app.sillage.core.application.auth.SignInCommand
 import app.sillage.core.application.auth.SignInUseCase
+import app.sillage.core.application.auth.SignOutMode
+import app.sillage.core.application.auth.SignOutResult
+import app.sillage.core.application.auth.SignOutUseCase
 import app.sillage.core.application.records.GenerateRecordSummaryUseCase
 import app.sillage.core.application.records.SaveRecordSummaryUseCase
 import app.sillage.core.application.records.ActiveRecordSummaryProfileRequiredException
@@ -194,13 +197,14 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
-    private val remoteAuthenticationRepository = RemoteAuthenticationRepository(api)
+    private val remoteAuthenticationRepository = RemoteAuthenticationRepository(api, sessionStore)
     private val loadInstanceBootstrap =
         LoadInstanceBootstrapUseCase(remoteAuthenticationRepository)
     private val initializeRemoteAccount = InitializeAccountUseCase(remoteAuthenticationRepository)
     private val signInRemote = SignInUseCase(remoteAuthenticationRepository)
     private val getCurrentRemoteAccount = GetCurrentAccountUseCase(remoteAuthenticationRepository)
     private val changeRemotePassword = ChangePasswordUseCase(remoteAuthenticationRepository)
+    private val signOutUseCase = SignOutUseCase(remoteAuthenticationRepository)
     private val remoteAIProfileDiagnostics = RemoteAIProfileDiagnostics(api)
     private val testRemoteAIProfile =
         TestAIProfileConnectionUseCase(remoteAIProfileDiagnostics)
@@ -824,7 +828,9 @@ class SillageViewModel(
         val lease = authOperationGate.tryAcquire() ?: return
         val clientContextGeneration = current.clientContextGeneration
         val offlineMode = current.appMode == SessionStore.MODE_OFFLINE
-        val clientSessionSnapshot = sessionStore.clientSessionSnapshot()
+        val preparedSignOut = signOutUseCase.prepare(
+            if (offlineMode) SignOutMode.Offline else SignOutMode.Online,
+        )
         updateState {
             if (it.clientContextGeneration == clientContextGeneration) {
                 it.copy(loading = true, error = null, notice = null)
@@ -859,11 +865,8 @@ class SillageViewModel(
                     }
                 },
             ) {
-                val feedback = performSignOut(
-                    offlineMode = offlineMode,
-                    remoteSignOut = { api.signOut(clientSessionSnapshot) },
-                    clearLocalSession = { sessionStore.clearSession(clientSessionSnapshot) },
-                ) ?: return@runSingleFlightOperation
+                val result = preparedSignOut() ?: return@runSingleFlightOperation
+                val feedback = signOutFeedback(result)
                 updateState {
                     if (it.clientContextGeneration != clientContextGeneration) {
                         it
@@ -4297,50 +4300,20 @@ internal data class SignOutFeedback(
     val errorResourceId: Int?,
 )
 
-internal fun signOutFeedback(
-    offlineMode: Boolean,
-    remoteSignOutFailed: Boolean,
-): SignOutFeedback {
-    return when {
-        offlineMode -> SignOutFeedback(
+internal fun signOutFeedback(result: SignOutResult): SignOutFeedback {
+    return when (result) {
+        SignOutResult.OfflineSessionCleared -> SignOutFeedback(
             noticeResourceId = R.string.notice_online_session_cleared,
             errorResourceId = null,
         )
-        remoteSignOutFailed -> SignOutFeedback(
+        SignOutResult.RemoteFailedLocalSessionCleared -> SignOutFeedback(
             noticeResourceId = null,
             errorResourceId = R.string.error_sign_out_local_only,
         )
-        else -> SignOutFeedback(
+        SignOutResult.SignedOut -> SignOutFeedback(
             noticeResourceId = R.string.notice_signed_out,
             errorResourceId = null,
         )
-    }
-}
-
-internal suspend fun performSignOut(
-    offlineMode: Boolean,
-    remoteSignOut: suspend () -> Unit,
-    clearLocalSession: () -> Boolean,
-): SignOutFeedback? {
-    if (offlineMode) {
-        return if (clearLocalSession()) {
-            signOutFeedback(offlineMode = true, remoteSignOutFailed = false)
-        } else {
-            null
-        }
-    }
-    return try {
-        remoteSignOut()
-        signOutFeedback(offlineMode = false, remoteSignOutFailed = false)
-    } catch (error: CancellationException) {
-        clearLocalSession()
-        throw error
-    } catch (_: Throwable) {
-        if (clearLocalSession()) {
-            signOutFeedback(offlineMode = false, remoteSignOutFailed = true)
-        } else {
-            null
-        }
     }
 }
 

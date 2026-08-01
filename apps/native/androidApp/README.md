@@ -49,7 +49,9 @@ HTTP parsing and encrypted session persistence.
 Bootstrap discovery and authenticated account operations cross
 `InstanceBootstrapRepository`, `AuthenticationRepository`, and focused shared
 use cases. The Android adapter retains REST, refresh coordination, and
-context-safe session writes. The root UI state composes
+context-safe session writes. Sign-out is prepared through the shared application
+use case so its remote call and conditional local clear remain bound to the same
+captured session. The root UI state composes
 `AuthenticationStateHolder` from `kmp-features:auth` for credential drafts and
 password-change request lifecycle. Transitional screen accessors delegate to that
 holder; token storage and REST execution remain Android adapter responsibilities.

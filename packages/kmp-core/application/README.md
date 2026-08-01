@@ -10,6 +10,10 @@ platform adapters retain HTTP and secure session persistence.
 password-change use cases own authentication intent. Android's remote adapter
 maps those contracts to REST while `SillageApi` retains session refresh and
 context-safe encrypted persistence.
+`SignOutRepository` captures a session-bound capability before asynchronous
+execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
+cancellation semantics without exposing tokens or platform session snapshots;
+a rejected conditional clear means a newer session remains authoritative.
 
 The records slice currently exposes seven distinct boundaries:
 

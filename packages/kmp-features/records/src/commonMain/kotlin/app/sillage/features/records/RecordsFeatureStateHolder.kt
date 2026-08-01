@@ -310,4 +310,38 @@ data class RecordsFeatureStateHolder(
             search = search.clear(),
         )
     }
+
+    /**
+     * Applies a semantic list filter and resets the visible list, search, and
+     * selected-memo presentation for a fresh query.
+     */
+    fun applyListFilter(filter: MemoListFilter): RecordsFeatureStateHolder {
+        return copy(browse = browse.selectFilter(filter))
+            .resetForFilterChange()
+            .clearPresentedMemo()
+    }
+
+    /**
+     * Applies list/calendar view mode. When [resetFilter] is true, the visible
+     * list is prepared for a fresh unarchived calendar query. Calendar mode
+     * always clears search ownership and selected-memo presentation.
+     */
+    fun applyViewMode(
+        mode: MemoViewMode,
+        resetFilter: Boolean,
+    ): RecordsFeatureStateHolder {
+        val browsed = copy(browse = browse.selectViewMode(mode))
+        val withList = if (resetFilter) {
+            browsed.resetVisibleList(markLoading = true)
+        } else {
+            browsed
+        }
+        return withList.clearPresentedMemo().copy(
+            search = if (mode == MemoViewMode.Calendar) {
+                withList.search.clear()
+            } else {
+                withList.search
+            },
+        )
+    }
 }

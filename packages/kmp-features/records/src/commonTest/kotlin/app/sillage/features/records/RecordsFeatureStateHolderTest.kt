@@ -522,6 +522,56 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun applyListFilterResetsListSearchAndPresentedMemo() {
+        val selected = memo("memo-20")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected)),
+            pagination = RecordsPaginationStateHolder(nextCursor = "c"),
+            search = RecordsSearchStateHolder(query = "q", searching = true),
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Unarchived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val applied = state.applyListFilter(MemoListFilter.Archived)
+
+        assertEquals(MemoListFilter.Archived, applied.filter)
+        assertEquals(emptyList(), applied.records)
+        assertEquals(RecordsRefreshStatus.Loading, applied.refreshStatus)
+        assertEquals("", applied.search.query)
+        assertNull(applied.selection.selectedMemo)
+        assertFalse(applied.summary.loading)
+    }
+
+    @Test
+    fun applyViewModeCalendarClearsSearchAndCanResetFilterSurface() {
+        val selected = memo("memo-21")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected)),
+            search = RecordsSearchStateHolder(query = "keep-or-clear"),
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Favorited,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val calendar = state.applyViewMode(MemoViewMode.Calendar, resetFilter = true)
+
+        assertEquals(MemoViewMode.Calendar, calendar.viewMode)
+        assertEquals(MemoListFilter.Unarchived, calendar.filter)
+        assertEquals(emptyList(), calendar.records)
+        assertEquals(RecordsRefreshStatus.Loading, calendar.refreshStatus)
+        assertEquals("", calendar.search.query)
+        assertNull(calendar.selection.selectedMemo)
+    }
+
+    @Test
     fun individualHoldersRemainIndependentlyReplaceable() {
         val state = RecordsFeatureStateHolder()
         val selected = memo("memo-9")

@@ -1405,22 +1405,10 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
-                records = it.records.copy(
-                    browse = it.records.browse.selectViewMode(mode),
-                ).let { browsed ->
-                    val withList = if (resetFilter) {
-                        browsed.resetVisibleList(markLoading = true)
-                    } else {
-                        browsed
-                    }
-                    withList.clearPresentedMemo().copy(
-                        search = if (mode == MemoViewMode.Calendar) {
-                            withList.search.clear()
-                        } else {
-                            withList.search
-                        },
-                    )
-                },
+                records = it.records.applyViewMode(
+                    mode = mode,
+                    resetFilter = resetFilter,
+                ),
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
         }
@@ -1453,9 +1441,7 @@ class SillageViewModel(
         searchJob?.cancel()
         updateState {
             it.copy(
-                records = it.records.copy(
-                    browse = it.records.browse.selectFilter(filter),
-                ).resetForFilterChange().clearPresentedMemo(),
+                records = it.records.applyListFilter(filter),
                 error = null,
                 notice = null,
             )

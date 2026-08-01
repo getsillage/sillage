@@ -27,3 +27,7 @@ callbacks.
 
 `SillageErrorCard` owns reusable error-container layout and semantic error
 colors. Hosts supply localized messages, action labels, icons, and callbacks.
+
+`applySillageHeadingSemantics` and `applySillageStatusSemantics` centralize
+cross-platform heading and concise status-announcement semantics. Hosts supply
+localized status descriptions.

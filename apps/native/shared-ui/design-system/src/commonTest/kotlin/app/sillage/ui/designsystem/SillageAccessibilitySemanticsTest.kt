@@ -1,16 +1,16 @@
-package app.sillage.ui
+package app.sillage.ui.designsystem
 
 import androidx.compose.ui.semantics.SemanticsConfiguration
 import androidx.compose.ui.semantics.SemanticsProperties
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-class AccessibilitySemanticsTest {
+class SillageAccessibilitySemanticsTest {
     @Test
     fun headingSemanticsExposeAHeadingRole() {
         val semantics = SemanticsConfiguration()
 
-        semantics.applyHeadingSemantics()
+        semantics.applySillageHeadingSemantics()
 
         assertEquals(Unit, semantics[SemanticsProperties.Heading])
     }
@@ -19,7 +19,7 @@ class AccessibilitySemanticsTest {
     fun statusExposesOneDescriptionWithoutDuplicatingVisibleText() {
         val semantics = SemanticsConfiguration()
 
-        semantics.applyStatusSemantics("Search results: 2")
+        semantics.applySillageStatusSemantics("Search results: 2")
 
         assertEquals(
             listOf("Search results: 2"),

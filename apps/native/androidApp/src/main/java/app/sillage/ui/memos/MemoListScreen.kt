@@ -115,8 +115,8 @@ import app.sillage.ui.MemoListLoadStatus
 import app.sillage.features.records.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
-import app.sillage.ui.applyStatusSemantics
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
+import app.sillage.ui.designsystem.applySillageStatusSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
@@ -154,7 +154,7 @@ internal fun MemoListScreen(
                     Column {
                         Text(
                             stringResource(if (state.memoViewMode == MemoViewMode.Calendar) R.string.nav_calendar else R.string.records_title),
-                            modifier = Modifier.semantics { applyHeadingSemantics() },
+                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -360,7 +360,7 @@ private fun SearchStatusBlock(state: SillageUiState) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
-            .clearAndSetSemantics { applyStatusSemantics(summary) },
+                .clearAndSetSemantics { applySillageStatusSemantics(summary) },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

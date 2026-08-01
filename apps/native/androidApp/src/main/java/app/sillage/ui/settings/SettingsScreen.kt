@@ -87,13 +87,13 @@ import app.sillage.features.settings.editorKey
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.designsystem.SillageSettingsActionRow
 import app.sillage.ui.designsystem.SillageSettingsEmptyCard
 import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
 import app.sillage.ui.designsystem.SillageSettingsSwitchRow
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
 
@@ -134,7 +134,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 title = {
                     Text(
                         stringResource(R.string.settings_title),
-                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                        modifier = Modifier.semantics { applySillageHeadingSemantics() },
                     )
                 },
             )
@@ -507,7 +507,7 @@ private fun SettingsOverviewCard(state: SillageUiState) {
         ) {
             Text(
                 stringResource(R.string.settings_status_title),
-                modifier = Modifier.semantics { applyHeadingSemantics() },
+                modifier = Modifier.semantics { applySillageHeadingSemantics() },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -572,7 +572,7 @@ private fun AISettingsHeaderCard(
             stringResource(R.string.settings_ai_profiles),
             modifier = Modifier
                 .padding(horizontal = 4.dp)
-                .semantics { applyHeadingSemantics() },
+                .semantics { applySillageHeadingSemantics() },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
@@ -849,7 +849,7 @@ private fun AIProfileDetailCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         stringResource(R.string.settings_profile_details),
-                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                        modifier = Modifier.semantics { applySillageHeadingSemantics() },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )

@@ -111,6 +111,8 @@ state, callbacks, and the remaining platform-specific controls.
 `SillageErrorCard` provides the shared error-container layout used by Ask and
 Settings; hosts retain localized messages, action labels, icons, and retry
 callbacks.
+Shared heading and status semantics are exposed by the design system and covered
+by common tests; Android call sites retain localized status-description assembly.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

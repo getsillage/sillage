@@ -57,7 +57,7 @@ import app.sillage.data.memoSummarySourceCount
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 
@@ -104,7 +104,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                 title = {
                     Text(
                         stringResource(R.string.record_detail_title),
-                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                modifier = Modifier.semantics { applySillageHeadingSemantics() },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -348,7 +348,7 @@ internal fun MemoSummarySection(
                     stringResource(R.string.summary_title),
                     modifier = Modifier
                         .weight(1f)
-                        .semantics { applyHeadingSemantics() },
+                .semantics { applySillageHeadingSemantics() },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )

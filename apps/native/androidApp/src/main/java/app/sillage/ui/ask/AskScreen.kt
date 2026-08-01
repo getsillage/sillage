@@ -93,9 +93,9 @@ import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.memos.MarkdownContent
-import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,7 +197,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.ask_title),
-                                modifier = Modifier.semantics { applyHeadingSemantics() },
+                        modifier = Modifier.semantics { applySillageHeadingSemantics() },
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -543,7 +543,7 @@ private fun AskConversationSheet(
                     stringResource(R.string.ask_conversations_title),
                     modifier = Modifier
                         .weight(1f)
-                        .semantics { applyHeadingSemantics() },
+                .semantics { applySillageHeadingSemantics() },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -591,7 +591,7 @@ private fun AskOptionsSheet(
         ) {
             Text(
                 stringResource(R.string.ask_context_title),
-                modifier = Modifier.semantics { applyHeadingSemantics() },
+                modifier = Modifier.semantics { applySillageHeadingSemantics() },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )

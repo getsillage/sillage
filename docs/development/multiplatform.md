@@ -117,6 +117,9 @@ icons, values, state, callbacks, and platform-specific controls.
 `SillageErrorCard` owns reusable error-container layout and semantic colors for
 Ask and Settings loading failures; hosts supply localized messages, action
 labels, icons, and callbacks.
+The design system also owns heading and concise status-announcement semantics;
+hosts provide localized status descriptions while common tests preserve the
+accessibility contract.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

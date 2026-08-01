@@ -1,13 +1,13 @@
-package app.sillage.ui
+package app.sillage.ui.designsystem
 
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 
-internal fun SemanticsPropertyReceiver.applyHeadingSemantics() {
+fun SemanticsPropertyReceiver.applySillageHeadingSemantics() {
     heading()
 }
 
-internal fun SemanticsPropertyReceiver.applyStatusSemantics(description: String) {
+fun SemanticsPropertyReceiver.applySillageStatusSemantics(description: String) {
     contentDescription = description
 }

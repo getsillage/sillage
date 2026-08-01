@@ -71,7 +71,7 @@ import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 @Composable
 internal fun ModeSelectionScreen(state: SillageUiState, viewModel: SillageViewModel) {
@@ -443,7 +443,7 @@ private fun AuthScaffold(
                     ) {
                         Text(
                             title,
-                            modifier = Modifier.semantics { applyHeadingSemantics() },
+                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
                             style = MaterialTheme.typography.headlineSmall,
                         )
                         Text(

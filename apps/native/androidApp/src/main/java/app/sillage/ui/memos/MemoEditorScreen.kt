@@ -65,7 +65,7 @@ import app.sillage.data.SessionStore
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.canRunMemoEditorAction
 import app.sillage.ui.hasUnsavedMemoDraft
 import app.sillage.ui.isMemoMutationInProgress
@@ -186,7 +186,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                 title = {
                     Text(
                         stringResource(if (state.selectedMemo == null) R.string.editor_new_title else R.string.editor_edit_title),
-                        modifier = Modifier.semantics { applyHeadingSemantics() },
+                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
                     )
                 },
                 navigationIcon = {

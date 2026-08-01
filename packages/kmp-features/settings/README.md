@@ -11,6 +11,8 @@ neither `draftKey` nor API-key material enters shared domain metadata.
 rollback, single-flight request identity, and client-context validation. Hosts
 may keep editing presentation and load state outside this holder, but profile
 save callbacks cannot cross workspace or mode changes.
+Profile-name validation and active-profile normalization are shared save policy,
+so every native host submits the same enabled/default configuration.
 
 `AIAutoSummaryStateHolder` owns the independently saved automatic-summary
 preference, optimistic mutation, rollback, request identity, and client-context

@@ -88,6 +88,7 @@ import app.sillage.data.markdownFormatSnippet
 import app.sillage.features.records.memosForFilter
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.settings.mergeSavedAIProfilesForLocalStorage
+import app.sillage.features.settings.normalizeAIProfilesForSave
 import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
@@ -2047,7 +2048,7 @@ class SillageViewModel(
                 removed = true
                 it.copy(
                     aiProfilesMutation = it.aiProfilesMutation.replace(
-                        normalizedAIProfiles(
+                        normalizeAIProfilesForSave(
                             it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
                         ),
                     ),
@@ -2273,7 +2274,7 @@ class SillageViewModel(
             }
             return
         }
-        val profiles = normalizedAIProfiles(draftProfiles)
+        val profiles = normalizeAIProfilesForSave(draftProfiles)
         val request = current.nextAIProfilesMutationRequest(
             pendingProfiles = draftProfiles,
             submittedProfiles = profiles,
@@ -2358,7 +2359,7 @@ class SillageViewModel(
                 uiString(R.string.error_ai_profile_name_required, blankNameIndex + 1),
             )
         }
-        val normalized = normalizedAIProfiles(profiles)
+        val normalized = normalizeAIProfilesForSave(profiles)
         return if (appMode == SessionStore.MODE_OFFLINE) {
             localDataStore.saveAIProfiles(normalized)
         } else {
@@ -2392,16 +2393,6 @@ class SillageViewModel(
             localDataStore.saveAutoSummary(savedValue)
         }
         return savedValue
-    }
-
-    private fun normalizedAIProfiles(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
-        if (profiles.isEmpty()) {
-            return profiles
-        }
-        val activeIndex = profiles.indexOfFirst { it.active }.takeIf { it >= 0 } ?: 0
-        return profiles.mapIndexed { index, profile ->
-            profile.copy(enabled = true, active = index == activeIndex)
-        }
     }
 
     fun testAIProfile(index: Int) {

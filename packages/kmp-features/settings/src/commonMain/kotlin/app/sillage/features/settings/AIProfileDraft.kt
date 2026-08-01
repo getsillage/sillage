@@ -52,6 +52,17 @@ fun firstBlankAIProfileNameIndex(profiles: List<AIProfileDraft>): Int? {
     return profiles.indexOfFirst { it.name.isBlank() }.takeIf { it >= 0 }
 }
 
+/** Enforce the persisted invariant that exactly one non-empty profile is active. */
+fun normalizeAIProfilesForSave(profiles: List<AIProfileDraft>): List<AIProfileDraft> {
+    if (profiles.isEmpty()) {
+        return profiles
+    }
+    val activeIndex = profiles.indexOfFirst { it.active }.takeIf { it >= 0 } ?: 0
+    return profiles.mapIndexed { index, profile ->
+        profile.copy(enabled = true, active = index == activeIndex)
+    }
+}
+
 /**
  * Restore locally held secret input after a secret-free save response.
  *

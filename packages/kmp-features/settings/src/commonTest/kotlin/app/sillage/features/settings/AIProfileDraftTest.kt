@@ -39,6 +39,21 @@ class AIProfileDraftTest {
     }
 
     @Test
+    fun saveNormalizationSelectsOneActiveEnabledProfile() {
+        val normalized = normalizeAIProfilesForSave(
+            listOf(
+                AIProfileDraft(id = "a", enabled = false),
+                AIProfileDraft(id = "b", enabled = false, active = true),
+                AIProfileDraft(id = "c", enabled = false, active = true),
+            ),
+        )
+
+        assertTrue(normalized.all { it.enabled })
+        assertEquals(listOf(false, true, false), normalized.map { it.active })
+        assertEquals(emptyList(), normalizeAIProfilesForSave(emptyList()))
+    }
+
+    @Test
     fun savedProfilesKeepSubmittedAndExistingSecretsByIdentity() {
         val merged = mergeSavedAIProfilesForLocalStorage(
             currentProfiles = listOf(

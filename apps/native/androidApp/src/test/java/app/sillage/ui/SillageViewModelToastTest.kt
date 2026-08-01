@@ -29,6 +29,23 @@ class SillageViewModelToastTest {
     }
 
     @Test
+    fun appearanceTransitionsPersistAndHydrateSharedState() {
+        val viewModel = SillageViewModel(context)
+
+        viewModel.toggleThemeMode()
+        viewModel.setLanguageMode("en-US")
+
+        assertEquals(SessionStore.THEME_DARK, viewModel.state.value.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, viewModel.state.value.languageMode)
+        assertEquals(SessionStore.THEME_DARK, SessionStore(context).themeMode())
+        assertEquals(SessionStore.LANGUAGE_EN, SessionStore(context).languageMode())
+
+        val restored = SillageViewModel(context)
+        assertEquals(SessionStore.THEME_DARK, restored.state.value.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, restored.state.value.languageMode)
+    }
+
+    @Test
     fun emptyServerValidationStaysInTheFormWithoutDuplicateToastEvents() = runBlocking {
         val viewModel = SillageViewModel(context)
 

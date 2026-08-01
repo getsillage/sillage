@@ -136,6 +136,7 @@ import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
 import app.sillage.features.settings.toDraft
+import app.sillage.ui.appshell.AppAppearanceStateHolder
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -281,8 +282,10 @@ class SillageViewModel(
             screen = Screen.Loading,
             baseUrl = sessionStore.baseUrl(),
             account = sessionStore.account(),
-            themeMode = sessionStore.themeMode(),
-            languageMode = sessionStore.languageMode(),
+            appearance = AppAppearanceStateHolder.hydrate(
+                themeMode = sessionStore.themeMode(),
+                languageMode = sessionStore.languageMode(),
+            ),
             appMode = sessionStore.appMode(),
         ),
     )
@@ -544,13 +547,9 @@ class SillageViewModel(
     }
 
     fun toggleThemeMode() {
-        val next = if (state.value.themeMode == SessionStore.THEME_DARK) {
-            SessionStore.THEME_LIGHT
-        } else {
-            SessionStore.THEME_DARK
-        }
+        val next = state.value.appearance.toggleTheme().themeMode
         sessionStore.saveThemeMode(next)
-        updateState { it.copy(themeMode = next) }
+        updateState { it.copy(appearance = it.appearance.setTheme(next)) }
     }
 
     fun setLanguageMode(value: String) {
@@ -561,7 +560,7 @@ class SillageViewModel(
         sessionStore.saveLanguageMode(next)
         updateState {
             it.copy(
-                languageMode = next,
+                appearance = it.appearance.setLanguage(next),
                 authError = it.authErrorResourceId?.let { resourceId ->
                     appContext.localizedString(next, resourceId)
                 } ?: it.authError,
@@ -1181,14 +1180,14 @@ class SillageViewModel(
                     it.withAsk { ask -> ask.clearConversationCatalog() }
                         .applyRestoredMemoViewMode(result.memoViewMode)
                         .copy(
-                        themeMode = result.themeMode,
-                        settings = it.settings.applyImportedPreferences(
-                            profiles = result.aiProfiles,
-                            autoSummaryEnabled = result.aiAutoSummary,
-                    ),
-                    notice = uiString(R.string.notice_imported),
-                )
-            }
+                            appearance = it.appearance.setTheme(result.themeMode),
+                            settings = it.settings.applyImportedPreferences(
+                                profiles = result.aiProfiles,
+                                autoSummaryEnabled = result.aiAutoSummary,
+                            ),
+                            notice = uiString(R.string.notice_imported),
+                        )
+                }
             refreshMemos()
         }
     }

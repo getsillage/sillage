@@ -73,6 +73,7 @@ import app.sillage.features.settings.AIProfileDiagnosticsStateHolder
 import app.sillage.features.settings.AIProfileModelsRequest
 import app.sillage.features.settings.AIProfileTestRequest
 import app.sillage.features.settings.SettingsFeatureStateHolder
+import app.sillage.ui.appshell.AppAppearanceStateHolder
 import java.time.LocalDate
 
 internal fun defaultRecordsFeatureState(
@@ -97,8 +98,7 @@ data class SillageUiState(
     val appMode: String = SessionStore.MODE_ONLINE,
     val clientContextGeneration: Long = 0,
     val serverReturnScreen: Screen? = null,
-    val themeMode: String = SessionStore.THEME_LIGHT,
-    val languageMode: String = SessionStore.LANGUAGE_ZH_CN,
+    val appearance: AppAppearanceStateHolder = AppAppearanceStateHolder(),
     val initialized: Boolean? = null,
     val serverVersion: String = "",
     val serverRevision: String = "",
@@ -117,6 +117,12 @@ data class SillageUiState(
     val error: String? = null,
     val notice: String? = null,
 ) {
+    val themeMode: String
+        get() = appearance.themeMode
+
+    val languageMode: String
+        get() = appearance.languageMode
+
     // Transitional slice accessors while hosts finish moving writes onto the
     // aggregate records/ask/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.

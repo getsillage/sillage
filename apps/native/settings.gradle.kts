@@ -25,6 +25,7 @@ include(":kmp-features:auth")
 include(":kmp-features:records")
 include(":kmp-features:settings")
 include(":kmp-features:sync")
+include(":shared-ui:app-shell")
 
 project(":kmp-core:application").projectDir = file("../../packages/kmp-core/application")
 project(":kmp-core:domain").projectDir = file("../../packages/kmp-core/domain")
@@ -34,3 +35,4 @@ project(":kmp-features:auth").projectDir = file("../../packages/kmp-features/aut
 project(":kmp-features:records").projectDir = file("../../packages/kmp-features/records")
 project(":kmp-features:settings").projectDir = file("../../packages/kmp-features/settings")
 project(":kmp-features:sync").projectDir = file("../../packages/kmp-features/sync")
+project(":shared-ui:app-shell").projectDir = file("shared-ui/app-shell")

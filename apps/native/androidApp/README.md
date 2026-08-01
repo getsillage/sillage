@@ -28,6 +28,11 @@ Offline records, Ask history, local AI configuration, attachment metadata, and s
 
 ## Architecture
 
+Application-wide theme and interface-language state is consumed from the
+buildable `shared-ui:app-shell` module. Android hydrates and persists those
+values through `SessionStore`, then applies the resulting system theme and
+locale.
+
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record
 listing, search, detail retrieval, editor saves, lifecycle mutations, and summary generation cross repository ports and use cases in

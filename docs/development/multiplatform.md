@@ -88,6 +88,11 @@ Canonical theme, language, and app-mode tokens plus URL/mode normalization live 
 `kmp-core:application` (`ClientPreferenceValues`). Android `SessionStore` remains the
 secure/local preference adapter and reuses those shared normalizers.
 
+The first buildable `shared-ui:app-shell` slice owns application-wide theme and
+interface-language state plus their platform-neutral transitions. Android
+hydrates it from `SessionStore`, persists accepted changes through that adapter,
+and remains responsible for applying the system theme and locale.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

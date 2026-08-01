@@ -1,6 +1,6 @@
 # Sync API
 
-`GET /api/v1/sync` and `POST /api/v1/sync:push` support manual Android synchronization and convergence for offline clients. The contract source is `proto/api/v1/sync_service.proto`; the REST implementation is in `server/sync_routes.go`, and the shared business logic is in `server/api_service.go`.
+`GET /api/v1/sync` and `POST /api/v1/sync:push` support manual Android synchronization and convergence for offline clients. The contract source is `contracts/proto/api/v1/sync_service.proto`; the REST implementation is in `server/sync_routes.go`, and the shared business logic is in `server/api_service.go`.
 
 ## Constraints
 

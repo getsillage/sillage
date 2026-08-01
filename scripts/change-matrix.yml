@@ -20,7 +20,7 @@ gates:
 rules:
   - id: proto-contract
     paths:
-      - "proto/**"
+      - "contracts/proto/**"
       - "buf.yaml"
       - "buf.gen.yaml"
       - "buf.lock"
@@ -119,7 +119,7 @@ rules:
     paths:
       - "server/sync*.go"
       - "store/sync.go"
-      - "proto/api/v1/sync_service.proto"
+      - "contracts/proto/api/v1/sync_service.proto"
       - "docs/development/api/sync.md"
     gates: [go, proto, android, e2e]
     docs:

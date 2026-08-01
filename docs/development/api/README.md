@@ -4,7 +4,7 @@ This document defines the stable usage boundaries of Echo REST v1. The implement
 
 ## Contract Sources
 
-- `proto/api/v1/` is the source of the Connect contract. `buf` generates Connect, Gateway, and `proto/gen/openapi/openapi.yaml`.
+- `contracts/proto/api/v1/` is the source of the Connect contract. `buf` generates Connect, Gateway, and `contracts/proto/gen/openapi/openapi.yaml`.
 - The generated OpenAPI document reflects only the Proto HTTP annotations and may omit handwritten Echo routes, the authentication model, and REST DTOs. It cannot be used directly for REST SDK code generation.
 - The route implementations and this document define REST v1 field names, status codes, and error responses. If a machine-readable REST OpenAPI document is needed, first complete the full specification and contract tests before treating it as a public input.
 
@@ -33,7 +33,7 @@ The message value is localized, user-facing text. The example above is a placeho
 
 | Area | Route source of truth | Notes |
 | --- | --- | --- |
-| Authentication | `server/auth_routes.go`, `proto/api/v1/auth_service.proto` | Initialization, sign-in, refresh, sign-out, password change, and the current account |
+| Authentication | `server/auth_routes.go`, `contracts/proto/api/v1/auth_service.proto` | Initialization, sign-in, refresh, sign-out, password change, and the current account |
 | Records and sync | `server/memo_routes.go`, `server/sync_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
 | Attachments | `server/attachment_routes.go` | Multipart upload, metadata, deletion, and authenticated download |
 | AI settings | `server/ai_routes.go` | Configuration, model listing, connection tests, and automatic summaries |

@@ -58,18 +58,18 @@ Maintainer and coding-agent workflows may push `main` under [CLAUDE.md](CLAUDE.m
 - Keep AI services associated with edge-network platforms behind operator-configured compatible endpoints. Do not add named provider presets, adapters, or defaults for them.
 - Modify only the files needed to complete the current task. Update documentation alongside any feature, contract, configuration, or architecture change.
 - The backend, database, Proto, and API use `memo`; English user-facing documentation and copy use `record`; the Simplified Chinese UI uses `记录`.
-- Do not edit `proto/gen/` or `server/router/frontend/dist/` directly.
+- Do not edit `contracts/proto/gen/` or `server/router/frontend/dist/` directly.
 - Do not commit real secrets, databases, attachments, APK/AAB files, keystores, `local.properties`, or device caches.
 - Significant cross-module technical choices need an ADR under `docs/development/decisions/` (Context / Decision / Consequences only).
 
 ### API Contracts
 
-1. Modify `proto/api/v1/`.
-2. Run `make check-proto` (or `buf lint`, `buf breaking` with a base ref, and `buf generate`), then commit the generated output in `proto/gen/`.
+1. Modify `contracts/proto/api/v1/`.
+2. Run `make check-proto` (or `buf lint`, `buf breaking` with a base ref, and `buf generate`), then commit the generated output in `contracts/proto/gen/`.
 3. Update the affected handwritten REST routes, the [REST API Guide](docs/development/api/README.md), `apps/web/src/lib/api.ts`, and Android's `SillageApi.kt`.
 4. Cover the behavior with both REST and Connect tests.
 
-`proto/gen/openapi/openapi.yaml` is a generated projection of the Proto HTTP annotations, not the complete Echo REST contract, and cannot be used directly for REST SDK code generation. Extensions such as uploads and SSE are defined by the REST API Guide and `server/*_routes.go`.
+`contracts/proto/gen/openapi/openapi.yaml` is a generated projection of the Proto HTTP annotations, not the complete Echo REST contract, and cannot be used directly for REST SDK code generation. Extensions such as uploads and SSE are defined by the REST API Guide and `server/*_routes.go`.
 
 ### Database Schema
 
@@ -93,7 +93,7 @@ make print-affected     # show gates without running them
 | Gate | Make target | What it runs |
 | --- | --- | --- |
 | Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
-| Proto | `make check-proto` | Buf lint/breaking/generate + `proto/gen` drift |
+| Proto | `make check-proto` | Buf lint/breaking/generate + `contracts/proto/gen` drift |
 | Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
 | Android | `make check-android` | unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy, min/target device-matrix consistency |
 | Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |

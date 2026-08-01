@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
-	"github.com/getsillage/sillage/proto/gen/api/v1/apiv1connect"
+	apiv1 "github.com/getsillage/sillage/contracts/proto/gen/api/v1"
+	"github.com/getsillage/sillage/contracts/proto/gen/api/v1/apiv1connect"
 )
 
 func TestConnectAuthServiceChangePassword(t *testing.T) {

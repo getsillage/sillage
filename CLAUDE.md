@@ -58,7 +58,7 @@
 
 - 运行配置：`cmd/sillage/main.go`、`internal/profile/profile.go`
 - 数据库：`store/migration/sqlite/LATEST.sql`、`store/migrator.go`
-- API：`proto/api/v1/`、`server/*_routes.go`、`server/api_service.go`
+- API：`contracts/proto/api/v1/`、`server/*_routes.go`、`server/api_service.go`
 - Web 样式：`apps/web/src/styles/app.css`、`apps/web/src/components/ui.ts`
 - 安全与密钥：`server/auth/`、`server/auth_routes.go`、`server/attachment_routes.go`、`internal/secret/`
 - CI 与容器：`.github/workflows/ci.yml`、`Makefile`、`scripts/`

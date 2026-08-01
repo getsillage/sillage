@@ -41,7 +41,7 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Product boundary | [constitution.md](constitution.md), [product-guidance.md](product-guidance.md) | Review + `scripts/check-terminology.mjs` (light) | Active |
 | Terminology (`memo` / record / 记录) | product-guidance, architecture | Terminology check + review | Active |
 | Module boundaries | [architecture.md](architecture.md) | Review | Active |
-| API / Proto | `proto/api/v1/`, [api/README.md](api/README.md) | `make check-proto` | Active |
+| API / Proto | `contracts/proto/api/v1/`, [api/README.md](api/README.md) | `make check-proto` | Active |
 | Database schema | `store/migration/sqlite/LATEST.sql`, migrator | `make check-go` + migration tests | Active |
 | Sync | [api/sync.md](api/sync.md) | Go/Android tests + review | Active |
 | Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + govulncheck + Go/TypeScript/Kotlin CodeQL + remote-settings audit + review | Active |

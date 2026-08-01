@@ -29,7 +29,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-COPY proto/gen ./proto/gen
+COPY contracts/proto/gen ./contracts/proto/gen
 COPY server ./server
 COPY store ./store
 COPY scripts/entrypoint.sh ./scripts/entrypoint.sh

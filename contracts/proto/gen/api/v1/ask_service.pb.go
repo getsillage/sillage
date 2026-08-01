@@ -587,8 +587,8 @@ const file_api_v1_ask_service_proto_rawDesc = "" +
 	"\x12GetAskConversation\x12).sillage.api.v1.GetAskConversationRequest\x1a'.sillage.api.v1.AskConversationResponse\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/ask/conversations/{conversation_id}\x12\xbc\x01\n" +
 	"\x1aSetAskConversationArchived\x121.sillage.api.v1.SetAskConversationArchivedRequest\x1a'.sillage.api.v1.AskConversationResponse\"B\x82\xd3\xe4\x93\x02<:\x01*\"7/api/v1/ask/conversations/{conversation_id}:setArchived\x12\xa0\x01\n" +
 	"\x0fListAskMessages\x12&.sillage.api.v1.ListAskMessagesRequest\x1a'.sillage.api.v1.ListAskMessagesResponse\"<\x82\xd3\xe4\x93\x026\x124/api/v1/ask/conversations/{conversation_id}/messages\x12\xa6\x01\n" +
-	"\x10CreateAskMessage\x12'.sillage.api.v1.CreateAskMessageRequest\x1a(.sillage.api.v1.CreateAskMessageResponse\"?\x82\xd3\xe4\x93\x029:\x01*\"4/api/v1/ask/conversations/{conversation_id}/messagesB\xb5\x01\n" +
-	"\x12com.sillage.api.v1B\x0fAskServiceProtoP\x01Z4github.com/getsillage/sillage/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
+	"\x10CreateAskMessage\x12'.sillage.api.v1.CreateAskMessageRequest\x1a(.sillage.api.v1.CreateAskMessageResponse\"?\x82\xd3\xe4\x93\x029:\x01*\"4/api/v1/ask/conversations/{conversation_id}/messagesB\xbf\x01\n" +
+	"\x12com.sillage.api.v1B\x0fAskServiceProtoP\x01Z>github.com/getsillage/sillage/contracts/proto/gen/api/v1;apiv1\xa2\x02\x03SAX\xaa\x02\x0eSillage.Api.V1\xca\x02\x0eSillage\\Api\\V1\xe2\x02\x1aSillage\\Api\\V1\\GPBMetadata\xea\x02\x10Sillage::Api::V1b\x06proto3"
 
 var (
 	file_api_v1_ask_service_proto_rawDescOnce sync.Once

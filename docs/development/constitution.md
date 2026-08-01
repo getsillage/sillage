@@ -30,7 +30,7 @@ One-line description:
 
 | Area | Rule | Primary enforcement |
 | --- | --- | --- |
-| API contracts | Proto is the Connect contract source; generated `proto/gen` is committed and must match `buf generate` | CI `check-proto` |
+| API contracts | Proto is the Connect contract source; generated `contracts/proto/gen` is committed and must match `buf generate` | CI `check-proto` |
 | Schema | New DBs use `LATEST.sql`; upgrades go through idempotent migrator steps | Go migration tests |
 | Concurrency | Memo writes use `version`; deletions use tombstones; no silent overwrite | Tests + review |
 | Secrets | AI API keys only as encrypted envelopes; never returned by API or sync | Security tests + review |

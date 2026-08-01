@@ -23,11 +23,14 @@ fi
 
 buf generate
 
-changes="$(git status --porcelain=v1 --untracked-files=all -- proto/gen)"
+changes="$({
+  git diff --name-only -- contracts/proto/gen
+  git ls-files --others --exclude-standard -- contracts/proto/gen
+} | sort -u)"
 if [[ -n "$changes" ]]; then
   printf '%s\n' "$changes"
-  git diff -- proto/gen || true
-  echo "proto/gen is out of date; run buf generate and commit the result." >&2
+  git diff -- contracts/proto/gen || true
+  echo "contracts/proto/gen is out of date; run buf generate and commit the result." >&2
   exit 1
 fi
 

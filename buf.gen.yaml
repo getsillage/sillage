@@ -7,20 +7,20 @@ managed:
       module: buf.build/googleapis/googleapis
   override:
     - file_option: go_package_prefix
-      value: github.com/getsillage/sillage/proto/gen
+      value: github.com/getsillage/sillage/contracts/proto/gen
 plugins:
   - remote: buf.build/protocolbuffers/go:v1.36.11
-    out: proto/gen
+    out: contracts/proto/gen
     opt: paths=source_relative
   - remote: buf.build/grpc/go:v1.6.2
-    out: proto/gen
+    out: contracts/proto/gen
     opt: paths=source_relative
   - remote: buf.build/connectrpc/go:v1.20.0
-    out: proto/gen
+    out: contracts/proto/gen
     opt: paths=source_relative
   - remote: buf.build/grpc-ecosystem/gateway:v2.29.0
-    out: proto/gen
+    out: contracts/proto/gen
     opt: paths=source_relative
   - remote: buf.build/community/google-gnostic-openapi:v0.7.1
-    out: proto/gen/openapi
+    out: contracts/proto/gen/openapi
     opt: enum_type=string

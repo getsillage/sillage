@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	apiv1 "github.com/getsillage/sillage/proto/gen/api/v1"
+	apiv1 "github.com/getsillage/sillage/contracts/proto/gen/api/v1"
 	"github.com/getsillage/sillage/server/auth"
 	memoapp "github.com/getsillage/sillage/server/memo"
 	"github.com/getsillage/sillage/store"

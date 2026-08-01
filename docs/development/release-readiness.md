@@ -45,7 +45,7 @@ The release commit must have a successful CI run containing every required job c
 - Go tests, vet, build, and vulnerability scan;
 - Proto lint, breaking-change check, generation, and drift detection;
 - Web lint, typecheck, unit tests, production build, bundle budgets, and three-engine E2E;
-- Android unit tests, lint, APK builds, dependency verification, vulnerability scan, and independently required API 26/API 35 device journeys;
+- shared KMP common tests and native architecture dependency checks, plus Android unit tests, lint, APK builds, dependency verification, vulnerability scan, and independently required API 26/API 35 device journeys;
 - documentation and action-pin checks;
 - container build, supply-chain inventory, SBOM generation, and vulnerability scan;
 - long-term scale acceptance, isolated backup/restore recovery, and a real latest-stable-to-candidate upgrade plus backup-backed rollback.

@@ -27,10 +27,11 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   invalidation while platform hosts stage bytes and launch native viewers.
 - `RecordsFeatureStateHolder` composes the holders above and owns coordinated
   multi-holder transitions for the visible list surface (clear/reset/replace/
-  append) and canonical memo application (cache mutation plus load/search/
-  selection invalidation). Individual holders remain the unit of request
-  identity; the aggregate prevents hosts from updating those slices out of
-  lockstep.
+  append), interactive workspace teardown (mutations, selection, summary,
+  attachment-upload busy state, and search), and canonical memo application
+  (cache mutation plus load/search/selection invalidation). Individual holders
+  remain the unit of request identity; the aggregate prevents hosts from
+  updating those slices out of lockstep.
 
 All asynchronous holders validate captured source, client context, filter,
 cache generation, and request identity before accepting a response. Pagination

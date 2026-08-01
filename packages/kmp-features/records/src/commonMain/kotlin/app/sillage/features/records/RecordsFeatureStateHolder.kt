@@ -46,6 +46,22 @@ data class RecordsFeatureStateHolder(
     }
 
     /**
+     * Clears the interactive records surface for a workspace or client-context
+     * change: visible list ownership, mutations, selection, summary presentation,
+     * in-flight attachment upload, and search. Browse mode/filter and editor draft
+     * text remain for the host when navigation context differs.
+     */
+    fun clearInteractiveSurface(): RecordsFeatureStateHolder {
+        return clearVisibleList().copy(
+            mutation = mutation.clear(),
+            selection = selection.clear(),
+            summary = summary.replacePresentation(null, loading = false),
+            editor = editor.stopAttachmentUpload(),
+            search = search.clear(),
+        )
+    }
+
+    /**
      * Prepares a fresh list query: empty cache, reset cursor, and optional
      * refresh-loading presentation before the host begins a real refresh request.
      */

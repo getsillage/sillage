@@ -9,6 +9,52 @@ import kotlin.test.assertTrue
 
 class RecordsFeatureStateHolderTest {
     @Test
+    fun clearInteractiveSurfaceResetsListMutationSelectionSummaryUploadAndSearch() {
+        val selected = memo("memo-1")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(
+                records = listOf(selected),
+                cacheGeneration = 4,
+            ),
+            pagination = RecordsPaginationStateHolder(
+                nextCursor = "cursor",
+                loadingMore = true,
+                requestId = 2,
+            ),
+            refresh = RecordsRefreshStateHolder(
+                status = RecordsRefreshStatus.Loading,
+                requestId = 3,
+            ),
+            mutation = RecordsMutationStateHolder(setOf(selected.id)),
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true, requestId = 5),
+            editor = RecordsEditorStateHolder(uploadingAttachment = true),
+            search = RecordsSearchStateHolder(query = "memo", searching = true, requestId = 6),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Archived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val cleared = state.clearInteractiveSurface()
+
+        assertEquals(emptyList(), cleared.records)
+        assertEquals(4, cleared.cacheGeneration)
+        assertEquals("", cleared.nextCursor)
+        assertFalse(cleared.loadingMore)
+        assertEquals(RecordsRefreshStatus.Idle, cleared.refreshStatus)
+        assertFalse(cleared.mutation.isActive(selected.id))
+        assertNull(cleared.selection.selectedMemo)
+        assertNull(cleared.summary.summary)
+        assertFalse(cleared.summary.loading)
+        assertFalse(cleared.editor.uploadingAttachment)
+        assertEquals("", cleared.search.query)
+        assertFalse(cleared.search.searching)
+        assertEquals(MemoListFilter.Archived, cleared.filter)
+    }
+
+    @Test
     fun clearVisibleListResetsCacheAndLoadOwnershipWithoutMutationGeneration() {
         val state = RecordsFeatureStateHolder(
             collection = RecordsCollectionStateHolder(

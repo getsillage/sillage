@@ -267,13 +267,13 @@ retains content-URI/cache staging, MIME resolution, and native viewer launch.
 
 `RecordsFeatureStateHolder` is the records feature aggregate. It composes the
 extracted holders and owns cross-holder transitions for visible-list reset/
-replace and canonical memo application so list loads, search ownership, and
-selection stay consistent. Android's root `SillageUiState` now stores one
-`records` aggregate field and keeps transitional slice getters
-(`recordsCollection`, `recordsPagination`, and the other former top-level
-fields) for existing call sites. Coordinated host writes such as cache
-mutation, visible-list clear/replace/append, and filter reset go through the
-aggregate; individual holders still own request identity.
+replace, interactive workspace teardown, and canonical memo application so list
+loads, search ownership, and selection stay consistent. Android's root
+`SillageUiState` now stores one `records` aggregate field and keeps transitional
+slice getters (`recordsCollection`, `recordsPagination`, and the other former
+top-level fields) for existing call sites. Coordinated host writes such as cache
+mutation, visible-list clear/replace/append, workspace teardown, and filter reset
+go through the aggregate; individual holders still own request identity.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,

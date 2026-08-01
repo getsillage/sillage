@@ -51,6 +51,8 @@ and completion events live in `AskStreamStateHolder`; Android retains SSE and
 device-local AI execution adapters.
 Conversation/message loading and its retry message also live in the shared
 `AskLoadStateHolder`.
+The question draft and retrieval scope/source options live in the shared
+`AskComposerStateHolder`.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

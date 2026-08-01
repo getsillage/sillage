@@ -135,6 +135,8 @@ presentation, regeneration identity, and completion events. Android's SSE and
 device-local AI adapters feed it only after shared request-ownership validation.
 `AskLoadStateHolder` owns the remaining conversation/message load status and
 durable retry message rather than leaving those transitions in the root ViewModel.
+`AskComposerStateHolder` owns the prompt draft and retrieval options; stream
+execution captures them without folding transport behavior into composer state.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

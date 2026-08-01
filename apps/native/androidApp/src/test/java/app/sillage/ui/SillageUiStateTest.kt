@@ -3,6 +3,7 @@ package app.sillage.ui
 import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskComposerStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationStateHolder
@@ -1095,7 +1096,7 @@ class SillageUiStateTest {
     fun onlyAvailableSuccessfulAskAnswersEmitCompletionEvents() {
         val pending = editorState().copy(
             screen = Screen.Ask,
-            askQuestion = "问题",
+            askComposer = AskComposerStateHolder(question = "问题"),
             askStream = AskStreamStateHolder(
                 sending = true,
                 streaming = true,

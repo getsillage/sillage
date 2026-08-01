@@ -350,7 +350,7 @@ class SillageViewModel(
                 aiTestResults = emptyMap(),
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
-                askQuestion = "",
+                askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
@@ -397,7 +397,7 @@ class SillageViewModel(
                 aiTestResults = emptyMap(),
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
-                askQuestion = "",
+                askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
@@ -808,7 +808,7 @@ class SillageViewModel(
                             aiTestResults = emptyMap(),
                             aiModelResults = emptyMap(),
                             askConversation = it.askConversation.clear(),
-                            askQuestion = "",
+                            askComposer = it.askComposer.clearQuestion(),
                             askLoad = it.askLoad.cancel(),
                             askStream = it.askStream.invalidate(),
                             askVariant = it.askVariant.invalidate(),
@@ -2590,7 +2590,9 @@ class SillageViewModel(
                         headMessageId = conversation?.headMessageId,
                         messages = emptyList(),
                     ),
-                    askScope = conversation?.contextScope ?: latest.askScope,
+                    askComposer = conversation?.contextScope?.let(
+                        latest.askComposer::updateContextScope,
+                    ) ?: latest.askComposer,
                     askLoad = latest.askLoad.begin(),
                     askScreenSessionId = screenSessionId,
                     askVariant = latest.askVariant.invalidate(),
@@ -2667,7 +2669,7 @@ class SillageViewModel(
         updateState {
             it.copy(
                 askConversation = it.askConversation.deselect(),
-                askQuestion = "",
+                askComposer = it.askComposer.clearQuestion(),
                 askStream = it.askStream.clearPresentation(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askVariant = it.askVariant.invalidate(),
@@ -2679,15 +2681,15 @@ class SillageViewModel(
     }
 
     fun updateAskQuestion(value: String) {
-        updateState { it.copy(askQuestion = value) }
+        updateState { it.copy(askComposer = it.askComposer.updateQuestion(value)) }
     }
 
     fun updateAskScope(value: String) {
-        updateState { it.copy(askScope = value) }
+        updateState { it.copy(askComposer = it.askComposer.updateContextScope(value)) }
     }
 
     fun updateAskSourceKind(value: String) {
-        updateState { it.copy(askSourceKind = value) }
+        updateState { it.copy(askComposer = it.askComposer.updateSourceKind(value)) }
     }
 
     fun retryAskLoad() {
@@ -3718,7 +3720,11 @@ class SillageViewModel(
                                 headMessageId = refreshedHeadId,
                                 messages = refreshedMessages,
                             ),
-                            askQuestion = if (forkOfId == null) "" else currentState.askQuestion,
+                            askComposer = if (forkOfId == null) {
+                                currentState.askComposer.clearQuestion()
+                            } else {
+                                currentState.askComposer
+                            },
                         )
                     } else {
                         currentState
@@ -3899,7 +3905,7 @@ class SillageViewModel(
                 aiTestResults = emptyMap(),
                 aiModelResults = emptyMap(),
                 askConversation = it.askConversation.clear(),
-                askQuestion = "",
+                askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askSourceNavigation = it.askSourceNavigation.invalidate(),

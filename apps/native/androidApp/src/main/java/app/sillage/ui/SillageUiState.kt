@@ -5,6 +5,7 @@ import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskComposerStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
@@ -89,9 +90,7 @@ data class SillageUiState(
     val aiTestResults: Map<String, String> = emptyMap(),
     val aiModelResults: Map<String, List<String>> = emptyMap(),
     val askConversation: AskConversationStateHolder = AskConversationStateHolder(),
-    val askQuestion: String = "",
-    val askScope: String = "recent_30_days",
-    val askSourceKind: String = "records",
+    val askComposer: AskComposerStateHolder = AskComposerStateHolder(),
     val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
     val askStream: AskStreamStateHolder = AskStreamStateHolder(),
     val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
@@ -178,6 +177,9 @@ data class SillageUiState(
     val askLiveAnswer: String get() = askStream.liveAnswer
     val askLoading: Boolean get() = askLoad.loading
     val askLoadError: String? get() = askLoad.errorMessage
+    val askQuestion: String get() = askComposer.question
+    val askScope: String get() = askComposer.contextScope
+    val askSourceKind: String get() = askComposer.sourceKind
 }
 
 /**
@@ -725,7 +727,11 @@ internal fun SillageUiState.finishAskStream(
 ): SillageUiState {
     val completed = answerAvailable && error == null && notice == null
     return copy(
-        askQuestion = if (clearQuestion && error == null) "" else askQuestion,
+        askComposer = if (clearQuestion && error == null) {
+            askComposer.clearQuestion()
+        } else {
+            askComposer
+        },
         askStream = askStream.finish(answerCompleted = completed),
     )
 }

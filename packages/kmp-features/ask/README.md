@@ -30,3 +30,7 @@ while the captured conversation and client context still match.
 
 `AskLoadStateHolder` owns conversation/message loading and its durable retry
 message, with explicit begin, complete, fail, and cancel transitions.
+
+`AskComposerStateHolder` owns the draft question and retrieval scope/source
+options. Request execution captures these values but does not own or mutate the
+composer draft implicitly.

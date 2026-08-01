@@ -60,6 +60,9 @@ application use case; Android local and remote adapters retain SQLite and REST.
 AI profile saves cross `AIProfilesRepository` and `SaveAIProfilesUseCase`;
 Android adapters translate the shared write command to encrypted local storage
 or REST and reconcile secret-free server responses with the local key cache.
+AI settings loads cross `AISettingsRepository` and `LoadAISettingsUseCase` as a
+consistent snapshot. The local adapter may attach its decrypted device key for
+offline execution; the remote adapter returns secret-free server metadata.
 Its optimistic update, rollback, and single-flight request identity live in the
 shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save

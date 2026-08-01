@@ -31,22 +31,3 @@ private fun AIProfileSaveCommand.toLocalDraft(): AIProfileDraft {
         apiKeyInput = apiKey.orEmpty(),
     )
 }
-
-private fun AIProfileDraft.toDomainProfile(autoSummary: Boolean): AIProfile {
-    return AIProfile(
-        id = id,
-        name = name,
-        provider = provider,
-        baseUrl = baseUrl,
-        model = model,
-        temperature = temperature,
-        maxTokens = maxTokens,
-        enabled = enabled,
-        active = active,
-        hasApiKey = hasApiKey,
-        keyUnavailable = keyUnavailable,
-        autoSummary = autoSummary,
-        createdAt = "",
-        updatedAt = "",
-    )
-}

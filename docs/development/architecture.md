@@ -149,6 +149,10 @@ intent. Their command carries write-only key input and parsed numeric values;
 their result is canonical secret-free domain metadata. Android local and remote
 adapters retain encrypted persistence, REST mapping, and local cache
 reconciliation.
+`AISettingsRepository` and `LoadAISettingsUseCase` own consistent profile and
+automatic-summary reads. The application snapshot can carry an optional
+device-local key beside canonical profile metadata for offline execution;
+remote adapters return no secret, and the domain entity remains secret-free.
 `packages/kmp-features/settings` owns `AIAutoSummaryStateHolder`, including
 optimistic mutation, rollback, and request ownership. Android supplies client
 context and user-facing feedback around the shared transition result.

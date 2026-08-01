@@ -19,6 +19,7 @@ import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalAIAutoSummaryRepository
 import app.sillage.data.LocalAIProfilesRepository
+import app.sillage.data.LocalAISettingsRepository
 import app.sillage.data.LocalAskRepository
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
@@ -32,6 +33,7 @@ import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
+import app.sillage.data.RemoteAISettingsRepository
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
@@ -57,6 +59,8 @@ import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.core.application.settings.SetAIAutoSummaryUseCase
 import app.sillage.core.application.settings.AIProfileSaveCommand
+import app.sillage.core.application.settings.AISettingsSnapshot
+import app.sillage.core.application.settings.LoadAISettingsUseCase
 import app.sillage.core.application.settings.SaveAIProfilesUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
@@ -138,6 +142,8 @@ class SillageViewModel(
         SetAIAutoSummaryUseCase(LocalAIAutoSummaryRepository(this.localDataStore))
     private val saveLocalAIProfiles =
         SaveAIProfilesUseCase(LocalAIProfilesRepository(this.localDataStore))
+    private val loadLocalAISettings =
+        LoadAISettingsUseCase(LocalAISettingsRepository(this.localDataStore))
     private val listLocalAskConversations = ListAskConversationsUseCase(localAskRepository)
     private val listLocalAskMessages = ListAskMessagesUseCase(localAskRepository)
     private val createLocalAskConversation = CreateAskConversationUseCase(localAskRepository)
@@ -161,6 +167,8 @@ class SillageViewModel(
         SetAIAutoSummaryUseCase(RemoteAIAutoSummaryRepository(api))
     private val saveRemoteAIProfiles =
         SaveAIProfilesUseCase(RemoteAIProfilesRepository(api))
+    private val loadRemoteAISettings =
+        LoadAISettingsUseCase(RemoteAISettingsRepository(api))
     private val listRemoteAskConversations = ListAskConversationsUseCase(remoteAskRepository)
     private val listRemoteAskMessages = ListAskMessagesUseCase(remoteAskRepository)
     private val createRemoteAskConversation = CreateAskConversationUseCase(remoteAskRepository)
@@ -2209,21 +2217,12 @@ class SillageViewModel(
         cancelAIAutoSummarySave()
         viewModelScope.launch {
             runCatching {
-                if (mode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.exportData().let { data ->
-                        EditableAISettings(
-                            profiles = data.aiProfiles,
-                            autoSummary = data.autoSummary,
-                        )
-                    }
+                val snapshot = if (mode == SessionStore.MODE_OFFLINE) {
+                    loadLocalAISettings()
                 } else {
-                    api.getAISettings().let { settings ->
-                        EditableAISettings(
-                            profiles = settings.profiles.map { it.toDraft() },
-                            autoSummary = settings.autoSummary,
-                        )
-                    }
+                    loadRemoteAISettings()
                 }
+                snapshot.toEditableAISettings()
             }
                 .onSuccess { settings ->
                     updateState { current ->
@@ -2421,6 +2420,18 @@ class SillageViewModel(
             hasApiKey = hasApiKey,
             keyUnavailable = keyUnavailable,
             apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun AISettingsSnapshot.toEditableAISettings(): EditableAISettings {
+        return EditableAISettings(
+            profiles = profiles.map { configuration ->
+                configuration.profile.toDraft().copy(
+                    apiKeyInput = configuration.apiKey.orEmpty(),
+                    hasApiKey = configuration.profile.hasApiKey || configuration.apiKey != null,
+                )
+            },
+            autoSummary = autoSummary,
         )
     }
 

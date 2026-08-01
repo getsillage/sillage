@@ -113,6 +113,11 @@ an explicit platform-neutral write command. The application result contains
 canonical secret-free `AIProfile` metadata; Android adapters map commands to
 encrypted local storage or REST inputs, and API-key material never enters the
 domain result.
+Settings reads cross `AISettingsRepository` and `LoadAISettingsUseCase` as one
+consistent snapshot. A snapshot may pair domain profile metadata with a
+device-local decrypted key for offline execution, but that key remains an
+application configuration value and is never added to the domain profile or a
+remote response.
 The buildable `kmp-features:settings` module starts with
 `AIAutoSummaryStateHolder`, which owns optimistic preference mutation, rollback,
 request identity, and client-context validation.

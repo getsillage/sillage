@@ -32,6 +32,10 @@ write command and return secret-free domain metadata. Parsed numeric input stays
 nullable for transport omission semantics, while local adapters retain the last
 valid stored value. Local and remote Android adapters own encrypted storage and
 REST translation.
+`AISettingsRepository` and `LoadAISettingsUseCase` read one consistent settings
+snapshot. Each entry wraps canonical profile metadata and an optional secret
+available to that device; the secret remains outside the domain entity and is
+absent from remote responses.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

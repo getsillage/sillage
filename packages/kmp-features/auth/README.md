@@ -15,3 +15,7 @@ move to the shared holder, but must route mutations through the holder contracts
 Android routes credential drafts and primary-credential clearing through root
 `withAuth` thin wrappers while application-level loading remains outside the auth
 aggregate.
+
+The buildable `shared-ui:auth` module is a direct UI consumer of
+`AuthFeatureStateHolder`; platform hosts provide localized resources, root
+loading state, navigation, and protocol callbacks.

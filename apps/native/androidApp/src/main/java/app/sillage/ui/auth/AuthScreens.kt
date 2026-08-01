@@ -34,20 +34,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,8 +53,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.R
@@ -186,7 +178,7 @@ internal fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 .fillMaxWidth()
                 .heightIn(min = 48.dp),
         ) {
-            AuthButtonContent(
+            SillageAuthButtonContent(
                 loading = state.loading,
                 icon = Icons.Rounded.CloudSync,
                 text = stringResource(if (state.loading) R.string.server_connecting else R.string.server_save_connect),
@@ -239,11 +231,18 @@ internal fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             enabled = !state.loading,
         )
-        PasswordField(
+        SillagePasswordField(
             value = state.password,
             onValueChange = viewModel::updatePassword,
             enabled = !state.loading,
             onDone = viewModel::initialize,
+            strings = SillagePasswordFieldStrings(
+                label = stringResource(R.string.account_password),
+                showPassword = stringResource(R.string.account_show_password),
+                hidePassword = stringResource(R.string.account_hide_password),
+            ),
+            showPasswordIcon = Icons.Rounded.Visibility,
+            hidePasswordIcon = Icons.Rounded.VisibilityOff,
         )
         Button(
             onClick = viewModel::initialize,
@@ -252,7 +251,7 @@ internal fun InitializeScreen(state: SillageUiState, viewModel: SillageViewModel
                 .fillMaxWidth()
                 .heightIn(min = 48.dp),
         ) {
-            AuthButtonContent(
+            SillageAuthButtonContent(
                 loading = state.loading,
                 text = stringResource(if (state.loading) R.string.account_creating else R.string.account_create_enter),
             )
@@ -273,97 +272,26 @@ internal fun LoginScreen(state: SillageUiState, viewModel: SillageViewModel) {
             }
         },
     ) {
-        OutlinedTextField(
-            value = state.username,
-            onValueChange = viewModel::updateUsername,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.account_username)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            enabled = !state.loading,
-        )
-        PasswordField(
-            value = state.password,
-            onValueChange = viewModel::updatePassword,
-            enabled = !state.loading,
-            onDone = viewModel::signIn,
-        )
-        Button(
-            onClick = viewModel::signIn,
-            enabled = !state.loading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),
-        ) {
-            AuthButtonContent(
-                loading = state.loading,
-                text = stringResource(if (state.loading) R.string.login_signing_in else R.string.login_action),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PasswordField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    enabled: Boolean,
-    onDone: () -> Unit,
-) {
-    var visible by rememberSaveable { mutableStateOf(false) }
-    val visibilityLabel = stringResource(
-        if (visible) R.string.account_hide_password else R.string.account_show_password,
-    )
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        label = { Text(stringResource(R.string.account_password)) },
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Password,
-            imeAction = ImeAction.Done,
-        ),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
-        trailingIcon = {
-            IconButton(
-                onClick = { visible = !visible },
-                enabled = enabled,
-            ) {
-                Icon(
-                    imageVector = if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                    contentDescription = visibilityLabel,
-                )
-            }
-        },
-        enabled = enabled,
-    )
-}
-
-@Composable
-private fun AuthButtonContent(
-    loading: Boolean,
-    text: String,
-    icon: ImageVector? = null,
-) {
-    if (loading) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(ButtonDefaults.IconSize),
-            color = LocalContentColor.current,
-            strokeWidth = 2.dp,
-        )
-    } else if (icon != null) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(ButtonDefaults.IconSize),
+        SillageLoginForm(
+            state = state.auth,
+            loading = state.loading,
+            strings = SillageLoginFormStrings(
+                usernameLabel = stringResource(R.string.account_username),
+                password = SillagePasswordFieldStrings(
+                    label = stringResource(R.string.account_password),
+                    showPassword = stringResource(R.string.account_show_password),
+                    hidePassword = stringResource(R.string.account_hide_password),
+                ),
+                submit = stringResource(R.string.login_action),
+                submitting = stringResource(R.string.login_signing_in),
+            ),
+            showPasswordIcon = Icons.Rounded.Visibility,
+            hidePasswordIcon = Icons.Rounded.VisibilityOff,
+            onUsernameChange = viewModel::updateUsername,
+            onPasswordChange = viewModel::updatePassword,
+            onSubmit = viewModel::signIn,
         )
     }
-    if (loading || icon != null) {
-        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-    }
-    Text(text)
 }
 
 @Composable

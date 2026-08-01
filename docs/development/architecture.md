@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `auth` owns authentication feature UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
@@ -143,6 +143,10 @@ callbacks. It contains no session token or transport type; Android supplies
 localized messages and implements the application ports. Android credential-draft
 updates and primary-credential clearing pass through root `withAuth` thin wrappers;
 application-level loading remains outside the auth aggregate.
+`shared-ui:auth` consumes `AuthFeatureStateHolder` directly for the login form and
+owns reusable password-field and authentication-action presentation. Android
+supplies localized strings, icons, root loading state, navigation, and ViewModel
+callbacks while retaining the branded authentication scaffold.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

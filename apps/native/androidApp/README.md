@@ -88,6 +88,11 @@ captured session. The root UI state composes
 `AuthenticationStateHolder` from `kmp-features:auth` for credential drafts and
 password-change request lifecycle. Transitional screen accessors delegate to that
 holder; token storage and REST execution remain Android adapter responsibilities.
+The login form, password field, and authentication action content come from the
+buildable `shared-ui:auth` module, which consumes `AuthFeatureStateHolder`
+directly. Android supplies localized strings, Material icons, root loading state,
+navigation, and ViewModel callbacks; the branded authentication scaffold remains
+the host boundary.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

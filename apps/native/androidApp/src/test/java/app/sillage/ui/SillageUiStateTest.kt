@@ -5,9 +5,9 @@ import app.sillage.data.AskMessage
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
+import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
-import app.sillage.data.MemoAI
-import app.sillage.data.MemoDetail
+import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
@@ -290,7 +290,7 @@ class SillageUiStateTest {
 
         val completed = mutated.completeMemoDetailRequest(
             request,
-            MemoDetail(memo = original, ai = null),
+            RecordDetail(memo = original, ai = null),
         )
 
         assertEquals(canonical, completed.selectedMemo)
@@ -318,7 +318,7 @@ class SillageUiStateTest {
 
         val completed = pending.completeMemoDetailRequest(
             request,
-            MemoDetail(memo = canonical, ai = null),
+            RecordDetail(memo = canonical, ai = null),
         )
 
         assertEquals(canonical, completed.selectedMemo)

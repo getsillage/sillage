@@ -1,6 +1,7 @@
 package app.sillage.data
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 import org.json.JSONArray
 import org.json.JSONObject
 

@@ -30,7 +30,8 @@ Offline records, Ask history, local AI configuration, attachment metadata, and s
 
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record
-listing and search cross the repository ports and use cases in `kmp-core:application`;
+listing, search, and detail retrieval cross the repository ports and use cases in
+`kmp-core:application`;
 local and remote adapters implement the same application contracts. Reusable record
 refresh, search, selection, and detail-request validation state lives in
 `kmp-features:records`. Android UI code may compose those shared feature states, but

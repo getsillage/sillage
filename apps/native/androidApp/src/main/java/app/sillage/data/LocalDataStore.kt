@@ -1,7 +1,9 @@
 package app.sillage.data
 
 import android.content.Context
+import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.matchesListFilter
 import java.io.File
@@ -165,10 +167,10 @@ class LocalDataStore internal constructor(private val stateStore: LocalStateStor
         }
     }
 
-    fun getMemo(id: String): MemoDetail {
+    fun getMemo(id: String): RecordDetail {
         val data = loadData()
         val memo = data.memos.find { it.id == id } ?: throw ApiException("记录不存在")
-        return MemoDetail(
+        return RecordDetail(
             memo = memo,
             ai = data.memoAI.firstOrNull { it.memoId == id },
         )

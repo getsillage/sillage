@@ -98,11 +98,12 @@ The current Android code is the migration source for the shared native modules:
 
 `SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
 
-`packages/kmp-core/domain` owns the shared `Memo` entity and its active-lifecycle
-policy. Android REST mappings, local persistence, feature state, tests, and UI
-consume that type directly; `data/Models.kt` no longer defines an Android-only
-record entity. Remaining Android-local models are migration sources for later
-domain, application, or feature slices.
+`packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
+policy, and the platform-neutral `MemoAI` derived metadata value. Android REST
+mappings, local persistence, feature state, tests, and UI consume these types
+directly; `data/Models.kt` no longer defines Android-only record or AI-detail
+entities. Remaining Android-local models are migration sources for later domain,
+application, or feature slices.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
@@ -134,6 +135,9 @@ maps the Android transport page back to the shared application result.
 `RecordsSearchRepository` and `SearchRecordsUseCase` expose the corresponding
 full-text search boundary through the same semantic scopes. Android's local and
 remote repository adapters translate that query into storage and REST calls.
+`RecordDetailRepository` and `GetRecordDetailUseCase` expose one record plus its
+AI-derived metadata; the same adapters map local persistence or the REST detail
+response to shared domain values.
 
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state
@@ -153,8 +157,9 @@ transition and late-response check is shared.
 The shared `RecordsSelectionStateHolder` owns the selected domain record and
 detail request identity. It validates source, client session, navigation
 destination, editor generation, cache generation, and record version before an
-Android detail response may update state. AI-derived summary presentation and
-editor state remain later extraction slices.
+Android detail response may update state. AI-derived summary presentation state
+and editor state remain later extraction slices; the underlying `MemoAI` value
+already belongs to the shared domain.
 
 ## Core Invariants
 

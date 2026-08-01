@@ -108,14 +108,19 @@ Records search also crosses an application port: shared callers provide text
 and semantic scope, while local and remote platform adapters own storage or REST
 query mapping.
 
+Single-record detail retrieval crosses `RecordDetailRepository` and
+`GetRecordDetailUseCase`. Its result combines the shared `Memo` and `MemoAI`
+domain values; local and remote Android adapters own persistence and REST
+response mapping.
+
 Records search is the third extracted state slice. The shared holder owns query,
 result, failure, completion-event, and request-identity transitions; hosts own
 debounce scheduling and choose the active local or remote application adapter.
 
 Records selection/detail is the fourth extracted state slice. The shared holder
-owns the selected `Memo` and detail request validation; Android retains
-AI-summary presentation because its current `MemoAI` model is still
-platform-local.
+owns the selected `Memo` and detail request validation. `MemoAI` is now a shared
+domain value, while Android retains AI-summary presentation state until that
+feature state is extracted.
 
 ## Platform Hosts
 

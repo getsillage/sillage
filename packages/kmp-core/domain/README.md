@@ -10,5 +10,6 @@ only for target adapter behavior.
 
 The first extracted aggregate is `records.Memo`. Its lifecycle policy excludes
 archived, recoverably deleted, and purged records from active-domain behavior.
-Android transport and persistence mappings construct this shared type rather
-than maintaining an application-local copy.
+`records.MemoAI` carries platform-neutral AI-derived record metadata. Android
+transport and persistence mappings construct these shared types rather than
+maintaining application-local copies.

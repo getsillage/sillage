@@ -22,14 +22,15 @@ import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalRecordsRepository
 import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.MarkdownLinkTarget
+import app.sillage.core.application.records.GetRecordDetailUseCase
 import app.sillage.core.application.records.ListRecordsPageUseCase
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 import app.sillage.core.application.records.ListRecordsUseCase
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
 import app.sillage.core.application.records.SearchRecordsUseCase
-import app.sillage.data.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
@@ -88,11 +89,13 @@ class SillageViewModel(
     private val localRecordsRepository = LocalRecordsRepository(this.localDataStore)
     private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
     private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
+    private val getLocalRecordDetail = GetRecordDetailUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
     private val listRemoteRecords = ListRecordsPageUseCase(remoteRecordsRepository)
     private val searchRemoteRecords = SearchRecordsUseCase(remoteRecordsRepository)
+    private val getRemoteRecordDetail = GetRecordDetailUseCase(remoteRecordsRepository)
     private var askStreamJob: Job? = null
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
@@ -1743,7 +1746,7 @@ class SillageViewModel(
                     if (
                         latest.appMode != request.appMode ||
                         latest.clientContextGeneration != request.clientContextGeneration ||
-                        localDataStore.getMemo(request.memoId).memo.version != request.memoVersion
+                    getLocalRecordDetail(request.memoId).memo.version != request.memoVersion
                     ) {
                         return@launch
                     }
@@ -2828,9 +2831,9 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 if (request.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.getMemo(request.memoId)
-                } else {
-                    api.getMemo(request.memoId)
+                getLocalRecordDetail(request.memoId)
+            } else {
+                getRemoteRecordDetail(request.memoId)
                 }
             }
                 .onSuccess { detail ->
@@ -3203,9 +3206,9 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 if (request.sourceKey == SessionStore.MODE_OFFLINE) {
-                    localDataStore.getMemo(memoId)
+                    getLocalRecordDetail(memoId)
                 } else {
-                    api.getMemo(memoId)
+                    getRemoteRecordDetail(memoId)
                 }
             }
                 .onSuccess { detail ->

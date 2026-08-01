@@ -6,8 +6,8 @@ import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
 import app.sillage.data.ConflictMemoSync
 import app.sillage.core.domain.records.Memo
-import app.sillage.data.MemoAI
-import app.sillage.data.MemoDetail
+import app.sillage.core.application.records.RecordDetail
+import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsPageContext
 import app.sillage.features.records.RecordsPageRequest
@@ -253,7 +253,7 @@ internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest
 
 internal fun SillageUiState.completeMemoDetailRequest(
     request: RecordsDetailRequest,
-    detail: MemoDetail,
+    detail: RecordDetail,
 ): SillageUiState {
     return when (
         recordsSelection.detailResponseDisposition(

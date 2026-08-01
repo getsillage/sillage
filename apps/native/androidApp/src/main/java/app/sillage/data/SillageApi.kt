@@ -1,6 +1,8 @@
 package app.sillage.data
 
+import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.MemoAI
 import java.io.File
 import java.io.IOException
 import java.net.URLEncoder
@@ -265,13 +267,13 @@ class SillageApi(
         return memos.toMemoList()
     }
 
-    suspend fun getMemo(id: String): MemoDetail {
+    suspend fun getMemo(id: String): RecordDetail {
         val request = Request.Builder()
             .url(url("/api/v1/memos/${id.pathSegment()}"))
             .get()
             .build()
         val body = execute(request)
-        return MemoDetail(
+        return RecordDetail(
             memo = parseMemo(body.getJSONObject("memo")),
             ai = if (body.isNull("ai")) null else parseMemoAI(body.getJSONObject("ai")),
         )

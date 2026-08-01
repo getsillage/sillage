@@ -22,5 +22,6 @@ search binds published results to the normalized query.
 The module depends only on `kmp-core:domain`. It must not perform transport,
 storage, synchronization, or platform UI work. Android consumes the policies
 and holders directly, retaining temporary read accessors while writes go
-through shared transitions. AI-derived detail presentation and editor state
-remain later extraction slices.
+through shared transitions. AI-derived presentation state and editor state
+remain later extraction slices; their pure domain data already crosses the
+shared application detail port.

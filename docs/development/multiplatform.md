@@ -140,6 +140,10 @@ session identity, draft and initial snapshots, dirty state, Markdown preview,
 and attachment-upload request ownership. Android retains SavedStateHandle draft
 restoration, content-URI access, and local or remote attachment execution.
 
+Records mutation is the seventh extracted state slice. Its shared holder owns
+the active record identities used by concurrent mutation presentation state;
+Android retains coroutine gates, source selection, and localized feedback.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

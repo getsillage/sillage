@@ -271,7 +271,7 @@ class SillageViewModel(
                 memos = emptyList(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
-                memoMutationIds = emptySet(),
+                recordsMutation = it.recordsMutation.clear(),
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
@@ -325,7 +325,7 @@ class SillageViewModel(
                 memos = emptyList(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
-                memoMutationIds = emptySet(),
+                recordsMutation = it.recordsMutation.clear(),
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replaceSummary(null),
                 aiProfiles = emptyList(),
@@ -742,7 +742,7 @@ class SillageViewModel(
                         memos = emptyList(),
                         recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                         recordsRefresh = it.recordsRefresh.cancel(),
-                        memoMutationIds = emptySet(),
+                recordsMutation = it.recordsMutation.clear(),
                         recordsSelection = it.recordsSelection.clear(),
                         recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                         recordsEditor = it.recordsEditor.stopAttachmentUpload(),
@@ -3751,8 +3751,7 @@ class SillageViewModel(
         val appMode = current.appMode
         updateState { current ->
             current.copy(
-                memoMutationIds = memoId?.let { current.memoMutationIds + it }
-                    ?: current.memoMutationIds,
+                recordsMutation = current.recordsMutation.begin(memoId),
                 loading = current.loading || useGlobalBusy,
                 error = null,
                 notice = null,
@@ -3782,9 +3781,8 @@ class SillageViewModel(
                             current.appMode == appMode &&
                             current.clientContextGeneration == clientContextGeneration
                         ) {
-                            current.copy(
-                                memoMutationIds = memoId?.let { current.memoMutationIds - it }
-                                    ?: current.memoMutationIds,
+                    current.copy(
+                        recordsMutation = current.recordsMutation.finish(memoId),
                                 loading = if (
                                     useGlobalBusy &&
                                     key is MemoMutationKey.Editor &&
@@ -3867,7 +3865,7 @@ class SillageViewModel(
                 memos = memos,
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
-                memoMutationIds = emptySet(),
+                recordsMutation = it.recordsMutation.clear(),
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),

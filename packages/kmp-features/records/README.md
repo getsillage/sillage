@@ -17,6 +17,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   request identity, and detail/editor context validation.
 - `RecordsEditorStateHolder` owns editor sessions, draft and initial snapshots,
   dirty state, Markdown preview, and attachment-upload request ownership.
+- `RecordsMutationStateHolder` owns the active record identities for concurrent
+  mutation single-flight presentation state.
 
 All asynchronous holders validate captured source, client context, filter,
 cache generation, and request identity before accepting a response. Pagination

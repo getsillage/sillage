@@ -171,6 +171,10 @@ draft snapshots, dirty state, preview state, and attachment-upload ownership;
 Android retains draft persistence, URI access, and attachment execution. The
 underlying `MemoAI` value already belongs to the shared domain.
 
+`RecordsMutationStateHolder` owns the active record identities exposed to list
+and editor presentation while lifecycle mutations run. Android retains keyed
+coroutine gates and localized mutation feedback.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

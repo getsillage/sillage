@@ -10,6 +10,7 @@ import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
@@ -69,7 +70,7 @@ class SillageUiStateTest {
         assertFalse(
             editorState().copy(
                 recordsSelection = RecordsSelectionStateHolder(selectedMemo = memo()),
-                memoMutationIds = setOf("memo-1"),
+                recordsMutation = RecordsMutationStateHolder(setOf("memo-1")),
             ).canRunMemoEditorAction(),
         )
     }
@@ -93,9 +94,14 @@ class SillageUiStateTest {
         )
         assertEquals(
             MemoEditorBusyReason.Operation,
-            selected.copy(memoMutationIds = setOf("memo-1")).memoEditorBusyReason(),
+            selected.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-1")))
+                .memoEditorBusyReason(),
         )
-        assertEquals(null, selected.copy(memoMutationIds = setOf("memo-2")).memoEditorBusyReason())
+        assertEquals(
+            null,
+            selected.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-2")))
+                .memoEditorBusyReason(),
+        )
         assertEquals(
             null,
             selected.copy(recordsSummary = selected.recordsSummary.copy(loading = true))
@@ -145,7 +151,10 @@ class SillageUiStateTest {
             idle.copy(recordsSummary = idle.recordsSummary.copy(loading = true))
                 .hasClientContextOperationInProgress(),
         )
-        assertTrue(idle.copy(memoMutationIds = setOf("memo-1")).hasClientContextOperationInProgress())
+        assertTrue(
+            idle.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-1")))
+                .hasClientContextOperationInProgress(),
+        )
         assertTrue(idle.copy(askSavingMessageId = "answer-1").hasClientContextOperationInProgress())
         assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
         assertTrue(idle.copy(aiAutoSummarySaving = true).hasClientContextOperationInProgress())

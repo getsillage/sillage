@@ -27,6 +27,7 @@ import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
 import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
@@ -53,7 +54,7 @@ data class SillageUiState(
     val recordsRefresh: RecordsRefreshStateHolder = RecordsRefreshStateHolder(),
     val memoCacheGeneration: Long = 0,
     val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
-    val memoMutationIds: Set<String> = emptySet(),
+    val recordsMutation: RecordsMutationStateHolder = RecordsMutationStateHolder(),
     val recordsSummary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
     val openingAttachmentPath: String? = null,
     val attachmentOpenRequestId: Long = 0,
@@ -143,6 +144,7 @@ data class SillageUiState(
     val initialDraftContent: String get() = recordsEditor.initialDraftContent
     val initialDraftEntryDate: String get() = recordsEditor.initialDraftEntryDate
     val markdownPreview: Boolean get() = recordsEditor.markdownPreview
+    val memoMutationIds: Set<String> get() = recordsMutation.activeMemoIds
 }
 
 /**
@@ -194,13 +196,13 @@ internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
 }
 
 internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {
-    return memoId in memoMutationIds
+    return recordsMutation.isActive(memoId)
 }
 
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
         summaryLoading ||
-        memoMutationIds.isNotEmpty() ||
+        recordsMutation.active ||
         askSavingMessageId.isNotBlank() ||
         aiSettingsSaving ||
         aiAutoSummarySaving ||

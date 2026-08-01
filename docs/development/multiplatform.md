@@ -136,6 +136,12 @@ The shared auth module also owns settings account/password-change content and
 consumes the auth aggregate directly; hosts supply account metadata and
 client-context mutation gates.
 
+The buildable `shared-ui:settings` module begins with AI profile summary cards.
+It consumes `SettingsFeatureStateHolder` directly for editable profile metadata,
+diagnostics feedback, selection colors, fallbacks, and action-enabled policy.
+Hosts supply localized strings, selection state, and callbacks; persistence,
+protocol clients, native dialogs, and file pickers remain platform adapters.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

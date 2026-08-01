@@ -97,6 +97,8 @@ shared authentication scaffold and header receive Android launcher resources,
 localized brand text, language state, and the language-toggle callback.
 The settings account section also comes from `shared-ui:auth`; Android supplies
 the account summary, localized strings, mutation gate, icon, and callbacks.
+AI profile summary cards come from `shared-ui:settings` and consume the settings
+feature aggregate directly; Android supplies localized strings and callbacks.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

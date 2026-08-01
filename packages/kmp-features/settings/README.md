@@ -41,3 +41,7 @@ diagnostic request identity.
 preference, optimistic mutation, rollback, request identity, and client-context
 validation. Storage and REST remain platform adapters behind
 `kmp-core:application`.
+
+The buildable `shared-ui:settings` module directly consumes
+`SettingsFeatureStateHolder` for AI profile summary and diagnostics presentation;
+hosts retain localized resources, callbacks, persistence, and protocol adapters.

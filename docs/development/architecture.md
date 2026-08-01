@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `auth` owns authentication feature UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `auth` owns authentication feature UI, `settings` owns settings feature UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
@@ -153,6 +153,9 @@ owns brand/language layout while Android supplies launcher resources, localized
 content, language state, and the toggle callback.
 The same module consumes the auth aggregate for settings password-change drafts
 and request state; Android supplies account metadata and client-context gating.
+`shared-ui:settings` consumes `SettingsFeatureStateHolder` directly for AI profile
+summary cards, including diagnostics feedback and profile/action presentation.
+Android supplies localized strings, selection state, and ViewModel callbacks.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

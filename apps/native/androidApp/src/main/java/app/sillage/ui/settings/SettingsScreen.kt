@@ -98,6 +98,8 @@ import app.sillage.ui.designsystem.SillageSettingsSwitchRow
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.settings.SillageAIProfileSummaryCard
+import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 
 private const val AI_PROVIDER_ANTHROPIC = "anthropic"
 private const val AI_PROVIDER_OPENAI = "openai"
@@ -390,9 +392,26 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             val profile = state.aiProfiles[index]
                             val profileKey = profile.editorKey(index)
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AIProfileSummaryCard(
-                                    profile = profile,
-                                    testResult = state.aiTestResults[profileKey],
+                                SillageAIProfileSummaryCard(
+                                    state = state.settings,
+                                    profileIndex = index,
+                                    strings = SillageAIProfileSummaryStrings(
+                                        unnamedProfile = stringResource(R.string.settings_profile_unnamed),
+                                        anthropicCompatible = stringResource(
+                                            R.string.settings_provider_anthropic_compatible,
+                                        ),
+                                        openAICompatible = stringResource(
+                                            R.string.settings_provider_openai_compatible,
+                                        ),
+                                        defaultProfile = stringResource(R.string.settings_default),
+                                        modelUnset = stringResource(R.string.settings_model_unset),
+                                        keyPresent = stringResource(R.string.settings_key_present),
+                                        keyMissing = stringResource(R.string.settings_key_missing),
+                                        keyError = stringResource(R.string.settings_key_error),
+                                        configure = stringResource(R.string.action_configure),
+                                        currentDefault = stringResource(R.string.settings_default_current),
+                                        setDefault = stringResource(R.string.settings_set_default),
+                                    ),
                                     selected = selectedIndex == index,
                                     editingBlocked = aiProfileOperationInProgress,
                                     mutationBlocked = aiProfileMutationBlocked,
@@ -666,118 +685,6 @@ private fun aiProviderProtocolLabel(provider: String): String {
         R.string.settings_provider_openai_compatible
     }
     return stringResource(label)
-}
-
-@Composable
-private fun AIProfileSummaryCard(
-    profile: AIProfileDraft,
-    testResult: String?,
-    selected: Boolean,
-    editingBlocked: Boolean,
-    mutationBlocked: Boolean,
-    onConfigure: () -> Unit,
-    onSetDefault: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        profile.name.ifBlank { stringResource(R.string.settings_profile_unnamed) },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        aiProviderProtocolLabel(profile.provider),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (profile.active) {
-                    AssistChip(
-                        onClick = onConfigure,
-                        label = { Text(stringResource(R.string.settings_default)) },
-                        enabled = !editingBlocked,
-                    )
-                }
-            }
-            Text(
-                profile.model.ifBlank { stringResource(R.string.settings_model_unset) },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(
-                        if (profile.hasApiKey || profile.apiKeyInput.isNotBlank()) R.string.settings_key_present else R.string.settings_key_missing,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                if (profile.keyUnavailable) {
-                    Text(
-                        stringResource(R.string.settings_key_error),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-            }
-            if (testResult != null) {
-                Text(
-                    testResult,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    onClick = onConfigure,
-                    enabled = !editingBlocked,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Text(stringResource(R.string.action_configure))
-                }
-                TextButton(
-                    onClick = onSetDefault,
-                    enabled = !profile.active && !mutationBlocked,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Text(stringResource(if (profile.active) R.string.settings_default_current else R.string.settings_set_default))
-                }
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

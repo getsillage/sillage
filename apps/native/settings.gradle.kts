@@ -28,6 +28,7 @@ include(":kmp-features:sync")
 include(":shared-ui:app-shell")
 include(":shared-ui:auth")
 include(":shared-ui:design-system")
+include(":shared-ui:settings")
 
 project(":kmp-core:application").projectDir = file("../../packages/kmp-core/application")
 project(":kmp-core:domain").projectDir = file("../../packages/kmp-core/domain")
@@ -40,3 +41,4 @@ project(":kmp-features:sync").projectDir = file("../../packages/kmp-features/syn
 project(":shared-ui:app-shell").projectDir = file("shared-ui/app-shell")
 project(":shared-ui:auth").projectDir = file("shared-ui/auth")
 project(":shared-ui:design-system").projectDir = file("shared-ui/design-system")
+project(":shared-ui:settings").projectDir = file("shared-ui/settings")

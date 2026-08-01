@@ -19,6 +19,8 @@ shared enable-state presentation.
 server/sync action composition while hosts execute client-context operations.
 `SillageSettingsDataSection` owns import/export action layout and shared blocking;
 hosts retain native file pickers and serialization callbacks.
+`SillageSettingsAboutSection` owns metadata-row and license-entry layout while
+hosts supply build/protocol values and native notice resources.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

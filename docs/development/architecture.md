@@ -170,6 +170,8 @@ The service/sync section owns online/offline and conditional sync-action layout;
 Android retains client-context mutation, navigation, and protocol execution.
 The data section owns import/export action presentation; Android retains document
 launchers, serialization, and storage adapters.
+The about section owns metadata-row and license-entry presentation; Android maps
+build/server protocol values and loads packaged notice resources.
 The shared settings overview card receives localized display values derived from
 Android app-mode, records, appearance, and AI state without owning those adapters.
 

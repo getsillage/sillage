@@ -58,8 +58,6 @@ import app.sillage.ui.SillageViewModel
 import app.sillage.ui.auth.SillageAccountSettingsContent
 import app.sillage.ui.auth.SillageAccountSettingsStrings
 import app.sillage.ui.designsystem.SillageErrorCard
-import app.sillage.ui.designsystem.SillageSettingsActionRow
-import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.hasClientContextOperationInProgress
@@ -70,6 +68,9 @@ import app.sillage.ui.settings.SillageAIProfileDetailStrings
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 import app.sillage.ui.settings.SillageAIProfilesEditorStrings
 import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
+import app.sillage.ui.settings.SillageSettingsAboutSection
+import app.sillage.ui.settings.SillageSettingsAboutStrings
+import app.sillage.ui.settings.SillageSettingsAboutValue
 import app.sillage.ui.settings.SillageSettingsAppearanceSection
 import app.sillage.ui.settings.SillageSettingsAppearanceStrings
 import app.sillage.ui.settings.SillageSettingsDataSection
@@ -392,47 +393,52 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 )
                             }
                         }
-                    }
-                    item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
-                            val unavailable = stringResource(R.string.settings_value_unavailable)
-            SillageSettingsInfoRow(
+                }
+                item {
+                    val unavailable = stringResource(R.string.settings_value_unavailable)
+                    SillageSettingsAboutSection(
+                        strings = SillageSettingsAboutStrings(
+                            sectionTitle = stringResource(R.string.settings_section_about),
+                            licensesTitle = stringResource(R.string.settings_open_source_licenses),
+                            licensesSupporting = stringResource(
+                                R.string.settings_open_source_licenses_supporting,
+                            ),
+                        ),
+                        values = listOf(
+                            SillageSettingsAboutValue(
                                 label = stringResource(R.string.settings_app_version),
                                 value = stringResource(
                                     R.string.settings_app_version_value,
                                     BuildConfig.VERSION_NAME,
                                     BuildConfig.VERSION_CODE,
                                 ),
-                            )
-            SillageSettingsInfoRow(
+                            ),
+                            SillageSettingsAboutValue(
                                 label = stringResource(R.string.settings_server_version),
                                 value = state.serverVersion.ifBlank { unavailable },
-                                showDivider = true,
-                            )
-                        SillageSettingsInfoRow(
+                            ),
+                            SillageSettingsAboutValue(
                                 label = stringResource(R.string.settings_server_revision),
                                 value = state.serverRevision.ifBlank { unavailable },
-                                showDivider = true,
-                            )
-                        SillageSettingsInfoRow(
+                            ),
+                            SillageSettingsAboutValue(
                                 label = stringResource(R.string.settings_api_version),
                                 value = state.apiVersion.ifBlank { unavailable },
-                                showDivider = true,
-                            )
-                        SillageSettingsInfoRow(
-                                label = stringResource(R.string.settings_minimum_android_version_code),
-                                value = state.minimumAndroidVersionCode.takeIf { it > 0 }?.toString() ?: unavailable,
-                                showDivider = true,
-                            )
-                        SillageSettingsActionRow(
-                                icon = Icons.Rounded.Info,
-                                title = stringResource(R.string.settings_open_source_licenses),
-                                supporting = stringResource(R.string.settings_open_source_licenses_supporting),
-                                onClick = { showOpenSourceLicenses = true },
-                                showDivider = true,
-                            )
-                        }
-                    }
+                            ),
+                            SillageSettingsAboutValue(
+                                label = stringResource(
+                                    R.string.settings_minimum_android_version_code,
+                                ),
+                                value = state.minimumAndroidVersionCode
+                                    .takeIf { it > 0 }
+                                    ?.toString()
+                                    ?: unavailable,
+                            ),
+                        ),
+                        licensesIcon = Icons.Rounded.Info,
+                        onOpenLicenses = { showOpenSourceLicenses = true },
+                    )
+                }
                 sillageAIProfilesEditorItems(
                     state = state.settings,
                     editorState = aiProfilesEditorState,

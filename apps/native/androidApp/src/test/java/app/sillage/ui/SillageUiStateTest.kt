@@ -23,6 +23,7 @@ import app.sillage.features.records.MemoViewMode
 import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
@@ -76,29 +77,33 @@ class SillageUiStateTest {
         assertTrue(editorState().canRunMemoEditorAction())
         assertFalse(editorState().copy(loading = true).canRunMemoEditorAction())
         val uploading = editorState().let {
-            it.copy(recordsEditor = it.recordsEditor.copy(uploadingAttachment = true))
+            it.copy(
+                records = it.records.copy(editor = it.records.editor.copy(uploadingAttachment = true)),
+            )
         }
         assertFalse(uploading.canRunMemoEditorAction())
         assertFalse(editorState().copy(screen = Screen.Memos).canRunMemoEditorAction())
         assertFalse(
-            editorState().copy(
-                recordsSelection = RecordsSelectionStateHolder(selectedMemo = memo()),
-                recordsMutation = RecordsMutationStateHolder(setOf("memo-1")),
-            ).canRunMemoEditorAction(),
+            editorState().let { base -> base.copy(
+                records = base.records.copy(
+                    selection = RecordsSelectionStateHolder(selectedMemo = memo()),
+                    mutation = RecordsMutationStateHolder(setOf("memo-1")),
+                ),
+            ) }.canRunMemoEditorAction(),
         )
     }
 
     @Test
     fun memoEditorBusyReasonOnlyCoversBlockingOperations() {
-        val selected = editorState().copy(
-            recordsSelection = RecordsSelectionStateHolder(selectedMemo = memo()),
-        )
+        val selected = editorState().let { base -> base.copy(
+            records = base.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = memo())),
+        ) }
 
         assertEquals(null, selected.memoEditorBusyReason())
         assertEquals(
             MemoEditorBusyReason.AttachmentUpload,
             selected.copy(
-                recordsEditor = selected.recordsEditor.copy(uploadingAttachment = true),
+                records = selected.records.copy(editor = selected.records.editor.copy(uploadingAttachment = true)),
             ).memoEditorBusyReason(),
         )
         assertEquals(
@@ -107,25 +112,33 @@ class SillageUiStateTest {
         )
         assertEquals(
             MemoEditorBusyReason.Operation,
-            selected.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-1")))
-                .memoEditorBusyReason(),
-        )
-        assertEquals(
-            null,
-            selected.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-2")))
-                .memoEditorBusyReason(),
-        )
-        assertEquals(
-            null,
-            selected.copy(recordsSummary = selected.recordsSummary.copy(loading = true))
+            selected.copy(
+                records = selected.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1"))),
+            )
                 .memoEditorBusyReason(),
         )
         assertEquals(
             null,
             selected.copy(
-                recordsAttachmentOpen = RecordsAttachmentOpenStateHolder(
+                records = selected.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-2"))),
+            )
+                .memoEditorBusyReason(),
+        )
+        assertEquals(
+            null,
+            selected.copy(
+                records = selected.records.copy(summary = selected.records.summary.copy(loading = true)),
+            )
+                .memoEditorBusyReason(),
+        )
+        assertEquals(
+            null,
+            selected.copy(
+                records = selected.records.copy(
+                    attachmentOpen = RecordsAttachmentOpenStateHolder(
                     path = "/attachments/file-1",
                     requestId = 1,
+                ),
                 ),
             ).memoEditorBusyReason(),
         )
@@ -134,11 +147,11 @@ class SillageUiStateTest {
 
     @Test
     fun memoEditorBackBlockedNoticeClearsOldErrorAndKeepsIdleStateUnchanged() {
-        val uploading = editorState().copy(
-            recordsEditor = RecordsEditorStateHolder(uploadingAttachment = true),
+        val uploading = editorState().let { base -> base.copy(
+            records = base.records.copy(editor = RecordsEditorStateHolder(uploadingAttachment = true)),
             error = "旧错误",
             notice = "旧提示",
-        )
+        ) }
         val operation = editorState().copy(loading = true)
         val idle = editorState().copy(error = "保留错误")
 
@@ -169,11 +182,15 @@ class SillageUiStateTest {
 
         assertFalse(idle.hasClientContextOperationInProgress())
         assertTrue(
-            idle.copy(recordsSummary = idle.recordsSummary.copy(loading = true))
+            idle.copy(
+                records = idle.records.copy(summary = idle.records.summary.copy(loading = true)),
+            )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
-            idle.copy(recordsMutation = RecordsMutationStateHolder(setOf("memo-1")))
+            idle.copy(
+                records = idle.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1"))),
+            )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
@@ -189,35 +206,41 @@ class SillageUiStateTest {
 
     @Test
     fun attachmentResultOnlyAppliesToActiveUploadingEditorSession() {
-        val uploading = editorState().copy(
-            recordsEditor = RecordsEditorStateHolder(
+        val uploading = editorState().let { base -> base.copy(
+            records = base.records.copy(
+                editor = RecordsEditorStateHolder(
                 sessionId = 7,
                 uploadingAttachment = true,
             ),
-        )
+            ),
+        ) }
 
         assertTrue(uploading.canApplyAttachmentUpload(7))
         assertFalse(uploading.canApplyAttachmentUpload(6))
         assertFalse(
-            uploading.copy(recordsEditor = uploading.recordsEditor.copy(sessionId = 8))
+            uploading.copy(
+                records = uploading.records.copy(editor = uploading.records.editor.copy(sessionId = 8)),
+            )
                 .canApplyAttachmentUpload(7),
         )
         assertFalse(uploading.copy(screen = Screen.Memos).canApplyAttachmentUpload(7))
         assertFalse(
             uploading.copy(
-                recordsEditor = uploading.recordsEditor.copy(uploadingAttachment = false),
+                records = uploading.records.copy(editor = uploading.records.editor.copy(uploadingAttachment = false)),
             ).canApplyAttachmentUpload(7),
         )
     }
 
     @Test
     fun leavingAttachmentContextInvalidatesAQueuedOpenEvent() {
-        val opening = editorState().copy(
-            recordsAttachmentOpen = RecordsAttachmentOpenStateHolder(
+        val opening = editorState().let { base -> base.copy(
+            records = base.records.copy(
+                attachmentOpen = RecordsAttachmentOpenStateHolder(
                 path = "/api/v1/attachments/file-1",
                 requestId = 8,
             ),
-        )
+            ),
+        ) }
 
         assertTrue(opening.canHandleAttachmentOpen(8))
         val invalidated = opening.invalidateAttachmentOpenRequest()
@@ -253,11 +276,11 @@ class SillageUiStateTest {
 
     @Test
     fun memoPageRequestIsSingleFlightAndBoundToItsCursor() {
-        val state = editorState().copy(
+        val state = editorState().let { base -> base.copy(
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
-            recordsPagination = RecordsPaginationStateHolder(nextCursor = "cursor-1", requestId = 4),
-        )
+            records = base.records.copy(pagination = RecordsPaginationStateHolder(nextCursor = "cursor-1", requestId = 4)),
+        ) }
         val request = requireNotNull(state.nextMemoPageRequest())
         val pending = requireNotNull(state.beginMemoPage(request))
 
@@ -266,12 +289,14 @@ class SillageUiStateTest {
         assertEquals(null, pending.nextMemoPageRequest())
         assertTrue(pending.canApplyMemoPage(request))
         assertFalse(
-            pending.copy(recordsPagination = pending.recordsPagination.copy(nextCursor = "cursor-2"))
+            pending.copy(
+                records = pending.records.copy(pagination = pending.records.pagination.copy(nextCursor = "cursor-2")),
+            )
                 .canApplyMemoPage(request),
         )
         assertFalse(
             pending.copy(
-                recordsPagination = pending.recordsPagination.copy(requestId = request.requestId + 1),
+                records = pending.records.copy(pagination = pending.records.pagination.copy(requestId = request.requestId + 1)),
             ).canApplyMemoPage(request),
         )
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyMemoPage(request))
@@ -281,34 +306,65 @@ class SillageUiStateTest {
         )
         assertFalse(
             pending.copy(
-                recordsBrowse = pending.recordsBrowse.selectFilter(MemoListFilter.Archived),
+                records = pending.records.copy(browse = pending.records.browse.selectFilter(MemoListFilter.Archived)),
             ).canApplyMemoPage(request),
         )
         assertFalse(
             pending.copy(
-                recordsCollection = pending.recordsCollection.copy(cacheGeneration = 1),
+                records = pending.records.copy(collection = pending.records.collection.copy(cacheGeneration = 1)),
             ).canApplyMemoPage(request),
         )
         assertFalse(
-            pending.copy(recordsPagination = pending.recordsPagination.copy(loadingMore = false))
+            pending.copy(
+                records = pending.records.copy(pagination = pending.records.pagination.copy(loadingMore = false)),
+            )
                 .canApplyMemoPage(request),
         )
     }
 
     @Test
+    fun rootStateOwnsSingleRecordsAggregateWithTransitionalSliceGetters() {
+        val original = memo()
+        val state = editorState().withRecords {
+            it.copy(
+                collection = RecordsCollectionStateHolder(records = listOf(original), cacheGeneration = 2),
+                pagination = RecordsPaginationStateHolder(nextCursor = "cursor-9", loadingMore = true),
+                selection = RecordsSelectionStateHolder(selectedMemo = original),
+            )
+        }
+
+        assertEquals(listOf(original), state.records.collection.records)
+        assertEquals(state.records.collection, state.recordsCollection)
+        assertEquals(state.records.pagination, state.recordsPagination)
+        assertEquals(state.records.selection, state.recordsSelection)
+        assertEquals("cursor-9", state.memoNextCursor)
+        assertEquals(2L, state.memoCacheGeneration)
+        assertEquals(original, state.selectedMemo)
+
+        val applied = state.applyMemoToCache(
+            original.copy(content = "更新", version = 2, updatedAt = "2026-07-10T02:00:00Z"),
+        )
+        assertEquals(3L, applied.memoCacheGeneration)
+        assertEquals(applied.records.collection, applied.recordsCollection)
+        assertFalse(applied.loadingMoreMemos)
+    }
+
+    @Test
     fun canonicalMemoInvalidatesEarlierRefreshAndSearchRequests() {
         val original = memo()
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
-            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
-            recordsSearch = RecordsSearchStateHolder(
+            records = base.records.copy(
+                collection = RecordsCollectionStateHolder(records = listOf(original)),
+                search = RecordsSearchStateHolder(
                 query = "记录",
                 results = listOf(original),
                 resultQuery = "记录",
                 completionEventId = 4,
             ),
-        )
+            ),
+        ) }
         val refresh = initial.nextMemoRefreshRequest()
         val search = requireNotNull(initial.nextMemoSearchRequest())
         val refreshing = requireNotNull(initial.beginMemoRefresh(refresh))
@@ -346,13 +402,15 @@ class SillageUiStateTest {
     @Test
     fun lateMemoDetailDoesNotOverwriteCanonicalMutationAndStopsLoading() {
         val original = memo()
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
-            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
-            recordsSummary = RecordsSummaryStateHolder(loading = true),
-        )
+            records = base.records.copy(
+                collection = RecordsCollectionStateHolder(records = listOf(original)),
+                selection = RecordsSelectionStateHolder(selectedMemo = original),
+                summary = RecordsSummaryStateHolder(loading = true),
+            ),
+        ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
         val canonical = original.copy(
@@ -376,12 +434,14 @@ class SillageUiStateTest {
     @Test
     fun currentMemoDetailAppliesMemoAndSummaryInOneStateTransition() {
         val original = memo()
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
-            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
-        )
+            records = base.records.copy(
+                collection = RecordsCollectionStateHolder(records = listOf(original)),
+                selection = RecordsSelectionStateHolder(selectedMemo = original),
+            ),
+        ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
         val canonical = original.copy(
@@ -404,11 +464,11 @@ class SillageUiStateTest {
     @Test
     fun supersededMemoDetailFailureOnlyStopsItsLoadingState() {
         val original = memo()
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
-        )
+            records = base.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = original)),
+        ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
         val canonical = original.copy(
@@ -428,16 +488,18 @@ class SillageUiStateTest {
     @Test
     fun memoSummaryRequestIsSingleFlightAndBoundToItsRecordContext() {
         val original = memo()
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_OFFLINE,
             clientContextGeneration = 3,
-            recordsSelection = RecordsSelectionStateHolder(
+            records = base.records.copy(
+                selection = RecordsSelectionStateHolder(
                 selectedMemo = original,
                 detailRequestId = 11,
             ),
-            recordsEditor = RecordsEditorStateHolder(sessionId = 7),
-        )
+                editor = RecordsEditorStateHolder(sessionId = 7),
+            ),
+        ) }
         val request = requireNotNull(initial.nextMemoSummaryRequest())
         val pending = initial.startMemoSummaryRequest(request)
 
@@ -445,13 +507,13 @@ class SillageUiStateTest {
         assertEquals(null, pending.nextMemoSummaryRequest())
         assertFalse(
             pending.copy(
-                recordsSelection = pending.recordsSelection.select(original.copy(id = "memo-2")),
+                records = pending.records.copy(selection = pending.records.selection.select(original.copy(id = "memo-2"))),
             )
                 .canApplyMemoSummaryRequest(request),
         )
         assertFalse(
             pending.copy(
-                recordsSelection = pending.recordsSelection.select(original.copy(version = 2)),
+                records = pending.records.copy(selection = pending.records.selection.select(original.copy(version = 2))),
             )
                 .canApplyMemoSummaryRequest(request),
         )
@@ -462,7 +524,7 @@ class SillageUiStateTest {
         )
         assertFalse(
             pending.copy(
-                recordsSelection = pending.recordsSelection.copy(detailRequestId = 12),
+                records = pending.records.copy(selection = pending.records.selection.copy(detailRequestId = 12)),
             )
                 .canApplyMemoSummaryRequest(request),
         )
@@ -481,7 +543,7 @@ class SillageUiStateTest {
         assertEquals(stale, stale.failMemoSummaryRequest(request, "旧请求失败"))
 
         val versionChanged = pending.copy(
-            recordsSelection = pending.recordsSelection.select(original.copy(version = 2)),
+            records = pending.records.copy(selection = pending.records.selection.select(original.copy(version = 2))),
         )
         val finished = versionChanged.finishMemoSummaryRequest(request)
         assertFalse(finished.summaryLoading)
@@ -496,15 +558,17 @@ class SillageUiStateTest {
     @Test
     fun searchFailureKeepsLoadedResultsAndCanBeRetried() {
         val loaded = listOf(memo())
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.Memos,
-            recordsSearch = RecordsSearchStateHolder(
+            records = base.records.copy(
+                search = RecordsSearchStateHolder(
                 query = "记录",
                 results = loaded,
                 resultQuery = "记录",
                 completionEventId = 4,
             ),
-        )
+            ),
+        ) }
         val request = requireNotNull(initial.nextMemoSearchRequest())
         val pending = initial.startMemoSearch(request)
 
@@ -524,10 +588,7 @@ class SillageUiStateTest {
 
     @Test
     fun newerSearchAttemptSupersedesTheSameQuery() {
-        val initial = editorState().copy(
-            screen = Screen.Memos,
-            recordsSearch = RecordsSearchStateHolder(query = "记录"),
-        )
+        val initial = editorState().let { base -> base.copy(screen = Screen.Memos, records = base.records.copy(search = RecordsSearchStateHolder(query = "记录"))) }
         val firstRequest = requireNotNull(initial.nextMemoSearchRequest())
         val first = initial.startMemoSearch(firstRequest)
         val secondRequest = requireNotNull(first.nextMemoSearchRequest())
@@ -547,15 +608,17 @@ class SillageUiStateTest {
     @Test
     fun completedSearchSummaryIsBoundToTheAppliedQuery() {
         val oldResults = listOf(memo(id = "memo-old"))
-        val initial = editorState().copy(
+        val initial = editorState().let { base -> base.copy(
             screen = Screen.Memos,
-            recordsSearch = RecordsSearchStateHolder(
+            records = base.records.copy(
+                search = RecordsSearchStateHolder(
                 query = "新查询",
                 results = oldResults,
                 resultQuery = "旧查询",
                 completionEventId = 4,
             ),
-        )
+            ),
+        ) }
         val request = requireNotNull(initial.nextMemoSearchRequest())
         val pending = initial.startMemoSearch(request)
 
@@ -574,19 +637,19 @@ class SillageUiStateTest {
         assertEquals(
             null,
             completed.copy(
-                recordsSearch = completed.recordsSearch.copy(query = "又一查询"),
+                records = completed.records.copy(search = completed.records.search.copy(query = "又一查询")),
             ).currentMemoSearchResults(),
         )
         assertEquals(
             null,
             completed.copy(
-                recordsSearch = completed.recordsSearch.copy(query = "又一查询"),
+                records = completed.records.copy(search = completed.records.search.copy(query = "又一查询")),
             ).completedMemoSearch(),
         )
         assertEquals(
             null,
             completed.copy(
-                recordsSearch = completed.recordsSearch.copy(searching = true),
+                records = completed.records.copy(search = completed.records.search.copy(searching = true)),
             ).completedMemoSearch(),
         )
         assertEquals(completed.completedMemoSearch(), completed.copy(error = "无关错误").completedMemoSearch())
@@ -596,47 +659,47 @@ class SillageUiStateTest {
         assertEquals(5L, empty.searchCompletionEventId)
 
         val stale = pending.copy(
-            recordsSearch = pending.recordsSearch.copy(query = "其他查询"),
+            records = pending.records.copy(search = pending.records.search.copy(query = "其他查询")),
         )
         assertEquals(stale, stale.completeMemoSearch(request, results))
     }
 
     @Test
     fun failedSearchStateIsBoundToTheFailedQuery() {
-        val failed = editorState().copy(
+        val failed = editorState().let { base -> base.copy(
             screen = Screen.Memos,
-            recordsSearch = RecordsSearchStateHolder(
+            records = base.records.copy(
+                search = RecordsSearchStateHolder(
                 query = "新查询",
                 results = listOf(memo()),
                 resultQuery = "旧查询",
                 failureQuery = "新查询",
                 searching = false,
             ),
+            ),
             error = "网络错误",
-        )
+        ) }
 
         assertEquals(null, failed.currentMemoSearchResults())
         assertTrue(failed.shouldShowMemoSearchFailure())
         assertTrue(failed.copy(error = null).shouldShowMemoSearchFailure())
         assertFalse(
             failed.copy(
-                recordsSearch = failed.recordsSearch.copy(searching = true),
+                records = failed.records.copy(search = failed.records.search.copy(searching = true)),
             ).shouldShowMemoSearchFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsSearch = failed.recordsSearch.copy(failureQuery = "旧查询"),
+                records = failed.records.copy(search = failed.records.search.copy(failureQuery = "旧查询")),
             ).shouldShowMemoSearchFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsSearch = failed.recordsSearch.copy(resultQuery = "新查询"),
+                records = failed.records.copy(search = failed.records.search.copy(resultQuery = "新查询")),
             ).shouldShowMemoSearchFailure(),
         )
         assertFalse(
-            failed.copy(
-                recordsSearch = failed.recordsSearch.copy(query = ""),
-            ).shouldShowMemoSearchFailure(),
+            failed.copy(records = failed.records.copy(search = failed.records.search.copy(query = ""))).shouldShowMemoSearchFailure(),
         )
     }
 
@@ -679,36 +742,38 @@ class SillageUiStateTest {
 
     @Test
     fun failedEmptyMemoLoadUsesFailureStateInsteadOfBusinessEmptyState() {
-        val failed = editorState().copy(
+        val failed = editorState().let { base -> base.copy(
             screen = Screen.Memos,
-            recordsCollection = RecordsCollectionStateHolder(),
-            recordsRefresh = RecordsRefreshStateHolder(status = MemoListLoadStatus.Failed),
-        )
+            records = base.records.copy(
+                collection = RecordsCollectionStateHolder(),
+                refresh = RecordsRefreshStateHolder(status = MemoListLoadStatus.Failed),
+            ),
+        ) }
 
         assertTrue(failed.shouldShowMemoListLoadFailure())
         assertFalse(
             failed.copy(
-                recordsSearch = failed.recordsSearch.copy(query = "记录"),
+                records = failed.records.copy(search = failed.records.search.copy(query = "记录")),
             ).shouldShowMemoListLoadFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
+                records = failed.records.copy(refresh = failed.records.refresh.copy(status = MemoListLoadStatus.Loading)),
             ).shouldShowMemoListLoadFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Idle),
+                records = failed.records.copy(refresh = failed.records.refresh.copy(status = MemoListLoadStatus.Idle)),
             ).shouldShowMemoListLoadFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsCollection = RecordsCollectionStateHolder(records = listOf(memo())),
+                records = failed.records.copy(collection = RecordsCollectionStateHolder(records = listOf(memo()))),
             ).shouldShowMemoListLoadFailure(),
         )
         assertFalse(
             failed.copy(
-                recordsSearch = failed.recordsSearch.copy(results = emptyList()),
+                records = failed.records.copy(search = failed.records.search.copy(results = emptyList())),
             ).shouldShowMemoListLoadFailure(),
         )
     }
@@ -1167,13 +1232,13 @@ class SillageUiStateTest {
         assertTrue(
             state.copy(
                 screen = Screen.Memos,
-                recordsBrowse = state.recordsBrowse.selectViewMode(MemoViewMode.Calendar),
+                records = state.records.copy(browse = state.records.browse.selectViewMode(MemoViewMode.Calendar)),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(
             state.copy(
                 screen = Screen.Memos,
-                recordsBrowse = state.recordsBrowse.selectViewMode(MemoViewMode.List),
+                records = state.records.copy(browse = state.records.browse.selectViewMode(MemoViewMode.List)),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(state.copy(screen = Screen.MemoDetail).shouldReturnToRecordsOnBack())
@@ -1269,11 +1334,13 @@ class SillageUiStateTest {
         return SillageUiState(
             screen = Screen.Editor,
             baseUrl = "",
-            recordsEditor = RecordsEditorStateHolder(
-                draftContent = draftContent,
-                draftEntryDate = draftEntryDate,
-                initialDraftContent = initialDraftContent,
-                initialDraftEntryDate = initialDraftEntryDate,
+            records = defaultRecordsFeatureState().copy(
+                editor = RecordsEditorStateHolder(
+                    draftContent = draftContent,
+                    draftEntryDate = draftEntryDate,
+                    initialDraftContent = initialDraftContent,
+                    initialDraftEntryDate = initialDraftEntryDate,
+                ),
             ),
         )
     }

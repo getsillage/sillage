@@ -38,8 +38,10 @@ also validates cursor; refresh validates the active pagination generation; and
 search binds published results to the normalized query.
 
 The module depends only on `kmp-core:domain`. It must not perform transport,
-storage, synchronization, or platform UI work. Android still exposes
-transitional top-level field accessors while writes migrate onto the aggregate
-holder. Android retains SavedStateHandle persistence, URI access, byte staging,
-native viewer launch, and upload execution while editor, attachment-request,
-and summary state cross shared boundaries.
+storage, synchronization, or platform UI work. Android stores one
+`RecordsFeatureStateHolder` on root UI state and keeps transitional slice
+getters while remaining single-holder call sites finish moving onto
+`withRecords` / aggregate transitions. Android retains SavedStateHandle
+persistence, URI access, byte staging, native viewer launch, and upload
+execution while editor, attachment-request, and summary state cross shared
+boundaries.

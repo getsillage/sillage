@@ -294,9 +294,11 @@ canonical metadata, while multipart encoding and response parsing remain in the
 Android adapter.
 
 `RecordsFeatureStateHolder` composes the extracted records holders and owns the
-cross-holder list-surface and canonical-memo transitions. Android retains
-transitional top-level accessors while writes migrate onto the aggregate;
-request identity and late-response checks stay on the individual holders.
+cross-holder list-surface and canonical-memo transitions. Android's root UI
+state now owns one `records` aggregate value with transitional slice getters
+for the former top-level holder fields. Coordinated list-surface and canonical
+memo writes go through the aggregate; request identity and late-response checks
+stay on the individual holders.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,

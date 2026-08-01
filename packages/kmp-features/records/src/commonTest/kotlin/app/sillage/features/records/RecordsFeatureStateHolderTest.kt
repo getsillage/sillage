@@ -1,0 +1,221 @@
+package app.sillage.features.records
+
+import app.sillage.core.domain.records.Memo
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class RecordsFeatureStateHolderTest {
+    @Test
+    fun clearVisibleListResetsCacheAndLoadOwnershipWithoutMutationGeneration() {
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(
+                records = listOf(memo("memo-1")),
+                cacheGeneration = 3,
+            ),
+            pagination = RecordsPaginationStateHolder(
+                nextCursor = "cursor-1",
+                loadingMore = true,
+                requestId = 4,
+            ),
+            refresh = RecordsRefreshStateHolder(
+                status = RecordsRefreshStatus.Loading,
+                requestId = 2,
+            ),
+        )
+
+        val cleared = state.clearVisibleList()
+
+        assertEquals(emptyList(), cleared.records)
+        assertEquals(3, cleared.cacheGeneration)
+        assertEquals("", cleared.nextCursor)
+        assertFalse(cleared.loadingMore)
+        assertEquals(RecordsRefreshStatus.Idle, cleared.refreshStatus)
+        assertEquals(3, cleared.refresh.requestId)
+        assertEquals(4, cleared.pageRequestId)
+    }
+
+    @Test
+    fun resetVisibleListMarksLoadingAndPreservesGeneration() {
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(
+                records = listOf(memo("memo-1")),
+                cacheGeneration = 5,
+            ),
+            pagination = RecordsPaginationStateHolder(nextCursor = "c", loadingMore = true),
+            refresh = RecordsRefreshStateHolder(requestId = 1),
+        )
+
+        val reset = state.resetVisibleList(markLoading = true)
+
+        assertEquals(emptyList(), reset.records)
+        assertEquals(5, reset.cacheGeneration)
+        assertEquals("", reset.nextCursor)
+        assertFalse(reset.loadingMore)
+        assertEquals(RecordsRefreshStatus.Loading, reset.refreshStatus)
+        assertEquals(1, reset.refresh.requestId)
+    }
+
+    @Test
+    fun replaceVisibleRecordsUpdatesCacheAndCursorWithoutAdvancingGeneration() {
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(cacheGeneration = 8),
+            pagination = RecordsPaginationStateHolder(loadingMore = true, requestId = 2),
+        )
+        val records = listOf(memo("memo-a"), memo("memo-b"))
+
+        val replaced = state.replaceVisibleRecords(records, nextCursor = "next")
+
+        assertEquals(records, replaced.records)
+        assertEquals(8, replaced.cacheGeneration)
+        assertEquals("next", replaced.nextCursor)
+        assertFalse(replaced.loadingMore)
+        assertEquals(2, replaced.pageRequestId)
+    }
+
+    @Test
+    fun appendVisiblePageMergesThroughActiveFilter() {
+        val active = memo("memo-1")
+        val archived = memo("memo-2").copy(archivedAt = "2026-08-01T01:00:00Z")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(active)),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Unarchived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val appended = state.appendVisiblePage(
+            pageRecords = listOf(archived, memo("memo-3")),
+            nextCursor = "c2",
+        )
+
+        assertEquals(listOf("memo-1", "memo-3"), appended.records.map(Memo::id))
+        assertEquals("c2", appended.nextCursor)
+    }
+
+    @Test
+    fun applyCanonicalMemoAdvancesGenerationAndInvalidatesLoadsAndSearch() {
+        val original = memo("memo-1")
+        val updated = original.copy(
+            content = "updated",
+            version = 2,
+            updatedAt = "2026-08-01T02:00:00Z",
+        )
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(
+                records = listOf(original),
+                cacheGeneration = 4,
+            ),
+            pagination = RecordsPaginationStateHolder(
+                nextCursor = "cursor",
+                loadingMore = true,
+                requestId = 3,
+            ),
+            refresh = RecordsRefreshStateHolder(
+                status = RecordsRefreshStatus.Loading,
+                requestId = 5,
+            ),
+            selection = RecordsSelectionStateHolder(selectedMemo = original),
+            search = RecordsSearchStateHolder(
+                query = "memo",
+                results = listOf(original),
+                resultQuery = "memo",
+                requestId = 7,
+                searching = true,
+            ),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Unarchived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val applied = state.applyCanonicalMemo(updated)
+
+        assertEquals(listOf(updated), applied.records)
+        assertEquals(5, applied.cacheGeneration)
+        assertFalse(applied.loadingMore)
+        assertEquals(4, applied.pageRequestId)
+        assertEquals(RecordsRefreshStatus.Idle, applied.refreshStatus)
+        assertEquals(6, applied.refresh.requestId)
+        assertEquals(updated, applied.selection.selectedMemo)
+        assertFalse(applied.search.searching)
+        assertEquals(8, applied.search.requestId)
+        assertEquals(listOf(updated), applied.search.results)
+    }
+
+    @Test
+    fun applyCanonicalMemoDropsItemsOutsideActiveFilter() {
+        val original = memo("memo-1")
+        val archived = original.copy(
+            archivedAt = "2026-08-01T03:00:00Z",
+            version = 2,
+        )
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(original)),
+            selection = RecordsSelectionStateHolder(selectedMemo = original),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Unarchived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val applied = state.applyCanonicalMemo(archived)
+
+        assertEquals(emptyList(), applied.records)
+        assertEquals(archived, applied.selection.selectedMemo)
+    }
+
+    @Test
+    fun resetForFilterChangeClearsSearchAndMarksListLoading() {
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(memo("memo-1"))),
+            pagination = RecordsPaginationStateHolder(nextCursor = "c"),
+            search = RecordsSearchStateHolder(query = "hello", searching = true),
+            selection = RecordsSelectionStateHolder(selectedMemo = memo("memo-1")),
+        )
+
+        val reset = state.resetForFilterChange()
+
+        assertEquals(emptyList(), reset.records)
+        assertEquals("", reset.nextCursor)
+        assertEquals(RecordsRefreshStatus.Loading, reset.refreshStatus)
+        assertEquals("", reset.search.query)
+        assertFalse(reset.search.searching)
+        assertEquals(memo("memo-1"), reset.selection.selectedMemo)
+    }
+
+    @Test
+    fun individualHoldersRemainIndependentlyReplaceable() {
+        val state = RecordsFeatureStateHolder()
+        val selected = memo("memo-9")
+
+        val updated = state.copy(
+            selection = state.selection.select(selected),
+            mutation = state.mutation.begin(selected.id),
+        )
+
+        assertEquals(selected, updated.selection.selectedMemo)
+        assertTrue(updated.mutation.isActive(selected.id))
+        assertNull(state.selection.selectedMemo)
+    }
+
+    private fun memo(id: String): Memo {
+        return Memo(
+            id = id,
+            content = id,
+            entryDate = "2026-08-01",
+            version = 1,
+            createdAt = "2026-08-01T00:00:00Z",
+            updatedAt = "2026-08-01T00:00:00Z",
+            favoritedAt = null,
+            archivedAt = null,
+            deletedAt = null,
+        )
+    }
+}

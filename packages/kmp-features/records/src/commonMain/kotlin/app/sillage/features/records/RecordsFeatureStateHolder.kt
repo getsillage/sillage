@@ -1,0 +1,119 @@
+package app.sillage.features.records
+
+import app.sillage.core.domain.records.Memo
+
+/**
+ * Aggregated immutable ownership for the records feature.
+ *
+ * Individual holders remain the unit of request identity and late-response
+ * validation. This type owns cross-holder transitions that must stay consistent
+ * (visible list loads, canonical cache mutations, and related invalidation).
+ */
+data class RecordsFeatureStateHolder(
+    val collection: RecordsCollectionStateHolder = RecordsCollectionStateHolder(),
+    val pagination: RecordsPaginationStateHolder = RecordsPaginationStateHolder(),
+    val refresh: RecordsRefreshStateHolder = RecordsRefreshStateHolder(),
+    val selection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
+    val mutation: RecordsMutationStateHolder = RecordsMutationStateHolder(),
+    val summary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
+    val attachmentOpen: RecordsAttachmentOpenStateHolder = RecordsAttachmentOpenStateHolder(),
+    val editor: RecordsEditorStateHolder = RecordsEditorStateHolder(),
+    val search: RecordsSearchStateHolder = RecordsSearchStateHolder(),
+    val browse: RecordsBrowseStateHolder = RecordsBrowseStateHolder(
+        calendarYear = 1970,
+        calendarMonth = 1,
+    ),
+) {
+    val records: List<Memo> get() = collection.records
+    val cacheGeneration: Long get() = collection.cacheGeneration
+    val nextCursor: String get() = pagination.nextCursor
+    val loadingMore: Boolean get() = pagination.loadingMore
+    val pageRequestId: Long get() = pagination.requestId
+    val refreshStatus: RecordsRefreshStatus get() = refresh.status
+    val filter: MemoListFilter get() = browse.filter
+    val viewMode: MemoViewMode get() = browse.viewMode
+
+    /**
+     * Clears the visible cache and stops in-flight list loads without inventing
+     * a mutation generation. Used when the active source or client context ends.
+     */
+    fun clearVisibleList(): RecordsFeatureStateHolder {
+        return copy(
+            collection = collection.clear(),
+            pagination = pagination.copy(nextCursor = "", loadingMore = false),
+            refresh = refresh.cancel(),
+        )
+    }
+
+    /**
+     * Prepares a fresh list query: empty cache, reset cursor, and optional
+     * refresh-loading presentation before the host begins a real refresh request.
+     */
+    fun resetVisibleList(
+        markLoading: Boolean = true,
+    ): RecordsFeatureStateHolder {
+        return copy(
+            collection = collection.clear(),
+            pagination = pagination.copy(nextCursor = "", loadingMore = false),
+            refresh = if (markLoading) {
+                refresh.copy(status = RecordsRefreshStatus.Loading)
+            } else {
+                refresh.cancel()
+            },
+        )
+    }
+
+    /**
+     * Replaces the visible snapshot and pagination cursor without advancing the
+     * mutation generation. Used by refresh and offline snapshot hydration.
+     */
+    fun replaceVisibleRecords(
+        records: List<Memo>,
+        nextCursor: String = "",
+    ): RecordsFeatureStateHolder {
+        return copy(
+            collection = collection.replace(records),
+            pagination = pagination.copy(nextCursor = nextCursor, loadingMore = false),
+        )
+    }
+
+    /**
+     * Appends a validated page onto the visible cache. Callers must already have
+     * completed pagination ownership for [nextCursor].
+     */
+    fun appendVisiblePage(
+        pageRecords: List<Memo>,
+        nextCursor: String,
+        filter: MemoListFilter = browse.filter,
+    ): RecordsFeatureStateHolder {
+        val merged = memosForFilter(collection.records + pageRecords, filter)
+        return copy(
+            collection = collection.replace(merged),
+            pagination = pagination.copy(nextCursor = nextCursor, loadingMore = false),
+        )
+    }
+
+    /**
+     * Applies a canonical create/update/lifecycle memo to the visible cache and
+     * invalidates list loads plus search ownership bound to the previous cache.
+     */
+    fun applyCanonicalMemo(memo: Memo): RecordsFeatureStateHolder {
+        return copy(
+            collection = collection.applyMemo(memo, browse.filter),
+            search = search.invalidateForMemoChange(memo, browse.filter),
+            pagination = pagination.cancel(),
+            refresh = refresh.cancel(),
+            selection = selection.mergeMemo(memo),
+        )
+    }
+
+    /**
+     * Resets list surface and search after the semantic filter changes. Selection
+     * and summary are left to the host when navigation context also changes.
+     */
+    fun resetForFilterChange(): RecordsFeatureStateHolder {
+        return resetVisibleList(markLoading = true).copy(
+            search = search.clear(),
+        )
+    }
+}

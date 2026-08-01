@@ -265,6 +265,12 @@ and invalidation. Authenticated download crosses generic
 host destination without materializing response bytes in shared state. Android
 retains content-URI/cache staging, MIME resolution, and native viewer launch.
 
+`RecordsFeatureStateHolder` is the records feature aggregate. It composes the
+extracted holders and owns cross-holder transitions for visible-list reset/
+replace and canonical memo application so list loads, search ownership, and
+selection stay consistent. Hosts keep transitional accessors while remaining
+writes move onto the aggregate; individual holders still own request identity.
+
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,
 transactional outbox persistence, attachment staging, and the transactional

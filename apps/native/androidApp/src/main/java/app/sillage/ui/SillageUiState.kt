@@ -74,6 +74,9 @@ import app.sillage.features.settings.AIProfileModelsRequest
 import app.sillage.features.settings.AIProfileTestRequest
 import app.sillage.features.settings.SettingsFeatureStateHolder
 import app.sillage.ui.appshell.AppAppearanceStateHolder
+import app.sillage.ui.appshell.AppBackNavigation
+import app.sillage.ui.appshell.AppDestination
+import app.sillage.ui.appshell.AppNavigationPolicy
 import java.time.LocalDate
 
 internal fun defaultRecordsFeatureState(
@@ -1244,40 +1247,24 @@ internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {
     return destinationHistoryKeys().map(Screen::valueOf)
 }
 
-internal data class BackNavigation(
-    val screen: Screen,
-    val history: List<Screen>,
-)
+internal typealias BackNavigation = AppBackNavigation
 
 internal fun SillageUiState.historyFor(destination: Screen): List<Screen> {
-    return if (screen == destination) screenHistory else screenHistory + screen
+    return AppNavigationPolicy.historyFor(screen, screenHistory, destination)
 }
 
 internal fun SillageUiState.backNavigation(fallback: Screen): BackNavigation {
-    return BackNavigation(
-        screen = screenHistory.lastOrNull() ?: fallback,
-        history = if (screenHistory.isEmpty()) emptyList() else screenHistory.dropLast(1),
-    )
+    return AppNavigationPolicy.back(screenHistory, fallback)
 }
 
 internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
-    return screen == Screen.Ask ||
-        screen == Screen.AISettings ||
-        (screen == Screen.Memos && memoViewMode == MemoViewMode.Calendar)
+    return AppNavigationPolicy.shouldReturnToRecords(
+        current = screen,
+        recordsCalendarActive = memoViewMode == MemoViewMode.Calendar,
+    )
 }
 
 typealias MemoListLoadStatus = RecordsRefreshStatus
 typealias CompletedMemoSearch = CompletedRecordsSearch
 
-enum class Screen {
-    Loading,
-    ModeSelection,
-    Server,
-    Initialize,
-    Login,
-    Memos,
-    MemoDetail,
-    Editor,
-    AISettings,
-    Ask,
-}
+typealias Screen = AppDestination

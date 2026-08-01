@@ -91,7 +91,10 @@ secure/local preference adapter and reuses those shared normalizers.
 The first buildable `shared-ui:app-shell` slice owns application-wide theme and
 interface-language state plus their platform-neutral transitions. Android
 hydrates it from `SessionStore`, persists accepted changes through that adapter,
-and remains responsible for applying the system theme and locale.
+and remains responsible for applying the system theme and locale. The module
+also owns native root destination identity, navigation-history updates, fallback
+back navigation, and return-to-Records policy; hosts retain system Back dispatch
+and platform navigation effects.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

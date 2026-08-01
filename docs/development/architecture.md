@@ -151,6 +151,8 @@ navigation, protocol execution, and ViewModel callbacks. The shared scaffold own
 centered layout, heading semantics, and inline-error placement; the shared header
 owns brand/language layout while Android supplies launcher resources, localized
 content, language state, and the toggle callback.
+The same module consumes the auth aggregate for settings password-change drafts
+and request state; Android supplies account metadata and client-context gating.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

@@ -95,6 +95,8 @@ directly. Android supplies localized strings, Material icons, accent colors, roo
 loading state, navigation, protocol execution, and ViewModel callbacks; the
 shared authentication scaffold and header receive Android launcher resources,
 localized brand text, language state, and the language-toggle callback.
+The settings account section also comes from `shared-ui:auth`; Android supplies
+the account summary, localized strings, mutation gate, icon, and callbacks.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

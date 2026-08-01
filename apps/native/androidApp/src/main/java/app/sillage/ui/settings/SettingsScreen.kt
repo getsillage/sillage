@@ -87,6 +87,8 @@ import app.sillage.features.settings.editorKey
 import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.auth.SillageAccountSettingsContent
+import app.sillage.ui.auth.SillageAccountSettingsStrings
 import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.designsystem.SillageSettingsActionRow
 import app.sillage.ui.designsystem.SillageSettingsEmptyCard
@@ -301,67 +303,28 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     if (state.appMode == SessionStore.MODE_ONLINE) {
                         item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_account)) {
-                                Text(
-                                    stringResource(R.string.settings_change_password),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    stringResource(R.string.settings_change_password_supporting),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                OutlinedTextField(
-                                    value = state.currentPassword,
-                                    onValueChange = viewModel::updateCurrentPassword,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.passwordChanging && !clientContextChangeBlocked,
-                                    label = { Text(stringResource(R.string.settings_current_password)) },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                )
-                                OutlinedTextField(
-                                    value = state.newPassword,
-                                    onValueChange = viewModel::updateNewPassword,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.passwordChanging && !clientContextChangeBlocked,
-                                    label = { Text(stringResource(R.string.settings_new_password)) },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                )
-                                OutlinedTextField(
-                                    value = state.confirmPassword,
-                                    onValueChange = viewModel::updateConfirmPassword,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.passwordChanging && !clientContextChangeBlocked,
-                                    label = { Text(stringResource(R.string.settings_confirm_password)) },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                )
-                                Button(
-                                    onClick = viewModel::changePassword,
-                                    enabled = !state.passwordChanging && !clientContextChangeBlocked,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    if (state.passwordChanging) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    Text(stringResource(R.string.settings_save_password))
-                                }
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-        SillageSettingsActionRow(
-                                    icon = Icons.AutoMirrored.Rounded.Logout,
-                                    title = stringResource(R.string.settings_sign_out),
-                                    supporting = state.account?.displayName ?: state.account?.username.orEmpty(),
-                                    onClick = viewModel::signOut,
-                                    enabled = !clientContextChangeBlocked && !state.passwordChanging,
+                                SillageAccountSettingsContent(
+                                    state = state.auth,
+                                    mutationBlocked = clientContextChangeBlocked,
+                                    strings = SillageAccountSettingsStrings(
+                                        changePasswordTitle = stringResource(R.string.settings_change_password),
+                                        changePasswordSupporting = stringResource(
+                                            R.string.settings_change_password_supporting,
+                                        ),
+                                        currentPasswordLabel = stringResource(R.string.settings_current_password),
+                                        newPasswordLabel = stringResource(R.string.settings_new_password),
+                                        confirmPasswordLabel = stringResource(R.string.settings_confirm_password),
+                                        savePassword = stringResource(R.string.settings_save_password),
+                                        signOut = stringResource(R.string.settings_sign_out),
+                                    ),
+                                    signOutSupporting = state.account?.displayName
+                                        ?: state.account?.username.orEmpty(),
+                                    signOutIcon = Icons.AutoMirrored.Rounded.Logout,
+                                    onCurrentPasswordChange = viewModel::updateCurrentPassword,
+                                    onNewPasswordChange = viewModel::updateNewPassword,
+                                    onConfirmPasswordChange = viewModel::updateConfirmPassword,
+                                    onSavePassword = viewModel::changePassword,
+                                    onSignOut = viewModel::signOut,
                                 )
                             }
                         }

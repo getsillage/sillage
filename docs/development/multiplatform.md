@@ -132,6 +132,9 @@ and inline-error placement; its header owns brand/language layout. Hosts supply
 localized strings, icons, accent colors, root loading state, navigation, protocol
 callbacks, brand resources, and language state; platform adapters retain resource
 lookup and language persistence.
+The shared auth module also owns settings account/password-change content and
+consumes the auth aggregate directly; hosts supply account metadata and
+client-context mutation gates.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

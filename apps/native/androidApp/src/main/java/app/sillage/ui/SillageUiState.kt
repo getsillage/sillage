@@ -1003,8 +1003,7 @@ internal fun SillageUiState.nextAskMemoSaveRequest(
 
 internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
     val pending = askMemoSave.begin(request, askMemoSaveContext()) ?: return this
-    return copy(
-        ask = ask.copy(memoSave = pending),
+    return withAsk { it.beginMemoSave(pending) }.copy(
         error = null,
         notice = null,
     )
@@ -1015,8 +1014,8 @@ internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Bo
 }
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    val finished = askMemoSave.finish(request) ?: return this
-    return copy(ask = ask.copy(memoSave = finished))
+    val finished = ask.finishMemoSave(request) ?: return this
+    return copy(ask = finished)
 }
 
 internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationContext =
@@ -1048,8 +1047,7 @@ internal fun SillageUiState.startAskSourceNavigation(
 ): SillageUiState {
     val pending = askSourceNavigation.begin(request, askSourceNavigationContext())
         ?: return this
-    return copy(
-        ask = ask.copy(sourceNavigation = pending),
+    return withAsk { it.beginSourceNavigation(pending) }.copy(
         error = null,
         notice = null,
     )
@@ -1058,8 +1056,29 @@ internal fun SillageUiState.startAskSourceNavigation(
 internal fun SillageUiState.finishAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
-    val finished = askSourceNavigation.finish(request) ?: return this
-    return copy(ask = ask.copy(sourceNavigation = finished))
+    val finished = ask.finishSourceNavigation(request) ?: return this
+    return copy(ask = finished)
+}
+
+/**
+ * Opens an Ask source record in detail after a validated source-navigation
+ * request, absorbing the memo into records presentation ownership.
+ */
+internal fun SillageUiState.openAskSourceDetail(
+    request: AskSourceNavigationRequest,
+    detail: RecordDetail,
+): SillageUiState {
+    val finishedAsk = ask.finishSourceNavigation(request) ?: return this
+    return copy(
+        screen = Screen.MemoDetail,
+        screenHistory = request.destinationHistory(),
+        records = records.absorbVisibleMemo(
+            memo = detail.memo,
+            summary = detail.ai,
+            filter = memoListFilter,
+        ),
+        ask = finishedAsk,
+    )
 }
 
 internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {

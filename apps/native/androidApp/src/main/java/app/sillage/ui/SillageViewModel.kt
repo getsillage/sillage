@@ -2716,15 +2716,15 @@ class SillageViewModel(
     }
 
     fun updateAskQuestion(value: String) {
-        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateQuestion(value))) }
+        updateState { it.copy(ask = it.ask.updateQuestion(value)) }
     }
 
     fun updateAskScope(value: String) {
-        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateContextScope(value))) }
+        updateState { it.copy(ask = it.ask.updateContextScope(value)) }
     }
 
     fun updateAskSourceKind(value: String) {
-        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateSourceKind(value))) }
+        updateState { it.copy(ask = it.ask.updateSourceKind(value)) }
     }
 
     fun retryAskLoad() {
@@ -2910,19 +2910,7 @@ class SillageViewModel(
                                 current
                             }
                         } else {
-                            current.copy(
-                                screen = Screen.MemoDetail,
-                                screenHistory = request.destinationHistory(),
-                                records = current.records.absorbVisibleMemo(
-                                    memo = detail.memo,
-                                    summary = detail.ai,
-                                    filter = current.memoListFilter,
-                                ),
-                                ask = current.ask.copy(
-                                    sourceNavigation = current.ask.sourceNavigation.finish(request)
-                                    ?: return@updateState current,
-                                ),
-                            )
+                            current.openAskSourceDetail(request, detail)
                         }
                     }
                 }

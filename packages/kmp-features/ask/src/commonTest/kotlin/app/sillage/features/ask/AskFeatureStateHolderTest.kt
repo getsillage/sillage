@@ -268,6 +268,19 @@ class AskFeatureStateHolderTest {
         assertEquals("", replaced.question)
     }
 
+    @Test
+    fun composerUpdatesStayOnAggregate() {
+        val state = AskFeatureStateHolder()
+        val updated = state
+            .updateQuestion("你好")
+            .updateContextScope("all")
+            .updateSourceKind("timeline")
+
+        assertEquals("你好", updated.question)
+        assertEquals("all", updated.contextScope)
+        assertEquals("timeline", updated.sourceKind)
+    }
+
     private fun conversation(id: String): AskConversation {
         return AskConversation(
             id = id,

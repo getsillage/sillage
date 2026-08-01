@@ -261,4 +261,34 @@ data class AskFeatureStateHolder(
             replaced
         }
     }
+
+    fun updateQuestion(value: String): AskFeatureStateHolder {
+        return copy(composer = composer.updateQuestion(value))
+    }
+
+    fun updateContextScope(value: String): AskFeatureStateHolder {
+        return copy(composer = composer.updateContextScope(value))
+    }
+
+    fun updateSourceKind(value: String): AskFeatureStateHolder {
+        return copy(composer = composer.updateSourceKind(value))
+    }
+
+    fun beginMemoSave(pending: AskMemoSaveStateHolder): AskFeatureStateHolder {
+        return copy(memoSave = pending)
+    }
+
+    fun finishMemoSave(request: AskMemoSaveRequest): AskFeatureStateHolder? {
+        val finished = memoSave.finish(request) ?: return null
+        return copy(memoSave = finished)
+    }
+
+    fun beginSourceNavigation(pending: AskSourceNavigationStateHolder): AskFeatureStateHolder {
+        return copy(sourceNavigation = pending)
+    }
+
+    fun finishSourceNavigation(request: AskSourceNavigationRequest): AskFeatureStateHolder? {
+        val finished = sourceNavigation.finish(request) ?: return null
+        return copy(sourceNavigation = finished)
+    }
 }

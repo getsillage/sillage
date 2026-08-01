@@ -9,26 +9,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
-data class Account(
-    val id: String,
-    val username: String,
-    val displayName: String,
-)
-
-data class AuthSession(
-    val account: Account,
-    val accessToken: String,
-    val expiresAt: String,
-)
-
-data class BootstrapInfo(
-    val initialized: Boolean,
-    val serverVersion: String,
-    val serverRevision: String,
-    val apiVersion: String,
-    val minimumAndroidVersionCode: Int,
-)
-
 data class MemoPage(
     val memos: List<Memo>,
     val nextCursor: String,

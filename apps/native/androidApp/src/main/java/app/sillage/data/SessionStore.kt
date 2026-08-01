@@ -2,6 +2,8 @@ package app.sillage.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.sillage.core.application.auth.AuthSession
+import app.sillage.core.domain.auth.Account
 import org.json.JSONArray
 
 internal data class ClientSessionSnapshot(

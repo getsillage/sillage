@@ -1,6 +1,6 @@
 package app.sillage.ui
 
-import app.sillage.data.Account
+import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder

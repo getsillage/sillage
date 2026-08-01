@@ -43,6 +43,9 @@ and local storage adapters. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.
+Account identity is imported from shared domain, while token-bearing sessions
+and public bootstrap metadata use shared application models. Android retains
+HTTP parsing and encrypted session persistence.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

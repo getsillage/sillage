@@ -71,6 +71,11 @@ feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
 
+Secret-free `auth.Account` is a shared domain value. Token-bearing
+`AuthSession` and public server `BootstrapInfo` are application values rather
+than domain entities; HTTP parsing and secure session persistence remain
+platform adapters.
+
 The buildable `kmp-features:records` module is the first shared feature slice.
 It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;
 Android remains its first host and adapter provider. Feature state holders move

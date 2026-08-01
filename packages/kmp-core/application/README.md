@@ -2,6 +2,10 @@
 
 Platform-neutral repository ports and use cases for native clients.
 
+The auth slice owns token-bearing `AuthSession` and public `BootstrapInfo`
+application values. Secret-free account identity lives in `kmp-core:domain`;
+platform adapters retain HTTP and secure session persistence.
+
 The records slice currently exposes seven distinct boundaries:
 
 - `RecordsRepository` and `ListRecordsUseCase` read one consistent local

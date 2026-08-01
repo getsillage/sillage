@@ -11,7 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.data.Account
+import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AttachmentUpload

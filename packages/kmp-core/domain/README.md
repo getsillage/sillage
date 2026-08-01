@@ -17,3 +17,6 @@ maintaining application-local copies.
 `ask` owns conversation, message, and source-reference values. `settings` owns
 secret-free AI profile and settings metadata. UI drafts, API inputs, codecs, and
 secret persistence remain outside the domain module.
+`auth.Account` owns secret-free account identity. Access tokens, expiry, instance
+capabilities, session persistence, and authentication transport remain outside
+the domain module.

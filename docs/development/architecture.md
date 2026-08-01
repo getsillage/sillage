@@ -105,6 +105,11 @@ directly; `data/Models.kt` no longer defines Android-only record or AI-detail
 entities. Remaining Android-local models are migration sources for later domain,
 application, or feature slices.
 
+Secret-free account identity lives in `kmp-core:domain/auth`. Token-bearing
+sessions and public bootstrap capability metadata live in
+`kmp-core:application/auth`; Android retains HTTP parsing and secure session
+storage adapters.
+
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,
 and test call sites import these values directly. Cross-platform AI profile

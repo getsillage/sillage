@@ -30,6 +30,13 @@ For `general`, Sillage makes the answer request without looking up or attaching 
 
 The prompt requires claims about the user's records or personal history to use the supplied sources. Greetings and general-knowledge questions may be answered from the model's general knowledge without a source citation, and mixed questions should separate record-backed observations from general guidance. If a personal question cannot be answered from the supplied sources, the answer should say that the records do not provide enough information. Only valid source citations actually used in the answer are retained and displayed; a general answer has no source references. The model may still omit information or produce incorrect content, so verify important personal conclusions against the source records. Sillage does not treat AI output as a diagnosis or proof of fact.
 
+Android displays Ask answer chunks while generation is active. Stopping generation
+cancels the active client job and shows explicit feedback. Navigating away,
+switching conversations, or changing client context invalidates the captured
+request, so late stream chunks and late source-record loads are ignored. A
+completion event is published only for an available, successfully completed
+answer.
+
 ## Automatic Summaries
 
 When Automatically Summarize New Records (`新建记录后自动总结`) is enabled, the server sends a new record's content asynchronously after the record has been saved successfully. A generation failure does not roll back the record and is not retried indefinitely. Disabling the setting only prevents future automatic calls; it does not delete existing summaries or data already received by the provider.

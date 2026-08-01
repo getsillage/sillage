@@ -17,6 +17,7 @@ class RecordsFeatureStateHolderTest {
             selection = RecordsSelectionStateHolder(selectedMemo = selected),
             summary = RecordsSummaryStateHolder(loading = true),
             editor = RecordsEditorStateHolder(uploadingAttachment = true, draftContent = "draft"),
+            search = RecordsSearchStateHolder(query = "keep"),
         )
 
         val cleared = state.clearPresentedMemo(stopAttachmentUpload = true)
@@ -27,6 +28,22 @@ class RecordsFeatureStateHolderTest {
         assertFalse(cleared.summary.loading)
         assertFalse(cleared.editor.uploadingAttachment)
         assertEquals("draft", cleared.editor.draftContent)
+        assertEquals("keep", cleared.search.query)
+    }
+
+    @Test
+    fun clearPresentedMemoCanAlsoClearSearchOwnership() {
+        val selected = memo("memo-1b")
+        val state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            search = RecordsSearchStateHolder(query = "drop", searching = true),
+        )
+
+        val cleared = state.clearPresentedMemo(clearSearch = true)
+
+        assertNull(cleared.selection.selectedMemo)
+        assertEquals("", cleared.search.query)
+        assertFalse(cleared.search.searching)
     }
 
     @Test

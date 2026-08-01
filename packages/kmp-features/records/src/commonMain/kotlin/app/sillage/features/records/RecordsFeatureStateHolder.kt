@@ -64,11 +64,13 @@ data class RecordsFeatureStateHolder(
 
     /**
      * Clears selected-memo presentation when leaving detail/editor destinations.
-     * Optionally stops an in-flight attachment upload or resets the editor draft.
+     * Optionally stops an in-flight attachment upload, resets the editor draft,
+     * and/or clears search ownership.
      */
     fun clearPresentedMemo(
         stopAttachmentUpload: Boolean = false,
         resetEditorEntryDate: String? = null,
+        clearSearch: Boolean = false,
     ): RecordsFeatureStateHolder {
         val nextEditor = when {
             resetEditorEntryDate != null -> editor.reset(resetEditorEntryDate)
@@ -79,6 +81,7 @@ data class RecordsFeatureStateHolder(
             selection = selection.clear(),
             summary = summary.replacePresentation(null, loading = false),
             editor = nextEditor,
+            search = if (clearSearch) search.clear() else search,
         )
     }
 

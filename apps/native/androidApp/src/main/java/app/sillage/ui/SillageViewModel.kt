@@ -1227,9 +1227,11 @@ class SillageViewModel(
             updateState {
             it.copy(
                 themeMode = result.themeMode,
-                records = it.records.clearPresentedMemo(stopAttachmentUpload = true).copy(
+                records = it.records.clearPresentedMemo(
+                    stopAttachmentUpload = true,
+                    clearSearch = true,
+                ).copy(
                     browse = it.records.browse.copy(viewMode = result.memoViewMode),
-                    search = it.records.search.clear(),
                 ),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(result.aiProfiles),
                 aiAutoSummaryState = it.aiAutoSummaryState.replace(result.aiAutoSummary),
@@ -1586,8 +1588,7 @@ class SillageViewModel(
                         screenHistory = emptyList(),
                         records = it.records.clearPresentedMemo(
                             resetEditorEntryDate = LocalDate.now().toString(),
-                        ).copy(
-                            search = it.records.search.clear(),
+                            clearSearch = true,
                         ),
                         notice = uiString(R.string.notice_deleted),
                     )

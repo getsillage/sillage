@@ -23,6 +23,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   mutation generation.
 - `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
   calendar month/day selection.
+- `RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
+  invalidation while platform hosts stage bytes and launch native viewers.
 
 All asynchronous holders validate captured source, client context, filter,
 cache generation, and request identity before accepting a response. Pagination
@@ -33,5 +35,5 @@ The module depends only on `kmp-core:domain`. It must not perform transport,
 storage, synchronization, or platform UI work. Android consumes the policies
 and holders directly, retaining temporary read accessors while writes go
 through shared transitions. Android retains SavedStateHandle persistence, URI
-access, and upload execution while editor and summary state cross shared
-boundaries.
+access, byte staging, native viewer launch, and upload execution while editor,
+attachment-request, and summary state cross shared boundaries.

@@ -10,6 +10,7 @@ import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
+import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
@@ -109,7 +110,15 @@ class SillageUiStateTest {
             selected.copy(recordsSummary = selected.recordsSummary.copy(loading = true))
                 .memoEditorBusyReason(),
         )
-        assertEquals(null, selected.copy(openingAttachmentPath = "/attachments/file-1").memoEditorBusyReason())
+        assertEquals(
+            null,
+            selected.copy(
+                recordsAttachmentOpen = RecordsAttachmentOpenStateHolder(
+                    path = "/attachments/file-1",
+                    requestId = 1,
+                ),
+            ).memoEditorBusyReason(),
+        )
         assertEquals(null, selected.copy(screen = Screen.Memos, loading = true).memoEditorBusyReason())
     }
 
@@ -188,8 +197,10 @@ class SillageUiStateTest {
     @Test
     fun leavingAttachmentContextInvalidatesAQueuedOpenEvent() {
         val opening = editorState().copy(
-            openingAttachmentPath = "/api/v1/attachments/file-1",
-            attachmentOpenRequestId = 8,
+            recordsAttachmentOpen = RecordsAttachmentOpenStateHolder(
+                path = "/api/v1/attachments/file-1",
+                requestId = 8,
+            ),
         )
 
         assertTrue(opening.canHandleAttachmentOpen(8))

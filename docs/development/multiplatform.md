@@ -158,6 +158,11 @@ Records browsing is the ninth extracted state slice. Its shared holder owns
 list/calendar mode, semantic filtering, and calendar month/day selection.
 Android retains platform date arithmetic and refresh scheduling.
 
+Attachment opening is the tenth extracted records state slice.
+`RecordsAttachmentOpenStateHolder` owns request identity, late-result ownership,
+and invalidation. Android retains authenticated download, content-URI and cache
+staging, MIME resolution, and native viewer launch.
+
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,
 transactional outbox persistence, attachment staging, and the transactional

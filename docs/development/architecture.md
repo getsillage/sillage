@@ -188,6 +188,11 @@ generation used by late-response validation.
 calendar month/day selection. `MemoViewMode` is a shared feature value; Android
 retains platform date arithmetic and refresh scheduling.
 
+`RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
+invalidation so late staging or viewer events cannot cross navigation context.
+Android retains authenticated download, cache/content-URI staging, MIME mapping,
+and native viewer launch.
+
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,
 transactional outbox persistence, attachment staging, and the transactional

@@ -1920,12 +1920,15 @@ class SillageViewModel(
         if (current.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
             return
         }
-        val requestId = current.attachmentOpenRequestId + 1
+        val attachmentOpen = current.recordsAttachmentOpen.begin(target.path) ?: return
+        val requestId = attachmentOpen.requestId
         updateState {
-            if (it.openingAttachmentPath == null) {
+            if (
+                !it.recordsAttachmentOpen.opening &&
+                it.recordsAttachmentOpen.requestId + 1 == requestId
+            ) {
                 it.copy(
-                    openingAttachmentPath = target.path,
-                    attachmentOpenRequestId = requestId,
+                    recordsAttachmentOpen = attachmentOpen,
                     error = null,
                     notice = null,
                 )
@@ -1967,7 +1970,7 @@ class SillageViewModel(
                 updateState {
                     if (it.canHandleAttachmentOpen(requestId)) {
                         it.copy(
-                            openingAttachmentPath = null,
+                            recordsAttachmentOpen = it.recordsAttachmentOpen.complete(requestId),
                             error = error.readableMessage(),
                         )
                     } else {
@@ -1992,7 +1995,7 @@ class SillageViewModel(
         updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
                 it.copy(
-                    openingAttachmentPath = null,
+                    recordsAttachmentOpen = it.recordsAttachmentOpen.complete(requestId),
                     error = message,
                     notice = null,
                 )
@@ -3217,7 +3220,7 @@ class SillageViewModel(
     private fun clearAttachmentOpenRequest(requestId: Long) {
         updateState {
             if (it.canHandleAttachmentOpen(requestId)) {
-                it.copy(openingAttachmentPath = null)
+                it.copy(recordsAttachmentOpen = it.recordsAttachmentOpen.complete(requestId))
             } else {
                 it
             }
@@ -3427,13 +3430,16 @@ class SillageViewModel(
         if (state.value.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
             return
         }
-        val requestId = state.value.attachmentOpenRequestId + 1
         val openPath = localAttachmentPath(pending)
+        val attachmentOpen = state.value.recordsAttachmentOpen.begin(openPath) ?: return
+        val requestId = attachmentOpen.requestId
         updateState {
-            if (it.openingAttachmentPath == null) {
+            if (
+                !it.recordsAttachmentOpen.opening &&
+                it.recordsAttachmentOpen.requestId + 1 == requestId
+            ) {
                 it.copy(
-                    openingAttachmentPath = openPath,
-                    attachmentOpenRequestId = requestId,
+                    recordsAttachmentOpen = attachmentOpen,
                     error = null,
                     notice = null,
                 )
@@ -3477,7 +3483,7 @@ class SillageViewModel(
                 updateState {
                     if (it.canHandleAttachmentOpen(requestId)) {
                         it.copy(
-                            openingAttachmentPath = null,
+                            recordsAttachmentOpen = it.recordsAttachmentOpen.complete(requestId),
                             error = error.readableMessage(),
                         )
                     } else {

@@ -28,6 +28,7 @@ import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
 import app.sillage.features.records.RecordsCollectionStateHolder
+import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.records.RecordsEditorStateHolder
@@ -59,8 +60,8 @@ data class SillageUiState(
     val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
     val recordsMutation: RecordsMutationStateHolder = RecordsMutationStateHolder(),
     val recordsSummary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
-    val openingAttachmentPath: String? = null,
-    val attachmentOpenRequestId: Long = 0,
+    val recordsAttachmentOpen: RecordsAttachmentOpenStateHolder =
+        RecordsAttachmentOpenStateHolder(),
     val aiProfiles: List<AIProfileDraft> = emptyList(),
     val aiAutoSummary: Boolean = false,
     val aiAutoSummarySaving: Boolean = false,
@@ -154,6 +155,8 @@ data class SillageUiState(
     val calendarYear: Int get() = recordsBrowse.calendarYear
     val calendarMonth: Int get() = recordsBrowse.calendarMonth
     val selectedCalendarDate: String? get() = recordsBrowse.selectedCalendarDate
+    val openingAttachmentPath: String? get() = recordsAttachmentOpen.path
+    val attachmentOpenRequestId: Long get() = recordsAttachmentOpen.requestId
     val syncConflicts: List<MemoSyncConflictItem> get() = syncConflictState.items
 }
 
@@ -222,16 +225,16 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
-    return openingAttachmentPath != null && attachmentOpenRequestId == requestId
+    return recordsAttachmentOpen.owns(requestId)
 }
 
 internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
-    if (openingAttachmentPath == null) {
+    val attachmentOpen = recordsAttachmentOpen.invalidate()
+    if (attachmentOpen === recordsAttachmentOpen) {
         return this
     }
     return copy(
-        openingAttachmentPath = null,
-        attachmentOpenRequestId = attachmentOpenRequestId + 1,
+        recordsAttachmentOpen = attachmentOpen,
     )
 }
 

@@ -33,7 +33,7 @@ storage, networking, attachment handling, and other platform integrations. Recor
 listing, search, detail retrieval, editor saves, lifecycle mutations, and summary generation cross repository ports and use cases in
 `kmp-core:application`;
 local and remote adapters implement the same application contracts. Reusable record
-collection, browsing, refresh, search, selection, detail-request validation, summary, editor, and mutation state
+collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.
 Pure outbox, applied-result, conflict, and push-summary models live in

@@ -26,6 +26,7 @@ import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
+import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
@@ -49,10 +50,9 @@ data class SillageUiState(
     val minimumAndroidVersionCode: Int = 0,
     val androidUpdateRequired: Boolean = false,
     val account: Account? = null,
-    val memos: List<Memo> = emptyList(),
+    val recordsCollection: RecordsCollectionStateHolder = RecordsCollectionStateHolder(),
     val recordsPagination: RecordsPaginationStateHolder = RecordsPaginationStateHolder(),
     val recordsRefresh: RecordsRefreshStateHolder = RecordsRefreshStateHolder(),
-    val memoCacheGeneration: Long = 0,
     val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
     val recordsMutation: RecordsMutationStateHolder = RecordsMutationStateHolder(),
     val recordsSummary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
@@ -122,6 +122,8 @@ data class SillageUiState(
     // shared feature holders. Pagination, refresh, search, and selection writes
     // use those holders.
     val memoNextCursor: String get() = recordsPagination.nextCursor
+    val memos: List<Memo> get() = recordsCollection.records
+    val memoCacheGeneration: Long get() = recordsCollection.cacheGeneration
     val loadingMoreMemos: Boolean get() = recordsPagination.loadingMore
     val memoPageRequestId: Long get() = recordsPagination.requestId
     val memoListLoadStatus: MemoListLoadStatus get() = recordsRefresh.status
@@ -647,16 +649,11 @@ internal fun SillageUiState.failMemoSearch(
 }
 
 internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
-    val cached = memosForFilter(
-        memos.filter { it.id != memo.id } + memo,
-        memoListFilter,
-    )
     return copy(
-        memos = cached,
+        recordsCollection = recordsCollection.applyMemo(memo, memoListFilter),
         recordsSearch = recordsSearch.invalidateForMemoChange(memo, memoListFilter),
         recordsPagination = recordsPagination.cancel(),
         recordsRefresh = recordsRefresh.cancel(),
-        memoCacheGeneration = memoCacheGeneration + 1,
         recordsSelection = recordsSelection.mergeMemo(memo),
     )
 }

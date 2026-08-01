@@ -175,6 +175,11 @@ underlying `MemoAI` value already belongs to the shared domain.
 and editor presentation while lifecycle mutations run. Android retains keyed
 coroutine gates and localized mutation feedback.
 
+`RecordsCollectionStateHolder` owns the visible record cache and canonical
+mutation generation. Pagination and refresh replace snapshots without inventing
+a mutation, while canonical create/update/lifecycle responses advance the
+generation used by late-response validation.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

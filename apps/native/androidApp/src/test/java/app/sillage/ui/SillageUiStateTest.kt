@@ -9,6 +9,7 @@ import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
@@ -249,7 +250,11 @@ class SillageUiStateTest {
                 .canApplyMemoPage(request),
         )
         assertFalse(pending.copy(memoListFilter = MemoListFilter.Archived).canApplyMemoPage(request))
-        assertFalse(pending.copy(memoCacheGeneration = 1).canApplyMemoPage(request))
+        assertFalse(
+            pending.copy(
+                recordsCollection = pending.recordsCollection.copy(cacheGeneration = 1),
+            ).canApplyMemoPage(request),
+        )
         assertFalse(
             pending.copy(recordsPagination = pending.recordsPagination.copy(loadingMore = false))
                 .canApplyMemoPage(request),
@@ -262,7 +267,7 @@ class SillageUiStateTest {
         val initial = editorState().copy(
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
-            memos = listOf(original),
+            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
             recordsSearch = RecordsSearchStateHolder(
                 query = "记录",
                 results = listOf(original),
@@ -310,7 +315,7 @@ class SillageUiStateTest {
         val initial = editorState().copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            memos = listOf(original),
+            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
             recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
             recordsSummary = RecordsSummaryStateHolder(loading = true),
         )
@@ -340,7 +345,7 @@ class SillageUiStateTest {
         val initial = editorState().copy(
             screen = Screen.MemoDetail,
             appMode = SessionStore.MODE_ONLINE,
-            memos = listOf(original),
+            recordsCollection = RecordsCollectionStateHolder(records = listOf(original)),
             recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
         )
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
@@ -642,7 +647,7 @@ class SillageUiStateTest {
     fun failedEmptyMemoLoadUsesFailureStateInsteadOfBusinessEmptyState() {
         val failed = editorState().copy(
             screen = Screen.Memos,
-            memos = emptyList(),
+            recordsCollection = RecordsCollectionStateHolder(),
             recordsRefresh = RecordsRefreshStateHolder(status = MemoListLoadStatus.Failed),
         )
 
@@ -662,7 +667,11 @@ class SillageUiStateTest {
                 recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Idle),
             ).shouldShowMemoListLoadFailure(),
         )
-        assertFalse(failed.copy(memos = listOf(memo())).shouldShowMemoListLoadFailure())
+        assertFalse(
+            failed.copy(
+                recordsCollection = RecordsCollectionStateHolder(records = listOf(memo())),
+            ).shouldShowMemoListLoadFailure(),
+        )
         assertFalse(
             failed.copy(
                 recordsSearch = failed.recordsSearch.copy(results = emptyList()),

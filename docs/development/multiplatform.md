@@ -144,6 +144,11 @@ Records mutation is the seventh extracted state slice. Its shared holder owns
 the active record identities used by concurrent mutation presentation state;
 Android retains coroutine gates, source selection, and localized feedback.
 
+Records collection is the eighth extracted state slice. Its shared holder owns
+the visible record cache and canonical mutation generation. Snapshot and page
+replacement preserve that generation; applying a canonical mutation advances it
+and re-applies the active semantic filter.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

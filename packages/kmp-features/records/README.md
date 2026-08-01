@@ -19,6 +19,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   dirty state, Markdown preview, and attachment-upload request ownership.
 - `RecordsMutationStateHolder` owns the active record identities for concurrent
   mutation single-flight presentation state.
+- `RecordsCollectionStateHolder` owns the visible record cache and its canonical
+  mutation generation.
 
 All asynchronous holders validate captured source, client context, filter,
 cache generation, and request identity before accepting a response. Pagination

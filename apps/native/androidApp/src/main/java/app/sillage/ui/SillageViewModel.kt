@@ -268,7 +268,7 @@ class SillageViewModel(
                 clientContextGeneration = it.clientContextGeneration + 1,
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
-                memos = emptyList(),
+                recordsCollection = it.recordsCollection.clear(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
                 recordsMutation = it.recordsMutation.clear(),
@@ -322,7 +322,7 @@ class SillageViewModel(
                 clientContextGeneration = it.clientContextGeneration + 1,
                 screen = Screen.Loading,
                 screenHistory = emptyList(),
-                memos = emptyList(),
+                recordsCollection = it.recordsCollection.clear(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
                 recordsMutation = it.recordsMutation.clear(),
@@ -739,7 +739,7 @@ class SillageViewModel(
                         it.invalidateAIAutoSummaryRequest().copy(
                         clientContextGeneration = it.clientContextGeneration + 1,
                         account = null,
-                        memos = emptyList(),
+                recordsCollection = it.recordsCollection.clear(),
                         recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                         recordsRefresh = it.recordsRefresh.cancel(),
                 recordsMutation = it.recordsMutation.clear(),
@@ -814,9 +814,11 @@ class SillageViewModel(
                 }
                 }
                 .onSuccess { snapshot ->
-                    updateState { current ->
-                        current.completeMemoRefresh(request)?.copy(
-                            memos = memosForFilter(snapshot.memos, request.filter),
+                updateState { current ->
+                    current.completeMemoRefresh(request)?.copy(
+                        recordsCollection = current.recordsCollection.replace(
+                            memosForFilter(snapshot.memos, request.filter),
+                        ),
                             recordsPagination = current.recordsPagination.copy(
                                 nextCursor = snapshot.nextCursor,
                                 loadingMore = false,
@@ -851,9 +853,11 @@ class SillageViewModel(
             viewModelScope.launch(start = CoroutineStart.LAZY) {
                 runCatching { listOnlineMemos(request.filter, cursor = request.cursor) }
                         .onSuccess { page ->
-                            updateState { current ->
-                                current.completeMemoPage(request, page.nextCursor)?.copy(
-                                    memos = memosForFilter(current.memos + page.memos, request.filter),
+                updateState { current ->
+                    current.completeMemoPage(request, page.nextCursor)?.copy(
+                        recordsCollection = current.recordsCollection.replace(
+                            memosForFilter(current.memos + page.memos, request.filter),
+                        ),
                                 ) ?: current
                             }
                         }
@@ -1294,7 +1298,11 @@ class SillageViewModel(
                 } else {
                     it.memoListFilter
                 },
-                memos = if (resetFilter) emptyList() else it.memos,
+                recordsCollection = if (resetFilter) {
+                    it.recordsCollection.clear()
+                } else {
+                    it.recordsCollection
+                },
                 recordsPagination = if (resetFilter) {
                     it.recordsPagination.copy(nextCursor = "", loadingMore = false)
                 } else {
@@ -1345,7 +1353,7 @@ class SillageViewModel(
         updateState {
             it.copy(
                 memoListFilter = filter,
-                memos = emptyList(),
+                recordsCollection = it.recordsCollection.clear(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
                 recordsSearch = it.recordsSearch.clear(),
@@ -2847,7 +2855,7 @@ class SillageViewModel(
                 current.copy(
                                 screen = Screen.MemoDetail,
                                 screenHistory = request.destinationHistory(),
-                                memos = cached,
+                            recordsCollection = current.recordsCollection.replace(cached),
                             recordsSearch = current.recordsSearch.mergeResultMemo(
                                 detail.memo,
                                 current.memoListFilter,
@@ -3862,7 +3870,7 @@ class SillageViewModel(
                 clientContextGeneration = it.clientContextGeneration + 1,
                 initialized = true,
                 account = null,
-                memos = memos,
+                recordsCollection = it.recordsCollection.replace(memos),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.cancel(),
                 recordsMutation = it.recordsMutation.clear(),

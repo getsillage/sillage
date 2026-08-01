@@ -894,7 +894,7 @@ class SillageViewModel(
                         recordsEditor = it.recordsEditor.stopAttachmentUpload(),
                             aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                             aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(
-                                if (offlineMode) localDataStore.autoSummaryEnabled() else false,
+                            if (offlineMode) it.aiAutoSummary else false,
                             ),
                             aiSettingsLoad = it.aiSettingsLoad.cancel(),
                             aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
@@ -2430,14 +2430,16 @@ class SillageViewModel(
             return savedProfiles.map { it.toDraft() }
         }
         if (appMode == SessionStore.MODE_OFFLINE) {
-            return localDataStore.listAIProfiles()
+            return loadLocalAISettings().toEditableAISettings().profiles
         }
+        val currentProfiles = loadLocalAISettings().toEditableAISettings().profiles
         val localProfiles = mergeSavedAIProfilesForLocalStorage(
-            currentProfiles = localDataStore.listAIProfiles(),
+            currentProfiles = currentProfiles,
             remoteProfiles = savedProfiles.map { it.toDraft() },
             submittedProfiles = normalized,
         )
-        return localDataStore.saveAIProfiles(localProfiles)
+        saveLocalAIProfiles(localProfiles.map { it.toConfigurationCommand() })
+        return loadLocalAISettings().toEditableAISettings().profiles
     }
 
     private suspend fun persistAIAutoSummary(request: AIAutoSummaryRequest): Boolean {
@@ -2449,7 +2451,7 @@ class SillageViewModel(
             state.value.appMode == request.appMode &&
             state.value.clientContextGeneration == request.clientContextGeneration
         ) {
-            localDataStore.saveAutoSummary(savedValue)
+            setLocalAIAutoSummary(savedValue)
         }
         return savedValue
     }

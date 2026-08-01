@@ -109,6 +109,10 @@ Secret-free account identity lives in `kmp-core:domain/auth`. Token-bearing
 sessions and public bootstrap capability metadata live in
 `kmp-core:application/auth`; Android retains HTTP parsing and secure session
 storage adapters.
+Instance discovery crosses `InstanceBootstrapRepository`; initialization,
+sign-in, account verification, and password change cross
+`AuthenticationRepository` through focused use cases. Android's remote adapter
+retains REST, refresh coordination, and context-safe encrypted session storage.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

@@ -35,6 +35,7 @@ import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAskAnswerStreamer
+import app.sillage.data.RemoteAuthenticationRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteAISettingsRepository
@@ -42,6 +43,14 @@ import app.sillage.data.RemoteAIProfileDiagnostics
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
+import app.sillage.core.application.auth.ChangePasswordCommand
+import app.sillage.core.application.auth.ChangePasswordUseCase
+import app.sillage.core.application.auth.GetCurrentAccountUseCase
+import app.sillage.core.application.auth.InitializeAccountCommand
+import app.sillage.core.application.auth.InitializeAccountUseCase
+import app.sillage.core.application.auth.LoadInstanceBootstrapUseCase
+import app.sillage.core.application.auth.SignInCommand
+import app.sillage.core.application.auth.SignInUseCase
 import app.sillage.core.application.records.GenerateRecordSummaryUseCase
 import app.sillage.core.application.records.SaveRecordSummaryUseCase
 import app.sillage.core.application.records.ActiveRecordSummaryProfileRequiredException
@@ -184,6 +193,13 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
+    private val remoteAuthenticationRepository = RemoteAuthenticationRepository(api)
+    private val loadInstanceBootstrap =
+        LoadInstanceBootstrapUseCase(remoteAuthenticationRepository)
+    private val initializeRemoteAccount = InitializeAccountUseCase(remoteAuthenticationRepository)
+    private val signInRemote = SignInUseCase(remoteAuthenticationRepository)
+    private val getCurrentRemoteAccount = GetCurrentAccountUseCase(remoteAuthenticationRepository)
+    private val changeRemotePassword = ChangePasswordUseCase(remoteAuthenticationRepository)
     private val remoteAIProfileDiagnostics = RemoteAIProfileDiagnostics(api)
     private val testRemoteAIProfile =
         TestAIProfileConnectionUseCase(remoteAIProfileDiagnostics)
@@ -606,7 +622,7 @@ class SillageViewModel(
             return
         }
         launchAuthBusy {
-            val bootstrap = api.bootstrap(state.value.baseUrl)
+            val bootstrap = loadInstanceBootstrap(state.value.baseUrl)
             val updateRequired = bootstrap.minimumAndroidVersionCode > BuildConfig.VERSION_CODE
             updateState {
                 it.copy(
@@ -643,7 +659,7 @@ class SillageViewModel(
                 updateState { it.copy(screen = Screen.Login, initialized = true, account = null) }
                 return@launchAuthBusy
             }
-            val verified = api.me()
+            val verified = getCurrentRemoteAccount()
             updateState {
                 it.copy(
                         screen = Screen.Memos,
@@ -713,7 +729,7 @@ class SillageViewModel(
         viewModelScope.launch {
             updateState { it.copy(passwordChanging = true, error = null, notice = null) }
             runCatching {
-                api.changePassword(currentPassword, newPassword)
+                changeRemotePassword(ChangePasswordCommand(currentPassword, newPassword))
             }.onSuccess { session ->
                 updateState(noticeType = UiToastType.SUCCESS) {
                     it.copy(
@@ -739,7 +755,9 @@ class SillageViewModel(
     fun initialize() {
         val current = state.value
         launchAuthBusy {
-            val session = api.initialize(current.username, current.displayName, current.password)
+            val session = initializeRemoteAccount(
+                InitializeAccountCommand(current.username, current.displayName, current.password),
+            )
             updateState {
                 it.copy(
                     account = session.account,
@@ -760,7 +778,7 @@ class SillageViewModel(
     fun signIn() {
         val current = state.value
         launchAuthBusy {
-            val session = api.signIn(current.username, current.password)
+            val session = signInRemote(SignInCommand(current.username, current.password))
             updateState {
                 it.copy(
                     account = session.account,

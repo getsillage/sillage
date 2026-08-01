@@ -75,6 +75,10 @@ Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
 than domain entities; HTTP parsing and secure session persistence remain
 platform adapters.
+Public capability discovery crosses `InstanceBootstrapRepository`.
+Initialization, sign-in, current-account verification, and password change cross
+`AuthenticationRepository` through focused use cases. Android retains REST,
+refresh coordination, and context-safe encrypted session persistence.
 
 The buildable `kmp-features:records` module is the first shared feature slice.
 It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;

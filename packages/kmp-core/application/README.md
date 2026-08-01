@@ -5,6 +5,11 @@ Platform-neutral repository ports and use cases for native clients.
 The auth slice owns token-bearing `AuthSession` and public `BootstrapInfo`
 application values. Secret-free account identity lives in `kmp-core:domain`;
 platform adapters retain HTTP and secure session persistence.
+`InstanceBootstrapRepository` owns public instance capability discovery.
+`AuthenticationRepository` and focused initialize, sign-in, current-account, and
+password-change use cases own authentication intent. Android's remote adapter
+maps those contracts to REST while `SillageApi` retains session refresh and
+context-safe encrypted persistence.
 
 The records slice currently exposes seven distinct boundaries:
 

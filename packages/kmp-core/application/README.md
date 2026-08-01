@@ -24,7 +24,10 @@ conversations, listing messages, creating a conversation, and selecting its
 branch head. Android provides local and remote adapters. Streaming answer
 delivery crosses `AskAnswerStreamer` and `StreamAskAnswerUseCase` as ordered
 start, delta, and failure events. Android retains SSE parsing, HTTP, session
-retry, and device-local AI execution in platform adapters.
+retry, and device-local AI execution in platform adapters. Offline generation
+crosses `AskAnswerGenerator`; `AskTurnStore` persists the generated turn through
+a separate capability. Shared records and settings use cases supply canonical
+context without exposing local storage to the host ViewModel.
 
 The settings slice exposes `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase` for the independently persisted automatic-summary

@@ -8,11 +8,35 @@ data class AIProfileConfiguration(
     val apiKey: String? = null,
 )
 
+fun AIProfileConfiguration.toCommand(): AIProfileConfigurationCommand {
+    return AIProfileConfigurationCommand(
+        id = profile.id.takeIf { it.isNotBlank() },
+        name = profile.name,
+        provider = profile.provider,
+        baseUrl = profile.baseUrl,
+        model = profile.model,
+        temperature = profile.temperature,
+        maxTokens = profile.maxTokens,
+        storedTemperature = profile.temperature,
+        storedMaxTokens = profile.maxTokens,
+        enabled = profile.enabled,
+        active = profile.active,
+        hasApiKey = profile.hasApiKey,
+        keyUnavailable = profile.keyUnavailable,
+        apiKey = apiKey,
+    )
+}
+
 /** Consistent editable settings snapshot returned by one repository read. */
 data class AISettingsSnapshot(
     val profiles: List<AIProfileConfiguration>,
     val autoSummary: Boolean,
 )
+
+fun AISettingsSnapshot.activeProfileOrNull(): AIProfileConfiguration? {
+    val enabled = profiles.filter { it.profile.enabled }
+    return enabled.firstOrNull { it.profile.active } ?: enabled.firstOrNull()
+}
 
 interface AISettingsRepository {
     suspend fun load(): AISettingsSnapshot

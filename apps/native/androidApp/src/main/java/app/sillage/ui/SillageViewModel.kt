@@ -22,6 +22,8 @@ import app.sillage.data.LocalAIProfilesRepository
 import app.sillage.data.LocalAISettingsRepository
 import app.sillage.data.LocalAIProfileConnectionTester
 import app.sillage.data.LocalAskRepository
+import app.sillage.data.LocalAskAnswerGenerator
+import app.sillage.data.LocalAskTurnStore
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
 import app.sillage.data.LocalMemoSyncOutbox
@@ -57,6 +59,10 @@ import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
 import app.sillage.core.application.ask.CreateAskConversationUseCase
+import app.sillage.core.application.ask.AppendAskTurnCommand
+import app.sillage.core.application.ask.AppendAskTurnUseCase
+import app.sillage.core.application.ask.GenerateAskAnswerCommand
+import app.sillage.core.application.ask.GenerateAskAnswerUseCase
 import app.sillage.core.application.ask.ListAskConversationsUseCase
 import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
@@ -70,6 +76,8 @@ import app.sillage.core.application.settings.LoadAISettingsUseCase
 import app.sillage.core.application.settings.ListAIProfileModelsUseCase
 import app.sillage.core.application.settings.SaveAIProfilesUseCase
 import app.sillage.core.application.settings.TestAIProfileConnectionUseCase
+import app.sillage.core.application.settings.toCommand
+import app.sillage.core.application.settings.activeProfileOrNull
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
@@ -163,6 +171,10 @@ class SillageViewModel(
     private val saveLocalRecord = SaveRecordUseCase(localRecordsRepository)
     private val mutateLocalRecordLifecycle = MutateRecordLifecycleUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
+    private val generateLocalAskAnswer =
+        GenerateAskAnswerUseCase(LocalAskAnswerGenerator(localAiClient))
+    private val appendLocalAskTurn =
+        AppendAskTurnUseCase(LocalAskTurnStore(this.localDataStore))
     private val testLocalAIProfile =
         TestAIProfileConnectionUseCase(LocalAIProfileConnectionTester(localAiClient))
     private val localRecordSummaryRepository = LocalRecordSummaryRepository(
@@ -3749,25 +3761,29 @@ class SillageViewModel(
                 if (question.isBlank()) {
                     throw IllegalArgumentException(uiString(R.string.error_ask_regenerate_missing))
                 }
-                val profile = localDataStore.activeAIProfile()
+                val profile = loadLocalAISettings().activeProfileOrNull()
                     ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
                 val history = buildAskActivePath(messages, parentId).map { it.message }
-                val answer = localAiClient.answerQuestion(
-                    profile = profile,
-                    question = question,
-                    scope = contextScope,
-                    loadMemos = localDataStore::listMemos,
-                    history = history,
+                val answer = generateLocalAskAnswer(
+                    GenerateAskAnswerCommand(
+                        profile = profile.toCommand(),
+                        question = question,
+                        contextScope = contextScope,
+                        records = listLocalRecords(),
+                        history = history,
+                    ),
                 )
-                localDataStore.appendAskTurn(
-                    conversationId = conversationId,
-                    question = question,
-                    answer = answer.answer,
-                    sourceRefs = answer.sourceRefs,
-                    model = answer.model,
-                    promptVersion = answer.promptVersion,
-                    parentId = parentId,
-                    forkOfId = forkOfId,
+                appendLocalAskTurn(
+                    AppendAskTurnCommand(
+                        conversationId = conversationId,
+                        question = question,
+                        answer = answer.content,
+                        sourceRefs = answer.sourceRefs,
+                        model = answer.model,
+                        promptVersion = answer.promptVersion,
+                        parentMessageId = parentId,
+                        forkOfMessageId = forkOfId,
+                    ),
                 )
                 val refreshedMessages = listLocalAskMessages(conversationId)
                 val conversations = listLocalAskConversations().filter(AskConversation::isActive)

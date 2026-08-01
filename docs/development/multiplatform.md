@@ -184,6 +184,10 @@ Streaming answer generation and device-local AI execution stay adapter-side
 at the implementation boundary. Remote streaming crosses `AskAnswerStreamer`
 and `StreamAskAnswerUseCase` through ordered start, delta, and failure events;
 Android retains SSE parsing, HTTP/session behavior, and device-local execution.
+Offline answer generation crosses `AskAnswerGenerator`, and completed local
+turns cross `AskTurnStore`. The shared settings snapshot selects the enabled
+active profile and the records use case supplies context; Android adapters retain
+the model client and local persistence transaction.
 
 Record creation and update cross `RecordWriteRepository` and
 `SaveRecordUseCase`. Shared commands carry only domain records and draft values;

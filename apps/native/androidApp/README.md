@@ -37,7 +37,9 @@ and message reads, conversation creation, and branch-head selection also cross
 the shared application boundary. Streaming answer generation and device-local AI
 execution use Android adapters; remote delivery crosses the shared
 `AskAnswerStreamer` contract, while SSE parsing and HTTP/session behavior remain
-inside the remote adapter. Reusable record
+inside the remote adapter. Offline generation and turn persistence cross
+`AskAnswerGenerator` and `AskTurnStore`; Android retains the device model client
+and local storage adapters. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.

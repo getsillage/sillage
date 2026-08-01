@@ -28,6 +28,9 @@ while the captured conversation and client context still match.
 Remote streaming crosses the application `AskAnswerStreamer` contract as ordered
 start, delta, and failure events; SSE parsing and HTTP stay in the platform
 adapter.
+Offline generation and turn persistence cross the independent application
+`AskAnswerGenerator` and `AskTurnStore` capabilities. The Android adapters own
+the local model client and storage transaction.
 
 `AskLoadStateHolder` owns conversation/message loading and its durable retry
 message, with explicit begin, complete, fail, and cancel transitions.

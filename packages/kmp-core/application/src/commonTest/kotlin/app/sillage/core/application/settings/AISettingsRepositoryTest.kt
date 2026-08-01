@@ -21,6 +21,9 @@ class AISettingsRepositoryTest {
         val actual = runAISettingsSuspend { LoadAISettingsUseCase(repository)() }
 
         assertEquals(expected, actual)
+        assertEquals("profile-1", actual.profiles.single().toCommand().id)
+        assertEquals("local-secret", actual.profiles.single().toCommand().apiKey)
+        assertEquals("profile-1", actual.activeProfileOrNull()?.profile?.id)
     }
 
     private fun profile(): AIProfile = AIProfile(

@@ -117,6 +117,10 @@ selection cross `AskRepository` and focused use cases in
 REST translation. Remote answer delivery crosses `AskAnswerStreamer` and
 `StreamAskAnswerUseCase` as ordered start, delta, and failure events. Android
 retains SSE parsing, HTTP/session behavior, and device-local AI execution.
+Offline generation crosses `AskAnswerGenerator`; completed turns cross the
+separate `AskTurnStore`. Shared settings and records use cases supply the active
+profile and record context, while Android adapters own the local model client and
+persistence transaction.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded

@@ -1415,14 +1415,12 @@ class SillageViewModel(
                     } else {
                         browsed
                     }
-                    withList.copy(
+                    withList.clearPresentedMemo().copy(
                         search = if (mode == MemoViewMode.Calendar) {
                             withList.search.clear()
                         } else {
                             withList.search
                         },
-                        selection = withList.selection.clear(),
-                        summary = withList.summary.replacePresentation(null, loading = false),
                     )
                 },
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
@@ -1459,10 +1457,7 @@ class SillageViewModel(
             it.copy(
                 records = it.records.copy(
                     browse = it.records.browse.selectFilter(filter),
-                ).resetForFilterChange().copy(
-                    selection = it.records.selection.clear(),
-                    summary = it.records.summary.replaceSummary(null),
-                ),
+                ).resetForFilterChange().clearPresentedMemo(),
                 error = null,
                 notice = null,
             )
@@ -3068,18 +3063,19 @@ class SillageViewModel(
             it.copy(
                 screen = if (returningToDetail) Screen.MemoDetail else navigation.screen,
                 screenHistory = navigation.history,
-                records = it.records.copy(
-                    selection = if (returningToDetail) {
-                    it.records.selection
+                records = if (returningToDetail) {
+                    it.records.copy(
+                        summary = it.records.summary.replacePresentation(
+                            null,
+                            loading = !isOfflineMode(),
+                        ),
+                        editor = it.records.editor.reset(LocalDate.now().toString()),
+                    )
                 } else {
-                    it.records.selection.clear()
+                    it.records.clearPresentedMemo(
+                        resetEditorEntryDate = LocalDate.now().toString(),
+                    )
                 },
-                    summary = it.records.summary.replacePresentation(
-                    null,
-                    loading = returningToDetail && !isOfflineMode(),
-                ),
-                    editor = it.records.editor.reset(LocalDate.now().toString()),
-                ),
                 error = null,
                 notice = null,
             )

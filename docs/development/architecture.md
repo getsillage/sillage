@@ -141,6 +141,9 @@ response to shared domain values.
 `RecordWriteRepository` and `SaveRecordUseCase` expose creation and update from
 a platform-neutral draft command. Android's local and remote adapters own the
 storage or REST write and return the canonical shared `Memo`.
+`RecordLifecycleRepository` and `MutateRecordLifecycleUseCase` expose favorite,
+archive, recoverable deletion, restoration, and permanent deletion commands.
+The same adapters execute the mutation and return its canonical shared `Memo`.
 
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state

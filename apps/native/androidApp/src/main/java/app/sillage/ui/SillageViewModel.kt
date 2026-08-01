@@ -31,6 +31,8 @@ import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
 import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.RecordLifecycleCommand
+import app.sillage.core.application.records.MutateRecordLifecycleUseCase
 import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
@@ -94,6 +96,7 @@ class SillageViewModel(
     private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
     private val getLocalRecordDetail = GetRecordDetailUseCase(localRecordsRepository)
     private val saveLocalRecord = SaveRecordUseCase(localRecordsRepository)
+    private val mutateLocalRecordLifecycle = MutateRecordLifecycleUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
@@ -101,6 +104,7 @@ class SillageViewModel(
     private val searchRemoteRecords = SearchRecordsUseCase(remoteRecordsRepository)
     private val getRemoteRecordDetail = GetRecordDetailUseCase(remoteRecordsRepository)
     private val saveRemoteRecord = SaveRecordUseCase(remoteRecordsRepository)
+    private val mutateRemoteRecordLifecycle = MutateRecordLifecycleUseCase(remoteRecordsRepository)
     private var askStreamJob: Job? = null
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
@@ -1468,11 +1472,10 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
         ) {
-            val deleted = if (current.appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.deleteMemo(memo)
-            } else {
-                api.deleteMemo(memo)
-            }
+            val deleted = mutateRecordLifecycle(
+                RecordLifecycleCommand.Delete(memo),
+                current.appMode,
+            )
             if (!applyMemo(deleted, current.appMode, current.clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1520,11 +1523,10 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
         ) {
-            val updated = if (current.appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.setMemoFavorited(memo, memo.favoritedAt == null)
-            } else {
-                api.setMemoFavorited(memo, memo.favoritedAt == null)
-            }
+            val updated = mutateRecordLifecycle(
+                RecordLifecycleCommand.SetFavorited(memo, memo.favoritedAt == null),
+                current.appMode,
+            )
             if (!applyMemo(updated, current.appMode, current.clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1551,11 +1553,10 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
         ) {
-            val updated = if (current.appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.setMemoArchived(memo, memo.archivedAt == null)
-            } else {
-                api.setMemoArchived(memo, memo.archivedAt == null)
-            }
+            val updated = mutateRecordLifecycle(
+                RecordLifecycleCommand.SetArchived(memo, memo.archivedAt == null),
+                current.appMode,
+            )
             if (!applyMemo(updated, current.appMode, current.clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1580,11 +1581,10 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
         ) {
-            val updated = if (appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.setMemoFavorited(memo, memo.favoritedAt == null)
-            } else {
-                api.setMemoFavorited(memo, memo.favoritedAt == null)
-            }
+            val updated = mutateRecordLifecycle(
+                RecordLifecycleCommand.SetFavorited(memo, memo.favoritedAt == null),
+                appMode,
+            )
             if (!applyMemo(updated, appMode, clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1609,11 +1609,10 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
         ) {
-            val updated = if (appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.setMemoArchived(memo, memo.archivedAt == null)
-            } else {
-                api.setMemoArchived(memo, memo.archivedAt == null)
-            }
+            val updated = mutateRecordLifecycle(
+                RecordLifecycleCommand.SetArchived(memo, memo.archivedAt == null),
+                appMode,
+            )
             if (!applyMemo(updated, appMode, clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1638,11 +1637,7 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
         ) {
-            val deleted = if (appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.deleteMemo(memo)
-            } else {
-                api.deleteMemo(memo)
-            }
+            val deleted = mutateRecordLifecycle(RecordLifecycleCommand.Delete(memo), appMode)
             if (!applyMemo(deleted, appMode, clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -1679,11 +1674,7 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
         ) {
-            val restored = if (appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.restoreMemo(memo)
-            } else {
-                api.restoreMemo(memo)
-            }
+            val restored = mutateRecordLifecycle(RecordLifecycleCommand.Restore(memo), appMode)
             if (applyMemo(restored, appMode, clientContextGeneration)) {
                 updateState { state ->
                     if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
@@ -1704,11 +1695,7 @@ class SillageViewModel(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
         ) {
-            val purged = if (appMode == SessionStore.MODE_OFFLINE) {
-                localDataStore.purgeMemo(memo)
-            } else {
-                api.purgeMemo(memo)
-            }
+            val purged = mutateRecordLifecycle(RecordLifecycleCommand.Purge(memo), appMode)
             if (applyMemo(purged, appMode, clientContextGeneration)) {
                 updateState { state ->
                     if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
@@ -3207,6 +3194,17 @@ class SillageViewModel(
             }
         }
         return ""
+    }
+
+    private suspend fun mutateRecordLifecycle(
+        command: RecordLifecycleCommand,
+        appMode: String,
+    ): Memo {
+        return if (appMode == SessionStore.MODE_OFFLINE) {
+            mutateLocalRecordLifecycle(command)
+        } else {
+            mutateRemoteRecordLifecycle(command)
+        }
     }
 
     private fun fetchSelectedMemoDetail(memoId: String) {

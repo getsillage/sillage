@@ -5,6 +5,7 @@ import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.application.records.RecordDetailRepository
 import app.sillage.core.application.records.RecordDraft
 import app.sillage.core.application.records.RecordWriteRepository
+import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsPageRepository
 import app.sillage.core.application.records.RecordsQueryScope
@@ -18,7 +19,8 @@ class RemoteRecordsRepository(
 ) : RecordsPageRepository,
     RecordsSearchRepository,
     RecordDetailRepository,
-    RecordWriteRepository {
+    RecordWriteRepository,
+    RecordLifecycleRepository {
     override suspend fun listPage(query: RecordsPageQuery): RecordsPage {
         val transportQuery = query.scope.transportQuery()
         val page = api.listMemos(
@@ -54,6 +56,20 @@ class RemoteRecordsRepository(
     override suspend fun updateRecord(memo: Memo, draft: RecordDraft): Memo {
         return api.updateMemo(memo, draft.content, draft.entryDate)
     }
+
+    override suspend fun setRecordFavorited(memo: Memo, favorited: Boolean): Memo {
+        return api.setMemoFavorited(memo, favorited)
+    }
+
+    override suspend fun setRecordArchived(memo: Memo, archived: Boolean): Memo {
+        return api.setMemoArchived(memo, archived)
+    }
+
+    override suspend fun deleteRecord(memo: Memo): Memo = api.deleteMemo(memo)
+
+    override suspend fun restoreRecord(memo: Memo): Memo = api.restoreMemo(memo)
+
+    override suspend fun purgeRecord(memo: Memo): Memo = api.purgeMemo(memo)
 }
 
 internal data class RecordsTransportQuery(

@@ -2,7 +2,7 @@
 
 Platform-neutral repository ports and use cases for native clients.
 
-The records slice currently exposes five distinct boundaries:
+The records slice currently exposes six distinct boundaries:
 
 - `RecordsRepository` and `ListRecordsUseCase` read one consistent local
   snapshot without exposing storage implementation types.
@@ -14,6 +14,8 @@ The records slice currently exposes five distinct boundaries:
   its AI-derived metadata without exposing storage or transport response types.
 - `RecordWriteRepository` and `SaveRecordUseCase` create or update a record
   from a platform-neutral draft command.
+- `RecordLifecycleRepository` and `MutateRecordLifecycleUseCase` archive,
+  favorite, delete, restore, or permanently delete a canonical record.
 
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage

@@ -117,6 +117,11 @@ Record creation and update cross `RecordWriteRepository` and
 `SaveRecordUseCase`. Shared commands carry only domain records and draft values;
 Android adapters own local persistence or REST writes.
 
+Favorite, archive, recoverable deletion, restoration, and permanent deletion
+cross `RecordLifecycleRepository` and `MutateRecordLifecycleUseCase`. Shared
+commands preserve mutation intent while Android adapters own local persistence
+or REST calls.
+
 Records search is the third extracted state slice. The shared holder owns query,
 result, failure, completion-event, and request-identity transitions; hosts own
 debounce scheduling and choose the active local or remote application adapter.

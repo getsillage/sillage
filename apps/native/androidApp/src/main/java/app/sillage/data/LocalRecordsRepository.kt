@@ -5,6 +5,7 @@ import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.application.records.RecordDetailRepository
 import app.sillage.core.application.records.RecordDraft
 import app.sillage.core.application.records.RecordWriteRepository
+import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
 import app.sillage.core.application.records.RecordsSearchRepository
@@ -17,7 +18,8 @@ class LocalRecordsRepository(
 ) : RecordsRepository,
     RecordsSearchRepository,
     RecordDetailRepository,
-    RecordWriteRepository {
+    RecordWriteRepository,
+    RecordLifecycleRepository {
     override fun listRecords(): List<Memo> = localDataStore.listMemos()
 
     override suspend fun search(query: RecordsSearchQuery): List<Memo> {
@@ -38,6 +40,20 @@ class LocalRecordsRepository(
     override suspend fun updateRecord(memo: Memo, draft: RecordDraft): Memo {
         return localDataStore.updateMemo(memo, draft.content, draft.entryDate)
     }
+
+    override suspend fun setRecordFavorited(memo: Memo, favorited: Boolean): Memo {
+        return localDataStore.setMemoFavorited(memo, favorited)
+    }
+
+    override suspend fun setRecordArchived(memo: Memo, archived: Boolean): Memo {
+        return localDataStore.setMemoArchived(memo, archived)
+    }
+
+    override suspend fun deleteRecord(memo: Memo): Memo = localDataStore.deleteMemo(memo)
+
+    override suspend fun restoreRecord(memo: Memo): Memo = localDataStore.restoreMemo(memo)
+
+    override suspend fun purgeRecord(memo: Memo): Memo = localDataStore.purgeMemo(memo)
 }
 
 internal fun RecordsQueryScope.localFilter(): MemoListFilter {

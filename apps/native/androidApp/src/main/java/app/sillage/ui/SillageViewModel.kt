@@ -19,8 +19,10 @@ import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
+import app.sillage.data.LocalRecordsRepository
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.application.records.ListRecordsUseCase
 import app.sillage.data.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
@@ -77,6 +79,7 @@ class SillageViewModel(
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = localDataStore ?: LocalDataStore(appContext)
+    private val listLocalRecords = ListRecordsUseCase(LocalRecordsRepository(this.localDataStore))
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private var askStreamJob: Job? = null
@@ -797,7 +800,7 @@ class SillageViewModel(
             runCatching {
                 if (request.appMode == SessionStore.MODE_OFFLINE) {
                     MemoListSnapshot(
-                        memos = localDataStore.listMemos(),
+                            memos = listLocalRecords(),
                         nextCursor = "",
                     )
                 } else {
@@ -3891,7 +3894,7 @@ class SillageViewModel(
         // silently show an empty diary.
         val localSnapshot = runCatching {
             OfflineLocalSnapshot(
-                memos = memosForFilter(localDataStore.listMemos(), filter),
+                    memos = memosForFilter(listLocalRecords(), filter),
                 aiProfiles = localDataStore.listAIProfiles(),
                 autoSummary = localDataStore.autoSummaryEnabled(),
             )

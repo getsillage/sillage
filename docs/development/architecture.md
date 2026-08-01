@@ -104,6 +104,12 @@ consume that type directly; `data/Models.kt` no longer defines an Android-only
 record entity. Remaining Android-local models are migration sources for later
 domain, application, or feature slices.
 
+`packages/kmp-core/application` owns repository ports and use cases. Its first
+slice exposes a platform-neutral record snapshot port and list use case;
+Android's `LocalRecordsRepository` adapts `LocalDataStore` to that port. Shared
+application APIs do not expose Android, SQLite, JSON, HTTP, or generated DTO
+types.
+
 `packages/kmp-features/records` owns record list filters, ordering, On This Day,
 calendar aggregation, excerpts, and cursor-coverage selectors. Android storage,
 feature state, ViewModel orchestration, Compose UI, and tests consume these

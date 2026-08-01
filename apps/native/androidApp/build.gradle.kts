@@ -75,6 +75,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":kmp-core:application"))
     implementation(project(":kmp-core:domain"))
     implementation(project(":kmp-features:records"))
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))

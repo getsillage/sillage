@@ -140,6 +140,10 @@ execution captures them without folding transport behavior into composer state.
 `AskSessionStateHolder` owns the monotonic feature-screen generation used by every
 Ask request holder for navigation-safe callback invalidation.
 
+`AIAutoSummaryRepository` and `SetAIAutoSummaryUseCase` own the first settings
+application boundary. Android adapters implement encrypted local persistence and
+REST mutation; the root ViewModel no longer selects those mechanisms directly.
+
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
 Android's `LocalRecordsRepository` adapts `LocalDataStore` to that port. Shared

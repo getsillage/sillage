@@ -25,6 +25,11 @@ branch head. Android provides local and remote adapters. Streaming answer
 generation and device-local AI execution remain platform adapter concerns until
 their asynchronous boundaries are extracted separately.
 
+The settings slice exposes `AIAutoSummaryRepository` and
+`SetAIAutoSummaryUseCase` for the independently persisted automatic-summary
+preference. Local and remote Android adapters own encrypted storage and REST
+translation.
+
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage
 and transport clients. Shared APIs must not expose Android, SQLite, JSON, HTTP,

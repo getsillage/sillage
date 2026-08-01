@@ -18,6 +18,7 @@ import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
+import app.sillage.data.LocalAIAutoSummaryRepository
 import app.sillage.data.LocalAskRepository
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
@@ -29,6 +30,7 @@ import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
 import app.sillage.data.RemoteAskRepository
+import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
@@ -52,6 +54,7 @@ import app.sillage.core.application.ask.CreateAskConversationUseCase
 import app.sillage.core.application.ask.ListAskConversationsUseCase
 import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
+import app.sillage.core.application.settings.SetAIAutoSummaryUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
@@ -124,6 +127,8 @@ class SillageViewModel(
         ResolveMemoSyncConflictUseCase(localMemoSyncConflictRepository)
     private val localMemoSyncOutbox = LocalMemoSyncOutbox(this.localDataStore)
     private val localAskRepository = LocalAskRepository(this.localDataStore)
+    private val setLocalAIAutoSummary =
+        SetAIAutoSummaryUseCase(LocalAIAutoSummaryRepository(this.localDataStore))
     private val listLocalAskConversations = ListAskConversationsUseCase(localAskRepository)
     private val listLocalAskMessages = ListAskMessagesUseCase(localAskRepository)
     private val createLocalAskConversation = CreateAskConversationUseCase(localAskRepository)
@@ -143,6 +148,8 @@ class SillageViewModel(
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
     private val remoteAskRepository = RemoteAskRepository(api)
+    private val setRemoteAIAutoSummary =
+        SetAIAutoSummaryUseCase(RemoteAIAutoSummaryRepository(api))
     private val listRemoteAskConversations = ListAskConversationsUseCase(remoteAskRepository)
     private val listRemoteAskMessages = ListAskMessagesUseCase(remoteAskRepository)
     private val createRemoteAskConversation = CreateAskConversationUseCase(remoteAskRepository)
@@ -2369,10 +2376,9 @@ class SillageViewModel(
 
     private suspend fun persistAIAutoSummary(request: AIAutoSummaryRequest): Boolean {
         if (request.appMode == SessionStore.MODE_OFFLINE) {
-            localDataStore.saveAutoSummary(request.targetValue)
-            return request.targetValue
+            return setLocalAIAutoSummary(request.targetValue)
         }
-        val savedValue = api.setAIAutoSummary(request.targetValue)
+        val savedValue = setRemoteAIAutoSummary(request.targetValue)
         if (
             state.value.appMode == request.appMode &&
             state.value.clientContextGeneration == request.clientContextGeneration

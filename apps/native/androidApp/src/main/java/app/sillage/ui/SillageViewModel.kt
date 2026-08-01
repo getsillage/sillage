@@ -54,6 +54,7 @@ import app.sillage.core.application.ask.ListAskMessagesUseCase
 import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
+import app.sillage.features.ask.AskVariantRequest
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.SessionStore
@@ -818,7 +819,7 @@ class SillageViewModel(
                             askLoadError = null,
                             askSending = false,
                             askStreaming = false,
-                            askVariantLoading = false,
+                            askVariant = it.askVariant.invalidate(),
                             askRegeneratingId = "",
                             askLiveUser = null,
                             askLiveAnswer = "",
@@ -2609,8 +2610,7 @@ class SillageViewModel(
                     askLoading = true,
                     askLoadError = null,
                     askScreenSessionId = screenSessionId,
-                    askVariantRequestId = latest.askVariantRequestId + 1,
-                    askVariantLoading = false,
+                    askVariant = latest.askVariant.invalidate(),
                     askSourceRequestId = latest.askSourceRequestId + 1,
                     askSourceLoading = false,
                     error = null,
@@ -2693,8 +2693,7 @@ class SillageViewModel(
                 askLiveAnswer = "",
                 askStreaming = false,
                 askScreenSessionId = it.askScreenSessionId + 1,
-                askVariantRequestId = it.askVariantRequestId + 1,
-                askVariantLoading = false,
+                askVariant = it.askVariant.invalidate(),
                 askSourceRequestId = it.askSourceRequestId + 1,
                 askSourceLoading = false,
                 error = null,
@@ -2759,13 +2758,14 @@ class SillageViewModel(
         val previousHeadId = current.askHeadId
         updateState {
             if (it.nextAskVariantRequest() == request) {
+                val variant = it.askVariant.begin(request, it.askVariantContext())
+                    ?: return@updateState it
                 it.copy(
                     askConversation = it.askConversation.moveHead(
                         request.conversationId,
                         leafId,
                     ),
-                    askVariantRequestId = request.requestId,
-                    askVariantLoading = true,
+                    askVariant = variant,
                     error = null,
                     notice = null,
                 )
@@ -3164,22 +3164,21 @@ class SillageViewModel(
 
     private fun cancelAskVariant() {
         updateState {
-            it.copy(
-                askVariantLoading = false,
-                askVariantRequestId = it.askVariantRequestId + 1,
-            )
+            it.copy(askVariant = it.askVariant.invalidate())
         }
     }
 
     private fun completeAskVariantSelection(request: AskVariantRequest, leafId: String) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
+                val variant = current.askVariant.finish(request, current.askVariantContext())
+                    ?: return@updateState current
                 current.copy(
                     askConversation = current.askConversation.moveHead(
                         request.conversationId,
                         leafId,
                     ),
-                    askVariantLoading = false,
+                    askVariant = variant,
                     notice = null,
                 )
             } else {
@@ -3195,12 +3194,14 @@ class SillageViewModel(
     ) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
+                val variant = current.askVariant.finish(request, current.askVariantContext())
+                    ?: return@updateState current
                 current.copy(
                     askConversation = current.askConversation.moveHead(
                         request.conversationId,
                         previousHeadId,
                     ),
-                    askVariantLoading = false,
+                    askVariant = variant,
                     error = error.readableMessage(),
                     notice = null,
                 )

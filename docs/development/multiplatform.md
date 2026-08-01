@@ -82,6 +82,9 @@ identity, and loaded message snapshots through `AskConversationStateHolder`.
 Its transitions reject cross-conversation messages and late snapshots for a
 previous selection. Android keeps transitional read accessors; persistence, SSE,
 and device-local AI execution remain platform adapters.
+`AskVariantStateHolder` also owns branch-selection single-flight identity and
+validates screen session, conversation, source mode, and client generation before
+accepting completion.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

@@ -121,6 +121,9 @@ conversation collection, current conversation, selected branch head, and loaded
 messages consistent. Android's root state exposes transitional read accessors;
 all writes go through the holder, while persistence and streaming stay outside
 the feature module.
+The same module's `AskVariantStateHolder` owns branch-selection request identity;
+Android supplies navigation and client context, then applies completion only when
+the shared holder still owns that request.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

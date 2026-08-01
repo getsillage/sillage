@@ -3,6 +3,7 @@ package app.sillage.ui
 import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
@@ -957,7 +958,7 @@ class SillageUiStateTest {
         )
         assertFalse(pending.copy(askSending = false).canApplyAskStream(request))
         assertEquals(null, state.copy(askLoading = true).nextAskStreamRequest())
-        assertEquals(null, state.copy(askVariantLoading = true).nextAskStreamRequest())
+        assertEquals(null, state.withAskVariant(loading = true).nextAskStreamRequest())
     }
 
     @Test
@@ -966,13 +967,10 @@ class SillageUiStateTest {
             screen = Screen.Ask,
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 3,
-            askVariantRequestId = 8,
+            askVariant = AskVariantStateHolder(requestId = 8),
         )
         val request = requireNotNull(state.nextAskVariantRequest())
-        val pending = state.copy(
-            askVariantRequestId = request.requestId,
-            askVariantLoading = true,
-        )
+        val pending = state.withAskVariant(requestId = request.requestId, loading = true)
 
         assertTrue(pending.canApplyAskVariant(request))
         assertEquals(null, pending.nextAskVariantRequest())
@@ -986,7 +984,10 @@ class SillageUiStateTest {
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
                 .canApplyAskVariant(request),
         )
-        assertFalse(pending.copy(askVariantRequestId = request.requestId + 1).canApplyAskVariant(request))
+        assertFalse(
+            pending.withAskVariant(requestId = request.requestId + 1)
+                .canApplyAskVariant(request),
+        )
         assertFalse(pending.copy(screen = Screen.Memos).canApplyAskVariant(request))
     }
 
@@ -1002,7 +1003,7 @@ class SillageUiStateTest {
         assertEquals(null, ask.copy(screen = Screen.Memos).nextAskVariantRequest())
         assertEquals(null, ask.copy(askLoading = true).nextAskVariantRequest())
         assertEquals(null, ask.copy(askSending = true).nextAskVariantRequest())
-        assertEquals(null, ask.copy(askVariantLoading = true).nextAskVariantRequest())
+        assertEquals(null, ask.withAskVariant(loading = true).nextAskVariantRequest())
         assertEquals(null, ask.copy(askSourceLoading = true).nextAskVariantRequest())
     }
 
@@ -1046,7 +1047,7 @@ class SillageUiStateTest {
         assertEquals(null, ask.copy(screen = Screen.AISettings).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.copy(loading = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.copy(askSending = true).nextAskSourceNavigationRequest("memo-1"))
-        assertEquals(null, ask.copy(askVariantLoading = true).nextAskSourceNavigationRequest("memo-1"))
+        assertEquals(null, ask.withAskVariant(loading = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.copy(askSourceLoading = true).nextAskSourceNavigationRequest("memo-1"))
     }
 
@@ -1156,6 +1157,16 @@ class SillageUiStateTest {
             activeConversationId = activeConversationId,
             headMessageId = headMessageId,
             messages = messages,
+        ),
+    )
+
+    private fun SillageUiState.withAskVariant(
+        requestId: Long = askVariantRequestId,
+        loading: Boolean = askVariantLoading,
+    ): SillageUiState = copy(
+        askVariant = AskVariantStateHolder(
+            requestId = requestId,
+            loading = loading,
         ),
     )
 

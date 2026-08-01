@@ -5,6 +5,9 @@ import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
+import app.sillage.features.ask.AskVariantContext
+import app.sillage.features.ask.AskVariantRequest
+import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo
@@ -85,8 +88,7 @@ data class SillageUiState(
     val askStreaming: Boolean = false,
     val askStreamRequestId: Long = 0,
     val askCompletionEventId: Long = 0,
-    val askVariantRequestId: Long = 0,
-    val askVariantLoading: Boolean = false,
+    val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
     val askRegeneratingId: String = "",
     val askLiveUser: AskMessage? = null,
     val askLiveAnswer: String = "",
@@ -160,6 +162,8 @@ data class SillageUiState(
     val activeAskId: String get() = askConversation.activeConversationId
     val askHeadId: String? get() = askConversation.headMessageId
     val askMessages: List<AskMessage> get() = askConversation.messages
+    val askVariantRequestId: Long get() = askVariant.requestId
+    val askVariantLoading: Boolean get() = askVariant.loading
 }
 
 /**
@@ -747,42 +751,21 @@ internal fun hasNewCompletedAskAnswer(
         }
 }
 
-internal data class AskVariantRequest(
-    val requestId: Long,
-    val screenSessionId: Long,
-    val conversationId: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
+internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantContext(
+    destinationAvailable = screen == Screen.Ask,
+    screenSessionId = askScreenSessionId,
+    conversationId = activeAskId,
+    appMode = appMode,
+    clientContextGeneration = clientContextGeneration,
+    anotherRequestInProgress = askLoading || askSending || askSourceLoading,
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
-    if (
-        screen != Screen.Ask ||
-        activeAskId.isBlank() ||
-        askLoading ||
-        askSending ||
-        askVariantLoading ||
-        askSourceLoading
-    ) {
-        return null
-    }
-    return AskVariantRequest(
-        requestId = askVariantRequestId + 1,
-        screenSessionId = askScreenSessionId,
-        conversationId = activeAskId,
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
-    )
+    return askVariant.nextRequest(askVariantContext())
 }
 
 internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Boolean {
-    return screen == Screen.Ask &&
-        askVariantLoading &&
-        askVariantRequestId == request.requestId &&
-        askScreenSessionId == request.screenSessionId &&
-        activeAskId == request.conversationId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration
+    return askVariant.canApply(request, askVariantContext())
 }
 
 internal data class AskMemoSaveRequest(

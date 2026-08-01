@@ -171,8 +171,9 @@ extracted.
 `PushPendingMemosUseCase` already composes shared `MemoSyncOutbox` and
 `MemoSyncGateway` ports so empty-push handling and applied-result acknowledgement
 are platform-independent.
-`MemoSyncConflictStateHolder` and `ResolveMemoSyncConflictUseCase` own pending
-conflict identity and the explicit keep-local/take-server command workflow.
+`kmp-features:sync` owns pending conflict presentation identity through
+`MemoSyncConflictStateHolder`; core `ResolveMemoSyncConflictUseCase` owns the
+explicit keep-local/take-server command workflow.
 Platform hosts retain confirmation UI and implement the transactional repository
 port without duplicating conflict policy.
 

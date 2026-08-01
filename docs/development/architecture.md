@@ -204,10 +204,11 @@ conflict-storage adapter remain platform-side migration sources for later sync
 ports and state-machine slices.
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
 it skips empty pushes, sends one pending batch, and acknowledges only applied
-results through the transactional outbox. `MemoSyncConflictStateHolder` and
-`ResolveMemoSyncConflictUseCase` own pending conflict identity and explicit
-resolution commands; platform hosts retain confirmation UI and implement the
-transactional conflict repository adapter.
+results through the transactional outbox. `kmp-features:sync` owns pending
+conflict presentation identity through `MemoSyncConflictStateHolder`; core
+`ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Platform
+hosts retain confirmation UI and implement the transactional conflict repository
+adapter.
 
 Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
 `SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata

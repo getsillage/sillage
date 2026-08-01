@@ -13,10 +13,10 @@ and platform types must not enter this module.
 `PushPendingMemosUseCase` reads pending mutations, skips an empty push, sends one
 batch, and acknowledges only applied results through the transactional outbox.
 
-`MemoSyncConflictStateHolder` owns the pending conflict presentation state.
 `ResolveMemoSyncConflictUseCase` dispatches explicit keep-local and take-server
-commands through `MemoSyncConflictRepository`; platform hosts provide confirmation
-UI and a transactional local-storage adapter.
+commands through `MemoSyncConflictRepository`; platform hosts provide a
+transactional local-storage adapter. Pending conflict presentation state belongs
+to `kmp-features:sync`.
 
 `SyncSnapshot` is the platform-neutral full-pull value. It contains only
 syncable domain data and an explicit available/unavailable AI-settings section;

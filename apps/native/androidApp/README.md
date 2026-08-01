@@ -39,7 +39,7 @@ must not duplicate domain, storage, synchronization, or protocol rules.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.
-Shared conflict state and resolution commands own the explicit choice workflow;
+Shared `kmp-features:sync` conflict state and core resolution commands own the explicit choice workflow;
 Android retains the confirmation UI and transactional local-storage adapter.
 Full pull runs through shared `SyncSnapshot` gateway/repository contracts and
 `PullSyncUseCase`. Android maps REST pages and atomically merges the snapshot;

@@ -4,8 +4,8 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
-import app.sillage.core.sync.MemoSyncConflictItem
-import app.sillage.core.sync.MemoSyncConflictStateHolder
+import app.sillage.features.sync.MemoSyncConflictItem
+import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.MemoAI

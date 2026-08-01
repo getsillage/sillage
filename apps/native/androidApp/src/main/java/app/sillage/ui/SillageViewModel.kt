@@ -70,6 +70,7 @@ import app.sillage.data.localAttachmentMarkdown
 import app.sillage.data.localAttachmentPath
 import app.sillage.data.markdownFormatSnippet
 import app.sillage.features.records.memosForFilter
+import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.data.mergeSavedAIProfilesForLocalStorage
 import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
@@ -3325,7 +3326,12 @@ class SillageViewModel(
     }
 
     private fun conflictItemsFromSummary(summary: SyncPushSummary): List<SyncConflictItem> {
-        return summary.conflictMemoSyncs.map(resolveMemoSyncConflict::item)
+        return summary.conflictMemoSyncs.map { conflict ->
+            MemoSyncConflictItem(
+                conflict = conflict,
+                localMemo = resolveMemoSyncConflict.localMemo(conflict),
+            )
+        }
     }
 
     private fun syncPushNotice(summary: SyncPushSummary): String {

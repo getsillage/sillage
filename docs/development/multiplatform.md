@@ -160,11 +160,16 @@ Android retains platform date arithmetic and refresh scheduling.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,
-transactional outbox persistence, attachment staging, and conflict resolution
-until later sync ports and state-machine slices are extracted.
+transactional outbox persistence, attachment staging, and the transactional
+conflict-storage adapter until later sync ports and state-machine slices are
+extracted.
 `PushPendingMemosUseCase` already composes shared `MemoSyncOutbox` and
 `MemoSyncGateway` ports so empty-push handling and applied-result acknowledgement
 are platform-independent.
+`MemoSyncConflictStateHolder` and `ResolveMemoSyncConflictUseCase` own pending
+conflict identity and the explicit keep-local/take-server command workflow.
+Platform hosts retain confirmation UI and implement the transactional repository
+port without duplicating conflict policy.
 
 ## Platform Hosts
 

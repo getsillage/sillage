@@ -190,13 +190,15 @@ retains platform date arithmetic and refresh scheduling.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,
-transactional outbox persistence, attachment staging, and conflict resolution
-remain adapter-side migration sources for later sync ports and state-machine
-slices.
+transactional outbox persistence, attachment staging, and the transactional
+conflict-storage adapter remain platform-side migration sources for later sync
+ports and state-machine slices.
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
 it skips empty pushes, sends one pending batch, and acknowledges only applied
-results through the transactional outbox. Android retains conflict presentation
-and resolution orchestration.
+results through the transactional outbox. `MemoSyncConflictStateHolder` and
+`ResolveMemoSyncConflictUseCase` own pending conflict identity and explicit
+resolution commands; platform hosts retain confirmation UI and implement the
+transactional conflict repository adapter.
 
 ## Core Invariants
 

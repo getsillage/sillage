@@ -4,7 +4,8 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
-import app.sillage.core.sync.ConflictMemoSync
+import app.sillage.core.sync.MemoSyncConflictItem
+import app.sillage.core.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.MemoAI
@@ -117,7 +118,7 @@ data class SillageUiState(
     val error: String? = null,
     val notice: String? = null,
     /** Open sync version conflicts awaiting an explicit user choice. */
-    val syncConflicts: List<SyncConflictItem> = emptyList(),
+    val syncConflictState: MemoSyncConflictStateHolder = MemoSyncConflictStateHolder(),
 ) {
     // Transitional read accessors while the remaining records state moves into
     // shared feature holders. Pagination, refresh, search, and selection writes
@@ -153,15 +154,13 @@ data class SillageUiState(
     val calendarYear: Int get() = recordsBrowse.calendarYear
     val calendarMonth: Int get() = recordsBrowse.calendarMonth
     val selectedCalendarDate: String? get() = recordsBrowse.selectedCalendarDate
+    val syncConflicts: List<MemoSyncConflictItem> get() = syncConflictState.items
 }
 
 /**
  * UI model for one push conflict: local pending content plus the server resource.
  */
-data class SyncConflictItem(
-    val conflict: ConflictMemoSync,
-    val localMemo: Memo?,
-)
+typealias SyncConflictItem = MemoSyncConflictItem
 
 internal fun AIProfileDraft.uiKey(index: Int): String {
     return id.ifBlank { draftKey.ifBlank { "new-$index" } }

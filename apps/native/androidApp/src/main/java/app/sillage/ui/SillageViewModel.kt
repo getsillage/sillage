@@ -19,6 +19,7 @@ import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
+import app.sillage.data.LocalMemoSyncConflictRepository
 import app.sillage.data.LocalMemoSyncOutbox
 import app.sillage.data.LocalRecordsRepository
 import app.sillage.data.LocalRecordSummaryRepository
@@ -53,6 +54,8 @@ import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
 import app.sillage.core.sync.SyncPushSummary
 import app.sillage.core.sync.PushPendingMemosUseCase
+import app.sillage.core.sync.ResolveMemoSyncConflictCommand
+import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
 import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
@@ -100,6 +103,10 @@ class SillageViewModel(
     private val appContext = context.applicationContext
     private val sessionStore = SessionStore(appContext)
     private val localDataStore = localDataStore ?: LocalDataStore(appContext)
+    private val localMemoSyncConflictRepository =
+        LocalMemoSyncConflictRepository(this.localDataStore)
+    private val resolveMemoSyncConflict =
+        ResolveMemoSyncConflictUseCase(localMemoSyncConflictRepository)
     private val localMemoSyncOutbox = LocalMemoSyncOutbox(this.localDataStore)
     private val localRecordsRepository = LocalRecordsRepository(this.localDataStore)
     private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
@@ -1218,7 +1225,11 @@ class SillageViewModel(
                 noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
             ) {
                 it.copy(
-                    syncConflicts = conflicts.ifEmpty { it.syncConflicts },
+                    syncConflictState = if (conflicts.isEmpty()) {
+                        it.syncConflictState
+                    } else {
+                        it.syncConflictState.replace(conflicts)
+                    },
                     notice = if (warnAiSettings) {
                         uiString(R.string.error_sync_ai_settings_failed)
                     } else {
@@ -1235,12 +1246,14 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {
-                    localDataStore.resolveConflictKeepLocal(item.conflict)
+                    resolveMemoSyncConflict(
+                        ResolveMemoSyncConflictCommand.KeepLocal(item.conflict),
+                    )
                 }
             }.onSuccess {
                 updateState(noticeType = UiToastType.SUCCESS) {
                     it.copy(
-                        syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+                        syncConflictState = it.syncConflictState.remove(resourceId),
                         notice = uiString(R.string.notice_conflict_keep_local),
                     )
                 }
@@ -1255,12 +1268,14 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {
-                    localDataStore.resolveConflictTakeServer(item.conflict)
+                    resolveMemoSyncConflict(
+                        ResolveMemoSyncConflictCommand.TakeServer(item.conflict),
+                    )
                 }
             }.onSuccess {
                 updateState(noticeType = UiToastType.SUCCESS) {
                     it.copy(
-                        syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+                        syncConflictState = it.syncConflictState.remove(resourceId),
                         notice = uiString(R.string.notice_conflict_take_server),
                     recordsSelection = it.recordsSelection.replaceIfSelected(
                         resourceId,
@@ -1278,7 +1293,7 @@ class SillageViewModel(
     fun dismissSyncConflict(resourceId: String) {
         updateState {
             it.copy(
-                syncConflicts = it.syncConflicts.filterNot { c -> c.conflict.resourceId == resourceId },
+                    syncConflictState = it.syncConflictState.remove(resourceId),
             )
         }
     }
@@ -3308,19 +3323,14 @@ class SillageViewModel(
         val conflicts = conflictItemsFromSummary(summary)
         updateState(noticeType = syncPushToastType(summary)) {
             it.copy(
-                syncConflicts = conflicts.ifEmpty { emptyList() },
+                syncConflictState = it.syncConflictState.replace(conflicts),
                 notice = syncPushNotice(summary),
             )
         }
     }
 
     private fun conflictItemsFromSummary(summary: SyncPushSummary): List<SyncConflictItem> {
-        return summary.conflictMemoSyncs.map { conflict ->
-            SyncConflictItem(
-                conflict = conflict,
-                localMemo = localDataStore.getMemoOrNull(conflict.resourceId),
-            )
-        }
+        return summary.conflictMemoSyncs.map(resolveMemoSyncConflict::item)
     }
 
     private fun syncPushNotice(summary: SyncPushSummary): String {

@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -75,8 +75,8 @@ class OfflineRecordJourneyTest {
         compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasText("设置") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("设置") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasScrollAction(), TIMEOUT_MS)
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("开源软件许可"))
+        compose.waitUntilExactlyOneExists(hasScrollToIndexAction(), TIMEOUT_MS)
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("开源软件许可"))
         compose.waitUntilExactlyOneExists(hasText("开源软件许可") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("开源软件许可") and hasClickAction())
             .performClick()

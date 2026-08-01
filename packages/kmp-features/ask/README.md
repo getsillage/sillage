@@ -34,3 +34,6 @@ message, with explicit begin, complete, fail, and cancel transitions.
 `AskComposerStateHolder` owns the draft question and retrieval scope/source
 options. Request execution captures these values but does not own or mutate the
 composer draft implicitly.
+
+`AskSessionStateHolder` provides the monotonic screen generation used by all Ask
+request holders to reject callbacks after navigation or client-context changes.

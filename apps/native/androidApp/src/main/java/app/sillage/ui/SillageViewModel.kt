@@ -352,7 +352,7 @@ class SillageViewModel(
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
-                askScreenSessionId = it.askScreenSessionId + 1,
+                askSession = it.askSession.advance(),
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 serverReturnScreen = null,
@@ -399,7 +399,7 @@ class SillageViewModel(
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
-                askScreenSessionId = it.askScreenSessionId + 1,
+                askSession = it.askSession.advance(),
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),
@@ -489,10 +489,10 @@ class SillageViewModel(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
                 recordsSummary = it.recordsSummary.finishDetail(),
-                askScreenSessionId = if (it.askLoading || it.askSending || it.askVariantLoading) {
-                    it.askScreenSessionId
+                askSession = if (it.askLoading || it.askSending || it.askVariantLoading) {
+                    it.askSession
                 } else {
-                    it.askScreenSessionId + 1
+                    it.askSession.advance()
                 },
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 error = null,
@@ -2594,7 +2594,7 @@ class SillageViewModel(
                         latest.askComposer::updateContextScope,
                     ) ?: latest.askComposer,
                     askLoad = latest.askLoad.begin(),
-                    askScreenSessionId = screenSessionId,
+                    askSession = latest.askSession.copy(generation = screenSessionId),
                     askVariant = latest.askVariant.invalidate(),
                     askSourceNavigation = latest.askSourceNavigation.invalidate(),
                     error = null,
@@ -2671,7 +2671,7 @@ class SillageViewModel(
                 askConversation = it.askConversation.deselect(),
                 askComposer = it.askComposer.clearQuestion(),
                 askStream = it.askStream.clearPresentation(),
-                askScreenSessionId = it.askScreenSessionId + 1,
+                askSession = it.askSession.advance(),
                 askVariant = it.askVariant.invalidate(),
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 error = null,
@@ -3197,7 +3197,7 @@ class SillageViewModel(
     private fun invalidateAskMemoSaveNavigation() {
         updateState {
             if (it.askSavingMessageId.isNotBlank()) {
-                it.copy(askScreenSessionId = it.askScreenSessionId + 1)
+                    it.copy(askSession = it.askSession.advance())
             } else {
                 it
             }
@@ -3907,7 +3907,7 @@ class SillageViewModel(
                 askConversation = it.askConversation.clear(),
                 askComposer = it.askComposer.clearQuestion(),
                 askLoad = it.askLoad.cancel(),
-                askScreenSessionId = it.askScreenSessionId + 1,
+                askSession = it.askSession.advance(),
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),

@@ -8,6 +8,7 @@ import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamStateHolder
+import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
@@ -914,7 +915,7 @@ class SillageUiStateTest {
                 headMessageId = answer.id,
                 messages = listOf(answer),
             ),
-            askScreenSessionId = 4,
+            askSession = AskSessionStateHolder(generation = 4),
         )
         val request = requireNotNull(
             idle.nextAskMemoSaveRequest(answer, memoContent = "保存内容"),
@@ -922,7 +923,7 @@ class SillageUiStateTest {
         val pending = idle.startAskMemoSave(request)
         val staleStates = listOf(
             "screen" to pending.copy(screen = Screen.Memos),
-            "session" to pending.copy(askScreenSessionId = 5),
+            "session" to pending.withAskSession(generation = 5),
             "conversation" to pending.withAskConversation(activeConversationId = "conversation-2"),
             "head" to pending.withAskConversation(headMessageId = "answer-2"),
             "client context" to pending.copy(
@@ -944,7 +945,7 @@ class SillageUiStateTest {
         val state = editorState().copy(
             screen = Screen.Ask,
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askScreenSessionId = 3,
+            askSession = AskSessionStateHolder(generation = 3),
             askStream = AskStreamStateHolder(requestId = 8),
         )
         val request = requireNotNull(state.nextAskStreamRequest())
@@ -956,7 +957,7 @@ class SillageUiStateTest {
             pending.withAskConversation(activeConversationId = "conversation-2")
                 .canApplyAskStream(request),
         )
-        assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskStream(request))
+        assertFalse(pending.withAskSession(generation = 4).canApplyAskStream(request))
         assertFalse(
             pending.withAskStream(requestId = request.requestId + 1)
                 .canApplyAskStream(request),
@@ -976,7 +977,7 @@ class SillageUiStateTest {
         val state = editorState().copy(
             screen = Screen.Ask,
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askScreenSessionId = 3,
+            askSession = AskSessionStateHolder(generation = 3),
             askVariant = AskVariantStateHolder(requestId = 8),
         )
         val request = requireNotNull(state.nextAskVariantRequest())
@@ -988,7 +989,7 @@ class SillageUiStateTest {
             pending.withAskConversation(activeConversationId = "conversation-2")
                 .canApplyAskVariant(request),
         )
-        assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskVariant(request))
+        assertFalse(pending.withAskSession(generation = 4).canApplyAskVariant(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskVariant(request))
         assertFalse(
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
@@ -1023,7 +1024,7 @@ class SillageUiStateTest {
             screen = Screen.Ask,
             screenHistory = emptyList(),
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askScreenSessionId = 4,
+            askSession = AskSessionStateHolder(generation = 4),
             askSourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
         )
         val request = requireNotNull(origin.nextAskSourceNavigationRequest("memo-1"))
@@ -1035,7 +1036,7 @@ class SillageUiStateTest {
         assertTrue(pending.canApplyAskSourceNavigation(request))
         assertEquals(listOf(Screen.Ask), request.destinationHistory())
         assertFalse(pending.copy(screen = Screen.AISettings).canApplyAskSourceNavigation(request))
-        assertFalse(pending.copy(askScreenSessionId = 5).canApplyAskSourceNavigation(request))
+        assertFalse(pending.withAskSession(generation = 5).canApplyAskSourceNavigation(request))
         assertFalse(
             pending.withAskSourceNavigation(requestId = 11)
                 .canApplyAskSourceNavigation(request),
@@ -1207,6 +1208,12 @@ class SillageUiStateTest {
             requestId = requestId,
             loading = loading,
         ),
+    )
+
+    private fun SillageUiState.withAskSession(
+        generation: Long,
+    ): SillageUiState = copy(
+        askSession = AskSessionStateHolder(generation = generation),
     )
 
     private fun SillageUiState.withAskStream(

@@ -101,6 +101,8 @@ only while its captured conversation and client context match.
 through explicit begin, complete, fail, and cancel transitions.
 `AskComposerStateHolder` owns the question draft and retrieval scope/source
 options independently from stream execution.
+`AskSessionStateHolder` owns the monotonic screen generation captured by Ask
+requests so navigation invalidates late callbacks consistently across hosts.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

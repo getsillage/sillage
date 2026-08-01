@@ -137,6 +137,8 @@ device-local AI adapters feed it only after shared request-ownership validation.
 durable retry message rather than leaving those transitions in the root ViewModel.
 `AskComposerStateHolder` owns the prompt draft and retrieval options; stream
 execution captures them without folding transport behavior into composer state.
+`AskSessionStateHolder` owns the monotonic feature-screen generation used by every
+Ask request holder for navigation-safe callback invalidation.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

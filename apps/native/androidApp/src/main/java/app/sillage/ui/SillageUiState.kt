@@ -16,6 +16,7 @@ import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamContext
 import app.sillage.features.ask.AskStreamRequest
 import app.sillage.features.ask.AskStreamStateHolder
+import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
@@ -94,7 +95,7 @@ data class SillageUiState(
     val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
     val askStream: AskStreamStateHolder = AskStreamStateHolder(),
     val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
-    val askScreenSessionId: Long = 0,
+    val askSession: AskSessionStateHolder = AskSessionStateHolder(),
     val askSourceNavigation: AskSourceNavigationStateHolder = AskSourceNavigationStateHolder(),
     val askMemoSave: AskMemoSaveStateHolder = AskMemoSaveStateHolder(),
     val recordsEditor: RecordsEditorStateHolder = RecordsEditorStateHolder(
@@ -180,6 +181,7 @@ data class SillageUiState(
     val askQuestion: String get() = askComposer.question
     val askScope: String get() = askComposer.contextScope
     val askSourceKind: String get() = askComposer.sourceKind
+    val askScreenSessionId: Long get() = askSession.generation
 }
 
 /**

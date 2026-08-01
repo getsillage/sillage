@@ -8,3 +8,7 @@ and the common `MaterialTheme` boundary. Platform hosts wrap it only when system
 capabilities require extra work, such as Android status/navigation bar icon
 appearance. Platform resources, lifecycle, windows, and packaging remain in the
 host applications.
+
+`SillageNavigationItem` owns the reusable primary-navigation item layout,
+selected/disabled semantic colors, indicator animation, and Tab accessibility
+role. Hosts supply localized labels, icons, destination selection, and callbacks.

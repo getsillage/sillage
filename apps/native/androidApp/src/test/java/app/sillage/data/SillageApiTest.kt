@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import app.sillage.core.sync.PendingMemoSync
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.core.domain.records.Memo

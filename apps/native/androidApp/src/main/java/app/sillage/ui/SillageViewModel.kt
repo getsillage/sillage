@@ -49,7 +49,7 @@ import app.sillage.data.PulledSyncData
 import app.sillage.data.SessionStore
 import app.sillage.data.SillageApi
 import app.sillage.data.SillageExportCodec
-import app.sillage.data.SyncPushSummary
+import app.sillage.core.sync.SyncPushSummary
 import app.sillage.data.askAnswerMemoContent
 import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown

@@ -1,6 +1,8 @@
 # Kotlin Multiplatform core
 
-Reserved for platform-independent native-client foundations:
+Platform-independent native-client foundations. `domain`, `application`, and
+`sync` are buildable Kotlin Multiplatform modules; the remaining directories are
+reserved module boundaries:
 
 - domain models and policies;
 - application use cases and repository ports;

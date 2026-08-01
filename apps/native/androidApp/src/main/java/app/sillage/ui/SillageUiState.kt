@@ -4,7 +4,7 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.data.AskConversation
 import app.sillage.data.AskMessage
-import app.sillage.data.ConflictMemoSync
+import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.MemoAI

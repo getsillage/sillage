@@ -3,6 +3,10 @@ package app.sillage.data
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.core.sync.AppliedMemoSync
+import app.sillage.core.sync.ConflictMemoSync
+import app.sillage.core.sync.PendingMemoSync
+import app.sillage.core.sync.SyncPushSummary
 import java.io.File
 import java.io.IOException
 import java.net.URLEncoder
@@ -1263,23 +1267,6 @@ internal fun Throwable.isAuthRejection(): Boolean {
     val statusCode = (this as? ApiException)?.statusCode ?: return false
     return statusCode == 401 || statusCode == 403
 }
-
-data class SyncPushSummary(
-    val applied: Int,
-    val conflict: Int,
-    val rejected: Int,
-    val appliedMemoSyncs: List<AppliedMemoSync> = emptyList(),
-    val conflictMemoSyncs: List<ConflictMemoSync> = emptyList(),
-)
-
-/** One push result that the server rejected as a version conflict. */
-data class ConflictMemoSync(
-    val mutationId: String,
-    val resourceId: String,
-    val clientVersion: Long?,
-    val serverVersion: Long?,
-    val serverMemo: Memo?,
-)
 
 data class PulledSyncData(
     val data: SillageExportData,

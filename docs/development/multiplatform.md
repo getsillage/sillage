@@ -63,8 +63,8 @@ tests.
 ## Shared Native Modules
 
 `packages/kmp-core/` owns domain, application, network, database,
-synchronization, and security foundations. Its buildable `domain` and
-`application` modules produce Android, desktop JVM, and Apple targets from
+synchronization, and security foundations. Its buildable `domain`, `application`,
+and `sync` modules produce Android, desktop JVM, and Apple targets from
 common source. `application` declares inward-facing use cases and repository
 ports; platform adapters implement those ports. `packages/kmp-features/` owns
 feature-scoped state for authentication, records, Ask, settings, and manual
@@ -157,6 +157,11 @@ and re-applies the active semantic filter.
 Records browsing is the ninth extracted state slice. Its shared holder owns
 list/calendar mode, semantic filtering, and calendar month/day selection.
 Android retains platform date arithmetic and refresh scheduling.
+
+The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
+conflict, and push-summary models. Android retains current REST/JSON mapping,
+transactional outbox persistence, attachment staging, and conflict resolution
+until later sync ports and state-machine slices are extracted.
 
 ## Platform Hosts
 

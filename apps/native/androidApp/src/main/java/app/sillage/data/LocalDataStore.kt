@@ -4,6 +4,9 @@ import android.content.Context
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.core.sync.AppliedMemoSync
+import app.sillage.core.sync.ConflictMemoSync
+import app.sillage.core.sync.PendingMemoSync
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.matchesListFilter
 import java.io.File
@@ -997,18 +1000,6 @@ private fun pendingMemoMutationsJson(mutations: Map<String, PendingMemoMutation>
     }
     return body.toString()
 }
-
-data class PendingMemoSync(
-    val memo: Memo,
-    val baseVersion: Long?,
-    val mutationId: String,
-    val action: String = "",
-)
-
-data class AppliedMemoSync(
-    val mutationId: String,
-    val memo: Memo,
-)
 
 data class SillageExportData(
     val formatVersion: Int,

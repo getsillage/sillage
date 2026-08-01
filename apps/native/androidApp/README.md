@@ -36,6 +36,9 @@ local and remote adapters implement the same application contracts. Reusable rec
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.
+Pure outbox, applied-result, conflict, and push-summary models live in
+`kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
+adapters.
 
 See [Multiplatform Development](../../../docs/development/multiplatform.md) and
 [Architecture](../../../docs/development/architecture.md) for module ownership and

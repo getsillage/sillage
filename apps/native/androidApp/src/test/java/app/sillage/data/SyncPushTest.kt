@@ -1,5 +1,7 @@
 package app.sillage.data
 
+import app.sillage.core.sync.AppliedMemoSync
+import app.sillage.core.sync.PendingMemoSync
 import app.sillage.core.domain.records.Memo
 import org.json.JSONArray
 import org.json.JSONObject

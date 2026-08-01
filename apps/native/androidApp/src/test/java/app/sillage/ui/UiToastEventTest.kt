@@ -1,6 +1,6 @@
 package app.sillage.ui
 
-import app.sillage.data.SyncPushSummary
+import app.sillage.core.sync.SyncPushSummary
 import app.sillage.features.records.RecordsEditorStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

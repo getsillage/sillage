@@ -43,7 +43,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
 | `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |
-| `packages/kmp-core/` | Shared native domain, data, sync, and security modules; `domain` is buildable for Android, desktop JVM, and Apple targets |
+| `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
 | `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |
@@ -187,6 +187,12 @@ generation used by late-response validation.
 `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
 calendar month/day selection. `MemoViewMode` is a shared feature value; Android
 retains platform date arithmetic and refresh scheduling.
+
+`packages/kmp-core/sync` owns the shared pending mutation, applied result,
+version-conflict, and push-summary models. Android REST/JSON mapping,
+transactional outbox persistence, attachment staging, and conflict resolution
+remain adapter-side migration sources for later sync ports and state-machine
+slices.
 
 ## Core Invariants
 

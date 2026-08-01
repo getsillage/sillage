@@ -350,6 +350,14 @@ internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {
     return recordsMutation.isActive(memoId)
 }
 
+internal fun SillageUiState.beginMemoMutation(memoId: String?): SillageUiState {
+    return withRecords { it.beginMemoMutation(memoId) }
+}
+
+internal fun SillageUiState.finishMemoMutation(memoId: String?): SillageUiState {
+    return withRecords { it.finishMemoMutation(memoId) }
+}
+
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
         summaryLoading ||

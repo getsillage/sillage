@@ -377,6 +377,19 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootMemoMutationTransitionsPreserveHostState() {
+        val state = editorState().copy(loading = true, error = "keep")
+
+        val started = state.beginMemoMutation("memo-1")
+        val finished = started.finishMemoMutation("memo-1")
+
+        assertTrue(started.isMemoMutationInProgress("memo-1"))
+        assertFalse(finished.isMemoMutationInProgress("memo-1"))
+        assertTrue(finished.loading)
+        assertEquals("keep", finished.error)
+    }
+
+    @Test
     fun rootRecordsTransitionKeepsHostStateWhileUpdatingEditorAggregate() {
         val state = editorState().copy(error = "keep")
 

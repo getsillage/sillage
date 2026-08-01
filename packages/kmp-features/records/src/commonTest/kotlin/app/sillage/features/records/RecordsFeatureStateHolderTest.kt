@@ -693,6 +693,23 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun memoMutationTransitionsStayInsideAggregate() {
+        val selected = memo("memo-mutation")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected)),
+        )
+
+        val started = state.beginMemoMutation(selected.id)
+        val finished = started.finishMemoMutation(selected.id)
+
+        assertTrue(started.mutation.isActive(selected.id))
+        assertFalse(finished.mutation.isActive(selected.id))
+        assertEquals(listOf(selected), finished.records)
+        assertEquals(state, state.beginMemoMutation(memoId = null))
+        assertEquals(state, state.finishMemoMutation(memoId = null))
+    }
+
+    @Test
     fun attachmentOpenTransitionsStayInsideAggregate() {
         val selected = memo("memo-attachment")
         val state = RecordsFeatureStateHolder(

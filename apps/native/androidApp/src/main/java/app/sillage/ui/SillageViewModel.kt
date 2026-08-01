@@ -3771,8 +3771,7 @@ class SillageViewModel(
         }
         val appMode = current.appMode
         updateState { current ->
-            current.copy(
-                records = current.records.copy(mutation = current.records.mutation.begin(memoId)),
+            current.beginMemoMutation(memoId).copy(
                 loading = current.loading || useGlobalBusy,
                 error = null,
                 notice = null,
@@ -3798,15 +3797,14 @@ class SillageViewModel(
                 },
                 onFinished = {
                     updateState { current ->
-                        if (
-                            current.appMode == appMode &&
-                            current.clientContextGeneration == clientContextGeneration
-                        ) {
-                    current.copy(
-                        records = current.records.copy(mutation = current.records.mutation.finish(memoId)),
+                if (
+                    current.appMode == appMode &&
+                    current.clientContextGeneration == clientContextGeneration
+                ) {
+                    current.finishMemoMutation(memoId).copy(
                         loading = if (
-                                    useGlobalBusy &&
-                                    key is MemoMutationKey.Editor &&
+                            useGlobalBusy &&
+                            key is MemoMutationKey.Editor &&
                                     current.editorSessionId == key.sessionId
                                 ) {
                                     false

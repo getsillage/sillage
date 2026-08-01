@@ -65,6 +65,18 @@ data class RecordsFeatureStateHolder(
         return copy(attachmentOpen = nextAttachmentOpen)
     }
 
+    /** Marks one record mutation active through the feature aggregate. */
+    fun beginMemoMutation(memoId: String?): RecordsFeatureStateHolder {
+        val nextMutation = mutation.begin(memoId)
+        return if (nextMutation === mutation) this else copy(mutation = nextMutation)
+    }
+
+    /** Clears one record mutation presentation through the feature aggregate. */
+    fun finishMemoMutation(memoId: String?): RecordsFeatureStateHolder {
+        val nextMutation = mutation.finish(memoId)
+        return if (nextMutation === mutation) this else copy(mutation = nextMutation)
+    }
+
     /**
      * Clears the visible cache and stops in-flight list loads without inventing
      * a mutation generation. Used when the active source or client context ends.

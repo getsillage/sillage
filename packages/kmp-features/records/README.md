@@ -36,9 +36,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   append, pre-refresh loading marks, and pagination cancel/stop-loading-more),
   browse filter/view-mode/calendar selection, interactive workspace teardown,
   detail/editor presentation (present/clear/save/return selected memo, begin
-  editor drafts, update draft/Markdown presentation, own attachment-upload and
-  attachment-open request transitions, accept detail requests, finish/complete
-  detail summary,
+  editor drafts, update draft/Markdown presentation, own attachment-upload,
+  attachment-open, and record-mutation presentation transitions, accept detail
+  requests, finish/complete detail summary,
   absorb a source memo into cache/search, and replace a conflict-selected memo), and
   canonical memo application (cache mutation plus load/search/selection
   invalidation). Individual holders remain the unit of request identity; the

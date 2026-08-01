@@ -20,9 +20,13 @@ import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalRecordsRepository
+import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.MarkdownLinkTarget
+import app.sillage.core.application.records.ListRecordsPageUseCase
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.ListRecordsUseCase
+import app.sillage.core.application.records.RecordsPageQuery
+import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.data.MemoAI
 import app.sillage.features.records.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
@@ -82,6 +86,7 @@ class SillageViewModel(
     private val listLocalRecords = ListRecordsUseCase(LocalRecordsRepository(this.localDataStore))
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
+    private val listRemoteRecords = ListRecordsPageUseCase(RemoteRecordsRepository(api))
     private var askStreamJob: Job? = null
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
@@ -3987,14 +3992,7 @@ class SillageViewModel(
     private suspend fun listOnlineMemos(
         filter: MemoListFilter,
         cursor: String = "",
-    ) = filter.apiQuery().let { query ->
-        api.listMemos(
-            cursor = cursor,
-            archived = query.archived,
-            favorited = query.favorited,
-            deleted = query.deleted,
-        )
-    }
+    ) = listRemoteRecords(filter.recordsPageQuery(cursor))
 
     private suspend fun searchOnlineMemos(query: String, filter: MemoListFilter) =
         filter.apiQuery().let { apiQuery ->
@@ -4260,4 +4258,14 @@ internal fun MemoListFilter.apiQuery(): MemoApiQuery = when (this) {
     MemoListFilter.Archived -> MemoApiQuery(archived = true, favorited = false, deleted = false)
     MemoListFilter.Favorited -> MemoApiQuery(archived = null, favorited = true, deleted = false)
     MemoListFilter.Deleted -> MemoApiQuery(archived = null, favorited = false, deleted = true)
+}
+
+internal fun MemoListFilter.recordsPageQuery(cursor: String = ""): RecordsPageQuery {
+    val scope = when (this) {
+        MemoListFilter.Unarchived -> RecordsQueryScope.Unarchived
+        MemoListFilter.Archived -> RecordsQueryScope.Archived
+        MemoListFilter.Favorited -> RecordsQueryScope.Favorited
+        MemoListFilter.Deleted -> RecordsQueryScope.Deleted
+    }
+    return RecordsPageQuery(scope = scope, cursor = cursor)
 }

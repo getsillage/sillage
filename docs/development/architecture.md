@@ -114,8 +114,8 @@ types.
 calendar aggregation, excerpts, and cursor-coverage selectors. Android storage,
 feature state, ViewModel orchestration, Compose UI, and tests consume these
 shared policies. Calendar grid construction remains Android presentation code;
-transport query mapping remains an Android adapter until application ports are
-extracted.
+Android's repository adapter owns REST query mapping behind the shared
+application port.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 
@@ -127,13 +127,18 @@ The event channel is bounded, new events replace the active Toast, warning and
 error feedback stays visible longer, and language changes discard buffered
 messages from the previous locale.
 
+The records application slice also exposes a semantic online page query through
+`RecordsPageRepository` and `ListRecordsPageUseCase`. Android's
+`RemoteRecordsRepository` maps its scope and cursor to REST parameters and
+maps the Android transport page back to the shared application result.
+
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state
 slice. It validates source, client context, filter, cache generation, cursor,
 and request identity before accepting a late page response. Android's root UI
 state retains transitional read accessors, while pagination writes use the
 shared holder's explicit begin, complete, fail, and cancel transitions. Refresh,
-search, selection, and transport query mapping remain later extraction slices.
+search, selection, and editor state remain later extraction slices.
 
 ## Core Invariants
 

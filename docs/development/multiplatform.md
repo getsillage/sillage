@@ -95,6 +95,11 @@ generation, cursor, and request identity so late responses cannot cross query
 boundaries. The holder is available to every native host; Android retains only
 transitional accessors while the rest of records state is migrated.
 
+The records application boundary has separate ports for a consistent local
+snapshot and a server-backed page. Shared callers use semantic scope and cursor
+values; platform adapters own storage transactions, HTTP parameter mapping, and
+transport DTO conversion.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

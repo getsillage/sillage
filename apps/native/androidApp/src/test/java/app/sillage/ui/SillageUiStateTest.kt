@@ -2,6 +2,8 @@ package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskMessage
+import app.sillage.core.application.records.RecordsPageQuery
+import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
@@ -507,7 +509,24 @@ class SillageUiStateTest {
     }
 
     @Test
-    fun memoListFiltersMapToMutuallyExclusiveApiQueries() {
+    fun memoListFiltersMapToApplicationAndSearchQueries() {
+        assertEquals(
+            RecordsPageQuery(RecordsQueryScope.Unarchived, cursor = "cursor-1"),
+            MemoListFilter.Unarchived.recordsPageQuery(cursor = "cursor-1"),
+        )
+        assertEquals(
+            RecordsPageQuery(RecordsQueryScope.Archived),
+            MemoListFilter.Archived.recordsPageQuery(),
+        )
+        assertEquals(
+            RecordsPageQuery(RecordsQueryScope.Favorited),
+            MemoListFilter.Favorited.recordsPageQuery(),
+        )
+        assertEquals(
+            RecordsPageQuery(RecordsQueryScope.Deleted),
+            MemoListFilter.Deleted.recordsPageQuery(),
+        )
+
         assertEquals(
             MemoApiQuery(archived = false, favorited = false, deleted = false),
             MemoListFilter.Unarchived.apiQuery(),

@@ -1,10 +1,15 @@
-# Application
+# Application core
 
-Shared use cases, repository ports, transaction boundaries, and application
-orchestration. Application code depends on domain types and declared ports, not
-on concrete HTTP, SQLite, or platform implementations.
+Platform-neutral repository ports and use cases for native clients.
 
-The first vertical slice declares `RecordsRepository` and
-`ListRecordsUseCase` for reading one consistent record snapshot. Android
-provides `LocalRecordsRepository` as its persistence adapter; storage mapping
-and encryption remain outside this module.
+The records slice currently exposes two distinct boundaries:
+
+- `RecordsRepository` and `ListRecordsUseCase` read one consistent local
+  snapshot without exposing storage implementation types.
+- `RecordsPageRepository` and `ListRecordsPageUseCase` request a semantic,
+  server-backed page without exposing HTTP parameters or transport DTOs.
+
+Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
+adapters. Other platform hosts implement the same ports using their own storage
+and transport clients. Shared APIs must not expose Android, SQLite, JSON, HTTP,
+or generated protocol types.

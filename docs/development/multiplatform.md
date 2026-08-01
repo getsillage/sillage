@@ -109,6 +109,9 @@ insets, content height, and selectable-group semantics. `SillageNavigationItem`
 owns primary-item layout, semantic selected/disabled colors, indicator animation,
 and Tab role; hosts supply localized labels, icons, destination selection, and
 callbacks.
+`SillageSettingsSectionCard` owns settings section heading semantics, spacing,
+shape, semantic surface colors, and border treatment; hosts supply localized
+titles and section content.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

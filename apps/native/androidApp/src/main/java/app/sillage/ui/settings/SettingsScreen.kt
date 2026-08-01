@@ -9,7 +9,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -92,6 +91,7 @@ import app.sillage.data.SessionStore
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.applyHeadingSemantics
+import app.sillage.ui.designsystem.SillageSettingsSectionCard
 import app.sillage.ui.hasClientContextOperationInProgress
 import app.sillage.ui.navigation.MainNavigationBar
 
@@ -170,7 +170,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         SettingsOverviewCard(state)
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_ai)) {
                             SettingsSwitchRow(
                                 icon = Icons.Rounded.AutoAwesome,
                                 title = stringResource(R.string.settings_auto_summary),
@@ -184,7 +184,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_appearance)) {
                             SettingsSwitchRow(
                                 icon = Icons.Rounded.DarkMode,
                                 title = stringResource(R.string.settings_dark_mode),
@@ -209,7 +209,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
                             SettingsActionRow(
                                 icon = Icons.Rounded.Refresh,
                                 title = stringResource(R.string.settings_refresh_records),
@@ -276,7 +276,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
                             SettingsActionRow(
                                 icon = Icons.Rounded.Download,
                                 title = stringResource(R.string.settings_export),
@@ -296,7 +296,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     if (state.appMode == SessionStore.MODE_ONLINE) {
                         item {
-                            SettingsSectionCard(title = stringResource(R.string.settings_section_account)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_account)) {
                                 Text(
                                     stringResource(R.string.settings_change_password),
                                     style = MaterialTheme.typography.titleSmall,
@@ -363,7 +363,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         }
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
+        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_about)) {
                             val unavailable = stringResource(R.string.settings_value_unavailable)
                             SettingsInfoRow(
                                 label = stringResource(R.string.settings_app_version),
@@ -650,29 +650,6 @@ private fun AISettingsHeaderCard(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            title,
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .semantics { applyHeadingSemantics() },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Column(content = content)
         }
     }
 }

@@ -103,6 +103,9 @@ The current Android code is the migration source for the shared native modules:
 `MainNavigationBar` supplies translated labels, Material icons, selected
 destinations, and ViewModel callbacks; it does not own a second copy of the bar
 layout, insets, colors, item animation, or accessibility policy.
+`SillageSettingsSectionCard` similarly owns settings section heading semantics,
+spacing, shape, surface color, and border; Android supplies localized titles and
+the platform-specific content rows.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

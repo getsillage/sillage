@@ -14,3 +14,7 @@ insets, content height, and selectable-group semantics. `SillageNavigationItem`
 owns each item's layout, selected/disabled semantic colors, indicator animation,
 and Tab accessibility role. Hosts supply localized labels, icons, destination
 selection, and callbacks.
+
+`SillageSettingsSectionCard` owns settings section title hierarchy, spacing,
+shape, semantic colors, and border treatment. Hosts supply localized titles and
+section content.

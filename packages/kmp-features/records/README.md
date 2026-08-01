@@ -26,8 +26,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   mutation single-flight presentation state.
 - `RecordsCollectionStateHolder` owns the visible record cache and its canonical
   mutation generation.
-- `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
-  calendar month/day selection.
+- `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering,
+  calendar month/day selection, and persisted view-mode restoration that does
+  not invent an interactive filter change.
 - `RecordsAttachmentOpenStateHolder` owns prepared attachment-open request
   identity, start/completion, and invalidation while platform hosts stage bytes
   and launch native viewers.
@@ -39,7 +40,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   editor drafts, update draft/Markdown presentation, own attachment-upload,
   attachment-open, and record-mutation presentation transitions, accept detail
   requests, update/clear search presentation, finish/complete detail summary,
-  absorb a source memo into cache/search, and replace a conflict-selected memo), and
+  apply restored view preference after full-data import, absorb a source memo
+  into cache/search, and replace a conflict-selected memo), and
   canonical memo application (cache mutation plus load/search/selection
   invalidation). Individual holders remain the unit of request identity; the
   aggregate prevents hosts from updating those slices out of lockstep.

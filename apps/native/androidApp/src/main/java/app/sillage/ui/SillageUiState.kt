@@ -238,6 +238,11 @@ internal fun SillageUiState.clearMemoSearchState(): SillageUiState {
     return withRecords { it.clearSearch() }
 }
 
+/** Applies a restored records view preference through its aggregate policy. */
+internal fun SillageUiState.applyRestoredMemoViewMode(mode: MemoViewMode): SillageUiState {
+    return withRecords { it.applyRestoredViewMode(mode) }
+}
+
 /** Applies a pure Ask-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withAsk(
     transform: (AskFeatureStateHolder) -> AskFeatureStateHolder,

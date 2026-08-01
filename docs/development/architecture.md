@@ -314,8 +314,10 @@ presentation, detail-request acceptance, editor session starts/returns,
 draft/Markdown updates, attachment-upload transitions, attachment-open request
 allocation/completion/invalidation, record-mutation begin/finish presentation,
 source-record absorption, search input/clear, and canonical memo writes go through
-the aggregate; request identity and late-response checks stay on the individual
-holders. Android request helpers update that aggregate through `withRecords`.
+the aggregate. Full-data import also applies restored records view preference
+through the aggregate without inventing an interactive filter change. Request
+identity and late-response checks stay on the individual holders. Android request
+helpers update that aggregate through `withRecords`.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
 version-conflict, and push-summary models. Android REST/JSON mapping,

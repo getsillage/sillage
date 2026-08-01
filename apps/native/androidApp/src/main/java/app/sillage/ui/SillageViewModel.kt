@@ -1184,18 +1184,14 @@ class SillageViewModel(
                     aiAutoSummary = merged.autoSummary,
                 )
             }
-            updateState {
-                it.withAsk { ask -> ask.clearConversationCatalog() }.copy(
-                    themeMode = result.themeMode,
-                    records = it.records.clearPresentedMemo(
-                        stopAttachmentUpload = true,
-                        clearSearch = true,
-                    ).copy(
-                        browse = it.records.browse.copy(viewMode = result.memoViewMode),
-                    ),
-                    settings = it.settings.applyImportedPreferences(
-                        profiles = result.aiProfiles,
-                        autoSummaryEnabled = result.aiAutoSummary,
+                updateState {
+                    it.withAsk { ask -> ask.clearConversationCatalog() }
+                        .applyRestoredMemoViewMode(result.memoViewMode)
+                        .copy(
+                        themeMode = result.themeMode,
+                        settings = it.settings.applyImportedPreferences(
+                            profiles = result.aiProfiles,
+                            autoSummaryEnabled = result.aiAutoSummary,
                     ),
                     notice = uiString(R.string.notice_imported),
                 )

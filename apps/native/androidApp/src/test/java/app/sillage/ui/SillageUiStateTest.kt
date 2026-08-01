@@ -377,6 +377,23 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootRestoredViewModeUsesAggregatePolicy() {
+        val state = editorState().copy(error = "keep").withRecords { records ->
+            records.copy(
+                browse = records.browse.copy(filter = MemoListFilter.Archived),
+            )
+        }
+
+        val restored = state.applyRestoredMemoViewMode(MemoViewMode.Calendar)
+
+        assertEquals(MemoViewMode.Calendar, restored.memoViewMode)
+        assertEquals(MemoListFilter.Archived, restored.memoListFilter)
+        assertEquals(null, restored.selectedMemo)
+        assertEquals("", restored.searchQuery)
+        assertEquals("keep", restored.error)
+    }
+
+    @Test
     fun rootSearchTransitionsPreserveHostState() {
         val state = editorState().copy(error = "keep")
 

@@ -88,6 +88,19 @@ data class RecordsFeatureStateHolder(
     }
 
     /**
+     * Restores persisted view preference while clearing presentation that cannot
+     * survive a full client-data import. Existing filter and visible cache remain
+     * unchanged until the host starts its normal refresh.
+     */
+    fun applyRestoredViewMode(mode: MemoViewMode): RecordsFeatureStateHolder {
+        val cleared = clearPresentedMemo(
+            stopAttachmentUpload = true,
+            clearSearch = true,
+        )
+        return cleared.copy(browse = cleared.browse.restoreViewMode(mode))
+    }
+
+    /**
      * Clears the visible cache and stops in-flight list loads without inventing
      * a mutation generation. Used when the active source or client context ends.
      */

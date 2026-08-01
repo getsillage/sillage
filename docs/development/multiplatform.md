@@ -291,9 +291,10 @@ mode/filter/calendar changes, workspace teardown, selected-memo presentation,
 detail-request acceptance, editor session starts/returns, draft/Markdown updates,
 attachment-upload transitions, attachment-open request allocation/completion/
 invalidation, record-mutation begin/finish presentation, source-record absorption,
-search input/clear, and filter reset go through the aggregate; individual holders
-still own request identity. Android request helpers write through `withRecords`
-rather than assigning nested holder fields directly.
+search input/clear, persisted view-mode restoration after full-data import, and
+filter reset go through the aggregate; individual holders still own request
+identity. Android request helpers write through `withRecords` rather than assigning
+nested holder fields directly.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,

@@ -27,6 +27,11 @@ data class RecordsBrowseStateHolder(
         )
     }
 
+    /** Restores a persisted view mode without applying an interactive filter change. */
+    fun restoreViewMode(mode: MemoViewMode): RecordsBrowseStateHolder {
+        return copy(viewMode = mode)
+    }
+
     fun selectFilter(value: MemoListFilter): RecordsBrowseStateHolder = copy(filter = value)
 
     fun selectMonth(year: Int, month: Int): RecordsBrowseStateHolder {

@@ -693,6 +693,34 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun restoredViewModeClearsImportedPresentationWithoutChangingFilterOrCache() {
+        val selected = memo("memo-import")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(selected)),
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(loading = true),
+            editor = RecordsEditorStateHolder(uploadingAttachment = true),
+            search = RecordsSearchStateHolder(query = "drop", searching = true),
+            browse = RecordsBrowseStateHolder(
+                viewMode = MemoViewMode.List,
+                filter = MemoListFilter.Archived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+        )
+
+        val restored = state.applyRestoredViewMode(MemoViewMode.Calendar)
+
+        assertEquals(MemoViewMode.Calendar, restored.viewMode)
+        assertEquals(MemoListFilter.Archived, restored.filter)
+        assertEquals(listOf(selected), restored.records)
+        assertNull(restored.selection.selectedMemo)
+        assertFalse(restored.summary.loading)
+        assertFalse(restored.editor.uploadingAttachment)
+        assertEquals("", restored.search.query)
+    }
+
+    @Test
     fun searchPresentationTransitionsStayInsideAggregate() {
         val result = memo("memo-search")
         val state = RecordsFeatureStateHolder(

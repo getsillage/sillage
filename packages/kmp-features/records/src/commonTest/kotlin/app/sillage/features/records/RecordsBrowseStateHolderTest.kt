@@ -17,6 +17,16 @@ class RecordsBrowseStateHolderTest {
     }
 
     @Test
+    fun restoredViewModePreservesCurrentFilter() {
+        val archived = state().copy(filter = MemoListFilter.Archived)
+
+        val restored = archived.restoreViewMode(MemoViewMode.Calendar)
+
+        assertEquals(MemoViewMode.Calendar, restored.viewMode)
+        assertEquals(MemoListFilter.Archived, restored.filter)
+    }
+
+    @Test
     fun monthChangeClearsDaySelection() {
         val changed = state().copy(selectedCalendarDate = "2026-08-01")
             .selectMonth(year = 2026, month = 9)

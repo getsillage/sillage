@@ -166,6 +166,8 @@ It also owns settings language-selection layout; Android supplies supported
 language identifiers, localized labels, and preference persistence.
 The shared appearance section composes theme selection and the language row while
 Android maps stored preference values and callbacks.
+The service/sync section owns online/offline and conditional sync-action layout;
+Android retains client-context mutation, navigation, and protocol execution.
 The shared settings overview card receives localized display values derived from
 Android app-mode, records, appearance, and AI state without owning those adapters.
 

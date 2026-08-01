@@ -76,6 +76,9 @@ import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
 import app.sillage.ui.settings.SillageSettingsOverviewCard
 import app.sillage.ui.settings.SillageSettingsOverviewItem
+import app.sillage.ui.settings.SillageSettingsServiceSyncIcons
+import app.sillage.ui.settings.SillageSettingsServiceSyncSection
+import app.sillage.ui.settings.SillageSettingsServiceSyncStrings
 import app.sillage.ui.settings.rememberSillageAIProfilesEditorState
 import app.sillage.ui.settings.sillageAIProfilesEditorItems
 
@@ -288,73 +291,59 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         onLanguageChange = viewModel::setLanguageMode,
                     )
                 }
-                    item {
-        SillageSettingsSectionCard(title = stringResource(R.string.settings_section_service_sync)) {
-            SillageSettingsActionRow(
-                                icon = Icons.Rounded.Refresh,
-                                title = stringResource(R.string.settings_refresh_records),
-                                supporting = stringResource(R.string.settings_refresh_records_supporting),
-                                onClick = viewModel::refreshMemos,
-                                enabled = !state.loading,
-                            )
-            SillageSettingsActionRow(
-                                icon = Icons.Rounded.CloudSync,
-                                title = stringResource(
-                                    if (state.appMode == SessionStore.MODE_ONLINE) R.string.settings_online_current else R.string.settings_online_switch,
-                                ),
-                                supporting = state.baseUrl.ifBlank { stringResource(R.string.settings_server_not_configured) },
-                                onClick = viewModel::useOnlineMode,
-                                enabled = state.appMode != SessionStore.MODE_ONLINE && !clientContextChangeBlocked,
-                                selected = state.appMode == SessionStore.MODE_ONLINE,
-                                showDivider = true,
-                            )
-            SillageSettingsActionRow(
-                                icon = Icons.Rounded.Storage,
-                                title = stringResource(
-                                    if (state.appMode == SessionStore.MODE_OFFLINE) R.string.settings_offline_current else R.string.settings_offline_switch,
-                                ),
-                                supporting = stringResource(R.string.settings_offline_supporting),
-                                onClick = viewModel::useOfflineMode,
-                                enabled = state.appMode != SessionStore.MODE_OFFLINE && !clientContextChangeBlocked,
-                                selected = state.appMode == SessionStore.MODE_OFFLINE,
-                                showDivider = true,
-                            )
-                            if (state.appMode == SessionStore.MODE_ONLINE) {
-            SillageSettingsActionRow(
-                                    icon = Icons.Rounded.SettingsEthernet,
-                                    title = stringResource(R.string.settings_server),
-                                    supporting = stringResource(R.string.settings_server_supporting),
-                                    onClick = viewModel::openServerSettings,
-                                    enabled = !clientContextChangeBlocked,
-                                    showDivider = true,
-                                )
-            SillageSettingsActionRow(
-                                    icon = Icons.Rounded.Download,
-                                    title = stringResource(R.string.settings_sync_local),
-                                    supporting = stringResource(R.string.settings_sync_local_supporting),
-                                    onClick = viewModel::syncFromServer,
-                                    enabled = !clientContextChangeBlocked,
-                                    showDivider = true,
-                                )
-            SillageSettingsActionRow(
-                                    icon = Icons.Rounded.UploadFile,
-                                    title = stringResource(R.string.settings_sync_cloud),
-                                    supporting = stringResource(R.string.settings_sync_cloud_supporting),
-                                    onClick = viewModel::syncToServer,
-                                    enabled = !clientContextChangeBlocked,
-                                    showDivider = true,
-                                )
-            SillageSettingsActionRow(
-                                    icon = Icons.Rounded.CloudSync,
-                                    title = stringResource(R.string.settings_sync_both),
-                                    supporting = stringResource(R.string.settings_sync_both_supporting),
-                                    onClick = viewModel::syncBothWays,
-                                    enabled = !clientContextChangeBlocked,
-                                    showDivider = true,
-                                )
-                            }
-                        }
-                    }
+                item {
+                    SillageSettingsServiceSyncSection(
+                        online = state.appMode == SessionStore.MODE_ONLINE,
+                        baseUrl = state.baseUrl,
+                        strings = SillageSettingsServiceSyncStrings(
+                            sectionTitle = stringResource(R.string.settings_section_service_sync),
+                            refreshTitle = stringResource(R.string.settings_refresh_records),
+                            refreshSupporting = stringResource(
+                                R.string.settings_refresh_records_supporting,
+                            ),
+                            onlineCurrent = stringResource(R.string.settings_online_current),
+                            onlineSwitch = stringResource(R.string.settings_online_switch),
+                            serverNotConfigured = stringResource(
+                                R.string.settings_server_not_configured,
+                            ),
+                            offlineCurrent = stringResource(R.string.settings_offline_current),
+                            offlineSwitch = stringResource(R.string.settings_offline_switch),
+                            offlineSupporting = stringResource(R.string.settings_offline_supporting),
+                            serverTitle = stringResource(R.string.settings_server),
+                            serverSupporting = stringResource(R.string.settings_server_supporting),
+                            syncLocalTitle = stringResource(R.string.settings_sync_local),
+                            syncLocalSupporting = stringResource(
+                                R.string.settings_sync_local_supporting,
+                            ),
+                            syncCloudTitle = stringResource(R.string.settings_sync_cloud),
+                            syncCloudSupporting = stringResource(
+                                R.string.settings_sync_cloud_supporting,
+                            ),
+                            syncBothTitle = stringResource(R.string.settings_sync_both),
+                            syncBothSupporting = stringResource(
+                                R.string.settings_sync_both_supporting,
+                            ),
+                        ),
+                        icons = SillageSettingsServiceSyncIcons(
+                            refresh = Icons.Rounded.Refresh,
+                            online = Icons.Rounded.CloudSync,
+                            offline = Icons.Rounded.Storage,
+                            server = Icons.Rounded.SettingsEthernet,
+                            syncLocal = Icons.Rounded.Download,
+                            syncCloud = Icons.Rounded.UploadFile,
+                            syncBoth = Icons.Rounded.CloudSync,
+                        ),
+                        loading = state.loading,
+                        clientContextBlocked = clientContextChangeBlocked,
+                        onRefresh = viewModel::refreshMemos,
+                        onUseOnline = viewModel::useOnlineMode,
+                        onUseOffline = viewModel::useOfflineMode,
+                        onOpenServer = viewModel::openServerSettings,
+                        onSyncLocal = viewModel::syncFromServer,
+                        onSyncCloud = viewModel::syncToServer,
+                        onSyncBoth = viewModel::syncBothWays,
+                    )
+                }
                     item {
         SillageSettingsSectionCard(title = stringResource(R.string.settings_section_data)) {
             SillageSettingsActionRow(

@@ -110,6 +110,8 @@ The settings language selector also comes from `shared-ui:settings`; Android
 supplies supported language identifiers, localized labels, and persistence callback.
 Shared appearance composition now combines it with theme selection; Android maps
 stored theme/language values and their persistence callbacks.
+The service/sync section is also shared; Android supplies current mode, server
+address, operation gates, icons, and protocol/navigation callbacks.
 The settings overview card is shared as well; Android maps app mode, record count,
 theme, and AI preference into localized display values.
 Ask conversation selection, branch-head identity, and loaded message snapshots

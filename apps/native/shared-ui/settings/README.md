@@ -15,6 +15,8 @@ new/save action layout, progress feedback, and operation-gate presentation.
 presentation while hosts supply supported language identifiers and persistence.
 `SillageSettingsAppearanceSection` composes that row with theme selection and
 shared enable-state presentation.
+`SillageSettingsServiceSyncSection` owns online/offline selection and conditional
+server/sync action composition while hosts execute client-context operations.
 `SillageSettingsOverviewCard` owns the status-card layout while hosts map
 cross-feature state into localized mode, theme, record-count, and AI values.
 

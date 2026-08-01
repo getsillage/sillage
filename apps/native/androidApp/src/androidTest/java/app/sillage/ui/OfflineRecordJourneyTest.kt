@@ -18,6 +18,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.sillage.MainActivity
 import app.sillage.data.LocalStateStore
 import app.sillage.ui.settings.SETTINGS_LIST_TEST_TAG
+import app.sillage.ui.settings.SETTINGS_SCREEN_TEST_TAG
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -76,8 +77,13 @@ class OfflineRecordJourneyTest {
         compose.onNode(hasText("离线模式") and hasClickAction()).performClick()
         compose.waitUntilExactlyOneExists(hasText("设置") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("设置") and hasClickAction()).performClick()
-        compose.waitUntilExactlyOneExists(hasTestTag(SETTINGS_LIST_TEST_TAG), TIMEOUT_MS)
-        compose.onNode(hasTestTag(SETTINGS_LIST_TEST_TAG))
+        compose.waitUntilExactlyOneExists(hasTestTag(SETTINGS_SCREEN_TEST_TAG), TIMEOUT_MS)
+        compose.waitUntil(TIMEOUT_MS) {
+            compose.onAllNodes(hasTestTag(SETTINGS_LIST_TEST_TAG), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .size == 1
+        }
+        compose.onNode(hasTestTag(SETTINGS_LIST_TEST_TAG), useUnmergedTree = true)
             .performScrollToNode(hasText("开源软件许可"))
         compose.waitUntilExactlyOneExists(hasText("开源软件许可") and hasClickAction(), TIMEOUT_MS)
         compose.onNode(hasText("开源软件许可") and hasClickAction())

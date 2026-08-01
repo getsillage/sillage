@@ -98,6 +98,7 @@ import app.sillage.ui.navigation.MainNavigationBar
 private const val AI_PROVIDER_ANTHROPIC = "anthropic"
 private const val AI_PROVIDER_OPENAI = "openai"
 private val AI_PROVIDER_OPTIONS = listOf(AI_PROVIDER_ANTHROPIC, AI_PROVIDER_OPENAI)
+internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,6 +126,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
         }
     }
     Scaffold(
+        modifier = Modifier.testTag(SETTINGS_SCREEN_TEST_TAG),
         topBar = {
             TopAppBar(
                 title = {

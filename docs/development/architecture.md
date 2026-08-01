@@ -138,6 +138,9 @@ remote repository adapters translate that query into storage and REST calls.
 `RecordDetailRepository` and `GetRecordDetailUseCase` expose one record plus its
 AI-derived metadata; the same adapters map local persistence or the REST detail
 response to shared domain values.
+`RecordWriteRepository` and `SaveRecordUseCase` expose creation and update from
+a platform-neutral draft command. Android's local and remote adapters own the
+storage or REST write and return the canonical shared `Memo`.
 
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state

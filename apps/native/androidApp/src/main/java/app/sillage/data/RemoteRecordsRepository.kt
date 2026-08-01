@@ -3,6 +3,8 @@ package app.sillage.data
 import app.sillage.core.application.records.RecordsPage
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.application.records.RecordDetailRepository
+import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsPageRepository
 import app.sillage.core.application.records.RecordsQueryScope
@@ -13,7 +15,10 @@ import app.sillage.core.domain.records.Memo
 /** Android HTTP adapter for the shared records page application port. */
 class RemoteRecordsRepository(
     private val api: SillageApi,
-) : RecordsPageRepository, RecordsSearchRepository, RecordDetailRepository {
+) : RecordsPageRepository,
+    RecordsSearchRepository,
+    RecordDetailRepository,
+    RecordWriteRepository {
     override suspend fun listPage(query: RecordsPageQuery): RecordsPage {
         val transportQuery = query.scope.transportQuery()
         val page = api.listMemos(
@@ -40,6 +45,14 @@ class RemoteRecordsRepository(
 
     override suspend fun getRecordDetail(memoId: String): RecordDetail {
         return api.getMemo(memoId)
+    }
+
+    override suspend fun createRecord(draft: RecordDraft): Memo {
+        return api.createMemo(draft.content, draft.entryDate)
+    }
+
+    override suspend fun updateRecord(memo: Memo, draft: RecordDraft): Memo {
+        return api.updateMemo(memo, draft.content, draft.entryDate)
     }
 }
 

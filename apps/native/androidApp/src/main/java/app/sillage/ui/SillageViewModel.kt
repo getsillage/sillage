@@ -30,6 +30,9 @@ import app.sillage.core.application.records.ListRecordsUseCase
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
+import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.SaveRecordCommand
+import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle
@@ -90,12 +93,14 @@ class SillageViewModel(
     private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
     private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
     private val getLocalRecordDetail = GetRecordDetailUseCase(localRecordsRepository)
+    private val saveLocalRecord = SaveRecordUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
     private val api = SillageApi(sessionStore)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
     private val listRemoteRecords = ListRecordsPageUseCase(remoteRecordsRepository)
     private val searchRemoteRecords = SearchRecordsUseCase(remoteRecordsRepository)
     private val getRemoteRecordDetail = GetRecordDetailUseCase(remoteRecordsRepository)
+    private val saveRemoteRecord = SaveRecordUseCase(remoteRecordsRepository)
     private var askStreamJob: Job? = null
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
@@ -1395,19 +1400,19 @@ class SillageViewModel(
             memoId = selectedMemo?.id,
             useGlobalBusy = selectedMemo == null,
         ) {
-            val entryDate = current.draftEntryDate.trim()
-            val saved = if (selectedMemo == null) {
-                if (current.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.createMemo(current.draftContent.trim(), entryDate)
-                } else {
-                    api.createMemo(current.draftContent.trim(), entryDate)
-                }
+            val draft = RecordDraft(
+                content = current.draftContent.trim(),
+                entryDate = current.draftEntryDate.trim(),
+            )
+            val command = if (selectedMemo == null) {
+                SaveRecordCommand.Create(draft)
             } else {
-                if (current.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.updateMemo(selectedMemo, current.draftContent.trim(), entryDate)
-                } else {
-                    api.updateMemo(selectedMemo, current.draftContent.trim(), entryDate)
-                }
+                SaveRecordCommand.Update(selectedMemo, draft)
+            }
+            val saved = if (current.appMode == SessionStore.MODE_OFFLINE) {
+                saveLocalRecord(command)
+            } else {
+                saveRemoteRecord(command)
             }
             if (!applyMemo(saved, current.appMode, current.clientContextGeneration)) {
                 return@launchMemoMutation

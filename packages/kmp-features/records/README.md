@@ -66,4 +66,5 @@ boundaries.
 The buildable `shared-ui:records` module consumes `RecordsFeatureStateHolder`
 directly for list-filter tab selection and owns its selectable layout and semantics.
 Its search bar also reads aggregate query, request state, and result presence.
-Hosts retain localized resources, icons, and mutation callbacks.
+Shared records UI also owns reusable empty/error presentation. Hosts retain
+localized resources, icons, and mutation callbacks.

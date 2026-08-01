@@ -170,6 +170,8 @@ selectable layout, semantic Tab roles, colors, and sizing. Hosts supply localize
 labels and the filter mutation callback.
 Its search bar consumes query, request-progress, and published-result presence from
 the same aggregate while hosts supply localized content, icons, and callbacks.
+Its reusable empty/error state owns centered copy, icon treatment, and optional
+action layout while hosts choose localized condition-specific content.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

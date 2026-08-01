@@ -117,6 +117,7 @@ import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
+import app.sillage.ui.records.SillageRecordEmptyState
 import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
@@ -235,17 +236,19 @@ internal fun MemoListScreen(
                 } else if (state.memoViewMode == MemoViewMode.Calendar) {
                     CalendarMemoView(state = state, viewModel = viewModel)
                 } else if (state.shouldShowMemoListLoadFailure()) {
-                    EmptyState(
-                        stringResource(R.string.records_load_failed),
-                        Icons.Rounded.Refresh,
-                        onRetry = viewModel::refreshMemos,
-                    )
+                SillageRecordEmptyState(
+                    text = stringResource(R.string.records_load_failed),
+                    icon = Icons.Rounded.Refresh,
+                    actionLabel = stringResource(R.string.action_retry),
+                    onAction = viewModel::refreshMemos,
+                )
                 } else if (state.shouldShowMemoSearchFailure()) {
-                    EmptyState(
-                        stringResource(R.string.records_search_failed),
-                        Icons.Rounded.Refresh,
-                        onRetry = viewModel::searchMemos,
-                    )
+                SillageRecordEmptyState(
+                    text = stringResource(R.string.records_search_failed),
+                    icon = Icons.Rounded.Refresh,
+                    actionLabel = stringResource(R.string.action_retry),
+                    onAction = viewModel::searchMemos,
+                )
                 } else {
                     MemoListView(
                         visibleMemos = visibleMemos,
@@ -357,12 +360,15 @@ private fun MemoListView(
     filter: MemoListFilter,
 ) {
     if (searching && visibleMemos.isEmpty()) {
-        EmptyState(stringResource(R.string.searching), Icons.Rounded.Search)
+        SillageRecordEmptyState(
+            text = stringResource(R.string.searching),
+            icon = Icons.Rounded.Search,
+        )
         return
     }
     if (visibleMemos.isEmpty()) {
-        EmptyState(
-            if (showingSearchResults) {
+        SillageRecordEmptyState(
+            text = if (showingSearchResults) {
                 stringResource(R.string.search_no_matches)
             } else {
                 when (filter) {
@@ -372,7 +378,7 @@ private fun MemoListView(
                     MemoListFilter.Deleted -> stringResource(R.string.empty_deleted)
                 }
             },
-            if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
+            icon = if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
         )
         return
     }
@@ -512,45 +518,6 @@ internal fun RecentlyDeletedMemoRow(
 
 internal const val RECENTLY_DELETED_RESTORE_TEST_TAG = "recently-deleted-restore"
 internal const val RECENTLY_DELETED_PURGE_TEST_TAG = "recently-deleted-purge"
-
-@Composable
-private fun EmptyState(
-    text: String,
-    icon: ImageVector? = null,
-    onRetry: (() -> Unit)? = null,
-) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (icon != null) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null)
-                    }
-                }
-            }
-            Text(
-                text,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-            )
-            if (onRetry != null) {
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.action_retry))
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {

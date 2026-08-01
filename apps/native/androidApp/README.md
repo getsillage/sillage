@@ -70,7 +70,8 @@ lives in `kmp-features:records`. Android UI code may compose those shared featur
 must not duplicate domain, storage, synchronization, or protocol rules. Record-list
 filter tabs come from buildable `shared-ui:records` and consume the records aggregate
 directly; the shared search bar reads query/request/result state from the same
-aggregate. Android supplies localized labels, icons, and ViewModel routing. Editor
+aggregate, and shared records UI owns reusable empty/error states. Android supplies
+localized labels, icons, and ViewModel routing. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

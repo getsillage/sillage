@@ -62,3 +62,7 @@ getters while remaining single-holder call sites finish moving onto
 persistence, URI access, byte staging, native viewer launch, and upload
 execution while editor, attachment-request, and summary state cross shared
 boundaries.
+
+The buildable `shared-ui:records` module consumes `RecordsFeatureStateHolder`
+directly for list-filter tab selection and owns its selectable layout and semantics.
+Hosts retain localized resources and mutation callbacks.

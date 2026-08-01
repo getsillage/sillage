@@ -120,6 +120,8 @@ import app.sillage.ui.designsystem.applySillageStatusSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
+import app.sillage.ui.records.SillageRecordFilterStrings
+import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -194,10 +196,16 @@ internal fun MemoListScreen(
                 .padding(padding),
         ) {
             if (state.memoViewMode == MemoViewMode.List) {
-                MemoListFilterTabs(
-                    selected = state.memoListFilter,
-                    onSelect = viewModel::updateMemoListFilter,
-                )
+                        SillageRecordFilterTabs(
+                            state = state.records,
+                            strings = SillageRecordFilterStrings(
+                                unarchived = stringResource(R.string.filter_unarchived),
+                                archived = stringResource(R.string.filter_archived),
+                                favorited = stringResource(R.string.filter_favorited),
+                                deleted = stringResource(R.string.filter_deleted),
+                            ),
+                            onSelect = viewModel::updateMemoListFilter,
+                        )
                 SearchBlock(state = state, viewModel = viewModel)
                 SearchStatusBlock(state = state)
             }
@@ -269,69 +277,6 @@ private fun memoListSubtitle(state: SillageUiState): String {
         mode,
         pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size),
     )
-}
-
-@Composable
-private fun MemoListFilterTabs(
-    selected: MemoListFilter,
-    onSelect: (MemoListFilter) -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Row(modifier = Modifier.selectableGroup()) {
-            MemoListFilter.entries.forEach { filter ->
-                val isSelected = selected == filter
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .selectable(
-                            selected = isSelected,
-                            onClick = { onSelect(filter) },
-                            role = Role.Tab,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 3.dp)
-                            .height(36.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        },
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                when (filter) {
-                                    MemoListFilter.Unarchived -> stringResource(R.string.filter_unarchived)
-                                    MemoListFilter.Archived -> stringResource(R.string.filter_archived)
-                                    MemoListFilter.Favorited -> stringResource(R.string.filter_favorited)
-                                    MemoListFilter.Deleted -> stringResource(R.string.filter_deleted)
-                                },
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable

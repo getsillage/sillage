@@ -67,7 +67,9 @@ inside the remote adapter. Offline generation and turn persistence cross
 and local storage adapters. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
-must not duplicate domain, storage, synchronization, or protocol rules. Editor
+must not duplicate domain, storage, synchronization, or protocol rules. Record-list
+filter tabs come from buildable `shared-ui:records` and consume the records aggregate
+directly; Android supplies localized labels and ViewModel routing. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

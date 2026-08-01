@@ -164,6 +164,11 @@ multi-item profile tail while host slots map resources and adapter callbacks.
 Its overview card accepts localized mode, record-count, appearance, and AI values,
 leaving cross-feature state mapping in each host adapter.
 
+The buildable `shared-ui:records` module begins with record-list filter tabs. It
+consumes `RecordsFeatureStateHolder` directly for the selected filter and owns the
+selectable layout, semantic Tab roles, colors, and sizing. Hosts supply localized
+labels and the filter mutation callback.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

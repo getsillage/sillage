@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `auth` owns authentication feature UI, `settings` owns settings feature UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
@@ -179,6 +179,10 @@ semantics while Android supplies localized values and shared section items.
 the multi-item profile tail; Android slots map resources and adapter callbacks.
 The shared settings overview card receives localized display values derived from
 Android app-mode, records, appearance, and AI state without owning those adapters.
+
+`shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
+filter selection. Its first slice owns the four-tab selectable layout, colors, and
+Tab semantics while Android supplies localized labels and the mutation callback.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

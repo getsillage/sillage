@@ -9,6 +9,7 @@ import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
@@ -60,7 +61,10 @@ class SillageUiStateTest {
     fun memoEditorActionsAreDisabledWhileBusyOrUploading() {
         assertTrue(editorState().canRunMemoEditorAction())
         assertFalse(editorState().copy(loading = true).canRunMemoEditorAction())
-        assertFalse(editorState().copy(uploadingAttachment = true).canRunMemoEditorAction())
+        val uploading = editorState().let {
+            it.copy(recordsEditor = it.recordsEditor.copy(uploadingAttachment = true))
+        }
+        assertFalse(uploading.canRunMemoEditorAction())
         assertFalse(editorState().copy(screen = Screen.Memos).canRunMemoEditorAction())
         assertFalse(
             editorState().copy(
@@ -79,7 +83,9 @@ class SillageUiStateTest {
         assertEquals(null, selected.memoEditorBusyReason())
         assertEquals(
             MemoEditorBusyReason.AttachmentUpload,
-            selected.copy(uploadingAttachment = true).memoEditorBusyReason(),
+            selected.copy(
+                recordsEditor = selected.recordsEditor.copy(uploadingAttachment = true),
+            ).memoEditorBusyReason(),
         )
         assertEquals(
             MemoEditorBusyReason.Operation,
@@ -102,7 +108,7 @@ class SillageUiStateTest {
     @Test
     fun memoEditorBackBlockedNoticeClearsOldErrorAndKeepsIdleStateUnchanged() {
         val uploading = editorState().copy(
-            uploadingAttachment = true,
+            recordsEditor = RecordsEditorStateHolder(uploadingAttachment = true),
             error = "旧错误",
             notice = "旧提示",
         )
@@ -147,13 +153,25 @@ class SillageUiStateTest {
 
     @Test
     fun attachmentResultOnlyAppliesToActiveUploadingEditorSession() {
-        val uploading = editorState().copy(editorSessionId = 7, uploadingAttachment = true)
+        val uploading = editorState().copy(
+            recordsEditor = RecordsEditorStateHolder(
+                sessionId = 7,
+                uploadingAttachment = true,
+            ),
+        )
 
         assertTrue(uploading.canApplyAttachmentUpload(7))
         assertFalse(uploading.canApplyAttachmentUpload(6))
-        assertFalse(uploading.copy(editorSessionId = 8).canApplyAttachmentUpload(7))
+        assertFalse(
+            uploading.copy(recordsEditor = uploading.recordsEditor.copy(sessionId = 8))
+                .canApplyAttachmentUpload(7),
+        )
         assertFalse(uploading.copy(screen = Screen.Memos).canApplyAttachmentUpload(7))
-        assertFalse(uploading.copy(uploadingAttachment = false).canApplyAttachmentUpload(7))
+        assertFalse(
+            uploading.copy(
+                recordsEditor = uploading.recordsEditor.copy(uploadingAttachment = false),
+            ).canApplyAttachmentUpload(7),
+        )
     }
 
     @Test
@@ -370,7 +388,7 @@ class SillageUiStateTest {
                 selectedMemo = original,
                 detailRequestId = 11,
             ),
-            editorSessionId = 7,
+            recordsEditor = RecordsEditorStateHolder(sessionId = 7),
         )
         val request = requireNotNull(initial.nextMemoSummaryRequest())
         val pending = initial.startMemoSummaryRequest(request)
@@ -1090,10 +1108,12 @@ class SillageUiStateTest {
         return SillageUiState(
             screen = Screen.Editor,
             baseUrl = "",
-            draftContent = draftContent,
-            draftEntryDate = draftEntryDate,
-            initialDraftContent = initialDraftContent,
-            initialDraftEntryDate = initialDraftEntryDate,
+            recordsEditor = RecordsEditorStateHolder(
+                draftContent = draftContent,
+                draftEntryDate = draftEntryDate,
+                initialDraftContent = initialDraftContent,
+                initialDraftEntryDate = initialDraftEntryDate,
+            ),
         )
     }
 

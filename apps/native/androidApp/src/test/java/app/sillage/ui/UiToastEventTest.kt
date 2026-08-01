@@ -1,6 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.data.SyncPushSummary
+import app.sillage.features.records.RecordsEditorStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -100,7 +101,7 @@ class UiToastEventTest {
         val busy = SillageUiState(
             screen = Screen.Editor,
             baseUrl = "",
-            uploadingAttachment = true,
+            recordsEditor = RecordsEditorStateHolder(uploadingAttachment = true),
             error = "旧错误",
         )
         val warning = busy.withMemoEditorBackBlockedNotice(

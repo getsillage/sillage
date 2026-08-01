@@ -126,6 +126,11 @@ selected summary, loading state, request identity, and detail/editor context
 validation. Android retains coroutine scheduling, user-facing messages, and the
 local or remote AI execution adapters.
 
+Records editor is the sixth extracted state slice. Its shared holder owns editor
+session identity, draft and initial snapshots, dirty state, Markdown preview,
+and attachment-upload request ownership. Android retains SavedStateHandle draft
+restoration, content-URI access, and local or remote attachment execution.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

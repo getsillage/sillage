@@ -160,7 +160,9 @@ destination, editor generation, cache generation, and record version before an
 Android detail response may update state. AI-derived summary presentation state
 is owned by `RecordsSummaryStateHolder`, including request identity and
 detail/editor context validation. Android retains AI execution orchestration and
-localized feedback. Editor state remains a later extraction slice; the
+localized feedback. `RecordsEditorStateHolder` owns editor session identity,
+draft snapshots, dirty state, preview state, and attachment-upload ownership;
+Android retains draft persistence, URI access, and attachment execution. The
 underlying `MemoAI` value already belongs to the shared domain.
 
 ## Core Invariants

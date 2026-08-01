@@ -26,6 +26,7 @@ import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
+import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
@@ -54,7 +55,6 @@ data class SillageUiState(
     val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
     val memoMutationIds: Set<String> = emptySet(),
     val recordsSummary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
-    val uploadingAttachment: Boolean = false,
     val openingAttachmentPath: String? = null,
     val attachmentOpenRequestId: Long = 0,
     val aiProfiles: List<AIProfileDraft> = emptyList(),
@@ -92,12 +92,10 @@ data class SillageUiState(
     val askSourceLoading: Boolean = false,
     val askMemoSaveRequestId: Long = 0,
     val askSavingMessageId: String = "",
-    val editorSessionId: Long = 0,
-    val draftContent: String = "",
-    val draftEntryDate: String = LocalDate.now().toString(),
-    val initialDraftContent: String = "",
-    val initialDraftEntryDate: String = LocalDate.now().toString(),
-    val markdownPreview: Boolean = false,
+    val recordsEditor: RecordsEditorStateHolder = RecordsEditorStateHolder(
+        draftEntryDate = LocalDate.now().toString(),
+        initialDraftEntryDate = LocalDate.now().toString(),
+    ),
     val recordsSearch: RecordsSearchStateHolder = RecordsSearchStateHolder(),
     val memoViewMode: MemoViewMode = MemoViewMode.List,
     val memoListFilter: MemoListFilter = MemoListFilter.Unarchived,
@@ -138,6 +136,13 @@ data class SillageUiState(
     val selectedSummary: MemoAI? get() = recordsSummary.summary
     val summaryLoading: Boolean get() = recordsSummary.loading
     val memoSummaryRequestId: Long get() = recordsSummary.requestId
+    val uploadingAttachment: Boolean get() = recordsEditor.uploadingAttachment
+    val editorSessionId: Long get() = recordsEditor.sessionId
+    val draftContent: String get() = recordsEditor.draftContent
+    val draftEntryDate: String get() = recordsEditor.draftEntryDate
+    val initialDraftContent: String get() = recordsEditor.initialDraftContent
+    val initialDraftEntryDate: String get() = recordsEditor.initialDraftEntryDate
+    val markdownPreview: Boolean get() = recordsEditor.markdownPreview
 }
 
 /**
@@ -153,8 +158,7 @@ internal fun AIProfileDraft.uiKey(index: Int): String {
 }
 
 internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
-    return screen == Screen.Editor &&
-        (draftContent != initialDraftContent || draftEntryDate != initialDraftEntryDate)
+    return screen == Screen.Editor && recordsEditor.dirty
 }
 
 internal enum class MemoEditorBusyReason {
@@ -205,9 +209,7 @@ internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
 }
 
 internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
-    return screen == Screen.Editor &&
-        editorSessionId == sessionId &&
-        uploadingAttachment
+    return screen == Screen.Editor && recordsEditor.canApplyAttachmentUpload(sessionId)
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {

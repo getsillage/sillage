@@ -149,7 +149,7 @@ function goDependencies() {
 function webDependencies() {
   const output = command("pnpm", [
     "--dir",
-    "web",
+    "apps/web",
     "licenses",
     "list",
     "--prod",

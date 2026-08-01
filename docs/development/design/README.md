@@ -1,6 +1,6 @@
 # Web Design Guidelines
 
-This document covers the stable visual and interaction constraints for the Web client. See [Product Guidance](../product-guidance.md) for product semantics. The code sources of truth for themes and components are `web/src/styles/app.css` and `web/src/components/ui.ts`.
+This document covers the stable visual and interaction constraints for the Web client. See [Product Guidance](../product-guidance.md) for product semantics. The code sources of truth for themes and components are `apps/web/src/styles/app.css` and `apps/web/src/components/ui.ts`.
 
 ## Direction
 

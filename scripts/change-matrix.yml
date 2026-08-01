@@ -78,7 +78,7 @@ rules:
 
   - id: web-client
     paths:
-      - "web/**"
+      - "apps/web/**"
     gates: [web, e2e]
     docs:
       - "docs/development/design/**"
@@ -94,10 +94,16 @@ rules:
 
   - id: android-client
     paths:
-      - "android/**"
+      - "apps/native/androidApp/**"
+      - "apps/native/build.gradle.kts"
+      - "apps/native/settings.gradle.kts"
+      - "apps/native/gradle.properties"
+      - "apps/native/gradle/**"
+      - "apps/native/gradlew"
+      - "apps/native/gradlew.bat"
     gates: [android]
     docs:
-      - "android/README.md"
+      - "apps/native/androidApp/README.md"
 
   - id: android-artifact-policy
     paths:
@@ -106,7 +112,7 @@ rules:
       - "third_party/licenses/android/**"
     gates: [android, docs]
     docs:
-      - "android/README.md"
+      - "apps/native/androidApp/README.md"
       - "docs/development/security.md"
 
   - id: sync-contract
@@ -125,8 +131,8 @@ rules:
       - "server/ask*.go"
       - "store/ai*.go"
       - "store/ask*.go"
-      - "android/**/ai/**"
-      - "android/**/ask/**"
+      - "apps/native/androidApp/**/ai/**"
+      - "apps/native/androidApp/**/ask/**"
     gates: [go, android]
     docs:
       - "docs/user/ai.md"
@@ -159,8 +165,8 @@ rules:
     paths:
       - "go.mod"
       - "go.sum"
-      - "web/package.json"
-      - "web/pnpm-lock.yaml"
+      - "apps/web/package.json"
+      - "apps/web/pnpm-lock.yaml"
       - "NOTICE"
       - "THIRD_PARTY_NOTICES.md"
       - "third_party/licenses/**"
@@ -186,7 +192,7 @@ rules:
 
   - id: e2e-acceptance
     paths:
-      - "web/e2e/**"
+      - "apps/web/e2e/**"
       - "scripts/run-e2e.mjs"
     gates: [web, e2e]
     docs:
@@ -219,7 +225,7 @@ rules:
   - id: release-note-input
     paths:
       - ".github/release-notes/**"
-      - "android/app/build.gradle.kts"
+      - "apps/native/androidApp/build.gradle.kts"
       - "scripts/check-release-notes.mjs"
       - "scripts/check-release-notes.test.mjs"
     gates: [android, docs, upgrade]

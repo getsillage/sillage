@@ -2,9 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 // E2E runs against an already-running Sillage instance. Point at it with
 // PLAYWRIGHT_BASE_URL; defaults to the Go server's dev port. To run:
-//   pnpm --dir web exec playwright install   # once, to fetch browsers
+//   pnpm --dir apps/web exec playwright install   # once, to fetch browsers
 //   SILLAGE_DATA="$(mktemp -d)" go run ./cmd/sillage &   # fresh instance
-//   pnpm --dir web test:e2e
+//   pnpm --dir apps/web test:e2e
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5231";
 
 export default defineConfig({

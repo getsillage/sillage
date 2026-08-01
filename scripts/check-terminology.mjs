@@ -14,7 +14,7 @@ function read(rel) {
 }
 
 // --- Web i18n: Chinese message values must not expose backend term "memo" ---
-const webMessagesPath = "web/src/i18n/messages.ts";
+const webMessagesPath = "apps/web/src/i18n/messages.ts";
 if (existsSync(resolve(root, webMessagesPath))) {
   const source = read(webMessagesPath);
   // Extract the zh catalog block roughly between zh: { ... } at top level of export.
@@ -47,8 +47,8 @@ if (existsSync(resolve(root, webMessagesPath))) {
 }
 
 // --- Android zh strings ---
-const androidZh = "android/app/src/main/res/values-zh/strings.xml";
-const androidZhAlt = "android/app/src/main/res/values-zh-rCN/strings.xml";
+const androidZh = "apps/native/androidApp/src/main/res/values-zh/strings.xml";
+const androidZhAlt = "apps/native/androidApp/src/main/res/values-zh-rCN/strings.xml";
 for (const rel of [androidZh, androidZhAlt]) {
   if (!existsSync(resolve(root, rel))) continue;
   const xml = read(rel);

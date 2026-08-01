@@ -85,4 +85,4 @@ Security-related changes must cover the relevant tests at a minimum:
 - AI data scope or prompts: update the server and Android together and verify the user privacy documentation;
 - Android storage or exports: Robolectric transaction/reopen tests, real-device Keystore and migration tests, cold-relaunch persistence, and export redaction.
 
-See the [Contributing Guide](../../CONTRIBUTING.md) for complete commands. Implementation sources of truth are `server/auth/`, `server/auth_routes.go`, `server/attachment_routes.go`, `server/ai_provider*.go`, `internal/secret/`, `store/`, `web/src/components/Markdown.tsx`, and the Android `data/` layer.
+See the [Contributing Guide](../../CONTRIBUTING.md) for complete commands. Implementation sources of truth are `server/auth/`, `server/auth_routes.go`, `server/attachment_routes.go`, `server/ai_provider*.go`, `internal/secret/`, `store/`, `apps/web/src/components/Markdown.tsx`, and the Android `data/` layer.

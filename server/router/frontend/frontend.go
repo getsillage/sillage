@@ -57,7 +57,7 @@ func registerFallback(e *echo.Echo) {
 			return echo.ErrNotFound
 		}
 		c.Response().Header().Set("Cache-Control", "no-store")
-		return c.HTML(http.StatusOK, `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sillage</title></head><body><main style="font-family:system-ui,sans-serif;max-width:680px;margin:64px auto;padding:0 20px"><h1>Sillage</h1><p>前端构建产物尚未生成。请运行 <code>pnpm --dir web build</code>。</p></main></body></html>`)
+		return c.HTML(http.StatusOK, `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sillage</title></head><body><main style="font-family:system-ui,sans-serif;max-width:680px;margin:64px auto;padding:0 20px"><h1>Sillage</h1><p>前端构建产物尚未生成。请运行 <code>pnpm --dir apps/web build</code>。</p></main></body></html>`)
 	})
 }
 

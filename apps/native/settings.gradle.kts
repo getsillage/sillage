@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SillageAndroid"
-include(":app")
+rootProject.name = "SillageNative"
+include(":androidApp")

@@ -109,7 +109,7 @@ jobs:
         run: make check-android
 
       - name: Decode release keystore
-        working-directory: android
+        working-directory: apps/native
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -127,25 +127,25 @@ jobs:
           sed -i 's/^[[:space:]]*//' signing.properties
 
       - name: Build signed release APK
-        working-directory: android
-        run: ./gradlew :app:assembleRelease
+        working-directory: apps/native
+        run: ./gradlew :androidApp:assembleRelease
 
       - name: Verify and stage candidate
         id: apk
-        working-directory: android
+        working-directory: apps/native
         env:
           SHORT_REVISION: ${{ steps.revision.outputs.short }}
         run: |
           set -euo pipefail
-          apk="app/build/outputs/apk/release/app-release.apk"
+          apk="androidApp/build/outputs/apk/release/androidApp-release.apk"
           test -f "$apk"
           apksigner_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name apksigner | sort | tail -1)"
           aapt2_bin="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" -type f -name aapt2 | sort | tail -1)"
           test -n "$apksigner_bin"
           test -n "$aapt2_bin"
 
-          version_name="$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)"
-          version_code="$(sed -nE 's/.*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts)"
+          version_name="$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' androidApp/build.gradle.kts)"
+          version_code="$(sed -nE 's/.*versionCode = ([0-9]+).*/\1/p' androidApp/build.gradle.kts)"
           test -n "$version_name"
           test -n "$version_code"
 

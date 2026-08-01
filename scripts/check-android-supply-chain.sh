@@ -3,8 +3,8 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
-lockfile="$repo_root/android/app/gradle.lockfile"
-report_dir="$repo_root/android/app/build/reports"
+lockfile="$repo_root/apps/native/androidApp/gradle.lockfile"
+report_dir="$repo_root/apps/native/androidApp/build/reports"
 report="$report_dir/osv-scanner-release.json"
 
 scanner_version="2.4.0"
@@ -37,7 +37,7 @@ esac
 
 if [[ ! -f "$lockfile" ]]; then
   echo "Missing Android dependency lockfile: $lockfile" >&2
-  echo "Run: cd android && ./gradlew :app:dependencies --write-locks" >&2
+  echo "Run: cd apps/native && ./gradlew :androidApp:dependencies --write-locks" >&2
   exit 1
 fi
 

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="web/public/sillage-icon.svg" alt="Sillage" width="96" height="96" />
+  <img src="apps/web/public/sillage-icon.svg" alt="Sillage" width="96" height="96" />
 </p>
 
 <h1 align="center">Sillage</h1>
@@ -69,7 +69,7 @@ See the [Architecture Guide](docs/development/architecture.md) for detailed boun
 | Modify authentication, attachments, or secrets | [Security Development Boundaries](docs/development/security.md) |
 | Modify sync clients | [Sync API](docs/development/api/sync.md) |
 | Modify the product or interface | [Product Guidance](docs/development/product-guidance.md) / [Web Design Guidelines](docs/development/design/README.md) |
-| Build the Android client | [Sillage Android Guide](android/README.md) |
+| Build the Android client | [Sillage Android Guide](apps/native/androidApp/README.md) |
 | Download releases and view changes | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 
 See the [Documentation Hub](docs/README.md) for the complete index. Report security issues privately according to the [Security Policy](SECURITY.md).

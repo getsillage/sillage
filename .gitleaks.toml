@@ -11,13 +11,13 @@ description = "Local runtime files, tests, docs, and documented placeholders"
 paths = [
   '''(.*?)(_test\.go)$''',
   '''(.*?)(\.test\.[jt]sx?)$''',
-  '''web/e2e/.*''',
+  '''apps/web/e2e/.*''',
   '''docs/.*''',
   '''^\.env$''',
   '''^\.env\..*''',
   '''^runtime/.*''',
-  '''^android/signing\.properties$''',
-  '''^android/local\.properties$''',
+  '''^apps/native/signing\.properties$''',
+  '''^apps/native/local\.properties$''',
   '''^\.data-dev/.*''',
   '''coverage/.*''',
 ]

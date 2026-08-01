@@ -195,10 +195,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm --dir web install --frozen-lockfile
+        run: pnpm --dir apps/web install --frozen-lockfile
 
       - name: Check Web
         run: make check-web
@@ -262,10 +262,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install Web dependencies
-        run: pnpm --dir web install --frozen-lockfile
+        run: pnpm --dir apps/web install --frozen-lockfile
 
       - name: Check supply chain
         run: make check-supply-chain
@@ -298,10 +298,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install Web dependencies
-        run: pnpm --dir web install --frozen-lockfile
+        run: pnpm --dir apps/web install --frozen-lockfile
 
       - name: Fresh-instance E2E
         run: make check-e2e
@@ -443,7 +443,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
@@ -452,8 +452,8 @@ jobs:
 
       - name: Build Web
         run: |
-          pnpm --dir web install --frozen-lockfile
-          pnpm --dir web build
+          pnpm --dir apps/web install --frozen-lockfile
+          pnpm --dir apps/web build
 
       - name: Analyze
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
@@ -491,7 +491,7 @@ jobs:
           languages: java-kotlin
 
       - name: Build Android
-        run: cd android && ./gradlew :app:assembleDebug --no-daemon
+        run: cd apps/native && ./gradlew :androidApp:assembleDebug --no-daemon
 
       - name: Analyze
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3

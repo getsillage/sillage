@@ -111,7 +111,7 @@ function escapeRegExp(value) {
 }
 
 function main() {
-  const build = readFileSync("android/app/build.gradle.kts", "utf8");
+  const build = readFileSync("apps/native/androidApp/build.gradle.kts", "utf8");
   const configuredVersion = match(build, /versionName\s*=\s*"([^"]+)"/, "versionName", []);
   const tag = process.argv.slice(2).find((value) => !value.startsWith("--")) || `v${configuredVersion}`;
   const parsedTag = parseTag(tag);

@@ -14,7 +14,7 @@ if (!parsed) {
   fail(`release tag must match vX.Y.Z or vX.Y.Z-prerelease: ${tag}`);
 }
 
-const currentBuild = readFile("android/app/build.gradle.kts");
+const currentBuild = readFile("apps/native/androidApp/build.gradle.kts");
 const currentVersionName = matchRequired(currentBuild, /versionName\s*=\s*"([^"]+)"/, "versionName");
 const currentVersionCode = Number(matchRequired(currentBuild, /versionCode\s*=\s*(\d+)/, "versionCode"));
 if (!Number.isInteger(currentVersionCode) || currentVersionCode <= 0) {
@@ -43,7 +43,7 @@ if (currentVersionName !== parsed.version) {
 
 let highestPrevious = null;
 for (const previous of previousReleases(parsed)) {
-  const previousBuild = readFileAtTag(previous.tag, "android/app/build.gradle.kts");
+  const previousBuild = readAndroidBuildAtTag(previous.tag);
   const previousCode = Number(matchRequired(previousBuild, /versionCode\s*=\s*(\d+)/, `versionCode from ${previous.tag}`));
   if (!Number.isInteger(previousCode) || previousCode <= 0) {
     fail(`Android versionCode from ${previous.tag} must be a positive integer: ${previousCode}`);
@@ -97,12 +97,21 @@ function readFile(path) {
   }
 }
 
-function readFileAtTag(tagName, path) {
-  try {
-    return execFileSync("git", ["show", `${tagName}:${path}`], { encoding: "utf8" });
-  } catch (error) {
-    fail(`cannot read ${path} from ${tagName}: ${error.message}`);
+function readAndroidBuildAtTag(tagName) {
+  for (const path of [
+    "apps/native/androidApp/build.gradle.kts",
+    "android/app/build.gradle.kts",
+  ]) {
+    try {
+      return execFileSync("git", ["show", `${tagName}:${path}`], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+    } catch {
+      // Tags before the monorepo migration use the legacy Android path.
+    }
   }
+  fail(`cannot read Android build configuration from ${tagName}`);
 }
 
 function matchRequired(text, pattern, name) {

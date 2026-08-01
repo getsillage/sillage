@@ -18,7 +18,7 @@ Choose an entry point based on your task:
 | Change synchronization behavior | [Sync API](development/api/sync.md) |
 | Change REST routes or clients | [REST API Guide](development/api/README.md) |
 | Change the Web interface | [Web Design Guidelines](development/design/README.md) |
-| Build the Android app | [Sillage Android Guide](../android/README.md) |
+| Build the Android app | [Sillage Android Guide](../apps/native/androidApp/README.md) |
 | Download releases and review changes | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 | Report a security issue | [Security Policy](../SECURITY.md) |
 

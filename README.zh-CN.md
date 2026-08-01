@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="web/public/sillage-icon.svg" alt="Sillage" width="96" height="96" />
+  <img src="apps/web/public/sillage-icon.svg" alt="Sillage" width="96" height="96" />
 </p>
 
 <h1 align="center">Sillage</h1>
@@ -70,7 +70,7 @@ Compose、反向代理、环境变量、公网部署、固定某一发布镜像�
 | 修改认证、附件或密钥 | [安全开发边界](docs/development/security.md) |
 | 修改同步客户端 | [同步 API](docs/development/api/sync.md) |
 | 修改产品或界面 | [产品指导](docs/development/product-guidance.md) / [Web 设计规范](docs/development/design/README.md) |
-| 构建 Android | [Android 说明](android/README.md) |
+| 构建 Android | [Android 说明](apps/native/androidApp/README.md) |
 | 下载版本与查看变更 | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 
 完整索引见[文档中心](docs/README.md)。安全问题请按[安全策略](SECURITY.md)私下报告。

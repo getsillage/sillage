@@ -10,9 +10,9 @@ import { fileURLToPath } from "node:url";
 import { root } from "./lib/repo.mjs";
 
 export const contentPaths = {
-  web: "web/src/i18n/messages.ts",
-  androidEn: "android/app/src/main/res/values/strings.xml",
-  androidZh: "android/app/src/main/res/values-zh-rCN/strings.xml",
+  web: "apps/web/src/i18n/messages.ts",
+  androidEn: "apps/native/androidApp/src/main/res/values/strings.xml",
+  androidZh: "apps/native/androidApp/src/main/res/values-zh-rCN/strings.xml",
 };
 
 const forbiddenPatterns = [

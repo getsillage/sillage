@@ -1,6 +1,6 @@
 Sillage Android — Open-source software notices
 
-This file is generated from android/app/gradle.lockfile and is shipped in the APK
+This file is generated from apps/native/androidApp/gradle.lockfile and is shipped in the APK
 so users can inspect the licenses of release-runtime dependencies. Do not edit it
 manually; run `node scripts/generate-android-third-party-notices.mjs --write`.
 

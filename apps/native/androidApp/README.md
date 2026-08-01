@@ -45,19 +45,19 @@ CI provisions separate clean API 26 and API 35 x86_64 emulators and runs this de
 The debug APK is located at:
 
 ```text
-android/app/build/outputs/apk/debug/app-debug.apk
+apps/native/androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
 Install it on a connected device or emulator:
 
 ```bash
-cd android
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+cd apps/native
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
 ## Release Signing
 
-The application ID is `app.sillage`. Signing files are not committed to the repository. Under `android/`, prepare `release.keystore` and `signing.properties`:
+The application ID is `app.sillage`. Signing files are not committed to the repository. Under `apps/native/`, prepare `release.keystore` and `signing.properties`:
 
 ```properties
 storeFile=release.keystore
@@ -69,10 +69,10 @@ keyPassword=...
 Build and verify the release APK:
 
 ```bash
-cd android
-./gradlew :app:assembleRelease
-apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
-zipalign -c -v 4 app/build/outputs/apk/release/app-release.apk
+cd apps/native
+./gradlew :androidApp:assembleRelease
+apksigner verify --verbose --print-certs androidApp/build/outputs/apk/release/androidApp-release.apk
+zipalign -c -v 4 androidApp/build/outputs/apk/release/androidApp-release.apk
 ```
 
 Before a release, increment `versionCode`, set `versionName` to the tag without its `v` prefix, and add the matching checked input at `.github/release-notes/vX.Y.Z.md`. The release build uses this keystore only when the local signing configuration exists. Do not publish artifacts with unverified signatures, and do not commit APK/AAB files, keystores, `signing.properties`, or `local.properties`.
@@ -85,4 +85,4 @@ The APK includes the complete reviewed release-runtime dependency inventory and 
 
 Attachment links accept only standard external `http(s)` URLs or same-origin `/file/attachments/...` paths. The app downloads protected attachments to its cache with authentication, then passes them to the system viewer through a read-only FileProvider URI.
 
-See the [Contributing Guide](../CONTRIBUTING.md) for the complete development gates, and the [Deployment Guide](../docs/user/deployment.md) and [Data, Backup, and Recovery](../docs/user/data.md) for server deployment and data security.
+See the [Contributing Guide](../../../CONTRIBUTING.md) for the complete development gates, and the [Deployment Guide](../../../docs/user/deployment.md) and [Data, Backup, and Recovery](../../../docs/user/data.md) for server deployment and data security.

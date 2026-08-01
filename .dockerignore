@@ -18,7 +18,7 @@ tmp/
 
 # Node / Web outputs
 node_modules/
-web/node_modules/
+apps/web/node_modules/
 **/node_modules/
 coverage/
 **/coverage/
@@ -34,11 +34,11 @@ pnpm-debug.log*
 .vite/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-web/dist/
-web/test-results/
-web/playwright-report/
-web/blob-report/
-web/.playwright/
+apps/web/dist/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/.playwright/
 server/router/frontend/dist/
 
 # Local runtime data
@@ -74,17 +74,17 @@ profile.cov
 **/*.db.bak-*
 
 # Android / Gradle
-android/.gradle/
-android/.kotlin/
-android/.idea/
-android/**/build/
-android/local.properties
-android/signing.properties
-android/keystore.properties
-android/captures/
-android/**/.externalNativeBuild/
-android/**/.cxx/
-android/**/*.iml
+apps/native/.gradle/
+apps/native/.kotlin/
+apps/native/.idea/
+apps/native/**/build/
+apps/native/local.properties
+apps/native/signing.properties
+apps/native/keystore.properties
+apps/native/captures/
+apps/native/**/.externalNativeBuild/
+apps/native/**/.cxx/
+apps/native/**/*.iml
 *.apk
 *.aab
 *.keystore

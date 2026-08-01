@@ -10,13 +10,13 @@ ENV VITE_SILLAGE_VERSION=$VERSION \
     VITE_SILLAGE_REVISION=$REVISION
 RUN npm install -g pnpm@$PNPM_VERSION --registry=$NPM_CONFIG_REGISTRY && \
     pnpm config set registry $NPM_CONFIG_REGISTRY
-COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./web/
-WORKDIR /src/web
+COPY apps/web/package.json apps/web/pnpm-lock.yaml apps/web/pnpm-workspace.yaml ./apps/web/
+WORKDIR /src/apps/web
 RUN pnpm install --frozen-lockfile
 WORKDIR /src
-COPY web ./web
+COPY apps/web ./apps/web
 COPY server/router/frontend ./server/router/frontend
-RUN pnpm --dir web build
+RUN pnpm --dir apps/web build
 
 FROM golang:1.25.12-alpine@sha256:56961d79ea8129efddcc0b8643fd8a5416b4e6228cfd477e3fd61deb2672c587 AS backend
 WORKDIR /src

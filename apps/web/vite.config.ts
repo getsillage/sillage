@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../server/router/frontend/dist",
+    outDir: "../../server/router/frontend/dist",
     emptyOutDir: true,
   },
 });

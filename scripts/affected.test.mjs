@@ -10,7 +10,7 @@ function gatesFor(...files) {
 }
 
 test("web changes include Web and release E2E gates", () => {
-  const gates = gatesFor("web/src/App.tsx");
+  const gates = gatesFor("apps/web/src/App.tsx");
   assert.ok(gates.includes("web"));
   assert.ok(gates.includes("e2e"));
   assert.ok(!gates.includes("android"));
@@ -27,7 +27,7 @@ test("Go dependency changes avoid unrelated client gates", () => {
 });
 
 test("Android changes stay within the Android gate", () => {
-  const gates = gatesFor("android/app/src/main/java/app/sillage/MainActivity.kt");
+  const gates = gatesFor("apps/native/androidApp/src/main/java/app/sillage/MainActivity.kt");
   assert.ok(gates.includes("android"));
   assert.ok(!gates.includes("e2e"));
   assert.ok(!gates.includes("go"));

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-web_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../web" && pwd)"
+web_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../apps/web" && pwd)"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 image_ref="${SUPPLY_CHAIN_IMAGE:-sillage:dev}"
 

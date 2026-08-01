@@ -189,8 +189,8 @@ docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml up -d --bui
 Go 1.25 is required. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
 
 ```bash
-pnpm --dir web install
-pnpm --dir web build
+pnpm --dir apps/web install
+pnpm --dir apps/web build
 VERSION="$(git describe --tags --exact-match 2>/dev/null || echo dev)"
 REVISION="$(git rev-parse HEAD)"
 go build -ldflags "-X main.version=$VERSION -X main.revision=$REVISION" -o sillage ./cmd/sillage

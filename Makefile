@@ -61,29 +61,29 @@ check-proto:
 	bash scripts/check-proto.sh
 
 check-web:
-	pnpm --dir web lint
-	pnpm --dir web typecheck
-	pnpm --dir web test
-	pnpm --dir web build
+	pnpm --dir apps/web lint
+	pnpm --dir apps/web typecheck
+	pnpm --dir apps/web test
+	pnpm --dir apps/web build
 	node scripts/check-web-bundle.mjs
 	bash scripts/check-web-assets.sh
 
 check-android:
 	node scripts/check-android-device-matrix.mjs
-	cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:processReleaseMainManifest
-	grep -Fq 'android:usesCleartextTraffic="false"' android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
-	! grep -Rq 'http://10.0.2.2:5231' android/app/build/intermediates/packaged_res/release/packageReleaseResources
-	grep -Rq 'http://10.0.2.2:5231' android/app/build/intermediates/packaged_res/debug/packageDebugResources
+	cd apps/native && ./gradlew :androidApp:testDebugUnitTest :androidApp:lintDebug :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest :androidApp:assembleRelease :androidApp:processReleaseMainManifest
+	grep -Fq 'android:usesCleartextTraffic="false"' apps/native/androidApp/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+	! grep -Rq 'http://10.0.2.2:5231' apps/native/androidApp/build/intermediates/packaged_res/release/packageReleaseResources
+	grep -Rq 'http://10.0.2.2:5231' apps/native/androidApp/build/intermediates/packaged_res/debug/packageDebugResources
 	@aapt2_bin="$$(find "$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}/build-tools" -type f -name aapt2 | sort | tail -1)"; \
-		release_apk="android/app/build/outputs/apk/release/app-release.apk"; \
-		if ! test -f "$$release_apk"; then release_apk="android/app/build/outputs/apk/release/app-release-unsigned.apk"; fi; \
+		release_apk="apps/native/androidApp/build/outputs/apk/release/androidApp-release.apk"; \
+		if ! test -f "$$release_apk"; then release_apk="apps/native/androidApp/build/outputs/apk/release/androidApp-release-unsigned.apk"; fi; \
 		test -n "$$aapt2_bin"; \
 		test -f "$$release_apk"; \
 		"$$aapt2_bin" dump resources "$$release_apk" | grep -Fq 'raw/third_party_notices'
 	bash scripts/check-android-supply-chain.sh
 
 check-android-device:
-	cd android && ./gradlew :app:connectedDebugAndroidTest
+	cd apps/native && ./gradlew :androidApp:connectedDebugAndroidTest
 
 check-scale:
 	go test -tags=scale_acceptance -count=1 -timeout=70s ./integration/scale
@@ -127,8 +127,8 @@ generate-android-third-party-notices:
 	node scripts/generate-android-third-party-notices.mjs --write
 
 check-e2e:
-	pnpm --dir web exec playwright install $(PLAYWRIGHT_INSTALL_FLAGS) $(subst $(comma), ,$(E2E_PROJECTS))
-	pnpm --dir web build
+	pnpm --dir apps/web exec playwright install $(PLAYWRIGHT_INSTALL_FLAGS) $(subst $(comma), ,$(E2E_PROJECTS))
+	pnpm --dir apps/web build
 	node scripts/run-e2e.mjs
 
 check-restore:

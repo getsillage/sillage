@@ -18,7 +18,7 @@ This document is the single entry point for this repository's development enviro
 Install the Web dependencies:
 
 ```bash
-pnpm --dir web install
+pnpm --dir apps/web install
 ```
 
 Start the backend. `.data-dev/` is ignored by Git:
@@ -33,10 +33,10 @@ go run ./cmd/sillage
 In another terminal, start the Web development server:
 
 ```bash
-pnpm --dir web dev
+pnpm --dir apps/web dev
 ```
 
-Open `http://localhost:5173`. Vite listens only on `127.0.0.1` and proxies API, attachment, and Connect requests to `http://localhost:5231`. Use `pnpm --dir web dev:lan` only for debugging on a trusted LAN; it indirectly exposes the local backend to other devices on the LAN and must not be used with an uninitialized instance.
+Open `http://localhost:5173`. Vite listens only on `127.0.0.1` and proxies API, attachment, and Connect requests to `http://localhost:5231`. Use `pnpm --dir apps/web dev:lan` only for debugging on a trusted LAN; it indirectly exposes the local backend to other devices on the LAN and must not be used with an uninitialized instance.
 
 ## Contribution Workflow
 
@@ -66,7 +66,7 @@ Maintainer and coding-agent workflows may push `main` under [CLAUDE.md](CLAUDE.m
 
 1. Modify `proto/api/v1/`.
 2. Run `make check-proto` (or `buf lint`, `buf breaking` with a base ref, and `buf generate`), then commit the generated output in `proto/gen/`.
-3. Update the affected handwritten REST routes, the [REST API Guide](docs/development/api/README.md), `web/src/lib/api.ts`, and Android's `SillageApi.kt`.
+3. Update the affected handwritten REST routes, the [REST API Guide](docs/development/api/README.md), `apps/web/src/lib/api.ts`, and Android's `SillageApi.kt`.
 4. Cover the behavior with both REST and Connect tests.
 
 `proto/gen/openapi/openapi.yaml` is a generated projection of the Proto HTTP annotations, not the complete Echo REST contract, and cannot be used directly for REST SDK code generation. Extensions such as uploads and SSE are defined by the REST API Guide and `server/*_routes.go`.
@@ -77,7 +77,7 @@ The schema for new databases lives in `store/migration/sqlite/LATEST.sql`. Compa
 
 ### Web Artifacts
 
-`pnpm --dir web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary. `make check-web` also verifies route-level chunks and raw/gzip bundle budgets; update a budget only with measured output and a documented product reason.
+`pnpm --dir apps/web build` overwrites the ignored `server/router/frontend/dist/` directory. Do not commit its contents. The tracked `server/router/frontend/dist_placeholder.txt` keeps ordinary Go builds valid and lets them serve a fallback page when the Web assets are absent. Generate the Web assets before building a production Go binary. `make check-web` also verifies route-level chunks and raw/gzip bundle budgets; update a budget only with measured output and a documented product reason.
 
 ## Verification
 
@@ -125,7 +125,7 @@ CI enforces this range-sensitive rule on the pull request before merge. Pushes t
 
 Dependabot-owned pull requests do not need an empty `Docs-skip` commit when all changed files are recognized dependency surfaces such as manifests, lockfiles, Action pins, verification metadata, container base images, and generated license inventories. Any source or unrelated configuration change disables that exemption.
 
-Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir web exec playwright install` on first use; CI installs all three engines with their OS dependencies. The long-term personal-use budget is enforced separately by `make check-scale`; its dataset and thresholds are normative in [Release Readiness](docs/development/release-readiness.md).
+Web E2E (`make check-e2e`) starts a separate disposable server for Chromium, Firefox, and WebKit so the mutable single-account journey is isolated in every engine. Install Playwright browsers with `pnpm --dir apps/web exec playwright install` on first use; CI installs all three engines with their OS dependencies. The long-term personal-use budget is enforced separately by `make check-scale`; its dataset and thresholds are normative in [Release Readiness](docs/development/release-readiness.md).
 
 Changes that affect the UI must also follow the [Web Design Guidelines](docs/development/design/README.md) for manual checks in light and dark themes on desktop and mobile. Android changes involving storage, editing, attachments, or network state must pass `make check-android-device` on an appropriate emulator or physical device. Also check system Back navigation, the soft keyboard, cancellation on slow networks, and the external file viewer when the change touches those interactions. CI provisions clean API 26 and API 35 x86_64 emulators so the automated device suite covers both the oldest supported Android release and the current release target. A stable release candidate still requires a physical-device smoke test under [Release Readiness](docs/development/release-readiness.md).
 
@@ -151,7 +151,7 @@ GitHub Releases are the canonical user-visible release notes; the repository doe
 The supported environment matrix, scale budgets, release-candidate journeys, published-artifact checks, and required remote repository controls are defined in [Release Readiness](docs/development/release-readiness.md). A stable release requires both the automated workflow and that manual acceptance evidence; neither substitutes for the other.
 
 1. Merge release preparation to `main` after CI is green. Add `.github/release-notes/vX.Y.Z.md` with the main changes, compatibility impact, known limitations, upgrade/rollback requirements, and automated/manual evidence. Candidate notes may state evidence that is still pending, but the Release preflight rejects `待完成`, `PENDING`, `TODO`, or `TBD`; update the notes in a new green release commit before creating the signed tag. Update deployment and data documentation when special upgrade steps are required.
-2. For an Android APK release, update `android/app/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+2. For an Android APK release, update `apps/native/androidApp/build.gradle.kts` by incrementing `versionCode`, and keep `versionName` consistent with the `vX.Y.Z` tag. To publish the APK from CI, set repository variable `RELEASE_ANDROID_APK=true` and configure secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
 3. Before tagging an Android release, run the `Android Release Candidate` workflow from protected `main` with the exact 40-character release-commit SHA. It accepts only a commit with the complete successful CI job set, signs the APK with the configured release secrets, and retains the APK, checksum, certificate report, and package metadata for seven days. Download that artifact for the physical-device acceptance in [Release Readiness](docs/development/release-readiness.md); do not publish or redistribute it as a final release asset.
 4. Create a GitHub-verified signed annotated tag on the release commit: `git tag -s -a vX.Y.Z -m "Sillage vX.Y.Z"` and push it with `git push origin vX.Y.Z`. The workflow verifies the tag signature, exact commit, Android version, and all required CI jobs before publishing.
 5. The Release workflow builds multi-arch images (`linux/amd64`, `linux/arm64`), pushes immutable `ghcr.io/getsillage/sillage:vX.Y.Z` (and stable aliases), creates a new GitHub Release, and optionally uploads a signed APK. Image `VERSION` and `REVISION` labels must match the tag and commit.

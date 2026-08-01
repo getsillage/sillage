@@ -93,7 +93,7 @@ function readApiLevels(job, failures) {
 
 function main() {
   const result = auditAndroidDeviceMatrix({
-    gradle: readFileSync(new URL("../android/app/build.gradle.kts", import.meta.url), "utf8"),
+    gradle: readFileSync(new URL("../apps/native/androidApp/build.gradle.kts", import.meta.url), "utf8"),
     ci: readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
     release: readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
     repositorySettings: readFileSync(

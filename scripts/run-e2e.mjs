@@ -94,7 +94,7 @@ async function runProject(project) {
     console.log(`Running fresh-instance release journeys in ${project}...`);
     await run(
       "pnpm",
-      ["--dir", "web", "exec", "playwright", "test", `--project=${project}`],
+      ["--dir", "apps/web", "exec", "playwright", "test", `--project=${project}`],
       {
         cwd: root,
         env: {

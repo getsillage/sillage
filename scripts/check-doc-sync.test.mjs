@@ -22,7 +22,7 @@ test("allows main push verification to skip pull-request range policy", () => {
 test("accepts trusted Dependabot dependency surfaces", () => {
   assert.equal(
     isDependabotMaintenance(
-      [".github/workflows/ci.yml", "web/package.json", "web/pnpm-lock.yaml"],
+      [".github/workflows/ci.yml", "apps/web/package.json", "apps/web/pnpm-lock.yaml"],
       "true",
     ),
     true,
@@ -30,6 +30,6 @@ test("accepts trusted Dependabot dependency surfaces", () => {
 });
 
 test("rejects source changes and untrusted pull requests", () => {
-  assert.equal(isDependabotMaintenance(["web/src/main.tsx"], "true"), false);
-  assert.equal(isDependabotMaintenance(["web/package.json"], "false"), false);
+  assert.equal(isDependabotMaintenance(["apps/web/src/main.tsx"], "true"), false);
+  assert.equal(isDependabotMaintenance(["apps/web/package.json"], "false"), false);
 });

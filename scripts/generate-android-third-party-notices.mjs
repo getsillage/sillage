@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
-const lockfile = resolve(repoRoot, "android/app/gradle.lockfile");
-const output = resolve(repoRoot, "android/app/src/main/res/raw/third_party_notices.txt");
+const lockfile = resolve(repoRoot, "apps/native/androidApp/gradle.lockfile");
+const output = resolve(repoRoot, "apps/native/androidApp/src/main/res/raw/third_party_notices.txt");
 
 const licenseSources = {
   apache: {
@@ -79,7 +79,7 @@ const readLicense = (name) => readFileSync(licenseSources[name].path, "utf8").tr
 const lines = [
   "Sillage Android — Open-source software notices",
   "",
-  "This file is generated from android/app/gradle.lockfile and is shipped in the APK",
+  "This file is generated from apps/native/androidApp/gradle.lockfile and is shipped in the APK",
   "so users can inspect the licenses of release-runtime dependencies. Do not edit it",
   "manually; run `node scripts/generate-android-third-party-notices.mjs --write`.",
   "",

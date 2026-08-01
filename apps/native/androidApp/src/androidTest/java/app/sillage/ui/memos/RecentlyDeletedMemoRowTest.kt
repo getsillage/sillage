@@ -4,7 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.sillage.data.Memo
+import app.sillage.core.domain.records.Memo
 import app.sillage.ui.theme.SillageTheme
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -99,7 +99,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import app.sillage.data.Memo
+import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoListFilter
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth

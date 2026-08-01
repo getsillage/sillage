@@ -20,7 +20,7 @@ import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
 import app.sillage.data.MarkdownLinkTarget
-import app.sillage.data.Memo
+import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoListFilter
 import app.sillage.data.MarkdownFormatStyle

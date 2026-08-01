@@ -1,5 +1,7 @@
 package app.sillage.data
 
+import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.isActive
 import java.time.DayOfWeek
 import org.junit.Assert.assertEquals
 import org.junit.Test

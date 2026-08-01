@@ -97,6 +97,12 @@ The current Android code is the migration source for the shared native modules:
 
 `SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
 
+`packages/kmp-core/domain` owns the shared `Memo` entity and its active-lifecycle
+policy. Android REST mappings, local persistence, feature state, tests, and UI
+consume that type directly; `data/Models.kt` no longer defines an Android-only
+record entity. Remaining Android-local models are migration sources for later
+domain, application, or feature slices.
+
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 
 Android transient feedback is emitted once by `SillageViewModel` and consumed

@@ -51,7 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.data.MarkdownLinkTarget
-import app.sillage.data.Memo
+import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.memoSummarySourceCount
 import app.sillage.R

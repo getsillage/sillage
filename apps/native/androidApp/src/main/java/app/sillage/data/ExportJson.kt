@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import app.sillage.core.domain.records.Memo
 import org.json.JSONArray
 import org.json.JSONObject
 

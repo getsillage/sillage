@@ -102,6 +102,12 @@ Android-specific persistence classes are migration sources, not target module
 boundaries. New cross-platform behavior belongs in the shared modules rather
 than expanding those containers.
 
+Extraction proceeds in vertical slices that remain consumed by Android. The
+first slice moves the record entity and its active-lifecycle policy into
+`packages/kmp-core/domain`; Android REST, local persistence, feature state, and
+Compose UI all use that shared type. Platform or transport models must not
+reintroduce another record entity.
+
 ## Verification
 
 Shared domain and synchronization modules require common unit tests and

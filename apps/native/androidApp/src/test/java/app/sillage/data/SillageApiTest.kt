@@ -2,6 +2,7 @@ package app.sillage.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.sillage.core.domain.records.Memo
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

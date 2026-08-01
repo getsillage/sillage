@@ -2,7 +2,7 @@ package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
 import app.sillage.data.AskMessage
-import app.sillage.data.Memo
+import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
 import app.sillage.data.MemoListFilter

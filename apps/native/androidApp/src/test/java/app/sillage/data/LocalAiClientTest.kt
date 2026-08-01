@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import app.sillage.core.domain.records.Memo
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

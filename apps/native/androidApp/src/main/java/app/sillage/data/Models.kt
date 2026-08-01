@@ -1,5 +1,6 @@
 package app.sillage.data
 
+import app.sillage.core.domain.records.Memo
 import org.json.JSONArray
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -23,19 +24,6 @@ data class BootstrapInfo(
     val serverRevision: String,
     val apiVersion: String,
     val minimumAndroidVersionCode: Int,
-)
-
-data class Memo(
-    val id: String,
-    val content: String,
-    val entryDate: String,
-    val version: Long,
-    val createdAt: String,
-    val updatedAt: String,
-    val favoritedAt: String?,
-    val archivedAt: String?,
-    val deletedAt: String?,
-    val purgedAt: String? = null,
 )
 
 data class MemoDetail(
@@ -190,8 +178,6 @@ data class AskStreamEvent(
 )
 
 class ApiException(message: String, val statusCode: Int? = null) : Exception(message)
-
-fun Memo.isActive(): Boolean = archivedAt == null && deletedAt == null
 
 enum class MemoListFilter {
     Unarchived,

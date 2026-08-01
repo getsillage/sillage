@@ -1,5 +1,7 @@
 package app.sillage.data
 
+import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.records.isActive
 import java.io.IOException
 import java.net.URL
 import java.time.Instant

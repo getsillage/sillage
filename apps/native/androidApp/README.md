@@ -39,6 +39,9 @@ execution remain Android adapters for now. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.
+Ask conversation selection, branch-head identity, and loaded message snapshots
+live in `kmp-features:ask`; Android retains transitional read accessors while
+streaming and request lifecycle state are extracted in later slices.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

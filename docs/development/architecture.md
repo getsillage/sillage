@@ -116,6 +116,12 @@ selection cross `AskRepository` and focused use cases in
 REST translation. Streaming answer generation and device-local AI execution
 remain adapter-side until their asynchronous contracts are extracted later.
 
+`packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
+conversation collection, current conversation, selected branch head, and loaded
+messages consistent. Android's root state exposes transitional read accessors;
+all writes go through the holder, while persistence and streaming stay outside
+the feature module.
+
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
 Android's `LocalRecordsRepository` adapts `LocalDataStore` to that port. Shared

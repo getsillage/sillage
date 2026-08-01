@@ -77,6 +77,12 @@ Android remains its first host and adapter provider. Feature state holders move
 into the module incrementally without moving transport or persistence details
 with them.
 
+The buildable `kmp-features:ask` module owns conversation selection, branch-head
+identity, and loaded message snapshots through `AskConversationStateHolder`.
+Its transitions reject cross-conversation messages and late snapshots for a
+previous selection. Android keeps transitional read accessors; persistence, SSE,
+and device-local AI execution remain platform adapters.
+
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only
 their dependencies and optional capability plugins. `checkShared` discovers

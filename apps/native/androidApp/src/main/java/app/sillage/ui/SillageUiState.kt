@@ -4,6 +4,7 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.data.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
+import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.core.domain.records.Memo
@@ -74,10 +75,7 @@ data class SillageUiState(
     val aiLoadingModelsProfileId: String = "",
     val aiTestResults: Map<String, String> = emptyMap(),
     val aiModelResults: Map<String, List<String>> = emptyMap(),
-    val askConversations: List<AskConversation> = emptyList(),
-    val activeAskId: String = "",
-    val askHeadId: String? = null,
-    val askMessages: List<AskMessage> = emptyList(),
+    val askConversation: AskConversationStateHolder = AskConversationStateHolder(),
     val askQuestion: String = "",
     val askScope: String = "recent_30_days",
     val askSourceKind: String = "records",
@@ -158,6 +156,10 @@ data class SillageUiState(
     val openingAttachmentPath: String? get() = recordsAttachmentOpen.path
     val attachmentOpenRequestId: Long get() = recordsAttachmentOpen.requestId
     val syncConflicts: List<MemoSyncConflictItem> get() = syncConflictState.items
+    val askConversations: List<AskConversation> get() = askConversation.conversations
+    val activeAskId: String get() = askConversation.activeConversationId
+    val askHeadId: String? get() = askConversation.headMessageId
+    val askMessages: List<AskMessage> get() = askConversation.messages
 }
 
 /**

@@ -2,6 +2,7 @@ package app.sillage.ui
 
 import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
+import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
@@ -866,9 +867,11 @@ class SillageUiStateTest {
         val secondAnswer = askMessage(id = "answer-2", content = "第二条回答")
         val idle = editorState().copy(
             screen = Screen.Ask,
-            activeAskId = "conversation-1",
-            askHeadId = firstAnswer.id,
-            askMessages = listOf(firstAnswer, secondAnswer),
+            askConversation = AskConversationStateHolder(
+                activeConversationId = "conversation-1",
+                headMessageId = firstAnswer.id,
+                messages = listOf(firstAnswer, secondAnswer),
+            ),
         )
         val request = requireNotNull(
             idle.nextAskMemoSaveRequest(firstAnswer, memoContent = "第一条回答"),
@@ -895,10 +898,12 @@ class SillageUiStateTest {
         val answer = askMessage(id = "answer-1", content = "原回答")
         val idle = editorState().copy(
             screen = Screen.Ask,
-            activeAskId = "conversation-1",
-            askHeadId = answer.id,
+            askConversation = AskConversationStateHolder(
+                activeConversationId = "conversation-1",
+                headMessageId = answer.id,
+                messages = listOf(answer),
+            ),
             askScreenSessionId = 4,
-            askMessages = listOf(answer),
         )
         val request = requireNotNull(
             idle.nextAskMemoSaveRequest(answer, memoContent = "保存内容"),
@@ -907,13 +912,13 @@ class SillageUiStateTest {
         val staleStates = listOf(
             "screen" to pending.copy(screen = Screen.Memos),
             "session" to pending.copy(askScreenSessionId = 5),
-            "conversation" to pending.copy(activeAskId = "conversation-2"),
-            "head" to pending.copy(askHeadId = "answer-2"),
+            "conversation" to pending.withAskConversation(activeConversationId = "conversation-2"),
+            "head" to pending.withAskConversation(headMessageId = "answer-2"),
             "client context" to pending.copy(
                 clientContextGeneration = pending.clientContextGeneration + 1,
             ),
-            "message" to pending.copy(
-                askMessages = listOf(answer.copy(content = "替换后的回答")),
+            "message" to pending.withAskConversation(
+                messages = listOf(answer.copy(content = "替换后的回答")),
             ),
         )
 
@@ -927,7 +932,7 @@ class SillageUiStateTest {
     fun askStreamCallbacksRequireOriginalConversationAndSession() {
         val state = editorState().copy(
             screen = Screen.Ask,
-            activeAskId = "conversation-1",
+            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 3,
             askStreamRequestId = 8,
         )
@@ -939,7 +944,10 @@ class SillageUiStateTest {
 
         assertTrue(pending.canApplyAskStream(request))
         assertEquals(null, pending.nextAskStreamRequest())
-        assertFalse(pending.copy(activeAskId = "conversation-2").canApplyAskStream(request))
+        assertFalse(
+            pending.withAskConversation(activeConversationId = "conversation-2")
+                .canApplyAskStream(request),
+        )
         assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskStream(request))
         assertFalse(pending.copy(askStreamRequestId = request.requestId + 1).canApplyAskStream(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskStream(request))
@@ -956,7 +964,7 @@ class SillageUiStateTest {
     fun askVariantCallbacksRequireOriginalRequestConversationSessionAndMode() {
         val state = editorState().copy(
             screen = Screen.Ask,
-            activeAskId = "conversation-1",
+            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 3,
             askVariantRequestId = 8,
         )
@@ -968,7 +976,10 @@ class SillageUiStateTest {
 
         assertTrue(pending.canApplyAskVariant(request))
         assertEquals(null, pending.nextAskVariantRequest())
-        assertFalse(pending.copy(activeAskId = "conversation-2").canApplyAskVariant(request))
+        assertFalse(
+            pending.withAskConversation(activeConversationId = "conversation-2")
+                .canApplyAskVariant(request),
+        )
         assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskVariant(request))
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskVariant(request))
         assertFalse(
@@ -983,11 +994,11 @@ class SillageUiStateTest {
     fun askVariantRequestCannotStartOutsideAnIdleAskConversation() {
         val ask = editorState().copy(
             screen = Screen.Ask,
-            activeAskId = "conversation-1",
+            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
         )
 
         assertEquals(1L, ask.nextAskVariantRequest()?.requestId)
-        assertEquals(null, ask.copy(activeAskId = "").nextAskVariantRequest())
+        assertEquals(null, ask.withAskConversation(activeConversationId = "").nextAskVariantRequest())
         assertEquals(null, ask.copy(screen = Screen.Memos).nextAskVariantRequest())
         assertEquals(null, ask.copy(askLoading = true).nextAskVariantRequest())
         assertEquals(null, ask.copy(askSending = true).nextAskVariantRequest())
@@ -1000,7 +1011,7 @@ class SillageUiStateTest {
         val origin = editorState().copy(
             screen = Screen.Ask,
             screenHistory = emptyList(),
-            activeAskId = "conversation-1",
+            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 4,
             askSourceRequestId = 9,
         )
@@ -1015,7 +1026,10 @@ class SillageUiStateTest {
         assertFalse(pending.copy(screen = Screen.AISettings).canApplyAskSourceNavigation(request))
         assertFalse(pending.copy(askScreenSessionId = 5).canApplyAskSourceNavigation(request))
         assertFalse(pending.copy(askSourceRequestId = 11).canApplyAskSourceNavigation(request))
-        assertFalse(pending.copy(activeAskId = "conversation-2").canApplyAskSourceNavigation(request))
+        assertFalse(
+            pending.withAskConversation(activeConversationId = "conversation-2")
+                .canApplyAskSourceNavigation(request),
+        )
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskSourceNavigation(request))
         assertFalse(
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
@@ -1132,6 +1146,18 @@ class SillageUiStateTest {
         assertFalse(state.copy(screen = Screen.MemoDetail).shouldReturnToRecordsOnBack())
         assertFalse(state.copy(screen = Screen.Editor).shouldReturnToRecordsOnBack())
     }
+
+    private fun SillageUiState.withAskConversation(
+        activeConversationId: String = activeAskId,
+        headMessageId: String? = askHeadId,
+        messages: List<AskMessage> = askMessages,
+    ): SillageUiState = copy(
+        askConversation = askConversation.copy(
+            activeConversationId = activeConversationId,
+            headMessageId = headMessageId,
+            messages = messages,
+        ),
+    )
 
     private fun editorState(
         draftContent: String = "",

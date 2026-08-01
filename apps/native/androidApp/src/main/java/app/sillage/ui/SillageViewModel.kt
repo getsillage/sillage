@@ -244,11 +244,10 @@ class SillageViewModel(
                 appMode = SessionStore.MODE_ONLINE,
                 clientContextGeneration = it.clientContextGeneration + 1,
                 baseUrl = sessionStore.baseUrl(),
-                account = null,
-                memos = emptyList(),
-                memoNextCursor = "",
-                loadingMoreMemos = false,
-                memoListLoadStatus = MemoListLoadStatus.Idle,
+                    account = null,
+                    memos = emptyList(),
+                    recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
+                    memoListLoadStatus = MemoListLoadStatus.Idle,
                 memoMutationIds = emptySet(),
                 selectedMemo = null,
                 selectedSummary = null,
@@ -304,11 +303,10 @@ class SillageViewModel(
                 appMode = SessionStore.MODE_ONLINE,
                 clientContextGeneration = it.clientContextGeneration + 1,
                 screen = Screen.Loading,
-                screenHistory = emptyList(),
-                memos = emptyList(),
-                memoNextCursor = "",
-                loadingMoreMemos = false,
-                memoListLoadStatus = MemoListLoadStatus.Idle,
+                    screenHistory = emptyList(),
+                    memos = emptyList(),
+                    recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
+                    memoListLoadStatus = MemoListLoadStatus.Idle,
                 memoMutationIds = emptySet(),
                 selectedMemo = null,
                 selectedSummary = null,
@@ -725,12 +723,11 @@ class SillageViewModel(
                         it
                     } else {
                         it.invalidateAIAutoSummaryRequest().copy(
-                            clientContextGeneration = it.clientContextGeneration + 1,
-                            account = null,
-                            memos = emptyList(),
-                            memoNextCursor = "",
-                            loadingMoreMemos = false,
-                            memoListLoadStatus = MemoListLoadStatus.Idle,
+                        clientContextGeneration = it.clientContextGeneration + 1,
+                        account = null,
+                        memos = emptyList(),
+                        recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
+                        memoListLoadStatus = MemoListLoadStatus.Idle,
                             memoMutationIds = emptySet(),
                             selectedMemo = null,
                             selectedSummary = null,
@@ -815,11 +812,13 @@ class SillageViewModel(
                 .onSuccess { snapshot ->
                     updateState { current ->
                         if (current.canApplyMemoRefresh(request)) {
-                            current.copy(
-                                memos = memosForFilter(snapshot.memos, request.filter),
-                                memoNextCursor = snapshot.nextCursor,
-                                loadingMoreMemos = false,
-                                memoListLoadStatus = MemoListLoadStatus.Idle,
+                        current.copy(
+                            memos = memosForFilter(snapshot.memos, request.filter),
+                            recordsPagination = current.recordsPagination.copy(
+                                nextCursor = snapshot.nextCursor,
+                                loadingMore = false,
+                            ),
+                            memoListLoadStatus = MemoListLoadStatus.Idle,
                                 error = null,
                             )
                         } else {
@@ -830,9 +829,9 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { current ->
                         if (current.canApplyMemoRefresh(request)) {
-                            current.copy(
-                                loadingMoreMemos = false,
-                                memoListLoadStatus = MemoListLoadStatus.Failed,
+                        current.copy(
+                            recordsPagination = current.recordsPagination.copy(loadingMore = false),
+                            memoListLoadStatus = MemoListLoadStatus.Failed,
                                 error = error.readableMessage(),
                             )
                         } else {
@@ -850,47 +849,25 @@ class SillageViewModel(
             }
             val request = state.value.nextMemoPageRequest() ?: return
             updateState { current ->
-                if (current.nextMemoPageRequest() == request) {
-                    current.copy(
-                        loadingMoreMemos = true,
-                        memoPageRequestId = request.requestId,
-                        error = null,
-                        notice = null,
-                    )
-                } else {
-                    current
-                }
+                current.beginMemoPage(request) ?: current
             }
             if (!state.value.canApplyMemoPage(request)) {
                 return
             }
             viewModelScope.launch(start = CoroutineStart.LAZY) {
                 runCatching { listOnlineMemos(request.filter, cursor = request.cursor) }
-                .onSuccess { page ->
-                    updateState { current ->
-                        if (current.canApplyMemoPage(request)) {
-                            current.copy(
-                                memos = memosForFilter(current.memos + page.memos, request.filter),
-                                memoNextCursor = page.nextCursor,
-                                loadingMoreMemos = false,
-                            )
-                        } else {
-                            current
+                        .onSuccess { page ->
+                            updateState { current ->
+                                current.completeMemoPage(request, page.nextCursor)?.copy(
+                                    memos = memosForFilter(current.memos + page.memos, request.filter),
+                                ) ?: current
+                            }
                         }
-                    }
-                }
-                .onFailure { error ->
-                    updateState { current ->
-                        if (current.canApplyMemoPage(request)) {
-                            current.copy(
-                                loadingMoreMemos = false,
-                                error = error.readableMessage(),
-                            )
-                        } else {
-                            current
+                        .onFailure { error ->
+                            updateState { current ->
+                                current.failMemoPage(request)?.copy(error = error.readableMessage()) ?: current
+                            }
                         }
-                    }
-                }
                 synchronized(memoPageLock) {
                     if (state.value.memoPageRequestId == request.requestId) {
                         loadMoreMemosJob = null
@@ -1334,8 +1311,11 @@ class SillageViewModel(
                     it.memoListFilter
                 },
                 memos = if (resetFilter) emptyList() else it.memos,
-                memoNextCursor = if (resetFilter) "" else it.memoNextCursor,
-                loadingMoreMemos = if (resetFilter) false else it.loadingMoreMemos,
+                recordsPagination = if (resetFilter) {
+                    it.recordsPagination.copy(nextCursor = "", loadingMore = false)
+                } else {
+                    it.recordsPagination
+                },
                 memoListLoadStatus = if (resetFilter) {
                     MemoListLoadStatus.Loading
                 } else {
@@ -1383,8 +1363,7 @@ class SillageViewModel(
             it.copy(
                 memoListFilter = filter,
                 memos = emptyList(),
-                memoNextCursor = "",
-                loadingMoreMemos = false,
+                recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 memoListLoadStatus = MemoListLoadStatus.Loading,
                 searchQuery = "",
                 searchResults = null,
@@ -3156,10 +3135,7 @@ class SillageViewModel(
             loadMoreMemosJob = null
         }
         updateState {
-            it.copy(
-                loadingMoreMemos = false,
-                memoPageRequestId = it.memoPageRequestId + 1,
-            )
+            it.copy(recordsPagination = it.recordsPagination.cancel())
         }
     }
 
@@ -3910,8 +3886,7 @@ class SillageViewModel(
                 initialized = true,
                 account = null,
                 memos = memos,
-                memoNextCursor = "",
-                loadingMoreMemos = false,
+                recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 memoListLoadStatus = MemoListLoadStatus.Idle,
                 memoMutationIds = emptySet(),
                 selectedMemo = null,

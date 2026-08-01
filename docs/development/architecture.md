@@ -127,6 +127,14 @@ The event channel is bounded, new events replace the active Toast, warning and
 error feedback stays visible longer, and language changes discard buffered
 messages from the previous locale.
 
+The records feature now also owns the immutable
+`RecordsPaginationStateHolder`, the first extracted records feature-state
+slice. It validates source, client context, filter, cache generation, cursor,
+and request identity before accepting a late page response. Android's root UI
+state retains transitional read accessors, while pagination writes use the
+shared holder's explicit begin, complete, fail, and cancel transitions. Refresh,
+search, selection, and transport query mapping remain later extraction slices.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

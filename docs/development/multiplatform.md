@@ -89,6 +89,12 @@ exposes an explicit contract. Application-wide state is limited to the active
 workspace, authenticated session, locale, theme, navigation root, and a summary
 of synchronization status.
 
+The first extracted records holder governs load-more state. Its immutable
+transitions capture and validate source, client context, filter, cache
+generation, cursor, and request identity so late responses cannot cross query
+boundaries. The holder is available to every native host; Android retains only
+transitional accessors while the rest of records state is migrated.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

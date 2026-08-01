@@ -9,6 +9,9 @@ import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.RecordsPageContext
+import app.sillage.features.records.RecordsPageRequest
+import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
 import java.time.LocalDate
@@ -30,10 +33,8 @@ data class SillageUiState(
     val androidUpdateRequired: Boolean = false,
     val account: Account? = null,
     val memos: List<Memo> = emptyList(),
-    val memoNextCursor: String = "",
-    val loadingMoreMemos: Boolean = false,
+    val recordsPagination: RecordsPaginationStateHolder = RecordsPaginationStateHolder(),
     val memoListLoadStatus: MemoListLoadStatus = MemoListLoadStatus.Idle,
-    val memoPageRequestId: Long = 0,
     val memoCacheGeneration: Long = 0,
     val memoDetailRequestId: Long = 0,
     val memoMutationIds: Set<String> = emptySet(),
@@ -111,7 +112,13 @@ data class SillageUiState(
     val notice: String? = null,
     /** Open sync version conflicts awaiting an explicit user choice. */
     val syncConflicts: List<SyncConflictItem> = emptyList(),
-)
+) {
+    // Transitional read accessors while the remaining records state moves into
+    // the shared feature holder. Pagination writes go through recordsPagination.
+    val memoNextCursor: String get() = recordsPagination.nextCursor
+    val loadingMoreMemos: Boolean get() = recordsPagination.loadingMore
+    val memoPageRequestId: Long get() = recordsPagination.requestId
+}
 
 /**
  * UI model for one push conflict: local pending content plus the server resource.
@@ -543,37 +550,40 @@ internal fun SillageUiState.failAIProfilesMutation(
     )
 }
 
-internal data class MemoPageRequest(
-    val requestId: Long,
-    val cursor: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
-    val filter: MemoListFilter,
-    val cacheGeneration: Long,
-)
-
-internal fun SillageUiState.nextMemoPageRequest(): MemoPageRequest? {
-    if (memoNextCursor.isBlank() || loadingMoreMemos || appMode == SessionStore.MODE_OFFLINE) {
-        return null
-    }
-    return MemoPageRequest(
-        requestId = memoPageRequestId + 1,
-        cursor = memoNextCursor,
-        appMode = appMode,
+private fun SillageUiState.recordsPageContext(): RecordsPageContext {
+    return RecordsPageContext(
+        sourceKey = appMode,
+        sourceAvailable = appMode != SessionStore.MODE_OFFLINE,
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
         cacheGeneration = memoCacheGeneration,
     )
 }
 
-internal fun SillageUiState.canApplyMemoPage(request: MemoPageRequest): Boolean {
-    return loadingMoreMemos &&
-        memoPageRequestId == request.requestId &&
-        memoNextCursor == request.cursor &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        memoListFilter == request.filter &&
-        memoCacheGeneration == request.cacheGeneration
+internal fun SillageUiState.nextMemoPageRequest(): RecordsPageRequest? {
+    return recordsPagination.nextRequest(recordsPageContext())
+}
+
+internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageUiState? {
+    val pagination = recordsPagination.begin(request, recordsPageContext()) ?: return null
+    return copy(recordsPagination = pagination, error = null, notice = null)
+}
+
+internal fun SillageUiState.canApplyMemoPage(request: RecordsPageRequest): Boolean {
+    return recordsPagination.canApply(request, recordsPageContext())
+}
+
+internal fun SillageUiState.completeMemoPage(
+    request: RecordsPageRequest,
+    nextCursor: String,
+): SillageUiState? {
+    val pagination = recordsPagination.complete(request, recordsPageContext(), nextCursor) ?: return null
+    return copy(recordsPagination = pagination)
+}
+
+internal fun SillageUiState.failMemoPage(request: RecordsPageRequest): SillageUiState? {
+    val pagination = recordsPagination.fail(request, recordsPageContext()) ?: return null
+    return copy(recordsPagination = pagination)
 }
 
 internal data class MemoRefreshRequest(
@@ -726,9 +736,8 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
         searchResultQuery = if (searching) "" else searchResultQuery,
         searchFailureQuery = if (searching) "" else searchFailureQuery,
         searching = false,
-        loadingMoreMemos = false,
+        recordsPagination = recordsPagination.cancel(),
         memoListLoadStatus = MemoListLoadStatus.Idle,
-        memoPageRequestId = memoPageRequestId + 1,
         memoCacheGeneration = memoCacheGeneration + 1,
         selectedMemo = if (selectedMemo?.id == memo.id) memo else selectedMemo,
     )

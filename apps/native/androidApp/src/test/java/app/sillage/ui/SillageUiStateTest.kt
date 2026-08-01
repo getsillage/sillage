@@ -6,6 +6,7 @@ import app.sillage.core.domain.records.Memo
 import app.sillage.data.MemoAI
 import app.sillage.data.MemoDetail
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -181,21 +182,24 @@ class SillageUiStateTest {
         val state = editorState().copy(
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
-            memoNextCursor = "cursor-1",
-            memoPageRequestId = 4,
+            recordsPagination = RecordsPaginationStateHolder(nextCursor = "cursor-1", requestId = 4),
         )
         val request = requireNotNull(state.nextMemoPageRequest())
-        val pending = state.copy(
-            loadingMoreMemos = true,
-            memoPageRequestId = request.requestId,
-        )
+        val pending = requireNotNull(state.beginMemoPage(request))
 
         assertEquals("cursor-1", request.cursor)
         assertEquals(MemoListFilter.Unarchived, request.filter)
         assertEquals(null, pending.nextMemoPageRequest())
         assertTrue(pending.canApplyMemoPage(request))
-        assertFalse(pending.copy(memoNextCursor = "cursor-2").canApplyMemoPage(request))
-        assertFalse(pending.copy(memoPageRequestId = request.requestId + 1).canApplyMemoPage(request))
+        assertFalse(
+            pending.copy(recordsPagination = pending.recordsPagination.copy(nextCursor = "cursor-2"))
+                .canApplyMemoPage(request),
+        )
+        assertFalse(
+            pending.copy(
+                recordsPagination = pending.recordsPagination.copy(requestId = request.requestId + 1),
+            ).canApplyMemoPage(request),
+        )
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyMemoPage(request))
         assertFalse(
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
@@ -203,7 +207,10 @@ class SillageUiStateTest {
         )
         assertFalse(pending.copy(memoListFilter = MemoListFilter.Archived).canApplyMemoPage(request))
         assertFalse(pending.copy(memoCacheGeneration = 1).canApplyMemoPage(request))
-        assertFalse(pending.copy(loadingMoreMemos = false).canApplyMemoPage(request))
+        assertFalse(
+            pending.copy(recordsPagination = pending.recordsPagination.copy(loadingMore = false))
+                .canApplyMemoPage(request),
+        )
     }
 
     @Test

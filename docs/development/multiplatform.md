@@ -128,9 +128,10 @@ login and account-initialization forms consume `AuthFeatureStateHolder` directly
 and the module also owns server-address entry, password visibility, IME
 submission, loading/action presentation, form layout, and mode-selection-card
 presentation. Its scaffold owns centered scroll/IME layout, heading semantics,
-and inline-error placement. Hosts supply localized strings, icons, accent colors,
-root loading state, navigation, protocol callbacks, and branded header slots;
-branded resources remain in platform adapters.
+and inline-error placement; its header owns brand/language layout. Hosts supply
+localized strings, icons, accent colors, root loading state, navigation, protocol
+callbacks, brand resources, and language state; platform adapters retain resource
+lookup and language persistence.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

@@ -2,12 +2,6 @@ package app.sillage.ui.auth
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CloudSync
@@ -16,20 +10,13 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
@@ -186,47 +173,27 @@ private fun AuthScaffold(
         errorIcon = Icons.Rounded.ErrorOutline,
         trailing = trailing,
         header = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = colorResource(R.color.ic_launcher_background),
-                ) {
+            SillageAuthHeader(
+                appName = stringResource(R.string.app_name),
+                tagline = stringResource(R.string.brand_tagline),
+                logoContainerColor = colorResource(R.color.ic_launcher_background),
+                languageIcon = Icons.Rounded.Language,
+                languageContentDescription = stringResource(
+                    if (state.languageMode == app.sillage.data.SessionStore.LANGUAGE_ZH_CN) {
+                        R.string.language_switch_to_english
+                    } else {
+                        R.string.language_switch_to_chinese
+                    },
+                ),
+                languageEnabled = !state.loading,
+                onLanguageToggle = onLanguageToggle,
+                logo = {
                     Image(
                         painter = painterResource(R.drawable.ic_launcher_foreground),
                         contentDescription = null,
                     )
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                ) {
-                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        stringResource(R.string.brand_tagline),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onLanguageToggle, enabled = !state.loading) {
-                    Icon(
-                        Icons.Rounded.Language,
-                        contentDescription = stringResource(
-                            if (state.languageMode == app.sillage.data.SessionStore.LANGUAGE_ZH_CN) {
-                                R.string.language_switch_to_english
-                            } else {
-                                R.string.language_switch_to_chinese
-                            },
-                        ),
-                    )
-                }
-            }
+            )
         },
         content = content,
     )

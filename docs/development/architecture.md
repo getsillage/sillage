@@ -148,8 +148,9 @@ initialization forms and also owns the server-address form plus reusable
 password-field, authentication-action, and mode-selection-card presentation.
 Android supplies localized strings, icons, accent colors, root loading state,
 navigation, protocol execution, and ViewModel callbacks. The shared scaffold owns
-centered layout, heading semantics, and inline-error placement while Android
-supplies the branded header and language switcher.
+centered layout, heading semantics, and inline-error placement; the shared header
+owns brand/language layout while Android supplies launcher resources, localized
+content, language state, and the toggle callback.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

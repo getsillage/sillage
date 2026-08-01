@@ -225,6 +225,49 @@ class AskFeatureStateHolderTest {
         assertEquals(4, cleared.screenSessionId)
     }
 
+    @Test
+    fun finishStreamClearsLiveAnswerAndOptionallyComposer() {
+        val state = AskFeatureStateHolder(
+            composer = AskComposerStateHolder(question = "问题"),
+            stream = AskStreamStateHolder(
+                sending = true,
+                streaming = true,
+                liveAnswer = "半截",
+                completionEventId = 2,
+            ),
+        )
+
+        val kept = state.finishStream(answerCompleted = true, clearQuestion = false)
+        val cleared = state.finishStream(answerCompleted = true, clearQuestion = true)
+
+        assertFalse(kept.sending)
+        assertFalse(kept.streaming)
+        assertEquals("", kept.stream.liveAnswer)
+        assertEquals(3, kept.stream.completionEventId)
+        assertEquals("问题", kept.question)
+        assertEquals("", cleared.question)
+    }
+
+    @Test
+    fun replaceActiveSnapshotCanClearComposerDraft() {
+        val messages = listOf(message("m1", "c1"))
+        val state = AskFeatureStateHolder(
+            conversation = AskConversationStateHolder(activeConversationId = "c1"),
+            composer = AskComposerStateHolder(question = "草稿"),
+        )
+
+        val replaced = state.replaceActiveSnapshot(
+            conversationId = "c1",
+            conversations = listOf(conversation("c1")),
+            headMessageId = "m1",
+            messages = messages,
+            clearQuestion = true,
+        )
+
+        assertEquals(messages, replaced.messages)
+        assertEquals("", replaced.question)
+    }
+
     private fun conversation(id: String): AskConversation {
         return AskConversation(
             id = id,

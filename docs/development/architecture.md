@@ -145,7 +145,7 @@ conversation collection, current conversation, selected branch head, and loaded
 messages consistent. `AskFeatureStateHolder` composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
-application, and active snapshot replacement. Android also composes
+application, stream finish coordination, and active snapshot replacement. Android also composes
 records/settings/ask clears through `clearClientWorkspace` for client-context
 changes without enlarging a global ViewModel. Android's root
 `SillageUiState` stores one `ask` aggregate value with transitional slice getters

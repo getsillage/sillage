@@ -3165,7 +3165,7 @@ class SillageViewModel(
 
     private fun cancelAskVariant() {
         updateState {
-            it.copy(ask = it.ask.copy(variant = it.ask.variant.invalidate()))
+            it.copy(ask = it.ask.invalidateVariant())
         }
     }
 
@@ -3216,14 +3216,14 @@ class SillageViewModel(
         askStreamJob?.cancel()
         askStreamJob = null
         updateState {
-            it.copy(ask = it.ask.copy(stream = it.ask.stream.invalidate()))
+            it.copy(ask = it.ask.invalidateStream())
         }
     }
 
     private fun invalidateAskMemoSaveNavigation() {
         updateState {
             if (it.askSavingMessageId.isNotBlank()) {
-                    it.copy(ask = it.ask.copy(session = it.ask.session.advance()))
+                    it.copy(ask = it.ask.advanceSession())
             } else {
                 it
             }
@@ -3528,7 +3528,7 @@ class SillageViewModel(
                     regeneratingMessageId = regeneratingId,
                 ) ?: return@updateState it
                 it.copy(
-                    ask = it.ask.copy(stream = stream),
+                    ask = it.ask.beginStream(stream),
                     error = null,
                     notice = null,
                 )
@@ -3588,10 +3588,8 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                        ask = currentState.ask.copy(
-                                            stream = currentState.ask.stream.startStreaming(
+                                        ask = currentState.ask.startStreaming(
                                             if (event.regenerating) null else event.userMessage,
-                                        ),
                                         ),
                                     )
                             } else {
@@ -3603,7 +3601,7 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                        ask = currentState.ask.copy(stream = currentState.ask.stream.appendDelta(event.text)),
+                                        ask = currentState.ask.appendStreamDelta(event.text),
                                     )
                             } else {
                                 currentState
@@ -3762,13 +3760,8 @@ class SillageViewModel(
                                 conversations = conversations,
                                 headMessageId = refreshedHeadId,
                                 messages = refreshedMessages,
-                            ).let { updated ->
-                                if (forkOfId == null) {
-                                    updated.copy(composer = updated.composer.clearQuestion())
-                                } else {
-                                    updated
-                                }
-                            },
+                                clearQuestion = forkOfId == null,
+                            ),
                         )
                     } else {
                         currentState

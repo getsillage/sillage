@@ -179,25 +179,6 @@ data class AskFeatureStateHolder(
     }
 
     /**
-     * Replaces the active conversation snapshot after a stream or reload completes.
-     */
-    fun replaceActiveSnapshot(
-        conversationId: String,
-        conversations: List<AskConversation>,
-        headMessageId: String?,
-        messages: List<AskMessage>,
-    ): AskFeatureStateHolder {
-        return copy(
-            conversation = conversation.replaceSnapshot(
-                conversationId = conversationId,
-                conversations = conversations,
-                headMessageId = headMessageId,
-                messages = messages,
-            ),
-        )
-    }
-
-    /**
      * Drops cached conversation catalog/message rows without advancing request
      * identities. Used after import when Ask content is no longer authoritative.
      */
@@ -208,5 +189,76 @@ data class AskFeatureStateHolder(
                 messages = emptyList(),
             ),
         )
+    }
+
+    /** Starts a validated stream request identity. */
+    fun beginStream(stream: AskStreamStateHolder): AskFeatureStateHolder {
+        return copy(stream = stream)
+    }
+
+    /** Marks the live answer stream as started. */
+    fun startStreaming(userMessage: AskMessage?): AskFeatureStateHolder {
+        return copy(stream = stream.startStreaming(userMessage))
+    }
+
+    /** Appends one validated stream delta to the live answer. */
+    fun appendStreamDelta(text: String): AskFeatureStateHolder {
+        return copy(stream = stream.appendDelta(text))
+    }
+
+    /**
+     * Finishes stream ownership and optionally clears the composer draft after a
+     * successful answer. Hosts decide [answerCompleted] and [clearQuestion] from
+     * presentation/error context.
+     */
+    fun finishStream(
+        answerCompleted: Boolean,
+        clearQuestion: Boolean,
+    ): AskFeatureStateHolder {
+        return copy(
+            composer = if (clearQuestion) composer.clearQuestion() else composer,
+            stream = stream.finish(answerCompleted = answerCompleted),
+        )
+    }
+
+    /** Cancels stream ownership after navigation or stop. */
+    fun invalidateStream(): AskFeatureStateHolder {
+        return copy(stream = stream.invalidate())
+    }
+
+    /** Cancels variant-selection ownership. */
+    fun invalidateVariant(): AskFeatureStateHolder {
+        return copy(variant = variant.invalidate())
+    }
+
+    /** Advances Ask screen generation for navigation-safe callback rejection. */
+    fun advanceSession(): AskFeatureStateHolder {
+        return copy(session = session.advance())
+    }
+
+    /**
+     * Replaces the active conversation snapshot after a stream or reload completes.
+     * Optionally clears the composer draft on offline generation success paths.
+     */
+    fun replaceActiveSnapshot(
+        conversationId: String,
+        conversations: List<AskConversation>,
+        headMessageId: String?,
+        messages: List<AskMessage>,
+        clearQuestion: Boolean = false,
+    ): AskFeatureStateHolder {
+        val replaced = copy(
+            conversation = conversation.replaceSnapshot(
+                conversationId = conversationId,
+                conversations = conversations,
+                headMessageId = headMessageId,
+                messages = messages,
+            ),
+        )
+        return if (clearQuestion) {
+            replaced.copy(composer = replaced.composer.clearQuestion())
+        } else {
+            replaced
+        }
     }
 }

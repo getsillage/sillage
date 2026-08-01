@@ -943,16 +943,12 @@ internal fun SillageUiState.finishAskStream(
     clearQuestion: Boolean,
 ): SillageUiState {
     val completed = answerAvailable && error == null && notice == null
-    return copy(
-        ask = ask.copy(
-            composer = if (clearQuestion && error == null) {
-            ask.composer.clearQuestion()
-        } else {
-            ask.composer
-        },
-            stream = ask.stream.finish(answerCompleted = completed),
-        ),
-    )
+    return withAsk {
+        it.finishStream(
+            answerCompleted = completed,
+            clearQuestion = clearQuestion && error == null,
+        )
+    }
 }
 
 internal fun hasNewCompletedAskAnswer(

@@ -122,7 +122,9 @@ Authentication presentation state lives in `packages/kmp-features/auth`.
 `AuthenticationStateHolder` owns credential drafts and password-change
 validation/request identity, including client-context checks that discard late
 callbacks. It contains no session token or transport type; Android supplies
-localized messages and implements the application ports.
+localized messages and implements the application ports. Android credential-draft
+updates and primary-credential clearing pass through root `withAuth` thin wrappers;
+application-level loading remains outside the auth aggregate.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

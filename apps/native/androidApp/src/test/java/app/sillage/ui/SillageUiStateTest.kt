@@ -449,6 +449,31 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootAuthDraftTransitionsPreserveHostState() {
+        val state = editorState().copy(authError = "keep")
+
+        val updated = state
+            .withAuthUsername("alice")
+            .withAuthDisplayName("Alice")
+            .withAuthPassword("secret")
+            .withAuthCurrentPassword("old")
+            .withAuthNewPassword("new")
+            .withAuthConfirmPassword("new")
+        val cleared = updated.clearAuthPrimaryCredentials(clearDisplayName = true)
+
+        assertEquals("alice", updated.username)
+        assertEquals("Alice", updated.displayName)
+        assertEquals("secret", updated.password)
+        assertEquals("old", updated.currentPassword)
+        assertEquals("new", updated.newPassword)
+        assertEquals("new", updated.confirmPassword)
+        assertEquals("keep", updated.authError)
+        assertEquals("", cleared.username)
+        assertEquals("", cleared.displayName)
+        assertEquals("", cleared.password)
+    }
+
+    @Test
     fun rootSettingsDiagnosticsTransitionsPreserveHostState() {
         val state = editorState().copy(
             error = "keep",

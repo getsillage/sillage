@@ -653,39 +653,36 @@ class SillageViewModel(
     }
 
     fun updateUsername(value: String) = updateState {
-        it.copy(
-            auth = it.auth.updateUsername(value),
+        it.withAuthUsername(value).copy(
             authError = null,
             authErrorResourceId = null,
         )
     }
 
     fun updateDisplayName(value: String) = updateState {
-        it.copy(
-            auth = it.auth.updateDisplayName(value),
+        it.withAuthDisplayName(value).copy(
             authError = null,
             authErrorResourceId = null,
         )
     }
 
     fun updatePassword(value: String) = updateState {
-        it.copy(
-            auth = it.auth.updatePassword(value),
+        it.withAuthPassword(value).copy(
             authError = null,
             authErrorResourceId = null,
         )
     }
 
     fun updateCurrentPassword(value: String) = updateState {
-        it.copy(auth = it.auth.updateCurrentPassword(value), error = null)
+        it.withAuthCurrentPassword(value).copy(error = null)
     }
 
     fun updateNewPassword(value: String) = updateState {
-        it.copy(auth = it.auth.updateNewPassword(value), error = null)
+        it.withAuthNewPassword(value).copy(error = null)
     }
 
     fun updateConfirmPassword(value: String) = updateState {
-        it.copy(auth = it.auth.updateConfirmPassword(value), error = null)
+        it.withAuthConfirmPassword(value).copy(error = null)
     }
 
     fun changePassword() {
@@ -754,15 +751,12 @@ class SillageViewModel(
         val current = state.value
         launchAuthBusy {
             val session = initializeRemoteAccount(
-                InitializeAccountCommand(current.username, current.displayName, current.password),
-            )
-            updateState {
-                it.copy(
-                    account = session.account,
-                    auth = it.auth.clearPrimaryCredentials(
-                        clearDisplayName = true,
-                    ),
-                    screen = Screen.Memos,
+            InitializeAccountCommand(current.username, current.displayName, current.password),
+        )
+        updateState {
+            it.clearAuthPrimaryCredentials(clearDisplayName = true).copy(
+                account = session.account,
+                screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
                     records = it.records.markListLoading(),
@@ -776,14 +770,11 @@ class SillageViewModel(
     fun signIn() {
         val current = state.value
         launchAuthBusy {
-            val session = signInRemote(SignInCommand(current.username, current.password))
-            updateState {
-                it.copy(
-                    account = session.account,
-                    auth = it.auth.clearPrimaryCredentials(
-                        clearDisplayName = false,
-                    ),
-                    screen = Screen.Memos,
+        val session = signInRemote(SignInCommand(current.username, current.password))
+        updateState {
+            it.clearAuthPrimaryCredentials(clearDisplayName = false).copy(
+                account = session.account,
+                screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
                     records = it.records.markListLoading(),

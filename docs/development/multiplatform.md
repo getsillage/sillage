@@ -95,7 +95,9 @@ platform-neutral validation, allocates single-flight request identities, capture
 the active app/client context, rejects stale completions, and clears password
 material after a successful change. Hosts provide localized validation messages
 and execute the application use case; tokens and secure session storage never
-enter feature state.
+enter feature state. Android routes credential-draft updates and primary-credential
+clearing through root `withAuth` thin wrappers; application-level loading remains
+outside the auth feature.
 
 The buildable `kmp-features:records` module is the first shared feature slice.
 It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;

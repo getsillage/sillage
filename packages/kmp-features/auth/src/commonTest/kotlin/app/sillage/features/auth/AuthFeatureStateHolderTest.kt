@@ -18,6 +18,18 @@ class AuthFeatureStateHolderTest {
     }
 
     @Test
+    fun passwordChangeDraftUpdatesGoThroughAggregate() {
+        val updated = AuthFeatureStateHolder()
+            .updateCurrentPassword("old")
+            .updateNewPassword("new")
+            .updateConfirmPassword("new")
+
+        assertEquals("old", updated.currentPassword)
+        assertEquals("new", updated.newPassword)
+        assertEquals("new", updated.confirmPassword)
+    }
+
+    @Test
     fun clearPrimaryCredentialsPreservesDisplayNameWhenRequested() {
         val state = AuthFeatureStateHolder(
             authentication = AuthenticationStateHolder(

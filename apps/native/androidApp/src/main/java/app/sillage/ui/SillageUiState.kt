@@ -298,6 +298,36 @@ internal inline fun SillageUiState.withAuth(
     transform: (AuthFeatureStateHolder) -> AuthFeatureStateHolder,
 ): SillageUiState = copy(auth = transform(auth))
 
+internal fun SillageUiState.withAuthUsername(value: String): SillageUiState {
+    return withAuth { it.updateUsername(value) }
+}
+
+internal fun SillageUiState.withAuthDisplayName(value: String): SillageUiState {
+    return withAuth { it.updateDisplayName(value) }
+}
+
+internal fun SillageUiState.withAuthPassword(value: String): SillageUiState {
+    return withAuth { it.updatePassword(value) }
+}
+
+internal fun SillageUiState.withAuthCurrentPassword(value: String): SillageUiState {
+    return withAuth { it.updateCurrentPassword(value) }
+}
+
+internal fun SillageUiState.withAuthNewPassword(value: String): SillageUiState {
+    return withAuth { it.updateNewPassword(value) }
+}
+
+internal fun SillageUiState.withAuthConfirmPassword(value: String): SillageUiState {
+    return withAuth { it.updateConfirmPassword(value) }
+}
+
+internal fun SillageUiState.clearAuthPrimaryCredentials(
+    clearDisplayName: Boolean,
+): SillageUiState {
+    return withAuth { it.clearPrimaryCredentials(clearDisplayName) }
+}
+
 /**
  * Clears records/settings/ask interactive ownership for a client-context or
  * workspace change. Does not touch host-only fields such as auth, theme, or the

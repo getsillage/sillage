@@ -12,3 +12,6 @@ The module does not own tokens, secure session persistence, HTTP mapping, or
 platform navigation. Those remain behind `kmp-core:application` repository ports
 and host adapters. Native hosts may expose transitional accessors while screens
 move to the shared holder, but must route mutations through the holder contracts.
+Android routes credential drafts and primary-credential clearing through root
+`withAuth` thin wrappers while application-level loading remains outside the auth
+aggregate.

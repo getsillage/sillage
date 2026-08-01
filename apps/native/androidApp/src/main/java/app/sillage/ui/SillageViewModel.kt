@@ -18,6 +18,7 @@ import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AttachmentUpload
 import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
+import app.sillage.data.LocalAskRepository
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalMemoSyncConflictRepository
 import app.sillage.data.LocalMemoSyncOutbox
@@ -27,6 +28,7 @@ import app.sillage.data.LocalRecordSummaryRepository
 import app.sillage.data.RemoteRecordsRepository
 import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.RemoteMemoSyncGateway
+import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
@@ -46,6 +48,10 @@ import app.sillage.core.application.records.MutateRecordLifecycleUseCase
 import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
+import app.sillage.core.application.ask.CreateAskConversationUseCase
+import app.sillage.core.application.ask.ListAskConversationsUseCase
+import app.sillage.core.application.ask.ListAskMessagesUseCase
+import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.data.MarkdownFormatStyle
@@ -115,6 +121,11 @@ class SillageViewModel(
     private val resolveMemoSyncConflict =
         ResolveMemoSyncConflictUseCase(localMemoSyncConflictRepository)
     private val localMemoSyncOutbox = LocalMemoSyncOutbox(this.localDataStore)
+    private val localAskRepository = LocalAskRepository(this.localDataStore)
+    private val listLocalAskConversations = ListAskConversationsUseCase(localAskRepository)
+    private val listLocalAskMessages = ListAskMessagesUseCase(localAskRepository)
+    private val createLocalAskConversation = CreateAskConversationUseCase(localAskRepository)
+    private val setLocalAskHead = SetAskHeadUseCase(localAskRepository)
     private val localRecordsRepository = LocalRecordsRepository(this.localDataStore)
     private val listLocalRecords = ListRecordsUseCase(localRecordsRepository)
     private val searchLocalRecords = SearchRecordsUseCase(localRecordsRepository)
@@ -129,6 +140,11 @@ class SillageViewModel(
     private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
     private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
+    private val remoteAskRepository = RemoteAskRepository(api)
+    private val listRemoteAskConversations = ListAskConversationsUseCase(remoteAskRepository)
+    private val listRemoteAskMessages = ListAskMessagesUseCase(remoteAskRepository)
+    private val createRemoteAskConversation = CreateAskConversationUseCase(remoteAskRepository)
+    private val setRemoteAskHead = SetAskHeadUseCase(remoteAskRepository)
     private val pullSync = PullSyncUseCase(
         RemoteSyncSnapshotGateway(api),
         LocalSyncSnapshotRepository(this.localDataStore),
@@ -2517,9 +2533,9 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 if (appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.listAskConversations()
+                    listLocalAskConversations()
                 } else {
-                    api.listAskConversations()
+                    listRemoteAskConversations()
                 }
             }
                 .onSuccess { conversations ->
@@ -2613,9 +2629,9 @@ class SillageViewModel(
         viewModelScope.launch {
             runCatching {
                 if (appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.listAskMessages(id)
+                    listLocalAskMessages(id)
                 } else {
-                    api.listAskMessages(id)
+                    listRemoteAskMessages(id)
                 }
             }
                 .onSuccess { messages ->
@@ -2758,18 +2774,13 @@ class SillageViewModel(
         if (!state.value.canApplyAskVariant(request)) {
             return
         }
-        if (request.appMode == SessionStore.MODE_OFFLINE) {
-            try {
-                localDataStore.setAskHead(request.conversationId, leafId)
-                completeAskVariantSelection(request, leafId)
-            } catch (error: Throwable) {
-                failAskVariantSelection(request, previousHeadId, error)
-            }
-            return
-        }
         viewModelScope.launch {
             try {
-                api.setAskHead(request.conversationId, leafId)
+                if (request.appMode == SessionStore.MODE_OFFLINE) {
+                    setLocalAskHead(request.conversationId, leafId)
+                } else {
+                    setRemoteAskHead(request.conversationId, leafId)
+                }
                 completeAskVariantSelection(request, leafId)
             } catch (error: CancellationException) {
                 throw error
@@ -3304,8 +3315,8 @@ class SillageViewModel(
     }
 
     private suspend fun reloadAskConversation(conversationId: String): AskSnapshot {
-        val messages = api.listAskMessages(conversationId)
-        val conversations = api.listAskConversations().filter(AskConversation::isActive)
+        val messages = listRemoteAskMessages(conversationId)
+        val conversations = listRemoteAskConversations().filter(AskConversation::isActive)
         val headId = conversations.find { it.id == conversationId }?.headMessageId
         return AskSnapshot(
             messages = messages,
@@ -3546,7 +3557,7 @@ class SillageViewModel(
             var answerAvailable = false
             try {
                 if (conversationId.isBlank()) {
-                    val created = api.createAskConversation(contextScope)
+                    val created = createRemoteAskConversation(contextScope)
                     val createdRequest = request.copy(conversationId = created.id)
                     conversationId = created.id
                     updateState { currentState ->
@@ -3670,7 +3681,7 @@ class SillageViewModel(
             var answerAvailable = false
             try {
                 if (conversationId.isBlank()) {
-                    val created = localDataStore.createAskConversation(contextScope)
+                    val created = createLocalAskConversation(contextScope)
                     val createdRequest = request.copy(conversationId = created.id)
                     conversationId = created.id
                     updateState { currentState ->
@@ -3691,7 +3702,7 @@ class SillageViewModel(
                         return@launch
                     }
                 }
-                val messages = localDataStore.listAskMessages(conversationId)
+                val messages = listLocalAskMessages(conversationId)
                 val parentId = if (forkOfId == null) lastAssistantMessageId(buildAskActivePath(messages, state.value.askHeadId)) else null
                 val question = if (forkOfId == null) {
                     content
@@ -3723,8 +3734,8 @@ class SillageViewModel(
                     parentId = parentId,
                     forkOfId = forkOfId,
                 )
-                val refreshedMessages = localDataStore.listAskMessages(conversationId)
-                val conversations = localDataStore.listAskConversations().filter(AskConversation::isActive)
+                val refreshedMessages = listLocalAskMessages(conversationId)
+                val conversations = listLocalAskConversations().filter(AskConversation::isActive)
                 val refreshedHeadId = conversations.find { conversation ->
                     conversation.id == conversationId
                 }?.headMessageId

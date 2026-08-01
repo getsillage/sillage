@@ -110,6 +110,12 @@ metadata also live in `kmp-core:domain`. Android transport, persistence, feature
 and test call sites import these values directly; UI drafts and API inputs remain
 adapter-side types.
 
+Ask conversation/message reads, conversation creation, and branch-head
+selection cross `AskRepository` and focused use cases in
+`packages/kmp-core/application`. Android local and remote adapters own SQLite and
+REST translation. Streaming answer generation and device-local AI execution
+remain adapter-side until their asynchronous contracts are extracted later.
+
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
 Android's `LocalRecordsRepository` adapts `LocalDataStore` to that port. Shared

@@ -19,6 +19,12 @@ The records slice currently exposes seven distinct boundaries:
 - `RecordSummaryGenerator`, `RecordSummaryStore`, and their use cases separate
   AI generation from version-checked local persistence.
 
+The Ask slice exposes `AskRepository` with focused use cases for listing
+conversations, listing messages, creating a conversation, and selecting its
+branch head. Android provides local and remote adapters. Streaming answer
+generation and device-local AI execution remain platform adapter concerns until
+their asynchronous boundaries are extracted separately.
+
 Android provides `LocalRecordsRepository` and `RemoteRecordsRepository`
 adapters. Other platform hosts implement the same ports using their own storage
 and transport clients. Shared APIs must not expose Android, SQLite, JSON, HTTP,

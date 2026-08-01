@@ -113,6 +113,12 @@ Single-record detail retrieval crosses `RecordDetailRepository` and
 domain values; local and remote Android adapters own persistence and REST
 response mapping.
 
+Ask conversation and message reads, conversation creation, and branch-head
+selection cross the shared `AskRepository` through focused application use
+cases. Android local and remote adapters translate storage and REST calls.
+Streaming answer generation and device-local AI execution stay adapter-side
+until those asynchronous execution contracts are extracted independently.
+
 Record creation and update cross `RecordWriteRepository` and
 `SaveRecordUseCase`. Shared commands carry only domain records and draft values;
 Android adapters own local persistence or REST writes.

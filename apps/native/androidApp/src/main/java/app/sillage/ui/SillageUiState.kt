@@ -235,6 +235,48 @@ internal inline fun SillageUiState.withSettings(
 ): SillageUiState = copy(settings = transform(settings))
 
 /**
+ * Clears records/settings/ask interactive ownership for a client-context or
+ * workspace change. Does not touch host-only fields such as auth, theme, or the
+ * root loading gate.
+ */
+internal fun SillageUiState.clearClientWorkspace(
+    settingsProfiles: List<AIProfileDraft> = emptyList(),
+    settingsAutoSummaryEnabled: Boolean = false,
+    askInvalidateStream: Boolean = false,
+    askInvalidateVariant: Boolean = false,
+): SillageUiState {
+    return copy(
+        records = records.clearInteractiveSurface(),
+        settings = settings.clearWorkspace(
+            profiles = settingsProfiles,
+            autoSummaryEnabled = settingsAutoSummaryEnabled,
+        ),
+        ask = ask.clearWorkspace(
+            invalidateStream = askInvalidateStream,
+            invalidateVariant = askInvalidateVariant,
+        ),
+    )
+}
+
+/**
+ * Offline entry: clear interactive ownership, seed settings from local values,
+ * and replace the visible records snapshot.
+ */
+internal fun SillageUiState.enterOfflineClientWorkspace(
+    memos: List<Memo>,
+    settingsProfiles: List<AIProfileDraft>,
+    settingsAutoSummaryEnabled: Boolean,
+): SillageUiState {
+    val cleared = clearClientWorkspace(
+        settingsProfiles = settingsProfiles,
+        settingsAutoSummaryEnabled = settingsAutoSummaryEnabled,
+    )
+    return cleared.copy(
+        records = cleared.records.replaceVisibleRecords(memos),
+    )
+}
+
+/**
  * UI model for one push conflict: local pending content plus the server resource.
  */
 typealias SyncConflictItem = MemoSyncConflictItem

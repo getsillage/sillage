@@ -155,4 +155,58 @@ data class AskFeatureStateHolder(
     fun failConversationCatalogLoad(message: String): AskFeatureStateHolder {
         return copy(load = load.fail(message))
     }
+
+    /**
+     * Activates a newly created conversation as the current selection.
+     */
+    fun activateConversation(created: AskConversation): AskFeatureStateHolder {
+        return copy(conversation = conversation.activate(created))
+    }
+
+    /**
+     * Applies a branch-head change together with the finished variant request
+     * ownership so selection and single-flight state stay aligned.
+     */
+    fun applyVariantHead(
+        conversationId: String,
+        headMessageId: String?,
+        variant: AskVariantStateHolder,
+    ): AskFeatureStateHolder {
+        return copy(
+            conversation = conversation.moveHead(conversationId, headMessageId),
+            variant = variant,
+        )
+    }
+
+    /**
+     * Replaces the active conversation snapshot after a stream or reload completes.
+     */
+    fun replaceActiveSnapshot(
+        conversationId: String,
+        conversations: List<AskConversation>,
+        headMessageId: String?,
+        messages: List<AskMessage>,
+    ): AskFeatureStateHolder {
+        return copy(
+            conversation = conversation.replaceSnapshot(
+                conversationId = conversationId,
+                conversations = conversations,
+                headMessageId = headMessageId,
+                messages = messages,
+            ),
+        )
+    }
+
+    /**
+     * Drops cached conversation catalog/message rows without advancing request
+     * identities. Used after import when Ask content is no longer authoritative.
+     */
+    fun clearConversationCatalog(): AskFeatureStateHolder {
+        return copy(
+            conversation = conversation.copy(
+                conversations = emptyList(),
+                messages = emptyList(),
+            ),
+        )
+    }
 }

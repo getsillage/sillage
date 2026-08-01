@@ -2,10 +2,12 @@ package app.sillage.ui
 
 import app.sillage.features.settings.AIProfileDraft
 import app.sillage.features.settings.AIProfilesMutationStateHolder
+import app.sillage.features.settings.AISettingsLoadStateHolder
 import app.sillage.features.settings.SettingsFeatureStateHolder
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskComposerStateHolder
+import app.sillage.features.ask.AskFeatureStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationStateHolder
@@ -354,6 +356,54 @@ class SillageUiStateTest {
         assertEquals(3L, applied.memoCacheGeneration)
         assertEquals(applied.records.collection, applied.recordsCollection)
         assertFalse(applied.loadingMoreMemos)
+    }
+
+    @Test
+    fun clearClientWorkspaceResetsRecordsSettingsAndAskTogether() {
+        val memo = memo()
+        val profile = AIProfileDraft(
+            id = "p1",
+            draftKey = "p1",
+            name = "Profile",
+            provider = "openai",
+            baseUrl = "https://example.com",
+            model = "model",
+            enabled = true,
+            active = true,
+        )
+        val state = editorState().copy(
+            records = editorState().records.copy(
+                collection = RecordsCollectionStateHolder(records = listOf(memo), cacheGeneration = 2),
+                selection = RecordsSelectionStateHolder(selectedMemo = memo),
+            ),
+            settings = SettingsFeatureStateHolder(
+                profilesMutation = AIProfilesMutationStateHolder(profiles = listOf(profile)),
+                autoSummary = AIAutoSummaryStateHolder(enabled = true),
+                load = AISettingsLoadStateHolder(loading = true),
+            ),
+            ask = AskFeatureStateHolder(
+                conversation = AskConversationStateHolder(activeConversationId = "c1"),
+                composer = AskComposerStateHolder(question = "问"),
+                load = AskLoadStateHolder(loading = true),
+                session = AskSessionStateHolder(generation = 3),
+            ),
+        )
+
+        val cleared = state.clearClientWorkspace()
+
+        assertEquals(emptyList<Memo>(), cleared.memos)
+        assertEquals(2L, cleared.memoCacheGeneration)
+        assertEquals(null, cleared.selectedMemo)
+        assertEquals(emptyList<AIProfileDraft>(), cleared.aiProfiles)
+        assertFalse(cleared.aiAutoSummary)
+        assertFalse(cleared.aiSettingsLoading)
+        assertEquals("", cleared.activeAskId)
+        assertEquals("", cleared.askQuestion)
+        assertFalse(cleared.askLoading)
+        assertEquals(4L, cleared.askScreenSessionId)
+        // host-only fields stay put
+        assertEquals(state.screen, cleared.screen)
+        assertEquals(state.loading, cleared.loading)
     }
 
     @Test

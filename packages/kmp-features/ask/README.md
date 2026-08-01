@@ -5,7 +5,8 @@ answer-to-record feature-scoped state.
 
 `AskFeatureStateHolder` composes the holders below and owns coordinated
 multi-holder transitions for workspace teardown, Ask-screen entry, blank
-composition starts, and conversation selection/load completion. Individual
+composition starts, conversation selection/load completion, variant head
+application, active snapshot replacement, and catalog clearing. Individual
 holders remain the unit of request identity. Android stores one aggregate on
 root UI state and keeps transitional slice getters while remaining single-holder
 call sites finish moving onto `withAsk` / aggregate transitions.

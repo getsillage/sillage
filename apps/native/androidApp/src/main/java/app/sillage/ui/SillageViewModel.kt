@@ -413,14 +413,11 @@ class SillageViewModel(
         sessionStore.saveBaseUrl(state.value.baseUrl)
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         updateState {
-            it.invalidateAIAutoSummaryRequest().copy(
+            it.invalidateAIAutoSummaryRequest().clearClientWorkspace().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 clientContextGeneration = it.clientContextGeneration + 1,
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
-                records = it.records.clearInteractiveSurface(),
-                settings = it.settings.clearWorkspace(),
-                ask = it.ask.clearWorkspace(),
                 serverReturnScreen = null,
                 authError = null,
                 authErrorResourceId = null,
@@ -440,14 +437,11 @@ class SillageViewModel(
         cancelAIAutoSummarySave()
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         updateState {
-            it.invalidateAIAutoSummaryRequest().copy(
+            it.invalidateAIAutoSummaryRequest().clearClientWorkspace().copy(
                 appMode = SessionStore.MODE_ONLINE,
                 clientContextGeneration = it.clientContextGeneration + 1,
                 screen = Screen.Loading,
                 screenHistory = emptyList(),
-                records = it.records.clearInteractiveSurface(),
-                settings = it.settings.clearWorkspace(),
-                ask = it.ask.clearWorkspace(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -850,17 +844,13 @@ class SillageViewModel(
                     if (it.clientContextGeneration != clientContextGeneration) {
                         it
                     } else {
-                        it.invalidateAIAutoSummaryRequest().copy(
+                        it.invalidateAIAutoSummaryRequest().clearClientWorkspace(
+                            settingsAutoSummaryEnabled = if (offlineMode) it.aiAutoSummary else false,
+                            askInvalidateStream = true,
+                            askInvalidateVariant = true,
+                        ).copy(
                             clientContextGeneration = it.clientContextGeneration + 1,
                             account = null,
-                            records = it.records.clearInteractiveSurface(),
-                            settings = it.settings.clearWorkspace(
-                                autoSummaryEnabled = if (offlineMode) it.aiAutoSummary else false,
-                            ),
-                            ask = it.ask.clearWorkspace(
-                                invalidateStream = true,
-                                invalidateVariant = true,
-                            ),
                             loading = false,
                             screen = if (offlineMode) Screen.Memos else Screen.Login,
                             screenHistory = emptyList(),
@@ -1210,12 +1200,7 @@ class SillageViewModel(
                     profiles = result.aiProfiles,
                     autoSummaryEnabled = result.aiAutoSummary,
                 ),
-                ask = it.ask.copy(
-                    conversation = it.ask.conversation.copy(
-                        conversations = emptyList(),
-                        messages = emptyList(),
-                    ),
-                ),
+                ask = it.ask.clearConversationCatalog(),
                 notice = uiString(R.string.notice_imported),
             )
             }
@@ -2789,11 +2774,9 @@ class SillageViewModel(
                 val variant = it.askVariant.begin(request, it.askVariantContext())
                     ?: return@updateState it
                 it.copy(
-                    ask = it.ask.copy(
-                        conversation = it.ask.conversation.moveHead(
-                        request.conversationId,
-                        leafId,
-                    ),
+                    ask = it.ask.applyVariantHead(
+                        conversationId = request.conversationId,
+                        headMessageId = leafId,
                         variant = variant,
                     ),
                     error = null,
@@ -3192,11 +3175,9 @@ class SillageViewModel(
                 val variant = current.askVariant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.copy(
-                    ask = current.ask.copy(
-                        conversation = current.ask.conversation.moveHead(
-                        request.conversationId,
-                        leafId,
-                    ),
+                    ask = current.ask.applyVariantHead(
+                        conversationId = request.conversationId,
+                        headMessageId = leafId,
                         variant = variant,
                     ),
                     notice = null,
@@ -3217,11 +3198,9 @@ class SillageViewModel(
                 val variant = current.askVariant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.copy(
-                    ask = current.ask.copy(
-                        conversation = current.ask.conversation.moveHead(
-                        request.conversationId,
-                        previousHeadId,
-                    ),
+                    ask = current.ask.applyVariantHead(
+                        conversationId = request.conversationId,
+                        headMessageId = previousHeadId,
                         variant = variant,
                     ),
                     error = error.readableMessage(),
@@ -3584,7 +3563,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                ask = currentState.ask.copy(conversation = currentState.ask.conversation.activate(created)),
+                                ask = currentState.ask.activateConversation(created),
                             )
                         } else {
                             currentState
@@ -3667,13 +3646,11 @@ class SillageViewModel(
                                             previousHeadId = previousHeadId,
                                         )
                                         currentState.copy(
-                                            ask = currentState.ask.copy(
-                                                conversation = currentState.ask.conversation.replaceSnapshot(
+                                            ask = currentState.ask.replaceActiveSnapshot(
                                                 conversationId = request.conversationId,
                                                 conversations = snapshot.conversations,
                                                 headMessageId = snapshot.headId,
                                                 messages = snapshot.messages,
-                                            ),
                                             ),
                                         )
                                     } else {
@@ -3720,7 +3697,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                ask = currentState.ask.copy(conversation = currentState.ask.conversation.activate(created)),
+                                ask = currentState.ask.activateConversation(created),
                             )
                         } else {
                             currentState
@@ -3780,19 +3757,18 @@ class SillageViewModel(
                             previousHeadId = previousHeadId,
                         )
                         currentState.copy(
-                            ask = currentState.ask.copy(
-                                conversation = currentState.ask.conversation.replaceSnapshot(
+                            ask = currentState.ask.replaceActiveSnapshot(
                                 conversationId = request.conversationId,
                                 conversations = conversations,
                                 headMessageId = refreshedHeadId,
                                 messages = refreshedMessages,
-                            ),
-                                composer = if (forkOfId == null) {
-                                currentState.ask.composer.clearQuestion()
-                            } else {
-                                currentState.ask.composer
+                            ).let { updated ->
+                                if (forkOfId == null) {
+                                    updated.copy(composer = updated.composer.clearQuestion())
+                                } else {
+                                    updated
+                                }
                             },
-                            ),
                         )
                     } else {
                         currentState
@@ -3950,17 +3926,15 @@ class SillageViewModel(
         val autoSummary = localSnapshot.getOrNull()?.autoSummary == true
         val loadError = localSnapshot.exceptionOrNull()?.readableMessage()
         updateState {
-            it.invalidateAIAutoSummaryRequest().copy(
+            it.invalidateAIAutoSummaryRequest().enterOfflineClientWorkspace(
+                memos = memos,
+                settingsProfiles = aiProfiles,
+                settingsAutoSummaryEnabled = autoSummary,
+            ).copy(
                 appMode = SessionStore.MODE_OFFLINE,
                 clientContextGeneration = it.clientContextGeneration + 1,
                 initialized = true,
                 account = null,
-                records = it.records.clearInteractiveSurface().replaceVisibleRecords(memos),
-                settings = it.settings.clearWorkspace(
-                    profiles = aiProfiles,
-                    autoSummaryEnabled = autoSummary,
-                ),
-                ask = it.ask.clearWorkspace(),
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
                 authError = null,

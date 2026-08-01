@@ -137,6 +137,94 @@ class AskFeatureStateHolderTest {
         assertFalse(completed.loading)
     }
 
+    @Test
+    fun activateConversationMakesCreatedConversationCurrent() {
+        val created = conversation("c-new").copy(headMessageId = "h1")
+        val state = AskFeatureStateHolder(
+            conversation = AskConversationStateHolder(
+                conversations = listOf(conversation("c-old")),
+                activeConversationId = "c-old",
+            ),
+        )
+
+        val activated = state.activateConversation(created)
+
+        assertEquals("c-new", activated.activeConversationId)
+        assertEquals("h1", activated.headMessageId)
+        assertEquals(listOf("c-new", "c-old"), activated.conversations.map { it.id })
+    }
+
+    @Test
+    fun applyVariantHeadMovesBranchAndStoresFinishedVariant() {
+        val state = AskFeatureStateHolder(
+            conversation = AskConversationStateHolder(
+                conversations = listOf(conversation("c1").copy(headMessageId = "old")),
+                activeConversationId = "c1",
+                headMessageId = "old",
+            ),
+            variant = AskVariantStateHolder(loading = true, requestId = 3),
+        )
+        val finished = AskVariantStateHolder(loading = false, requestId = 3)
+
+        val applied = state.applyVariantHead(
+            conversationId = "c1",
+            headMessageId = "new-head",
+            variant = finished,
+        )
+
+        assertEquals("new-head", applied.headMessageId)
+        assertEquals(finished, applied.variant)
+        assertEquals("new-head", applied.conversations.single().headMessageId)
+    }
+
+    @Test
+    fun replaceActiveSnapshotUpdatesOnlyMatchingConversation() {
+        val messages = listOf(message("m1", "c1"), message("m2", "c1"))
+        val state = AskFeatureStateHolder(
+            conversation = AskConversationStateHolder(
+                conversations = listOf(conversation("c1"), conversation("c2")),
+                activeConversationId = "c1",
+            ),
+        )
+
+        val replaced = state.replaceActiveSnapshot(
+            conversationId = "c1",
+            conversations = listOf(conversation("c1").copy(title = "更新"), conversation("c2")),
+            headMessageId = "m2",
+            messages = messages,
+        )
+        val ignored = state.replaceActiveSnapshot(
+            conversationId = "other",
+            conversations = listOf(conversation("x")),
+            headMessageId = "x",
+            messages = listOf(message("x", "other")),
+        )
+
+        assertEquals("更新", replaced.conversations.first().title)
+        assertEquals(messages, replaced.messages)
+        assertEquals("m2", replaced.headMessageId)
+        assertEquals(state.conversation, ignored.conversation)
+    }
+
+    @Test
+    fun clearConversationCatalogDropsRowsWithoutAdvancingSession() {
+        val state = AskFeatureStateHolder(
+            conversation = AskConversationStateHolder(
+                conversations = listOf(conversation("c1")),
+                activeConversationId = "c1",
+                messages = listOf(message("m1", "c1")),
+            ),
+            session = AskSessionStateHolder(generation = 4),
+        )
+
+        val cleared = state.clearConversationCatalog()
+
+        assertEquals(emptyList(), cleared.conversations)
+        assertEquals(emptyList(), cleared.messages)
+        assertEquals("c1", cleared.activeConversationId)
+        assertEquals(4, cleared.screenSessionId)
+    }
+
     private fun conversation(id: String): AskConversation {
         return AskConversation(
             id = id,

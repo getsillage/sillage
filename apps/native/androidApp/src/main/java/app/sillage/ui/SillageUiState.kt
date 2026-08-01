@@ -16,6 +16,10 @@ import app.sillage.features.records.RecordsRefreshContext
 import app.sillage.features.records.RecordsRefreshRequest
 import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsRefreshStatus
+import app.sillage.features.records.CompletedRecordsSearch
+import app.sillage.features.records.RecordsSearchContext
+import app.sillage.features.records.RecordsSearchRequest
+import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.records.memosForFilter
 import java.time.LocalDate
@@ -90,13 +94,7 @@ data class SillageUiState(
     val initialDraftContent: String = "",
     val initialDraftEntryDate: String = LocalDate.now().toString(),
     val markdownPreview: Boolean = false,
-    val searchQuery: String = "",
-    val searchResults: List<Memo>? = null,
-    val searchResultQuery: String = "",
-    val searchFailureQuery: String = "",
-    val memoSearchRequestId: Long = 0,
-    val searchCompletionEventId: Long = 0,
-    val searching: Boolean = false,
+    val recordsSearch: RecordsSearchStateHolder = RecordsSearchStateHolder(),
     val memoViewMode: MemoViewMode = MemoViewMode.List,
     val memoListFilter: MemoListFilter = MemoListFilter.Unarchived,
     val calendarYear: Int = LocalDate.now().year,
@@ -118,11 +116,18 @@ data class SillageUiState(
     val syncConflicts: List<SyncConflictItem> = emptyList(),
 ) {
     // Transitional read accessors while the remaining records state moves into
-    // shared feature holders. Pagination and refresh writes use those holders.
+    // shared feature holders. Pagination, refresh, and search writes use them.
     val memoNextCursor: String get() = recordsPagination.nextCursor
     val loadingMoreMemos: Boolean get() = recordsPagination.loadingMore
     val memoPageRequestId: Long get() = recordsPagination.requestId
     val memoListLoadStatus: MemoListLoadStatus get() = recordsRefresh.status
+    val searchQuery: String get() = recordsSearch.query
+    val searchResults: List<Memo>? get() = recordsSearch.results
+    val searchResultQuery: String get() = recordsSearch.resultQuery
+    val searchFailureQuery: String get() = recordsSearch.failureQuery
+    val memoSearchRequestId: Long get() = recordsSearch.requestId
+    val searchCompletionEventId: Long get() = recordsSearch.completionEventId
+    val searching: Boolean get() = recordsSearch.searching
 }
 
 /**
@@ -624,111 +629,50 @@ internal fun SillageUiState.failMemoRefresh(request: RecordsRefreshRequest): Sil
     return copy(recordsRefresh = refresh)
 }
 
-internal data class MemoSearchRequest(
-    val requestId: Long,
-    val query: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
-    val filter: MemoListFilter,
-    val cacheGeneration: Long,
-)
-
-internal fun SillageUiState.nextMemoSearchRequest(): MemoSearchRequest? {
-    val query = searchQuery.trim()
-    if (query.isBlank()) {
-        return null
-    }
-    return MemoSearchRequest(
-        requestId = memoSearchRequestId + 1,
-        query = query,
-        appMode = appMode,
+private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
+    return RecordsSearchContext(
+        sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
         cacheGeneration = memoCacheGeneration,
     )
 }
 
-internal fun SillageUiState.startMemoSearch(request: MemoSearchRequest): SillageUiState {
-    if (nextMemoSearchRequest() != request) {
-        return this
-    }
-    return copy(
-        searchFailureQuery = "",
-        memoSearchRequestId = request.requestId,
-        searching = true,
-        error = null,
-        notice = null,
-    )
+internal fun SillageUiState.nextMemoSearchRequest(): RecordsSearchRequest? {
+    return recordsSearch.nextRequest(recordsSearchContext())
 }
 
-internal fun SillageUiState.canApplyMemoSearch(request: MemoSearchRequest): Boolean {
-    return searching &&
-        memoSearchRequestId == request.requestId &&
-        searchQuery.trim() == request.query &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        memoListFilter == request.filter &&
-        memoCacheGeneration == request.cacheGeneration
+internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): SillageUiState {
+    val search = recordsSearch.begin(request, recordsSearchContext()) ?: return this
+    return copy(recordsSearch = search, error = null, notice = null)
 }
 
-internal data class CompletedMemoSearch(
-    val query: String,
-    val resultCount: Int,
-)
+internal fun SillageUiState.canApplyMemoSearch(request: RecordsSearchRequest): Boolean {
+    return recordsSearch.canApply(request, recordsSearchContext())
+}
 
 internal fun SillageUiState.currentMemoSearchResults(): List<Memo>? {
-    val query = searchQuery.trim()
-    if (query.isBlank() || query != searchResultQuery.trim()) {
-        return null
-    }
-    return searchResults
+    return recordsSearch.currentResults()
 }
 
-internal fun SillageUiState.completedMemoSearch(): CompletedMemoSearch? {
-    val query = searchQuery.trim()
-    val resultQuery = searchResultQuery.trim()
-    val results = searchResults
-    if (
-        searching ||
-        results == null ||
-        query.isBlank() ||
-        query != resultQuery
-    ) {
-        return null
-    }
-    return CompletedMemoSearch(query = resultQuery, resultCount = results.size)
+internal fun SillageUiState.completedMemoSearch(): CompletedRecordsSearch? {
+    return recordsSearch.completed()
 }
 
 internal fun SillageUiState.completeMemoSearch(
-    request: MemoSearchRequest,
+    request: RecordsSearchRequest,
     results: List<Memo>,
 ): SillageUiState {
-    if (!canApplyMemoSearch(request)) {
-        return this
-    }
-    return copy(
-        searchResults = results,
-        searchResultQuery = request.query,
-        searchFailureQuery = "",
-        searchCompletionEventId = searchCompletionEventId + 1,
-        searching = false,
-        error = null,
-    )
+    val search = recordsSearch.complete(request, recordsSearchContext(), results) ?: return this
+    return copy(recordsSearch = search, error = null)
 }
 
 internal fun SillageUiState.failMemoSearch(
-    request: MemoSearchRequest,
+    request: RecordsSearchRequest,
     message: String,
 ): SillageUiState {
-    if (!canApplyMemoSearch(request)) {
-        return this
-    }
-    return copy(
-        searchResultQuery = "",
-        searchFailureQuery = request.query,
-        searching = false,
-        error = message,
-    )
+    val search = recordsSearch.fail(request, recordsSearchContext()) ?: return this
+    return copy(recordsSearch = search, error = message)
 }
 
 internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
@@ -736,18 +680,9 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
         memos.filter { it.id != memo.id } + memo,
         memoListFilter,
     )
-    val searched = searchResults?.let { results ->
-        memosForFilter(
-            results.filter { it.id != memo.id } + memo,
-            memoListFilter,
-        )
-    }
     return copy(
         memos = cached,
-        searchResults = searched,
-        searchResultQuery = if (searching) "" else searchResultQuery,
-        searchFailureQuery = if (searching) "" else searchFailureQuery,
-        searching = false,
+        recordsSearch = recordsSearch.invalidateForMemoChange(memo, memoListFilter),
         recordsPagination = recordsPagination.cancel(),
         recordsRefresh = recordsRefresh.cancel(),
         memoCacheGeneration = memoCacheGeneration + 1,
@@ -1034,6 +969,7 @@ enum class MemoViewMode {
 }
 
 typealias MemoListLoadStatus = RecordsRefreshStatus
+typealias CompletedMemoSearch = CompletedRecordsSearch
 
 enum class Screen {
     Loading,

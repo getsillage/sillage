@@ -108,6 +108,11 @@ Server-backed records search also crosses an application port: shared callers
 provide text and semantic scope, while the platform adapter owns REST query
 parameters and response mapping.
 
+Records search is the third extracted state slice. The shared holder owns query,
+result, failure, completion-event, and request-identity transitions; hosts own
+debounce scheduling and currently choose Android local storage or the remote
+application adapter.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

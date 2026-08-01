@@ -144,7 +144,11 @@ shared holder's explicit begin, complete, fail, and cancel transitions.
 The shared `RecordsRefreshStateHolder` now owns refresh status and request
 identity. It rejects responses after source, client context, filter, cache, or
 pagination generation changes, and a newer refresh supersedes an older one.
-Search, selection, and editor state remain later extraction slices.
+The shared `RecordsSearchStateHolder` owns normalized query state, results,
+failure binding, completion events, and request identity. Android retains
+debounce timing and local/remote source orchestration, while every state
+transition and late-response check is shared. Selection and editor state remain
+later extraction slices.
 
 ## Core Invariants
 

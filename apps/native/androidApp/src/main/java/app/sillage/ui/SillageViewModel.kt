@@ -285,11 +285,7 @@ class SillageViewModel(
                 askMemoSaveRequestId = it.askMemoSaveRequestId + 1,
                 askSavingMessageId = "",
                 serverReturnScreen = null,
-                searchQuery = "",
-                searchResults = null,
-                searchResultQuery = "",
-                searchFailureQuery = "",
-                searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -341,11 +337,7 @@ class SillageViewModel(
                 askSourceLoading = false,
                 askMemoSaveRequestId = it.askMemoSaveRequestId + 1,
                 askSavingMessageId = "",
-                searchQuery = "",
-                searchResults = null,
-                searchResultQuery = "",
-                searchFailureQuery = "",
-                searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -769,11 +761,7 @@ class SillageViewModel(
                             askSourceLoading = false,
                             askMemoSaveRequestId = it.askMemoSaveRequestId + 1,
                             askSavingMessageId = "",
-                            searchQuery = "",
-                            searchResults = null,
-                            searchResultQuery = "",
-                            searchFailureQuery = "",
-                            searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                             loading = false,
                             screen = if (offlineMode) Screen.Memos else Screen.Login,
                             screenHistory = emptyList(),
@@ -992,12 +980,7 @@ class SillageViewModel(
         val previousJob = searchJob
         updateState {
             it.copy(
-                searchQuery = value,
-                searchResults = if (blank) null else it.searchResults,
-                searchResultQuery = if (blank) "" else it.searchResultQuery,
-                searchFailureQuery = "",
-                memoSearchRequestId = it.memoSearchRequestId + 1,
-                searching = !blank,
+                recordsSearch = it.recordsSearch.updateQuery(value),
                 error = null,
             )
         }
@@ -1027,7 +1010,7 @@ class SillageViewModel(
         }
         searchJob = viewModelScope.launch {
             try {
-                val memos = if (request.appMode == SessionStore.MODE_OFFLINE) {
+                val memos = if (request.sourceKey == SessionStore.MODE_OFFLINE) {
                     localDataStore.searchMemos(request.query, request.filter)
                 } else {
                     searchOnlineMemos(request.query, request.filter)
@@ -1052,12 +1035,7 @@ class SillageViewModel(
         val previousJob = searchJob
         updateState {
             it.copy(
-                searchQuery = "",
-                searchResults = null,
-                searchResultQuery = "",
-                searchFailureQuery = "",
-                memoSearchRequestId = it.memoSearchRequestId + 1,
-                searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                 error = null,
             )
         }
@@ -1127,11 +1105,7 @@ class SillageViewModel(
                     aiAutoSummary = result.aiAutoSummary,
                     askConversations = emptyList(),
                     askMessages = emptyList(),
-                    searchQuery = "",
-                    searchResults = null,
-                    searchResultQuery = "",
-                    searchFailureQuery = "",
-                    searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                     notice = uiString(R.string.notice_imported),
                 )
             }
@@ -1315,11 +1289,11 @@ class SillageViewModel(
                 } else {
                     it.recordsRefresh
                 },
-                searchQuery = if (mode == MemoViewMode.Calendar) "" else it.searchQuery,
-                searchResults = if (mode == MemoViewMode.Calendar) null else it.searchResults,
-                searchResultQuery = if (mode == MemoViewMode.Calendar) "" else it.searchResultQuery,
-                searchFailureQuery = if (mode == MemoViewMode.Calendar) "" else it.searchFailureQuery,
-                searching = if (mode == MemoViewMode.Calendar) false else it.searching,
+                recordsSearch = if (mode == MemoViewMode.Calendar) {
+                    it.recordsSearch.clear()
+                } else {
+                    it.recordsSearch
+                },
                 selectedMemo = null,
                 selectedSummary = null,
                 summaryLoading = false,
@@ -1359,11 +1333,7 @@ class SillageViewModel(
                 memos = emptyList(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
-                searchQuery = "",
-                searchResults = null,
-                searchResultQuery = "",
-                searchFailureQuery = "",
-                searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                 selectedMemo = null,
                 selectedSummary = null,
                 error = null,
@@ -1460,11 +1430,7 @@ class SillageViewModel(
                         draftContent = "",
                         initialDraftContent = "",
                         initialDraftEntryDate = LocalDate.now().toString(),
-                        searchQuery = "",
-                        searchResults = null,
-                        searchResultQuery = "",
-                        searchFailureQuery = "",
-                        searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                         notice = uiString(R.string.notice_saved),
                     )
                 }
@@ -1522,11 +1488,7 @@ class SillageViewModel(
                         draftContent = "",
                         initialDraftContent = "",
                         initialDraftEntryDate = LocalDate.now().toString(),
-                        searchQuery = "",
-                        searchResults = null,
-                        searchResultQuery = "",
-                        searchFailureQuery = "",
-                        searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                         notice = uiString(R.string.notice_deleted),
                     )
                 } else {
@@ -2883,17 +2845,14 @@ class SillageViewModel(
                                 current.memos.filter { it.id != detail.memo.id } + detail.memo,
                                 current.memoListFilter,
                             )
-                            val searched = current.searchResults?.let { results ->
-                                memosForFilter(
-                                    results.filter { it.id != detail.memo.id } + detail.memo,
-                                    current.memoListFilter,
-                                )
-                            }
-                            current.copy(
+                current.copy(
                                 screen = Screen.MemoDetail,
                                 screenHistory = request.destinationHistory(),
                                 memos = cached,
-                                searchResults = searched,
+                    recordsSearch = current.recordsSearch.mergeResultMemo(
+                        detail.memo,
+                        current.memoListFilter,
+                    ),
                                 selectedMemo = detail.memo,
                                 selectedSummary = detail.ai,
                                 summaryLoading = false,
@@ -3909,11 +3868,7 @@ class SillageViewModel(
                 askSourceLoading = false,
                 askMemoSaveRequestId = it.askMemoSaveRequestId + 1,
                 askSavingMessageId = "",
-                searchQuery = "",
-                searchResults = null,
-                searchResultQuery = "",
-                searchFailureQuery = "",
-                searching = false,
+                recordsSearch = it.recordsSearch.clear(),
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
                 authError = null,

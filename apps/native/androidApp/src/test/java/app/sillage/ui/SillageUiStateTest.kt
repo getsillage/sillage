@@ -11,6 +11,7 @@ import app.sillage.data.MemoDetail
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
+import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -224,10 +225,12 @@ class SillageUiStateTest {
             screen = Screen.Memos,
             appMode = SessionStore.MODE_ONLINE,
             memos = listOf(original),
-            searchQuery = "记录",
-            searchResults = listOf(original),
-            searchResultQuery = "记录",
-            searchCompletionEventId = 4,
+            recordsSearch = RecordsSearchStateHolder(
+                query = "记录",
+                results = listOf(original),
+                resultQuery = "记录",
+                completionEventId = 4,
+            ),
         )
         val refresh = initial.nextMemoRefreshRequest()
         val search = requireNotNull(initial.nextMemoSearchRequest())
@@ -408,10 +411,12 @@ class SillageUiStateTest {
         val loaded = listOf(memo())
         val initial = editorState().copy(
             screen = Screen.Memos,
-            searchQuery = "记录",
-            searchResults = loaded,
-            searchResultQuery = "记录",
-            searchCompletionEventId = 4,
+            recordsSearch = RecordsSearchStateHolder(
+                query = "记录",
+                results = loaded,
+                resultQuery = "记录",
+                completionEventId = 4,
+            ),
         )
         val request = requireNotNull(initial.nextMemoSearchRequest())
         val pending = initial.startMemoSearch(request)
@@ -434,7 +439,7 @@ class SillageUiStateTest {
     fun newerSearchAttemptSupersedesTheSameQuery() {
         val initial = editorState().copy(
             screen = Screen.Memos,
-            searchQuery = "记录",
+            recordsSearch = RecordsSearchStateHolder(query = "记录"),
         )
         val firstRequest = requireNotNull(initial.nextMemoSearchRequest())
         val first = initial.startMemoSearch(firstRequest)
@@ -457,10 +462,12 @@ class SillageUiStateTest {
         val oldResults = listOf(memo(id = "memo-old"))
         val initial = editorState().copy(
             screen = Screen.Memos,
-            searchQuery = "新查询",
-            searchResults = oldResults,
-            searchResultQuery = "旧查询",
-            searchCompletionEventId = 4,
+            recordsSearch = RecordsSearchStateHolder(
+                query = "新查询",
+                results = oldResults,
+                resultQuery = "旧查询",
+                completionEventId = 4,
+            ),
         )
         val request = requireNotNull(initial.nextMemoSearchRequest())
         val pending = initial.startMemoSearch(request)
@@ -477,16 +484,33 @@ class SillageUiStateTest {
         assertFalse(completed.searching)
         assertEquals(results, completed.currentMemoSearchResults())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 1), completed.completedMemoSearch())
-        assertEquals(null, completed.copy(searchQuery = "又一查询").currentMemoSearchResults())
-        assertEquals(null, completed.copy(searchQuery = "又一查询").completedMemoSearch())
-        assertEquals(null, completed.copy(searching = true).completedMemoSearch())
+        assertEquals(
+            null,
+            completed.copy(
+                recordsSearch = completed.recordsSearch.copy(query = "又一查询"),
+            ).currentMemoSearchResults(),
+        )
+        assertEquals(
+            null,
+            completed.copy(
+                recordsSearch = completed.recordsSearch.copy(query = "又一查询"),
+            ).completedMemoSearch(),
+        )
+        assertEquals(
+            null,
+            completed.copy(
+                recordsSearch = completed.recordsSearch.copy(searching = true),
+            ).completedMemoSearch(),
+        )
         assertEquals(completed.completedMemoSearch(), completed.copy(error = "无关错误").completedMemoSearch())
 
         val empty = pending.completeMemoSearch(request, emptyList())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 0), empty.completedMemoSearch())
         assertEquals(5L, empty.searchCompletionEventId)
 
-        val stale = pending.copy(searchQuery = "其他查询")
+        val stale = pending.copy(
+            recordsSearch = pending.recordsSearch.copy(query = "其他查询"),
+        )
         assertEquals(stale, stale.completeMemoSearch(request, results))
     }
 
@@ -494,21 +518,39 @@ class SillageUiStateTest {
     fun failedSearchStateIsBoundToTheFailedQuery() {
         val failed = editorState().copy(
             screen = Screen.Memos,
-            searchQuery = "新查询",
-            searchResults = listOf(memo()),
-            searchResultQuery = "旧查询",
-            searchFailureQuery = "新查询",
-            searching = false,
+            recordsSearch = RecordsSearchStateHolder(
+                query = "新查询",
+                results = listOf(memo()),
+                resultQuery = "旧查询",
+                failureQuery = "新查询",
+                searching = false,
+            ),
             error = "网络错误",
         )
 
         assertEquals(null, failed.currentMemoSearchResults())
         assertTrue(failed.shouldShowMemoSearchFailure())
         assertTrue(failed.copy(error = null).shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(searching = true).shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(searchFailureQuery = "旧查询").shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(searchResultQuery = "新查询").shouldShowMemoSearchFailure())
-        assertFalse(failed.copy(searchQuery = "").shouldShowMemoSearchFailure())
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(searching = true),
+            ).shouldShowMemoSearchFailure(),
+        )
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(failureQuery = "旧查询"),
+            ).shouldShowMemoSearchFailure(),
+        )
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(resultQuery = "新查询"),
+            ).shouldShowMemoSearchFailure(),
+        )
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(query = ""),
+            ).shouldShowMemoSearchFailure(),
+        )
     }
 
     @Test
@@ -557,7 +599,11 @@ class SillageUiStateTest {
         )
 
         assertTrue(failed.shouldShowMemoListLoadFailure())
-        assertFalse(failed.copy(searchQuery = "记录").shouldShowMemoListLoadFailure())
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(query = "记录"),
+            ).shouldShowMemoListLoadFailure(),
+        )
         assertFalse(
             failed.copy(
                 recordsRefresh = failed.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
@@ -569,7 +615,11 @@ class SillageUiStateTest {
             ).shouldShowMemoListLoadFailure(),
         )
         assertFalse(failed.copy(memos = listOf(memo())).shouldShowMemoListLoadFailure())
-        assertFalse(failed.copy(searchResults = emptyList()).shouldShowMemoListLoadFailure())
+        assertFalse(
+            failed.copy(
+                recordsSearch = failed.recordsSearch.copy(results = emptyList()),
+            ).shouldShowMemoListLoadFailure(),
+        )
     }
 
     @Test

@@ -101,7 +101,6 @@ import app.sillage.features.records.entryDateCounts
 import app.sillage.features.records.excerpt
 import app.sillage.data.monthGrid
 import app.sillage.features.records.onThisDay
-import app.sillage.features.records.yearsBetween
 import app.sillage.R
 import app.sillage.ui.MemoListLoadStatus
 import app.sillage.features.records.MemoViewMode
@@ -114,6 +113,8 @@ import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.records.SillageCalendarCoverageNotice
 import app.sillage.ui.records.SillageCalendarCoverageStrings
+import app.sillage.ui.records.SillageOnThisDayCard
+import app.sillage.ui.records.SillageOnThisDayStrings
 import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordEmptyState
@@ -391,7 +392,27 @@ private fun MemoListView(
     ) {
         if (!showingSearchResults && memories.isNotEmpty()) {
             item {
-                OnThisDayCard(entries = memories, today = today, onMemoClick = onMemoClick)
+                SillageOnThisDayCard(
+                    entries = memories,
+                    today = today,
+                    strings = SillageOnThisDayStrings(
+                        title = stringResource(R.string.on_this_day),
+                        blankRecord = stringResource(R.string.blank_record),
+                    ),
+                    calendarIcon = Icons.Rounded.CalendarMonth,
+                    recordLabel = { yearsAgo, contentExcerpt ->
+                        stringResource(
+                            R.string.years_ago_record,
+                            pluralStringResource(
+                                R.plurals.quantity_years_ago,
+                                yearsAgo,
+                                yearsAgo,
+                            ),
+                            contentExcerpt,
+                        )
+                    },
+                    onMemoClick = onMemoClick,
+                )
             }
         }
         items(visibleMemos, key = { it.id }) { memo ->
@@ -439,69 +460,6 @@ private fun MemoListView(
                 ) {
                     Text(stringResource(if (loadingMore) R.string.loading_more else R.string.load_more))
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    modifier = Modifier.size(26.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Text(
-                    stringResource(R.string.on_this_day),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-            }
-            entries.forEachIndexed { index, memo ->
-                if (index > 0) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                }
-                Text(
-                    stringResource(
-                        R.string.years_ago_record,
-                        pluralStringResource(
-                            R.plurals.quantity_years_ago,
-                            yearsBetween(memo.entryDate, today),
-                            yearsBetween(memo.entryDate, today),
-                        ),
-                        excerpt(memo.content, 56).ifBlank { stringResource(R.string.blank_record) },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onMemoClick(memo) }
-                        .heightIn(min = 48.dp)
-                        .padding(vertical = 8.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
             }
         }
     }

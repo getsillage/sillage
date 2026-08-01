@@ -178,6 +178,9 @@ localized labels, icons, formatted deletion timestamps, and callbacks to hosts.
 Its calendar coverage notice consumes shared coverage and pagination state, owns
 partial-coverage selection and loading presentation, and leaves localized
 record-count copy plus pagination routing to hosts.
+Its on-this-day card consumes record entries plus the host date, owns anniversary
+calculation, excerpts, dividers, and selection, and leaves localized plural
+formatting, the icon, and navigation to hosts.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

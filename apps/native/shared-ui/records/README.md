@@ -14,7 +14,10 @@ record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and
 `CalendarMemoCoverage` while owning partial-coverage copy selection, progress,
 and the load-earlier action layout.
+`SillageOnThisDayCard` consumes record entries and the current date while owning
+anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and
-mutation callbacks. Transport,
+mutation callbacks; anniversary copy is supplied through a localized formatter.
+Transport,
 storage, navigation, native attachment handling, and platform lifecycle remain
 outside the module.

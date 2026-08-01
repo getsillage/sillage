@@ -76,7 +76,9 @@ come from shared records UI, which derives mutation ownership from the aggregate
 and owns permanent-delete confirmation; Android formats deletion timestamps and
 routes restore and purge callbacks. Calendar coverage notices also come from the
 shared module and derive loading state from the records aggregate; Android formats
-record-count copy and routes pagination. Editor
+record-count copy and routes pagination. On-this-day cards also come from shared
+records UI; Android supplies localized title/plural formatting and the calendar
+icon. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

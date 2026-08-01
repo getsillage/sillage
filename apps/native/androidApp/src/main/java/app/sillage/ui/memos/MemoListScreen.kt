@@ -31,8 +31,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -55,7 +53,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,7 +60,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -94,7 +90,6 @@ import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -122,6 +117,8 @@ import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
+import app.sillage.ui.records.SillageRecordSearchBar
+import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -206,7 +203,19 @@ internal fun MemoListScreen(
                             ),
                             onSelect = viewModel::updateMemoListFilter,
                         )
-                SearchBlock(state = state, viewModel = viewModel)
+                        SillageRecordSearchBar(
+                            state = state.records,
+                            strings = SillageRecordSearchStrings(
+                                label = stringResource(R.string.search_records),
+                                clearContentDescription = stringResource(R.string.search_clear),
+                                searchContentDescription = stringResource(R.string.action_search),
+                            ),
+                            searchIcon = Icons.Rounded.Search,
+                            clearIcon = Icons.Rounded.Close,
+                            onQueryChange = viewModel::updateSearchQuery,
+                            onClear = viewModel::clearSearch,
+                            onSearch = viewModel::searchMemos,
+                        )
                 SearchStatusBlock(state = state)
             }
             // Swipe-down-to-refresh is the expected gesture for a manual-sync
@@ -503,45 +512,6 @@ internal fun RecentlyDeletedMemoRow(
 
 internal const val RECENTLY_DELETED_RESTORE_TEST_TAG = "recently-deleted-restore"
 internal const val RECENTLY_DELETED_PURGE_TEST_TAG = "recently-deleted-purge"
-
-@Composable
-private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = viewModel::updateSearchQuery,
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            label = { Text(stringResource(R.string.search_records)) },
-            leadingIcon = {
-                if (state.searching) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
-                }
-            },
-            trailingIcon = {
-                if (state.searchQuery.isNotBlank() || state.searchResults != null) {
-                    IconButton(onClick = viewModel::clearSearch) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.search_clear))
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { viewModel.searchMemos() }),
-        )
-        FilledIconButton(
-            onClick = viewModel::searchMemos,
-            enabled = !state.searching && state.searchQuery.isNotBlank(),
-        ) {
-            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
-        }
-    }
-}
 
 @Composable
 private fun EmptyState(

@@ -69,7 +69,8 @@ collection, browsing, refresh, search, selection, detail-request validation, sum
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules. Record-list
 filter tabs come from buildable `shared-ui:records` and consume the records aggregate
-directly; Android supplies localized labels and ViewModel routing. Editor
+directly; the shared search bar reads query/request/result state from the same
+aggregate. Android supplies localized labels, icons, and ViewModel routing. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

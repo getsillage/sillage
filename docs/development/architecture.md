@@ -183,6 +183,8 @@ Android app-mode, records, appearance, and AI state without owning those adapter
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and
 Tab semantics while Android supplies localized labels and the mutation callback.
+The shared search bar also reads query, searching, and result-presence state from
+the aggregate and owns IME submission, progress, clear, and search action layout.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,

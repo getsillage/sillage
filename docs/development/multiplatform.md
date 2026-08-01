@@ -168,6 +168,8 @@ The buildable `shared-ui:records` module begins with record-list filter tabs. It
 consumes `RecordsFeatureStateHolder` directly for the selected filter and owns the
 selectable layout, semantic Tab roles, colors, and sizing. Hosts supply localized
 labels and the filter mutation callback.
+Its search bar consumes query, request-progress, and published-result presence from
+the same aggregate while hosts supply localized content, icons, and callbacks.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

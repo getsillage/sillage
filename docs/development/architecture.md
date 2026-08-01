@@ -145,7 +145,8 @@ conversation collection, current conversation, selected branch head, and loaded
 messages consistent. `AskFeatureStateHolder` composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, and conversation load transitions. Android's root
-state exposes transitional read accessors; coordinated writes move onto the
+`SillageUiState` stores one `ask` aggregate value with transitional slice getters
+for the former top-level Ask holders; coordinated writes move onto the
 aggregate, while persistence and streaming stay outside the feature module.
 The same module's `AskVariantStateHolder` owns branch-selection request identity;
 Android supplies navigation and client context, then applies completion only when

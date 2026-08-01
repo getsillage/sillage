@@ -103,9 +103,10 @@ identity, and loaded message snapshots through `AskConversationStateHolder`.
 Its transitions reject cross-conversation messages and late snapshots for a
 previous selection. `AskFeatureStateHolder` composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
-blank-composition starts, and conversation load transitions. Android keeps
-transitional read accessors; persistence, SSE, and device-local AI execution
-remain platform adapters.
+blank-composition starts, and conversation load transitions. Android's root
+`SillageUiState` stores one `ask` aggregate field with transitional slice getters
+for the former top-level Ask holders. Persistence, SSE, and device-local AI
+execution remain platform adapters.
 `AskVariantStateHolder` also owns branch-selection single-flight identity and
 validates screen session, conversation, source mode, and client generation before
 accepting completion.

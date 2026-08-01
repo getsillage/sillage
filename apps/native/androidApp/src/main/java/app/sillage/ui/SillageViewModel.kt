@@ -423,12 +423,7 @@ class SillageViewModel(
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
-                askConversation = it.askConversation.clear(),
-                askComposer = it.askComposer.clearQuestion(),
-                askLoad = it.askLoad.cancel(),
-                askSession = it.askSession.advance(),
-                askSourceNavigation = it.askSourceNavigation.invalidate(),
-                askMemoSave = it.askMemoSave.invalidate(),
+                ask = it.ask.clearWorkspace(),
                 serverReturnScreen = null,
                 authError = null,
                 authErrorResourceId = null,
@@ -458,12 +453,7 @@ class SillageViewModel(
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
-                askConversation = it.askConversation.clear(),
-                askComposer = it.askComposer.clearQuestion(),
-                askLoad = it.askLoad.cancel(),
-                askSession = it.askSession.advance(),
-                askSourceNavigation = it.askSourceNavigation.invalidate(),
-                askMemoSave = it.askMemoSave.invalidate(),
+                ask = it.ask.clearWorkspace(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -550,12 +540,9 @@ class SillageViewModel(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
                 records = it.records.finishDetailSummary(),
-                askSession = if (it.askLoading || it.askSending || it.askVariantLoading) {
-                    it.askSession
-                } else {
-                    it.askSession.advance()
-                },
-                askSourceNavigation = it.askSourceNavigation.invalidate(),
+                ask = it.ask.enterScreen(
+                    requestInFlight = it.askLoading || it.askSending || it.askVariantLoading,
+                ),
                 error = null,
                 notice = null,
             )
@@ -879,13 +866,10 @@ class SillageViewModel(
                             ),
                             aiSettingsLoad = it.aiSettingsLoad.cancel(),
                             aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
-                            askConversation = it.askConversation.clear(),
-                            askComposer = it.askComposer.clearQuestion(),
-                            askLoad = it.askLoad.cancel(),
-                            askStream = it.askStream.invalidate(),
-                            askVariant = it.askVariant.invalidate(),
-                            askSourceNavigation = it.askSourceNavigation.invalidate(),
-                            askMemoSave = it.askMemoSave.invalidate(),
+                            ask = it.ask.clearWorkspace(
+                                invalidateStream = true,
+                                invalidateVariant = true,
+                            ),
                             loading = false,
                             screen = if (offlineMode) Screen.Memos else Screen.Login,
                             screenHistory = emptyList(),
@@ -1233,10 +1217,12 @@ class SillageViewModel(
                 ),
                 aiProfilesMutation = it.aiProfilesMutation.invalidate(result.aiProfiles),
                 aiAutoSummaryState = it.aiAutoSummaryState.replace(result.aiAutoSummary),
-                askConversation = it.askConversation.copy(
+                ask = it.ask.copy(
+                    conversation = it.ask.conversation.copy(
                         conversations = emptyList(),
                         messages = emptyList(),
                     ),
+                ),
                 notice = uiString(R.string.notice_imported),
             )
             }
@@ -2585,7 +2571,7 @@ class SillageViewModel(
             ) {
                 started = true
                 current.copy(
-                    askLoad = current.askLoad.begin(),
+                    ask = current.ask.beginConversationCatalogLoad(),
                     error = null,
                     notice = null,
                 )
@@ -2612,10 +2598,9 @@ class SillageViewModel(
                             current.clientContextGeneration == clientContextGeneration
                         ) {
                             current.copy(
-                                askConversation = current.askConversation.replaceConversations(
+                                ask = current.ask.completeConversationCatalog(
                                     conversations.filter(AskConversation::isActive),
                                 ),
-                                askLoad = current.askLoad.complete(),
                                 error = null,
                             )
                         } else {
@@ -2631,10 +2616,7 @@ class SillageViewModel(
                             current.clientContextGeneration == clientContextGeneration
                         ) {
                             val message = error.readableMessage()
-                            current.copy(
-                                askLoad = current.askLoad.fail(message),
-                                error = message,
-                            )
+                            current.copy(ask = current.ask.failConversationCatalogLoad(message), error = message)
                         } else {
                             current
                         }
@@ -2671,18 +2653,11 @@ class SillageViewModel(
             ) {
                 started = true
                 latest.copy(
-                    askConversation = latest.askConversation.select(
+                    ask = latest.ask.beginConversationLoad(
                         conversationId = id,
                         headMessageId = conversation?.headMessageId,
-                        messages = emptyList(),
+                        contextScope = conversation?.contextScope,
                     ),
-                    askComposer = conversation?.contextScope?.let(
-                        latest.askComposer::updateContextScope,
-                    ) ?: latest.askComposer,
-                    askLoad = latest.askLoad.begin(),
-                    askSession = latest.askSession.copy(generation = screenSessionId),
-                    askVariant = latest.askVariant.invalidate(),
-                    askSourceNavigation = latest.askSourceNavigation.invalidate(),
                     error = null,
                     notice = null,
                 )
@@ -2710,12 +2685,11 @@ class SillageViewModel(
                             latest.askScreenSessionId == screenSessionId
                         ) {
                             latest.copy(
-                                askConversation = latest.askConversation.select(
+                                ask = latest.ask.completeConversationLoad(
                                     conversationId = id,
                                     headMessageId = latest.askHeadId,
                                     messages = messages,
                                 ),
-                                askLoad = latest.askLoad.complete(),
                             )
                         } else {
                             latest
@@ -2731,10 +2705,7 @@ class SillageViewModel(
                             latest.askScreenSessionId == screenSessionId
                         ) {
                             val message = error.readableMessage()
-                            latest.copy(
-                                askLoad = latest.askLoad.fail(message),
-                                error = message,
-                            )
+                            latest.copy(ask = latest.ask.failConversationLoad(message), error = message)
                         } else {
                             latest
                         }
@@ -2754,12 +2725,7 @@ class SillageViewModel(
         }
         updateState {
             it.copy(
-                askConversation = it.askConversation.deselect(),
-                askComposer = it.askComposer.clearQuestion(),
-                askStream = it.askStream.clearPresentation(),
-                askSession = it.askSession.advance(),
-                askVariant = it.askVariant.invalidate(),
-                askSourceNavigation = it.askSourceNavigation.invalidate(),
+                ask = it.ask.startNewConversation(),
                 error = null,
                 notice = null,
             )
@@ -2767,15 +2733,15 @@ class SillageViewModel(
     }
 
     fun updateAskQuestion(value: String) {
-        updateState { it.copy(askComposer = it.askComposer.updateQuestion(value)) }
+        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateQuestion(value))) }
     }
 
     fun updateAskScope(value: String) {
-        updateState { it.copy(askComposer = it.askComposer.updateContextScope(value)) }
+        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateContextScope(value))) }
     }
 
     fun updateAskSourceKind(value: String) {
-        updateState { it.copy(askComposer = it.askComposer.updateSourceKind(value)) }
+        updateState { it.copy(ask = it.ask.copy(composer = it.ask.composer.updateSourceKind(value))) }
     }
 
     fun retryAskLoad() {
@@ -2825,11 +2791,13 @@ class SillageViewModel(
                 val variant = it.askVariant.begin(request, it.askVariantContext())
                     ?: return@updateState it
                 it.copy(
-                    askConversation = it.askConversation.moveHead(
+                    ask = it.ask.copy(
+                        conversation = it.ask.conversation.moveHead(
                         request.conversationId,
                         leafId,
                     ),
-                    askVariant = variant,
+                        variant = variant,
+                    ),
                     error = null,
                     notice = null,
                 )
@@ -2969,8 +2937,10 @@ class SillageViewModel(
                                     summary = detail.ai,
                                     filter = current.memoListFilter,
                                 ),
-                                askSourceNavigation = current.askSourceNavigation.finish(request)
+                                ask = current.ask.copy(
+                                    sourceNavigation = current.ask.sourceNavigation.finish(request)
                                     ?: return@updateState current,
+                                ),
                             )
                         }
                     }
@@ -3212,7 +3182,7 @@ class SillageViewModel(
 
     private fun cancelAskVariant() {
         updateState {
-            it.copy(askVariant = it.askVariant.invalidate())
+            it.copy(ask = it.ask.copy(variant = it.ask.variant.invalidate()))
         }
     }
 
@@ -3222,11 +3192,13 @@ class SillageViewModel(
                 val variant = current.askVariant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.copy(
-                    askConversation = current.askConversation.moveHead(
+                    ask = current.ask.copy(
+                        conversation = current.ask.conversation.moveHead(
                         request.conversationId,
                         leafId,
                     ),
-                    askVariant = variant,
+                        variant = variant,
+                    ),
                     notice = null,
                 )
             } else {
@@ -3245,11 +3217,13 @@ class SillageViewModel(
                 val variant = current.askVariant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.copy(
-                    askConversation = current.askConversation.moveHead(
+                    ask = current.ask.copy(
+                        conversation = current.ask.conversation.moveHead(
                         request.conversationId,
                         previousHeadId,
                     ),
-                    askVariant = variant,
+                        variant = variant,
+                    ),
                     error = error.readableMessage(),
                     notice = null,
                 )
@@ -3263,14 +3237,14 @@ class SillageViewModel(
         askStreamJob?.cancel()
         askStreamJob = null
         updateState {
-            it.copy(askStream = it.askStream.invalidate())
+            it.copy(ask = it.ask.copy(stream = it.ask.stream.invalidate()))
         }
     }
 
     private fun invalidateAskMemoSaveNavigation() {
         updateState {
             if (it.askSavingMessageId.isNotBlank()) {
-                    it.copy(askSession = it.askSession.advance())
+                    it.copy(ask = it.ask.copy(session = it.ask.session.advance()))
             } else {
                 it
             }
@@ -3575,7 +3549,7 @@ class SillageViewModel(
                     regeneratingMessageId = regeneratingId,
                 ) ?: return@updateState it
                 it.copy(
-                    askStream = stream,
+                    ask = it.ask.copy(stream = stream),
                     error = null,
                     notice = null,
                 )
@@ -3610,7 +3584,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                askConversation = currentState.askConversation.activate(created),
+                                ask = currentState.ask.copy(conversation = currentState.ask.conversation.activate(created)),
                             )
                         } else {
                             currentState
@@ -3635,8 +3609,10 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                        askStream = currentState.askStream.startStreaming(
+                                        ask = currentState.ask.copy(
+                                            stream = currentState.ask.stream.startStreaming(
                                             if (event.regenerating) null else event.userMessage,
+                                        ),
                                         ),
                                     )
                             } else {
@@ -3648,7 +3624,7 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                            askStream = currentState.askStream.appendDelta(event.text),
+                                        ask = currentState.ask.copy(stream = currentState.ask.stream.appendDelta(event.text)),
                                     )
                             } else {
                                 currentState
@@ -3691,11 +3667,13 @@ class SillageViewModel(
                                             previousHeadId = previousHeadId,
                                         )
                                         currentState.copy(
-                                            askConversation = currentState.askConversation.replaceSnapshot(
+                                            ask = currentState.ask.copy(
+                                                conversation = currentState.ask.conversation.replaceSnapshot(
                                                 conversationId = request.conversationId,
                                                 conversations = snapshot.conversations,
                                                 headMessageId = snapshot.headId,
                                                 messages = snapshot.messages,
+                                            ),
                                             ),
                                         )
                                     } else {
@@ -3742,7 +3720,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                askConversation = currentState.askConversation.activate(created),
+                                ask = currentState.ask.copy(conversation = currentState.ask.conversation.activate(created)),
                             )
                         } else {
                             currentState
@@ -3802,17 +3780,19 @@ class SillageViewModel(
                             previousHeadId = previousHeadId,
                         )
                         currentState.copy(
-                            askConversation = currentState.askConversation.replaceSnapshot(
+                            ask = currentState.ask.copy(
+                                conversation = currentState.ask.conversation.replaceSnapshot(
                                 conversationId = request.conversationId,
                                 conversations = conversations,
                                 headMessageId = refreshedHeadId,
                                 messages = refreshedMessages,
                             ),
-                            askComposer = if (forkOfId == null) {
-                                currentState.askComposer.clearQuestion()
+                                composer = if (forkOfId == null) {
+                                currentState.ask.composer.clearQuestion()
                             } else {
-                                currentState.askComposer
+                                currentState.ask.composer
                             },
+                            ),
                         )
                     } else {
                         currentState
@@ -3980,12 +3960,7 @@ class SillageViewModel(
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
                 aiSettingsLoad = it.aiSettingsLoad.cancel(),
                 aiProfileDiagnostics = it.aiProfileDiagnostics.reset(),
-                askConversation = it.askConversation.clear(),
-                askComposer = it.askComposer.clearQuestion(),
-                askLoad = it.askLoad.cancel(),
-                askSession = it.askSession.advance(),
-                askSourceNavigation = it.askSourceNavigation.invalidate(),
-                askMemoSave = it.askMemoSave.invalidate(),
+                ask = it.ask.clearWorkspace(),
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
                 authError = null,

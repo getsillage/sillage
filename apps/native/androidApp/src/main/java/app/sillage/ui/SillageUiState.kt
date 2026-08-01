@@ -5,6 +5,7 @@ import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskComposerStateHolder
+import app.sillage.features.ask.AskFeatureStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
@@ -107,14 +108,7 @@ data class SillageUiState(
     val aiSettingsLoad: AISettingsLoadStateHolder = AISettingsLoadStateHolder(),
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder = AIProfileDiagnosticsStateHolder(),
     val authentication: AuthenticationStateHolder = AuthenticationStateHolder(),
-    val askConversation: AskConversationStateHolder = AskConversationStateHolder(),
-    val askComposer: AskComposerStateHolder = AskComposerStateHolder(),
-    val askLoad: AskLoadStateHolder = AskLoadStateHolder(),
-    val askStream: AskStreamStateHolder = AskStreamStateHolder(),
-    val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
-    val askSession: AskSessionStateHolder = AskSessionStateHolder(),
-    val askSourceNavigation: AskSourceNavigationStateHolder = AskSourceNavigationStateHolder(),
-    val askMemoSave: AskMemoSaveStateHolder = AskMemoSaveStateHolder(),
+    val ask: AskFeatureStateHolder = AskFeatureStateHolder(),
     val loading: Boolean = false,
     val authError: String? = null,
     val authErrorResourceId: Int? = null,
@@ -124,7 +118,8 @@ data class SillageUiState(
     val syncConflictState: MemoSyncConflictStateHolder = MemoSyncConflictStateHolder(),
 ) {
     // Transitional slice accessors while hosts finish moving writes onto the
-    // aggregate records holder. Prefer `records` for new coordinated transitions.
+    // aggregate records/ask holders. Prefer `records` / `ask` for coordinated
+    // transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsPagination: RecordsPaginationStateHolder get() = records.pagination
     val recordsRefresh: RecordsRefreshStateHolder get() = records.refresh
@@ -135,6 +130,14 @@ data class SillageUiState(
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
+    val askConversation: AskConversationStateHolder get() = ask.conversation
+    val askComposer: AskComposerStateHolder get() = ask.composer
+    val askLoad: AskLoadStateHolder get() = ask.load
+    val askStream: AskStreamStateHolder get() = ask.stream
+    val askVariant: AskVariantStateHolder get() = ask.variant
+    val askSession: AskSessionStateHolder get() = ask.session
+    val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
+    val askMemoSave: AskMemoSaveStateHolder get() = ask.memoSave
 
     val memoNextCursor: String get() = records.pagination.nextCursor
     val memos: List<Memo> get() = records.collection.records
@@ -170,29 +173,29 @@ data class SillageUiState(
     val openingAttachmentPath: String? get() = records.attachmentOpen.path
     val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
     val syncConflicts: List<MemoSyncConflictItem> get() = syncConflictState.items
-    val askConversations: List<AskConversation> get() = askConversation.conversations
-    val activeAskId: String get() = askConversation.activeConversationId
-    val askHeadId: String? get() = askConversation.headMessageId
-    val askMessages: List<AskMessage> get() = askConversation.messages
-    val askVariantRequestId: Long get() = askVariant.requestId
-    val askVariantLoading: Boolean get() = askVariant.loading
-    val askMemoSaveRequestId: Long get() = askMemoSave.requestId
-    val askSavingMessageId: String get() = askMemoSave.savingMessageId
-    val askSourceRequestId: Long get() = askSourceNavigation.requestId
-    val askSourceLoading: Boolean get() = askSourceNavigation.loading
-    val askSending: Boolean get() = askStream.sending
-    val askStreaming: Boolean get() = askStream.streaming
-    val askStreamRequestId: Long get() = askStream.requestId
-    val askCompletionEventId: Long get() = askStream.completionEventId
-    val askRegeneratingId: String get() = askStream.regeneratingMessageId
-    val askLiveUser: AskMessage? get() = askStream.liveUser
-    val askLiveAnswer: String get() = askStream.liveAnswer
-    val askLoading: Boolean get() = askLoad.loading
-    val askLoadError: String? get() = askLoad.errorMessage
-    val askQuestion: String get() = askComposer.question
-    val askScope: String get() = askComposer.contextScope
-    val askSourceKind: String get() = askComposer.sourceKind
-    val askScreenSessionId: Long get() = askSession.generation
+    val askConversations: List<AskConversation> get() = ask.conversations
+    val activeAskId: String get() = ask.activeConversationId
+    val askHeadId: String? get() = ask.headMessageId
+    val askMessages: List<AskMessage> get() = ask.messages
+    val askVariantRequestId: Long get() = ask.variant.requestId
+    val askVariantLoading: Boolean get() = ask.variantLoading
+    val askMemoSaveRequestId: Long get() = ask.memoSave.requestId
+    val askSavingMessageId: String get() = ask.savingMessageId
+    val askSourceRequestId: Long get() = ask.sourceNavigation.requestId
+    val askSourceLoading: Boolean get() = ask.sourceLoading
+    val askSending: Boolean get() = ask.sending
+    val askStreaming: Boolean get() = ask.streaming
+    val askStreamRequestId: Long get() = ask.stream.requestId
+    val askCompletionEventId: Long get() = ask.stream.completionEventId
+    val askRegeneratingId: String get() = ask.stream.regeneratingMessageId
+    val askLiveUser: AskMessage? get() = ask.stream.liveUser
+    val askLiveAnswer: String get() = ask.stream.liveAnswer
+    val askLoading: Boolean get() = ask.loading
+    val askLoadError: String? get() = ask.loadErrorMessage
+    val askQuestion: String get() = ask.question
+    val askScope: String get() = ask.contextScope
+    val askSourceKind: String get() = ask.sourceKind
+    val askScreenSessionId: Long get() = ask.screenSessionId
     val aiAutoSummary: Boolean get() = aiAutoSummaryState.enabled
     val aiAutoSummarySaving: Boolean get() = aiAutoSummaryState.saving
     val aiAutoSummaryRequestId: Long get() = aiAutoSummaryState.requestId
@@ -218,6 +221,11 @@ data class SillageUiState(
 internal inline fun SillageUiState.withRecords(
     transform: (RecordsFeatureStateHolder) -> RecordsFeatureStateHolder,
 ): SillageUiState = copy(records = transform(records))
+
+/** Applies a pure Ask-feature transition without touching host-only fields. */
+internal inline fun SillageUiState.withAsk(
+    transform: (AskFeatureStateHolder) -> AskFeatureStateHolder,
+): SillageUiState = copy(ask = transform(ask))
 
 /**
  * UI model for one push conflict: local pending content plus the server resource.
@@ -884,12 +892,14 @@ internal fun SillageUiState.finishAskStream(
 ): SillageUiState {
     val completed = answerAvailable && error == null && notice == null
     return copy(
-        askComposer = if (clearQuestion && error == null) {
-            askComposer.clearQuestion()
+        ask = ask.copy(
+            composer = if (clearQuestion && error == null) {
+            ask.composer.clearQuestion()
         } else {
-            askComposer
+            ask.composer
         },
-        askStream = askStream.finish(answerCompleted = completed),
+            stream = ask.stream.finish(answerCompleted = completed),
+        ),
     )
 }
 
@@ -946,7 +956,7 @@ internal fun SillageUiState.nextAskMemoSaveRequest(
 internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
     val pending = askMemoSave.begin(request, askMemoSaveContext()) ?: return this
     return copy(
-        askMemoSave = pending,
+        ask = ask.copy(memoSave = pending),
         error = null,
         notice = null,
     )
@@ -958,7 +968,7 @@ internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Bo
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
     val finished = askMemoSave.finish(request) ?: return this
-    return copy(askMemoSave = finished)
+    return copy(ask = ask.copy(memoSave = finished))
 }
 
 internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationContext =
@@ -991,7 +1001,7 @@ internal fun SillageUiState.startAskSourceNavigation(
     val pending = askSourceNavigation.begin(request, askSourceNavigationContext())
         ?: return this
     return copy(
-        askSourceNavigation = pending,
+        ask = ask.copy(sourceNavigation = pending),
         error = null,
         notice = null,
     )
@@ -1001,7 +1011,7 @@ internal fun SillageUiState.finishAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
     val finished = askSourceNavigation.finish(request) ?: return this
-    return copy(askSourceNavigation = finished)
+    return copy(ask = ask.copy(sourceNavigation = finished))
 }
 
 internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {

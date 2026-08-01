@@ -194,7 +194,9 @@ class SillageUiStateTest {
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
-            idle.copy(askMemoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1"))
+            idle.copy(
+                ask = idle.ask.copy(memoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1")),
+            )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
@@ -253,15 +255,17 @@ class SillageUiStateTest {
 
     @Test
     fun stoppingAskKeepsGeneratedContentAndAddsFeedback() {
-        val streaming = editorState().copy(
+        val streaming = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askStream = AskStreamStateHolder(
+            ask = base.ask.copy(
+                stream = AskStreamStateHolder(
                 sending = true,
                 streaming = true,
                 liveAnswer = "已生成的部分",
             ),
+            ),
             error = "旧错误",
-        )
+        ) }
 
         val stopped = streaming.withAskStreamingStoppedNotice("已停止生成")
 
@@ -954,14 +958,16 @@ class SillageUiStateTest {
     fun askMemoSaveIsSingleFlightAcrossMessages() {
         val firstAnswer = askMessage(id = "answer-1", content = "第一条回答")
         val secondAnswer = askMessage(id = "answer-2", content = "第二条回答")
-        val idle = editorState().copy(
+        val idle = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askConversation = AskConversationStateHolder(
+            ask = base.ask.copy(
+                conversation = AskConversationStateHolder(
                 activeConversationId = "conversation-1",
                 headMessageId = firstAnswer.id,
                 messages = listOf(firstAnswer, secondAnswer),
             ),
-        )
+            ),
+        ) }
         val request = requireNotNull(
             idle.nextAskMemoSaveRequest(firstAnswer, memoContent = "第一条回答"),
         )
@@ -985,15 +991,17 @@ class SillageUiStateTest {
     @Test
     fun lateAskMemoSaveCannotApplyButStillClearsItsBusyState() {
         val answer = askMessage(id = "answer-1", content = "原回答")
-        val idle = editorState().copy(
+        val idle = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askConversation = AskConversationStateHolder(
+            ask = base.ask.copy(
+                conversation = AskConversationStateHolder(
                 activeConversationId = "conversation-1",
                 headMessageId = answer.id,
                 messages = listOf(answer),
             ),
-            askSession = AskSessionStateHolder(generation = 4),
-        )
+                session = AskSessionStateHolder(generation = 4),
+            ),
+        ) }
         val request = requireNotNull(
             idle.nextAskMemoSaveRequest(answer, memoContent = "保存内容"),
         )
@@ -1019,12 +1027,14 @@ class SillageUiStateTest {
 
     @Test
     fun askStreamCallbacksRequireOriginalConversationAndSession() {
-        val state = editorState().copy(
+        val state = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askSession = AskSessionStateHolder(generation = 3),
-            askStream = AskStreamStateHolder(requestId = 8),
-        )
+            ask = base.ask.copy(
+                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                session = AskSessionStateHolder(generation = 3),
+                stream = AskStreamStateHolder(requestId = 8),
+            ),
+        ) }
         val request = requireNotNull(state.nextAskStreamRequest())
         val pending = state.withAskStream(sending = true, requestId = request.requestId)
 
@@ -1051,12 +1061,14 @@ class SillageUiStateTest {
 
     @Test
     fun askVariantCallbacksRequireOriginalRequestConversationSessionAndMode() {
-        val state = editorState().copy(
+        val state = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askSession = AskSessionStateHolder(generation = 3),
-            askVariant = AskVariantStateHolder(requestId = 8),
-        )
+            ask = base.ask.copy(
+                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                session = AskSessionStateHolder(generation = 3),
+                variant = AskVariantStateHolder(requestId = 8),
+            ),
+        ) }
         val request = requireNotNull(state.nextAskVariantRequest())
         val pending = state.withAskVariant(requestId = request.requestId, loading = true)
 
@@ -1081,10 +1093,10 @@ class SillageUiStateTest {
 
     @Test
     fun askVariantRequestCannotStartOutsideAnIdleAskConversation() {
-        val ask = editorState().copy(
+        val ask = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-        )
+            ask = base.ask.copy(conversation = AskConversationStateHolder(activeConversationId = "conversation-1")),
+        ) }
 
         assertEquals(1L, ask.nextAskVariantRequest()?.requestId)
         assertEquals(null, ask.withAskConversation(activeConversationId = "").nextAskVariantRequest())
@@ -1097,13 +1109,15 @@ class SillageUiStateTest {
 
     @Test
     fun askSourceNavigationRequiresOriginalRequestScreenAndSession() {
-        val origin = editorState().copy(
+        val origin = editorState().let { base -> base.copy(
             screen = Screen.Ask,
             screenHistory = emptyList(),
-            askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-            askSession = AskSessionStateHolder(generation = 4),
-            askSourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
-        )
+            ask = base.ask.copy(
+                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                session = AskSessionStateHolder(generation = 4),
+                sourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
+            ),
+        ) }
         val request = requireNotNull(origin.nextAskSourceNavigationRequest("memo-1"))
         val pending = origin.withAskSourceNavigation(
             requestId = request.requestId,
@@ -1172,10 +1186,11 @@ class SillageUiStateTest {
 
     @Test
     fun onlyAvailableSuccessfulAskAnswersEmitCompletionEvents() {
-        val pending = editorState().copy(
+        val pending = editorState().let { base -> base.copy(
             screen = Screen.Ask,
-            askComposer = AskComposerStateHolder(question = "问题"),
-            askStream = AskStreamStateHolder(
+            ask = base.ask.copy(
+                composer = AskComposerStateHolder(question = "问题"),
+                stream = AskStreamStateHolder(
                 sending = true,
                 streaming = true,
                 regeneratingMessageId = "answer-1",
@@ -1183,7 +1198,8 @@ class SillageUiStateTest {
                 liveAnswer = "回答",
                 completionEventId = 4,
             ),
-        )
+            ),
+        ) }
 
         val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
         assertFalse(completed.askSending)
@@ -1261,49 +1277,51 @@ class SillageUiStateTest {
         activeConversationId: String = activeAskId,
         headMessageId: String? = askHeadId,
         messages: List<AskMessage> = askMessages,
-    ): SillageUiState = copy(
-        askConversation = askConversation.copy(
+    ): SillageUiState = copy(ask = ask.copy(
+            conversation = ask.conversation.copy(
             activeConversationId = activeConversationId,
             headMessageId = headMessageId,
             messages = messages,
+        ),
         ),
     )
 
     private fun SillageUiState.withAskLoad(
         loading: Boolean = askLoading,
         errorMessage: String? = askLoadError,
-    ): SillageUiState = copy(
-        askLoad = AskLoadStateHolder(
+    ): SillageUiState = copy(ask = ask.copy(
+            load = AskLoadStateHolder(
             loading = loading,
             errorMessage = errorMessage,
+        ),
         ),
     )
 
     private fun SillageUiState.withAskVariant(
         requestId: Long = askVariantRequestId,
         loading: Boolean = askVariantLoading,
-    ): SillageUiState = copy(
-        askVariant = AskVariantStateHolder(
+    ): SillageUiState = copy(ask = ask.copy(
+            variant = AskVariantStateHolder(
             requestId = requestId,
             loading = loading,
+        ),
         ),
     )
 
     private fun SillageUiState.withAskSourceNavigation(
         requestId: Long = askSourceRequestId,
         loading: Boolean = askSourceLoading,
-    ): SillageUiState = copy(
-        askSourceNavigation = AskSourceNavigationStateHolder(
+    ): SillageUiState = copy(ask = ask.copy(
+            sourceNavigation = AskSourceNavigationStateHolder(
             requestId = requestId,
             loading = loading,
+        ),
         ),
     )
 
     private fun SillageUiState.withAskSession(
         generation: Long,
-    ): SillageUiState = copy(
-        askSession = AskSessionStateHolder(generation = generation),
-    )
+    ): SillageUiState = copy(ask = ask.copy(session = AskSessionStateHolder(generation = generation)))
 
     private fun SillageUiState.withAskStream(
         sending: Boolean = askSending,
@@ -1313,8 +1331,8 @@ class SillageUiStateTest {
         regeneratingMessageId: String = askRegeneratingId,
         liveUser: AskMessage? = askLiveUser,
         liveAnswer: String = askLiveAnswer,
-    ): SillageUiState = copy(
-        askStream = AskStreamStateHolder(
+    ): SillageUiState = copy(ask = ask.copy(
+            stream = AskStreamStateHolder(
             sending = sending,
             streaming = streaming,
             requestId = requestId,
@@ -1322,6 +1340,7 @@ class SillageUiStateTest {
             regeneratingMessageId = regeneratingMessageId,
             liveUser = liveUser,
             liveAnswer = liveAnswer,
+        ),
         ),
     )
 

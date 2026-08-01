@@ -6,6 +6,12 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
+typealias AIProfile = app.sillage.core.domain.settings.AIProfile
+typealias AISettings = app.sillage.core.domain.settings.AISettings
+typealias AskConversation = app.sillage.core.domain.ask.AskConversation
+typealias AskSourceRef = app.sillage.core.domain.ask.AskSourceRef
+typealias AskMessage = app.sillage.core.domain.ask.AskMessage
+
 data class Account(
     val id: String,
     val username: String,
@@ -46,28 +52,6 @@ data class AttachmentUpload(
     val bytes: ByteArray,
 )
 
-data class AIProfile(
-    val id: String,
-    val name: String,
-    val provider: String,
-    val baseUrl: String,
-    val model: String,
-    val temperature: Double,
-    val maxTokens: Long,
-    val enabled: Boolean,
-    val active: Boolean,
-    val hasApiKey: Boolean,
-    val keyUnavailable: Boolean,
-    val autoSummary: Boolean,
-    val createdAt: String,
-    val updatedAt: String,
-)
-
-data class AISettings(
-    val profiles: List<AIProfile>,
-    val autoSummary: Boolean,
-)
-
 data class AIProfileDraft(
     val id: String = "",
     // Stable editor identity for unsaved profiles. Manual JSON/API mappings
@@ -101,44 +85,6 @@ data class AIProfileInput(
     val enabled: Boolean,
     val active: Boolean,
     val apiKey: String?,
-)
-
-data class AskConversation(
-    val id: String,
-    val title: String,
-    val status: String,
-    val contextScope: String,
-    val headMessageId: String?,
-    val pinnedAt: String?,
-    val archivedAt: String?,
-    val createdAt: String,
-    val updatedAt: String,
-    val deletedAt: String?,
-)
-
-fun AskConversation.isActive(): Boolean = archivedAt == null && deletedAt == null
-
-data class AskSourceRef(
-    val memoId: String,
-    val entryDate: String,
-    val excerpt: String,
-    val rank: Int,
-)
-
-data class AskMessage(
-    val id: String,
-    val conversationId: String,
-    val role: String,
-    val content: String,
-    val parentId: String?,
-    val forkOfId: String?,
-    val status: String,
-    val sourceRefs: List<AskSourceRef>,
-    val model: String,
-    val promptVersion: String,
-    val createdAt: String,
-    val updatedAt: String,
-    val deletedAt: String?,
 )
 
 data class AskPathEntry(

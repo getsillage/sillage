@@ -4,6 +4,7 @@ import android.content.Context
 import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.core.domain.ask.isActive
 import app.sillage.core.sync.AppliedMemoSync
 import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.sync.PendingMemoSync

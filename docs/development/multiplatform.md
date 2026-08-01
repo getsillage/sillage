@@ -209,6 +209,10 @@ first slice moves the record entity and its active-lifecycle policy into
 Compose UI all use that shared type. Platform or transport models must not
 reintroduce another record entity.
 
+Ask conversation/message/source-reference values and secret-free AI settings
+metadata follow the same rule. Platform hosts may keep UI drafts, API inputs,
+codecs, and secure-key persistence, but must consume the shared domain values.
+
 ## Verification
 
 Shared domain and synchronization modules require common unit tests and

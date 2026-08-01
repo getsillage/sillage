@@ -105,6 +105,10 @@ directly; `data/Models.kt` no longer defines Android-only record or AI-detail
 entities. Remaining Android-local models are migration sources for later domain,
 application, or feature slices.
 
+Ask conversation/message/source-reference values and secret-free AI settings
+metadata also live in `kmp-core:domain`. Android retains temporary data-package
+type aliases while transport, persistence, and feature call sites migrate.
+
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
 Android's `LocalRecordsRepository` adapts `LocalDataStore` to that port. Shared

@@ -1,5 +1,7 @@
 package app.sillage.data
 
+import app.sillage.core.domain.ask.isActive
+
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.isActive
 import app.sillage.features.records.MemoListFilter

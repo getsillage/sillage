@@ -61,7 +61,7 @@ import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.firstBlankAIProfileNameIndex
-import app.sillage.data.isActive
+import app.sillage.core.domain.ask.isActive
 import app.sillage.data.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
 import app.sillage.data.localAttachmentPath

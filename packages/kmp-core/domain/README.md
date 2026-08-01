@@ -13,3 +13,7 @@ archived, recoverably deleted, and purged records from active-domain behavior.
 `records.MemoAI` carries platform-neutral AI-derived record metadata. Android
 transport and persistence mappings construct these shared types rather than
 maintaining application-local copies.
+
+`ask` owns conversation, message, and source-reference values. `settings` owns
+secret-free AI profile and settings metadata. UI drafts, API inputs, codecs, and
+secret persistence remain outside the domain module.

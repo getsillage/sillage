@@ -449,6 +449,17 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootSyncConflictTransitionsPreserveHostState() {
+        val state = editorState().copy(error = "keep")
+
+        val cleared = state.replaceSyncConflicts(emptyList())
+
+        assertTrue(cleared.syncConflicts.isEmpty())
+        assertEquals("keep", cleared.error)
+        assertEquals(state.screen, cleared.screen)
+    }
+
+    @Test
     fun rootAuthDraftTransitionsPreserveHostState() {
         val state = editorState().copy(authError = "keep")
 

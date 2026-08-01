@@ -293,6 +293,22 @@ internal inline fun SillageUiState.withSync(
     transform: (SyncFeatureStateHolder) -> SyncFeatureStateHolder,
 ): SillageUiState = copy(sync = transform(sync))
 
+internal fun SillageUiState.applySyncPushConflicts(
+    items: List<MemoSyncConflictItem>,
+): SillageUiState {
+    return withSync { it.applyPushConflicts(items) }
+}
+
+internal fun SillageUiState.removeSyncConflict(resourceId: String): SillageUiState {
+    return withSync { it.removeConflict(resourceId) }
+}
+
+internal fun SillageUiState.replaceSyncConflicts(
+    items: List<MemoSyncConflictItem>,
+): SillageUiState {
+    return withSync { it.replaceConflicts(items) }
+}
+
 /** Applies a pure auth-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withAuth(
     transform: (AuthFeatureStateHolder) -> AuthFeatureStateHolder,

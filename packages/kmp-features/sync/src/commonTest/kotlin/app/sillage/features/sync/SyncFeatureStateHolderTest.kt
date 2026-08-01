@@ -35,6 +35,17 @@ class SyncFeatureStateHolderTest {
         assertEquals("b", removed.findConflict("b")?.conflict?.resourceId)
     }
 
+    @Test
+    fun replaceConflictsCanClearAggregatePresentation() {
+        val state = SyncFeatureStateHolder(
+            conflicts = MemoSyncConflictStateHolder(items = listOf(item("a"))),
+        )
+
+        val cleared = state.replaceConflicts(emptyList())
+
+        assertEquals(emptyList(), cleared.items)
+    }
+
     private fun item(id: String): MemoSyncConflictItem {
         val server = Memo(
             id = id,

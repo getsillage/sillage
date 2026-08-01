@@ -313,6 +313,8 @@ are platform-independent.
 `SyncFeatureStateHolder` / `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns the explicit keep-local/take-server
 command workflow. Android stores one `sync` aggregate on root UI state.
+Push-result application, conflict dismissal, and conflict-list replacement pass
+through root `withSync` thin wrappers.
 Platform hosts retain confirmation UI and implement the transactional repository
 port without duplicating conflict policy.
 

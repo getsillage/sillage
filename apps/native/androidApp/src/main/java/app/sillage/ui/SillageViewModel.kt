@@ -1241,12 +1241,11 @@ class SillageViewModel(
             val pulled = result.pull
             val warnAiSettings = !pulled.aiSettingsAvailable
             val conflicts = conflictItemsFromSummary(push)
-            updateState(
-                noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
-            ) {
-                it.copy(
-                    sync = it.sync.applyPushConflicts(conflicts),
-                    notice = if (warnAiSettings) {
+        updateState(
+            noticeType = if (warnAiSettings) UiToastType.WARNING else syncPushToastType(push),
+        ) {
+            it.applySyncPushConflicts(conflicts).copy(
+                notice = if (warnAiSettings) {
                         uiString(R.string.error_sync_ai_settings_failed)
                     } else {
                         uiString(R.string.notice_sync_both, syncPushNotice(push))
@@ -1266,11 +1265,10 @@ class SillageViewModel(
                         ResolveMemoSyncConflictCommand.KeepLocal(item.conflict),
                     )
                 }
-            }.onSuccess {
-                updateState(noticeType = UiToastType.SUCCESS) {
-                    it.copy(
-                        sync = it.sync.removeConflict(resourceId),
-                        notice = uiString(R.string.notice_conflict_keep_local),
+        }.onSuccess {
+            updateState(noticeType = UiToastType.SUCCESS) {
+                it.removeSyncConflict(resourceId).copy(
+                    notice = uiString(R.string.notice_conflict_keep_local),
                     )
                 }
             }.onFailure { error ->
@@ -1305,11 +1303,7 @@ class SillageViewModel(
     }
 
     fun dismissSyncConflict(resourceId: String) {
-        updateState {
-            it.copy(
-                sync = it.sync.removeConflict(resourceId),
-            )
-        }
+        updateState { it.removeSyncConflict(resourceId) }
     }
 
     // Single-flight wrapper for full-data operations (sync/import/export) so a
@@ -3270,11 +3264,10 @@ class SillageViewModel(
     }
 
     private fun presentSyncPushResult(summary: SyncPushSummary) {
-        val conflicts = conflictItemsFromSummary(summary)
-        updateState(noticeType = syncPushToastType(summary)) {
-            it.copy(
-                sync = it.sync.replaceConflicts(conflicts),
-                notice = syncPushNotice(summary),
+    val conflicts = conflictItemsFromSummary(summary)
+    updateState(noticeType = syncPushToastType(summary)) {
+        it.replaceSyncConflicts(conflicts).copy(
+            notice = syncPushNotice(summary),
             )
         }
     }

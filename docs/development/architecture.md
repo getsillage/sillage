@@ -334,6 +334,8 @@ results through the transactional outbox. `kmp-features:sync` owns pending confl
 `SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
 stores one `sync` aggregate with a transitional conflict-state getter. Platform
+root-state writes for push results, conflict dismissal, and conflict-list
+replacement pass through `withSync` thin wrappers. Platform
 hosts retain confirmation UI and implement the transactional conflict repository
 adapter.
 

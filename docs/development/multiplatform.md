@@ -93,6 +93,10 @@ application port.
 keys and rejects source-record responses after navigation, conversation, source,
 or client context changes. Platform hosts map the stable keys to their own
 navigation types.
+`AskStreamStateHolder` owns generation single-flight identity, transient live
+messages, regeneration identity, and completion events. SSE parsing and
+device-local model execution remain platform adapters that may update the holder
+only while its captured conversation and client context match.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

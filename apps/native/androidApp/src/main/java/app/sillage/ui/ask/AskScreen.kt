@@ -317,9 +317,9 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             onOpenAttachment = viewModel::openProtectedAttachment,
                         )
                     }
-                    if (state.askLiveUser != null) {
+                    state.askLiveUser?.let { liveUser ->
                         item {
-                            AskLiveUserCard(state.askLiveUser)
+                            AskLiveUserCard(liveUser)
                         }
                     }
                     if (state.askSending && state.askRegeneratingId.isBlank()) {

@@ -5,6 +5,7 @@ import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationStateHolder
+import app.sillage.features.ask.AskStreamStateHolder
 import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
@@ -223,9 +224,11 @@ class SillageUiStateTest {
     fun stoppingAskKeepsGeneratedContentAndAddsFeedback() {
         val streaming = editorState().copy(
             screen = Screen.Ask,
-            askSending = true,
-            askStreaming = true,
-            askLiveAnswer = "已生成的部分",
+            askStream = AskStreamStateHolder(
+                sending = true,
+                streaming = true,
+                liveAnswer = "已生成的部分",
+            ),
             error = "旧错误",
         )
 
@@ -236,7 +239,7 @@ class SillageUiStateTest {
         assertTrue(stopped.askStreaming)
         assertEquals(null, stopped.error)
         assertEquals("已停止生成", stopped.notice)
-        val idle = streaming.copy(askSending = false)
+        val idle = streaming.withAskStream(sending = false)
         assertEquals(idle, idle.withAskStreamingStoppedNotice("已停止生成"))
     }
 
@@ -940,13 +943,10 @@ class SillageUiStateTest {
             screen = Screen.Ask,
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 3,
-            askStreamRequestId = 8,
+            askStream = AskStreamStateHolder(requestId = 8),
         )
         val request = requireNotNull(state.nextAskStreamRequest())
-        val pending = state.copy(
-            askSending = true,
-            askStreamRequestId = request.requestId,
-        )
+        val pending = state.withAskStream(sending = true, requestId = request.requestId)
 
         assertTrue(pending.canApplyAskStream(request))
         assertEquals(null, pending.nextAskStreamRequest())
@@ -955,13 +955,16 @@ class SillageUiStateTest {
                 .canApplyAskStream(request),
         )
         assertFalse(pending.copy(askScreenSessionId = 4).canApplyAskStream(request))
-        assertFalse(pending.copy(askStreamRequestId = request.requestId + 1).canApplyAskStream(request))
+        assertFalse(
+            pending.withAskStream(requestId = request.requestId + 1)
+                .canApplyAskStream(request),
+        )
         assertFalse(pending.copy(appMode = SessionStore.MODE_OFFLINE).canApplyAskStream(request))
         assertFalse(
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
                 .canApplyAskStream(request),
         )
-        assertFalse(pending.copy(askSending = false).canApplyAskStream(request))
+        assertFalse(pending.withAskStream(sending = false).canApplyAskStream(request))
         assertEquals(null, state.copy(askLoading = true).nextAskStreamRequest())
         assertEquals(null, state.withAskVariant(loading = true).nextAskStreamRequest())
     }
@@ -1007,7 +1010,7 @@ class SillageUiStateTest {
         assertEquals(null, ask.withAskConversation(activeConversationId = "").nextAskVariantRequest())
         assertEquals(null, ask.copy(screen = Screen.Memos).nextAskVariantRequest())
         assertEquals(null, ask.copy(askLoading = true).nextAskVariantRequest())
-        assertEquals(null, ask.copy(askSending = true).nextAskVariantRequest())
+        assertEquals(null, ask.withAskStream(sending = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskVariant(loading = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskSourceNavigation(loading = true).nextAskVariantRequest())
     }
@@ -1054,7 +1057,7 @@ class SillageUiStateTest {
         assertEquals(null, ask.nextAskSourceNavigationRequest(""))
         assertEquals(null, ask.copy(screen = Screen.AISettings).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.copy(loading = true).nextAskSourceNavigationRequest("memo-1"))
-        assertEquals(null, ask.copy(askSending = true).nextAskSourceNavigationRequest("memo-1"))
+        assertEquals(null, ask.withAskStream(sending = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.withAskVariant(loading = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(
             null,
@@ -1092,12 +1095,14 @@ class SillageUiStateTest {
         val pending = editorState().copy(
             screen = Screen.Ask,
             askQuestion = "问题",
-            askSending = true,
-            askStreaming = true,
-            askRegeneratingId = "answer-1",
-            askLiveUser = askMessage("question-1", "问题", role = "user"),
-            askLiveAnswer = "回答",
-            askCompletionEventId = 4,
+            askStream = AskStreamStateHolder(
+                sending = true,
+                streaming = true,
+                regeneratingMessageId = "answer-1",
+                liveUser = askMessage("question-1", "问题", role = "user"),
+                liveAnswer = "回答",
+                completionEventId = 4,
+            ),
         )
 
         val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
@@ -1189,6 +1194,26 @@ class SillageUiStateTest {
         askSourceNavigation = AskSourceNavigationStateHolder(
             requestId = requestId,
             loading = loading,
+        ),
+    )
+
+    private fun SillageUiState.withAskStream(
+        sending: Boolean = askSending,
+        streaming: Boolean = askStreaming,
+        requestId: Long = askStreamRequestId,
+        completionEventId: Long = askCompletionEventId,
+        regeneratingMessageId: String = askRegeneratingId,
+        liveUser: AskMessage? = askLiveUser,
+        liveAnswer: String = askLiveAnswer,
+    ): SillageUiState = copy(
+        askStream = AskStreamStateHolder(
+            sending = sending,
+            streaming = streaming,
+            requestId = requestId,
+            completionEventId = completionEventId,
+            regeneratingMessageId = regeneratingMessageId,
+            liveUser = liveUser,
+            liveAnswer = liveAnswer,
         ),
     )
 

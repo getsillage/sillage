@@ -22,3 +22,8 @@ records application use case.
 depending on a platform navigation enum. It captures stable destination/history
 keys plus conversation and client context, while each host maps those keys to its
 navigation model.
+
+`AskStreamStateHolder` owns answer-generation request identity, live user/answer
+presentation, regeneration identity, and completion events. Android retains the
+SSE client and device-local model execution; callbacks update shared state only
+while the captured conversation and client context still match.

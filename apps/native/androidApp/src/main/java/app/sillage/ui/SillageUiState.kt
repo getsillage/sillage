@@ -11,6 +11,9 @@ import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationContext
 import app.sillage.features.ask.AskSourceNavigationRequest
 import app.sillage.features.ask.AskSourceNavigationStateHolder
+import app.sillage.features.ask.AskStreamContext
+import app.sillage.features.ask.AskStreamRequest
+import app.sillage.features.ask.AskStreamStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
@@ -90,14 +93,8 @@ data class SillageUiState(
     val askSourceKind: String = "records",
     val askLoading: Boolean = false,
     val askLoadError: String? = null,
-    val askSending: Boolean = false,
-    val askStreaming: Boolean = false,
-    val askStreamRequestId: Long = 0,
-    val askCompletionEventId: Long = 0,
+    val askStream: AskStreamStateHolder = AskStreamStateHolder(),
     val askVariant: AskVariantStateHolder = AskVariantStateHolder(),
-    val askRegeneratingId: String = "",
-    val askLiveUser: AskMessage? = null,
-    val askLiveAnswer: String = "",
     val askScreenSessionId: Long = 0,
     val askSourceNavigation: AskSourceNavigationStateHolder = AskSourceNavigationStateHolder(),
     val askMemoSave: AskMemoSaveStateHolder = AskMemoSaveStateHolder(),
@@ -172,6 +169,13 @@ data class SillageUiState(
     val askSavingMessageId: String get() = askMemoSave.savingMessageId
     val askSourceRequestId: Long get() = askSourceNavigation.requestId
     val askSourceLoading: Boolean get() = askSourceNavigation.loading
+    val askSending: Boolean get() = askStream.sending
+    val askStreaming: Boolean get() = askStream.streaming
+    val askStreamRequestId: Long get() = askStream.requestId
+    val askCompletionEventId: Long get() = askStream.completionEventId
+    val askRegeneratingId: String get() = askStream.regeneratingMessageId
+    val askLiveUser: AskMessage? get() = askStream.liveUser
+    val askLiveAnswer: String get() = askStream.liveAnswer
 }
 
 /**
@@ -697,34 +701,20 @@ internal fun SillageUiState.shouldShowMemoSearchFailure(): Boolean {
         currentMemoSearchResults() == null
 }
 
-internal data class AskStreamRequest(
-    val requestId: Long,
-    val screenSessionId: Long,
-    val conversationId: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
+internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
+    screenSessionId = askScreenSessionId,
+    conversationId = activeAskId,
+    appMode = appMode,
+    clientContextGeneration = clientContextGeneration,
+    anotherRequestInProgress = askLoading || askVariantLoading || askSourceLoading,
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
-    if (askLoading || askSending || askVariantLoading || askSourceLoading) {
-        return null
-    }
-    return AskStreamRequest(
-        requestId = askStreamRequestId + 1,
-        screenSessionId = askScreenSessionId,
-        conversationId = activeAskId,
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
-    )
+    return askStream.nextRequest(askStreamContext())
 }
 
 internal fun SillageUiState.canApplyAskStream(request: AskStreamRequest): Boolean {
-    return askSending &&
-        askStreamRequestId == request.requestId &&
-        askScreenSessionId == request.screenSessionId &&
-        activeAskId == request.conversationId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration
+    return askStream.canApply(request, askStreamContext())
 }
 
 internal fun SillageUiState.finishAskStream(
@@ -734,12 +724,7 @@ internal fun SillageUiState.finishAskStream(
     val completed = answerAvailable && error == null && notice == null
     return copy(
         askQuestion = if (clearQuestion && error == null) "" else askQuestion,
-        askSending = false,
-        askStreaming = false,
-        askRegeneratingId = "",
-        askLiveUser = null,
-        askLiveAnswer = "",
-        askCompletionEventId = if (completed) askCompletionEventId + 1 else askCompletionEventId,
+        askStream = askStream.finish(answerCompleted = completed),
     )
 }
 

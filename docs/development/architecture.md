@@ -130,6 +130,9 @@ actual record creation to the records application boundary.
 `AskSourceNavigationStateHolder` owns source-record request identity using stable
 destination/history keys rather than Android navigation types. The Android host
 maps those keys to `Screen` only at its presentation boundary.
+`AskStreamStateHolder` owns answer-generation request identity, live stream
+presentation, regeneration identity, and completion events. Android's SSE and
+device-local AI adapters feed it only after shared request-ownership validation.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

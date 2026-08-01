@@ -55,6 +55,7 @@ import app.sillage.core.application.ask.SetAskHeadUseCase
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.MemoViewMode
 import app.sillage.features.ask.AskVariantRequest
+import app.sillage.features.ask.AskStreamRequest
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.SessionStore
@@ -812,12 +813,8 @@ class SillageViewModel(
                             askQuestion = "",
                             askLoading = false,
                             askLoadError = null,
-                            askSending = false,
-                            askStreaming = false,
+                            askStream = it.askStream.invalidate(),
                             askVariant = it.askVariant.invalidate(),
-                            askRegeneratingId = "",
-                            askLiveUser = null,
-                            askLiveAnswer = "",
                             askSourceNavigation = it.askSourceNavigation.invalidate(),
                             askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),
@@ -2680,10 +2677,7 @@ class SillageViewModel(
             it.copy(
                 askConversation = it.askConversation.deselect(),
                 askQuestion = "",
-                askRegeneratingId = "",
-                askLiveUser = null,
-                askLiveAnswer = "",
-                askStreaming = false,
+                askStream = it.askStream.clearPresentation(),
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askVariant = it.askVariant.invalidate(),
                 askSourceNavigation = it.askSourceNavigation.invalidate(),
@@ -3203,14 +3197,7 @@ class SillageViewModel(
         askStreamJob?.cancel()
         askStreamJob = null
         updateState {
-            it.copy(
-                askSending = false,
-                askStreaming = false,
-                askStreamRequestId = it.askStreamRequestId + 1,
-                askRegeneratingId = "",
-                askLiveUser = null,
-                askLiveAnswer = "",
-            )
+            it.copy(askStream = it.askStream.invalidate())
         }
     }
 
@@ -3512,13 +3499,13 @@ class SillageViewModel(
         val regeneratingId = forkOfId.orEmpty()
         updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
+                val stream = it.askStream.begin(
+                    request = initialRequest,
+                    context = it.askStreamContext(),
+                    regeneratingMessageId = regeneratingId,
+                ) ?: return@updateState it
                 it.copy(
-                    askSending = true,
-                    askStreaming = false,
-                    askStreamRequestId = initialRequest.requestId,
-                    askRegeneratingId = regeneratingId,
-                    askLiveUser = null,
-                    askLiveAnswer = "",
+                    askStream = stream,
                     error = null,
                     notice = null,
                 )
@@ -3572,11 +3559,11 @@ class SillageViewModel(
                     forkOfId = forkOfId,
                     onStart = { userMessage, regenerate ->
                         updateState { currentState ->
-                            if (currentState.canApplyAskStream(request)) {
-                                currentState.copy(
-                                    askStreaming = true,
-                                    askLiveAnswer = "",
-                                    askLiveUser = if (regenerate) null else userMessage,
+                                if (currentState.canApplyAskStream(request)) {
+                                    currentState.copy(
+                                        askStream = currentState.askStream.startStreaming(
+                                            if (regenerate) null else userMessage,
+                                        ),
                                 )
                             } else {
                                 currentState
@@ -3585,8 +3572,10 @@ class SillageViewModel(
                     },
                     onDelta = { text ->
                         updateState { currentState ->
-                            if (currentState.canApplyAskStream(request)) {
-                                currentState.copy(askLiveAnswer = currentState.askLiveAnswer + text)
+                                if (currentState.canApplyAskStream(request)) {
+                                    currentState.copy(
+                                        askStream = currentState.askStream.appendDelta(text),
+                                    )
                             } else {
                                 currentState
                             }

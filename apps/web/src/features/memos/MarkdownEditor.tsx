@@ -5,6 +5,7 @@ import {
   type KeyboardEvent,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -58,7 +59,7 @@ export function MarkdownEditor({
   const uploadingRef = useRef(false);
   const feedbackLocaleRef = useRef(locale);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     latestValueRef.current = value;
   }, [value]);
 

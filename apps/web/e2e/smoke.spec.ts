@@ -156,11 +156,31 @@ test.describe("fresh-instance release journeys", () => {
     const draft = await editor.inputValue();
     const attachmentURL = extractAttachmentURL(draft);
 
+    const saveResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/v1/memos") &&
+        response.request().method() === "POST",
+    );
     await page.getByRole("button", { name: "Save", exact: true }).click();
+    const saveResponse = await saveResponsePromise;
+    expect(saveResponse.ok()).toBeTruthy();
+    const { memo: savedMemo } = (await saveResponse.json()) as { memo: Memo };
+    expect(savedMemo.content).toContain(LIFECYCLE_MARKER);
     await expect(
       page.getByRole("status").filter({ hasText: "Record saved" }),
     ).toBeVisible();
-    await expect(page.getByText(LIFECYCLE_MARKER).first()).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const response = await json<{ memos: Memo[] }>(
+          await request.get(
+            `/api/v1/memos?query=${encodeURIComponent(LIFECYCLE_MARKER)}&limit=100&archived=false`,
+            { headers: bearer(token) },
+          ),
+        );
+        return response.memos.some((memo) => memo.id === savedMemo.id);
+      })
+      .toBe(true);
 
     await page.getByRole("link", { name: "All records" }).click();
     await page.getByPlaceholder("Search records...").fill(LIFECYCLE_MARKER);

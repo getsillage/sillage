@@ -20,6 +20,9 @@ import app.sillage.features.records.CompletedRecordsSearch
 import app.sillage.features.records.RecordsSearchContext
 import app.sillage.features.records.RecordsSearchRequest
 import app.sillage.features.records.RecordsSearchStateHolder
+import app.sillage.features.records.RecordsSummaryContext
+import app.sillage.features.records.RecordsSummaryRequest
+import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
@@ -50,9 +53,7 @@ data class SillageUiState(
     val memoCacheGeneration: Long = 0,
     val recordsSelection: RecordsSelectionStateHolder = RecordsSelectionStateHolder(),
     val memoMutationIds: Set<String> = emptySet(),
-    val selectedSummary: MemoAI? = null,
-    val summaryLoading: Boolean = false,
-    val memoSummaryRequestId: Long = 0,
+    val recordsSummary: RecordsSummaryStateHolder = RecordsSummaryStateHolder(),
     val uploadingAttachment: Boolean = false,
     val openingAttachmentPath: String? = null,
     val attachmentOpenRequestId: Long = 0,
@@ -134,6 +135,9 @@ data class SillageUiState(
     val searching: Boolean get() = recordsSearch.searching
     val selectedMemo: Memo? get() = recordsSelection.selectedMemo
     val memoDetailRequestId: Long get() = recordsSelection.detailRequestId
+    val selectedSummary: MemoAI? get() = recordsSummary.summary
+    val summaryLoading: Boolean get() = recordsSummary.loading
+    val memoSummaryRequestId: Long get() = recordsSummary.requestId
 }
 
 /**
@@ -247,7 +251,9 @@ internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest
     val selection = recordsSelection.beginDetailRequest(request, recordsDetailContext()) ?: return this
     return copy(
         recordsSelection = selection,
-        summaryLoading = request.sourceKey != SessionStore.MODE_OFFLINE,
+        recordsSummary = recordsSummary.beginDetailLoad(
+            loadSummary = request.sourceKey != SessionStore.MODE_OFFLINE,
+        ),
     )
 }
 
@@ -263,10 +269,11 @@ internal fun SillageUiState.completeMemoDetailRequest(
         )
     ) {
         RecordsDetailResponseDisposition.Ignore -> this
-        RecordsDetailResponseDisposition.Superseded -> copy(summaryLoading = false)
+        RecordsDetailResponseDisposition.Superseded -> copy(
+            recordsSummary = recordsSummary.finishDetail(),
+        )
         RecordsDetailResponseDisposition.Apply -> applyMemoToCache(detail.memo).copy(
-            selectedSummary = detail.ai,
-            summaryLoading = false,
+            recordsSummary = recordsSummary.completeDetail(detail.ai),
         )
     }
 }
@@ -277,64 +284,49 @@ internal fun SillageUiState.failMemoDetailRequest(
 ): SillageUiState {
     return when (recordsSelection.detailFailureDisposition(request, recordsDetailContext())) {
         RecordsDetailResponseDisposition.Ignore -> this
-        RecordsDetailResponseDisposition.Superseded -> copy(summaryLoading = false)
-        RecordsDetailResponseDisposition.Apply -> copy(summaryLoading = false, error = message)
+        RecordsDetailResponseDisposition.Superseded -> copy(
+            recordsSummary = recordsSummary.finishDetail(),
+        )
+        RecordsDetailResponseDisposition.Apply -> copy(
+            recordsSummary = recordsSummary.finishDetail(),
+            error = message,
+        )
     }
 }
 
-internal data class MemoSummaryRequest(
-    val requestId: Long,
-    val memoId: String,
-    val memoVersion: Long,
-    val appMode: String,
-    val clientContextGeneration: Long,
-    val screen: Screen,
-    val editorSessionId: Long,
-    val memoDetailRequestId: Long,
-)
+internal typealias MemoSummaryRequest = RecordsSummaryRequest
 
-internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
-    val memo = selectedMemo ?: return null
-    if (summaryLoading || (screen != Screen.MemoDetail && screen != Screen.Editor)) {
-        return null
-    }
-    return MemoSummaryRequest(
-        requestId = memoSummaryRequestId + 1,
-        memoId = memo.id,
-        memoVersion = memo.version,
-        appMode = appMode,
+private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
+    return RecordsSummaryContext(
+        sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
-        screen = screen,
-        editorSessionId = editorSessionId,
-        memoDetailRequestId = memoDetailRequestId,
+        destinationKey = screen.name,
+        destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
+        detailRequestId = memoDetailRequestId,
+        summaryAvailable = screen == Screen.MemoDetail || screen == Screen.Editor,
     )
 }
 
+internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
+    return recordsSummary.nextRequest(selectedMemo, recordsSummaryContext())
+}
+
 internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
-    if (nextMemoSummaryRequest() != request) {
-        return this
-    }
+    val summaryState = recordsSummary.begin(request, selectedMemo, recordsSummaryContext())
+        ?: return this
     return copy(
-        memoSummaryRequestId = request.requestId,
-        summaryLoading = true,
+        recordsSummary = summaryState,
         error = null,
         notice = null,
     )
 }
 
 private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return summaryLoading && memoSummaryRequestId == request.requestId
+    return recordsSummary.owns(request)
 }
 
 internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return ownsMemoSummaryRequest(request) &&
-        selectedMemo?.id == request.memoId &&
-        selectedMemo?.version == request.memoVersion &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        screen == request.screen &&
-        editorSessionId == request.editorSessionId &&
-        memoDetailRequestId == request.memoDetailRequestId
+    return recordsSummary.canApply(request, selectedMemo, recordsSummaryContext())
 }
 
 internal fun SillageUiState.completeMemoSummaryRequest(
@@ -346,8 +338,12 @@ internal fun SillageUiState.completeMemoSummaryRequest(
         return this
     }
     return copy(
-        selectedSummary = summary,
-        summaryLoading = false,
+        recordsSummary = recordsSummary.complete(
+            request,
+            selectedMemo,
+            recordsSummaryContext(),
+            summary,
+        ),
         error = null,
         notice = message,
     )
@@ -360,25 +356,20 @@ internal fun SillageUiState.failMemoSummaryRequest(
     if (!canApplyMemoSummaryRequest(request)) {
         return this
     }
-    return copy(summaryLoading = false, error = message)
+    return copy(
+        recordsSummary = recordsSummary.fail(request, selectedMemo, recordsSummaryContext()),
+        error = message,
+    )
 }
 
 internal fun SillageUiState.finishMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
-    return if (ownsMemoSummaryRequest(request)) {
-        copy(summaryLoading = false)
-    } else {
-        this
-    }
+    if (!ownsMemoSummaryRequest(request)) return this
+    return copy(recordsSummary = recordsSummary.finish(request))
 }
 
 internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
-    if (!summaryLoading) {
-        return this
-    }
-    return copy(
-        summaryLoading = false,
-        memoSummaryRequestId = memoSummaryRequestId + 1,
-    )
+    if (!summaryLoading) return this
+    return copy(recordsSummary = recordsSummary.invalidate())
 }
 
 internal data class AIAutoSummaryRequest(

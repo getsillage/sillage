@@ -119,8 +119,12 @@ debounce scheduling and choose the active local or remote application adapter.
 
 Records selection/detail is the fourth extracted state slice. The shared holder
 owns the selected `Memo` and detail request validation. `MemoAI` is now a shared
-domain value, while Android retains AI-summary presentation state until that
-feature state is extracted.
+domain value.
+
+Records summary is the fifth extracted state slice. Its shared holder owns the
+selected summary, loading state, request identity, and detail/editor context
+validation. Android retains coroutine scheduling, user-facing messages, and the
+local or remote AI execution adapters.
 
 ## Platform Hosts
 

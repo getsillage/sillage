@@ -13,6 +13,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
 - `RecordsSelectionStateHolder` owns the selected domain record and validates
   detail responses against source, destination, session, cache, and version
   generations.
+- `RecordsSummaryStateHolder` owns AI-derived summary presentation, loading,
+  request identity, and detail/editor context validation.
 
 All asynchronous holders validate captured source, client context, filter,
 cache generation, and request identity before accepting a response. Pagination
@@ -22,6 +24,5 @@ search binds published results to the normalized query.
 The module depends only on `kmp-core:domain`. It must not perform transport,
 storage, synchronization, or platform UI work. Android consumes the policies
 and holders directly, retaining temporary read accessors while writes go
-through shared transitions. AI-derived presentation state and editor state
-remain later extraction slices; their pure domain data already crosses the
-shared application detail port.
+through shared transitions. Editor state remains a later extraction slice;
+summary domain data and presentation state now cross shared boundaries.

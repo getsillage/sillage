@@ -13,6 +13,7 @@ import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
+import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.data.SessionStore
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
@@ -89,7 +90,11 @@ class SillageUiStateTest {
             selected.copy(memoMutationIds = setOf("memo-1")).memoEditorBusyReason(),
         )
         assertEquals(null, selected.copy(memoMutationIds = setOf("memo-2")).memoEditorBusyReason())
-        assertEquals(null, selected.copy(summaryLoading = true).memoEditorBusyReason())
+        assertEquals(
+            null,
+            selected.copy(recordsSummary = selected.recordsSummary.copy(loading = true))
+                .memoEditorBusyReason(),
+        )
         assertEquals(null, selected.copy(openingAttachmentPath = "/attachments/file-1").memoEditorBusyReason())
         assertEquals(null, selected.copy(screen = Screen.Memos, loading = true).memoEditorBusyReason())
     }
@@ -130,7 +135,10 @@ class SillageUiStateTest {
         val idle = editorState().copy(screen = Screen.AISettings)
 
         assertFalse(idle.hasClientContextOperationInProgress())
-        assertTrue(idle.copy(summaryLoading = true).hasClientContextOperationInProgress())
+        assertTrue(
+            idle.copy(recordsSummary = idle.recordsSummary.copy(loading = true))
+                .hasClientContextOperationInProgress(),
+        )
         assertTrue(idle.copy(memoMutationIds = setOf("memo-1")).hasClientContextOperationInProgress())
         assertTrue(idle.copy(askSavingMessageId = "answer-1").hasClientContextOperationInProgress())
         assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
@@ -277,7 +285,7 @@ class SillageUiStateTest {
             appMode = SessionStore.MODE_ONLINE,
             memos = listOf(original),
             recordsSelection = RecordsSelectionStateHolder(selectedMemo = original),
-            summaryLoading = true,
+            recordsSummary = RecordsSummaryStateHolder(loading = true),
         )
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)

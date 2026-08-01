@@ -33,7 +33,7 @@ storage, networking, attachment handling, and other platform integrations. Recor
 listing, search, and detail retrieval cross the repository ports and use cases in
 `kmp-core:application`;
 local and remote adapters implement the same application contracts. Reusable record
-refresh, search, selection, and detail-request validation state lives in
+refresh, search, selection, detail-request validation, and summary state lives in
 `kmp-features:records`. Android UI code may compose those shared feature states, but
 must not duplicate domain, storage, synchronization, or protocol rules.
 

@@ -264,8 +264,7 @@ class SillageViewModel(
                 recordsRefresh = it.recordsRefresh.cancel(),
                 memoMutationIds = emptySet(),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 uploadingAttachment = false,
                 aiProfiles = emptyList(),
                 aiAutoSummary = false,
@@ -319,7 +318,7 @@ class SillageViewModel(
                 recordsRefresh = it.recordsRefresh.cancel(),
                 memoMutationIds = emptySet(),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
+                recordsSummary = it.recordsSummary.replaceSummary(null),
                 aiProfiles = emptyList(),
                 aiAutoSummary = false,
                 aiSettingsLoading = false,
@@ -411,7 +410,7 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.AISettings,
                 screenHistory = emptyList(),
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.finishDetail(),
                 error = null,
                 notice = null,
             )
@@ -428,7 +427,7 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Ask,
                 screenHistory = emptyList(),
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.finishDetail(),
                 askScreenSessionId = if (it.askLoading || it.askSending || it.askVariantLoading) {
                     it.askScreenSessionId
                 } else {
@@ -736,8 +735,7 @@ class SillageViewModel(
                         recordsRefresh = it.recordsRefresh.cancel(),
                             memoMutationIds = emptySet(),
                 recordsSelection = it.recordsSelection.clear(),
-                            selectedSummary = null,
-                            summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                             uploadingAttachment = false,
                             aiProfiles = emptyList(),
                             aiAutoSummary = if (offlineMode) localDataStore.autoSummaryEnabled() else false,
@@ -875,8 +873,7 @@ class SillageViewModel(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 uploadingAttachment = false,
                 editorSessionId = it.editorSessionId + 1,
                 draftContent = restored?.content ?: "",
@@ -898,8 +895,10 @@ class SillageViewModel(
                 screen = Screen.MemoDetail,
                 screenHistory = it.historyFor(Screen.MemoDetail),
                 recordsSelection = it.recordsSelection.select(memo),
-                selectedSummary = null,
-                summaryLoading = !isOfflineMode(),
+                recordsSummary = it.recordsSummary.replacePresentation(
+                    null,
+                    loading = !isOfflineMode(),
+                ),
                 markdownPreview = false,
                 error = null,
                 notice = null,
@@ -928,8 +927,7 @@ class SillageViewModel(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 uploadingAttachment = false,
                 editorSessionId = it.editorSessionId + 1,
                 draftContent = memo.content,
@@ -1103,8 +1101,7 @@ class SillageViewModel(
                     themeMode = result.themeMode,
                     memoViewMode = result.memoViewMode,
                 recordsSelection = it.recordsSelection.clear(),
-                    selectedSummary = null,
-                    summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                     uploadingAttachment = false,
                     aiProfiles = result.aiProfiles,
                     aiAutoSummary = result.aiAutoSummary,
@@ -1299,8 +1296,7 @@ class SillageViewModel(
                     it.recordsSearch
                 },
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
         }
@@ -1339,7 +1335,7 @@ class SillageViewModel(
                 recordsRefresh = it.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
                 recordsSearch = it.recordsSearch.clear(),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
+                recordsSummary = it.recordsSummary.replaceSummary(null),
                 error = null,
                 notice = null,
             )
@@ -1425,11 +1421,13 @@ class SillageViewModel(
                         it.screenHistory
                     }
                     it.copy(
-                    screen = Screen.MemoDetail,
-                    screenHistory = history,
-                    recordsSelection = it.recordsSelection.select(saved),
-                        selectedSummary = if (current.selectedMemo?.id == saved.id) it.selectedSummary else null,
-                        summaryLoading = current.appMode != SessionStore.MODE_OFFLINE,
+                        screen = Screen.MemoDetail,
+                        screenHistory = history,
+                        recordsSelection = it.recordsSelection.select(saved),
+                        recordsSummary = it.recordsSummary.replacePresentation(
+                            if (current.selectedMemo?.id == saved.id) it.selectedSummary else null,
+                            loading = current.appMode != SessionStore.MODE_OFFLINE,
+                        ),
                         uploadingAttachment = false,
                         draftContent = "",
                         initialDraftContent = "",
@@ -1486,8 +1484,7 @@ class SillageViewModel(
                         screen = Screen.Memos,
                         screenHistory = emptyList(),
                 recordsSelection = it.recordsSelection.clear(),
-                        selectedSummary = null,
-                        summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                         uploadingAttachment = false,
                         draftContent = "",
                         initialDraftContent = "",
@@ -1651,7 +1648,9 @@ class SillageViewModel(
                 ) {
                     it.copy(
                         recordsSelection = it.recordsSelection.clearIfSelected(memo.id),
-                        selectedSummary = if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
+                        recordsSummary = it.recordsSummary.replaceSummary(
+                            if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
+                        ),
                         notice = uiString(R.string.notice_deleted),
                     )
                 } else {
@@ -1738,13 +1737,13 @@ class SillageViewModel(
         memoSummaryJob?.cancel()
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
-                val ai = if (request.appMode == SessionStore.MODE_OFFLINE) {
+                val ai = if (request.sourceKey == SessionStore.MODE_OFFLINE) {
                     val profile = localDataStore.activeAIProfile()
                         ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
                     val generated = localAiClient.summarizeMemo(profile, memo)
                     val latest = state.value
                     if (
-                        latest.appMode != request.appMode ||
+                        latest.appMode != request.sourceKey ||
                         latest.clientContextGeneration != request.clientContextGeneration ||
                     getLocalRecordDetail(request.memoId).memo.version != request.memoVersion
                     ) {
@@ -2791,8 +2790,10 @@ class SillageViewModel(
                         screen = Screen.MemoDetail,
                         screenHistory = current.historyFor(Screen.MemoDetail),
                         recordsSelection = current.recordsSelection.select(memo),
-                            selectedSummary = null,
-                            summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+                        recordsSummary = current.recordsSummary.replacePresentation(
+                            null,
+                            loading = request.appMode != SessionStore.MODE_OFFLINE,
+                        ),
                             uploadingAttachment = false,
                             markdownPreview = false,
                             error = null,
@@ -2858,8 +2859,10 @@ class SillageViewModel(
                                 current.memoListFilter,
                             ),
                             recordsSelection = current.recordsSelection.select(detail.memo),
-                                selectedSummary = detail.ai,
-                                summaryLoading = false,
+                            recordsSummary = current.recordsSummary.replacePresentation(
+                                detail.ai,
+                                loading = false,
+                            ),
                                 uploadingAttachment = false,
                                 markdownPreview = false,
                                 askSourceLoading = false,
@@ -2891,8 +2894,7 @@ class SillageViewModel(
                 screen = navigation.screen,
                 screenHistory = navigation.history,
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 uploadingAttachment = false,
                 error = null,
                 notice = null,
@@ -2919,8 +2921,10 @@ class SillageViewModel(
                 } else {
                     it.recordsSelection.clear()
                 },
-                selectedSummary = null,
-                summaryLoading = returningToDetail && !isOfflineMode(),
+                recordsSummary = it.recordsSummary.replacePresentation(
+                    null,
+                    loading = returningToDetail && !isOfflineMode(),
+                ),
                 uploadingAttachment = false,
                 draftContent = "",
                 initialDraftContent = "",
@@ -3851,8 +3855,7 @@ class SillageViewModel(
                 recordsRefresh = it.recordsRefresh.cancel(),
                 memoMutationIds = emptySet(),
                 recordsSelection = it.recordsSelection.clear(),
-                selectedSummary = null,
-                summaryLoading = false,
+                recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 uploadingAttachment = false,
                 aiProfiles = aiProfiles,
                 aiAutoSummary = autoSummary,
@@ -3958,8 +3961,10 @@ class SillageViewModel(
                 screen = Screen.Editor,
                 screenHistory = it.historyFor(Screen.Editor),
                 recordsSelection = it.recordsSelection.select(memo),
-                selectedSummary = null,
-                summaryLoading = !isOfflineMode(),
+                recordsSummary = it.recordsSummary.replacePresentation(
+                    null,
+                    loading = !isOfflineMode(),
+                ),
                 uploadingAttachment = false,
                 editorSessionId = it.editorSessionId + 1,
                 draftContent = restored?.content ?: memo.content,

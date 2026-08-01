@@ -158,8 +158,10 @@ The shared `RecordsSelectionStateHolder` owns the selected domain record and
 detail request identity. It validates source, client session, navigation
 destination, editor generation, cache generation, and record version before an
 Android detail response may update state. AI-derived summary presentation state
-and editor state remain later extraction slices; the underlying `MemoAI` value
-already belongs to the shared domain.
+is owned by `RecordsSummaryStateHolder`, including request identity and
+detail/editor context validation. Android retains AI execution orchestration and
+localized feedback. Editor state remains a later extraction slice; the
+underlying `MemoAI` value already belongs to the shared domain.
 
 ## Core Invariants
 

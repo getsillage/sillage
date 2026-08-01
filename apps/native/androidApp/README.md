@@ -102,6 +102,8 @@ consume the settings feature aggregate directly; Android supplies localized
 strings, icons, and callbacks.
 AI profile detail editing also comes from that module; Android retains ViewModel
 event routing plus encrypted persistence and remote/local protocol adapters.
+The settings language selector also comes from `shared-ui:settings`; Android
+supplies supported language identifiers, localized labels, and persistence callback.
 Ask conversation selection, branch-head identity, and loaded message snapshots
 live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.

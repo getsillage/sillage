@@ -11,6 +11,8 @@ model discovery, connection-test feedback, provider selection, and deletion
 confirmation while exposing host callbacks for mutations and operations.
 `SillageAIProfilesHeaderCard` reads the aggregate save lifecycle and owns the
 new/save action layout, progress feedback, and operation-gate presentation.
+`SillageSettingsLanguageRow` owns settings language-selection layout and option
+presentation while hosts supply supported language identifiers and persistence.
 
 Hosts supply localized strings, selection state, and callbacks. Protocol clients,
 encrypted key persistence, file pickers, native dialogs, navigation, and platform

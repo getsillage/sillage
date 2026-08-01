@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -37,12 +36,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -86,6 +81,9 @@ import app.sillage.ui.settings.SillageAIProfileSummaryCard
 import app.sillage.ui.settings.SillageAIProfileSummaryStrings
 import app.sillage.ui.settings.SillageAIProfilesHeaderCard
 import app.sillage.ui.settings.SillageAIProfilesHeaderStrings
+import app.sillage.ui.settings.SillageSettingsLanguageOption
+import app.sillage.ui.settings.SillageSettingsLanguageRow
+import app.sillage.ui.settings.SillageSettingsLanguageStrings
 
 internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 internal const val SETTINGS_LIST_TEST_TAG = "settings-list"
@@ -192,8 +190,23 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 modifier = Modifier.padding(start = 50.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant,
                             )
-                            SettingsLanguageRow(
-                                languageMode = state.languageMode,
+                            SillageSettingsLanguageRow(
+                                selectedLanguage = state.languageMode,
+                                options = listOf(
+                                    SillageSettingsLanguageOption(
+                                        value = SessionStore.LANGUAGE_ZH_CN,
+                                        label = stringResource(R.string.language_chinese),
+                                    ),
+                                    SillageSettingsLanguageOption(
+                                        value = SessionStore.LANGUAGE_EN,
+                                        label = stringResource(R.string.language_english),
+                                    ),
+                                ),
+                                strings = SillageSettingsLanguageStrings(
+                                    title = stringResource(R.string.settings_language),
+                                    supporting = stringResource(R.string.settings_language_supporting),
+                                ),
+                                icon = Icons.Rounded.Language,
                                 enabled = !aiProfileOperationInProgress,
                                 onLanguageChange = viewModel::setLanguageMode,
                             )
@@ -572,71 +585,5 @@ private fun OverviewItem(label: String, value: String, modifier: Modifier = Modi
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsLanguageRow(
-    languageMode: String,
-    enabled: Boolean,
-    onLanguageChange: (String) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Rounded.Language,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = if (enabled) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                },
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(R.string.settings_language),
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    stringResource(R.string.settings_language_supporting),
-                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-        val languages = listOf(
-            SessionStore.LANGUAGE_ZH_CN to stringResource(R.string.language_chinese),
-            SessionStore.LANGUAGE_EN to stringResource(R.string.language_english),
-        )
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 34.dp, top = 10.dp),
-        ) {
-            languages.forEachIndexed { index, (language, label) ->
-                SegmentedButton(
-                    selected = languageMode == language,
-                    onClick = { onLanguageChange(language) },
-                    enabled = enabled,
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size),
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 44.dp),
-                    label = {
-                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                )
-            }
-        }
     }
 }

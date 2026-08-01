@@ -144,6 +144,8 @@ Its detail editor also consumes draft fields, model results, and diagnostic
 request state while owning provider selection and deletion confirmation. Hosts
 supply localized strings, selection state, and callbacks; persistence, protocol
 clients, native dialogs, and file pickers remain platform adapters.
+The module also owns settings language-selection layout and option presentation;
+hosts provide supported language identifiers, localized labels, and persistence.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

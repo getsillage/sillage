@@ -89,6 +89,10 @@ accepting completion.
 rejects completion after answer content, branch head, navigation session, source,
 or client context changes. Record persistence still crosses the records
 application port.
+`AskSourceNavigationStateHolder` captures platform-neutral destination/history
+keys and rejects source-record responses after navigation, conversation, source,
+or client context changes. Platform hosts map the stable keys to their own
+navigation types.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

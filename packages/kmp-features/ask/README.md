@@ -17,3 +17,8 @@ late response cannot cross a navigation or workspace boundary.
 the captured answer content, conversation, branch head, screen session, source
 mode, and client generation. The actual record write remains behind the shared
 records application use case.
+
+`AskSourceNavigationStateHolder` owns source-record navigation requests without
+depending on a platform navigation enum. It captures stable destination/history
+keys plus conversation and client context, while each host maps those keys to its
+navigation model.

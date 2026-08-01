@@ -353,8 +353,7 @@ class SillageViewModel(
                 askLoading = false,
                 askLoadError = null,
                 askScreenSessionId = it.askScreenSessionId + 1,
-                askSourceRequestId = it.askSourceRequestId + 1,
-                askSourceLoading = false,
+                askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 serverReturnScreen = null,
                 recordsSearch = it.recordsSearch.clear(),
@@ -402,8 +401,7 @@ class SillageViewModel(
                 askLoading = false,
                 askLoadError = null,
                 askScreenSessionId = it.askScreenSessionId + 1,
-                askSourceRequestId = it.askSourceRequestId + 1,
-                askSourceLoading = false,
+                askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),
                 authError = null,
@@ -497,8 +495,7 @@ class SillageViewModel(
                 } else {
                     it.askScreenSessionId + 1
                 },
-                askSourceRequestId = it.askSourceRequestId + 1,
-                askSourceLoading = false,
+                askSourceNavigation = it.askSourceNavigation.invalidate(),
                 error = null,
                 notice = null,
             )
@@ -821,8 +818,7 @@ class SillageViewModel(
                             askRegeneratingId = "",
                             askLiveUser = null,
                             askLiveAnswer = "",
-                            askSourceRequestId = it.askSourceRequestId + 1,
-                            askSourceLoading = false,
+                            askSourceNavigation = it.askSourceNavigation.invalidate(),
                             askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),
                             loading = false,
@@ -2608,8 +2604,7 @@ class SillageViewModel(
                     askLoadError = null,
                     askScreenSessionId = screenSessionId,
                     askVariant = latest.askVariant.invalidate(),
-                    askSourceRequestId = latest.askSourceRequestId + 1,
-                    askSourceLoading = false,
+                    askSourceNavigation = latest.askSourceNavigation.invalidate(),
                     error = null,
                     notice = null,
                 )
@@ -2691,8 +2686,7 @@ class SillageViewModel(
                 askStreaming = false,
                 askScreenSessionId = it.askScreenSessionId + 1,
                 askVariant = it.askVariant.invalidate(),
-                askSourceRequestId = it.askSourceRequestId + 1,
-                askSourceLoading = false,
+                askSourceNavigation = it.askSourceNavigation.invalidate(),
                 error = null,
                 notice = null,
             )
@@ -2873,12 +2867,7 @@ class SillageViewModel(
         val request = state.value.nextAskSourceNavigationRequest(memoId) ?: return
         updateState { current ->
             if (current.nextAskSourceNavigationRequest(request.memoId) == request) {
-                current.copy(
-                    askSourceRequestId = request.requestId,
-                    askSourceLoading = true,
-                    error = null,
-                    notice = null,
-                )
+                current.startAskSourceNavigation(request)
             } else {
                 current
             }
@@ -2898,7 +2887,7 @@ class SillageViewModel(
                     updateState { current ->
                         if (!current.canApplyAskSourceNavigation(request)) {
                             if (current.askSourceRequestId == request.requestId) {
-                                current.copy(askSourceLoading = false)
+                                current.finishAskSourceNavigation(request)
                             } else {
                                 current
                             }
@@ -2923,7 +2912,8 @@ class SillageViewModel(
                             recordsEditor = current.recordsEditor
                                 .stopAttachmentUpload()
                                 .setMarkdownPreview(false),
-                                askSourceLoading = false,
+                            askSourceNavigation = current.askSourceNavigation.finish(request)
+                                ?: return@updateState current,
                             )
                         }
                     }
@@ -2931,11 +2921,12 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { current ->
                         when {
-                            current.canApplyAskSourceNavigation(request) -> current.copy(
-                                askSourceLoading = false,
-                                error = error.readableMessage(),
-                            )
-                            current.askSourceRequestId == request.requestId -> current.copy(askSourceLoading = false)
+                            current.canApplyAskSourceNavigation(request) ->
+                                current.finishAskSourceNavigation(request).copy(
+                                    error = error.readableMessage(),
+                                )
+                            current.askSourceRequestId == request.requestId ->
+                                current.finishAskSourceNavigation(request)
                             else -> current
                         }
                     }
@@ -3932,8 +3923,7 @@ class SillageViewModel(
                 askLoading = false,
                 askLoadError = null,
                 askScreenSessionId = it.askScreenSessionId + 1,
-                askSourceRequestId = it.askSourceRequestId + 1,
-                askSourceLoading = false,
+                askSourceNavigation = it.askSourceNavigation.invalidate(),
                 askMemoSave = it.askMemoSave.invalidate(),
                 recordsSearch = it.recordsSearch.clear(),
                 screen = Screen.Memos,

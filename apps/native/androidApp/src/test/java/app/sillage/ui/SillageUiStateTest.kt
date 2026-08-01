@@ -4,6 +4,7 @@ import app.sillage.data.AIProfileDraft
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskMemoSaveStateHolder
+import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
@@ -1008,7 +1009,7 @@ class SillageUiStateTest {
         assertEquals(null, ask.copy(askLoading = true).nextAskVariantRequest())
         assertEquals(null, ask.copy(askSending = true).nextAskVariantRequest())
         assertEquals(null, ask.withAskVariant(loading = true).nextAskVariantRequest())
-        assertEquals(null, ask.copy(askSourceLoading = true).nextAskVariantRequest())
+        assertEquals(null, ask.withAskSourceNavigation(loading = true).nextAskVariantRequest())
     }
 
     @Test
@@ -1018,19 +1019,22 @@ class SillageUiStateTest {
             screenHistory = emptyList(),
             askConversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
             askScreenSessionId = 4,
-            askSourceRequestId = 9,
+            askSourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
         )
         val request = requireNotNull(origin.nextAskSourceNavigationRequest("memo-1"))
-        val pending = origin.copy(
-            askSourceRequestId = request.requestId,
-            askSourceLoading = true,
+        val pending = origin.withAskSourceNavigation(
+            requestId = request.requestId,
+            loading = true,
         )
 
         assertTrue(pending.canApplyAskSourceNavigation(request))
         assertEquals(listOf(Screen.Ask), request.destinationHistory())
         assertFalse(pending.copy(screen = Screen.AISettings).canApplyAskSourceNavigation(request))
         assertFalse(pending.copy(askScreenSessionId = 5).canApplyAskSourceNavigation(request))
-        assertFalse(pending.copy(askSourceRequestId = 11).canApplyAskSourceNavigation(request))
+        assertFalse(
+            pending.withAskSourceNavigation(requestId = 11)
+                .canApplyAskSourceNavigation(request),
+        )
         assertFalse(
             pending.withAskConversation(activeConversationId = "conversation-2")
                 .canApplyAskSourceNavigation(request),
@@ -1052,7 +1056,11 @@ class SillageUiStateTest {
         assertEquals(null, ask.copy(loading = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.copy(askSending = true).nextAskSourceNavigationRequest("memo-1"))
         assertEquals(null, ask.withAskVariant(loading = true).nextAskSourceNavigationRequest("memo-1"))
-        assertEquals(null, ask.copy(askSourceLoading = true).nextAskSourceNavigationRequest("memo-1"))
+        assertEquals(
+            null,
+            ask.withAskSourceNavigation(loading = true)
+                .nextAskSourceNavigationRequest("memo-1"),
+        )
     }
 
     @Test
@@ -1169,6 +1177,16 @@ class SillageUiStateTest {
         loading: Boolean = askVariantLoading,
     ): SillageUiState = copy(
         askVariant = AskVariantStateHolder(
+            requestId = requestId,
+            loading = loading,
+        ),
+    )
+
+    private fun SillageUiState.withAskSourceNavigation(
+        requestId: Long = askSourceRequestId,
+        loading: Boolean = askSourceLoading,
+    ): SillageUiState = copy(
+        askSourceNavigation = AskSourceNavigationStateHolder(
             requestId = requestId,
             loading = loading,
         ),

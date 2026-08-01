@@ -127,6 +127,9 @@ the shared holder still owns that request.
 `AskMemoSaveStateHolder` applies the same rule to answer-to-record requests and
 also captures source answer content and branch-head identity. It delegates the
 actual record creation to the records application boundary.
+`AskSourceNavigationStateHolder` owns source-record request identity using stable
+destination/history keys rather than Android navigation types. The Android host
+maps those keys to `Screen` only at its presentation boundary.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

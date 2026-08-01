@@ -44,6 +44,8 @@ live in `kmp-features:ask`; Android retains transitional read accessors while
 streaming and remaining request lifecycle state are extracted in later slices.
 Branch-variant and answer-to-record requests use shared feature single-flight
 holders; Android still supplies navigation context and adapter execution.
+Ask source-record navigation also uses a shared single-flight holder; Android maps
+the holder's stable destination/history keys to its `Screen` navigation model.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

@@ -8,6 +8,9 @@ import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
 import app.sillage.features.ask.AskMemoSaveStateHolder
+import app.sillage.features.ask.AskSourceNavigationContext
+import app.sillage.features.ask.AskSourceNavigationRequest
+import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
@@ -96,8 +99,7 @@ data class SillageUiState(
     val askLiveUser: AskMessage? = null,
     val askLiveAnswer: String = "",
     val askScreenSessionId: Long = 0,
-    val askSourceRequestId: Long = 0,
-    val askSourceLoading: Boolean = false,
+    val askSourceNavigation: AskSourceNavigationStateHolder = AskSourceNavigationStateHolder(),
     val askMemoSave: AskMemoSaveStateHolder = AskMemoSaveStateHolder(),
     val recordsEditor: RecordsEditorStateHolder = RecordsEditorStateHolder(
         draftEntryDate = LocalDate.now().toString(),
@@ -168,6 +170,8 @@ data class SillageUiState(
     val askVariantLoading: Boolean get() = askVariant.loading
     val askMemoSaveRequestId: Long get() = askMemoSave.requestId
     val askSavingMessageId: String get() = askMemoSave.savingMessageId
+    val askSourceRequestId: Long get() = askSourceNavigation.requestId
+    val askSourceLoading: Boolean get() = askSourceNavigation.loading
 }
 
 /**
@@ -807,51 +811,51 @@ internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): Sill
     return copy(askMemoSave = finished)
 }
 
-internal data class AskSourceNavigationRequest(
-    val requestId: Long,
-    val screenSessionId: Long,
-    val conversationId: String,
-    val memoId: String,
-    val appMode: String,
-    val clientContextGeneration: Long,
-    val originScreen: Screen,
-    val originHistory: List<Screen>,
-) {
-    fun destinationHistory(): List<Screen> = originHistory + originScreen
-}
-
-internal fun SillageUiState.nextAskSourceNavigationRequest(memoId: String): AskSourceNavigationRequest? {
-    if (
-        screen != Screen.Ask ||
-        memoId.isBlank() ||
-        loading ||
-        askSending ||
-        askVariantLoading ||
-        askSourceLoading
-    ) {
-        return null
-    }
-    return AskSourceNavigationRequest(
-        requestId = askSourceRequestId + 1,
+internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationContext =
+    AskSourceNavigationContext(
+        destinationKey = screen.name,
+        destinationAvailable = screen == Screen.Ask,
+        historyKeys = screenHistory.map(Screen::name),
+        anotherRequestInProgress = loading || askSending || askVariantLoading,
         screenSessionId = askScreenSessionId,
         conversationId = activeAskId,
-        memoId = memoId,
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
-        originScreen = screen,
-        originHistory = screenHistory.toList(),
+    )
+
+internal fun SillageUiState.nextAskSourceNavigationRequest(
+    memoId: String,
+): AskSourceNavigationRequest? {
+    return askSourceNavigation.nextRequest(memoId, askSourceNavigationContext())
+}
+
+internal fun SillageUiState.canApplyAskSourceNavigation(
+    request: AskSourceNavigationRequest,
+): Boolean {
+    return askSourceNavigation.canApply(request, askSourceNavigationContext())
+}
+
+internal fun SillageUiState.startAskSourceNavigation(
+    request: AskSourceNavigationRequest,
+): SillageUiState {
+    val pending = askSourceNavigation.begin(request, askSourceNavigationContext())
+        ?: return this
+    return copy(
+        askSourceNavigation = pending,
+        error = null,
+        notice = null,
     )
 }
 
-internal fun SillageUiState.canApplyAskSourceNavigation(request: AskSourceNavigationRequest): Boolean {
-    return askSourceLoading &&
-        askSourceRequestId == request.requestId &&
-        askScreenSessionId == request.screenSessionId &&
-        appMode == request.appMode &&
-        clientContextGeneration == request.clientContextGeneration &&
-        screen == request.originScreen &&
-        screenHistory == request.originHistory &&
-        activeAskId == request.conversationId
+internal fun SillageUiState.finishAskSourceNavigation(
+    request: AskSourceNavigationRequest,
+): SillageUiState {
+    val finished = askSourceNavigation.finish(request) ?: return this
+    return copy(askSourceNavigation = finished)
+}
+
+internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {
+    return destinationHistoryKeys().map(Screen::valueOf)
 }
 
 internal data class BackNavigation(

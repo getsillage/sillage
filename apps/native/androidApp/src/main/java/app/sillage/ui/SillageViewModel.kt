@@ -1024,11 +1024,9 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.MemoDetail,
                 screenHistory = it.historyFor(Screen.MemoDetail),
-                records = it.records.presentMemo(
+                records = it.records.presentMemoDetail(
                     memo = memo,
                     summaryLoading = !isOfflineMode(),
-                ).copy(
-                    editor = it.records.editor.setMarkdownPreview(false),
                 ),
                 error = null,
                 notice = null,
@@ -1541,7 +1539,7 @@ class SillageViewModel(
                     it.copy(
                         screen = Screen.MemoDetail,
                         screenHistory = history,
-                        records = it.records.presentMemo(
+                        records = it.records.presentSavedMemo(
                             memo = saved,
                             summary = if (current.selectedMemo?.id == saved.id) {
                                 it.selectedSummary
@@ -1549,9 +1547,7 @@ class SillageViewModel(
                                 null
                             },
                             summaryLoading = current.appMode != SessionStore.MODE_OFFLINE,
-                        ).copy(
-                            editor = it.records.editor.reset(LocalDate.now().toString()),
-                            search = it.records.search.clear(),
+                            resetEditorEntryDate = LocalDate.now().toString(),
                         ),
                         notice = uiString(R.string.notice_saved),
                     )
@@ -1756,12 +1752,7 @@ class SillageViewModel(
                     it.clientContextGeneration == clientContextGeneration
                 ) {
                     it.copy(
-                        records = it.records.copy(
-                            selection = it.records.selection.clearIfSelected(memo.id),
-                            summary = it.records.summary.replaceSummary(
-                            if (it.selectedMemo?.id == memo.id) null else it.selectedSummary,
-                        ),
-                        ),
+                        records = it.records.forgetMemoIfSelected(memo.id),
                         notice = uiString(R.string.notice_deleted),
                     )
                 } else {
@@ -2938,13 +2929,9 @@ class SillageViewModel(
                         current.copy(
                             screen = Screen.MemoDetail,
                             screenHistory = current.historyFor(Screen.MemoDetail),
-                            records = current.records.presentMemo(
+                            records = current.records.presentMemoDetail(
                                 memo = memo,
                                 summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
-                            ).copy(
-                                editor = current.records.editor
-                                    .stopAttachmentUpload()
-                                    .setMarkdownPreview(false),
                             ),
                             error = null,
                             notice = uiString(R.string.notice_ask_saved_record),
@@ -2991,30 +2978,17 @@ class SillageViewModel(
                                 current
                             }
                         } else {
-                            val cached = memosForFilter(
-                                current.memos.filter { it.id != detail.memo.id } + detail.memo,
-                                current.memoListFilter,
+                            current.copy(
+                                screen = Screen.MemoDetail,
+                                screenHistory = request.destinationHistory(),
+                                records = current.records.absorbVisibleMemo(
+                                    memo = detail.memo,
+                                    summary = detail.ai,
+                                    filter = current.memoListFilter,
+                                ),
+                                askSourceNavigation = current.askSourceNavigation.finish(request)
+                                    ?: return@updateState current,
                             )
-                current.copy(
-                    screen = Screen.MemoDetail,
-                    screenHistory = request.destinationHistory(),
-                    records = current.records.presentMemo(
-                        memo = detail.memo,
-                        summary = detail.ai,
-                        summaryLoading = false,
-                    ).copy(
-                        collection = current.records.collection.replace(cached),
-                        search = current.records.search.mergeResultMemo(
-                            detail.memo,
-                            current.memoListFilter,
-                        ),
-                        editor = current.records.editor
-                            .stopAttachmentUpload()
-                            .setMarkdownPreview(false),
-                    ),
-                    askSourceNavigation = current.askSourceNavigation.finish(request)
-                                ?: return@updateState current,
-                )
                         }
                     }
                 }
@@ -3064,12 +3038,9 @@ class SillageViewModel(
                 screen = if (returningToDetail) Screen.MemoDetail else navigation.screen,
                 screenHistory = navigation.history,
                 records = if (returningToDetail) {
-                    it.records.copy(
-                        summary = it.records.summary.replacePresentation(
-                            null,
-                            loading = !isOfflineMode(),
-                        ),
-                        editor = it.records.editor.reset(LocalDate.now().toString()),
+                    it.records.returnToPresentedMemo(
+                        resetEditorEntryDate = LocalDate.now().toString(),
+                        summaryLoading = !isOfflineMode(),
                     )
                 } else {
                     it.records.clearPresentedMemo(

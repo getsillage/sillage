@@ -97,6 +97,93 @@ data class RecordsFeatureStateHolder(
     }
 
     /**
+     * Presents [memo] for the detail viewer: selection/summary plus a clean
+     * non-preview editor surface with no in-flight attachment upload.
+     */
+    fun presentMemoDetail(
+        memo: Memo,
+        summary: MemoAI? = null,
+        summaryLoading: Boolean = false,
+    ): RecordsFeatureStateHolder {
+        val presented = presentMemo(memo, summary, summaryLoading)
+        return presented.copy(
+            editor = presented.editor
+                .stopAttachmentUpload()
+                .setMarkdownPreview(false),
+        )
+    }
+
+    /**
+     * Presents a just-saved memo, resets the editor draft, and clears search so
+     * the host can navigate to detail without stale composer/search ownership.
+     */
+    fun presentSavedMemo(
+        memo: Memo,
+        summary: MemoAI? = null,
+        summaryLoading: Boolean = false,
+        resetEditorEntryDate: String,
+    ): RecordsFeatureStateHolder {
+        val presented = presentMemo(memo, summary, summaryLoading)
+        return presented.copy(
+            editor = presented.editor.reset(resetEditorEntryDate),
+            search = presented.search.clear(),
+        )
+    }
+
+    /**
+     * Leaves the editor while keeping the current selection for detail, clearing
+     * summary presentation and resetting the draft session.
+     */
+    fun returnToPresentedMemo(
+        resetEditorEntryDate: String,
+        summaryLoading: Boolean = false,
+    ): RecordsFeatureStateHolder {
+        return copy(
+            summary = summary.replacePresentation(null, loading = summaryLoading),
+            editor = editor.reset(resetEditorEntryDate),
+        )
+    }
+
+    /**
+     * Drops selection/summary presentation when [memoId] is the selected memo.
+     * Used after list-surface lifecycle deletes that should not force navigation.
+     */
+    fun forgetMemoIfSelected(memoId: String): RecordsFeatureStateHolder {
+        val wasSelected = selection.selectedMemo?.id == memoId
+        return copy(
+            selection = selection.clearIfSelected(memoId),
+            summary = if (wasSelected) {
+                summary.replaceSummary(null)
+            } else {
+                summary
+            },
+        )
+    }
+
+    /**
+     * Inserts [memo] into the visible cache/search results and opens it as the
+     * detail presentation target. Used by source-record navigation.
+     */
+    fun absorbVisibleMemo(
+        memo: Memo,
+        summary: MemoAI? = null,
+        filter: MemoListFilter = browse.filter,
+    ): RecordsFeatureStateHolder {
+        val cached = memosForFilter(
+            collection.records.filter { it.id != memo.id } + memo,
+            filter,
+        )
+        return presentMemoDetail(
+            memo = memo,
+            summary = summary,
+            summaryLoading = false,
+        ).copy(
+            collection = collection.replace(cached),
+            search = search.mergeResultMemo(memo, filter),
+        )
+    }
+
+    /**
      * Opens a new or duplicated editor draft without a selected memo.
      */
     fun beginNewEditorDraft(
@@ -197,6 +284,20 @@ data class RecordsFeatureStateHolder(
             pagination = pagination.cancel(),
             refresh = refresh.cancel(),
             selection = selection.mergeMemo(memo),
+        )
+    }
+
+    /**
+     * Applies a canonical memo and replaces detail summary presentation in one
+     * transition after a validated detail response.
+     */
+    fun completePresentedDetail(
+        memo: Memo,
+        summary: MemoAI?,
+    ): RecordsFeatureStateHolder {
+        val applied = applyCanonicalMemo(memo)
+        return applied.copy(
+            summary = applied.summary.completeDetail(summary),
         )
     }
 

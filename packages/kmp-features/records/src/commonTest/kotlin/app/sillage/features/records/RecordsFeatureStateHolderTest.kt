@@ -102,6 +102,198 @@ class RecordsFeatureStateHolderTest {
     }
 
     @Test
+    fun presentMemoDetailStopsUploadAndDisablesMarkdownPreview() {
+        val selected = memo("memo-5")
+        val state = RecordsFeatureStateHolder(
+            editor = RecordsEditorStateHolder(
+                uploadingAttachment = true,
+                markdownPreview = true,
+            ),
+        )
+
+        val presented = state.presentMemoDetail(
+            memo = selected,
+            summaryLoading = true,
+        )
+
+        assertEquals(selected, presented.selection.selectedMemo)
+        assertTrue(presented.summary.loading)
+        assertFalse(presented.editor.uploadingAttachment)
+        assertFalse(presented.editor.markdownPreview)
+    }
+
+    @Test
+    fun presentSavedMemoResetsEditorAndClearsSearch() {
+        val selected = memo("memo-6")
+        val state = RecordsFeatureStateHolder(
+            search = RecordsSearchStateHolder(query = "旧查询", results = listOf(selected)),
+            editor = RecordsEditorStateHolder(draftContent = "草稿", sessionId = 3),
+        )
+
+        val presented = state.presentSavedMemo(
+            memo = selected,
+            summaryLoading = true,
+            resetEditorEntryDate = "2026-08-03",
+        )
+
+        assertEquals(selected, presented.selection.selectedMemo)
+        assertTrue(presented.summary.loading)
+        assertEquals("", presented.editor.draftContent)
+        assertEquals("2026-08-03", presented.editor.draftEntryDate)
+        assertEquals("", presented.search.query)
+        assertNull(presented.search.results)
+    }
+
+    @Test
+    fun returnToPresentedMemoKeepsSelectionAndResetsEditor() {
+        val selected = memo("memo-7")
+        val state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(
+                summary = MemoAI(
+                    memoId = selected.id,
+                    summary = "旧摘要",
+                    sentiment = null,
+                    provider = "openai",
+                    model = "model",
+                    profileId = "p1",
+                    promptVersion = "v1",
+                    sourceMemoIds = selected.id,
+                    status = "complete",
+                    errorCode = null,
+                    startedAt = null,
+                    finishedAt = null,
+                    inputTokens = 1,
+                    outputTokens = 1,
+                    totalTokens = 2,
+                    createdAt = "2026-08-01T00:00:00Z",
+                    updatedAt = "2026-08-01T00:00:00Z",
+                ),
+            ),
+            editor = RecordsEditorStateHolder(draftContent = "编辑中"),
+        )
+
+        val returned = state.returnToPresentedMemo(
+            resetEditorEntryDate = "2026-08-04",
+            summaryLoading = true,
+        )
+
+        assertEquals(selected, returned.selection.selectedMemo)
+        assertNull(returned.summary.summary)
+        assertTrue(returned.summary.loading)
+        assertEquals("", returned.editor.draftContent)
+        assertEquals("2026-08-04", returned.editor.draftEntryDate)
+    }
+
+    @Test
+    fun forgetMemoIfSelectedOnlyClearsMatchingSelectionAndSummary() {
+        val selected = memo("memo-8")
+        val other = memo("memo-9")
+        val selectedState = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = selected),
+            summary = RecordsSummaryStateHolder(
+                summary = MemoAI(
+                    memoId = selected.id,
+                    summary = "摘要",
+                    sentiment = null,
+                    provider = "openai",
+                    model = "model",
+                    profileId = "p1",
+                    promptVersion = "v1",
+                    sourceMemoIds = selected.id,
+                    status = "complete",
+                    errorCode = null,
+                    startedAt = null,
+                    finishedAt = null,
+                    inputTokens = 1,
+                    outputTokens = 1,
+                    totalTokens = 2,
+                    createdAt = "2026-08-01T00:00:00Z",
+                    updatedAt = "2026-08-01T00:00:00Z",
+                ),
+            ),
+        )
+
+        val forgotten = selectedState.forgetMemoIfSelected(selected.id)
+        val untouched = selectedState.forgetMemoIfSelected(other.id)
+
+        assertNull(forgotten.selection.selectedMemo)
+        assertNull(forgotten.summary.summary)
+        assertEquals(selected, untouched.selection.selectedMemo)
+        assertEquals("摘要", untouched.summary.summary?.summary)
+    }
+
+    @Test
+    fun absorbVisibleMemoUpdatesCacheSearchAndDetailPresentation() {
+        val existing = memo("memo-10")
+        val incoming = memo("memo-11")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(existing)),
+            search = RecordsSearchStateHolder(
+                query = "memo",
+                results = listOf(existing),
+                resultQuery = "memo",
+            ),
+            browse = RecordsBrowseStateHolder(
+                filter = MemoListFilter.Unarchived,
+                calendarYear = 2026,
+                calendarMonth = 8,
+            ),
+            editor = RecordsEditorStateHolder(uploadingAttachment = true, markdownPreview = true),
+        )
+
+        val absorbed = state.absorbVisibleMemo(incoming)
+
+        assertEquals(listOf(existing, incoming), absorbed.records)
+        assertEquals(listOf(existing, incoming), absorbed.search.results)
+        assertEquals(incoming, absorbed.selection.selectedMemo)
+        assertFalse(absorbed.editor.uploadingAttachment)
+        assertFalse(absorbed.editor.markdownPreview)
+    }
+
+    @Test
+    fun completePresentedDetailAppliesCanonicalMemoAndSummaryTogether() {
+        val original = memo("memo-12")
+        val updated = original.copy(content = "更新", version = 2, updatedAt = "2026-08-01T03:00:00Z")
+        val summary = MemoAI(
+            memoId = updated.id,
+            summary = "新摘要",
+            sentiment = null,
+            provider = "openai",
+            model = "model",
+            profileId = "p1",
+            promptVersion = "v1",
+            sourceMemoIds = updated.id,
+            status = "complete",
+            errorCode = null,
+            startedAt = null,
+            finishedAt = null,
+            inputTokens = 1,
+            outputTokens = 1,
+            totalTokens = 2,
+            createdAt = "2026-08-01T00:00:00Z",
+            updatedAt = "2026-08-01T03:00:00Z",
+        )
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(records = listOf(original), cacheGeneration = 1),
+            selection = RecordsSelectionStateHolder(selectedMemo = original),
+            summary = RecordsSummaryStateHolder(loading = true),
+            pagination = RecordsPaginationStateHolder(loadingMore = true, requestId = 2),
+            refresh = RecordsRefreshStateHolder(status = RecordsRefreshStatus.Loading, requestId = 3),
+        )
+
+        val completed = state.completePresentedDetail(updated, summary)
+
+        assertEquals(listOf(updated), completed.records)
+        assertEquals(2, completed.cacheGeneration)
+        assertEquals(updated, completed.selection.selectedMemo)
+        assertEquals(summary, completed.summary.summary)
+        assertFalse(completed.summary.loading)
+        assertFalse(completed.loadingMore)
+        assertEquals(RecordsRefreshStatus.Idle, completed.refreshStatus)
+    }
+
+    @Test
     fun clearInteractiveSurfaceResetsListMutationSelectionSummaryUploadAndSearch() {
         val selected = memo("memo-1")
         val state = RecordsFeatureStateHolder(

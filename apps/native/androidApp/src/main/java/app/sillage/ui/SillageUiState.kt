@@ -381,9 +381,8 @@ internal fun SillageUiState.completeMemoDetailRequest(
     ) {
         RecordsDetailResponseDisposition.Ignore -> this
         RecordsDetailResponseDisposition.Superseded -> withRecords { it.copy(summary = it.summary.finishDetail()) }
-        RecordsDetailResponseDisposition.Apply -> {
-            val applied = applyMemoToCache(detail.memo)
-            applied.withRecords { it.copy(summary = it.summary.completeDetail(detail.ai)) }
+        RecordsDetailResponseDisposition.Apply -> withRecords {
+            it.completePresentedDetail(detail.memo, detail.ai)
         }
     }
 }

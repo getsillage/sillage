@@ -122,6 +122,11 @@ cross `RecordLifecycleRepository` and `MutateRecordLifecycleUseCase`. Shared
 commands preserve mutation intent while Android adapters own local persistence
 or REST calls.
 
+AI summary generation crosses `RecordSummaryGenerator`; local summary
+persistence crosses `RecordSummaryStore` only after the host validates the
+captured record version and client context. Android adapters own local profile
+resolution, AI clients, encrypted persistence, and REST execution.
+
 Records search is the third extracted state slice. The shared holder owns query,
 result, failure, completion-event, and request-identity transitions; hosts own
 debounce scheduling and choose the active local or remote application adapter.

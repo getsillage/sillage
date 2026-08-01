@@ -20,9 +20,14 @@ import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalDataStore
 import app.sillage.data.LocalRecordsRepository
+import app.sillage.data.LocalRecordSummaryRepository
 import app.sillage.data.RemoteRecordsRepository
+import app.sillage.data.RemoteRecordSummaryRepository
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
+import app.sillage.core.application.records.GenerateRecordSummaryUseCase
+import app.sillage.core.application.records.SaveRecordSummaryUseCase
+import app.sillage.core.application.records.ActiveRecordSummaryProfileRequiredException
 import app.sillage.core.application.records.ListRecordsPageUseCase
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
@@ -99,6 +104,12 @@ class SillageViewModel(
     private val saveLocalRecord = SaveRecordUseCase(localRecordsRepository)
     private val mutateLocalRecordLifecycle = MutateRecordLifecycleUseCase(localRecordsRepository)
     private val localAiClient = LocalAiClient()
+    private val localRecordSummaryRepository = LocalRecordSummaryRepository(
+        this.localDataStore,
+        localAiClient,
+    )
+    private val generateLocalRecordSummary = GenerateRecordSummaryUseCase(localRecordSummaryRepository)
+    private val saveLocalRecordSummary = SaveRecordSummaryUseCase(localRecordSummaryRepository)
     private val api = SillageApi(sessionStore)
     private val remoteRecordsRepository = RemoteRecordsRepository(api)
     private val listRemoteRecords = ListRecordsPageUseCase(remoteRecordsRepository)
@@ -106,6 +117,9 @@ class SillageViewModel(
     private val getRemoteRecordDetail = GetRecordDetailUseCase(remoteRecordsRepository)
     private val saveRemoteRecord = SaveRecordUseCase(remoteRecordsRepository)
     private val mutateRemoteRecordLifecycle = MutateRecordLifecycleUseCase(remoteRecordsRepository)
+    private val generateRemoteRecordSummary = GenerateRecordSummaryUseCase(
+        RemoteRecordSummaryRepository(api),
+    )
     private var askStreamJob: Job? = null
     private var searchJob: Job? = null
     private var attachmentOpenJob: Job? = null
@@ -1730,9 +1744,7 @@ class SillageViewModel(
         val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
                 val ai = if (request.sourceKey == SessionStore.MODE_OFFLINE) {
-                    val profile = localDataStore.activeAIProfile()
-                        ?: throw IllegalArgumentException(uiString(R.string.error_ai_default_profile_required))
-                    val generated = localAiClient.summarizeMemo(profile, memo)
+                    val generated = generateLocalRecordSummary(memo)
                     val latest = state.value
                     if (
                         latest.appMode != request.sourceKey ||
@@ -1741,10 +1753,10 @@ class SillageViewModel(
                     ) {
                         return@launch
                     }
-                    localDataStore.saveMemoAI(generated)
+                    saveLocalRecordSummary(generated)
                     generated
                 } else {
-                    api.generateMemoSummary(memo)
+                    generateRemoteRecordSummary(memo)
                 }
                 updateState { state ->
                     state.completeMemoSummaryRequest(
@@ -1756,8 +1768,13 @@ class SillageViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
+                val message = if (error is ActiveRecordSummaryProfileRequiredException) {
+                    uiString(R.string.error_ai_default_profile_required)
+                } else {
+                    error.readableMessage()
+                }
                 updateState { state ->
-                    state.failMemoSummaryRequest(request, error.readableMessage())
+                    state.failMemoSummaryRequest(request, message)
                 }
             } finally {
                 updateState { state -> state.finishMemoSummaryRequest(request) }

@@ -144,6 +144,10 @@ storage or REST write and return the canonical shared `Memo`.
 `RecordLifecycleRepository` and `MutateRecordLifecycleUseCase` expose favorite,
 archive, recoverable deletion, restoration, and permanent deletion commands.
 The same adapters execute the mutation and return its canonical shared `Memo`.
+`RecordSummaryGenerator` and `RecordSummaryStore` separate AI generation from
+local persistence. Android validates the captured record version and client
+context before invoking the store; local profile resolution, AI clients,
+encrypted persistence, and REST execution remain adapter responsibilities.
 
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state

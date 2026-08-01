@@ -228,6 +228,52 @@ data class RecordsFeatureStateHolder(
         )
     }
 
+    /** Updates editor content without exposing the nested holder to hosts. */
+    fun updateEditorContent(value: String): RecordsFeatureStateHolder {
+        return copy(editor = editor.updateContent(value))
+    }
+
+    /** Updates editor entry date without exposing the nested holder to hosts. */
+    fun updateEditorEntryDate(value: String): RecordsFeatureStateHolder {
+        return copy(editor = editor.updateEntryDate(value))
+    }
+
+    /** Updates Markdown preview presentation through the feature aggregate. */
+    fun setEditorMarkdownPreview(value: Boolean): RecordsFeatureStateHolder {
+        return copy(editor = editor.setMarkdownPreview(value))
+    }
+
+    /** Appends a shared Markdown toolbar snippet through the feature aggregate. */
+    fun appendEditorFormattedSnippet(snippet: String): RecordsFeatureStateHolder {
+        return copy(editor = editor.appendFormattedSnippet(snippet))
+    }
+
+    /** Begins one attachment upload owned by the active editor session. */
+    fun beginEditorAttachmentUpload(
+        expectedSessionId: Long,
+    ): RecordsFeatureStateHolder? {
+        val nextEditor = editor.beginAttachmentUpload(expectedSessionId) ?: return null
+        return copy(editor = nextEditor)
+    }
+
+    /** Appends an uploaded attachment only while the captured editor session owns it. */
+    fun appendEditorAttachmentSnippet(
+        expectedSessionId: Long,
+        snippet: String,
+    ): RecordsFeatureStateHolder {
+        if (!editor.canApplyAttachmentUpload(expectedSessionId)) {
+            return this
+        }
+        return copy(editor = editor.appendAttachmentSnippet(snippet))
+    }
+
+    /** Finishes attachment-upload presentation for the captured editor session. */
+    fun finishEditorAttachmentUpload(
+        expectedSessionId: Long,
+    ): RecordsFeatureStateHolder {
+        return copy(editor = editor.finishAttachmentUpload(expectedSessionId))
+    }
+
     /**
      * Prepares a fresh list query: empty cache, reset cursor, and optional
      * refresh-loading presentation before the host begins a real refresh request.

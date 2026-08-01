@@ -5,6 +5,7 @@ import app.sillage.core.domain.records.MemoAI
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -689,6 +690,66 @@ class RecordsFeatureStateHolderTest {
         assertEquals(RecordsRefreshStatus.Loading, calendar.refreshStatus)
         assertEquals("", calendar.search.query)
         assertNull(calendar.selection.selectedMemo)
+    }
+
+    @Test
+    fun editorDraftTransitionsStayInsideAggregate() {
+        val selected = memo("memo-editor")
+        val state = RecordsFeatureStateHolder(
+            collection = RecordsCollectionStateHolder(
+                records = listOf(selected),
+                cacheGeneration = 2,
+            ),
+            editor = RecordsEditorStateHolder(
+                sessionId = 4,
+                draftContent = "old",
+                draftEntryDate = "2026-08-01",
+                initialDraftContent = "old",
+                initialDraftEntryDate = "2026-08-01",
+                markdownPreview = true,
+            ),
+            search = RecordsSearchStateHolder(query = "keep"),
+        )
+
+        val updated = state
+            .updateEditorContent("new")
+            .updateEditorEntryDate("2026-08-02")
+            .setEditorMarkdownPreview(true)
+            .appendEditorFormattedSnippet("**bold**")
+
+        assertEquals("new **bold**", updated.editor.draftContent)
+        assertEquals("2026-08-02", updated.editor.draftEntryDate)
+        assertFalse(updated.editor.markdownPreview)
+        assertEquals(listOf(selected), updated.records)
+        assertEquals(2, updated.cacheGeneration)
+        assertEquals("keep", updated.search.query)
+    }
+
+    @Test
+    fun editorAttachmentTransitionsRejectStaleSessions() {
+        val state = RecordsFeatureStateHolder(
+            editor = RecordsEditorStateHolder(
+                sessionId = 7,
+                draftContent = "memo",
+            ),
+        )
+
+        assertNull(state.beginEditorAttachmentUpload(expectedSessionId = 6))
+        val started = assertNotNull(
+            state.beginEditorAttachmentUpload(expectedSessionId = 7),
+        )
+        val appended = started.appendEditorAttachmentSnippet(
+            expectedSessionId = 7,
+            snippet = "\n[file](/attachment)",
+        )
+        val stale = appended.appendEditorAttachmentSnippet(
+            expectedSessionId = 6,
+            snippet = "\n[stale](/attachment)",
+        )
+        val finished = stale.finishEditorAttachmentUpload(expectedSessionId = 7)
+
+        assertEquals("memo\n[file](/attachment)", finished.editor.draftContent)
+        assertFalse(finished.editor.uploadingAttachment)
     }
 
     @Test

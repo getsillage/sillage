@@ -360,6 +360,25 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootRecordsTransitionKeepsHostStateWhileUpdatingEditorAggregate() {
+        val state = editorState().copy(error = "keep")
+
+        val updated = state.withRecords { records ->
+            records
+                .updateEditorContent("draft")
+                .updateEditorEntryDate("2026-08-02")
+                .setEditorMarkdownPreview(true)
+                .appendEditorFormattedSnippet("**bold**")
+        }
+
+        assertEquals("draft **bold**", updated.draftContent)
+        assertEquals("2026-08-02", updated.draftEntryDate)
+        assertFalse(updated.markdownPreview)
+        assertEquals("keep", updated.error)
+        assertEquals(state.screen, updated.screen)
+    }
+
+    @Test
     fun syncAggregateOwnsConflictPresentationWithTransitionalGetter() {
         val state = editorState()
         assertEquals(emptyList<MemoSyncConflictItem>(), state.syncConflicts)

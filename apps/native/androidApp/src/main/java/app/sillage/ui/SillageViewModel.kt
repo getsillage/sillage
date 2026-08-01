@@ -1032,7 +1032,7 @@ class SillageViewModel(
 
     fun updateDraftContent(value: String) = updateState {
         if (it.canRunMemoEditorAction()) {
-            it.copy(records = it.records.copy(editor = it.records.editor.updateContent(value)))
+            it.withRecords { records -> records.updateEditorContent(value) }
         } else {
             it
         }
@@ -1040,7 +1040,7 @@ class SillageViewModel(
 
     fun updateDraftEntryDate(value: String) = updateState {
         if (it.canRunMemoEditorAction()) {
-            it.copy(records = it.records.copy(editor = it.records.editor.updateEntryDate(value)))
+            it.withRecords { records -> records.updateEditorEntryDate(value) }
         } else {
             it
         }
@@ -1049,9 +1049,7 @@ class SillageViewModel(
     fun updateMarkdownPreview(preview: Boolean) {
         updateState {
             if (it.canRunMemoEditorAction()) {
-                it.copy(
-                    records = it.records.copy(editor = it.records.editor.setMarkdownPreview(preview)),
-                )
+                it.withRecords { records -> records.setEditorMarkdownPreview(preview) }
             } else {
                 it
             }
@@ -1070,9 +1068,7 @@ class SillageViewModel(
         val snippet = markdownFormatSnippet(style, uiString(sampleResource))
         updateState {
             if (it.canRunMemoEditorAction()) {
-                it.copy(
-                    records = it.records.copy(editor = it.records.editor.appendFormattedSnippet(snippet)),
-                )
+                it.withRecords { records -> records.appendEditorFormattedSnippet(snippet) }
             } else {
                 it
             }
@@ -1830,10 +1826,10 @@ class SillageViewModel(
         val offline = isOfflineMode()
         updateState {
             if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
-                val editor = it.records.editor.beginAttachmentUpload(editorSessionId)
+                val records = it.records.beginEditorAttachmentUpload(editorSessionId)
                     ?: return@updateState it
                 it.copy(
-                    records = it.records.copy(editor = editor),
+                    records = records,
                     error = null,
                     notice = null,
                 )
@@ -1871,9 +1867,9 @@ class SillageViewModel(
                 if (snippet != null) {
                 updateState {
                     if (it.canApplyAttachmentUpload(editorSessionId)) {
-                        it.copy(
-                            records = it.records.copy(editor = it.records.editor.appendAttachmentSnippet(snippet)),
-                        )
+                        it.withRecords { records ->
+                            records.appendEditorAttachmentSnippet(editorSessionId, snippet)
+                        }
                         } else {
                             it
                         }
@@ -1888,7 +1884,7 @@ class SillageViewModel(
                 if (it.canApplyAttachmentUpload(editorSessionId)) {
                     when {
                     failedCount == 0 -> it.copy(
-                        records = it.records.copy(editor = it.records.editor.finishAttachmentUpload(editorSessionId)),
+                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
                         notice = uiString(
                                 if (offline) {
                                     R.string.notice_attachment_queued_offline
@@ -1898,12 +1894,12 @@ class SillageViewModel(
                             ),
                     )
                     partialFailure -> it.copy(
-                        records = it.records.copy(editor = it.records.editor.finishAttachmentUpload(editorSessionId)),
+                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
                         error = null,
                         notice = uiString(R.string.notice_attachment_partial_failure, failedCount),
                     )
                     else -> it.copy(
-                        records = it.records.copy(editor = it.records.editor.finishAttachmentUpload(editorSessionId)),
+                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
                         error = firstError?.readableMessage(),
                     )
                     }
@@ -3403,9 +3399,7 @@ class SillageViewModel(
             if (draft == current.draftContent) {
                 current
             } else {
-                current.copy(
-                    records = current.records.copy(editor = current.records.editor.updateContent(draft)),
-                )
+                    current.withRecords { records -> records.updateEditorContent(draft) }
                 }
             }
         }

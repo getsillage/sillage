@@ -62,6 +62,9 @@ shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save
 response reconciliation also live in that module. Android keeps encrypted
 storage, REST inputs, and device-local AI execution as adapters.
+The root state composes `AIProfilesMutationStateHolder` for editable profiles,
+optimistic save, rollback, and stale-callback rejection, with transitional read
+accessors for the existing Compose screens.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

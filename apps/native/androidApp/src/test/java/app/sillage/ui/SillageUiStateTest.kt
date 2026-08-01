@@ -1,6 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.AIProfilesMutationStateHolder
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskComposerStateHolder
@@ -179,7 +180,10 @@ class SillageUiStateTest {
             idle.copy(askMemoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1"))
                 .hasClientContextOperationInProgress(),
         )
-        assertTrue(idle.copy(aiSettingsSaving = true).hasClientContextOperationInProgress())
+        assertTrue(
+            idle.copy(aiProfilesMutation = idle.aiProfilesMutation.copy(saving = true))
+                .hasClientContextOperationInProgress(),
+        )
         assertTrue(idle.withAIAutoSummary(saving = true).hasClientContextOperationInProgress())
     }
 
@@ -748,7 +752,7 @@ class SillageUiStateTest {
         val profiles = listOf(AIProfileDraft(id = "p1", name = "未保存名称"))
         val idle = editorState().copy(
             screen = Screen.AISettings,
-            aiProfiles = profiles,
+            aiProfilesMutation = AIProfilesMutationStateHolder(profiles = profiles),
             aiAutoSummaryState = AIAutoSummaryStateHolder(enabled = false),
         )
         val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
@@ -793,8 +797,10 @@ class SillageUiStateTest {
         val idle = editorState().copy(
             screen = Screen.AISettings,
             appMode = SessionStore.MODE_ONLINE,
-            aiProfiles = original,
-            aiSettingsRequestId = 6,
+            aiProfilesMutation = AIProfilesMutationStateHolder(
+                profiles = original,
+                requestId = 6,
+            ),
         )
         val earlierLoadGeneration = idle.aiSettingsRequestId
         val request = requireNotNull(idle.nextAIProfilesMutationRequest(edited))
@@ -825,7 +831,7 @@ class SillageUiStateTest {
         val firstSaved = listOf(AIProfileDraft(id = "profile-1", name = "服务端名称"))
         val initial = editorState().copy(
             screen = Screen.AISettings,
-            aiProfiles = original,
+            aiProfilesMutation = AIProfilesMutationStateHolder(profiles = original),
         )
         val firstRequest = requireNotNull(initial.nextAIProfilesMutationRequest(firstPending))
         val firstCompleted = initial.startAIProfilesMutation(firstRequest)
@@ -843,7 +849,9 @@ class SillageUiStateTest {
         assertFalse(secondFailed.aiSettingsSaving)
 
         val laterDraft = listOf(AIProfileDraft(id = "profile-1", name = "请求后继续编辑"))
-        val changedWhileSaving = secondSaving.copy(aiProfiles = laterDraft)
+        val changedWhileSaving = secondSaving.copy(
+            aiProfilesMutation = secondSaving.aiProfilesMutation.replace(laterDraft),
+        )
         val preserved = changedWhileSaving.failAIProfilesMutation(secondRequest)
         assertEquals(laterDraft, preserved.aiProfiles)
         assertFalse(preserved.aiSettingsSaving)
@@ -857,7 +865,7 @@ class SillageUiStateTest {
         )
         val idle = editorState().copy(
             screen = Screen.AISettings,
-            aiProfiles = staged,
+            aiProfilesMutation = AIProfilesMutationStateHolder(profiles = staged),
         )
         val request = requireNotNull(
             idle.nextAIProfilesMutationRequest(

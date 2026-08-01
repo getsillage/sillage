@@ -115,6 +115,10 @@ It also owns `AIProfileDraft`, including raw editor input, validation helpers,
 and safe reconciliation of secret-free server responses with locally held API
 key input. Canonical secret-free profile metadata remains in `kmp-core:domain`;
 platform adapters alone serialize encrypted keys or map save/test commands.
+`AIProfilesMutationStateHolder` owns the editable profile collection plus
+optimistic save, rollback, request identity, and client-context validation.
+Android's root state exposes transitional profile accessors while composing this
+holder directly.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

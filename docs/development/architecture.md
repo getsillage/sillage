@@ -151,6 +151,10 @@ The module also owns `AIProfileDraft` and its editor-only identity, raw input,
 validation, and safe API-key reconciliation policy. Platform adapters must omit
 editor identity from persistence and must not expose secret input as domain
 metadata.
+`AIProfilesMutationStateHolder` composes the draft collection and owns optimistic
+profile-save state, rollback, and request ownership across mode or client-context
+changes. Android keeps transitional read accessors while all profile writes go
+through the shared holder.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

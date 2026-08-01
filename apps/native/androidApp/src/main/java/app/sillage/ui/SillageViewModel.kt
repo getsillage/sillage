@@ -78,6 +78,7 @@ import app.sillage.data.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
 import app.sillage.data.buildAskActivePath
 import app.sillage.features.settings.AIProfileDraft
+import app.sillage.features.settings.AIProfilesMutationRequest
 import app.sillage.features.settings.firstBlankAIProfileNameIndex
 import app.sillage.core.domain.ask.isActive
 import app.sillage.data.lastAssistantMessageId
@@ -347,12 +348,10 @@ class SillageViewModel(
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
-                aiProfiles = emptyList(),
+                aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
-                aiSettingsSaving = false,
-                aiSettingsRequestId = it.aiSettingsRequestId + 1,
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),
@@ -394,12 +393,10 @@ class SillageViewModel(
                 recordsMutation = it.recordsMutation.clear(),
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replaceSummary(null),
-                aiProfiles = emptyList(),
+                aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(false),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
-                aiSettingsSaving = false,
-                aiSettingsRequestId = it.aiSettingsRequestId + 1,
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),
@@ -805,14 +802,12 @@ class SillageViewModel(
                         recordsSelection = it.recordsSelection.clear(),
                         recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                         recordsEditor = it.recordsEditor.stopAttachmentUpload(),
-                            aiProfiles = emptyList(),
+                            aiProfilesMutation = it.aiProfilesMutation.invalidate(emptyList()),
                             aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(
                                 if (offlineMode) localDataStore.autoSummaryEnabled() else false,
                             ),
                             aiSettingsLoading = false,
                             aiSettingsLoadError = null,
-                            aiSettingsSaving = false,
-                            aiSettingsRequestId = it.aiSettingsRequestId + 1,
                             aiTestingProfileId = "",
                             aiLoadingModelsProfileId = "",
                             aiTestResults = emptyMap(),
@@ -1170,7 +1165,7 @@ class SillageViewModel(
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
-                    aiProfiles = result.aiProfiles,
+                    aiProfilesMutation = it.aiProfilesMutation.invalidate(result.aiProfiles),
                     aiAutoSummaryState = it.aiAutoSummaryState.replace(result.aiAutoSummary),
                     askConversation = it.askConversation.copy(
                         conversations = emptyList(),
@@ -2026,9 +2021,11 @@ class SillageViewModel(
                 !it.aiSettingsSaving
             ) {
                 it.copy(
-                    aiProfiles = it.aiProfiles + AIProfileDraft(
-                        draftKey = UUID.randomUUID().toString(),
-                        active = it.aiProfiles.isEmpty(),
+                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                        it.aiProfiles + AIProfileDraft(
+                            draftKey = UUID.randomUUID().toString(),
+                            active = it.aiProfiles.isEmpty(),
+                        ),
                     ),
                 )
             } else {
@@ -2049,8 +2046,10 @@ class SillageViewModel(
             ) {
                 removed = true
                 it.copy(
-                    aiProfiles = normalizedAIProfiles(
-                        it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
+                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                        normalizedAIProfiles(
+                            it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
+                        ),
                     ),
                 )
             } else {
@@ -2108,9 +2107,11 @@ class SillageViewModel(
                 index in it.aiProfiles.indices
             ) {
                 it.copy(
-                    aiProfiles = it.aiProfiles.mapIndexed { profileIndex, profile ->
-                        profile.copy(enabled = true, active = profileIndex == index)
-                    },
+                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                        it.aiProfiles.mapIndexed { profileIndex, profile ->
+                            profile.copy(enabled = true, active = profileIndex == index)
+                        },
+                    ),
                 )
             } else {
                 it
@@ -2185,7 +2186,7 @@ class SillageViewModel(
                 latest.invalidateAIAutoSummaryRequest().copy(
                     aiSettingsLoading = true,
                     aiSettingsLoadError = null,
-                    aiSettingsRequestId = loadRequestId,
+                    aiProfilesMutation = latest.aiProfilesMutation.invalidate(),
                     error = null,
                     notice = null,
                 )
@@ -2223,7 +2224,7 @@ class SillageViewModel(
                             current.aiSettingsLoading
                         ) {
                             current.copy(
-                                aiProfiles = settings.profiles,
+                                aiProfilesMutation = current.aiProfilesMutation.replace(settings.profiles),
                                 aiAutoSummaryState = current.aiAutoSummaryState.replace(
                                     settings.autoSummary,
                                 ),
@@ -3006,9 +3007,11 @@ class SillageViewModel(
                 !it.aiSettingsSaving
             ) {
                 it.copy(
-                    aiProfiles = it.aiProfiles.mapIndexed { i, profile ->
-                        if (i == index) transform(profile) else profile
-                    },
+                    aiProfilesMutation = it.aiProfilesMutation.replace(
+                        it.aiProfiles.mapIndexed { i, profile ->
+                            if (i == index) transform(profile) else profile
+                        },
+                    ),
                 )
             } else {
                 it
@@ -3905,12 +3908,10 @@ class SillageViewModel(
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
-                aiProfiles = aiProfiles,
+                aiProfilesMutation = it.aiProfilesMutation.invalidate(aiProfiles),
                 aiAutoSummaryState = it.aiAutoSummaryState.invalidate().replace(autoSummary),
                 aiSettingsLoading = false,
                 aiSettingsLoadError = null,
-                aiSettingsSaving = false,
-                aiSettingsRequestId = it.aiSettingsRequestId + 1,
                 aiTestingProfileId = "",
                 aiLoadingModelsProfileId = "",
                 aiTestResults = emptyMap(),

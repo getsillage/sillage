@@ -14,7 +14,6 @@ import app.sillage.R
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
-import app.sillage.data.DownloadedAttachment
 import app.sillage.data.LocalAiClient
 import app.sillage.data.LocalAIAutoSummaryRepository
 import app.sillage.data.LocalAIProfilesRepository
@@ -36,6 +35,7 @@ import app.sillage.data.RemoteAskRepository
 import app.sillage.data.RemoteAskAnswerStreamer
 import app.sillage.data.RemoteAuthenticationRepository
 import app.sillage.data.RemoteAttachmentUploadRepository
+import app.sillage.data.RemoteAttachmentDownloadRepository
 import app.sillage.data.RemoteAIAutoSummaryRepository
 import app.sillage.data.RemoteAIProfilesRepository
 import app.sillage.data.RemoteAISettingsRepository
@@ -44,6 +44,9 @@ import app.sillage.data.RemoteSyncSnapshotGateway
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.application.records.GetRecordDetailUseCase
 import app.sillage.core.application.records.AttachmentUploadCommand
+import app.sillage.core.application.records.AttachmentDownloadCommand
+import app.sillage.core.application.records.DownloadAttachmentUseCase
+import app.sillage.core.application.records.DownloadedAttachmentMetadata
 import app.sillage.core.application.records.UploadAttachmentUseCase
 import app.sillage.core.application.auth.ChangePasswordCommand
 import app.sillage.core.application.auth.ChangePasswordUseCase
@@ -209,6 +212,9 @@ class SillageViewModel(
     private val signOutUseCase = SignOutUseCase(remoteAuthenticationRepository)
     private val uploadRemoteAttachment = UploadAttachmentUseCase(
         RemoteAttachmentUploadRepository(api),
+    )
+    private val downloadRemoteAttachment = DownloadAttachmentUseCase(
+        RemoteAttachmentDownloadRepository(api),
     )
     private val remoteAIProfileDiagnostics = RemoteAIProfileDiagnostics(api)
     private val testRemoteAIProfile =
@@ -2037,7 +2043,10 @@ class SillageViewModel(
                 }
                 requestDirectory = File(cacheRoot, UUID.randomUUID().toString())
                 val tempFile = createAttachmentDownloadTempFile(requestDirectory)
-                val download = api.downloadAttachment(target, tempFile)
+                val download = downloadRemoteAttachment(
+                    AttachmentDownloadCommand(target.path),
+                    tempFile,
+                )
                 val event = finalizeAttachmentDownload(
                     requestId = requestId,
                     tempFile = tempFile,
@@ -3192,7 +3201,7 @@ class SillageViewModel(
     private suspend fun finalizeAttachmentDownload(
         requestId: Long,
         tempFile: File,
-        download: DownloadedAttachment,
+        download: DownloadedAttachmentMetadata,
         fallbackFilename: String,
     ): AttachmentOpenEvent = withContext(Dispatchers.IO) {
         val filename = preferredAttachmentFilename(

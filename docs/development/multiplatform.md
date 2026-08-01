@@ -260,8 +260,10 @@ Android retains platform date arithmetic and refresh scheduling.
 
 Attachment opening is the tenth extracted records state slice.
 `RecordsAttachmentOpenStateHolder` owns request identity, late-result ownership,
-and invalidation. Android retains authenticated download, content-URI and cache
-staging, MIME resolution, and native viewer launch.
+and invalidation. Authenticated download crosses generic
+`AttachmentDownloadRepository` and `DownloadAttachmentUseCase`, which accept a
+host destination without materializing response bytes in shared state. Android
+retains content-URI/cache staging, MIME resolution, and native viewer launch.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
 conflict, and push-summary models. Android retains current REST/JSON mapping,

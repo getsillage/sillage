@@ -45,7 +45,9 @@ lives in `kmp-features:records`. Android UI code may compose those shared featur
 must not duplicate domain, storage, synchronization, or protocol rules. Remote
 attachment upload crosses `AttachmentUploadRepository` and
 `UploadAttachmentUseCase`; Android retains content-URI reading, multipart mapping,
-and offline file staging.
+and offline file staging. Authenticated download crosses generic
+`AttachmentDownloadRepository`; its Android adapter streams to a cache `File`
+before platform MIME resolution and viewer launch.
 Account identity is imported from shared domain, while token-bearing sessions
 and public bootstrap metadata use shared application models. Android retains
 HTTP parsing and encrypted session persistence.

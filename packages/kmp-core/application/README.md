@@ -15,7 +15,7 @@ execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
 cancellation semantics without exposing tokens or platform session snapshots;
 a rejected conditional clear means a newer session remains authoritative.
 
-The records slice currently exposes eight distinct boundaries:
+The records slice currently exposes nine distinct boundaries:
 
 - `RecordsRepository` and `ListRecordsUseCase` read one consistent local
   snapshot without exposing storage implementation types.
@@ -34,6 +34,9 @@ The records slice currently exposes eight distinct boundaries:
 - `AttachmentUploadRepository` and `UploadAttachmentUseCase` carry filename,
   media type, bytes, and canonical uploaded metadata without exposing multipart,
   JSON, or HTTP client types.
+- Generic `AttachmentDownloadRepository` and `DownloadAttachmentUseCase` stream
+  authenticated content into a host-provided destination while common code owns
+  only the request path and response metadata.
 
 The Ask slice exposes `AskRepository` with focused use cases for listing
 conversations, listing messages, creating a conversation, and selecting its

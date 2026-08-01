@@ -1,6 +1,7 @@
 package app.sillage.data
 
 import app.sillage.core.application.records.AttachmentUploadCommand
+import app.sillage.core.application.records.DownloadedAttachmentMetadata
 import app.sillage.core.application.records.UploadedAttachment
 
 import app.sillage.core.application.auth.AuthSession
@@ -385,10 +386,10 @@ class SillageApi(
     }
 
     suspend fun downloadAttachment(
-        target: MarkdownLinkTarget.ProtectedAttachment,
+        path: String,
         tempDestination: File,
-    ): DownloadedAttachment {
-        val validatedTarget = resolveMarkdownLinkTarget(target.path, sessionStore.baseUrl())
+    ): DownloadedAttachmentMetadata {
+        val validatedTarget = resolveMarkdownLinkTarget(path, sessionStore.baseUrl())
             as? MarkdownLinkTarget.ProtectedAttachment
             ?: throw ApiException("附件地址无效")
         val request = Request.Builder()
@@ -652,7 +653,7 @@ class SillageApi(
         tempDestination: File,
         retryRefresh: Boolean = true,
         authenticatedRequest: Request = request.withSessionSnapshot(authenticated = true),
-    ): DownloadedAttachment {
+    ): DownloadedAttachmentMetadata {
         return when (val result = executeAttachmentDownloadAttempt(authenticatedRequest, tempDestination)) {
             is AttachmentDownloadAttempt.Success -> result.attachment
             is AttachmentDownloadAttempt.Unauthorized -> {
@@ -705,7 +706,7 @@ class SillageApi(
                                     body.byteStream().use { input -> input.copyTo(output) }
                                 }
                                 AttachmentDownloadAttempt.Success(
-                                    DownloadedAttachment(
+                                    DownloadedAttachmentMetadata(
                                         contentType = res.header("Content-Type"),
                                         contentDisposition = res.header("Content-Disposition"),
                                         urlFilename = res.request.url.pathSegments.lastOrNull().orEmpty(),
@@ -742,7 +743,9 @@ class SillageApi(
     }
 
     private sealed interface AttachmentDownloadAttempt {
-        data class Success(val attachment: DownloadedAttachment) : AttachmentDownloadAttempt
+        data class Success(
+            val attachment: DownloadedAttachmentMetadata,
+        ) : AttachmentDownloadAttempt
 
         data class Unauthorized(val message: String) : AttachmentDownloadAttempt
     }

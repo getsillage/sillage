@@ -17,12 +17,6 @@ sealed interface MarkdownLinkTarget {
     ) : MarkdownLinkTarget
 }
 
-data class DownloadedAttachment(
-    val contentType: String?,
-    val contentDisposition: String?,
-    val urlFilename: String,
-)
-
 fun resolveMarkdownLinkTarget(rawUrl: String?, baseUrl: String): MarkdownLinkTarget? {
     val candidate = rawUrl?.trim().orEmpty()
     if (candidate.isBlank()) {

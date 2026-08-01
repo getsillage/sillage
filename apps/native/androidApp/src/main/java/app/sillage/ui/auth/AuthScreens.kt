@@ -7,20 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CloudSync
@@ -29,12 +24,9 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,8 +37,6 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.R
@@ -100,46 +90,22 @@ internal fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
             }
         },
     ) {
-        OutlinedTextField(
-            value = state.baseUrl,
-            onValueChange = viewModel::updateBaseUrl,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.server_address)) },
-            placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Uri,
-                imeAction = ImeAction.Done,
+        SillageServerForm(
+            baseUrl = state.baseUrl,
+            loading = state.loading,
+            strings = SillageServerFormStrings(
+                addressLabel = stringResource(R.string.server_address),
+                addressPlaceholder = stringResource(R.string.server_address_placeholder),
+                submit = stringResource(R.string.server_save_connect),
+                submitting = stringResource(R.string.server_connecting),
+                useOffline = stringResource(R.string.server_use_offline),
             ),
-            keyboardActions = KeyboardActions(onDone = { viewModel.saveServer() }),
-            enabled = !state.loading,
+            connectIcon = Icons.Rounded.CloudSync,
+            offlineIcon = Icons.Rounded.OfflineBolt,
+            onBaseUrlChange = viewModel::updateBaseUrl,
+            onSubmit = viewModel::saveServer,
+            onUseOffline = viewModel::useOfflineMode,
         )
-        Button(
-            onClick = viewModel::saveServer,
-            enabled = !state.loading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),
-        ) {
-            SillageAuthButtonContent(
-                loading = state.loading,
-                icon = Icons.Rounded.CloudSync,
-                text = stringResource(if (state.loading) R.string.server_connecting else R.string.server_save_connect),
-            )
-        }
-        TextButton(
-            onClick = viewModel::useOfflineMode,
-            enabled = !state.loading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(
-                Icons.Rounded.OfflineBolt,
-                contentDescription = null,
-                modifier = Modifier.size(ButtonDefaults.IconSize),
-            )
-            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-            Text(stringResource(R.string.server_use_offline))
-        }
     }
 }
 

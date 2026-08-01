@@ -125,10 +125,11 @@ live-region/error semantics; hosts supply localized messages and icons.
 
 The buildable `shared-ui:auth` module is the first shared feature UI surface. Its
 login and account-initialization forms consume `AuthFeatureStateHolder` directly
-and own password visibility, IME submission, loading/action presentation, field
-layout, and mode-selection-card presentation. Hosts supply localized strings,
-icons, accent colors, root loading state, navigation, and protocol callbacks;
-branded resources remain in platform scaffolds.
+and the module also owns server-address entry, password visibility, IME
+submission, loading/action presentation, form layout, and mode-selection-card
+presentation. Hosts supply localized strings, icons, accent colors, root loading
+state, navigation, and protocol callbacks; branded resources remain in platform
+scaffolds.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

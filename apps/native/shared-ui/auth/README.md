@@ -9,6 +9,8 @@ IME submission, and accessibility labels. `SillageAuthButtonContent` owns the
 loading/icon/action-content treatment used by authentication actions.
 `SillageInitializeForm` consumes the same feature aggregate for username,
 display-name, and password drafts and owns the account-creation field layout.
+`SillageServerForm` owns server-address entry, IME submission, loading/action
+presentation, and the secondary offline action while hosts execute protocols.
 `SillageModeOptionCard` owns the mode-selection card layout and semantic card
 colors while hosts supply localized content, accent colors, icons, and callbacks.
 

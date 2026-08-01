@@ -24,3 +24,6 @@ section content.
 layout, selection and disabled colors, divider treatment, value selection, and
 Switch semantics. Hosts supply localized text, icons, values, state, and
 callbacks.
+
+`SillageErrorCard` owns reusable error-container layout and semantic error
+colors. Hosts supply localized messages, action labels, icons, and callbacks.

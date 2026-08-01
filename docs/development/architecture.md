@@ -108,6 +108,9 @@ spacing, shape, surface color, and border. Shared info, action, switch, and
 empty-state rows own common layout, disabled/selection colors, dividers, value
 selection, and Switch semantics. Android supplies localized text, icons, values,
 state, callbacks, and the remaining platform-specific controls.
+`SillageErrorCard` provides the shared error-container layout used by Ask and
+Settings; hosts retain localized messages, action labels, icons, and retry
+callbacks.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST

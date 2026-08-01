@@ -46,6 +46,8 @@ ViewModel callbacks.
 Settings section cards and common info, action, switch, and empty-state rows
 likewise come from the shared design system. Android supplies localized labels,
 icons, values, state, and callbacks; platform-specific controls remain in host UI.
+Ask and Settings loading failures use the shared `SillageErrorCard`; Android
+supplies localized messages, retry labels, icons, and retry callbacks.
 
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record

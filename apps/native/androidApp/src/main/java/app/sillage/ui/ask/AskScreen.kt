@@ -91,6 +91,7 @@ import app.sillage.data.lastAssistantMessageId
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
+import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.memos.MarkdownContent
 import app.sillage.ui.applyHeadingSemantics
 import app.sillage.ui.localizedDate
@@ -274,10 +275,12 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 ) {
                     state.askLoadError?.let { message ->
                         item(key = "ask-load-error") {
-                            AskLoadErrorCard(
-                                message = message,
-                                onRetry = viewModel::retryAskLoad,
-                            )
+                        SillageErrorCard(
+                            message = message,
+                            actionLabel = stringResource(R.string.action_retry),
+                            actionIcon = Icons.Rounded.Refresh,
+                            onAction = viewModel::retryAskLoad,
+                        )
                         }
                     }
                     if (entries.isEmpty() && state.askLoadError == null) {
@@ -390,35 +393,6 @@ private fun askContextLabel(state: SillageUiState): String {
         if (state.askSourceKind == "summaries") R.string.ask_source_summaries else R.string.ask_source_records,
     )
     return stringResource(R.string.ask_record_context_summary, scope, source)
-}
-
-@Composable
-private fun AskLoadErrorCard(message: String, onRetry: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                message,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(
-                onClick = onRetry,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.action_retry))
-            }
-        }
-    }
 }
 
 @Composable

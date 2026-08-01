@@ -114,6 +114,9 @@ shape, semantic surface colors, and border treatment. Shared info, action,
 switch, and empty-state rows own common layout, disabled/selection colors,
 dividers, value selection, and Switch semantics; hosts supply localized text,
 icons, values, state, callbacks, and platform-specific controls.
+`SillageErrorCard` owns reusable error-container layout and semantic colors for
+Ask and Settings loading failures; hosts supply localized messages, action
+labels, icons, and callbacks.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

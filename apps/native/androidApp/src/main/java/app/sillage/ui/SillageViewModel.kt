@@ -37,6 +37,7 @@ import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.MemoViewMode
 import app.sillage.data.MarkdownFormatStyle
 import app.sillage.data.PendingLocalAttachment
 import app.sillage.data.PulledSyncData
@@ -1116,9 +1117,9 @@ class SillageViewModel(
                 )
             }
             updateState {
-                it.copy(
-                    themeMode = result.themeMode,
-                memoViewMode = result.memoViewMode,
+            it.copy(
+                themeMode = result.themeMode,
+                recordsBrowse = it.recordsBrowse.copy(viewMode = result.memoViewMode),
                 recordsSelection = it.recordsSelection.clear(),
                 recordsSummary = it.recordsSummary.replacePresentation(null, loading = false),
                 recordsEditor = it.recordsEditor.stopAttachmentUpload(),
@@ -1292,12 +1293,7 @@ class SillageViewModel(
             it.copy(
                 screen = Screen.Memos,
                 screenHistory = emptyList(),
-                memoViewMode = mode,
-                memoListFilter = if (mode == MemoViewMode.Calendar) {
-                    MemoListFilter.Unarchived
-                } else {
-                    it.memoListFilter
-                },
+                recordsBrowse = it.recordsBrowse.selectViewMode(mode),
                 recordsCollection = if (resetFilter) {
                     it.recordsCollection.clear()
                 } else {
@@ -1352,7 +1348,7 @@ class SillageViewModel(
         searchJob?.cancel()
         updateState {
             it.copy(
-                memoListFilter = filter,
+                recordsBrowse = it.recordsBrowse.selectFilter(filter),
                 recordsCollection = it.recordsCollection.clear(),
                 recordsPagination = it.recordsPagination.copy(nextCursor = "", loadingMore = false),
                 recordsRefresh = it.recordsRefresh.copy(status = MemoListLoadStatus.Loading),
@@ -1370,15 +1366,15 @@ class SillageViewModel(
         updateState {
             val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
             it.copy(
-                calendarYear = next.year,
-                calendarMonth = next.monthValue,
-                selectedCalendarDate = null,
+                recordsBrowse = it.recordsBrowse.selectMonth(next.year, next.monthValue),
             )
         }
     }
 
     fun selectCalendarDate(date: String) {
-        updateState { it.copy(selectedCalendarDate = date) }
+        updateState {
+            it.copy(recordsBrowse = it.recordsBrowse.selectCalendarDate(date))
+        }
     }
 
     fun saveMemo() {
@@ -3924,7 +3920,7 @@ class SillageViewModel(
     }
 
     private fun memoViewModeFromName(value: String): MemoViewMode {
-        return runCatching { MemoViewMode.valueOf(value) }.getOrDefault(MemoViewMode.List)
+        return MemoViewMode.fromName(value)
     }
 
     private fun applyMemo(

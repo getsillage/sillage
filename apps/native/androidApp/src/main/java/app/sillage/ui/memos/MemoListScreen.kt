@@ -112,7 +112,7 @@ import app.sillage.features.records.onThisDay
 import app.sillage.features.records.yearsBetween
 import app.sillage.R
 import app.sillage.ui.MemoListLoadStatus
-import app.sillage.ui.MemoViewMode
+import app.sillage.features.records.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.applyHeadingSemantics

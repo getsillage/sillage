@@ -149,6 +149,10 @@ the visible record cache and canonical mutation generation. Snapshot and page
 replacement preserve that generation; applying a canonical mutation advances it
 and re-applies the active semantic filter.
 
+Records browsing is the ninth extracted state slice. Its shared holder owns
+list/calendar mode, semantic filtering, and calendar month/day selection.
+Android retains platform date arithmetic and refresh scheduling.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

@@ -1,5 +1,6 @@
 package app.sillage.ui
 
+import app.sillage.features.records.MemoViewMode
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.sillage.R

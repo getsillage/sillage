@@ -9,6 +9,7 @@ import app.sillage.core.application.records.RecordDetail
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.features.records.MemoListFilter
+import app.sillage.features.records.MemoViewMode
 import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
@@ -249,7 +250,11 @@ class SillageUiStateTest {
             pending.copy(clientContextGeneration = pending.clientContextGeneration + 1)
                 .canApplyMemoPage(request),
         )
-        assertFalse(pending.copy(memoListFilter = MemoListFilter.Archived).canApplyMemoPage(request))
+        assertFalse(
+            pending.copy(
+                recordsBrowse = pending.recordsBrowse.selectFilter(MemoListFilter.Archived),
+            ).canApplyMemoPage(request),
+        )
         assertFalse(
             pending.copy(
                 recordsCollection = pending.recordsCollection.copy(cacheGeneration = 1),
@@ -1104,13 +1109,13 @@ class SillageUiStateTest {
         assertTrue(
             state.copy(
                 screen = Screen.Memos,
-                memoViewMode = MemoViewMode.Calendar,
+                recordsBrowse = state.recordsBrowse.selectViewMode(MemoViewMode.Calendar),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(
             state.copy(
                 screen = Screen.Memos,
-                memoViewMode = MemoViewMode.List,
+                recordsBrowse = state.recordsBrowse.selectViewMode(MemoViewMode.List),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(state.copy(screen = Screen.MemoDetail).shouldReturnToRecordsOnBack())

@@ -27,6 +27,8 @@ import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
 import app.sillage.features.records.RecordsCollectionStateHolder
+import app.sillage.features.records.RecordsBrowseStateHolder
+import app.sillage.features.records.MemoViewMode
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
@@ -98,11 +100,10 @@ data class SillageUiState(
         initialDraftEntryDate = LocalDate.now().toString(),
     ),
     val recordsSearch: RecordsSearchStateHolder = RecordsSearchStateHolder(),
-    val memoViewMode: MemoViewMode = MemoViewMode.List,
-    val memoListFilter: MemoListFilter = MemoListFilter.Unarchived,
-    val calendarYear: Int = LocalDate.now().year,
-    val calendarMonth: Int = LocalDate.now().monthValue,
-    val selectedCalendarDate: String? = null,
+    val recordsBrowse: RecordsBrowseStateHolder = RecordsBrowseStateHolder(
+        calendarYear = LocalDate.now().year,
+        calendarMonth = LocalDate.now().monthValue,
+    ),
     val username: String = "",
     val displayName: String = "",
     val password: String = "",
@@ -147,6 +148,11 @@ data class SillageUiState(
     val initialDraftEntryDate: String get() = recordsEditor.initialDraftEntryDate
     val markdownPreview: Boolean get() = recordsEditor.markdownPreview
     val memoMutationIds: Set<String> get() = recordsMutation.activeMemoIds
+    val memoViewMode: MemoViewMode get() = recordsBrowse.viewMode
+    val memoListFilter: MemoListFilter get() = recordsBrowse.filter
+    val calendarYear: Int get() = recordsBrowse.calendarYear
+    val calendarMonth: Int get() = recordsBrowse.calendarMonth
+    val selectedCalendarDate: String? get() = recordsBrowse.selectedCalendarDate
 }
 
 /**
@@ -929,11 +935,6 @@ internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
     return screen == Screen.Ask ||
         screen == Screen.AISettings ||
         (screen == Screen.Memos && memoViewMode == MemoViewMode.Calendar)
-}
-
-enum class MemoViewMode {
-    List,
-    Calendar,
 }
 
 typealias MemoListLoadStatus = RecordsRefreshStatus

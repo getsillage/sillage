@@ -180,6 +180,10 @@ mutation generation. Pagination and refresh replace snapshots without inventing
 a mutation, while canonical create/update/lifecycle responses advance the
 generation used by late-response validation.
 
+`RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
+calendar month/day selection. `MemoViewMode` is a shared feature value; Android
+retains platform date arithmetic and refresh scheduling.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

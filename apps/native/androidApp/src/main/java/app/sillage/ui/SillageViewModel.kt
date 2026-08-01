@@ -1413,11 +1413,7 @@ class SillageViewModel(
             } else {
                 SaveRecordCommand.Update(selectedMemo, draft)
             }
-            val saved = if (current.appMode == SessionStore.MODE_OFFLINE) {
-                saveLocalRecord(command)
-            } else {
-                saveRemoteRecord(command)
-            }
+            val saved = saveRecord(command, current.appMode)
             if (!applyMemo(saved, current.appMode, current.clientContextGeneration)) {
                 return@launchMemoMutation
             }
@@ -2765,11 +2761,12 @@ class SillageViewModel(
                     updateState { current -> current.finishAskMemoSave(request) }
                 },
             ) {
-                val memo = if (request.appMode == SessionStore.MODE_OFFLINE) {
-                    localDataStore.createMemo(request.memoContent, entryDate)
-                } else {
-                    api.createMemo(request.memoContent, entryDate)
-                }
+                val memo = saveRecord(
+                    SaveRecordCommand.Create(
+                        RecordDraft(request.memoContent, entryDate),
+                    ),
+                    request.appMode,
+                )
                 val applied = applyMemo(
                     memo,
                     request.appMode,
@@ -3194,6 +3191,17 @@ class SillageViewModel(
             }
         }
         return ""
+    }
+
+    private suspend fun saveRecord(
+        command: SaveRecordCommand,
+        appMode: String,
+    ): Memo {
+        return if (appMode == SessionStore.MODE_OFFLINE) {
+            saveLocalRecord(command)
+        } else {
+            saveRemoteRecord(command)
+        }
     }
 
     private suspend fun mutateRecordLifecycle(

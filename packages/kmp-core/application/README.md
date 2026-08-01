@@ -13,7 +13,7 @@ The records slice currently exposes six distinct boundaries:
 - `RecordDetailRepository` and `GetRecordDetailUseCase` load one record and
   its AI-derived metadata without exposing storage or transport response types.
 - `RecordWriteRepository` and `SaveRecordUseCase` create or update a record
-  from a platform-neutral draft command.
+  from a platform-neutral draft command for editor and Ask save flows.
 - `RecordLifecycleRepository` and `MutateRecordLifecycleUseCase` archive,
   favorite, delete, restore, or permanently delete a canonical record.
 

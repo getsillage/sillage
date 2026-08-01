@@ -2008,14 +2008,10 @@ class SillageViewModel(
                 !it.aiSettingsSaving &&
                 !it.aiProfileDiagnostics.busy
             ) {
-                it.copy(
-                    settings = it.settings.copy(
-                        profilesMutation = it.settings.profilesMutation.replace(
-                        it.aiProfiles + AIProfileDraft(
-                            draftKey = UUID.randomUUID().toString(),
-                            active = it.aiProfiles.isEmpty(),
-                        ),
-                    ),
+                it.withAIProfiles(
+                    it.aiProfiles + AIProfileDraft(
+                        draftKey = UUID.randomUUID().toString(),
+                        active = it.aiProfiles.isEmpty(),
                     ),
                 )
             } else {
@@ -2036,13 +2032,9 @@ class SillageViewModel(
                 index in it.aiProfiles.indices
             ) {
                 removed = true
-                it.copy(
-                    settings = it.settings.copy(
-                        profilesMutation = it.settings.profilesMutation.replace(
-                        normalizeAIProfilesForSave(
-                            it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
-                        ),
-                    ),
+                it.withAIProfiles(
+                    normalizeAIProfilesForSave(
+                        it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
                     ),
                 )
             } else {
@@ -2100,14 +2092,10 @@ class SillageViewModel(
                 !it.aiProfileDiagnostics.busy &&
                 index in it.aiProfiles.indices
             ) {
-                it.copy(
-                    settings = it.settings.copy(
-                        profilesMutation = it.settings.profilesMutation.replace(
-                        it.aiProfiles.mapIndexed { profileIndex, profile ->
-                            profile.copy(enabled = true, active = profileIndex == index)
-                        },
-                    ),
-                    ),
+                it.withAIProfiles(
+                    it.aiProfiles.mapIndexed { profileIndex, profile ->
+                        profile.copy(enabled = true, active = profileIndex == index)
+                    },
                 )
             } else {
                 it
@@ -2981,14 +2969,10 @@ class SillageViewModel(
                 !it.aiSettingsSaving &&
                 !it.aiProfileDiagnostics.busy
             ) {
-                it.copy(
-                    settings = it.settings.copy(
-                        profilesMutation = it.settings.profilesMutation.replace(
-                        it.aiProfiles.mapIndexed { i, profile ->
-                            if (i == index) transform(profile) else profile
-                        },
-                    ),
-                    ),
+                it.withAIProfiles(
+                    it.aiProfiles.mapIndexed { i, profile ->
+                        if (i == index) transform(profile) else profile
+                    },
                 )
             } else {
                 it

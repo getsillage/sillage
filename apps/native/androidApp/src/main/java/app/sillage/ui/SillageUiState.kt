@@ -268,6 +268,13 @@ internal inline fun SillageUiState.withSettings(
     transform: (SettingsFeatureStateHolder) -> SettingsFeatureStateHolder,
 ): SillageUiState = copy(settings = transform(settings))
 
+/** Replaces editable AI profile drafts through the settings aggregate. */
+internal fun SillageUiState.withAIProfiles(
+    profiles: List<AIProfileDraft>,
+): SillageUiState {
+    return withSettings { it.replaceProfiles(profiles) }
+}
+
 /** Applies a pure sync-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withSync(
     transform: (SyncFeatureStateHolder) -> SyncFeatureStateHolder,

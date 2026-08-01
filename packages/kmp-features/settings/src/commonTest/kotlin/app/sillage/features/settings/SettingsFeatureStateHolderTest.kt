@@ -61,6 +61,30 @@ class SettingsFeatureStateHolderTest {
     }
 
     @Test
+    fun replaceProfilesPreservesOtherSettingsOwnership() {
+        val replacement = listOf(draft("p2", name = "Two"))
+        val state = SettingsFeatureStateHolder(
+            profilesMutation = AIProfilesMutationStateHolder(
+                profiles = listOf(draft("p1", name = "One")),
+                requestId = 3,
+            ),
+            autoSummary = AIAutoSummaryStateHolder(enabled = true),
+            load = AISettingsLoadStateHolder(loading = true, requestId = 4),
+            diagnostics = AIProfileDiagnosticsStateHolder(
+                testResults = mapOf("p1" to "ok"),
+            ),
+        )
+
+        val replaced = state.replaceProfiles(replacement)
+
+        assertEquals(replacement, replaced.profiles)
+        assertEquals(3L, replaced.profilesRequestId)
+        assertTrue(replaced.autoSummaryEnabled)
+        assertTrue(replaced.loading)
+        assertEquals(mapOf("p1" to "ok"), replaced.testResults)
+    }
+
+    @Test
     fun applyLoadedSnapshotReplacesEditableSettingsAndClearsDiagnostics() {
         val loaded = listOf(draft("p2", name = "Two"))
         val state = SettingsFeatureStateHolder(

@@ -448,6 +448,26 @@ class SillageUiStateTest {
     }
 
     @Test
+    fun rootSettingsProfileReplacementPreservesHostAndOtherSettingsState() {
+        val replacement = listOf(AIProfileDraft(id = "p2", name = "Two"))
+        val state = editorState().copy(
+            error = "keep",
+            settings = SettingsFeatureStateHolder(
+                autoSummary = AIAutoSummaryStateHolder(enabled = true),
+                load = AISettingsLoadStateHolder(loading = true, requestId = 4),
+            ),
+        )
+
+        val updated = state.withAIProfiles(replacement)
+
+        assertEquals(replacement, updated.aiProfiles)
+        assertTrue(updated.aiAutoSummary)
+        assertTrue(updated.aiSettingsLoading)
+        assertEquals("keep", updated.error)
+        assertEquals(state.screen, updated.screen)
+    }
+
+    @Test
     fun clearClientWorkspaceResetsRecordsSettingsAndAskTogether() {
         val memo = memo()
         val profile = AIProfileDraft(

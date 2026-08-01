@@ -27,6 +27,11 @@ data class SettingsFeatureStateHolder(
     val modelResults: Map<String, List<String>> get() = diagnostics.modelResults
     val diagnosticsBusy: Boolean get() = diagnostics.busy
 
+    /** Replaces editable profile drafts without exposing the nested holder to hosts. */
+    fun replaceProfiles(profiles: List<AIProfileDraft>): SettingsFeatureStateHolder {
+        return copy(profilesMutation = profilesMutation.replace(profiles))
+    }
+
     /**
      * Clears editable settings ownership for a workspace or client-context change.
      * [profiles] and [autoSummaryEnabled] seed the post-clear snapshot (empty/false

@@ -170,7 +170,8 @@ identity, busy presentation, and per-profile results. It binds every callback to
 the full draft snapshot, stable editor key, mode, and client context, so edited
 or removed profiles cannot receive late diagnostic results.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
-workspace teardown plus loaded/imported editable-settings snapshot application.
+workspace teardown, editable profile-draft replacement, and loaded/imported
+editable-settings snapshot application.
 Android's root `SillageUiState` stores one `settings` aggregate field with
 transitional slice getters for the former top-level settings holders.
 

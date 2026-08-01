@@ -156,8 +156,6 @@ key input. Canonical secret-free profile metadata remains in `kmp-core:domain`;
 platform adapters alone serialize encrypted keys or map save/test commands.
 `AIProfilesMutationStateHolder` owns the editable profile collection plus
 optimistic save, rollback, request identity, and client-context validation.
-Android's root state exposes transitional profile accessors while composing this
-holder directly.
 `AISettingsLoadStateHolder` separately owns settings-load progress, durable retry
 failure, and stale-response rejection. Load and profile-mutation starts cancel
 the opposite lifecycle instead of sharing an ambiguous request counter.
@@ -165,6 +163,10 @@ the opposite lifecycle instead of sharing an ambiguous request counter.
 identity, busy presentation, and per-profile results. It binds every callback to
 the full draft snapshot, stable editor key, mode, and client context, so edited
 or removed profiles cannot receive late diagnostic results.
+`SettingsFeatureStateHolder` composes those holders and owns coordinated
+workspace teardown plus loaded/imported editable-settings snapshot application.
+Android's root `SillageUiState` stores one `settings` aggregate with transitional
+slice getters for the former top-level settings holders.
 
 Every shared module applies the repository `sillage.kmp-library` convention.
 The convention owns target and compiler configuration; module files own only

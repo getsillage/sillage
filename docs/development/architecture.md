@@ -192,8 +192,7 @@ editor identity from persistence and must not expose secret input as domain
 metadata.
 `AIProfilesMutationStateHolder` composes the draft collection and owns optimistic
 profile-save state, rollback, and request ownership across mode or client-context
-changes. Android keeps transitional read accessors while all profile writes go
-through the shared holder.
+changes.
 `AISettingsLoadStateHolder` owns load progress, retry failure, and request
 ownership independently from profile saves. The host explicitly cancels the
 opposite lifecycle when either begins, preventing stale loads from replacing a
@@ -202,6 +201,10 @@ newer optimistic editor snapshot.
 state and results. Completion requires the same stable editor key, complete
 draft snapshot, mode, and client generation; adapter callbacks cannot attach
 results to a removed or subsequently edited profile.
+`SettingsFeatureStateHolder` composes those holders and owns coordinated
+workspace teardown plus loaded/imported editable-settings snapshot application.
+Android's root `SillageUiState` stores one `settings` aggregate with transitional
+slice getters; coordinated writes move onto the aggregate.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

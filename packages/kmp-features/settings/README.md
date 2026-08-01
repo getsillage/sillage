@@ -3,6 +3,11 @@
 Settings profile editing, persistence request state, validation feedback, and
 provider capability presentation.
 
+`SettingsFeatureStateHolder` composes the holders below and owns coordinated
+workspace teardown plus loaded/imported editable-settings snapshot application.
+Individual holders remain the unit of request identity; Android stores one
+aggregate on root UI state with transitional slice getters.
+
 `AIProfileDraft` owns cross-platform editor values, transient raw numeric input,
 and unsaved presentation identity. Secret input is feature state only: platform
 adapters explicitly map it to encrypted storage or transport commands, and

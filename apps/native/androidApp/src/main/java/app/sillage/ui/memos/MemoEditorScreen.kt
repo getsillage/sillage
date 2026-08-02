@@ -171,11 +171,9 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
         },
     ) { padding ->
         SillageRecordEditorContent(
-            memo = state.selectedMemo,
-            entryDate = state.draftEntryDate,
-            actionsEnabled = editorActionsEnabled,
+            state = state.records,
+            context = state.memoEditorActionContext(),
             showAttachmentAction = state.appMode == SessionStore.MODE_ONLINE,
-            uploadingAttachment = state.uploadingAttachment,
             strings = SillageRecordEditorContentStrings(
                 entryDateLabel = stringResource(R.string.editor_date),
                 entryDatePlaceholder = stringResource(R.string.editor_date_placeholder),
@@ -192,13 +190,13 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             onEntryDateChange = viewModel::updateDraftEntryDate,
             onPickDate = { showDatePicker = true },
             onAddAttachment = { attachmentLauncher.launch("*/*") },
-            editorContent = { editorModifier, editorHeight ->
+            editorContent = { editorModifier, editorHeight, actionsEnabled ->
                 MarkdownEditorSection(
                     content = state.draftContent,
                     baseUrl = state.baseUrl,
                     openingAttachmentPath = state.openingAttachmentPath,
                     preview = state.markdownPreview,
-                    enabled = editorActionsEnabled,
+                    enabled = actionsEnabled,
                     onContentChange = viewModel::updateDraftContent,
                     onPreviewChange = viewModel::updateMarkdownPreview,
                     onFormat = viewModel::appendMarkdownFormat,
@@ -206,11 +204,11 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                     modifier = editorModifier.height(editorHeight),
                 )
             },
-            summaryContent = { summaryModifier ->
+            summaryContent = { summaryModifier, actionsEnabled ->
                 MemoSummarySection(
                     summary = state.selectedSummary,
                     loading = state.summaryLoading,
-                    actionEnabled = editorActionsEnabled,
+                    actionEnabled = actionsEnabled,
                     onGenerate = viewModel::summarizeSelectedMemo,
                     modifier = summaryModifier,
                 )

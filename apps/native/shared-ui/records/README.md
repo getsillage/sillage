@@ -44,10 +44,12 @@ and the destination/global-operation context.
 `RecordsEditorActionContext` and owns dirty-draft close selection and
 discard-confirmation state/dialog while hosts retain platform Back integration,
 localized copy, and the close callback.
-`SillageRecordEditorContent` owns editor lazy-list section ordering, shared
-content width, lifecycle status, date field, attachment action, and existing-record
-summary visibility. Hosts provide localized strings/icons, date and attachment
-callbacks, plus Markdown-editor and summary slots.
+`SillageRecordEditorContent` consumes aggregate selection/editor state plus
+`RecordsEditorActionContext` and owns editor lazy-list section ordering, shared
+content width, lifecycle status, draft-date/action enablement, attachment action,
+and existing-record summary visibility. Hosts provide localized strings/icons,
+date and attachment callbacks, plus Markdown-editor and summary slots that receive
+the derived action gate.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

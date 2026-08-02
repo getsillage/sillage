@@ -264,9 +264,11 @@ Shared record editor close requests consume aggregate editor state plus
 `RecordsEditorActionContext` and own dirty-draft close selection and the
 discard-confirmation state/dialog. Android retains system Back integration and
 supplies localized copy plus the close callback.
-The shared record editor content shell owns lazy-list section ordering, content
-width, lifecycle status, date input, attachment action, and summary visibility.
-Android retains DatePicker/file launchers and fills Markdown plus summary slots.
+The shared record editor content shell consumes aggregate selection/editor state
+plus `RecordsEditorActionContext` and owns lazy-list section ordering, content
+width, lifecycle status, draft-date/action enablement, attachment action, and
+summary visibility. Android retains DatePicker/file launchers and fills the
+online-mode capability, Markdown, and summary slots.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

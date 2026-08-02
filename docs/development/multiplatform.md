@@ -214,10 +214,11 @@ Its editor close request consumes aggregate editor state plus
 `RecordsEditorActionContext` and owns dirty-draft selection and discard-confirmation
 state/dialog while hosts retain platform Back integration and supply localized
 copy plus the close callback.
-Its editor content shell owns lazy-list section ordering, shared content width,
-lifecycle status, date input, attachment action, and existing-record summary
-visibility. Hosts retain platform date/file launchers and fill Markdown-editor
-plus summary slots.
+Its editor content shell consumes aggregate selection/editor state plus
+`RecordsEditorActionContext` and owns lazy-list section ordering, shared content
+width, lifecycle status, draft-date/action enablement, attachment action, and
+existing-record summary visibility. Hosts retain platform date/file launchers and
+fill online-mode capability, Markdown-editor, and summary slots.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

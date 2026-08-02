@@ -24,7 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.canRunEditorAction
 
 data class SillageRecordEditorContentStrings(
     val entryDateLabel: String,
@@ -43,26 +45,25 @@ data class SillageRecordEditorContentIcons(
 
 @Composable
 fun SillageRecordEditorContent(
-    memo: Memo?,
-    entryDate: String,
-    actionsEnabled: Boolean,
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
     showAttachmentAction: Boolean,
-    uploadingAttachment: Boolean,
     strings: SillageRecordEditorContentStrings,
     icons: SillageRecordEditorContentIcons,
     onEntryDateChange: (String) -> Unit,
     onPickDate: () -> Unit,
     onAddAttachment: () -> Unit,
-    editorContent: @Composable (Modifier, Dp) -> Unit,
-    summaryContent: @Composable (Modifier) -> Unit,
+    editorContent: @Composable (Modifier, Dp, Boolean) -> Unit,
+    summaryContent: @Composable (Modifier, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val presentation = sillageRecordEditorContentPresentation(
-        memo = memo,
+        state = state,
+        context = context,
         showAttachmentAction = showAttachmentAction,
-        uploadingAttachment = uploadingAttachment,
         strings = strings,
     )
+    val memo = state.selection.selectedMemo
 
     BoxWithConstraints(modifier = modifier) {
         val editorHeight = (maxHeight * 0.6f).coerceIn(320.dp, 560.dp)
@@ -86,9 +87,9 @@ fun SillageRecordEditorContent(
                         archivedStatus = strings.archivedStatus,
                     )
                     OutlinedTextField(
-                        value = entryDate,
+                        value = presentation.entryDate,
                         onValueChange = onEntryDateChange,
-                        enabled = actionsEnabled,
+                        enabled = presentation.actionsEnabled,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         label = { Text(strings.entryDateLabel) },
@@ -96,7 +97,7 @@ fun SillageRecordEditorContent(
                         trailingIcon = {
                             IconButton(
                                 onClick = onPickDate,
-                                enabled = actionsEnabled,
+                                enabled = presentation.actionsEnabled,
                             ) {
                                 Icon(
                                     icons.pickDate,
@@ -114,6 +115,7 @@ fun SillageRecordEditorContent(
                         .widthIn(max = 760.dp)
                         .fillMaxWidth(),
                     editorHeight,
+                    presentation.actionsEnabled,
                 )
             }
 
@@ -127,7 +129,7 @@ fun SillageRecordEditorContent(
                     ) {
                         TextButton(
                             onClick = onAddAttachment,
-                            enabled = actionsEnabled,
+                            enabled = presentation.actionsEnabled,
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
                                 .widthIn(min = 112.dp),
@@ -151,6 +153,7 @@ fun SillageRecordEditorContent(
                         Modifier
                             .widthIn(max = 760.dp)
                             .fillMaxWidth(),
+                        presentation.actionsEnabled,
                     )
                 }
             }
@@ -159,22 +162,26 @@ fun SillageRecordEditorContent(
 }
 
 internal data class SillageRecordEditorContentPresentation(
+    val entryDate: String,
+    val actionsEnabled: Boolean,
     val showAttachmentAction: Boolean,
     val attachmentAction: String,
     val showSummary: Boolean,
 )
 
 internal fun sillageRecordEditorContentPresentation(
-    memo: Memo?,
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
     showAttachmentAction: Boolean,
-    uploadingAttachment: Boolean,
     strings: SillageRecordEditorContentStrings,
 ): SillageRecordEditorContentPresentation = SillageRecordEditorContentPresentation(
+    entryDate = state.editor.draftEntryDate,
+    actionsEnabled = state.canRunEditorAction(context),
     showAttachmentAction = showAttachmentAction,
-    attachmentAction = if (uploadingAttachment) {
+    attachmentAction = if (state.editor.uploadingAttachment) {
         strings.uploadingAttachmentAction
     } else {
         strings.addAttachmentAction
     },
-    showSummary = memo != null,
+    showSummary = state.selection.selectedMemo != null,
 )

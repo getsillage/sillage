@@ -1,6 +1,10 @@
 package app.sillage.ui.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.RecordsSelectionStateHolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,6 +21,8 @@ class SillageRecordEditorContentTest {
         assertFalse(presentation.showAttachmentAction)
         assertFalse(presentation.showSummary)
         assertEquals("Add attachment", presentation.attachmentAction)
+        assertEquals("2026-08-02", presentation.entryDate)
+        assertTrue(presentation.actionsEnabled)
     }
 
     @Test
@@ -39,6 +45,7 @@ class SillageRecordEditorContentTest {
         )
 
         assertEquals("Uploading…", presentation.attachmentAction)
+        assertFalse(presentation.actionsEnabled)
     }
 
     private fun presentation(
@@ -46,9 +53,18 @@ class SillageRecordEditorContentTest {
         showAttachmentAction: Boolean,
         uploadingAttachment: Boolean = false,
     ): SillageRecordEditorContentPresentation = sillageRecordEditorContentPresentation(
-        memo = memo,
+        state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = memo),
+            editor = RecordsEditorStateHolder(
+                draftEntryDate = "2026-08-02",
+                uploadingAttachment = uploadingAttachment,
+            ),
+        ),
+        context = RecordsEditorActionContext(
+            destinationAvailable = true,
+            hostOperationInProgress = false,
+        ),
         showAttachmentAction = showAttachmentAction,
-        uploadingAttachment = uploadingAttachment,
         strings = strings,
     )
 

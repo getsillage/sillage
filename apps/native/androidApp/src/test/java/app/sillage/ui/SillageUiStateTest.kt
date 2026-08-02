@@ -42,41 +42,6 @@ import org.junit.Test
 
 class SillageUiStateTest {
     @Test
-    fun unchangedEditorDraftIsNotDirty() {
-        val state = editorState(
-            draftContent = "原始内容",
-            initialDraftContent = "原始内容",
-        )
-
-        assertFalse(state.hasUnsavedMemoDraft())
-    }
-
-    @Test
-    fun contentOrDateChangeMarksEditorDraftDirty() {
-        val contentChanged = editorState(
-            draftContent = "修改后",
-            initialDraftContent = "修改前",
-        )
-        val dateChanged = editorState(
-            draftEntryDate = "2026-07-11",
-            initialDraftEntryDate = "2026-07-10",
-        )
-
-        assertTrue(contentChanged.hasUnsavedMemoDraft())
-        assertTrue(dateChanged.hasUnsavedMemoDraft())
-    }
-
-    @Test
-    fun draftOutsideEditorDoesNotRequestDiscardConfirmation() {
-        val state = editorState(
-            draftContent = "修改后",
-            initialDraftContent = "修改前",
-        ).copy(screen = Screen.Memos)
-
-        assertFalse(state.hasUnsavedMemoDraft())
-    }
-
-    @Test
     fun memoEditorActionsAreDisabledWhileBusyOrUploading() {
         assertTrue(editorState().canRunMemoEditorAction())
         assertFalse(editorState().copy(loading = true).canRunMemoEditorAction())

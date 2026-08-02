@@ -45,7 +45,6 @@ import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.canRunMemoEditorAction
-import app.sillage.ui.hasUnsavedMemoDraft
 import app.sillage.ui.memoEditorActionContext
 import app.sillage.ui.records.SillageRecordEditorActionIcons
 import app.sillage.ui.records.SillageRecordEditorActionStrings
@@ -62,8 +61,8 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     var showDatePicker by remember { mutableStateOf(false) }
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor = rememberSillageRecordEditorCloseRequest(
-        hasUnsavedChanges = state.hasUnsavedMemoDraft(),
-        discardEnabled = editorActionsEnabled,
+        state = state.records,
+        context = state.memoEditorActionContext(),
         strings = SillageRecordEditorDiscardStrings(
             title = stringResource(R.string.discard_changes_title),
             supporting = stringResource(R.string.discard_changes_supporting),

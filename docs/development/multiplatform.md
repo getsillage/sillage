@@ -210,7 +210,8 @@ Its record editor actions consume aggregate selection/editor/mutation state plus
 busy copy precedence, lifecycle-aware menu choices, and delete confirmation while
 hosts map destination/global-operation context and provide localized mode-specific
 supporting copy, icons, and callbacks.
-Its editor close request owns dirty-draft selection and discard-confirmation
+Its editor close request consumes aggregate editor state plus
+`RecordsEditorActionContext` and owns dirty-draft selection and discard-confirmation
 state/dialog while hosts retain platform Back integration and supply localized
 copy plus the close callback.
 Its editor content shell owns lazy-list section ordering, shared content width,

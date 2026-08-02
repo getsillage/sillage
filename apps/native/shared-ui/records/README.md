@@ -40,7 +40,8 @@ plus `RecordsEditorActionContext` and owns save progress semantics,
 attachment-vs-save busy copy, existing-record lifecycle menu choices, and editor
 delete confirmation. Hosts supply localized online/offline copy, icons, callbacks,
 and the destination/global-operation context.
-`rememberSillageRecordEditorCloseRequest` owns dirty-draft close selection and
+`rememberSillageRecordEditorCloseRequest` consumes aggregate editor state plus
+`RecordsEditorActionContext` and owns dirty-draft close selection and
 discard-confirmation state/dialog while hosts retain platform Back integration,
 localized copy, and the close callback.
 `SillageRecordEditorContent` owns editor lazy-list section ordering, shared

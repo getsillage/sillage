@@ -99,7 +99,8 @@ The shared editor actions consume aggregate selection/editor/mutation state plus
 `RecordsEditorActionContext` to own save progress semantics, lifecycle menus, and
 delete confirmation while hosts map destination/global-operation context, provide
 localized mode-specific copy, and route callbacks.
-The shared editor close request consumes host-provided dirty state and owns
+The shared editor close request consumes aggregate editor state plus
+`RecordsEditorActionContext` and owns
 close-vs-confirm selection plus discard-confirmation state/dialog while hosts
 retain platform Back integration and route the final close.
 The shared editor content shell consumes selected `Memo`, action/upload state,

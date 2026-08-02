@@ -9,6 +9,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.canRunEditorAction
+import app.sillage.features.records.hasUnsavedEditorDraft
 
 data class SillageRecordEditorDiscardStrings(
     val title: String,
@@ -19,8 +23,8 @@ data class SillageRecordEditorDiscardStrings(
 
 @Composable
 fun rememberSillageRecordEditorCloseRequest(
-    hasUnsavedChanges: Boolean,
-    discardEnabled: Boolean,
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
     strings: SillageRecordEditorDiscardStrings,
     onClose: () -> Unit,
 ): () -> Unit {
@@ -33,11 +37,11 @@ fun rememberSillageRecordEditorCloseRequest(
             text = { Text(strings.supporting) },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        confirmDiscard = false
-                        onClose()
-                    },
-                    enabled = discardEnabled,
+                onClick = {
+                    confirmDiscard = false
+                    onClose()
+                },
+                enabled = state.canRunEditorAction(context),
                 ) {
                     Text(strings.discardAction, color = MaterialTheme.colorScheme.error)
                 }
@@ -51,7 +55,7 @@ fun rememberSillageRecordEditorCloseRequest(
     }
 
     return {
-        when (sillageRecordEditorCloseRequest(hasUnsavedChanges)) {
+        when (sillageRecordEditorCloseRequest(state, context)) {
             SillageRecordEditorCloseRequest.Close -> onClose()
             SillageRecordEditorCloseRequest.ConfirmDiscard -> confirmDiscard = true
         }
@@ -64,8 +68,9 @@ internal enum class SillageRecordEditorCloseRequest {
 }
 
 internal fun sillageRecordEditorCloseRequest(
-    hasUnsavedChanges: Boolean,
-): SillageRecordEditorCloseRequest = if (hasUnsavedChanges) {
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
+): SillageRecordEditorCloseRequest = if (state.hasUnsavedEditorDraft(context)) {
     SillageRecordEditorCloseRequest.ConfirmDiscard
 } else {
     SillageRecordEditorCloseRequest.Close

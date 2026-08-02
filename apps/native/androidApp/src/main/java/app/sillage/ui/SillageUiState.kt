@@ -60,7 +60,6 @@ import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.features.records.canRunEditorAction
 import app.sillage.features.records.editorBusyReason
-import app.sillage.features.records.hasUnsavedEditorDraft
 import app.sillage.features.records.MemoViewMode
 import app.sillage.data.SessionStore
 import app.sillage.features.settings.AIAutoSummaryContext
@@ -404,10 +403,6 @@ internal fun SillageUiState.enterOfflineClientWorkspace(
  * UI model for one push conflict: local pending content plus the server resource.
  */
 typealias SyncConflictItem = MemoSyncConflictItem
-
-internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
-    return records.hasUnsavedEditorDraft(memoEditorActionContext())
-}
 
 internal typealias MemoEditorBusyReason = RecordsEditorBusyReason
 

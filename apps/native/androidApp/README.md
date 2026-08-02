@@ -124,9 +124,10 @@ delete confirmation; Android maps the host-operation gate, resources, and
 ViewModel callbacks. Editor save/more actions consume records selection/editor/
 mutation state directly and own progress semantics, busy-copy precedence, lifecycle
 menu choices, and delete confirmation; Android maps destination/global-operation
-context, selects localized online/offline supporting copy, and routes callbacks. Shared editor
-close requests also own dirty-draft selection and discard confirmation; Android
-retains system Back integration and maps localized copy plus the close callback.
+context, selects localized online/offline supporting copy, and routes callbacks.
+Shared editor close requests consume records editor state plus the same context
+and own dirty-draft selection and discard confirmation; Android retains system
+Back integration and maps localized copy plus the close callback.
 The shared editor content shell also owns lazy-list ordering, shared width,
 lifecycle status, date input, attachment action, and summary visibility. Android
 retains DatePicker/file launchers and supplies Markdown plus summary adapters.

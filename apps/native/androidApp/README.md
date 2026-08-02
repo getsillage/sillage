@@ -79,7 +79,9 @@ shared module and derive loading state from the records aggregate; Android forma
 record-count copy and routes pagination. Calendar empty-selection copy is chosen
 by shared UI from the same coverage value. Calendar header layout and navigation
 also come from shared UI, while Android retains locale-aware month formatting and
-directional icon mapping. On-this-day cards also come from shared
+directional icon mapping. Calendar grid/day layout, counts, selection styling, and
+semantics are shared; Android rotates localized weekday labels and formats each
+day's accessibility description. On-this-day cards also come from shared
 records UI; Android supplies localized title/plural formatting and the calendar
 icon. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android

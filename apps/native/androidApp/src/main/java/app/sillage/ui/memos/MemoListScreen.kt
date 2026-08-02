@@ -8,8 +8,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +69,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
@@ -79,14 +76,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -115,6 +109,7 @@ import app.sillage.ui.records.SillageCalendarEmptySelection
 import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
 import app.sillage.ui.records.SillageCalendarCoverageNotice
 import app.sillage.ui.records.SillageCalendarCoverageStrings
+import app.sillage.ui.records.SillageCalendarGrid
 import app.sillage.ui.records.SillageCalendarHeader
 import app.sillage.ui.records.SillageCalendarHeaderStrings
 import app.sillage.ui.records.SillageOnThisDayCard
@@ -503,12 +498,23 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
             CalendarHeader(state, viewModel)
         }
         item {
-            CalendarGrid(
+            SillageCalendarGrid(
+                weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
                 weeks = weeks,
                 counts = counts,
                 today = today,
                 selectedDate = state.selectedCalendarDate,
-                firstDayOfWeek = firstDayOfWeek,
+                dayDescription = { date, count, isToday ->
+                    stringResource(
+                        if (isToday) {
+                            R.string.calendar_day_today_description
+                        } else {
+                            R.string.calendar_day_description
+                        },
+                        localizedDate(date),
+                        pluralStringResource(R.plurals.quantity_records, count, count),
+                    )
+                },
                 onSelectDate = viewModel::selectCalendarDate,
             )
         }
@@ -596,120 +602,10 @@ private fun localizedMonth(year: Int, month: Int): String {
 }
 
 @Composable
-private fun CalendarGrid(
-    weeks: List<List<String?>>,
-    counts: Map<String, Int>,
-    today: String,
-    selectedDate: String?,
-    firstDayOfWeek: DayOfWeek,
-    onSelectDate: (String) -> Unit,
-) {
+private fun calendarWeekdayLabels(firstDayOfWeek: DayOfWeek): List<String> {
     val sundayFirst = stringArrayResource(R.array.calendar_weekdays_short).toList()
     val firstIndex = if (firstDayOfWeek == DayOfWeek.SUNDAY) 0 else firstDayOfWeek.value
-    val weekdays = sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
-    Column(
-        modifier = Modifier.selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            weekdays.forEach { day ->
-                Text(
-                    day,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-        weeks.forEach { week ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                week.forEach { date ->
-                    if (date == null) {
-                        Spacer(modifier = Modifier.weight(1f).height(44.dp))
-                    } else {
-                        CalendarDayCell(
-                            date = date,
-                            count = counts[date] ?: 0,
-                            isToday = date == today,
-                            selected = date == selectedDate,
-                            onClick = { onSelectDate(date) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CalendarDayCell(
-    date: String,
-    count: Int,
-    isToday: Boolean,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val recordCount = pluralStringResource(R.plurals.quantity_records, count, count)
-    val description = stringResource(
-        if (isToday) R.string.calendar_day_today_description else R.string.calendar_day_description,
-        localizedDate(date),
-        recordCount,
-    )
-    val color = when {
-        selected -> MaterialTheme.colorScheme.surfaceContainerHighest
-        count > 0 -> MaterialTheme.colorScheme.surfaceContainerLow
-        else -> Color.Transparent
-    }
-    val border = when {
-        selected -> BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
-        isToday -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        else -> null
-    }
-    Surface(
-        selected = selected,
-        onClick = onClick,
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .semantics { applyCalendarDaySemantics(description, selected) },
-        shape = RoundedCornerShape(8.dp),
-        color = color,
-        border = border,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clearAndSetSemantics { }
-                .padding(vertical = 5.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                date.takeLast(2).toInt().toString(),
-                fontWeight = if (isToday || selected) FontWeight.SemiBold else FontWeight.Normal,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                if (count > 0) count.toString() else " ",
-                color = if (count > 0) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    Color.Transparent
-                },
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-}
-
-internal fun SemanticsPropertyReceiver.applyCalendarDaySemantics(
-    description: String,
-    isSelected: Boolean,
-) {
-    contentDescription = description
-    selected = isSelected
+    return sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
 }
 
 @Composable

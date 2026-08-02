@@ -182,6 +182,8 @@ Its calendar empty-selection notice consumes the same coverage result and owns t
 choice between definitive-empty and possibly-incomplete host strings.
 Its calendar header owns navigation layout and semantics while hosts supply
 calendar arithmetic, locale-formatted month labels, icons, and callbacks.
+Its calendar grid owns date layout, counts, today/selection styling, and semantics;
+hosts provide locale-ordered weekday labels and localized day descriptions.
 Its on-this-day card consumes record entries plus the host date, owns anniversary
 calculation, excerpts, dividers, and selection, and leaves localized plural
 formatting, the icon, and navigation to hosts.

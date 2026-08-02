@@ -18,6 +18,8 @@ and the load-earlier action layout.
 definitive-empty or possibly-incomplete calendar message.
 `SillageCalendarHeader` owns month navigation layout and semantics from
 host-formatted month labels and platform-provided directional icons.
+`SillageCalendarGrid` owns weekday/date rows, record counts, today/selection
+styling, and complete day semantics from host-formatted labels and descriptions.
 `SillageOnThisDayCard` consumes record entries and the current date while owning
 anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and

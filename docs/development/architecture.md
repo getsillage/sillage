@@ -198,6 +198,9 @@ The shared calendar empty-selection notice consumes the same coverage result and
 selects between definitive-empty and possibly-incomplete localized messages.
 The shared calendar header owns month-navigation layout and semantics. Hosts retain
 calendar arithmetic, locale-aware month labels, directional icons, and callbacks.
+The shared calendar grid owns weekday/date rows, counts, today/selection styling,
+and complete day semantics. Hosts provide locale-ordered weekday labels and
+localized per-day accessibility descriptions.
 The shared on-this-day card consumes `Memo` entries and a host-provided current
 date, derives anniversaries and excerpts, and owns selection layout. Hosts provide
 localized title/plural formatting, the icon, and navigation callback.

@@ -79,6 +79,9 @@ The shared calendar empty-selection notice reads the same coverage result to
 choose definitive-empty or possibly-incomplete host copy.
 The shared calendar header owns month navigation presentation while hosts retain
 locale-aware month formatting, icons, and feature mutation callbacks.
+The shared calendar grid consumes month rows and entry-date counts derived by the
+records feature, owns date selection presentation and semantics, and leaves
+weekday ordering plus localized day descriptions to hosts.
 The shared on-this-day card reuses `yearsBetween` and `excerpt` for anniversary
 entries while hosts provide the current date, localized title/plural formatter,
 icon, and navigation callback.

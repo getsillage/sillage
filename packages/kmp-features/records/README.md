@@ -66,6 +66,9 @@ boundaries.
 The buildable `shared-ui:records` module consumes `RecordsFeatureStateHolder`
 directly for list-filter tab selection and owns its selectable layout and semantics.
 Its search bar also reads aggregate query, request state, and result presence.
+Its search completion status owns visual layout, status semantics, and per-event
+announcement deduplication while hosts format localized result copy and bridge the
+platform announcement API.
 Shared records UI also owns reusable empty/error presentation. Hosts retain
 localized resources, icons, and mutation callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns

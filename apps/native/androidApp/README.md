@@ -70,8 +70,10 @@ lives in `kmp-features:records`. Android UI code may compose those shared featur
 must not duplicate domain, storage, synchronization, or protocol rules. Record-list
 filter tabs come from buildable `shared-ui:records` and consume the records aggregate
 directly; the shared search bar reads query/request/result state from the same
-aggregate, and shared records UI owns reusable empty/error states. Android supplies
-localized labels, icons, and ViewModel routing. Active record rows also come from
+aggregate. Its shared completion status owns layout, semantics, and announcement
+deduplication; Android formats localized result-count copy and bridges the platform
+announcement. Shared records UI also owns reusable empty/error states. Android
+supplies localized labels, icons, and ViewModel routing. Active record rows also come from
 shared records UI and own card/content/status/mutation presentation; Android
 formats entry dates and supplies localized copy, icons, and routing. The complete
 swipe container is shared and owns drag/settle/action orchestration. The revealed

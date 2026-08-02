@@ -43,12 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -57,7 +52,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,7 +72,6 @@ import app.sillage.features.records.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
-import app.sillage.ui.designsystem.applySillageStatusSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
@@ -95,6 +88,7 @@ import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordEmptyState
 import app.sillage.ui.records.SillageRecordSearchBar
+import app.sillage.ui.records.SillageRecordSearchStatus
 import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
@@ -277,9 +271,6 @@ private fun memoListSubtitle(state: SillageUiState): String {
 @Composable
 private fun SearchStatusBlock(state: SillageUiState) {
     val view = LocalView.current
-    var observedCompletionEventId by remember {
-        mutableLongStateOf(state.searchCompletionEventId)
-    }
     val completed = state.completedMemoSearch() ?: return
     val summary = stringResource(
         R.string.search_results_summary,
@@ -290,34 +281,12 @@ private fun SearchStatusBlock(state: SillageUiState) {
             completed.resultCount,
         ),
     )
-    LaunchedEffect(state.searchCompletionEventId, summary, view) {
-        if (observedCompletionEventId != state.searchCompletionEventId) {
-            observedCompletionEventId = state.searchCompletionEventId
-            view.announceForAccessibility(summary)
-        }
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-                .clearAndSetSemantics { applySillageStatusSemantics(summary) },
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Rounded.Search,
-            contentDescription = null,
-            modifier = Modifier.size(15.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            summary,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    SillageRecordSearchStatus(
+        summary = summary,
+        completionEventId = state.searchCompletionEventId,
+        icon = Icons.Rounded.Search,
+        onAnnounce = view::announceForAccessibility,
+    )
 }
 
 @Composable

@@ -185,6 +185,9 @@ filter selection. Its first slice owns the four-tab selectable layout, colors, a
 Tab semantics while Android supplies localized labels and the mutation callback.
 The shared search bar also reads query, searching, and result-presence state from
 the aggregate and owns IME submission, progress, clear, and search action layout.
+The shared search completion status owns visual layout, status semantics, and
+per-event announcement deduplication. Hosts format localized query/result-count
+copy and bridge the platform announcement API.
 Shared records empty/error presentation owns icon treatment, centered copy, and an
 optional action while Android selects localized copy for each list condition.
 The shared active record row consumes `Memo` plus host-localized labels and owns

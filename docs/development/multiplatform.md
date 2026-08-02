@@ -170,6 +170,9 @@ selectable layout, semantic Tab roles, colors, and sizing. Hosts supply localize
 labels and the filter mutation callback.
 Its search bar consumes query, request-progress, and published-result presence from
 the same aggregate while hosts supply localized content, icons, and callbacks.
+Its search completion status owns visual layout, status semantics, and per-event
+announcement deduplication while hosts format localized result copy and bridge the
+platform announcement API.
 Its reusable empty/error state owns centered copy, icon treatment, and optional
 action layout while hosts choose localized condition-specific content.
 Its active record row consumes `Memo` plus host-localized labels and owns card

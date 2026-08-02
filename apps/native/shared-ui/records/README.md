@@ -7,6 +7,8 @@ macOS hosts.
 active list filter and owns the selectable-tab layout, colors, and semantics.
 `SillageRecordSearchBar` consumes the aggregate search query, request state, and
 published-result presence while owning IME search, progress, clear, and action UI.
+`SillageRecordSearchStatus` owns completed-search status layout, semantics, and
+per-completion announcement deduplication from host-formatted summary copy.
 `SillageRecordEmptyState` owns reusable records empty/error presentation, optional
 icon treatment, and optional action layout.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card

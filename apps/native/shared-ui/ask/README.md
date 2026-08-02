@@ -22,5 +22,10 @@ Hosts provide localized formatting, icons, and feature callbacks.
 card layout, waiting fallback, colors, and message accessibility descriptions.
 Hosts provide localized copy, icons, and speaker-description formatting.
 
+`SillageAskMessageActions` owns branch-neighbor selection, variant position
+semantics, regenerate/save visibility and request gating, plus saving progress
+presentation. Hosts provide localized strings, Material icons, and feature
+callbacks.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

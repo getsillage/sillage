@@ -205,7 +205,10 @@ formatting, Material icons, and ViewModel callbacks; the top bar reuses the same
 shared context selection.
 Shared Ask empty/live cards own prompt guidance, user/answer card layout,
 thinking fallback, colors, and message semantics. Android supplies localized
-copy, the prompt icon, and speaker-description formatting.
+copy, prompt icon, and speaker-description formatting.
+Shared message actions own variant navigation, regenerate/save gates, saving
+progress, and variant-position semantics. Android maps localized resources,
+Material icons, and ViewModel callbacks.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

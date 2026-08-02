@@ -194,6 +194,9 @@ selection.
 Shared Ask empty/live cards own prompt guidance, user/answer card layout,
 waiting fallback, colors, and message accessibility descriptions. Android maps
 localized copy, icon, and speaker-description formatting.
+Shared Ask message actions own neighboring-variant selection, regenerate/save
+visibility and request gates, saving progress, and polite variant-position
+semantics. Android maps localized resources, icons, and feature callbacks.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

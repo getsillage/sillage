@@ -63,3 +63,6 @@ send/stop presentation while hosts route aggregate updates and execution.
 Shared empty/live cards consume domain messages and stream text to own prompt,
 waiting fallback, card presentation, and message accessibility semantics while
 hosts provide localized copy and speaker formatting.
+Shared message actions consume domain messages and branch variants, then own
+neighbor selection, regenerate/save gates, saving progress, and variant-position
+semantics while hosts provide localized resources, icons, and callbacks.

@@ -61,11 +61,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -534,15 +532,41 @@ private fun AskMessageCard(
                     )
                 }
                 if (isAssistant) {
-                    AskMessageActions(
-                        entry = entry,
+                    SillageAskMessageActions(
+                        message = entry.message,
+                        variants = entry.variants,
+                        selectedIndex = entry.index,
                         canRegenerate = canRegenerate,
                         regenerating = regenerating,
                         variantChanging = variantChanging,
                         savingDisabled = savingDisabled,
                         saving = saving,
+                        strings = SillageAskMessageActionStrings(
+                            previousVariantContentDescription = stringResource(
+                                R.string.ask_previous_variant,
+                            ),
+                            nextVariantContentDescription = stringResource(
+                                R.string.ask_next_variant,
+                            ),
+                            variantCounter = { position, total ->
+                                stringResource(R.string.ask_variant_counter, position, total)
+                            },
+                            variantPositionDescription = { position, total ->
+                                stringResource(R.string.ask_variant_position, position, total)
+                            },
+                            regenerateContentDescription = stringResource(R.string.ask_regenerate),
+                            generatingContentDescription = stringResource(R.string.ask_generating),
+                            saveContentDescription = stringResource(R.string.ask_save_as_record),
+                            savingContentDescription = stringResource(R.string.action_saving),
+                        ),
+                        icons = SillageAskMessageActionIcons(
+                            previousVariant = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                            nextVariant = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            regenerate = Icons.Rounded.Refresh,
+                            save = Icons.Rounded.Save,
+                        ),
                         onRegenerate = onRegenerate,
-                        onSaveAsMemo = onSaveAsMemo,
+                        onSave = onSaveAsMemo,
                         onSelectVariant = onSelectVariant,
                     )
                 }
@@ -598,113 +622,6 @@ private fun AskSourceRefs(
 }
 
 @Composable
-private fun AskMessageActions(
-    entry: AskPathEntry,
-    canRegenerate: Boolean,
-    regenerating: Boolean,
-    variantChanging: Boolean,
-    savingDisabled: Boolean,
-    saving: Boolean,
-    onRegenerate: () -> Unit,
-    onSaveAsMemo: () -> Unit,
-    onSelectVariant: (String) -> Unit,
-) {
-    val hasVariants = entry.variants.size > 1
-    val canSave = entry.message.content.isNotBlank()
-    if (!hasVariants && !canRegenerate && !regenerating && !canSave) {
-        return
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (hasVariants) {
-            val variantPosition = stringResource(
-                R.string.ask_variant_position,
-                entry.index + 1,
-                entry.variants.size,
-            )
-            IconButton(
-                onClick = {
-                    val previous = entry.variants.getOrNull(entry.index - 1)
-                    if (previous != null) {
-                        onSelectVariant(previous.id)
-                    }
-                },
-                enabled = entry.index > 0 && !regenerating && !variantChanging,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                    contentDescription = stringResource(R.string.ask_previous_variant),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Text(
-                stringResource(R.string.ask_variant_counter, entry.index + 1, entry.variants.size),
-                modifier = Modifier.clearAndSetSemantics {
-                    applyAskVariantSemantics(variantPosition)
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            IconButton(
-                onClick = {
-                    val next = entry.variants.getOrNull(entry.index + 1)
-                    if (next != null) {
-                        onSelectVariant(next.id)
-                    }
-                },
-                enabled = entry.index >= 0 &&
-                    entry.index < entry.variants.lastIndex &&
-                    !regenerating &&
-                    !variantChanging,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = stringResource(R.string.ask_next_variant),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        if (canRegenerate || regenerating) {
-            IconButton(
-                onClick = onRegenerate,
-                enabled = canRegenerate && !regenerating,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Rounded.Refresh,
-                    contentDescription = stringResource(if (regenerating) R.string.ask_generating else R.string.ask_regenerate),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        if (canSave) {
-            IconButton(
-                onClick = onSaveAsMemo,
-                enabled = !savingDisabled && !regenerating,
-                modifier = Modifier.size(48.dp),
-            ) {
-                if (saving) {
-                    val savingDescription = stringResource(R.string.action_saving)
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .semantics { contentDescription = savingDescription },
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Icon(
-                        Icons.Rounded.Save,
-                        contentDescription = stringResource(R.string.ask_save_as_record),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun askMessageDescription(isAssistant: Boolean, content: String): String {
     val speaker = stringResource(if (isAssistant) R.string.app_name else R.string.ask_speaker_you)
     return stringResource(R.string.ask_message_description, speaker, content)
@@ -712,9 +629,4 @@ private fun askMessageDescription(isAssistant: Boolean, content: String): String
 
 internal fun SemanticsPropertyReceiver.applyAskMessageSemantics(description: String) {
     contentDescription = description
-}
-
-internal fun SemanticsPropertyReceiver.applyAskVariantSemantics(description: String) {
-    contentDescription = description
-    liveRegion = LiveRegionMode.Polite
 }

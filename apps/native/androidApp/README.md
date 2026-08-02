@@ -116,7 +116,9 @@ records UI; Android supplies localized title/plural formatting and the calendar
 icon. The AI summary card consumes records summary state directly across detail
 and editor surfaces and owns
 loading/action/body/metadata presentation; Android only maps localized strings,
-JSON source-count parsing, and plural labels. The detail card and reusable status
+JSON source-count parsing, and plural labels. Summary orchestration, save paths,
+and tests also consume `records.summary` directly, without root summary
+compatibility getters. The detail card and reusable status
 line are shared too; Android supplies localized dates/status labels and retains
 Markdown rendering plus protected-attachment opening. Record metadata revision
 selection and layout are shared; Android formats timestamps and revision plurals.

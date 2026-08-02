@@ -619,7 +619,7 @@ class SillageUiStateTest {
         assertEquals(canonical, completed.selectedMemo)
         assertTrue(completed.memos.isEmpty())
         assertEquals(mutated.memoCacheGeneration, completed.memoCacheGeneration)
-        assertFalse(completed.summaryLoading)
+        assertFalse(completed.records.summary.loading)
     }
 
     @Test
@@ -649,7 +649,7 @@ class SillageUiStateTest {
         assertEquals(canonical, completed.selectedMemo)
         assertTrue(completed.memos.isEmpty())
         assertEquals(pending.memoCacheGeneration + 1, completed.memoCacheGeneration)
-        assertFalse(completed.summaryLoading)
+        assertFalse(completed.records.summary.loading)
     }
 
     @Test
@@ -673,7 +673,7 @@ class SillageUiStateTest {
 
         assertEquals(canonical, failed.selectedMemo)
         assertEquals(null, failed.error)
-        assertFalse(failed.summaryLoading)
+        assertFalse(failed.records.summary.loading)
     }
 
     @Test
@@ -722,8 +722,8 @@ class SillageUiStateTest {
 
         val summary = memoAI("新总结")
         val completed = pending.completeMemoSummaryRequest(request, summary, "总结已生成")
-        assertEquals(summary, completed.selectedSummary)
-        assertFalse(completed.summaryLoading)
+        assertEquals(summary, completed.records.summary.summary)
+        assertFalse(completed.records.summary.loading)
         assertEquals("总结已生成", completed.notice)
 
         val stale = pending.copy(screen = Screen.Memos)
@@ -737,12 +737,12 @@ class SillageUiStateTest {
             records = pending.records.copy(selection = pending.records.selection.select(original.copy(version = 2))),
         )
         val finished = versionChanged.finishMemoSummaryRequest(request)
-        assertFalse(finished.summaryLoading)
-        assertEquals(null, finished.selectedSummary)
+        assertFalse(finished.records.summary.loading)
+        assertEquals(null, finished.records.summary.summary)
 
         val invalidated = pending.invalidateMemoSummaryRequest()
-        assertFalse(invalidated.summaryLoading)
-        assertEquals(request.requestId + 1, invalidated.memoSummaryRequestId)
+        assertFalse(invalidated.records.summary.loading)
+        assertEquals(request.requestId + 1, invalidated.records.summary.requestId)
         assertEquals(invalidated, invalidated.finishMemoSummaryRequest(request))
     }
 

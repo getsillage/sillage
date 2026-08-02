@@ -1464,7 +1464,7 @@ class SillageViewModel(
                         records = it.records.presentSavedMemo(
                             memo = saved,
                             summary = if (current.selectedMemo?.id == saved.id) {
-                                it.selectedSummary
+                        it.records.summary.summary
                             } else {
                                 null
                             },

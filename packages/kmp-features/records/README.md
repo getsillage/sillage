@@ -25,7 +25,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   detail responses against source, destination, session, cache, and version
   generations.
 - `RecordsSummaryStateHolder` owns AI-derived summary presentation, loading,
-  request identity, and detail/editor context validation.
+  request identity, and detail/editor context validation. Android orchestration,
+  save paths, and tests consume it through the records aggregate directly, without
+  root summary compatibility getters.
 - `RecordsEditorStateHolder` owns editor sessions, draft and initial snapshots,
   dirty state, Markdown preview, and attachment-upload request ownership.
 - `RecordsEditorActionPolicy` combines editor, selection, and mutation state with

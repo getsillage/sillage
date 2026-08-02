@@ -42,7 +42,6 @@ import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
-import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.features.records.canRunEditorAction
 import app.sillage.features.records.editorBusyReason
 import app.sillage.features.records.MemoViewMode
@@ -120,7 +119,6 @@ data class SillageUiState(
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
-    val recordsSummary: RecordsSummaryStateHolder get() = records.summary
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
@@ -141,9 +139,6 @@ data class SillageUiState(
     val searching: Boolean get() = records.search.searching
     val selectedMemo: Memo? get() = records.selection.selectedMemo
     val memoDetailRequestId: Long get() = records.selection.detailRequestId
-    val selectedSummary: MemoAI? get() = records.summary.summary
-    val summaryLoading: Boolean get() = records.summary.loading
-    val memoSummaryRequestId: Long get() = records.summary.requestId
     val uploadingAttachment: Boolean get() = records.editor.uploadingAttachment
     val editorSessionId: Long get() = records.editor.sessionId
     val draftContent: String get() = records.editor.draftContent
@@ -388,7 +383,7 @@ internal fun SillageUiState.finishMemoMutation(memoId: String?): SillageUiState 
 
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
-        summaryLoading ||
+        records.summary.loading ||
         records.mutation.active ||
         ask.memoSave.savingMessageId.isNotBlank() ||
         aiSettingsSaving ||
@@ -430,7 +425,7 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
         clientContextGeneration = clientContextGeneration,
         online = appMode == SessionStore.MODE_ONLINE,
         anotherOperationInProgress = loading ||
-            summaryLoading ||
+            records.summary.loading ||
             records.mutation.active ||
             ask.memoSave.savingMessageId.isNotBlank() ||
             aiSettingsSaving ||
@@ -550,11 +545,11 @@ private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
 }
 
 internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
-    return recordsSummary.nextRequest(selectedMemo, recordsSummaryContext())
+    return records.summary.nextRequest(selectedMemo, recordsSummaryContext())
 }
 
 internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
-    val summaryState = recordsSummary.begin(request, selectedMemo, recordsSummaryContext())
+    val summaryState = records.summary.begin(request, selectedMemo, recordsSummaryContext())
         ?: return this
     return withRecords { it.copy(summary = summaryState) }.copy(
         error = null,
@@ -563,11 +558,11 @@ internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest)
 }
 
 private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return recordsSummary.owns(request)
+    return records.summary.owns(request)
 }
 
 internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return recordsSummary.canApply(request, selectedMemo, recordsSummaryContext())
+    return records.summary.canApply(request, selectedMemo, recordsSummaryContext())
 }
 
 internal fun SillageUiState.completeMemoSummaryRequest(
@@ -611,7 +606,7 @@ internal fun SillageUiState.finishMemoSummaryRequest(request: MemoSummaryRequest
 }
 
 internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
-    if (!summaryLoading) return this
+    if (!records.summary.loading) return this
     return withRecords { it.copy(summary = it.summary.invalidate()) }
 }
 

@@ -490,7 +490,9 @@ destination, editor generation, cache generation, and record version before an
 Android detail response may update state. AI-derived summary presentation state
 is owned by `RecordsSummaryStateHolder`, including request identity and
 detail/editor context validation. Android retains AI execution orchestration and
-localized feedback. `RecordsEditorStateHolder` owns editor session identity,
+localized feedback, while orchestration state, save paths, and tests consume the
+holder through the records aggregate directly without root-state summary
+accessors. `RecordsEditorStateHolder` owns editor session identity,
 draft snapshots, dirty state, preview state, and attachment-upload ownership;
 Android retains draft persistence, URI access, and attachment execution. Shared
 editor-action policy combines host destination/operation context with editor,

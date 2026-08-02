@@ -479,8 +479,10 @@ domain value.
 
 Records summary is the fifth extracted state slice. Its shared holder owns the
 selected summary, loading state, request identity, and detail/editor context
-validation. Android retains coroutine scheduling, user-facing messages, and the
-local or remote AI execution adapters.
+validation. Platform orchestration state, save paths, and tests consume it through
+the records aggregate directly rather than host-root summary accessors. Android
+retains coroutine scheduling, user-facing messages, and the local or remote AI
+execution adapters.
 
 Records editor is the sixth extracted state slice. Its shared holder owns editor
 session identity, draft and initial snapshots, dirty state, Markdown preview,

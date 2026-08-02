@@ -21,6 +21,10 @@ composition, active/deleted row branching, and pagination action presentation.
 `SillageRecordSummarySection` consumes shared `MemoAI` presentation and owns the
 summary card, loading/action copy selection, published-body fallback, and
 provider/model/source/token metadata layout. Hosts format localized plural labels.
+`SillageRecordDetailCard` owns entry-date/status layout, lifecycle status joining,
+content separation, and blank-record fallback while hosts provide localized labels
+and the Markdown/content slot. `SillageRecordStatusLine` reuses the same status
+selection for editor and other host surfaces.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

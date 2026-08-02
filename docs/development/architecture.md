@@ -203,6 +203,10 @@ The shared record summary section consumes `MemoAI` and owns summary-card layout
 loading/action selection, body fallback, and provider/model/source/token metadata
 presentation. Android retains localized plural formatting and source-ID JSON
 parsing at its adapter boundary.
+The shared record detail card owns date/status layout, lifecycle status joining,
+content separation, and blank-record fallback. Android provides localized labels
+and keeps Markdown rendering plus protected-attachment opening in its content slot;
+the shared status line is reused by the editor adapter.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

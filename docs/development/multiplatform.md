@@ -188,6 +188,10 @@ Its record summary section consumes shared `MemoAI` and owns summary-card layout
 loading/action selection, body fallback, and provider/model/source/token metadata
 presentation. Hosts retain localized plural formatting and any platform codec
 needed to interpret source identifiers.
+Its record detail card owns date/status layout, lifecycle status joining, content
+separation, and blank-record fallback. Hosts provide localized labels and retain
+platform Markdown/attachment handling in the content slot; the shared status line
+is reusable outside the detail card.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

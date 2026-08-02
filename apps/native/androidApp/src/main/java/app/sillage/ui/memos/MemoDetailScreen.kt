@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,7 +43,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.sillage.data.MarkdownLinkTarget
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.data.memoSummarySourceCount
@@ -54,6 +52,9 @@ import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
+import app.sillage.ui.records.SillageRecordDetailCard
+import app.sillage.ui.records.SillageRecordDetailStrings
+import app.sillage.ui.records.SillageRecordStatusLine
 import app.sillage.ui.records.SillageRecordSummarySection
 import app.sillage.ui.records.SillageRecordSummaryStrings
 
@@ -192,15 +193,25 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             item {
-                MemoDetailCard(
+                SillageRecordDetailCard(
                     memo = memo,
-                    baseUrl = state.baseUrl,
-                    openingAttachmentPath = state.openingAttachmentPath,
-                    onOpenAttachment = viewModel::openProtectedAttachment,
+                    strings = SillageRecordDetailStrings(
+                        entryDateLabel = localizedDate(memo.entryDate),
+                        blankRecord = stringResource(R.string.blank_record),
+                        favoritedStatus = stringResource(R.string.record_favorited),
+                        archivedStatus = stringResource(R.string.record_archived),
+                    ),
                     modifier = Modifier
                         .widthIn(max = 720.dp)
                         .fillMaxWidth(),
-                )
+                ) { record ->
+                    MarkdownContent(
+                        content = record.content,
+                        baseUrl = state.baseUrl,
+                        openingAttachmentPath = state.openingAttachmentPath,
+                        onOpenAttachment = viewModel::openProtectedAttachment,
+                    )
+                }
             }
             item {
                 MemoSummarySection(
@@ -225,61 +236,11 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
 }
 
 @Composable
-private fun MemoDetailCard(
-    memo: Memo,
-    baseUrl: String,
-    openingAttachmentPath: String?,
-    onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                localizedDate(memo.entryDate),
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            MemoStatusLine(memo)
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
-        if (memo.content.trim().isBlank()) {
-            Text(
-                stringResource(R.string.blank_record),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        } else {
-            MarkdownContent(
-                content = memo.content,
-                baseUrl = baseUrl,
-                openingAttachmentPath = openingAttachmentPath,
-                onOpenAttachment = onOpenAttachment,
-            )
-        }
-    }
-}
-
-@Composable
 internal fun MemoStatusLine(memo: Memo?) {
-    val flags = listOfNotNull(
-        if (memo?.favoritedAt != null) stringResource(R.string.record_favorited) else null,
-        if (memo?.archivedAt != null) stringResource(R.string.record_archived) else null,
-    )
-    if (flags.isEmpty()) {
-        return
-    }
-    Text(
-        flags.joinToString(" · "),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.labelMedium,
+    SillageRecordStatusLine(
+        memo = memo,
+        favoritedStatus = stringResource(R.string.record_favorited),
+        archivedStatus = stringResource(R.string.record_archived),
     )
 }
 

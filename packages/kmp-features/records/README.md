@@ -84,6 +84,9 @@ card/row adapter slots and route callbacks.
 The shared record summary section consumes the aggregate's `MemoAI` presentation
 and owns loading/action/body/metadata layout while hosts format localized source
 and token labels.
+The shared record detail card consumes `Memo` for lifecycle status and blank-body
+presentation while hosts supply localized labels and a platform content slot. Its
+standalone status line reuses the same lifecycle selection in editor surfaces.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

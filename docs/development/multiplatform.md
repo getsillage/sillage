@@ -267,6 +267,10 @@ Its message card owns stored/streaming/regenerating content selection,
 user/assistant bubble presentation, semantics, and source/action slot placement.
 Hosts keep final Markdown and protected-attachment handling in the platform
 content slot.
+Its message list consumes the aggregate plus shared active path to own initial
+loading, error/empty/message/live item order, lazy-list layout, and per-message
+action gates. Hosts fill localized content slots and retain Scaffold/top-bar,
+navigation, and platform announcement bridges.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

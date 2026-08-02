@@ -204,6 +204,10 @@ The shared Ask message card owns stored/streaming/regenerating content selection
 user/assistant bubble presentation, message semantics, and source/action slot
 placement. Android supplies localized speaker descriptions and keeps final
 Markdown plus protected-attachment rendering in the platform slot.
+The shared Ask message list consumes the aggregate plus shared active path and
+owns initial loading, error/empty/message/live item order, lazy-list layout, and
+per-message action gates. Android fills localized/Markdown slots and retains
+Scaffold, TopAppBar, navigation, and platform accessibility announcements.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

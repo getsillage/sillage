@@ -219,6 +219,10 @@ The shared message card owns stored/streaming/regenerating content selection,
 user/assistant bubble layout, semantics, and source/action slot placement.
 Android retains final-answer Markdown, protected attachments, and localized
 speaker descriptions through the host slot.
+The shared Ask message list consumes the aggregate and active path to own initial
+loading, error/empty/message/live item order, lazy-list layout, and per-message
+action gates. Android fills localized and Markdown-aware item slots while keeping
+Scaffold, top bar, navigation, and accessibility announcements.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

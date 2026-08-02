@@ -76,3 +76,6 @@ localized count/date formatting, icons, and navigation callbacks.
 The shared message card consumes domain messages and stream presentation, then
 owns displayed-content selection, bubble layout, semantics, and source/action
 slots while hosts retain final Markdown and protected-attachment rendering.
+The shared message list combines this aggregate with `AskPathEntry` projections
+to own initial loading, error/empty/message/live ordering, lazy layout, and
+per-message action gates while hosts fill localized content slots.

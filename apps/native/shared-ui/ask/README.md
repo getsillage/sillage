@@ -36,5 +36,9 @@ user/assistant bubble presentation, message semantics, and source/action slot
 placement. Hosts keep final-answer Markdown and protected-attachment rendering
 inside the platform slot.
 
+`SillageAskMessageList` consumes the Ask aggregate and shared active path to own
+initial loading, error/empty/message/live item ordering, lazy-list layout, and
+message action gates. Hosts fill localized error, prompt, message, and live slots.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

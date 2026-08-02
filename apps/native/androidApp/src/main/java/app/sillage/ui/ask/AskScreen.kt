@@ -5,7 +5,6 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,9 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
@@ -264,100 +261,72 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            if (state.askLoading && entries.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    state = listState,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    state.askLoadError?.let { message ->
-                        item(key = "ask-load-error") {
-                        SillageErrorCard(
-                            message = message,
-                            actionLabel = stringResource(R.string.action_retry),
-                            actionIcon = Icons.Rounded.Refresh,
-                            onAction = viewModel::retryAskLoad,
-                        )
-                        }
-                    }
-                    if (entries.isEmpty() && state.askLoadError == null) {
-                        item {
-                            SillageAskEmptyPrompt(
-                                strings = SillageAskEmptyPromptStrings(
-                                    title = stringResource(R.string.ask_prompt_title),
-                                    example = stringResource(R.string.ask_prompt_example),
-                                ),
-                                icon = Icons.Rounded.AutoAwesome,
-                            )
-                        }
-                    }
-                    items(entries, key = { it.message.id }) { entry ->
-                        AskMessageCard(
-                            entry = entry,
-                            canRegenerate = entry.message.id == latestAssistantId &&
-                                !state.askLoading &&
-                                !state.askSending &&
-                                !state.askVariantLoading &&
-                                !state.askSourceLoading,
-                            regenerating = state.askRegeneratingId == entry.message.id,
-                            variantChanging = state.askLoading || state.askVariantLoading,
-                            savingDisabled = state.loading ||
-                                state.askLoading ||
-                                state.askSending ||
-                                state.askVariantLoading ||
-                                state.askSourceLoading ||
-                                state.askSavingMessageId.isNotBlank(),
-                            saving = state.askSavingMessageId == entry.message.id,
-                            sourceActionsEnabled = !state.loading &&
-                                !state.askSending &&
-                                !state.askLoading &&
-                                !state.askVariantLoading &&
-                                !state.askSourceLoading,
-                            streamingText = if (state.askRegeneratingId == entry.message.id) state.askLiveAnswer else null,
-                            baseUrl = state.baseUrl,
-                            openingAttachmentPath = state.openingAttachmentPath,
-                            onRegenerate = { viewModel.regenerateAskAnswer(entry.message.id) },
-                            onSaveAsMemo = { viewModel.saveAskAnswerAsMemo(entry.message) },
-                            onOpenSource = viewModel::openAskSourceMemo,
-                            onSelectVariant = viewModel::selectAskVariant,
-                            onOpenAttachment = viewModel::openProtectedAttachment,
-                        )
-                    }
-                    state.askLiveUser?.let { liveUser ->
-                        item {
-                            SillageAskLiveUserCard(
-                                message = liveUser,
-                                messageDescription = { content ->
-                                    askMessageDescription(isAssistant = false, content = content)
-                                },
-                            )
-                        }
-                    }
-                    if (state.askSending && state.askRegeneratingId.isBlank()) {
-                        item {
-                            SillageAskLiveAnswerCard(
-                                answer = state.askLiveAnswer,
-                                thinking = stringResource(R.string.ask_thinking),
-                                messageDescription = { content ->
-                                    askMessageDescription(isAssistant = true, content = content)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+            SillageAskMessageList(
+                state = state.ask,
+                entries = entries,
+                latestAssistantId = latestAssistantId,
+                hostActionsEnabled = !state.loading,
+                listState = listState,
+                modifier = Modifier.weight(1f),
+                loadErrorContent = { message ->
+                    SillageErrorCard(
+                        message = message,
+                        actionLabel = stringResource(R.string.action_retry),
+                        actionIcon = Icons.Rounded.Refresh,
+                        onAction = viewModel::retryAskLoad,
+                    )
+                },
+                emptyContent = {
+                    SillageAskEmptyPrompt(
+                        strings = SillageAskEmptyPromptStrings(
+                            title = stringResource(R.string.ask_prompt_title),
+                            example = stringResource(R.string.ask_prompt_example),
+                        ),
+                        icon = Icons.Rounded.AutoAwesome,
+                    )
+                },
+                messageContent = { item ->
+                    AskMessageCard(
+                        entry = item.entry,
+                        canRegenerate = item.canRegenerate,
+                        regenerating = item.regenerating,
+                        variantChanging = item.variantChanging,
+                        savingDisabled = item.savingDisabled,
+                        saving = item.saving,
+                        sourceActionsEnabled = item.sourceActionsEnabled,
+                        streamingText = item.streamingText,
+                        baseUrl = state.baseUrl,
+                        openingAttachmentPath = state.openingAttachmentPath,
+                        onRegenerate = {
+                            viewModel.regenerateAskAnswer(item.entry.message.id)
+                        },
+                        onSaveAsMemo = {
+                            viewModel.saveAskAnswerAsMemo(item.entry.message)
+                        },
+                        onOpenSource = viewModel::openAskSourceMemo,
+                        onSelectVariant = viewModel::selectAskVariant,
+                        onOpenAttachment = viewModel::openProtectedAttachment,
+                    )
+                },
+                liveUserContent = { message ->
+                    SillageAskLiveUserCard(
+                        message = message,
+                        messageDescription = { content ->
+                            askMessageDescription(isAssistant = false, content = content)
+                        },
+                    )
+                },
+                liveAnswerContent = { answer ->
+                    SillageAskLiveAnswerCard(
+                        answer = answer,
+                        thinking = stringResource(R.string.ask_thinking),
+                        messageDescription = { content ->
+                            askMessageDescription(isAssistant = true, content = content)
+                        },
+                    )
+                },
+            )
+
             SillageAskComposer(
                 state = state.ask,
                 strings = SillageAskComposerStrings(

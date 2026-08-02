@@ -621,14 +621,14 @@ attachment staging and present the resulting status.
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, platform time and identity values, data-folder action,
-  and Windows/macOS packaging. DMG generation works on macOS; MSI generation is
-  configured and must be verified on Windows. Signing, notarization, credential
-  storage, updater, and native menu integration remain future release work.
+  and Windows/macOS packaging. Matching CI hosts build and verify the DMG and
+  MSI. Signing, notarization, credential storage, the updater, and native menu
+  integration remain future release work.
 
 Desktop and iOS packages produced by local build tasks are engineering
 verification artifacts. They are not attached by the official release workflow
-until Windows installer verification, macOS/iOS signing, macOS notarization,
-updates, and platform release-candidate coverage are implemented.
+until code signing, macOS notarization, updates, and platform release-candidate
+coverage are implemented.
 
 Platform hosts may depend on shared modules. They must not depend directly on
 another platform host.
@@ -666,11 +666,11 @@ tests. Platform-native UI replacements must pass the same feature contract and
 acceptance scenarios as the shared Compose surface.
 
 Run `make check-desktop` for shared native common tests, desktop host tests,
-and desktop JVM production compilation. On macOS, additionally run
-`:desktopApp:packageDistributionForCurrentOS` to exercise DMG packaging; the
-equivalent MSI task must run on a Windows host before Windows distribution is
-considered verified. Packaging checks do not replace signing, notarization,
-accessibility, or installer lifecycle testing.
+and desktop JVM production compilation. Run `make check-desktop-package` on
+macOS or Windows to build and validate the matching DMG or MSI. Main CI runs
+both host-native package checks and retains the unsigned artifacts temporarily
+for engineering inspection. Packaging checks do not replace signing,
+notarization, accessibility, or installer lifecycle testing.
 
 Run `make check-ios` on macOS to link the static device and simulator
 frameworks, typecheck the Swift bridge, and build the unsigned simulator host.

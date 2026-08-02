@@ -36,9 +36,9 @@ duplicating application behavior in Swift.
 
 `desktopApp` is the Windows/macOS host and may generate local DMG or MSI
 packages. These packages are engineering verification artifacts, not official
-release assets. The release workflow remains unchanged until Windows
-packaging, code signing, macOS notarization, updates, and release-candidate
-coverage are defined and verified.
+release assets. Matching CI hosts verify package generation, while the release
+workflow remains unchanged until code signing, macOS notarization, updates, and
+release-candidate coverage are defined and verified.
 
 ## Consequences
 

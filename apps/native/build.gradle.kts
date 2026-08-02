@@ -63,6 +63,12 @@ tasks.register("checkDesktop") {
     dependsOn(":desktopApp:jar")
 }
 
+tasks.register("checkDesktopPackage") {
+    group = "verification"
+    description = "Builds and verifies the host-native DMG or MSI package."
+    dependsOn(":desktopApp:checkNativeDistribution")
+}
+
 tasks.register("checkIos") {
     group = "verification"
     description = "Links the shared iOS frameworks for device and simulator targets."

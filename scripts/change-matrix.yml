@@ -17,7 +17,7 @@ gates:
   restore: "Isolated backup/restore recovery drill"
   upgrade: "Latest-stable data upgrade and backup-backed rollback drill"
 
-  desktop: "Shared native common tests, desktop host tests, and desktop JVM production compilation"
+  desktop: "Shared native common tests, desktop host tests, desktop JVM production compilation, and host-native DMG/MSI packaging"
   ios: "Shared native common tests, Apple framework links, Swift bridge typecheck, and unsigned simulator host build"
 
 rules:

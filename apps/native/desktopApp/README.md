@@ -10,11 +10,30 @@ Run the development application:
 ./gradlew :desktopApp:run
 ```
 
-Build the installer supported by the current host:
+Run shared tests and desktop production compilation:
 
 ```bash
-./gradlew :desktopApp:packageDistributionForCurrentOS
+make check-desktop
 ```
+
+Build and verify the installer on macOS:
+
+```bash
+make check-desktop-package
+```
+
+On Windows PowerShell, invoke the same Gradle gate directly:
+
+```powershell
+cd apps/native
+.\gradlew.bat checkDesktopPackage
+```
+
+The packaging gate expects `Sillage-1.0.0.dmg` on macOS or
+`Sillage-1.0.0.msi` on Windows and rejects missing or unexpectedly small
+artifacts. CI runs it on both host operating systems and retains the unsigned
+packages temporarily for engineering inspection. They are not official
+release assets.
 
 The current product slice is a functional device-local records workspace. It
 does not yet connect to a Sillage server, synchronize, store credentials, open

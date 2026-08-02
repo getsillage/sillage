@@ -25,7 +25,8 @@ declare only module-specific dependencies and plugins.
 
 The root `checkShared` task runs every shared module's desktop host tests and
 checks dependency direction. `checkDesktop` adds Compose Desktop host tests
-and production compilation. `checkIos` links static device and simulator
+and production compilation. `checkDesktopPackage` builds and verifies a DMG
+or MSI on its matching host OS. `checkIos` links static device and simulator
 frameworks; the repository `make check-ios` target additionally typechecks the
 Swift bridge and builds the unsigned Xcode simulator host.
 

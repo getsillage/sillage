@@ -1143,7 +1143,10 @@ class SillageViewModel(
                 aiSettingsFetched = pulled.aiSettingsAvailable
             }
             val json = withContext(Dispatchers.Default) {
-                val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
+                val data = localDataStore.exportData(
+                    state.value.themeMode,
+                    state.value.records.browse.viewMode.name,
+                )
                 SillageExportCodec.toJson(data)
             }
             withContext(Dispatchers.IO) {
@@ -1340,7 +1343,7 @@ class SillageViewModel(
         cancelMemoSummary()
         cancelAttachmentOpen()
         val resetFilter = mode == MemoViewMode.Calendar &&
-            state.value.memoListFilter != MemoListFilter.Unarchived
+            state.value.records.browse.filter != MemoListFilter.Unarchived
         updateState {
             it.copy(
                 screen = Screen.Memos,
@@ -1375,7 +1378,7 @@ class SillageViewModel(
     }
 
     fun updateMemoListFilter(filter: MemoListFilter) {
-        if (state.value.memoListFilter == filter || state.value.ask.variant.loading) {
+        if (state.value.records.browse.filter == filter || state.value.ask.variant.loading) {
             return
         }
         searchJob?.cancel()
@@ -1391,7 +1394,10 @@ class SillageViewModel(
 
     fun changeCalendarMonth(delta: Int) {
         updateState {
-            val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
+            val next = java.time.YearMonth.of(
+                it.records.browse.calendarYear,
+                it.records.browse.calendarMonth,
+            ).plusMonths(delta.toLong())
             it.copy(
                 records = it.records.selectCalendarMonth(next.year, next.monthValue),
             )
@@ -3863,7 +3869,7 @@ class SillageViewModel(
 
     private fun enterOfflineMode(notice: String?) {
         cancelAIAutoSummarySave()
-        val filter = state.value.memoListFilter
+        val filter = state.value.records.browse.filter
         // Corrupted local data must surface as an error, not crash the app or
         // silently show an empty diary.
         val localSnapshot = runCatching {

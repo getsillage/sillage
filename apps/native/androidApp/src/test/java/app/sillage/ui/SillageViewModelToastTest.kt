@@ -114,17 +114,17 @@ class SillageViewModelToastTest {
         viewModel.openAsk()
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
 
         viewModel.updateMemoViewMode(MemoViewMode.Calendar)
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
 
         viewModel.openAISettings()
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
     }
 
     @Test

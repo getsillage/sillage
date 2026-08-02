@@ -523,6 +523,10 @@ without root-state collection accessors.
 calendar month/day selection. `MemoViewMode` is a shared feature value; Android
 retains platform date arithmetic and refresh scheduling.
 
+Android browse contexts, navigation/calendar presentation, import/export reads,
+and tests consume the holder through the records aggregate directly, without
+root-state browse accessors.
+
 `RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
 invalidation so late staging or viewer events cannot cross navigation context.
 Android request gates, Compose surfaces, and tests consume it through the records

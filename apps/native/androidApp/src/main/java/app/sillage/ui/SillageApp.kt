@@ -78,7 +78,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     // screen leaves composition (detail/editor) and the user comes back.
     val memoListState = remember { LazyListState() }
     LaunchedEffect(
-        state.memoListFilter,
+        state.records.browse.filter,
         state.records.search.query.isBlank(),
         state.records.search.resultQuery,
     ) {

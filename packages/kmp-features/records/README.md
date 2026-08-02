@@ -49,7 +49,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   getters.
 - `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering,
   calendar month/day selection, and persisted view-mode restoration that does
-  not invent an interactive filter change.
+  not invent an interactive filter change. Android browse contexts,
+  navigation/calendar presentation, import/export reads, and tests consume it
+  through the records aggregate directly, without root browse compatibility getters.
 - `RecordsAttachmentOpenStateHolder` owns prepared attachment-open request
   identity, start/completion, and invalidation while platform hosts stage bytes
   and launch native viewers. Android request gates, Compose consumers, and tests

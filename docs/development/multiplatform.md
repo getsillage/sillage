@@ -519,6 +519,10 @@ Records browsing is the ninth extracted state slice. Its shared holder owns
 list/calendar mode, semantic filtering, and calendar month/day selection.
 Android retains platform date arithmetic and refresh scheduling.
 
+Android browse contexts, navigation/calendar presentation, import/export reads,
+and tests consume the holder through the records aggregate directly rather than
+host-root browse accessors.
+
 Attachment opening is the tenth extracted records state slice.
 `RecordsAttachmentOpenStateHolder` owns request identity, late-result ownership,
 and invalidation. Platform request gates, Compose surfaces, and tests read it

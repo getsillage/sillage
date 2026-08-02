@@ -114,18 +114,12 @@ data class SillageUiState(
     // Transitional slice accessors while hosts finish moving writes onto the
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
-    val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
 
-    val memoViewMode: MemoViewMode get() = records.browse.viewMode
-    val memoListFilter: MemoListFilter get() = records.browse.filter
-    val calendarYear: Int get() = records.browse.calendarYear
-    val calendarMonth: Int get() = records.browse.calendarMonth
-    val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
     val aiAutoSummary: Boolean get() = settings.autoSummaryEnabled
     val aiAutoSummarySaving: Boolean get() = settings.autoSummarySaving
     val aiAutoSummaryRequestId: Long get() = settings.autoSummaryRequestId
@@ -856,7 +850,7 @@ private fun SillageUiState.recordsPageContext(): RecordsPageContext {
         sourceKey = appMode,
         sourceAvailable = appMode != SessionStore.MODE_OFFLINE,
         clientContextGeneration = clientContextGeneration,
-        filter = memoListFilter,
+        filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
     )
 }
@@ -895,7 +889,7 @@ private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
     return RecordsRefreshContext(
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
-        filter = memoListFilter,
+        filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
         paginationRequestId = records.pagination.requestId,
     )
@@ -928,7 +922,7 @@ private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
     return RecordsSearchContext(
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
-        filter = memoListFilter,
+        filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
     )
 }
@@ -1137,7 +1131,7 @@ internal fun SillageUiState.openAskSourceDetail(
         records = finished.records.absorbVisibleMemo(
             memo = detail.memo,
             summary = detail.ai,
-            filter = finished.memoListFilter,
+            filter = finished.records.browse.filter,
         ),
     )
 }
@@ -1175,7 +1169,7 @@ internal fun SillageUiState.backNavigation(fallback: Screen): BackNavigation {
 internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
     return AppNavigationPolicy.shouldReturnToRecords(
         current = screen,
-        recordsCalendarActive = memoViewMode == MemoViewMode.Calendar,
+        recordsCalendarActive = records.browse.viewMode == MemoViewMode.Calendar,
     )
 }
 

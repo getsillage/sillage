@@ -348,8 +348,8 @@ class SillageUiStateTest {
 
         val restored = state.applyRestoredMemoViewMode(MemoViewMode.Calendar)
 
-        assertEquals(MemoViewMode.Calendar, restored.memoViewMode)
-        assertEquals(MemoListFilter.Archived, restored.memoListFilter)
+        assertEquals(MemoViewMode.Calendar, restored.records.browse.viewMode)
+        assertEquals(MemoListFilter.Archived, restored.records.browse.filter)
         assertEquals(null, restored.records.selection.selectedMemo)
         assertEquals("", restored.records.search.query)
         assertEquals("keep", restored.error)

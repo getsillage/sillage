@@ -88,6 +88,8 @@ refresh compatibility getters.
 The shared record list
 derives search/filter/pagination presentation from the records aggregate and owns
 lazy-list composition; Android fills localized On This Day and row adapter slots.
+Browse contexts, navigation/calendar presentation, import/export reads, and tests
+consume `records.browse` directly, without root browse compatibility getters.
 Host record counts, late-response checks, and tests consume `records.collection`
 directly, without root collection compatibility getters.
 Pagination orchestration and tests consume `records.pagination` directly, without

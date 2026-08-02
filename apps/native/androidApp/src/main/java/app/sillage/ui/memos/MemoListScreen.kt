@@ -321,8 +321,16 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
     val today = remember { LocalDate.now().toString() }
     val locale = LocalConfiguration.current.locales[0]
     val firstDayOfWeek = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
-    val weeks = remember(state.calendarYear, state.calendarMonth, firstDayOfWeek) {
-        monthGrid(state.calendarYear, state.calendarMonth, firstDayOfWeek)
+    val weeks = remember(
+        state.records.browse.calendarYear,
+        state.records.browse.calendarMonth,
+        firstDayOfWeek,
+    ) {
+        monthGrid(
+            state.records.browse.calendarYear,
+            state.records.browse.calendarMonth,
+            firstDayOfWeek,
+        )
     }
     SillageRecordCalendar(
         state = state.records,
@@ -330,7 +338,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
         weeks = weeks,
         strings = SillageRecordCalendarStrings(
-            selectedDateLabel = state.selectedCalendarDate?.let { localizedDate(it) }
+            selectedDateLabel = state.records.browse.selectedCalendarDate?.let { localizedDate(it) }
                 ?: stringResource(R.string.calendar_select_day),
             coverage = SillageCalendarCoverageStrings(
                 partialMonth = stringResource(
@@ -383,11 +391,22 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
 
 @Composable
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
-    val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
-    val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
+    val previous = adjacentMonth(
+        state.records.browse.calendarYear,
+        state.records.browse.calendarMonth,
+        -1,
+    )
+    val next = adjacentMonth(
+        state.records.browse.calendarYear,
+        state.records.browse.calendarMonth,
+        1,
+    )
     SillageCalendarHeader(
         strings = SillageCalendarHeaderStrings(
-            currentMonth = localizedMonth(state.calendarYear, state.calendarMonth),
+            currentMonth = localizedMonth(
+                state.records.browse.calendarYear,
+                state.records.browse.calendarMonth,
+            ),
             browseByDate = stringResource(R.string.calendar_browse_by_date),
             previousMonthDescription = localizedMonth(previous.first, previous.second),
             nextMonthDescription = localizedMonth(next.first, next.second),

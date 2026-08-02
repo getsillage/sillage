@@ -22,7 +22,7 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
     SillageNavigationBar {
         SillageNavigationItem(
             selected = state.screen == Screen.Memos &&
-                state.memoViewMode == MemoViewMode.List,
+                state.records.browse.viewMode == MemoViewMode.List,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
             enabled = enabled,
             icon = Icons.Rounded.Home,
@@ -30,7 +30,7 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
         )
         SillageNavigationItem(
             selected = state.screen == Screen.Memos &&
-                state.memoViewMode == MemoViewMode.Calendar,
+                state.records.browse.viewMode == MemoViewMode.Calendar,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
             enabled = enabled,
             icon = Icons.Rounded.CalendarMonth,

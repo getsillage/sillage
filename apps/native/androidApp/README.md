@@ -199,6 +199,10 @@ supplies localized strings and routes option changes to the ViewModel.
 The shared conversation sheet also owns refresh/selection gates, empty/current
 row presentation, and select-then-dismiss flow; Android maps localized titles
 and ViewModel callbacks.
+The shared composer owns context selection, character-count and IME send gates,
+question layout, and send/stop action switching. Android supplies plural/context
+formatting, Material icons, and ViewModel callbacks; the top bar reuses the same
+shared context selection.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

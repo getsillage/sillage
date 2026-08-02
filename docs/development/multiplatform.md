@@ -251,6 +251,9 @@ platform integrations.
 Its conversation sheet also owns aggregate-derived refresh/selection gates,
 empty/current row presentation, title fallback, and select-then-dismiss flow;
 hosts provide localized copy and callbacks.
+Its composer owns context-label selection, trimmed character count, IME Send
+gating, question layout, and send/stop action switching. Hosts provide localized
+formatting, icons, callbacks, and may reuse the shared context label elsewhere.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

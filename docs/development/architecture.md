@@ -187,6 +187,10 @@ feature callbacks while retaining streaming, Markdown, and navigation adapters.
 Its conversation sheet consumes the same aggregate and owns refresh/selection
 gates, empty/current row presentation, title fallback, and select-then-dismiss
 flow while Android maps localized copy and callbacks.
+The shared composer owns context-label selection, trimmed character count, IME
+Send gating, question layout, and send/stop action switching. Android supplies
+localized formatting, icons, and callbacks; the top bar reuses shared context
+selection.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

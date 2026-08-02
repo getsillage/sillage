@@ -57,3 +57,6 @@ Its first slice owns retrieval-range/source option selection and bottom-sheet
 presentation while hosts provide localized strings and route aggregate updates.
 The shared conversation sheet derives refresh/selection gates from the same
 aggregate and owns empty/current row presentation plus select-then-dismiss flow.
+The shared composer consumes composer/load/stream/variant/source-navigation
+state directly to own context labels, character count, IME send gating, and
+send/stop presentation while hosts route aggregate updates and execution.

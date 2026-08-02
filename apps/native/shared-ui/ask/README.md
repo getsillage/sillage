@@ -12,5 +12,10 @@ aggregate and own refresh/selection enablement, empty and selected-row
 presentation, title fallback, and select-then-dismiss flow. Hosts provide
 localized strings and route refresh/selection callbacks.
 
+`SillageAskComposer` owns context-label selection, trimmed character count,
+IME Send gating, question field layout, and send/stop action switching.
+`SillageAskContextLabel` exposes the same context selection to host top bars.
+Hosts provide localized formatting, icons, and feature callbacks.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

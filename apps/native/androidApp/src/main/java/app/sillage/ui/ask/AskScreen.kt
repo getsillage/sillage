@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,8 +22,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -42,11 +39,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -74,7 +69,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.ask.AskMessage
@@ -99,6 +93,13 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showOptions by remember { mutableStateOf(false) }
     val view = LocalView.current
     val completedDescription = stringResource(R.string.ask_answer_complete)
+    val contextStrings = SillageAskContextStrings(
+        recentSevenDays = stringResource(R.string.ask_scope_7_days),
+        recentThirtyDays = stringResource(R.string.ask_scope_30_days),
+        allTime = stringResource(R.string.ask_scope_all),
+        recordsSource = stringResource(R.string.ask_source_records),
+        summariesSource = stringResource(R.string.ask_source_summaries),
+    )
     var observedCompletionEventId by remember(state.askScreenSessionId) {
         mutableLongStateOf(state.askCompletionEventId)
     }
@@ -219,7 +220,13 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                askContextLabel(state),
+                                SillageAskContextLabel(
+                                    state = state.ask,
+                                    strings = contextStrings,
+                                    contextSummary = { scope, source ->
+                                        stringResource(R.string.ask_record_context_summary, scope, source)
+                                    },
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1,
@@ -348,9 +355,27 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                 }
             }
-            AskComposer(
-                state = state,
-                viewModel = viewModel,
+            SillageAskComposer(
+                state = state.ask,
+                strings = SillageAskComposerStrings(
+                    context = contextStrings,
+                    questionLabel = stringResource(R.string.ask_question_label),
+                    sendContentDescription = stringResource(R.string.ask_send),
+                    stopContentDescription = stringResource(R.string.ask_stop_generation),
+                ),
+                icons = SillageAskComposerIcons(
+                    send = Icons.AutoMirrored.Rounded.Send,
+                    stop = Icons.Rounded.StopCircle,
+                ),
+                onQuestionChange = viewModel::updateAskQuestion,
+                onSend = viewModel::sendAskQuestion,
+                onStop = viewModel::stopAskStreaming,
+                contextSummary = { scope, source ->
+                    stringResource(R.string.ask_record_context_summary, scope, source)
+                },
+                characterCount = { count ->
+                    pluralStringResource(R.plurals.quantity_characters, count, count)
+                },
             )
         }
     }
@@ -399,19 +424,6 @@ internal fun isAskListNearBottom(
 }
 
 @Composable
-private fun askContextLabel(state: SillageUiState): String {
-    val scope = when (state.askScope) {
-        "recent_7_days" -> stringResource(R.string.ask_scope_7_days)
-        "all" -> stringResource(R.string.ask_scope_all)
-        else -> stringResource(R.string.ask_scope_30_days)
-    }
-    val source = stringResource(
-        if (state.askSourceKind == "summaries") R.string.ask_source_summaries else R.string.ask_source_records,
-    )
-    return stringResource(R.string.ask_record_context_summary, scope, source)
-}
-
-@Composable
 private fun AskEmptyPrompt() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -448,94 +460,6 @@ private fun AskEmptyPrompt() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-        }
-    }
-}
-
-@Composable
-private fun AskComposer(
-    state: SillageUiState,
-    viewModel: SillageViewModel,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .imePadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(start = 12.dp, top = 10.dp, end = 10.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    askContextLabel(state),
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    pluralStringResource(
-                        R.plurals.quantity_characters,
-                        state.askQuestion.trim().length,
-                        state.askQuestion.trim().length,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                OutlinedTextField(
-                    value = state.askQuestion,
-                    onValueChange = viewModel::updateAskQuestion,
-                    modifier = Modifier.weight(1f),
-                    minLines = 1,
-                    maxLines = 3,
-                    label = { Text(stringResource(R.string.ask_question_label)) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
-                            if (
-                                !state.askLoading &&
-                                !state.askSending &&
-                                !state.askVariantLoading &&
-                                !state.askSourceLoading &&
-                                state.askQuestion.isNotBlank()
-                            ) {
-                                viewModel.sendAskQuestion()
-                            }
-                        },
-                    ),
-                )
-                if (state.askSending) {
-                    FilledIconButton(
-                        onClick = viewModel::stopAskStreaming,
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(Icons.Rounded.StopCircle, contentDescription = stringResource(R.string.ask_stop_generation))
-                    }
-                } else {
-                    FilledIconButton(
-                        onClick = viewModel::sendAskQuestion,
-                        enabled = !state.askSending &&
-                            !state.askLoading &&
-                            !state.askVariantLoading &&
-                            !state.askSourceLoading &&
-                            state.askQuestion.isNotBlank(),
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(R.string.ask_send))
-                    }
-                }
-            }
         }
     }
 }

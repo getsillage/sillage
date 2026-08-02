@@ -945,7 +945,7 @@ class SillageViewModel(
                         }
                     }
                 synchronized(memoPageLock) {
-                    if (state.value.memoPageRequestId == request.requestId) {
+                    if (state.value.records.pagination.requestId == request.requestId) {
                         loadMoreMemosJob = null
                     }
                 }

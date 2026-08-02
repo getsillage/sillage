@@ -328,9 +328,8 @@ class SillageUiStateTest {
 
         assertEquals(listOf(original), state.records.collection.records)
         assertEquals(state.records.collection, state.recordsCollection)
-        assertEquals(state.records.pagination, state.recordsPagination)
         assertEquals(state.records.selection, state.recordsSelection)
-        assertEquals("cursor-9", state.memoNextCursor)
+        assertEquals("cursor-9", state.records.pagination.nextCursor)
         assertEquals(2L, state.memoCacheGeneration)
         assertEquals(original, state.selectedMemo)
 
@@ -339,7 +338,7 @@ class SillageUiStateTest {
         )
         assertEquals(3L, applied.memoCacheGeneration)
         assertEquals(applied.records.collection, applied.recordsCollection)
-        assertFalse(applied.loadingMoreMemos)
+        assertFalse(applied.records.pagination.loadingMore)
     }
 
     @Test

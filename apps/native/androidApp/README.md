@@ -86,6 +86,8 @@ refresh compatibility getters.
 The shared record list
 derives search/filter/pagination presentation from the records aggregate and owns
 lazy-list composition; Android fills localized On This Day and row adapter slots.
+Pagination orchestration and tests consume `records.pagination` directly, without
+root pagination compatibility getters.
 List-load and search failure visibility also come from shared records selectors;
 Android only supplies localized retry presentation and callbacks.
 Active record rows also come from

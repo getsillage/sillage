@@ -41,7 +41,6 @@ import app.sillage.features.records.RecordsEditorActionContext
 import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
-import app.sillage.features.records.RecordsPaginationStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
@@ -121,7 +120,6 @@ data class SillageUiState(
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
-    val recordsPagination: RecordsPaginationStateHolder get() = records.pagination
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
     val recordsMutation: RecordsMutationStateHolder get() = records.mutation
     val recordsSummary: RecordsSummaryStateHolder get() = records.summary
@@ -134,11 +132,8 @@ data class SillageUiState(
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
 
-    val memoNextCursor: String get() = records.pagination.nextCursor
     val memos: List<Memo> get() = records.collection.records
     val memoCacheGeneration: Long get() = records.collection.cacheGeneration
-    val loadingMoreMemos: Boolean get() = records.pagination.loadingMore
-    val memoPageRequestId: Long get() = records.pagination.requestId
     val searchQuery: String get() = records.search.query
     val searchResults: List<Memo>? get() = records.search.results
     val searchResultQuery: String get() = records.search.resultQuery
@@ -881,11 +876,11 @@ private fun SillageUiState.recordsPageContext(): RecordsPageContext {
 }
 
 internal fun SillageUiState.nextMemoPageRequest(): RecordsPageRequest? {
-    return recordsPagination.nextRequest(recordsPageContext())
+    return records.pagination.nextRequest(recordsPageContext())
 }
 
 internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageUiState? {
-    val pagination = recordsPagination.begin(request, recordsPageContext()) ?: return null
+    val pagination = records.pagination.begin(request, recordsPageContext()) ?: return null
     return withRecords { it.copy(pagination = pagination) }.copy(
         error = null,
         notice = null,
@@ -893,19 +888,20 @@ internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageU
 }
 
 internal fun SillageUiState.canApplyMemoPage(request: RecordsPageRequest): Boolean {
-    return recordsPagination.canApply(request, recordsPageContext())
+    return records.pagination.canApply(request, recordsPageContext())
 }
 
 internal fun SillageUiState.completeMemoPage(
     request: RecordsPageRequest,
     nextCursor: String,
 ): SillageUiState? {
-    val pagination = recordsPagination.complete(request, recordsPageContext(), nextCursor) ?: return null
+    val pagination =
+        records.pagination.complete(request, recordsPageContext(), nextCursor) ?: return null
     return withRecords { it.copy(pagination = pagination) }
 }
 
 internal fun SillageUiState.failMemoPage(request: RecordsPageRequest): SillageUiState? {
-    val pagination = recordsPagination.fail(request, recordsPageContext()) ?: return null
+    val pagination = records.pagination.fail(request, recordsPageContext()) ?: return null
     return withRecords { it.copy(pagination = pagination) }
 }
 
@@ -915,7 +911,7 @@ private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
         cacheGeneration = memoCacheGeneration,
-        paginationRequestId = memoPageRequestId,
+        paginationRequestId = records.pagination.requestId,
     )
 }
 

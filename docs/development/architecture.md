@@ -467,9 +467,10 @@ encrypted persistence, and REST execution remain adapter responsibilities.
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state
 slice. It validates source, client context, filter, cache generation, cursor,
-and request identity before accepting a late page response. Android's root UI
-state retains transitional read accessors, while pagination writes use the
-shared holder's explicit begin, complete, fail, and cancel transitions.
+and request identity before accepting a late page response. Android pagination
+orchestration and tests consume the holder through the records aggregate directly,
+without root-state pagination accessors; local and remote adapters still execute
+the page query.
 
 The shared `RecordsRefreshStateHolder` now owns refresh status and request
 identity. It rejects responses after source, client context, filter, cache, or

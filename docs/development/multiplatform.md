@@ -417,8 +417,9 @@ of synchronization status.
 The first extracted records holder governs load-more state. Its immutable
 transitions capture and validate source, client context, filter, cache
 generation, cursor, and request identity so late responses cannot cross query
-boundaries. The holder is available to every native host; Android retains only
-transitional accessors while the rest of records state is migrated.
+boundaries. Platform pagination orchestration and tests consume the holder through
+the records aggregate directly rather than host-root pagination accessors. Local
+and remote adapters still execute the page query.
 
 The records application boundary has separate ports for a consistent local
 snapshot and a server-backed page. Shared callers use semantic scope and cursor

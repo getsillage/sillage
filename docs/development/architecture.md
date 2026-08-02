@@ -215,6 +215,9 @@ and fills localized record, summary, and metadata slots.
 Shared record detail actions own edit/more enablement, lifecycle-aware
 favorite/archive choices, mutation-driven menu reset, and delete confirmation.
 Android supplies localized resources, icons, and ViewModel callbacks.
+Shared record editor actions own save-progress semantics, attachment-vs-save busy
+copy precedence, lifecycle-aware menu choices, and delete confirmation. Android
+selects localized online/offline supporting copy and routes callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

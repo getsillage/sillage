@@ -18,7 +18,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   consume it through the records aggregate directly, without root refresh
   compatibility getters.
 - `RecordsSearchStateHolder` owns query input, results, failure binding,
-  completion events, and request identity.
+  completion events, and request identity. Android orchestration, list
+  reset/announcement gates, and tests consume it through the records aggregate
+  directly, without root search compatibility getters.
 - Records surface selectors choose list-load and search failure visibility from
   the aggregate without depending on Android root state.
 - `RecordsSelectionStateHolder` owns the selected domain record and validates

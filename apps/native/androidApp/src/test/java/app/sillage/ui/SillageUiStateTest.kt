@@ -351,7 +351,7 @@ class SillageUiStateTest {
         assertEquals(MemoViewMode.Calendar, restored.memoViewMode)
         assertEquals(MemoListFilter.Archived, restored.memoListFilter)
         assertEquals(null, restored.records.selection.selectedMemo)
-        assertEquals("", restored.searchQuery)
+        assertEquals("", restored.records.search.query)
         assertEquals("keep", restored.error)
     }
 
@@ -362,10 +362,10 @@ class SillageUiStateTest {
         val updated = state.withMemoSearchQuery("memo")
         val cleared = updated.clearMemoSearchState()
 
-        assertEquals("memo", updated.searchQuery)
-        assertTrue(updated.searching)
-        assertEquals("", cleared.searchQuery)
-        assertFalse(cleared.searching)
+        assertEquals("memo", updated.records.search.query)
+        assertTrue(updated.records.search.searching)
+        assertEquals("", cleared.records.search.query)
+        assertFalse(cleared.records.search.searching)
         assertEquals("keep", cleared.error)
         assertEquals(state.screen, cleared.screen)
     }
@@ -580,11 +580,11 @@ class SillageUiStateTest {
         assertFalse(updated.canApplyMemoRefresh(refresh))
         assertFalse(updated.canApplyMemoSearch(search))
         assertTrue(updated.records.collection.records.isEmpty())
-        assertEquals(emptyList<Memo>(), updated.searchResults)
-        assertEquals("", updated.searchResultQuery)
-        assertEquals(4L, updated.searchCompletionEventId)
+        assertEquals(emptyList<Memo>(), updated.records.search.results)
+        assertEquals("", updated.records.search.resultQuery)
+        assertEquals(4L, updated.records.search.completionEventId)
         assertEquals(null, updated.completedMemoSearch())
-        assertFalse(updated.searching)
+        assertFalse(updated.records.search.searching)
     }
 
     @Test
@@ -768,11 +768,11 @@ class SillageUiStateTest {
 
         val failed = pending.failMemoSearch(request, "网络错误")
 
-        assertEquals(loaded, failed.searchResults)
-        assertEquals("", failed.searchResultQuery)
-        assertEquals("记录", failed.searchFailureQuery)
-        assertEquals(4L, failed.searchCompletionEventId)
-        assertFalse(failed.searching)
+        assertEquals(loaded, failed.records.search.results)
+        assertEquals("", failed.records.search.resultQuery)
+        assertEquals("记录", failed.records.search.failureQuery)
+        assertEquals(4L, failed.records.search.completionEventId)
+        assertFalse(failed.records.search.searching)
         assertEquals("网络错误", failed.error)
         assertFalse(failed.canApplyMemoSearch(request))
         val retry = requireNotNull(failed.nextMemoSearchRequest())
@@ -795,8 +795,8 @@ class SillageUiStateTest {
         assertEquals(second, second.completeMemoSearch(firstRequest, listOf(memo())))
 
         val completed = second.completeMemoSearch(secondRequest, listOf(memo()))
-        assertEquals(1L, completed.searchCompletionEventId)
-        assertFalse(completed.searching)
+        assertEquals(1L, completed.records.search.completionEventId)
+        assertFalse(completed.records.search.searching)
     }
 
     @Test
@@ -822,10 +822,10 @@ class SillageUiStateTest {
         val results = listOf(memo(id = "memo-new"))
         val completed = pending.completeMemoSearch(request, results)
 
-        assertEquals(results, completed.searchResults)
-        assertEquals("新查询", completed.searchResultQuery)
-        assertEquals(5L, completed.searchCompletionEventId)
-        assertFalse(completed.searching)
+        assertEquals(results, completed.records.search.results)
+        assertEquals("新查询", completed.records.search.resultQuery)
+        assertEquals(5L, completed.records.search.completionEventId)
+        assertFalse(completed.records.search.searching)
         assertEquals(results, completed.currentMemoSearchResults())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 1), completed.completedMemoSearch())
         assertEquals(
@@ -850,7 +850,7 @@ class SillageUiStateTest {
 
         val empty = pending.completeMemoSearch(request, emptyList())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 0), empty.completedMemoSearch())
-        assertEquals(5L, empty.searchCompletionEventId)
+        assertEquals(5L, empty.records.search.completionEventId)
 
         val stale = pending.copy(
             records = pending.records.copy(search = pending.records.search.copy(query = "其他查询")),

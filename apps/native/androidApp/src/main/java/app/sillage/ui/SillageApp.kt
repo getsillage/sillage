@@ -79,8 +79,8 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     val memoListState = remember { LazyListState() }
     LaunchedEffect(
         state.memoListFilter,
-        state.searchQuery.isBlank(),
-        state.searchResultQuery,
+        state.records.search.query.isBlank(),
+        state.records.search.resultQuery,
     ) {
         // The visible list context changed (filter or search), reset to top.
         memoListState.scrollToItem(0)

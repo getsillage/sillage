@@ -217,7 +217,7 @@ private fun SearchStatusBlock(state: SillageUiState) {
     )
     SillageRecordSearchStatus(
         summary = summary,
-        completionEventId = state.searchCompletionEventId,
+        completionEventId = state.records.search.completionEventId,
         icon = Icons.Rounded.Search,
         onAnnounce = view::announceForAccessibility,
     )

@@ -480,7 +480,9 @@ directly, without root-state refresh accessors.
 The shared `RecordsSearchStateHolder` owns normalized query state, results,
 failure binding, completion events, and request identity. Android retains
 debounce timing and local/remote source orchestration, while every state
-transition and late-response check is shared.
+transition and late-response check is shared. Android orchestration, list
+reset/announcement gates, and tests consume the holder through the records
+aggregate directly, without root-state search accessors.
 Records surface selectors also own list-load and search failure visibility from
 the aggregate, removing those conditions from Android root state.
 

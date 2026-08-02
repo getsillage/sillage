@@ -70,7 +70,9 @@ lives in `kmp-features:records`. Android UI code may compose those shared featur
 must not duplicate domain, storage, synchronization, or protocol rules. Record-list
 filter tabs come from buildable `shared-ui:records` and consume the records aggregate
 directly; the shared search bar reads query/request/result state from the same
-aggregate. Its shared completion status owns layout, semantics, and announcement
+aggregate. Android search orchestration, list reset/announcement gates, and tests
+also consume `records.search` directly, without root search compatibility getters.
+Its shared completion status owns layout, semantics, and announcement
 deduplication; Android formats localized result-count copy and bridges the platform
 announcement. Shared records UI also owns reusable empty/error states. Android
 supplies localized labels, icons, and ViewModel routing. The shared records

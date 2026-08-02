@@ -3255,8 +3255,9 @@ class SillageViewModel(
                     var restartSearch = false
                     updateState { current ->
                         val completed = current.completeMemoDetailRequest(request, detail)
-                        restartSearch = current.searching &&
-                            current.searchQuery.isNotBlank() &&
+                        restartSearch =
+                            current.records.search.searching &&
+                                current.records.search.query.isNotBlank() &&
                                 completed.records.collection.cacheGeneration !=
                                     current.records.collection.cacheGeneration
                         completed
@@ -3936,7 +3937,9 @@ class SillageViewModel(
                 current.clientContextGeneration == clientContextGeneration
             ) {
                 applied = true
-                restartSearch = current.searching && current.searchQuery.isNotBlank()
+                restartSearch =
+                    current.records.search.searching &&
+                        current.records.search.query.isNotBlank()
                 current.applyMemoToCache(memo)
             } else {
                 current

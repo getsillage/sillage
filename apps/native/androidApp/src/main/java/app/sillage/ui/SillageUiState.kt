@@ -39,7 +39,6 @@ import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsEditorActionContext
 import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
-import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.canRunEditorAction
 import app.sillage.features.records.editorBusyReason
 import app.sillage.features.records.MemoViewMode
@@ -116,7 +115,6 @@ data class SillageUiState(
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
-    val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
@@ -124,13 +122,6 @@ data class SillageUiState(
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
 
-    val searchQuery: String get() = records.search.query
-    val searchResults: List<Memo>? get() = records.search.results
-    val searchResultQuery: String get() = records.search.resultQuery
-    val searchFailureQuery: String get() = records.search.failureQuery
-    val memoSearchRequestId: Long get() = records.search.requestId
-    val searchCompletionEventId: Long get() = records.search.completionEventId
-    val searching: Boolean get() = records.search.searching
     val uploadingAttachment: Boolean get() = records.editor.uploadingAttachment
     val editorSessionId: Long get() = records.editor.sessionId
     val draftContent: String get() = records.editor.draftContent
@@ -951,11 +942,11 @@ private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
 }
 
 internal fun SillageUiState.nextMemoSearchRequest(): RecordsSearchRequest? {
-    return recordsSearch.nextRequest(recordsSearchContext())
+    return records.search.nextRequest(recordsSearchContext())
 }
 
 internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): SillageUiState {
-    val search = recordsSearch.begin(request, recordsSearchContext()) ?: return this
+    val search = records.search.begin(request, recordsSearchContext()) ?: return this
     return withRecords { it.copy(search = search) }.copy(
         error = null,
         notice = null,
@@ -963,22 +954,22 @@ internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): Sill
 }
 
 internal fun SillageUiState.canApplyMemoSearch(request: RecordsSearchRequest): Boolean {
-    return recordsSearch.canApply(request, recordsSearchContext())
+    return records.search.canApply(request, recordsSearchContext())
 }
 
 internal fun SillageUiState.currentMemoSearchResults(): List<Memo>? {
-    return recordsSearch.currentResults()
+    return records.search.currentResults()
 }
 
 internal fun SillageUiState.completedMemoSearch(): CompletedRecordsSearch? {
-    return recordsSearch.completed()
+    return records.search.completed()
 }
 
 internal fun SillageUiState.completeMemoSearch(
     request: RecordsSearchRequest,
     results: List<Memo>,
 ): SillageUiState {
-    val search = recordsSearch.complete(request, recordsSearchContext(), results) ?: return this
+    val search = records.search.complete(request, recordsSearchContext(), results) ?: return this
     return withRecords { it.copy(search = search) }.copy(error = null)
 }
 
@@ -986,7 +977,7 @@ internal fun SillageUiState.failMemoSearch(
     request: RecordsSearchRequest,
     message: String,
 ): SillageUiState {
-    val search = recordsSearch.fail(request, recordsSearchContext()) ?: return this
+    val search = records.search.fail(request, recordsSearchContext()) ?: return this
     return withRecords { it.copy(search = search) }.copy(error = message)
 }
 

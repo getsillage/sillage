@@ -328,8 +328,9 @@ accepting completion. Platform navigation gates and request orchestration read i
 through the Ask aggregate directly rather than host-root variant accessors.
 `AskMemoSaveStateHolder` similarly owns answer-to-record request identity and
 rejects completion after answer content, branch head, navigation session, source,
-or client context changes. Record persistence still crosses the records
-application port.
+or client context changes. Platform request gates and orchestration read it through
+the Ask aggregate directly rather than host-root memo-save accessors. Record
+persistence still crosses the records application port.
 `AskSourceNavigationStateHolder` captures platform-neutral destination/history
 keys and rejects source-record responses after navigation, conversation, source,
 or client-context changes. Platform request orchestration reads the holder through

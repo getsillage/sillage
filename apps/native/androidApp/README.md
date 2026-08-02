@@ -201,6 +201,9 @@ model execution and the platform accessibility announcement bridge.
 Branch-variant requests use the shared feature single-flight holder directly
 through the Ask aggregate; Android only supplies navigation context and adapter
 execution, without root variant compatibility getters.
+Answer-to-record requests likewise consume `AskMemoSaveStateHolder` directly
+through the aggregate. Android retains only the records application adapter and
+does not expose root memo-save compatibility getters.
 Ask source-record navigation also uses a shared single-flight holder directly
 through the aggregate. Android maps stable destination/history keys to its
 `Screen` navigation model and retains only adapter execution.

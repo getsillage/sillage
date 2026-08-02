@@ -9,7 +9,6 @@ import app.sillage.features.ask.AskFeatureStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
-import app.sillage.features.ask.AskMemoSaveStateHolder
 import app.sillage.features.ask.AskSourceNavigationContext
 import app.sillage.features.ask.AskSourceNavigationRequest
 import app.sillage.features.ask.AskSourceNavigationStateHolder
@@ -149,7 +148,6 @@ data class SillageUiState(
     val askVariant: AskVariantStateHolder get() = ask.variant
     val askSession: AskSessionStateHolder get() = ask.session
     val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
-    val askMemoSave: AskMemoSaveStateHolder get() = ask.memoSave
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
@@ -193,8 +191,6 @@ data class SillageUiState(
     val activeAskId: String get() = ask.activeConversationId
     val askHeadId: String? get() = ask.headMessageId
     val askMessages: List<AskMessage> get() = ask.messages
-    val askMemoSaveRequestId: Long get() = ask.memoSave.requestId
-    val askSavingMessageId: String get() = ask.savingMessageId
     val askSending: Boolean get() = ask.sending
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
@@ -434,7 +430,7 @@ internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
         summaryLoading ||
         recordsMutation.active ||
-        askSavingMessageId.isNotBlank() ||
+        ask.memoSave.savingMessageId.isNotBlank() ||
         aiSettingsSaving ||
         aiAutoSummarySaving ||
         aiTestingProfileId.isNotBlank() ||
@@ -476,7 +472,7 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
         anotherOperationInProgress = loading ||
             summaryLoading ||
             recordsMutation.active ||
-            askSavingMessageId.isNotBlank() ||
+            ask.memoSave.savingMessageId.isNotBlank() ||
             aiSettingsSaving ||
             aiAutoSummarySaving ||
             aiProfileDiagnostics.busy,
@@ -1108,10 +1104,10 @@ internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSa
 internal fun SillageUiState.nextAskMemoSaveRequest(
     message: AskMessage,
     memoContent: String,
-): AskMemoSaveRequest? = askMemoSave.nextRequest(message, memoContent, askMemoSaveContext())
+): AskMemoSaveRequest? = ask.memoSave.nextRequest(message, memoContent, askMemoSaveContext())
 
 internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    val pending = askMemoSave.begin(request, askMemoSaveContext()) ?: return this
+    val pending = ask.memoSave.begin(request, askMemoSaveContext()) ?: return this
     return withAsk { it.beginMemoSave(pending) }.copy(
         error = null,
         notice = null,
@@ -1119,7 +1115,7 @@ internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): Silla
 }
 
 internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Boolean {
-    return askMemoSave.canApply(request, askMemoSaveContext())
+    return ask.memoSave.canApply(request, askMemoSaveContext())
 }
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {

@@ -1082,7 +1082,7 @@ class SillageUiStateTest {
 
         val pending = idle.startAskMemoSave(request)
 
-        assertEquals(firstAnswer.id, pending.askSavingMessageId)
+        assertEquals(firstAnswer.id, pending.ask.memoSave.savingMessageId)
         assertTrue(pending.canApplyAskMemoSave(request))
         assertTrue(pending.withAskLoad(loading = true).canApplyAskMemoSave(request))
         assertEquals(
@@ -1148,7 +1148,11 @@ class SillageUiStateTest {
 
         staleStates.forEach { (context, stale) ->
             assertFalse(context, stale.canApplyAskMemoSave(request))
-            assertEquals(context, "", stale.finishAskMemoSave(request).askSavingMessageId)
+            assertEquals(
+                context,
+                "",
+                stale.finishAskMemoSave(request).ask.memoSave.savingMessageId,
+            )
         }
     }
 

@@ -349,7 +349,9 @@ orchestration consume the holder through the Ask aggregate directly, without
 root-state variant accessors.
 `AskMemoSaveStateHolder` applies the same rule to answer-to-record requests and
 also captures source answer content and branch-head identity. It delegates the
-actual record creation to the records application boundary.
+actual record creation to the records application boundary. Android request gates,
+orchestration, and tests consume the holder through the Ask aggregate directly,
+without root-state memo-save accessors.
 `AskSourceNavigationStateHolder` owns source-record request identity using stable
 destination/history keys rather than Android navigation types. Android request
 orchestration consumes the holder through the Ask aggregate directly and maps

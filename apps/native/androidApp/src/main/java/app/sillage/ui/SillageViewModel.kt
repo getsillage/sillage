@@ -2484,7 +2484,7 @@ class SillageViewModel(
             requestState.ask.loading ||
             requestState.askSending ||
             requestState.ask.variant.loading ||
-            requestState.askSavingMessageId.isNotBlank()
+            requestState.ask.memoSave.savingMessageId.isNotBlank()
         ) {
             return
         }
@@ -2497,7 +2497,7 @@ class SillageViewModel(
                 !current.ask.loading &&
                 !current.askSending &&
                 !current.ask.variant.loading &&
-                current.askSavingMessageId.isBlank() &&
+                current.ask.memoSave.savingMessageId.isBlank() &&
                 current.askScreenSessionId == screenSessionId &&
                 current.appMode == appMode &&
                 current.clientContextGeneration == clientContextGeneration
@@ -3161,7 +3161,7 @@ class SillageViewModel(
 
     private fun invalidateAskMemoSaveNavigation() {
         updateState {
-            if (it.askSavingMessageId.isNotBlank()) {
+            if (it.ask.memoSave.savingMessageId.isNotBlank()) {
                 it.withAsk { ask -> ask.advanceSession() }
             } else {
                 it

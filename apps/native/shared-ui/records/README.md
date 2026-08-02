@@ -31,9 +31,10 @@ revision plurals.
 `SillageRecordDetailContent` owns missing-record fallback, detail-section ordering,
 lazy-list spacing, and shared content width while hosts fill record, summary, and
 metadata adapter slots.
-`SillageRecordDetailActions` owns edit/more action enablement, lifecycle-aware
-favorite/archive menu choices, mutation-driven menu reset, and delete confirmation.
-Hosts supply localized strings, icons, and mutation/navigation callbacks.
+`SillageRecordDetailActions` consumes aggregate selection/mutation state and
+owns edit/more action enablement, lifecycle-aware favorite/archive menu choices,
+mutation-driven menu reset, and delete confirmation. Hosts supply the
+host-operation gate, localized strings, icons, and mutation/navigation callbacks.
 `SillageRecordEditorActions` owns save progress semantics, attachment-vs-save busy
 copy, existing-record lifecycle menu choices, and editor delete confirmation.
 Hosts supply localized online/offline copy, icons, and callbacks.

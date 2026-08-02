@@ -201,9 +201,10 @@ hosts format localized created/updated timestamps and revision plurals.
 Its record detail content shell owns missing-record fallback, section order,
 lazy-list spacing, and shared content width while hosts retain Scaffold/TopAppBar placement
 and fill localized record, summary, and metadata slots.
-Its record detail actions own edit/more enablement, lifecycle-aware
-favorite/archive choices, mutation-driven menu reset, and delete confirmation;
-hosts supply localized resources, icons, and feature callbacks.
+Its record detail actions consume aggregate selection/mutation state and own
+edit/more enablement, lifecycle-aware favorite/archive choices, mutation-driven
+menu reset, and delete confirmation; hosts supply the host-operation gate,
+localized resources, icons, and feature callbacks.
 Its record editor actions own save-progress semantics, attachment-vs-save busy copy
 precedence, lifecycle-aware menu choices, and delete confirmation while hosts
 provide localized mode-specific supporting copy, icons, and callbacks.

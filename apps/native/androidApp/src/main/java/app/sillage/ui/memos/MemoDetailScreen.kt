@@ -46,7 +46,6 @@ import app.sillage.ui.records.SillageRecordSummaryStrings
 @Composable
 internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val memo = state.selectedMemo
-    val memoMutating = memo?.id?.let(state.memoMutationIds::contains) == true
     BackHandler(onBack = viewModel::closeMemoDetail)
     Scaffold(
         topBar = {
@@ -66,9 +65,8 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                 },
                 actions = {
                     SillageRecordDetailActions(
-                        memo = memo,
-                        operationBlocked = state.loading,
-                        mutating = memoMutating,
+                        state = state.records,
+                        hostOperationBlocked = state.loading,
                         strings = SillageRecordDetailActionStrings(
                             editContentDescription = stringResource(R.string.record_edit_description),
                             moreContentDescription = stringResource(R.string.action_more),

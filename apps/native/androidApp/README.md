@@ -118,9 +118,10 @@ selection and layout are shared; Android formats timestamps and revision plurals
 The shared detail content shell also owns missing-record fallback, section order,
 lazy-list spacing, and content width; Android keeps Scaffold/TopAppBar placement and fills
 the localized record, summary, and metadata slots.
-The shared detail actions own edit/more enablement, favorite/archive menu choices,
-busy-state reset, and delete confirmation; Android maps resources and ViewModel
-callbacks. Editor save/more actions are shared too, including progress semantics,
+The shared detail actions consume records selection/mutation state directly and
+own edit/more enablement, favorite/archive menu choices, busy-state reset, and
+delete confirmation; Android maps the host-operation gate, resources, and
+ViewModel callbacks. Editor save/more actions are shared too, including progress semantics,
 busy-copy precedence, lifecycle menu choices, and delete confirmation; Android
 selects localized online/offline supporting copy and routes callbacks. Shared editor
 close requests also own dirty-draft selection and discard confirmation; Android

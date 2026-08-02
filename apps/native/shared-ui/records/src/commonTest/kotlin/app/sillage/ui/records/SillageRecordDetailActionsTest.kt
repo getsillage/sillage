@@ -1,6 +1,9 @@
 package app.sillage.ui.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.RecordsMutationStateHolder
+import app.sillage.features.records.RecordsSelectionStateHolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -42,9 +45,13 @@ class SillageRecordDetailActionsTest {
         operationBlocked: Boolean = false,
         mutating: Boolean = false,
     ): SillageRecordDetailActionPresentation = sillageRecordDetailActionPresentation(
-        memo = memo,
-        operationBlocked = operationBlocked,
-        mutating = mutating,
+        state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = memo),
+            mutation = RecordsMutationStateHolder(
+                activeMemoIds = if (mutating && memo != null) setOf(memo.id) else emptySet(),
+            ),
+        ),
+        hostOperationBlocked = operationBlocked,
         strings = strings(),
     )
 

@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
-import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsFeatureStateHolder
 
 data class SillageRecordDetailActionStrings(
     val editContentDescription: String,
@@ -42,9 +42,8 @@ data class SillageRecordDetailActionIcons(
 
 @Composable
 fun SillageRecordDetailActions(
-    memo: Memo?,
-    operationBlocked: Boolean,
-    mutating: Boolean,
+    state: RecordsFeatureStateHolder,
+    hostOperationBlocked: Boolean,
     strings: SillageRecordDetailActionStrings,
     icons: SillageRecordDetailActionIcons,
     onEdit: () -> Unit,
@@ -55,11 +54,12 @@ fun SillageRecordDetailActions(
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val presentation = sillageRecordDetailActionPresentation(
-        memo = memo,
-        operationBlocked = operationBlocked,
-        mutating = mutating,
+        state = state,
+        hostOperationBlocked = hostOperationBlocked,
         strings = strings,
     )
+    val memo = state.selection.selectedMemo
+    val mutating = memo?.id?.let(state.mutation::isActive) == true
 
     LaunchedEffect(mutating) {
         if (mutating) {
@@ -87,7 +87,7 @@ fun SillageRecordDetailActions(
             dismissButton = {
                 TextButton(
                     onClick = { confirmDelete = false },
-                    enabled = !operationBlocked,
+                    enabled = !hostOperationBlocked,
                 ) {
                     Text(strings.cancelAction)
                 }
@@ -158,21 +158,24 @@ internal data class SillageRecordDetailActionPresentation(
 )
 
 internal fun sillageRecordDetailActionPresentation(
-    memo: Memo?,
-    operationBlocked: Boolean,
-    mutating: Boolean,
+    state: RecordsFeatureStateHolder,
+    hostOperationBlocked: Boolean,
     strings: SillageRecordDetailActionStrings,
-): SillageRecordDetailActionPresentation = SillageRecordDetailActionPresentation(
-    actionsEnabled = memo != null && !operationBlocked && !mutating,
-    favorited = memo?.favoritedAt != null,
-    favoriteAction = if (memo?.favoritedAt == null) {
-        strings.favoriteAction
-    } else {
-        strings.unfavoriteAction
-    },
-    archiveAction = if (memo?.archivedAt == null) {
-        strings.archiveAction
-    } else {
-        strings.unarchiveAction
-    },
-)
+): SillageRecordDetailActionPresentation {
+    val memo = state.selection.selectedMemo
+    val mutating = memo?.id?.let(state.mutation::isActive) == true
+    return SillageRecordDetailActionPresentation(
+        actionsEnabled = memo != null && !hostOperationBlocked && !mutating,
+        favorited = memo?.favoritedAt != null,
+        favoriteAction = if (memo?.favoritedAt == null) {
+            strings.favoriteAction
+        } else {
+            strings.unfavoriteAction
+        },
+        archiveAction = if (memo?.archivedAt == null) {
+            strings.archiveAction
+        } else {
+            strings.unarchiveAction
+        },
+    )
+}

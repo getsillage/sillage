@@ -64,7 +64,8 @@ the host root no longer exposes load compatibility getters.
 
 `AskComposerStateHolder` owns the draft question and retrieval scope/source
 options. Request execution captures these values but does not own or mutate the
-composer draft implicitly.
+composer draft implicitly. Android ViewModel and tests consume the holder through
+the Ask aggregate directly, without root composer compatibility getters.
 
 `AskSessionStateHolder` provides the monotonic screen generation used by all Ask
 request holders to reject callbacks after navigation or client-context changes.

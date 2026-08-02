@@ -349,7 +349,8 @@ through explicit begin, complete, fail, and cancel transitions. Platform request
 gates read it through the Ask aggregate directly rather than host-root load
 accessors.
 `AskComposerStateHolder` owns the question draft and retrieval scope/source
-options independently from stream execution.
+options independently from stream execution. Platform ViewModels and tests consume
+it through the Ask aggregate directly rather than host-root composer accessors.
 `AskSessionStateHolder` owns the monotonic screen generation captured by Ask
 requests so navigation invalidates late callbacks consistently across hosts.
 Platform request orchestration reads it through the Ask aggregate directly rather

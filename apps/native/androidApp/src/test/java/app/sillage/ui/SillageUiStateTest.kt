@@ -529,7 +529,7 @@ class SillageUiStateTest {
         assertFalse(cleared.aiAutoSummary)
         assertFalse(cleared.aiSettingsLoading)
         assertEquals("", cleared.ask.conversation.activeConversationId)
-        assertEquals("", cleared.askQuestion)
+        assertEquals("", cleared.ask.composer.question)
         assertFalse(cleared.ask.loading)
         assertEquals(4L, cleared.ask.session.generation)
         // host-only fields stay put
@@ -1108,9 +1108,9 @@ class SillageUiStateTest {
             .withAskContextScope("recent_30_days")
             .withAskSourceKind("summaries")
 
-        assertEquals("问题", updated.askQuestion)
-        assertEquals("recent_30_days", updated.askScope)
-        assertEquals("summaries", updated.askSourceKind)
+        assertEquals("问题", updated.ask.composer.question)
+        assertEquals("recent_30_days", updated.ask.composer.contextScope)
+        assertEquals("summaries", updated.ask.composer.sourceKind)
         assertEquals(original.notice, updated.notice)
         assertEquals(original.records, updated.records)
     }
@@ -1356,7 +1356,7 @@ class SillageUiStateTest {
         val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
         assertFalse(completed.ask.sending)
         assertFalse(completed.ask.streaming)
-        assertEquals("", completed.askQuestion)
+        assertEquals("", completed.ask.composer.question)
         assertEquals("", completed.ask.stream.regeneratingMessageId)
         assertEquals(null, completed.ask.stream.liveUser)
         assertEquals("", completed.ask.stream.liveAnswer)
@@ -1366,11 +1366,11 @@ class SillageUiStateTest {
         assertEquals(4L, unavailable.ask.stream.completionEventId)
 
         val failed = pending.copy(error = "失败").finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertEquals("问题", failed.askQuestion)
+        assertEquals("问题", failed.ask.composer.question)
         assertEquals(4L, failed.ask.stream.completionEventId)
 
         val stopped = pending.copy(notice = "已停止").finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertEquals("", stopped.askQuestion)
+        assertEquals("", stopped.ask.composer.question)
         assertEquals(4L, stopped.ask.stream.completionEventId)
     }
 

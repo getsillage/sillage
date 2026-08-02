@@ -2,7 +2,6 @@ package app.sillage.ui
 
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskMessage
-import app.sillage.features.ask.AskComposerStateHolder
 import app.sillage.features.ask.AskFeatureStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
@@ -137,7 +136,6 @@ data class SillageUiState(
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
-    val askComposer: AskComposerStateHolder get() = ask.composer
     val askLoad: AskLoadStateHolder get() = ask.load
     val askVariant: AskVariantStateHolder get() = ask.variant
     val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
@@ -180,9 +178,6 @@ data class SillageUiState(
     val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
     val openingAttachmentPath: String? get() = records.attachmentOpen.path
     val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
-    val askQuestion: String get() = ask.question
-    val askScope: String get() = ask.contextScope
-    val askSourceKind: String get() = ask.sourceKind
     val aiAutoSummary: Boolean get() = settings.autoSummaryEnabled
     val aiAutoSummarySaving: Boolean get() = settings.autoSummarySaving
     val aiAutoSummaryRequestId: Long get() = settings.autoSummaryRequestId

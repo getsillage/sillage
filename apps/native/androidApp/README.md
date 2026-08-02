@@ -219,7 +219,8 @@ Active Ask path entries, variant grouping, branch-leaf selection, and latest
 assistant lookup now come from `kmp-features:ask`; Android only consumes those
 shared projections in its ViewModel and Compose host.
 The question draft and retrieval scope/source options live in the shared
-`AskComposerStateHolder`.
+`AskComposerStateHolder`. Android ViewModel and tests consume `ask.composer`
+directly, without root composer compatibility getters.
 The buildable `shared-ui:ask` module consumes that aggregate directly for the
 retrieval-range/source option sheet and selected-chip presentation. Android
 supplies localized strings and routes option changes to the ViewModel.

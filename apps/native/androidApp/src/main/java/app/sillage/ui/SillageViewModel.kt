@@ -2694,7 +2694,7 @@ class SillageViewModel(
     }
 
     fun sendAskQuestion() {
-        val question = state.value.askQuestion.trim()
+        val question = state.value.ask.composer.question.trim()
         if (question.isBlank()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_ask_question_required))
@@ -3450,8 +3450,8 @@ class SillageViewModel(
         invalidateAskMemoSaveNavigation()
         val current = state.value
         val initialRequest = current.nextAskStreamRequest() ?: return
-        val contextScope = current.askScope
-        val sourceKind = current.askSourceKind
+        val contextScope = current.ask.composer.contextScope
+        val sourceKind = current.ask.composer.sourceKind
         val previousHeadId = current.ask.conversation.headMessageId
         val regeneratingId = forkOfId.orEmpty()
         updateState {

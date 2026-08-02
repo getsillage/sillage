@@ -531,8 +531,11 @@ are platform-independent.
 command workflow. Android stores one `sync` aggregate on root UI state.
 Push-result application, conflict dismissal, and conflict-list replacement pass
 through root `withSync` thin wrappers.
-Platform hosts retain confirmation UI and implement the transactional repository
-port without duplicating conflict policy.
+The buildable `shared-ui:sync` module consumes the aggregate directly and owns
+first-conflict selection, preview fallback and limits, dialog layout, and
+resource-ID action routing. Platform hosts retain localized strings,
+asynchronous resolution, and the transactional repository port without
+duplicating conflict policy.
 
 Full pull uses a distinct shared `SyncSnapshot`; it is not a backup-file DTO.
 `PullSyncUseCase` composes transport and atomic-merge ports. Snapshot sections

@@ -9,7 +9,8 @@ directly. The buildable `settings` module owns settings feature UI and consumes
 `kmp-features:settings` state directly. The buildable `design-system` module owns
 semantic theme tokens, the common `MaterialTheme`, and reusable navigation,
 settings, and error-state components; Android consumes them through thin host
-adapters.
+adapters. The buildable `sync` module owns synchronization conflict UI and
+consumes `kmp-features:sync` state directly.
 
 Platform integration and packaging do not belong in this module. Feature state
 and use cases belong under `packages/kmp-features/`. Shared UI is the default,

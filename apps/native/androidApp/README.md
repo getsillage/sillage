@@ -273,7 +273,10 @@ Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.
 Shared `kmp-features:sync` conflict state and core resolution commands own the explicit choice workflow;
-Android retains the confirmation UI and transactional local-storage adapter.
+`shared-ui:sync` consumes the aggregate directly and owns first-conflict
+selection, preview fallback/limits, dialog layout, and resource-ID action
+routing. Android supplies localized strings, asynchronous resolution, and the
+transactional local-storage adapter.
 Ask and secret-free AI settings values are imported directly from shared domain;
 cross-platform AI profile drafts come from the settings feature, while
 Android-local models are limited to API inputs and platform adapters.

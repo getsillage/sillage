@@ -210,6 +210,9 @@ Its record editor actions consume aggregate selection/editor/mutation state plus
 busy copy precedence, lifecycle-aware menu choices, and delete confirmation while
 hosts map destination/global-operation context and provide localized mode-specific
 supporting copy, icons, and callbacks.
+Its editor screen chrome consumes the same aggregate/context and owns new-vs-edit
+title selection, heading semantics, back-button layout, and action gating. Hosts
+retain `TopAppBar`, platform Back dispatch, localized strings, and icons.
 Its editor close request consumes aggregate editor state plus
 `RecordsEditorActionContext` and owns dirty-draft selection and discard-confirmation
 state/dialog while hosts retain platform Back integration and supply localized

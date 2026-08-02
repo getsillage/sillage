@@ -99,6 +99,9 @@ The shared editor actions consume aggregate selection/editor/mutation state plus
 `RecordsEditorActionContext` to own save progress semantics, lifecycle menus, and
 delete confirmation while hosts map destination/global-operation context, provide
 localized mode-specific copy, and route callbacks.
+Shared editor screen chrome consumes the same aggregate/context to own new-vs-edit
+title selection, heading semantics, and back-action gating while hosts retain the
+`TopAppBar` shell, localized resources, icons, and platform Back dispatch.
 The shared editor close request consumes aggregate editor state plus
 `RecordsEditorActionContext` and owns
 close-vs-confirm selection plus discard-confirmation state/dialog while hosts

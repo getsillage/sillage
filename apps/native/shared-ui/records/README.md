@@ -40,6 +40,10 @@ plus `RecordsEditorActionContext` and owns save progress semantics,
 attachment-vs-save busy copy, existing-record lifecycle menu choices, and editor
 delete confirmation. Hosts supply localized online/offline copy, icons, callbacks,
 and the destination/global-operation context.
+`SillageRecordEditorTopBarTitle` and `SillageRecordEditorBackAction` consume the
+same aggregate/context to own new-vs-edit title selection, heading semantics,
+back-button layout, and action gating. Hosts retain `TopAppBar`, localized strings,
+icons, and platform Back dispatch.
 `rememberSillageRecordEditorCloseRequest` consumes aggregate editor state plus
 `RecordsEditorActionContext` and owns dirty-draft close selection and
 discard-confirmation state/dialog while hosts retain platform Back integration,

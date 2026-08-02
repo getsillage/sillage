@@ -21,8 +21,6 @@ import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import java.time.Instant
 import java.time.LocalDate
@@ -43,7 +40,6 @@ import app.sillage.data.SessionStore
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.canRunMemoEditorAction
 import app.sillage.ui.memoEditorActionContext
 import app.sillage.ui.records.SillageRecordEditorActionIcons
@@ -53,16 +49,20 @@ import app.sillage.ui.records.SillageRecordEditorContent
 import app.sillage.ui.records.SillageRecordEditorContentIcons
 import app.sillage.ui.records.SillageRecordEditorContentStrings
 import app.sillage.ui.records.SillageRecordEditorDiscardStrings
+import app.sillage.ui.records.SillageRecordEditorBackAction
+import app.sillage.ui.records.SillageRecordEditorScreenChromeStrings
+import app.sillage.ui.records.SillageRecordEditorTopBarTitle
 import app.sillage.ui.records.rememberSillageRecordEditorCloseRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val editorActionContext = state.memoEditorActionContext()
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor = rememberSillageRecordEditorCloseRequest(
         state = state.records,
-        context = state.memoEditorActionContext(),
+        context = editorActionContext,
         strings = SillageRecordEditorDiscardStrings(
             title = stringResource(R.string.discard_changes_title),
             supporting = stringResource(R.string.discard_changes_supporting),
@@ -111,27 +111,34 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             DatePicker(state = datePickerState)
         }
     }
+    val screenChromeStrings = SillageRecordEditorScreenChromeStrings(
+        newRecordTitle = stringResource(R.string.editor_new_title),
+        editRecordTitle = stringResource(R.string.editor_edit_title),
+        backContentDescription = stringResource(R.string.action_back),
+    )
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        stringResource(if (state.selectedMemo == null) R.string.editor_new_title else R.string.editor_edit_title),
-                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
+                    SillageRecordEditorTopBarTitle(
+                        state = state.records,
+                        context = editorActionContext,
+                        strings = screenChromeStrings,
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = requestCloseEditor,
-                        enabled = editorActionsEnabled,
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
+                    SillageRecordEditorBackAction(
+                        state = state.records,
+                        context = editorActionContext,
+                        strings = screenChromeStrings,
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        onBack = requestCloseEditor,
+                    )
                 },
                 actions = {
                     SillageRecordEditorActions(
                         state = state.records,
-                        context = state.memoEditorActionContext(),
+                        context = editorActionContext,
                         strings = SillageRecordEditorActionStrings(
                             saveContentDescription = stringResource(R.string.action_save),
                             savingContentDescription = stringResource(R.string.action_saving),
@@ -172,7 +179,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     ) { padding ->
         SillageRecordEditorContent(
             state = state.records,
-            context = state.memoEditorActionContext(),
+            context = editorActionContext,
             showAttachmentAction = state.appMode == SessionStore.MODE_ONLINE,
             strings = SillageRecordEditorContentStrings(
                 entryDateLabel = stringResource(R.string.editor_date),

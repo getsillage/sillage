@@ -260,6 +260,10 @@ Shared record editor actions consume aggregate selection/editor/mutation state p
 busy copy precedence, lifecycle-aware menu choices, and delete confirmation.
 Android maps destination/global-operation context, selects localized online/offline
 supporting copy, and routes callbacks.
+Shared editor screen chrome consumes the same aggregate/context and owns
+new-vs-edit title selection, heading semantics, back-button layout, and action
+gating. Android retains `TopAppBar`, system Back dispatch, localized resources,
+and icon mapping.
 Shared record editor close requests consume aggregate editor state plus
 `RecordsEditorActionContext` and own dirty-draft close selection and the
 discard-confirmation state/dialog. Android retains system Back integration and

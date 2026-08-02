@@ -98,6 +98,9 @@ confirmation while hosts route callbacks.
 The shared editor actions consume selected `Memo` lifecycle state plus aggregate
 busy flags to own save progress semantics, lifecycle menus, and delete confirmation
 while hosts provide localized mode-specific copy and route callbacks.
+The shared editor close request consumes host-provided dirty state and owns
+close-vs-confirm selection plus discard-confirmation state/dialog while hosts
+retain platform Back integration and route the final close.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

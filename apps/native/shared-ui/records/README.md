@@ -37,6 +37,9 @@ Hosts supply localized strings, icons, and mutation/navigation callbacks.
 `SillageRecordEditorActions` owns save progress semantics, attachment-vs-save busy
 copy, existing-record lifecycle menu choices, and editor delete confirmation.
 Hosts supply localized online/offline copy, icons, and callbacks.
+`rememberSillageRecordEditorCloseRequest` owns dirty-draft close selection and
+discard-confirmation state/dialog while hosts retain platform Back integration,
+localized copy, and the close callback.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

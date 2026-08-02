@@ -203,6 +203,9 @@ hosts supply localized resources, icons, and feature callbacks.
 Its record editor actions own save-progress semantics, attachment-vs-save busy copy
 precedence, lifecycle-aware menu choices, and delete confirmation while hosts
 provide localized mode-specific supporting copy, icons, and callbacks.
+Its editor close request owns dirty-draft selection and discard-confirmation
+state/dialog while hosts retain platform Back integration and supply localized
+copy plus the close callback.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

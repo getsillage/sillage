@@ -218,6 +218,9 @@ Android supplies localized resources, icons, and ViewModel callbacks.
 Shared record editor actions own save-progress semantics, attachment-vs-save busy
 copy precedence, lifecycle-aware menu choices, and delete confirmation. Android
 selects localized online/offline supporting copy and routes callbacks.
+Shared record editor close requests own dirty-draft close selection and the
+discard-confirmation state/dialog. Android retains system Back integration and
+supplies localized copy plus the close callback.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

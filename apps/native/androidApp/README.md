@@ -118,8 +118,10 @@ The shared detail actions own edit/more enablement, favorite/archive menu choice
 busy-state reset, and delete confirmation; Android maps resources and ViewModel
 callbacks. Editor save/more actions are shared too, including progress semantics,
 busy-copy precedence, lifecycle menu choices, and delete confirmation; Android
-selects localized online/offline supporting copy and routes callbacks. Editor unsaved-draft and
-Back-blocking policy also lives in that module; Android
+selects localized online/offline supporting copy and routes callbacks. Shared editor
+close requests also own dirty-draft selection and discard confirmation; Android
+retains system Back integration and maps localized copy plus the close callback.
+Editor unsaved-draft and Back-blocking policy also lives in the module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote
 attachment upload crosses `AttachmentUploadRepository` and

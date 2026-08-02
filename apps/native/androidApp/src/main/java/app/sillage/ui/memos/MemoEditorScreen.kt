@@ -30,13 +30,11 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -67,21 +65,26 @@ import app.sillage.ui.isMemoMutationInProgress
 import app.sillage.ui.records.SillageRecordEditorActionIcons
 import app.sillage.ui.records.SillageRecordEditorActionStrings
 import app.sillage.ui.records.SillageRecordEditorActions
+import app.sillage.ui.records.SillageRecordEditorDiscardStrings
+import app.sillage.ui.records.rememberSillageRecordEditorCloseRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
-    var confirmDiscard by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     val memoMutationInProgress = state.selectedMemo?.id?.let(state::isMemoMutationInProgress) == true
     val editorActionsEnabled = state.canRunMemoEditorAction()
-    val requestCloseEditor: () -> Unit = {
-        if (state.hasUnsavedMemoDraft()) {
-            confirmDiscard = true
-        } else {
-            viewModel.closeEditor()
-        }
-    }
+    val requestCloseEditor = rememberSillageRecordEditorCloseRequest(
+        hasUnsavedChanges = state.hasUnsavedMemoDraft(),
+        discardEnabled = editorActionsEnabled,
+        strings = SillageRecordEditorDiscardStrings(
+            title = stringResource(R.string.discard_changes_title),
+            supporting = stringResource(R.string.discard_changes_supporting),
+            discardAction = stringResource(R.string.discard_changes_action),
+            continueEditingAction = stringResource(R.string.continue_editing),
+        ),
+        onClose = viewModel::closeEditor,
+    )
     BackHandler {
         if (editorActionsEnabled) {
             requestCloseEditor()
@@ -121,29 +124,6 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
         ) {
             DatePicker(state = datePickerState)
         }
-    }
-    if (confirmDiscard) {
-        AlertDialog(
-            onDismissRequest = { confirmDiscard = false },
-            title = { Text(stringResource(R.string.discard_changes_title)) },
-            text = { Text(stringResource(R.string.discard_changes_supporting)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDiscard = false
-                        viewModel.closeEditor()
-                    },
-                    enabled = editorActionsEnabled,
-                ) {
-                    Text(stringResource(R.string.discard_changes_action), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) {
-                    Text(stringResource(R.string.continue_editing))
-                }
-            },
-        )
     }
     Scaffold(
         topBar = {

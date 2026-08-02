@@ -40,7 +40,6 @@ import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsEditorActionContext
 import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
-import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
@@ -121,7 +120,6 @@ data class SillageUiState(
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
-    val recordsMutation: RecordsMutationStateHolder get() = records.mutation
     val recordsSummary: RecordsSummaryStateHolder get() = records.summary
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
@@ -153,7 +151,6 @@ data class SillageUiState(
     val initialDraftContent: String get() = records.editor.initialDraftContent
     val initialDraftEntryDate: String get() = records.editor.initialDraftEntryDate
     val markdownPreview: Boolean get() = records.editor.markdownPreview
-    val memoMutationIds: Set<String> get() = records.mutation.activeMemoIds
     val memoViewMode: MemoViewMode get() = records.browse.viewMode
     val memoListFilter: MemoListFilter get() = records.browse.filter
     val calendarYear: Int get() = records.browse.calendarYear
@@ -378,7 +375,7 @@ internal fun SillageUiState.memoEditorActionContext(): RecordsEditorActionContex
 }
 
 internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {
-    return recordsMutation.isActive(memoId)
+    return records.mutation.isActive(memoId)
 }
 
 internal fun SillageUiState.beginMemoMutation(memoId: String?): SillageUiState {
@@ -392,7 +389,7 @@ internal fun SillageUiState.finishMemoMutation(memoId: String?): SillageUiState 
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
         summaryLoading ||
-        recordsMutation.active ||
+        records.mutation.active ||
         ask.memoSave.savingMessageId.isNotBlank() ||
         aiSettingsSaving ||
         aiAutoSummarySaving ||
@@ -434,7 +431,7 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
         online = appMode == SessionStore.MODE_ONLINE,
         anotherOperationInProgress = loading ||
             summaryLoading ||
-            recordsMutation.active ||
+            records.mutation.active ||
             ask.memoSave.savingMessageId.isNotBlank() ||
             aiSettingsSaving ||
             aiAutoSummarySaving ||

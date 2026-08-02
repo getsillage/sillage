@@ -380,6 +380,7 @@ class SillageUiStateTest {
         val started = state.beginMemoMutation("memo-1")
         val finished = started.finishMemoMutation("memo-1")
 
+        assertEquals(setOf("memo-1"), started.records.mutation.activeMemoIds)
         assertTrue(started.isMemoMutationInProgress("memo-1"))
         assertFalse(finished.isMemoMutationInProgress("memo-1"))
         assertTrue(finished.loading)

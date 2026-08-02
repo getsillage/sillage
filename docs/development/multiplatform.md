@@ -496,7 +496,9 @@ and Back-blocking behavior; hosts provide localized feedback.
 
 Records mutation is the seventh extracted state slice. Its shared holder owns
 the active record identities used by concurrent mutation presentation state;
-Android retains coroutine gates, source selection, and localized feedback.
+platform operation gates and tests consume it through the records aggregate
+directly rather than host-root mutation accessors. Android retains coroutine
+gates, source selection, and localized feedback.
 
 Records collection is the eighth extracted state slice. Its shared holder owns
 the visible record cache and canonical mutation generation. Snapshot and page

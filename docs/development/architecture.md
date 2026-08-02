@@ -500,7 +500,9 @@ already belongs to the shared domain.
 
 `RecordsMutationStateHolder` owns the active record identities exposed to list
 and editor presentation while lifecycle mutations run. Android retains keyed
-coroutine gates and localized mutation feedback.
+coroutine gates and localized mutation feedback. Operation gates and tests consume
+the holder through the records aggregate directly, without root-state mutation
+accessors.
 
 `RecordsCollectionStateHolder` owns the visible record cache and canonical
 mutation generation. Pagination and refresh replace snapshots without inventing

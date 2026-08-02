@@ -131,6 +131,9 @@ ViewModel callbacks. Editor save/more actions consume records selection/editor/
 mutation state directly and own progress semantics, busy-copy precedence, lifecycle
 menu choices, and delete confirmation; Android maps destination/global-operation
 context, selects localized online/offline supporting copy, and routes callbacks.
+Mutation operation gates and tests also consume `records.mutation` directly,
+without root mutation compatibility getters; keyed coroutine execution remains
+Android-specific.
 Shared editor screen chrome owns new-vs-edit title selection, heading semantics,
 and back-button action gating. Android retains `TopAppBar`, system Back dispatch,
 localized resources, and icon mapping.

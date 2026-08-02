@@ -32,7 +32,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   host destination/operation context to decide unsaved-draft and Back-blocking
   behavior; hosts map its reason to localized feedback.
 - `RecordsMutationStateHolder` owns the active record identities for concurrent
-  mutation single-flight presentation state.
+  mutation single-flight presentation state. Android operation gates and tests
+  consume it through the records aggregate directly, without root mutation
+  compatibility getters.
 - `RecordsCollectionStateHolder` owns the visible record cache and its canonical
   mutation generation.
 - `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering,

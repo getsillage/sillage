@@ -525,13 +525,15 @@ class SillageViewModel(
 
     fun openAsk() {
         val current = state.value
-        val reloadConversations = !current.ask.loading && !current.askSending && !current.ask.variant.loading
+        val reloadConversations =
+            !current.ask.loading && !current.ask.stream.sending && !current.ask.variant.loading
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
             it.withAsk { ask ->
                 ask.enterScreen(
-                    requestInFlight = it.ask.loading || it.askSending || it.ask.variant.loading,
+                    requestInFlight =
+                        it.ask.loading || it.ask.stream.sending || it.ask.variant.loading,
                 )
             }.copy(
                 screen = Screen.Ask,
@@ -2482,7 +2484,7 @@ class SillageViewModel(
         val requestState = state.value
         if (
             requestState.ask.loading ||
-            requestState.askSending ||
+            requestState.ask.stream.sending ||
             requestState.ask.variant.loading ||
             requestState.ask.memoSave.savingMessageId.isNotBlank()
         ) {
@@ -2495,7 +2497,7 @@ class SillageViewModel(
         updateState { current ->
             if (
                 !current.ask.loading &&
-                !current.askSending &&
+                !current.ask.stream.sending &&
                 !current.ask.variant.loading &&
                 current.ask.memoSave.savingMessageId.isBlank() &&
                 current.askScreenSessionId == screenSessionId &&
@@ -2562,7 +2564,7 @@ class SillageViewModel(
         val current = state.value
         if (
             current.ask.loading ||
-            current.askSending ||
+            current.ask.stream.sending ||
             current.ask.variant.loading ||
             current.ask.sourceNavigation.loading ||
             id.isBlank()
@@ -2580,7 +2582,7 @@ class SillageViewModel(
                 latest.clientContextGeneration == clientContextGeneration &&
                 latest.askScreenSessionId == current.askScreenSessionId &&
                 !latest.ask.loading &&
-                !latest.askSending &&
+                !latest.ask.stream.sending &&
                 !latest.ask.variant.loading &&
                 !latest.ask.sourceNavigation.loading
             ) {
@@ -2653,7 +2655,7 @@ class SillageViewModel(
     fun startNewAsk() {
         if (
             state.value.ask.loading ||
-            state.value.askSending ||
+            state.value.ask.stream.sending ||
             state.value.ask.variant.loading ||
             state.value.ask.sourceNavigation.loading
         ) {
@@ -2701,7 +2703,11 @@ class SillageViewModel(
 
     fun regenerateAskAnswer(messageId: String) {
         val conversationId = state.value.activeAskId
-        if (conversationId.isBlank() || state.value.askSending || state.value.ask.variant.loading) {
+        if (
+            conversationId.isBlank() ||
+            state.value.ask.stream.sending ||
+            state.value.ask.variant.loading
+        ) {
             return
         }
         startAskStream(content = "", forkOfId = messageId)
@@ -3447,7 +3453,7 @@ class SillageViewModel(
         val regeneratingId = forkOfId.orEmpty()
         updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
-                val stream = it.askStream.begin(
+                val stream = it.ask.stream.begin(
                     request = initialRequest,
                     context = it.askStreamContext(),
                     regeneratingMessageId = regeneratingId,

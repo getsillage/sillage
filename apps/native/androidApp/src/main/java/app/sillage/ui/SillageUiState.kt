@@ -14,7 +14,6 @@ import app.sillage.features.ask.AskSourceNavigationRequest
 import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamContext
 import app.sillage.features.ask.AskStreamRequest
-import app.sillage.features.ask.AskStreamStateHolder
 import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
@@ -144,7 +143,6 @@ data class SillageUiState(
     val askConversation: AskConversationStateHolder get() = ask.conversation
     val askComposer: AskComposerStateHolder get() = ask.composer
     val askLoad: AskLoadStateHolder get() = ask.load
-    val askStream: AskStreamStateHolder get() = ask.stream
     val askVariant: AskVariantStateHolder get() = ask.variant
     val askSession: AskSessionStateHolder get() = ask.session
     val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
@@ -191,7 +189,6 @@ data class SillageUiState(
     val activeAskId: String get() = ask.activeConversationId
     val askHeadId: String? get() = ask.headMessageId
     val askMessages: List<AskMessage> get() = ask.messages
-    val askSending: Boolean get() = ask.sending
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
     val askSourceKind: String get() = ask.sourceKind
@@ -513,7 +510,7 @@ internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
 }
 
 internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {
-    if (!askSending) {
+    if (!ask.stream.sending) {
         return this
     }
     return copy(error = null, notice = message)
@@ -1036,11 +1033,11 @@ internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamCont
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
-    return askStream.nextRequest(askStreamContext())
+    return ask.stream.nextRequest(askStreamContext())
 }
 
 internal fun SillageUiState.canApplyAskStream(request: AskStreamRequest): Boolean {
-    return askStream.canApply(request, askStreamContext())
+    return ask.stream.canApply(request, askStreamContext())
 }
 
 internal fun SillageUiState.finishAskStream(
@@ -1078,7 +1075,7 @@ internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantC
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = ask.loading || askSending || ask.sourceNavigation.loading,
+    anotherRequestInProgress = ask.loading || ask.stream.sending || ask.sourceNavigation.loading,
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
@@ -1092,7 +1089,11 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
     destinationAvailable = screen == Screen.Ask,
     anotherRequestInProgress =
-        loading || ask.loading || askSending || ask.variant.loading || ask.sourceNavigation.loading,
+        loading ||
+            ask.loading ||
+            ask.stream.sending ||
+            ask.variant.loading ||
+            ask.sourceNavigation.loading,
     screenSessionId = askScreenSessionId,
     conversationId = activeAskId,
     headMessageId = askHeadId,
@@ -1128,7 +1129,7 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
         destinationKey = screen.name,
         destinationAvailable = screen == Screen.Ask,
         historyKeys = screenHistory.map(Screen::name),
-        anotherRequestInProgress = loading || askSending || ask.variant.loading,
+        anotherRequestInProgress = loading || ask.stream.sending || ask.variant.loading,
         screenSessionId = askScreenSessionId,
         conversationId = activeAskId,
         appMode = appMode,

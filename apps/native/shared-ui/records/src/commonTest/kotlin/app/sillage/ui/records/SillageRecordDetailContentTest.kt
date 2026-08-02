@@ -1,18 +1,30 @@
 package app.sillage.ui.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.RecordsSelectionStateHolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SillageRecordDetailContentTest {
     @Test
     fun missingRecordSelectsMissingContent() {
-        assertEquals(SillageRecordDetailBody.Missing, sillageRecordDetailBody(null))
+        assertEquals(
+            SillageRecordDetailBody.Missing,
+            sillageRecordDetailBody(RecordsFeatureStateHolder()),
+        )
     }
 
     @Test
     fun selectedRecordSelectsDetailSections() {
-        assertEquals(SillageRecordDetailBody.Content, sillageRecordDetailBody(memo()))
+        assertEquals(
+            SillageRecordDetailBody.Content,
+            sillageRecordDetailBody(
+                RecordsFeatureStateHolder(
+                    selection = RecordsSelectionStateHolder(selectedMemo = memo()),
+                ),
+            ),
+        )
     }
 
     private fun memo(): Memo = Memo(

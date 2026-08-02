@@ -248,7 +248,8 @@ and keeps Markdown rendering plus protected-attachment opening in its content sl
 the shared status line is reused by the editor adapter.
 Shared record metadata derives prior-revision count and owns divider/label layout;
 Android formats localized created/updated timestamps and revision plurals.
-The shared record detail content shell owns missing-record fallback, section order,
+The shared record detail content shell consumes aggregate selection state and owns
+missing-record fallback, section order,
 lazy-list spacing, and shared content width. Android retains Scaffold/TopAppBar placement
 and fills localized record, summary, and metadata slots.
 Shared record detail actions consume aggregate selection/mutation state and own

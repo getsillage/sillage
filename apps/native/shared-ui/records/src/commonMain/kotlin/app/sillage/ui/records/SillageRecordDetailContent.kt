@@ -14,17 +14,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsFeatureStateHolder
 
 @Composable
 fun SillageRecordDetailContent(
-    memo: Memo?,
+    state: RecordsFeatureStateHolder,
     missingRecord: String,
     recordContent: @Composable (memo: Memo, modifier: Modifier) -> Unit,
     summaryContent: @Composable (memo: Memo, modifier: Modifier) -> Unit,
     metadataContent: @Composable (memo: Memo, modifier: Modifier) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (sillageRecordDetailBody(memo) == SillageRecordDetailBody.Missing) {
+    if (sillageRecordDetailBody(state) == SillageRecordDetailBody.Missing) {
         Box(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -37,7 +38,7 @@ fun SillageRecordDetailContent(
         return
     }
 
-    val selectedMemo = requireNotNull(memo)
+    val selectedMemo = requireNotNull(state.selection.selectedMemo)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
@@ -61,8 +62,12 @@ internal enum class SillageRecordDetailBody {
     Content,
 }
 
-internal fun sillageRecordDetailBody(memo: Memo?): SillageRecordDetailBody =
-    if (memo == null) SillageRecordDetailBody.Missing else SillageRecordDetailBody.Content
+internal fun sillageRecordDetailBody(state: RecordsFeatureStateHolder): SillageRecordDetailBody =
+    if (state.selection.selectedMemo == null) {
+        SillageRecordDetailBody.Missing
+    } else {
+        SillageRecordDetailBody.Content
+    }
 
 private const val SillageRecordDetailBodyKey = "record-detail-body"
 private const val SillageRecordDetailSummaryKey = "record-detail-summary"

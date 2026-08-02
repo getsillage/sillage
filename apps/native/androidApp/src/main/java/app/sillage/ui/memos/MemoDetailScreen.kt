@@ -45,7 +45,6 @@ import app.sillage.ui.records.SillageRecordSummaryStrings
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel) {
-    val memo = state.selectedMemo
     BackHandler(onBack = viewModel::closeMemoDetail)
     Scaffold(
         topBar = {
@@ -97,8 +96,8 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
             )
         },
     ) { padding ->
-        SillageRecordDetailContent(
-            memo = memo,
+            SillageRecordDetailContent(
+                state = state.records,
             missingRecord = stringResource(R.string.record_missing),
             recordContent = { record, itemModifier ->
                 SillageRecordDetailCard(

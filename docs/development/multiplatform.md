@@ -198,7 +198,8 @@ platform Markdown/attachment handling in the content slot; the shared status lin
 is reusable outside the detail card.
 Its metadata block derives prior-revision count and owns divider/label layout while
 hosts format localized created/updated timestamps and revision plurals.
-Its record detail content shell owns missing-record fallback, section order,
+Its record detail content shell consumes aggregate selection state and owns
+missing-record fallback, section order,
 lazy-list spacing, and shared content width while hosts retain Scaffold/TopAppBar placement
 and fill localized record, summary, and metadata slots.
 Its record detail actions consume aggregate selection/mutation state and own

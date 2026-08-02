@@ -28,7 +28,8 @@ selection for editor and other host surfaces.
 `SillageRecordMetadataBlock` owns revision-count derivation, divider treatment,
 and created/updated label layout while hosts format localized timestamps and
 revision plurals.
-`SillageRecordDetailContent` owns missing-record fallback, detail-section ordering,
+`SillageRecordDetailContent` consumes aggregate selection state and owns
+missing-record fallback, detail-section ordering,
 lazy-list spacing, and shared content width while hosts fill record, summary, and
 metadata adapter slots.
 `SillageRecordDetailActions` consumes aggregate selection/mutation state and

@@ -115,7 +115,8 @@ JSON source-count parsing, and plural labels. The detail card and reusable statu
 line are shared too; Android supplies localized dates/status labels and retains
 Markdown rendering plus protected-attachment opening. Record metadata revision
 selection and layout are shared; Android formats timestamps and revision plurals.
-The shared detail content shell also owns missing-record fallback, section order,
+The shared detail content shell consumes records selection state directly and owns
+missing-record fallback, section order,
 lazy-list spacing, and content width; Android keeps Scaffold/TopAppBar placement and fills
 the localized record, summary, and metadata slots.
 The shared detail actions consume records selection/mutation state directly and

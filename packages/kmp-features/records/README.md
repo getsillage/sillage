@@ -89,7 +89,8 @@ presentation while hosts supply localized labels and a platform content slot. It
 standalone status line reuses the same lifecycle selection in editor surfaces.
 The shared metadata block derives record revision history from `Memo.version` and
 owns created/updated label layout while hosts format localized timestamps/plurals.
-The shared detail content shell selects missing/content presentation and owns
+The shared detail content shell consumes aggregate selection state, selects
+missing/content presentation, and owns
 section ordering, lazy-list spacing, and content width while hosts fill localized
 record, summary, and metadata slots.
 The shared detail actions consume aggregate selection/mutation state plus host

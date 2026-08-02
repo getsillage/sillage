@@ -2,7 +2,6 @@ package app.sillage.ui.memos
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -27,12 +26,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -45,20 +40,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
-import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.data.monthGrid
 import app.sillage.R
-import app.sillage.ui.MemoListLoadStatus
-import app.sillage.features.records.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
@@ -76,6 +66,10 @@ import app.sillage.ui.records.SillageRecordSearchStatus
 import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.records.SillageRecordsContent
 import app.sillage.ui.records.SillageRecordsContentStrings
+import app.sillage.ui.records.SillageRecordsNewRecordAction
+import app.sillage.ui.records.SillageRecordsRefreshAction
+import app.sillage.ui.records.SillageRecordsScreenChromeStrings
+import app.sillage.ui.records.SillageRecordsTopBarTitle
 import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.records.SillageRecordRowStrings
@@ -101,43 +95,41 @@ internal fun MemoListScreen(
     listState: LazyListState = rememberLazyListState(),
 ) {
     val today = remember { LocalDate.now().toString() }
+    val screenChromeStrings = SillageRecordsScreenChromeStrings(
+        recordsTitle = stringResource(R.string.records_title),
+        calendarTitle = stringResource(R.string.nav_calendar),
+        refreshContentDescription = stringResource(R.string.records_refresh),
+        newRecordContentDescription = stringResource(R.string.records_new),
+    )
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            stringResource(if (state.memoViewMode == MemoViewMode.Calendar) R.string.nav_calendar else R.string.records_title),
-                    modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    title = {
+                        SillageRecordsTopBarTitle(
+                            state = state.records,
+                            subtitle = memoListSubtitle(state),
+                            strings = screenChromeStrings,
                         )
-                        Text(
-                            memoListSubtitle(state),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    },
+                    actions = {
+                        SillageRecordsRefreshAction(
+                            state = state.records,
+                            hostActionsEnabled = !state.loading,
+                            strings = screenChromeStrings,
+                            icon = Icons.Rounded.Refresh,
+                            onRefresh = viewModel::refreshMemos,
                         )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::refreshMemos,
-                        enabled = !state.loading && state.memoListLoadStatus != MemoListLoadStatus.Loading,
-                    ) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.records_refresh))
-                    }
-                },
+                    },
             )
-        },
-        floatingActionButton = {
-            if (state.memoListFilter != MemoListFilter.Deleted) {
-                FloatingActionButton(onClick = viewModel::startNewMemo) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.records_new))
-                }
-            }
-        },
+            },
+            floatingActionButton = {
+                SillageRecordsNewRecordAction(
+                    state = state.records,
+                    strings = screenChromeStrings,
+                    icon = Icons.Rounded.Add,
+                    onNewRecord = viewModel::startNewMemo,
+                )
+            },
         bottomBar = {
             MainNavigationBar(state = state, viewModel = viewModel)
         },

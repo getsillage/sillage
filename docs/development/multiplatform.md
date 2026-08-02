@@ -180,6 +180,10 @@ owns list filter/search composition, pull-to-refresh, initial loading and failur
 selection, plus list/calendar body switching. Hosts retain Scaffold/navigation,
 localized resources, accessibility announcement bridges, and locale-aware
 calendar adapters.
+Its screen chrome consumes the aggregate view/filter/refresh state to own
+records/calendar title selection, heading layout, refresh gates, deleted-filter
+FAB visibility, and action layout. Hosts supply localized account/server subtitle
+formatting and retain the Scaffold shell.
 Its record list consumes `RecordsFeatureStateHolder` directly to select published
 search results, filter-specific empty states, On This Day visibility, active/deleted
 row branching, and pagination action state. It owns lazy-list composition while

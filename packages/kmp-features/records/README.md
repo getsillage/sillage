@@ -139,3 +139,6 @@ localized descriptions, and record-row adapter slots.
 The shared on-this-day card reuses `yearsBetween` and `excerpt` for anniversary
 entries while hosts provide the current date, localized title/plural formatter,
 icon, and navigation callback.
+Shared records screen chrome consumes the aggregate view/filter/refresh state to
+own title selection, refresh gates, and new-record visibility while hosts retain
+localized account/server subtitle formatting and the Scaffold shell.

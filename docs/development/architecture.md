@@ -230,6 +230,10 @@ and owns list filter/search composition, pull-to-refresh, initial loading and
 failure selection, plus list/calendar body switching. Android retains Scaffold,
 navigation, localized resources, accessibility announcement bridging, and
 locale-aware calendar adapters.
+Shared records screen chrome consumes the same aggregate to own records/calendar
+title selection, heading layout, refresh request gates, deleted-filter FAB
+visibility, and action layout. Android supplies localized account/server subtitle
+formatting and retains the Scaffold shell.
 The shared record list consumes `RecordsFeatureStateHolder` directly to select
 published search results, filter-specific empty states, On This Day visibility,
 active/deleted row branching, and pagination action state. It owns lazy-list

@@ -71,6 +71,11 @@ composition while hosts provide locale-aware grid/header and record-row adapters
 anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and
 mutation callbacks; anniversary copy is supplied through a localized formatter.
+`SillageRecordsTopBarTitle`, `SillageRecordsRefreshAction`, and
+`SillageRecordsNewRecordAction` own records/calendar title selection, heading
+layout, refresh request gates, deleted-filter FAB visibility, and action layout.
+Hosts provide the localized subtitle/resources and retain the Scaffold shell.
+
 Transport,
 storage, navigation, native attachment handling, and platform lifecycle remain
 outside the module.

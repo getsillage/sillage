@@ -79,7 +79,7 @@ class SillageViewModelToastTest {
 
         viewModel.useOnlineMode()
 
-        assertEquals(Screen.Server, viewModel.state.value.screen)
+        assertEquals(Screen.Server, viewModel.state.value.clientContext.screen)
         assertFalse(viewModel.state.value.loading)
         assertTrue(viewModel.state.value.authError?.isNotBlank() == true)
         assertNull(viewModel.state.value.authErrorResourceId)
@@ -100,7 +100,7 @@ class SillageViewModelToastTest {
 
         viewModel.openAISettings()
 
-        assertEquals(Screen.AISettings, viewModel.state.value.screen)
+        assertEquals(Screen.AISettings, viewModel.state.value.clientContext.screen)
         assertFalse(viewModel.state.value.settings.loading)
         assertEquals(profiles, viewModel.state.value.settings.profiles)
     }
@@ -113,17 +113,17 @@ class SillageViewModelToastTest {
 
         viewModel.openAsk()
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
         assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
 
         viewModel.updateMemoViewMode(MemoViewMode.Calendar)
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
         assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
 
         viewModel.openAISettings()
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
         assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
     }
 

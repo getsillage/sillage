@@ -180,7 +180,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 .fillMaxSize()
                 .padding(padding),
             overview = {
-                val online = state.appMode == SessionStore.MODE_ONLINE
+    val online = state.clientContext.online
                 SillageSettingsOverviewCard(
                     title = stringResource(R.string.settings_status_title),
                     items = listOf(
@@ -271,7 +271,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             },
             serviceSync = {
                 SillageSettingsServiceSyncSection(
-                    online = state.appMode == SessionStore.MODE_ONLINE,
+                online = state.clientContext.online,
                     baseUrl = state.baseUrl,
                     strings = SillageSettingsServiceSyncStrings(
                         sectionTitle = stringResource(R.string.settings_section_service_sync),
@@ -340,7 +340,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     },
                 )
             },
-            account = if (state.appMode == SessionStore.MODE_ONLINE) {
+            account = if (state.clientContext.online) {
                 {
                     SillageAccountSettingsSection(
                         state = state.auth,

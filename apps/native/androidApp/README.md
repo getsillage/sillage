@@ -33,11 +33,17 @@ buildable `shared-ui:app-shell` module. Android hydrates and persists those
 values through `SessionStore`, then applies the resulting system theme and
 locale. Root destination identity, history, and return-to-Records back policy
 also come from that module; Android retains system Back dispatch and Compose
-navigation effects. Global feedback event sequencing, duplicate suppression,
+navigation effects. `AppClientContextStateHolder` additionally aggregates
+application mode, workspace generation, and the server-settings return
+destination. Android persists preferences and executes network connections and
+task cancellation while shared code owns the pure lifecycle transitions.
+Global feedback event sequencing, duplicate suppression,
 error precedence, and language binding are shared as well; Android still
 generates localized messages and renders the top-level Toast.
 Android theme/language orchestration, Compose consumers, localized feedback, and
 tests read the nested appearance state directly without root appearance accessors.
+They also consume nested client-context state directly without root compatibility
+accessors.
 
 The semantic light/dark colors, typography, shapes, and common `MaterialTheme`
 come from the buildable `shared-ui:design-system` module. Android's theme wrapper

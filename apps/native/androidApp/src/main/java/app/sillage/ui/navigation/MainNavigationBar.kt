@@ -21,7 +21,7 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
 
     SillageNavigationBar {
         SillageNavigationItem(
-            selected = state.screen == Screen.Memos &&
+            selected = state.clientContext.screen == Screen.Memos &&
                 state.records.browse.viewMode == MemoViewMode.List,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
             enabled = enabled,
@@ -29,7 +29,7 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
             label = stringResource(R.string.nav_records),
         )
         SillageNavigationItem(
-            selected = state.screen == Screen.Memos &&
+            selected = state.clientContext.screen == Screen.Memos &&
                 state.records.browse.viewMode == MemoViewMode.Calendar,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
             enabled = enabled,
@@ -37,14 +37,14 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
             label = stringResource(R.string.nav_calendar),
         )
         SillageNavigationItem(
-            selected = state.screen == Screen.Ask,
+            selected = state.clientContext.screen == Screen.Ask,
             onClick = viewModel::openAsk,
             enabled = enabled,
             icon = Icons.Rounded.QuestionAnswer,
             label = stringResource(R.string.nav_ask),
         )
         SillageNavigationItem(
-            selected = state.screen == Screen.AISettings,
+            selected = state.clientContext.screen == Screen.AISettings,
             onClick = viewModel::openAISettings,
             enabled = enabled,
             icon = Icons.Rounded.Settings,

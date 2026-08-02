@@ -62,7 +62,7 @@ class SillageViewModelCompatibilityTest {
             viewModel.state.value
         }
 
-        assertEquals(Screen.Server, blocked.screen)
+        assertEquals(Screen.Server, blocked.clientContext.screen)
         assertEquals("0.3.0", blocked.serverVersion)
         assertEquals("revision", blocked.serverRevision)
         assertEquals("v1", blocked.apiVersion)
@@ -71,8 +71,8 @@ class SillageViewModelCompatibilityTest {
         assertEquals(1, server.requestCount)
 
         viewModel.useOfflineMode()
-        assertEquals(SessionStore.MODE_OFFLINE, viewModel.state.value.appMode)
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
+        assertEquals(SessionStore.MODE_OFFLINE, viewModel.state.value.clientContext.appMode)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
         assertFalse(viewModel.state.value.loading)
 
         viewModel.syncFromServer()

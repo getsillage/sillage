@@ -98,8 +98,17 @@ and platform navigation effects. One-shot global feedback sequencing, error
 precedence, duplicate suppression, notice severity, and language binding also
 belong to the app shell; hosts retain localized message production and native
 feedback rendering.
+
+`AppClientContextStateHolder` aggregates root destination identity, navigation
+history, application mode, workspace generation, and the server-settings return
+destination. It owns their pure selection, workspace reset, sign-out reset,
+server return, and navigation transitions. Hosts retain preference persistence,
+network and cancellation effects, system Back dispatch, and platform navigation
+effects.
 Android theme/language orchestration, Compose consumers, localized feedback, and
 tests read the nested appearance state directly without root appearance accessors.
+They also consume nested client-context state directly without root compatibility
+accessors.
 
 The buildable `shared-ui:design-system` module is the first shared Compose
 surface. It owns Sillage's semantic light/dark color schemes, typography, shapes,

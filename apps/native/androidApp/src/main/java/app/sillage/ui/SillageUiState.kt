@@ -54,7 +54,7 @@ import app.sillage.features.settings.AIProfileModelsRequest
 import app.sillage.features.settings.AIProfileTestRequest
 import app.sillage.features.settings.SettingsFeatureStateHolder
 import app.sillage.ui.appshell.AppAppearanceStateHolder
-import app.sillage.ui.appshell.AppBackNavigation
+import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.appshell.AppNavigationPolicy
 import java.time.LocalDate
@@ -75,12 +75,8 @@ internal fun defaultRecordsFeatureState(
 }
 
 data class SillageUiState(
-    val screen: Screen,
-    val screenHistory: List<Screen> = emptyList(),
     val baseUrl: String,
-    val appMode: String = SessionStore.MODE_ONLINE,
-    val clientContextGeneration: Long = 0,
-    val serverReturnScreen: Screen? = null,
+    val clientContext: AppClientContextStateHolder = AppClientContextStateHolder(),
     val appearance: AppAppearanceStateHolder = AppAppearanceStateHolder(),
     val initialized: Boolean? = null,
     val serverVersion: String = "",
@@ -100,6 +96,11 @@ data class SillageUiState(
     val error: String? = null,
     val notice: String? = null,
 )
+
+/** Applies a pure application-shell transition without touching host fields. */
+internal inline fun SillageUiState.withClientContext(
+    transform: (AppClientContextStateHolder) -> AppClientContextStateHolder,
+): SillageUiState = copy(clientContext = transform(clientContext))
 
 /** Applies a pure records-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withRecords(
@@ -293,7 +294,7 @@ internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
 
 internal fun SillageUiState.memoEditorActionContext(): RecordsEditorActionContext {
     return RecordsEditorActionContext(
-        destinationAvailable = screen == Screen.Editor,
+        destinationAvailable = clientContext.screen == Screen.Editor,
         hostOperationInProgress = loading,
     )
 }
@@ -352,9 +353,9 @@ internal fun SillageUiState.failPasswordChange(request: PasswordChangeRequest): 
 
 private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
     return PasswordChangeContext(
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
-        online = appMode == SessionStore.MODE_ONLINE,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
+        online = clientContext.online,
         anotherOperationInProgress = loading ||
             records.summary.loading ||
             records.mutation.active ||
@@ -366,7 +367,8 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
 }
 
 internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
-    return screen == Screen.Editor && records.editor.canApplyAttachmentUpload(sessionId)
+    return clientContext.screen == Screen.Editor &&
+        records.editor.canApplyAttachmentUpload(sessionId)
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
@@ -406,12 +408,14 @@ internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): Sill
 }
 
 private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
-    val detailAvailable = screen == Screen.MemoDetail || screen == Screen.Editor
+    val detailAvailable =
+        clientContext.screen == Screen.MemoDetail || clientContext.screen == Screen.Editor
     return RecordsDetailContext(
-        sourceKey = appMode,
-        clientContextGeneration = clientContextGeneration,
-        destinationKey = screen.name,
-        destinationGeneration = if (screen == Screen.Editor) records.editor.sessionId else 0,
+        sourceKey = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
+        destinationKey = clientContext.screen.name,
+        destinationGeneration =
+            if (clientContext.screen == Screen.Editor) records.editor.sessionId else 0,
         cacheGeneration = records.collection.cacheGeneration,
         detailAvailable = detailAvailable,
     )
@@ -467,12 +471,14 @@ internal typealias MemoSummaryRequest = RecordsSummaryRequest
 
 private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
     return RecordsSummaryContext(
-        sourceKey = appMode,
-        clientContextGeneration = clientContextGeneration,
-        destinationKey = screen.name,
-        destinationGeneration = if (screen == Screen.Editor) records.editor.sessionId else 0,
+        sourceKey = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
+        destinationKey = clientContext.screen.name,
+        destinationGeneration =
+            if (clientContext.screen == Screen.Editor) records.editor.sessionId else 0,
         detailRequestId = records.selection.detailRequestId,
-        summaryAvailable = screen == Screen.MemoDetail || screen == Screen.Editor,
+        summaryAvailable =
+            clientContext.screen == Screen.MemoDetail || clientContext.screen == Screen.Editor,
     )
 }
 
@@ -562,8 +568,8 @@ internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
 
 internal fun SillageUiState.aiAutoSummaryContext(): AIAutoSummaryContext =
     AIAutoSummaryContext(
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         anotherMutationInProgress = settings.loading ||
             settings.profilesSaving ||
             settings.diagnostics.busy,
@@ -663,8 +669,8 @@ internal fun SillageUiState.failAIProfilesMutation(
 
 private fun SillageUiState.aiProfilesMutationContext(): AIProfilesMutationContext {
     return AIProfilesMutationContext(
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
             settings.loading ||
             settings.autoSummarySaving ||
@@ -712,8 +718,8 @@ internal fun SillageUiState.invalidateAISettingsLoad(): SillageUiState {
 
 private fun SillageUiState.aiSettingsLoadContext(): AISettingsLoadContext {
     return AISettingsLoadContext(
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
             settings.profilesSaving ||
             settings.autoSummarySaving ||
@@ -812,8 +818,8 @@ internal fun SillageUiState.failAIProfileModels(
 
 private fun SillageUiState.aiProfileDiagnosticsContext(): AIProfileDiagnosticsContext {
     return AIProfileDiagnosticsContext(
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
             settings.loading ||
             settings.profilesSaving ||
@@ -822,9 +828,9 @@ private fun SillageUiState.aiProfileDiagnosticsContext(): AIProfileDiagnosticsCo
 }
 private fun SillageUiState.recordsPageContext(): RecordsPageContext {
     return RecordsPageContext(
-        sourceKey = appMode,
-        sourceAvailable = appMode != SessionStore.MODE_OFFLINE,
-        clientContextGeneration = clientContextGeneration,
+        sourceKey = clientContext.appMode,
+        sourceAvailable = clientContext.online,
+        clientContextGeneration = clientContext.generation,
         filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
     )
@@ -862,8 +868,8 @@ internal fun SillageUiState.failMemoPage(request: RecordsPageRequest): SillageUi
 
 private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
     return RecordsRefreshContext(
-        sourceKey = appMode,
-        clientContextGeneration = clientContextGeneration,
+        sourceKey = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
         paginationRequestId = records.pagination.requestId,
@@ -895,8 +901,8 @@ internal fun SillageUiState.failMemoRefresh(request: RecordsRefreshRequest): Sil
 
 private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
     return RecordsSearchContext(
-        sourceKey = appMode,
-        clientContextGeneration = clientContextGeneration,
+        sourceKey = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
         filter = records.browse.filter,
         cacheGeneration = records.collection.cacheGeneration,
     )
@@ -949,8 +955,8 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
 internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
     screenSessionId = ask.session.generation,
     conversationId = ask.conversation.activeConversationId,
-    appMode = appMode,
-    clientContextGeneration = clientContextGeneration,
+    appMode = clientContext.appMode,
+    clientContextGeneration = clientContext.generation,
     anotherRequestInProgress = ask.loading || ask.variant.loading || ask.sourceNavigation.loading,
 )
 
@@ -992,11 +998,11 @@ internal fun hasNewCompletedAskAnswer(
 }
 
 internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantContext(
-    destinationAvailable = screen == Screen.Ask,
+    destinationAvailable = clientContext.screen == Screen.Ask,
     screenSessionId = ask.session.generation,
     conversationId = ask.conversation.activeConversationId,
-    appMode = appMode,
-    clientContextGeneration = clientContextGeneration,
+    appMode = clientContext.appMode,
+    clientContextGeneration = clientContext.generation,
     anotherRequestInProgress = ask.loading || ask.stream.sending || ask.sourceNavigation.loading,
 )
 
@@ -1009,7 +1015,7 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
 }
 
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
-    destinationAvailable = screen == Screen.Ask,
+    destinationAvailable = clientContext.screen == Screen.Ask,
     anotherRequestInProgress =
         loading ||
             ask.loading ||
@@ -1020,8 +1026,8 @@ internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSa
     conversationId = ask.conversation.activeConversationId,
     headMessageId = ask.conversation.headMessageId,
     messages = ask.conversation.messages,
-    appMode = appMode,
-    clientContextGeneration = clientContextGeneration,
+    appMode = clientContext.appMode,
+    clientContextGeneration = clientContext.generation,
 )
 
 internal fun SillageUiState.nextAskMemoSaveRequest(
@@ -1048,14 +1054,14 @@ internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): Sill
 
 internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationContext =
     AskSourceNavigationContext(
-        destinationKey = screen.name,
-        destinationAvailable = screen == Screen.Ask,
-        historyKeys = screenHistory.map(Screen::name),
+        destinationKey = clientContext.screen.name,
+        destinationAvailable = clientContext.screen == Screen.Ask,
+        historyKeys = clientContext.history.map(Screen::name),
         anotherRequestInProgress = loading || ask.stream.sending || ask.variant.loading,
         screenSessionId = ask.session.generation,
         conversationId = ask.conversation.activeConversationId,
-        appMode = appMode,
-        clientContextGeneration = clientContextGeneration,
+        appMode = clientContext.appMode,
+        clientContextGeneration = clientContext.generation,
     )
 
 internal fun SillageUiState.nextAskSourceNavigationRequest(
@@ -1101,8 +1107,10 @@ internal fun SillageUiState.openAskSourceDetail(
         return this
     }
     return finished.copy(
-        screen = Screen.MemoDetail,
-        screenHistory = request.destinationHistory(),
+        clientContext = finished.clientContext.navigateTo(
+            Screen.MemoDetail,
+            request.destinationHistory(),
+        ),
         records = finished.records.absorbVisibleMemo(
             memo = detail.memo,
             summary = detail.ai,
@@ -1131,19 +1139,9 @@ internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {
     return destinationHistoryKeys().map(Screen::valueOf)
 }
 
-internal typealias BackNavigation = AppBackNavigation
-
-internal fun SillageUiState.historyFor(destination: Screen): List<Screen> {
-    return AppNavigationPolicy.historyFor(screen, screenHistory, destination)
-}
-
-internal fun SillageUiState.backNavigation(fallback: Screen): BackNavigation {
-    return AppNavigationPolicy.back(screenHistory, fallback)
-}
-
 internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
     return AppNavigationPolicy.shouldReturnToRecords(
-        current = screen,
+        current = clientContext.screen,
         recordsCalendarActive = records.browse.viewMode == MemoViewMode.Calendar,
     )
 }

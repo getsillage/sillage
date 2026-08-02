@@ -62,7 +62,15 @@ internal fun ServerScreen(state: SillageUiState, viewModel: SillageViewModel) {
         onLanguageToggle = viewModel::toggleLanguageMode,
         trailing = {
             TextButton(onClick = viewModel::cancelServerConnection, enabled = !state.loading) {
-                Text(stringResource(if (state.serverReturnScreen != null) R.string.action_back else R.string.action_cancel))
+                Text(
+                    stringResource(
+                        if (state.clientContext.serverReturnScreen != null) {
+                            R.string.action_back
+                        } else {
+                            R.string.action_cancel
+                        },
+                    ),
+                )
             }
         },
     ) {

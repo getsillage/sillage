@@ -48,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.data.SessionStore
 import app.sillage.ui.ask.AskScreen
 import app.sillage.ui.auth.InitializeScreen
 import app.sillage.ui.auth.LoginScreen
@@ -159,7 +158,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             )
         }
     }
-    if (state.androidUpdateRequired && state.appMode == SessionStore.MODE_ONLINE) {
+        if (state.androidUpdateRequired && state.clientContext.online) {
         RequiredAndroidUpdateDialog(
             minimumVersionCode = state.minimumAndroidVersionCode,
             currentVersionCode = BuildConfig.VERSION_CODE,
@@ -198,7 +197,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     }
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            when (state.screen) {
+            when (state.clientContext.screen) {
                 Screen.Loading -> LoadingScreen()
                 Screen.ModeSelection -> ModeSelectionScreen(state, viewModel)
                 Screen.Server -> ServerScreen(state, viewModel)

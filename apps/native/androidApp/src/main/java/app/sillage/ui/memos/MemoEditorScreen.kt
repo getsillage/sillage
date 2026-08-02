@@ -36,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import app.sillage.data.SessionStore
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
@@ -153,7 +152,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                             unarchiveAction = stringResource(R.string.action_unarchive),
                             deleteAction = stringResource(R.string.action_delete),
                             deleteTitle = stringResource(R.string.delete_record_title),
-                            deleteSupporting = if (state.appMode == SessionStore.MODE_OFFLINE) {
+            deleteSupporting = if (!state.clientContext.online) {
                                 stringResource(R.string.delete_record_offline_supporting)
                             } else {
                                 stringResource(R.string.delete_record_online_supporting)
@@ -181,7 +180,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
         SillageRecordEditorContent(
             state = state.records,
             context = editorActionContext,
-            showAttachmentAction = state.appMode == SessionStore.MODE_ONLINE,
+            showAttachmentAction = state.clientContext.online,
             strings = SillageRecordEditorContentStrings(
                 entryDateLabel = stringResource(R.string.editor_date),
                 entryDatePlaceholder = stringResource(R.string.editor_date_placeholder),

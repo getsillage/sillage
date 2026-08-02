@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation and client-context lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |

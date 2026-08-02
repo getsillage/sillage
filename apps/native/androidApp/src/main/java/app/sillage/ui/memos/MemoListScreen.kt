@@ -43,7 +43,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.RecordsFeatureStateHolder
-import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.data.monthGrid
 import app.sillage.R
@@ -186,7 +185,7 @@ internal fun MemoListScreen(
 
 @Composable
 private fun memoListSubtitle(state: SillageUiState): String {
-    val mode = if (state.appMode == SessionStore.MODE_OFFLINE) {
+    val mode = if (!state.clientContext.online) {
         stringResource(R.string.status_offline)
     } else {
         state.account?.displayName ?: state.baseUrl.ifBlank { stringResource(R.string.status_online) }

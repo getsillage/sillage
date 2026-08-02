@@ -40,7 +40,6 @@ import app.sillage.features.records.RecordsEditorActionContext
 import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
-import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.canRunEditorAction
 import app.sillage.features.records.editorBusyReason
 import app.sillage.features.records.MemoViewMode
@@ -116,7 +115,6 @@ data class SillageUiState(
     // Transitional slice accessors while hosts finish moving writes onto the
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
-    val recordsSelection: RecordsSelectionStateHolder get() = records.selection
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
@@ -133,8 +131,6 @@ data class SillageUiState(
     val memoSearchRequestId: Long get() = records.search.requestId
     val searchCompletionEventId: Long get() = records.search.completionEventId
     val searching: Boolean get() = records.search.searching
-    val selectedMemo: Memo? get() = records.selection.selectedMemo
-    val memoDetailRequestId: Long get() = records.selection.detailRequestId
     val uploadingAttachment: Boolean get() = records.editor.uploadingAttachment
     val editorSessionId: Long get() = records.editor.sessionId
     val draftContent: String get() = records.editor.draftContent
@@ -483,11 +479,12 @@ private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
 }
 
 internal fun SillageUiState.nextMemoDetailRequest(memoId: String): RecordsDetailRequest? {
-    return recordsSelection.nextDetailRequest(memoId, recordsDetailContext())
+    return records.selection.nextDetailRequest(memoId, recordsDetailContext())
 }
 
 internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest): SillageUiState {
-    val selection = recordsSelection.beginDetailRequest(request, recordsDetailContext()) ?: return this
+    val selection =
+        records.selection.beginDetailRequest(request, recordsDetailContext()) ?: return this
     return withRecords {
         it.acceptDetailRequest(
             selection = selection,
@@ -501,7 +498,7 @@ internal fun SillageUiState.completeMemoDetailRequest(
     detail: RecordDetail,
 ): SillageUiState {
     return when (
-        recordsSelection.detailResponseDisposition(
+        records.selection.detailResponseDisposition(
             request,
             recordsDetailContext(),
             detail.memo,
@@ -519,7 +516,7 @@ internal fun SillageUiState.failMemoDetailRequest(
     request: RecordsDetailRequest,
     message: String,
 ): SillageUiState {
-    return when (recordsSelection.detailFailureDisposition(request, recordsDetailContext())) {
+    return when (records.selection.detailFailureDisposition(request, recordsDetailContext())) {
         RecordsDetailResponseDisposition.Ignore -> this
         RecordsDetailResponseDisposition.Superseded -> withRecords { it.finishDetailSummary() }
         RecordsDetailResponseDisposition.Apply -> withRecords { it.finishDetailSummary() }
@@ -535,17 +532,24 @@ private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
         clientContextGeneration = clientContextGeneration,
         destinationKey = screen.name,
         destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
-        detailRequestId = memoDetailRequestId,
+        detailRequestId = records.selection.detailRequestId,
         summaryAvailable = screen == Screen.MemoDetail || screen == Screen.Editor,
     )
 }
 
 internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
-    return records.summary.nextRequest(selectedMemo, recordsSummaryContext())
+    return records.summary.nextRequest(
+        records.selection.selectedMemo,
+        recordsSummaryContext(),
+    )
 }
 
 internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
-    val summaryState = records.summary.begin(request, selectedMemo, recordsSummaryContext())
+    val summaryState = records.summary.begin(
+        request,
+        records.selection.selectedMemo,
+        recordsSummaryContext(),
+    )
         ?: return this
     return withRecords { it.copy(summary = summaryState) }.copy(
         error = null,
@@ -558,7 +562,11 @@ private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): 
 }
 
 internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return records.summary.canApply(request, selectedMemo, recordsSummaryContext())
+    return records.summary.canApply(
+        request,
+        records.selection.selectedMemo,
+        recordsSummaryContext(),
+    )
 }
 
 internal fun SillageUiState.completeMemoSummaryRequest(
@@ -573,7 +581,7 @@ internal fun SillageUiState.completeMemoSummaryRequest(
         it.copy(
             summary = it.summary.complete(
                 request,
-                selectedMemo,
+                records.selection.selectedMemo,
                 recordsSummaryContext(),
                 summary,
             ),
@@ -592,7 +600,14 @@ internal fun SillageUiState.failMemoSummaryRequest(
         return this
     }
     return withRecords {
-        it.copy(summary = it.summary.fail(request, selectedMemo, recordsSummaryContext()))
+        it.copy(
+            summary =
+                it.summary.fail(
+                    request,
+                    records.selection.selectedMemo,
+                    recordsSummaryContext(),
+                ),
+        )
     }.copy(error = message)
 }
 

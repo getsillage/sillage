@@ -128,6 +128,8 @@ The shared detail content shell consumes records selection state directly and ow
 missing-record fallback, section order,
 lazy-list spacing, and content width; Android keeps Scaffold/TopAppBar placement and fills
 the localized record, summary, and metadata slots.
+Detail orchestration, editor/navigation gates, and tests consume
+`records.selection` directly, without root selection compatibility getters.
 The shared detail actions consume records selection/mutation state directly and
 own edit/more enablement, favorite/archive menu choices, busy-state reset, and
 delete confirmation; Android maps the host-operation gate, resources, and

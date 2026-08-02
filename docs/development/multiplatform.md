@@ -475,7 +475,9 @@ visibility directly from the aggregate, without host-root-state policy.
 
 Records selection/detail is the fourth extracted state slice. The shared holder
 owns the selected `Memo` and detail request validation. `MemoAI` is now a shared
-domain value.
+domain value. Platform detail orchestration, editor/navigation gates, and tests
+consume the holder through the records aggregate directly rather than host-root
+selection accessors.
 
 Records summary is the fifth extracted state slice. Its shared holder owns the
 selected summary, loading state, request identity, and detail/editor context

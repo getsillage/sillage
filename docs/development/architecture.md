@@ -487,7 +487,9 @@ the aggregate, removing those conditions from Android root state.
 The shared `RecordsSelectionStateHolder` owns the selected domain record and
 detail request identity. It validates source, client session, navigation
 destination, editor generation, cache generation, and record version before an
-Android detail response may update state. AI-derived summary presentation state
+Android detail response may update state. Android detail orchestration,
+editor/navigation gates, and tests consume the holder through the records aggregate
+directly, without root-state selection accessors. AI-derived summary presentation state
 is owned by `RecordsSummaryStateHolder`, including request identity and
 detail/editor context validation. Android retains AI execution orchestration and
 localized feedback, while orchestration state, save paths, and tests consume the

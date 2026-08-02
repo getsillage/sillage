@@ -351,12 +351,14 @@ class SillageViewModel(
             if (
                 before.draftContent != after.draftContent ||
                 before.draftEntryDate != after.draftEntryDate ||
-                before.selectedMemo?.id != after.selectedMemo?.id ||
+                before.records.selection.selectedMemo?.id !=
+                    after.records.selection.selectedMemo?.id ||
                 !wasActive
             ) {
                 handle[KEY_SAVED_DRAFT_CONTENT] = after.draftContent
                 handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.draftEntryDate
-                handle[KEY_SAVED_EDITING_MEMO_ID] = after.selectedMemo?.id.orEmpty()
+                handle[KEY_SAVED_EDITING_MEMO_ID] =
+                    after.records.selection.selectedMemo?.id.orEmpty()
             }
         } else if (wasActive) {
             handle[KEY_SAVED_DRAFT_CONTENT] = ""
@@ -999,7 +1001,7 @@ class SillageViewModel(
     }
 
     fun editSelectedMemo() {
-        val memo = state.value.selectedMemo ?: return
+        val memo = state.value.records.selection.selectedMemo ?: return
         openEditorForMemo(memo)
         fetchSelectedMemoDetail(memo.id)
     }
@@ -1419,7 +1421,7 @@ class SillageViewModel(
         }
         cancelMemoSummary()
         cancelAttachmentOpen()
-        val selectedMemo = current.selectedMemo
+        val selectedMemo = current.records.selection.selectedMemo
         launchMemoMutation(
             key = selectedMemo?.let {
                 MemoMutationKey.Memo(it.id, current.clientContextGeneration)
@@ -1463,8 +1465,8 @@ class SillageViewModel(
                         screenHistory = history,
                         records = it.records.presentSavedMemo(
                             memo = saved,
-                            summary = if (current.selectedMemo?.id == saved.id) {
-                        it.records.summary.summary
+                            summary = if (current.records.selection.selectedMemo?.id == saved.id) {
+                                it.records.summary.summary
                             } else {
                                 null
                             },
@@ -1487,13 +1489,13 @@ class SillageViewModel(
         if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.records.selection.selectedMemo ?: return
         cancelMemoSummary()
         cancelAttachmentOpen()
         val originScreen = current.screen
         val originHistory = current.screenHistory
         val originEditorSessionId = current.editorSessionId
-        val originDetailRequestId = current.memoDetailRequestId
+        val originDetailRequestId = current.records.selection.detailRequestId
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
@@ -1510,10 +1512,11 @@ class SillageViewModel(
                     it.clientContextGeneration == current.clientContextGeneration &&
                     it.screen == originScreen &&
                     it.screenHistory == originHistory &&
-                    it.selectedMemo?.id == memo.id &&
+                    it.records.selection.selectedMemo?.id == memo.id &&
                     when (originScreen) {
                         Screen.Editor -> it.editorSessionId == originEditorSessionId
-                        Screen.MemoDetail -> it.memoDetailRequestId == originDetailRequestId
+                        Screen.MemoDetail ->
+                            it.records.selection.detailRequestId == originDetailRequestId
                         else -> true
                     }
                 if (stillAtOrigin) {
@@ -1544,7 +1547,7 @@ class SillageViewModel(
         if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.records.selection.selectedMemo ?: return
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
@@ -1574,7 +1577,7 @@ class SillageViewModel(
         if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.records.selection.selectedMemo ?: return
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
             memoId = memo.id,
@@ -1736,7 +1739,7 @@ class SillageViewModel(
         if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.records.selection.selectedMemo ?: return
         val request = current.nextMemoSummaryRequest() ?: return
         var started = false
         updateState { state ->
@@ -2918,9 +2921,15 @@ class SillageViewModel(
         cancelAttachmentOpen()
         updateState {
             val navigation = it.backNavigation(
-                if (it.selectedMemo == null) Screen.Memos else Screen.MemoDetail,
+                if (it.records.selection.selectedMemo == null) {
+                    Screen.Memos
+                } else {
+                    Screen.MemoDetail
+                },
             )
-            val returningToDetail = navigation.screen == Screen.MemoDetail && it.selectedMemo != null
+            val returningToDetail =
+                navigation.screen == Screen.MemoDetail &&
+                    it.records.selection.selectedMemo != null
             it.copy(
                 screen = if (returningToDetail) Screen.MemoDetail else navigation.screen,
                 screenHistory = navigation.history,
@@ -2940,6 +2949,8 @@ class SillageViewModel(
         }
         state.value
             .takeIf { it.screen == Screen.MemoDetail }
+            ?.records
+            ?.selection
             ?.selectedMemo
             ?.id
             ?.let(::fetchSelectedMemoDetail)
@@ -3229,7 +3240,7 @@ class SillageViewModel(
     private fun fetchSelectedMemoDetail(memoId: String) {
         val request = state.value.nextMemoDetailRequest(memoId) ?: return
         updateState { current -> current.startMemoDetailRequest(request) }
-        if (state.value.memoDetailRequestId != request.requestId) {
+        if (state.value.records.selection.detailRequestId != request.requestId) {
             return
         }
         viewModelScope.launch {

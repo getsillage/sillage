@@ -23,7 +23,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   the aggregate without depending on Android root state.
 - `RecordsSelectionStateHolder` owns the selected domain record and validates
   detail responses against source, destination, session, cache, and version
-  generations.
+  generations. Android detail orchestration, navigation gates, and tests consume
+  it through the records aggregate directly, without root selection compatibility
+  getters.
 - `RecordsSummaryStateHolder` owns AI-derived summary presentation, loading,
   request identity, and detail/editor context validation. Android orchestration,
   save paths, and tests consume it through the records aggregate directly, without

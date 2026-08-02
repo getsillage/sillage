@@ -85,11 +85,12 @@ internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showOpenSourceLicenses by remember { mutableStateOf(false) }
     val aiProfilesEditorState = rememberSillageAIProfilesEditorState()
-    val aiProfileOperationInProgress = state.aiSettingsSaving ||
-        state.aiTestingProfileId.isNotBlank() ||
-        state.aiLoadingModelsProfileId.isNotBlank() ||
+    val aiProfileOperationInProgress = state.settings.profilesSaving ||
+        state.settings.testingProfileKey.isNotBlank() ||
+        state.settings.loadingModelsProfileKey.isNotBlank() ||
         state.loading
-    val aiProfileMutationBlocked = aiProfileOperationInProgress || state.aiAutoSummarySaving
+    val aiProfileMutationBlocked =
+        aiProfileOperationInProgress || state.settings.autoSummarySaving
     val clientContextChangeBlocked = state.hasClientContextOperationInProgress()
     val aiProfilesEditorStrings = SillageAIProfilesEditorStrings(
         header = SillageAIProfilesHeaderStrings(
@@ -170,8 +171,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
         },
     ) { padding ->
         SillageSettingsContent(
-            loading = state.aiSettingsLoading,
-            errorMessage = state.aiSettingsLoadError,
+            loading = state.settings.loading,
+            errorMessage = state.settings.loadErrorMessage,
             retryLabel = stringResource(R.string.action_retry),
             retryIcon = Icons.Rounded.Refresh,
             onRetry = viewModel::loadAISettings,
@@ -212,7 +213,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         SillageSettingsOverviewItem(
                             label = stringResource(R.string.settings_section_ai),
                             value = stringResource(
-                                if (state.aiAutoSummary) {
+                                if (state.settings.autoSummaryEnabled) {
                                     R.string.settings_auto_summary
                                 } else {
                                     R.string.settings_summary_manual

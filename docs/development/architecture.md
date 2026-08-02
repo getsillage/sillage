@@ -412,11 +412,12 @@ state and results. Completion requires the same stable editor key, complete
 draft snapshot, mode, and client generation; adapter callbacks cannot attach
 results to a removed or subsequently edited profile.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
-workspace teardown, editable profile-draft replacement, and loaded/imported
+workspace teardown, editable profile-draft replacement, loaded/imported
 editable-settings snapshot application, diagnostic-result clearing, and host
 feedback recording. Request identity remains owned by the diagnostics holder.
-Android's root `SillageUiState` stores one `settings` aggregate field with
-transitional slice getters; coordinated writes move onto the aggregate.
+Android's root `SillageUiState` stores one `settings` aggregate field. State
+orchestration, Compose screens, and tests consume it directly without root-state
+settings accessors.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

@@ -96,13 +96,13 @@ class SillageViewModelToastTest {
         val sessionStore = SessionStore(context)
         sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
         val viewModel = SillageViewModel(context)
-        val profiles = viewModel.state.value.aiProfiles
+        val profiles = viewModel.state.value.settings.profiles
 
         viewModel.openAISettings()
 
         assertEquals(Screen.AISettings, viewModel.state.value.screen)
-        assertFalse(viewModel.state.value.aiSettingsLoading)
-        assertEquals(profiles, viewModel.state.value.aiProfiles)
+        assertFalse(viewModel.state.value.settings.loading)
+        assertEquals(profiles, viewModel.state.value.settings.profiles)
     }
 
     @Test

@@ -5,11 +5,10 @@ provider capability presentation.
 
 `SettingsFeatureStateHolder` composes the holders below and owns coordinated
 workspace teardown, editable profile-draft replacement, and loaded/imported
-editable-settings snapshot application.
-Individual holders remain the unit of request identity. Android stores one
-`settings` aggregate on root UI state and keeps transitional slice getters while
-remaining single-holder call sites finish moving onto `withSettings` / aggregate
-transitions.
+editable-settings snapshot application. Individual holders remain the unit of
+request identity. Android stores one `settings` aggregate on root UI state; state
+orchestration, Compose screens, and tests consume its holders and fields directly
+without root settings compatibility getters.
 
 Android hydrates this aggregate while entering an offline workspace, so opening
 Settings reuses that snapshot instead of issuing a redundant local repository

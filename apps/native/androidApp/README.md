@@ -296,14 +296,12 @@ shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save
 response reconciliation also live in that module. Android keeps encrypted
 storage, REST inputs, and device-local AI execution as adapters.
-The root state composes `AIProfilesMutationStateHolder` for editable profiles,
-optimistic save, rollback, and stale-callback rejection, with transitional read
-accessors for the existing Compose screens.
-It also composes `AISettingsLoadStateHolder`; settings loads and profile saves
-have separate request identities and invalidate one another at their boundary.
-Provider-test and model-list progress/results live in
-`AIProfileDiagnosticsStateHolder`, which rejects callbacks after profile edits,
-removal, mode changes, or client-context replacement.
+The root state stores one `settings` aggregate composing profile mutation,
+automatic-summary, settings-load, and diagnostics holders. Android orchestration,
+Compose screens, and tests consume that aggregate directly without root settings
+compatibility getters. Settings loads and profile saves retain separate request
+identities and invalidate one another at the boundary; diagnostics still reject
+callbacks after profile edits, removal, mode changes, or client-context replacement.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.

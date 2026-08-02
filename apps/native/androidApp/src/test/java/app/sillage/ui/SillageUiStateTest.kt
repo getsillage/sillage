@@ -460,10 +460,10 @@ class SillageUiStateTest {
         val recorded = state.recordAIProfileDiagnosticsFeedback("p2", "offline")
         val cleared = recorded.clearAIProfileDiagnosticsResults()
 
-        assertEquals("offline", recorded.aiTestResults["p2"])
-        assertEquals(listOf("model-a"), recorded.aiModelResults["p1"])
-        assertTrue(cleared.aiTestResults.isEmpty())
-        assertTrue(cleared.aiModelResults.isEmpty())
+        assertEquals("offline", recorded.settings.testResults["p2"])
+        assertEquals(listOf("model-a"), recorded.settings.modelResults["p1"])
+        assertTrue(cleared.settings.testResults.isEmpty())
+        assertTrue(cleared.settings.modelResults.isEmpty())
         assertEquals("keep", cleared.error)
     }
 
@@ -480,9 +480,9 @@ class SillageUiStateTest {
 
         val updated = state.withAIProfiles(replacement)
 
-        assertEquals(replacement, updated.aiProfiles)
-        assertTrue(updated.aiAutoSummary)
-        assertTrue(updated.aiSettingsLoading)
+        assertEquals(replacement, updated.settings.profiles)
+        assertTrue(updated.settings.autoSummaryEnabled)
+        assertTrue(updated.settings.loading)
         assertEquals("keep", updated.error)
         assertEquals(state.screen, updated.screen)
     }
@@ -523,9 +523,9 @@ class SillageUiStateTest {
         assertEquals(emptyList<Memo>(), cleared.records.collection.records)
         assertEquals(2L, cleared.records.collection.cacheGeneration)
         assertEquals(null, cleared.records.selection.selectedMemo)
-        assertEquals(emptyList<AIProfileDraft>(), cleared.aiProfiles)
-        assertFalse(cleared.aiAutoSummary)
-        assertFalse(cleared.aiSettingsLoading)
+        assertEquals(emptyList<AIProfileDraft>(), cleared.settings.profiles)
+        assertFalse(cleared.settings.autoSummaryEnabled)
+        assertFalse(cleared.settings.loading)
         assertEquals("", cleared.ask.conversation.activeConversationId)
         assertEquals("", cleared.ask.composer.question)
         assertFalse(cleared.ask.loading)
@@ -908,8 +908,8 @@ class SillageUiStateTest {
         assertEquals(5L, request.requestId)
         assertFalse(request.previousValue)
         assertTrue(request.targetValue)
-        assertTrue(pending.aiAutoSummary)
-        assertTrue(pending.aiAutoSummarySaving)
+        assertTrue(pending.settings.autoSummaryEnabled)
+        assertTrue(pending.settings.autoSummarySaving)
         assertEquals(null, pending.nextAIAutoSummaryRequest(false))
         assertTrue(pending.canApplyAIAutoSummaryRequest(request))
         assertFalse(
@@ -922,8 +922,8 @@ class SillageUiStateTest {
         )
 
         val invalidated = pending.invalidateAIAutoSummaryRequest()
-        assertFalse(invalidated.aiAutoSummarySaving)
-        assertEquals(6L, invalidated.aiAutoSummaryRequestId)
+        assertFalse(invalidated.settings.autoSummarySaving)
+        assertEquals(6L, invalidated.settings.autoSummaryRequestId)
         assertFalse(invalidated.canApplyAIAutoSummaryRequest(request))
         assertEquals(null, idle.nextAIAutoSummaryRequest(false))
         assertEquals(
@@ -947,14 +947,14 @@ class SillageUiStateTest {
         val pending = idle.startAIAutoSummaryRequest(request)
 
         val completed = pending.completeAIAutoSummaryRequest(request, savedValue = true)
-        assertTrue(completed.aiAutoSummary)
-        assertFalse(completed.aiAutoSummarySaving)
-        assertEquals(profiles, completed.aiProfiles)
+        assertTrue(completed.settings.autoSummaryEnabled)
+        assertFalse(completed.settings.autoSummarySaving)
+        assertEquals(profiles, completed.settings.profiles)
 
         val failed = pending.failAIAutoSummaryRequest(request)
-        assertFalse(failed.aiAutoSummary)
-        assertFalse(failed.aiAutoSummarySaving)
-        assertEquals(profiles, failed.aiProfiles)
+        assertFalse(failed.settings.autoSummaryEnabled)
+        assertFalse(failed.settings.autoSummarySaving)
+        assertEquals(profiles, failed.settings.profiles)
 
         val invalidated = pending.invalidateAIAutoSummaryRequest()
         assertEquals(invalidated, invalidated.completeAIAutoSummaryRequest(request, savedValue = true))
@@ -989,15 +989,15 @@ class SillageUiStateTest {
             ),
             ),
         ) }
-        val earlierLoadGeneration = idle.aiSettingsRequestId
+        val earlierLoadGeneration = idle.settings.profilesRequestId
         val request = requireNotNull(idle.nextAIProfilesMutationRequest(edited))
 
         val pending = idle.startAIProfilesMutation(request)
 
         assertEquals(earlierLoadGeneration + 1, request.requestId)
-        assertEquals(request.requestId, pending.aiSettingsRequestId)
-        assertEquals(edited, pending.aiProfiles)
-        assertTrue(pending.aiSettingsSaving)
+        assertEquals(request.requestId, pending.settings.profilesRequestId)
+        assertEquals(edited, pending.settings.profiles)
+        assertTrue(pending.settings.profilesSaving)
         assertTrue(pending.canApplyAIProfilesMutation(request))
         assertEquals(null, pending.nextAIProfilesMutationRequest(original))
         assertEquals(pending, pending.startAIProfilesMutation(request))
@@ -1032,16 +1032,16 @@ class SillageUiStateTest {
         assertEquals(secondSaving, secondSaving.failAIProfilesMutation(firstRequest))
 
         val secondFailed = secondSaving.failAIProfilesMutation(secondRequest)
-        assertEquals(firstSaved, secondFailed.aiProfiles)
-        assertFalse(secondFailed.aiSettingsSaving)
+        assertEquals(firstSaved, secondFailed.settings.profiles)
+        assertFalse(secondFailed.settings.profilesSaving)
 
         val laterDraft = listOf(AIProfileDraft(id = "profile-1", name = "请求后继续编辑"))
         val changedWhileSaving = secondSaving.copy(
             settings = secondSaving.settings.copy(profilesMutation = secondSaving.settings.profilesMutation.replace(laterDraft)),
         )
         val preserved = changedWhileSaving.failAIProfilesMutation(secondRequest)
-        assertEquals(laterDraft, preserved.aiProfiles)
-        assertFalse(preserved.aiSettingsSaving)
+        assertEquals(laterDraft, preserved.settings.profiles)
+        assertFalse(preserved.settings.profilesSaving)
     }
 
     @Test
@@ -1064,8 +1064,8 @@ class SillageUiStateTest {
         val failed = idle.startAIProfilesMutation(request)
             .failAIProfilesMutation(request)
 
-        assertEquals(staged, failed.aiProfiles)
-        assertFalse(failed.aiSettingsSaving)
+        assertEquals(staged, failed.settings.profiles)
+        assertFalse(failed.settings.profilesSaving)
     }
 
     @Test
@@ -1420,9 +1420,9 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAIAutoSummary(
-        enabled: Boolean = aiAutoSummary,
-        saving: Boolean = aiAutoSummarySaving,
-        requestId: Long = aiAutoSummaryRequestId,
+        enabled: Boolean = settings.autoSummaryEnabled,
+        saving: Boolean = settings.autoSummarySaving,
+        requestId: Long = settings.autoSummaryRequestId,
     ): SillageUiState = copy(
         settings = settings.copy(
             autoSummary = AIAutoSummaryStateHolder(

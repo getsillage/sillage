@@ -844,7 +844,8 @@ class SillageViewModel(
                         it
                     } else {
                         it.invalidateAIAutoSummaryRequest().clearClientWorkspace(
-                            settingsAutoSummaryEnabled = if (offlineMode) it.aiAutoSummary else false,
+                            settingsAutoSummaryEnabled =
+                                if (offlineMode) it.settings.autoSummaryEnabled else false,
                             askInvalidateStream = true,
                             askInvalidateVariant = true,
                         ).copy(
@@ -2006,14 +2007,14 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiProfileDiagnostics.busy
+                !it.settings.loading &&
+                !it.settings.profilesSaving &&
+                !it.settings.diagnostics.busy
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles + AIProfileDraft(
+                    it.settings.profiles + AIProfileDraft(
                         draftKey = UUID.randomUUID().toString(),
-                        active = it.aiProfiles.isEmpty(),
+                        active = it.settings.profiles.isEmpty(),
                     ),
                 )
             } else {
@@ -2027,16 +2028,18 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiAutoSummarySaving &&
-                !it.aiProfileDiagnostics.busy &&
-                index in it.aiProfiles.indices
+                !it.settings.loading &&
+                !it.settings.profilesSaving &&
+                !it.settings.autoSummarySaving &&
+                !it.settings.diagnostics.busy &&
+                index in it.settings.profiles.indices
             ) {
                 removed = true
                 it.withAIProfiles(
                     normalizeAIProfilesForSave(
-                        it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
+                        it.settings.profiles.filterIndexed { profileIndex, _ ->
+                            profileIndex != index
+                        },
                     ),
                 )
             } else {
@@ -2088,14 +2091,14 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiAutoSummarySaving &&
-                !it.aiProfileDiagnostics.busy &&
-                index in it.aiProfiles.indices
+                !it.settings.loading &&
+                !it.settings.profilesSaving &&
+                !it.settings.autoSummarySaving &&
+                !it.settings.diagnostics.busy &&
+                index in it.settings.profiles.indices
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles.mapIndexed { profileIndex, profile ->
+                    it.settings.profiles.mapIndexed { profileIndex, profile ->
                         profile.copy(enabled = true, active = profileIndex == index)
                     },
                 )
@@ -2214,7 +2217,7 @@ class SillageViewModel(
 
     fun saveAIProfiles() {
         val current = state.value
-        val draftProfiles = current.aiProfiles
+        val draftProfiles = current.settings.profiles
         val blankNameIndex = firstBlankAIProfileNameIndex(draftProfiles)
         if (blankNameIndex != null) {
             updateState(forceFeedback = true) {
@@ -2434,7 +2437,7 @@ class SillageViewModel(
 
     fun loadAIModels(index: Int) {
         val current = state.value
-        val profile = current.aiProfiles.getOrNull(index) ?: return
+        val profile = current.settings.profiles.getOrNull(index) ?: return
         val key = profile.editorKey(index)
         if (current.appMode == SessionStore.MODE_OFFLINE) {
             val message = uiString(R.string.error_ai_models_offline)
@@ -2982,12 +2985,12 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiProfileDiagnostics.busy
+                !it.settings.loading &&
+                !it.settings.profilesSaving &&
+                !it.settings.diagnostics.busy
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles.mapIndexed { i, profile ->
+                    it.settings.profiles.mapIndexed { i, profile ->
                         if (i == index) transform(profile) else profile
                     },
                 )

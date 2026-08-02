@@ -121,6 +121,9 @@ busy-copy precedence, lifecycle menu choices, and delete confirmation; Android
 selects localized online/offline supporting copy and routes callbacks. Shared editor
 close requests also own dirty-draft selection and discard confirmation; Android
 retains system Back integration and maps localized copy plus the close callback.
+The shared editor content shell also owns lazy-list ordering, shared width,
+lifecycle status, date input, attachment action, and summary visibility. Android
+retains DatePicker/file launchers and supplies Markdown plus summary adapters.
 Editor unsaved-draft and Back-blocking policy also lives in the module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

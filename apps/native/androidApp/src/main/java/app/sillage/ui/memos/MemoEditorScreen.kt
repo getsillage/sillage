@@ -3,23 +3,11 @@ package app.sillage.ui.memos
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Archive
@@ -35,7 +23,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,11 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -65,6 +50,9 @@ import app.sillage.ui.isMemoMutationInProgress
 import app.sillage.ui.records.SillageRecordEditorActionIcons
 import app.sillage.ui.records.SillageRecordEditorActionStrings
 import app.sillage.ui.records.SillageRecordEditorActions
+import app.sillage.ui.records.SillageRecordEditorContent
+import app.sillage.ui.records.SillageRecordEditorContentIcons
+import app.sillage.ui.records.SillageRecordEditorContentStrings
 import app.sillage.ui.records.SillageRecordEditorDiscardStrings
 import app.sillage.ui.records.rememberSillageRecordEditorCloseRequest
 
@@ -187,110 +175,58 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             )
         },
     ) { padding ->
-        BoxWithConstraints(
+        SillageRecordEditorContent(
+            memo = state.selectedMemo,
+            entryDate = state.draftEntryDate,
+            actionsEnabled = editorActionsEnabled,
+            showAttachmentAction = state.appMode == SessionStore.MODE_ONLINE,
+            uploadingAttachment = state.uploadingAttachment,
+            strings = SillageRecordEditorContentStrings(
+                entryDateLabel = stringResource(R.string.editor_date),
+                entryDatePlaceholder = stringResource(R.string.editor_date_placeholder),
+                pickDateContentDescription = stringResource(R.string.editor_pick_date),
+                favoritedStatus = stringResource(R.string.record_favorited),
+                archivedStatus = stringResource(R.string.record_archived),
+                addAttachmentAction = stringResource(R.string.editor_add_attachment),
+                uploadingAttachmentAction = stringResource(R.string.editor_uploading),
+            ),
+            icons = SillageRecordEditorContentIcons(
+                pickDate = Icons.Rounded.CalendarMonth,
+                addAttachment = Icons.Rounded.AttachFile,
+            ),
+            onEntryDateChange = viewModel::updateDraftEntryDate,
+            onPickDate = { showDatePicker = true },
+            onAddAttachment = { attachmentLauncher.launch("*/*") },
+            editorContent = { editorModifier, editorHeight ->
+                MarkdownEditorSection(
+                    content = state.draftContent,
+                    baseUrl = state.baseUrl,
+                    openingAttachmentPath = state.openingAttachmentPath,
+                    preview = state.markdownPreview,
+                    enabled = editorActionsEnabled,
+                    onContentChange = viewModel::updateDraftContent,
+                    onPreviewChange = viewModel::updateMarkdownPreview,
+                    onFormat = viewModel::appendMarkdownFormat,
+                    onOpenAttachment = viewModel::openProtectedAttachment,
+                    modifier = editorModifier.height(editorHeight),
+                )
+            },
+            summaryContent = { summaryModifier ->
+                MemoSummarySection(
+                    summary = state.selectedSummary,
+                    loading = state.summaryLoading,
+                    actionEnabled = editorActionsEnabled,
+                    onGenerate = viewModel::summarizeSelectedMemo,
+                    modifier = summaryModifier,
+                )
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                // Scaffold already applies these insets via padding; without
+                // Scaffold already applies insets via padding; without
                 // consuming them imePadding stacks a blank gap over the keyboard.
                 .consumeWindowInsets(padding)
                 .imePadding(),
-        ) {
-            val editorHeight = (maxHeight * 0.6f).coerceIn(320.dp, 560.dp)
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .widthIn(max = 760.dp)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        MemoStatusLine(state.selectedMemo)
-                        OutlinedTextField(
-                            value = state.draftEntryDate,
-                            onValueChange = viewModel::updateDraftEntryDate,
-                            enabled = editorActionsEnabled,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.editor_date)) },
-                            placeholder = { Text(stringResource(R.string.editor_date_placeholder)) },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { showDatePicker = true },
-                                    enabled = editorActionsEnabled,
-                                ) {
-                                    Icon(
-                                        Icons.Rounded.CalendarMonth,
-                                        contentDescription = stringResource(R.string.editor_pick_date),
-                                    )
-                                }
-                            },
-                        )
-                    }
-                }
-                item {
-                    MarkdownEditorSection(
-                        content = state.draftContent,
-                        baseUrl = state.baseUrl,
-                        openingAttachmentPath = state.openingAttachmentPath,
-                        preview = state.markdownPreview,
-                        enabled = editorActionsEnabled,
-                        onContentChange = viewModel::updateDraftContent,
-                        onPreviewChange = viewModel::updateMarkdownPreview,
-                        onFormat = viewModel::appendMarkdownFormat,
-                        onOpenAttachment = viewModel::openProtectedAttachment,
-                        modifier = Modifier
-                            .widthIn(max = 760.dp)
-                            .fillMaxWidth()
-                            .height(editorHeight),
-                    )
-                }
-                if (state.appMode == SessionStore.MODE_ONLINE) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .widthIn(max = 760.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            TextButton(
-                                onClick = { attachmentLauncher.launch("*/*") },
-                                enabled = editorActionsEnabled,
-                                modifier = Modifier
-                                    .heightIn(min = 48.dp)
-                                    .widthIn(min = 112.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            ) {
-                                Icon(
-                                    Icons.Rounded.AttachFile,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(stringResource(if (state.uploadingAttachment) R.string.editor_uploading else R.string.editor_add_attachment))
-                            }
-                        }
-                    }
-                }
-                if (state.selectedMemo != null) {
-                    item {
-                        MemoSummarySection(
-                            summary = state.selectedSummary,
-                            loading = state.summaryLoading,
-                            actionEnabled = editorActionsEnabled,
-                            onGenerate = viewModel::summarizeSelectedMemo,
-                            modifier = Modifier
-                                .widthIn(max = 760.dp)
-                                .fillMaxWidth(),
-                        )
-                    }
-                }
-            }
-        }
+        )
     }
 }

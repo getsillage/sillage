@@ -101,6 +101,10 @@ while hosts provide localized mode-specific copy and route callbacks.
 The shared editor close request consumes host-provided dirty state and owns
 close-vs-confirm selection plus discard-confirmation state/dialog while hosts
 retain platform Back integration and route the final close.
+The shared editor content shell consumes selected `Memo`, action/upload state,
+and draft date while owning lazy-list section ordering, status/date/attachment
+presentation, shared width, and summary visibility. Hosts provide localized
+resources, date/file callbacks, Markdown-editor content, and summary adapters.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

@@ -69,3 +69,6 @@ semantics while hosts provide localized resources, icons, and callbacks.
 Shared source references consume domain source values and own expansion, the
 five-row display limit, row layout, and action gates while hosts provide
 localized count/date formatting, icons, and navigation callbacks.
+The shared message card consumes domain messages and stream presentation, then
+owns displayed-content selection, bubble layout, semantics, and source/action
+slots while hosts retain final Markdown and protected-attachment rendering.

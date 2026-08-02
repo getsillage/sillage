@@ -263,6 +263,10 @@ hosts provide localized strings, icons, and callbacks.
 Its source references own expansion state, the five-row display limit, row
 layout, and action gating; hosts provide localized count/date formatting,
 expand/collapse icons, and navigation callbacks.
+Its message card owns stored/streaming/regenerating content selection,
+user/assistant bubble presentation, semantics, and source/action slot placement.
+Hosts keep final Markdown and protected-attachment handling in the platform
+content slot.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

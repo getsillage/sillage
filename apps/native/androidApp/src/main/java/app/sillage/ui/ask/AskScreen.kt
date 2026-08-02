@@ -1,6 +1,5 @@
 package app.sillage.ui.ask
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -33,8 +31,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -58,8 +54,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -450,155 +444,97 @@ private fun AskMessageCard(
     onSelectVariant: (String) -> Unit,
     onOpenAttachment: (MarkdownLinkTarget.ProtectedAttachment) -> Unit,
 ) {
-    val message = entry.message
-    val isAssistant = message.role == "assistant"
-    val displayedContent = when {
-        streamingText != null && streamingText.isNotBlank() -> streamingText
-        regenerating -> stringResource(R.string.ask_regenerating)
-        else -> message.content
-    }
-    val messageDescription = askMessageDescription(isAssistant, displayedContent)
-    val bubbleColor = if (isAssistant) {
-        MaterialTheme.colorScheme.surfaceContainerLow
-    } else {
-        MaterialTheme.colorScheme.primaryContainer
-    }
-    val textColor = if (isAssistant) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    }
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isAssistant) Alignment.Start else Alignment.End,
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(if (isAssistant) 0.94f else 0.84f),
-            shape = RoundedCornerShape(
-                topStart = 8.dp,
-                topEnd = 8.dp,
-                bottomEnd = if (isAssistant) 8.dp else 2.dp,
-                bottomStart = if (isAssistant) 2.dp else 8.dp,
-            ),
-            colors = CardDefaults.cardColors(containerColor = bubbleColor),
-            border = BorderStroke(
-                1.dp,
-                if (isAssistant) {
-                    MaterialTheme.colorScheme.outlineVariant
-                } else {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-                },
-            ),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                // Final assistant answers render as Markdown like record bodies;
-                // streaming/regenerating text stays plain to avoid re-parsing
-                // partial syntax on every delta.
-                if (isAssistant && streamingText == null && !regenerating) {
-                    Box(
-                        modifier = Modifier.clearAndSetSemantics {
-                            applyAskMessageSemantics(messageDescription)
-                        },
-                    ) {
-                        MarkdownContent(
-                            content = displayedContent,
-                            baseUrl = baseUrl,
-                            openingAttachmentPath = openingAttachmentPath,
-                            onOpenAttachment = onOpenAttachment,
+    SillageAskMessageCard(
+        message = entry.message,
+        streamingText = streamingText,
+        regenerating = regenerating,
+        regeneratingText = stringResource(R.string.ask_regenerating),
+        messageDescription = { isAssistant, content ->
+            askMessageDescription(isAssistant, content)
+        },
+        finalAssistantContent = { content ->
+            // Final assistant answers render Markdown like record bodies; the
+            // shared card keeps streaming/regenerating text plain.
+            MarkdownContent(
+                content = content,
+                baseUrl = baseUrl,
+                openingAttachmentPath = openingAttachmentPath,
+                onOpenAttachment = onOpenAttachment,
+            )
+        },
+        sourceContent = {
+            SillageAskSourceReferences(
+                sources = entry.message.sourceRefs,
+                enabled = sourceActionsEnabled,
+                strings = SillageAskSourceReferenceStrings(
+                    sourceCount = { count ->
+                        pluralStringResource(R.plurals.quantity_sources, count, count)
+                    },
+                    sourceLabel = { source ->
+                        stringResource(
+                            R.string.quantity_joiner,
+                            localizedDate(source.entryDate),
+                            source.excerpt,
                         )
-                    }
-                } else {
-                    Text(
-                        displayedContent,
-                        modifier = Modifier.clearAndSetSemantics {
-                            applyAskMessageSemantics(messageDescription)
-                        },
-                        color = textColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                if (isAssistant && message.sourceRefs.isNotEmpty()) {
-                    SillageAskSourceReferences(
-                        sources = message.sourceRefs,
-                        enabled = sourceActionsEnabled,
-                        strings = SillageAskSourceReferenceStrings(
-                            sourceCount = { count ->
-                                pluralStringResource(R.plurals.quantity_sources, count, count)
-                            },
-                            sourceLabel = { source ->
-                                stringResource(
-                                    R.string.quantity_joiner,
-                                    localizedDate(source.entryDate),
-                                    source.excerpt,
-                                )
-                            },
-                            showSourcesContentDescription = stringResource(
-                                R.string.ask_show_sources,
-                            ),
-                            hideSourcesContentDescription = stringResource(
-                                R.string.ask_hide_sources,
-                            ),
-                        ),
-                        icons = SillageAskSourceReferenceIcons(
-                            expand = Icons.Rounded.ExpandMore,
-                            collapse = Icons.Rounded.ExpandLess,
-                        ),
-                        onOpenSource = onOpenSource,
-                    )
-                }
-                if (isAssistant) {
-                    SillageAskMessageActions(
-                        message = entry.message,
-                        variants = entry.variants,
-                        selectedIndex = entry.index,
-                        canRegenerate = canRegenerate,
-                        regenerating = regenerating,
-                        variantChanging = variantChanging,
-                        savingDisabled = savingDisabled,
-                        saving = saving,
-                        strings = SillageAskMessageActionStrings(
-                            previousVariantContentDescription = stringResource(
-                                R.string.ask_previous_variant,
-                            ),
-                            nextVariantContentDescription = stringResource(
-                                R.string.ask_next_variant,
-                            ),
-                            variantCounter = { position, total ->
-                                stringResource(R.string.ask_variant_counter, position, total)
-                            },
-                            variantPositionDescription = { position, total ->
-                                stringResource(R.string.ask_variant_position, position, total)
-                            },
-                            regenerateContentDescription = stringResource(R.string.ask_regenerate),
-                            generatingContentDescription = stringResource(R.string.ask_generating),
-                            saveContentDescription = stringResource(R.string.ask_save_as_record),
-                            savingContentDescription = stringResource(R.string.action_saving),
-                        ),
-                        icons = SillageAskMessageActionIcons(
-                            previousVariant = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                            nextVariant = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            regenerate = Icons.Rounded.Refresh,
-                            save = Icons.Rounded.Save,
-                        ),
-                        onRegenerate = onRegenerate,
-                        onSave = onSaveAsMemo,
-                        onSelectVariant = onSelectVariant,
-                    )
-                }
-            }
-        }
-    }
+                    },
+                    showSourcesContentDescription = stringResource(
+                        R.string.ask_show_sources,
+                    ),
+                    hideSourcesContentDescription = stringResource(
+                        R.string.ask_hide_sources,
+                    ),
+                ),
+                icons = SillageAskSourceReferenceIcons(
+                    expand = Icons.Rounded.ExpandMore,
+                    collapse = Icons.Rounded.ExpandLess,
+                ),
+                onOpenSource = onOpenSource,
+            )
+        },
+        actionContent = {
+            SillageAskMessageActions(
+                message = entry.message,
+                variants = entry.variants,
+                selectedIndex = entry.index,
+                canRegenerate = canRegenerate,
+                regenerating = regenerating,
+                variantChanging = variantChanging,
+                savingDisabled = savingDisabled,
+                saving = saving,
+                strings = SillageAskMessageActionStrings(
+                    previousVariantContentDescription = stringResource(
+                        R.string.ask_previous_variant,
+                    ),
+                    nextVariantContentDescription = stringResource(
+                        R.string.ask_next_variant,
+                    ),
+                    variantCounter = { position, total ->
+                        stringResource(R.string.ask_variant_counter, position, total)
+                    },
+                    variantPositionDescription = { position, total ->
+                        stringResource(R.string.ask_variant_position, position, total)
+                    },
+                    regenerateContentDescription = stringResource(R.string.ask_regenerate),
+                    generatingContentDescription = stringResource(R.string.ask_generating),
+                    saveContentDescription = stringResource(R.string.ask_save_as_record),
+                    savingContentDescription = stringResource(R.string.action_saving),
+                ),
+                icons = SillageAskMessageActionIcons(
+                    previousVariant = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                    nextVariant = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    regenerate = Icons.Rounded.Refresh,
+                    save = Icons.Rounded.Save,
+                ),
+                onRegenerate = onRegenerate,
+                onSave = onSaveAsMemo,
+                onSelectVariant = onSelectVariant,
+            )
+        },
+    )
 }
 
 @Composable
 private fun askMessageDescription(isAssistant: Boolean, content: String): String {
     val speaker = stringResource(if (isAssistant) R.string.app_name else R.string.ask_speaker_you)
     return stringResource(R.string.ask_message_description, speaker, content)
-}
-
-internal fun SemanticsPropertyReceiver.applyAskMessageSemantics(description: String) {
-    contentDescription = description
 }

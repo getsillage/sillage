@@ -31,5 +31,10 @@ callbacks.
 row layout, and source-action enablement. Hosts provide localized count/date
 formatting, expand/collapse icons, and navigation callbacks.
 
+`SillageAskMessageCard` owns stored/streaming/regenerating content selection,
+user/assistant bubble presentation, message semantics, and source/action slot
+placement. Hosts keep final-answer Markdown and protected-attachment rendering
+inside the platform slot.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

@@ -200,6 +200,10 @@ semantics. Android maps localized resources, icons, and feature callbacks.
 Shared Ask source references own expansion state, the five-row display limit,
 row layout, and source-action gating. Android retains localized count/date
 formatting, icon mapping, and record-navigation callbacks.
+The shared Ask message card owns stored/streaming/regenerating content selection,
+user/assistant bubble presentation, message semantics, and source/action slot
+placement. Android supplies localized speaker descriptions and keeps final
+Markdown plus protected-attachment rendering in the platform slot.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

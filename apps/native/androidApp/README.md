@@ -212,6 +212,10 @@ Material icons, and ViewModel callbacks.
 Shared source references own expansion, the five-row display limit, row layout,
 and source-action gates. Android retains plural/date formatting, icon mapping,
 and record navigation callbacks.
+The shared message card owns stored/streaming/regenerating content selection,
+user/assistant bubble layout, semantics, and source/action slot placement.
+Android retains final-answer Markdown, protected attachments, and localized
+speaker descriptions through the host slot.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

@@ -17,6 +17,19 @@ import kotlinx.coroutines.test.runTest
 
 class SillageNativeControllerTest {
     @Test
+    fun reportsUnsavedEditorChangesForHostLifecycleGuards() {
+        val controller = controller(FakeRecordsRepository())
+
+        assertFalse(controller.hasUnsavedEditorChanges)
+        controller.startNewRecord()
+        assertFalse(controller.hasUnsavedEditorChanges)
+        controller.updateEditorContent("unsaved")
+        assertTrue(controller.hasUnsavedEditorChanges)
+        controller.closeEditor()
+        assertFalse(controller.hasUnsavedEditorChanges)
+    }
+
+    @Test
     fun createsEditsAndDeletesRecordThroughSharedApplicationFlow() = runTest {
         val repository = FakeRecordsRepository()
         val controller = controller(repository)

@@ -2,7 +2,8 @@
 
 Compose Desktop host for Windows and macOS. It supplies atomic filesystem
 storage, platform time and record identifiers, data-folder integration, window
-lifecycle, and native installer configuration to the shared native application.
+lifecycle, native menus and shortcuts, guarded window exit, and native installer
+configuration to the shared native application.
 
 Run the development application:
 

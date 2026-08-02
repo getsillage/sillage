@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -20,7 +19,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,33 +56,20 @@ fun SillageNativeApp(
         controller.dismissFeedback()
     }
 
-    if (pendingNavigation != null) {
-        AlertDialog(
+    pendingNavigation?.let { action ->
+        SillageNativeDiscardChangesDialog(
+            languageMode = state.appearance.languageMode,
+            themeMode = state.appearance.themeMode,
             onDismissRequest = { pendingNavigation = null },
-            title = { Text(strings.discardTitle) },
-            text = { Text(strings.discardSupporting) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val action = pendingNavigation
-                        pendingNavigation = null
-                        action?.invoke()
-                    },
-                ) {
-                    Text(strings.discard)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingNavigation = null }) {
-                    Text(strings.cancel)
-                }
+            onDiscard = {
+                pendingNavigation = null
+                action()
             },
         )
     }
 
     fun guardedNavigation(action: () -> Unit) {
-        val editorOpen = state.clientContext.screen == AppDestination.Editor
-        if (editorOpen && state.workspace.records.editor.dirty) {
+        if (controller.hasUnsavedEditorChanges) {
             pendingNavigation = action
         } else {
             action()

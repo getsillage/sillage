@@ -621,9 +621,10 @@ attachment staging and present the resulting status.
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, platform time and identity values, data-folder action,
-  and Windows/macOS packaging. Matching CI hosts build and verify the DMG and
-  MSI. Signing, notarization, credential storage, the updater, and native menu
-  integration remain future release work.
+  native menu and guarded close integration, and Windows/macOS packaging.
+  Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
+  credential storage, the updater, and deeper OS integration remain future
+  release work.
 
 Desktop and iOS packages produced by local build tasks are engineering
 verification artifacts. They are not attached by the official release workflow

@@ -40,6 +40,9 @@ release assets. Matching CI hosts verify package generation, while the release
 workflow remains unchanged until code signing, macOS notarization, updates, and
 release-candidate coverage are defined and verified.
 
+Desktop native menus and operating-system close requests reuse the shared dirty
+editor policy and localized discard confirmation rather than bypassing it.
+
 ## Consequences
 
 Desktop and iOS can consume the same record behavior and Compose surface

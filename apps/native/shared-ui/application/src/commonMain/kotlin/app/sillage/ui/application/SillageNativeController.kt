@@ -69,6 +69,10 @@ class SillageNativeController(
     var state by mutableStateOf(initialState(todayProvider()))
         private set
 
+    val hasUnsavedEditorChanges: Boolean
+        get() = state.clientContext.screen == AppDestination.Editor &&
+            state.workspace.records.editor.dirty
+
     init {
         hydrate()
     }

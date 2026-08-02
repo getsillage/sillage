@@ -14,7 +14,6 @@ import app.sillage.features.ask.AskSourceNavigationRequest
 import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamContext
 import app.sillage.features.ask.AskStreamRequest
-import app.sillage.features.ask.AskSessionStateHolder
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
 import app.sillage.features.ask.AskVariantStateHolder
@@ -144,7 +143,6 @@ data class SillageUiState(
     val askComposer: AskComposerStateHolder get() = ask.composer
     val askLoad: AskLoadStateHolder get() = ask.load
     val askVariant: AskVariantStateHolder get() = ask.variant
-    val askSession: AskSessionStateHolder get() = ask.session
     val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
@@ -192,7 +190,6 @@ data class SillageUiState(
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
     val askSourceKind: String get() = ask.sourceKind
-    val askScreenSessionId: Long get() = ask.screenSessionId
     val aiAutoSummary: Boolean get() = settings.autoSummaryEnabled
     val aiAutoSummarySaving: Boolean get() = settings.autoSummarySaving
     val aiAutoSummaryRequestId: Long get() = settings.autoSummaryRequestId
@@ -1025,7 +1022,7 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
 }
 
 internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
-    screenSessionId = askScreenSessionId,
+    screenSessionId = ask.session.generation,
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
@@ -1071,7 +1068,7 @@ internal fun hasNewCompletedAskAnswer(
 
 internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantContext(
     destinationAvailable = screen == Screen.Ask,
-    screenSessionId = askScreenSessionId,
+    screenSessionId = ask.session.generation,
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
@@ -1094,7 +1091,7 @@ internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSa
             ask.stream.sending ||
             ask.variant.loading ||
             ask.sourceNavigation.loading,
-    screenSessionId = askScreenSessionId,
+    screenSessionId = ask.session.generation,
     conversationId = activeAskId,
     headMessageId = askHeadId,
     messages = askMessages,
@@ -1130,7 +1127,7 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
         destinationAvailable = screen == Screen.Ask,
         historyKeys = screenHistory.map(Screen::name),
         anotherRequestInProgress = loading || ask.stream.sending || ask.variant.loading,
-        screenSessionId = askScreenSessionId,
+        screenSessionId = ask.session.generation,
         conversationId = activeAskId,
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,

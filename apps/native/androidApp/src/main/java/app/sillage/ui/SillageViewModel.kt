@@ -2490,7 +2490,7 @@ class SillageViewModel(
         ) {
             return
         }
-        val screenSessionId = requestState.askScreenSessionId
+        val screenSessionId = requestState.ask.session.generation
         val appMode = requestState.appMode
         val clientContextGeneration = requestState.clientContextGeneration
         var started = false
@@ -2500,7 +2500,7 @@ class SillageViewModel(
                 !current.ask.stream.sending &&
                 !current.ask.variant.loading &&
                 current.ask.memoSave.savingMessageId.isBlank() &&
-                current.askScreenSessionId == screenSessionId &&
+                current.ask.session.generation == screenSessionId &&
                 current.appMode == appMode &&
                 current.clientContextGeneration == clientContextGeneration
             ) {
@@ -2527,7 +2527,7 @@ class SillageViewModel(
                 .onSuccess { conversations ->
                     updateState { current ->
                         if (
-                            current.askScreenSessionId == screenSessionId &&
+                            current.ask.session.generation == screenSessionId &&
                             current.appMode == appMode &&
                             current.clientContextGeneration == clientContextGeneration
                         ) {
@@ -2544,7 +2544,7 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { current ->
                         if (
-                            current.askScreenSessionId == screenSessionId &&
+                            current.ask.session.generation == screenSessionId &&
                             current.appMode == appMode &&
                             current.clientContextGeneration == clientContextGeneration
                         ) {
@@ -2574,13 +2574,13 @@ class SillageViewModel(
         val conversation = current.askConversations.find { it.id == id }
         val appMode = current.appMode
         val clientContextGeneration = current.clientContextGeneration
-        val screenSessionId = current.askScreenSessionId + 1
+        val screenSessionId = current.ask.session.generation + 1
         var started = false
         updateState { latest ->
             if (
                 latest.appMode == appMode &&
                 latest.clientContextGeneration == clientContextGeneration &&
-                latest.askScreenSessionId == current.askScreenSessionId &&
+                latest.ask.session.generation == current.ask.session.generation &&
                 !latest.ask.loading &&
                 !latest.ask.stream.sending &&
                 !latest.ask.variant.loading &&
@@ -2618,7 +2618,7 @@ class SillageViewModel(
                             latest.activeAskId == id &&
                             latest.appMode == appMode &&
                             latest.clientContextGeneration == clientContextGeneration &&
-                            latest.askScreenSessionId == screenSessionId
+                            latest.ask.session.generation == screenSessionId
                         ) {
                             latest.withAsk { ask ->
                                 ask.completeConversationLoad(
@@ -2638,7 +2638,7 @@ class SillageViewModel(
                             latest.activeAskId == id &&
                             latest.appMode == appMode &&
                             latest.clientContextGeneration == clientContextGeneration &&
-                            latest.askScreenSessionId == screenSessionId
+                            latest.ask.session.generation == screenSessionId
                         ) {
                             val message = error.readableMessage()
                             latest.withAsk { ask ->

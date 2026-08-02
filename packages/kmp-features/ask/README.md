@@ -10,7 +10,7 @@ application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
 one aggregate on root UI state, keeps transitional slice getters only for
-remaining conversation/session call sites, and routes single-holder
+remaining conversation call sites, and routes single-holder
 writes through `withAsk` / aggregate transitions. Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
@@ -66,6 +66,8 @@ composer draft implicitly.
 
 `AskSessionStateHolder` provides the monotonic screen generation used by all Ask
 request holders to reject callbacks after navigation or client-context changes.
+Android request orchestration and tests consume its generation through the Ask
+aggregate directly, without root session compatibility getters.
 
 The buildable `shared-ui:ask` module consumes `AskFeatureStateHolder` directly.
 Its first slice owns retrieval-range/source option selection and bottom-sheet

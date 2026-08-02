@@ -531,7 +531,7 @@ class SillageUiStateTest {
         assertEquals("", cleared.activeAskId)
         assertEquals("", cleared.askQuestion)
         assertFalse(cleared.ask.loading)
-        assertEquals(4L, cleared.askScreenSessionId)
+        assertEquals(4L, cleared.ask.session.generation)
         // host-only fields stay put
         assertEquals(state.screen, cleared.screen)
         assertEquals(state.loading, cleared.loading)

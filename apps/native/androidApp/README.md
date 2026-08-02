@@ -252,7 +252,8 @@ Shared Ask top-bar title/actions own context presentation, saving progress
 semantics, button layout, and aggregate request gates. Android supplies localized
 resources/icons and retains Material `TopAppBar`, Scaffold, and navigation.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
-invalidate callbacks after navigation.
+invalidate callbacks after navigation. Android reads that generation through the
+Ask aggregate directly, without root session compatibility getters.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared
 application use case; Android local and remote adapters retain SQLite and REST.
 AI profile saves cross `AIProfilesRepository` and `SaveAIProfilesUseCase`;

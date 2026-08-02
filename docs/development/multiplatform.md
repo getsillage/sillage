@@ -350,6 +350,8 @@ accessors.
 options independently from stream execution.
 `AskSessionStateHolder` owns the monotonic screen generation captured by Ask
 requests so navigation invalidates late callbacks consistently across hosts.
+Platform request orchestration reads it through the Ask aggregate directly rather
+than host-root session accessors.
 
 The settings application slice begins with `AIAutoSummaryRepository` and
 `SetAIAutoSummaryUseCase`. Platform adapters persist the independently saved

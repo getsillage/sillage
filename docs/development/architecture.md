@@ -369,7 +369,9 @@ directly, without root-state load accessors.
 `AskComposerStateHolder` owns the prompt draft and retrieval options; stream
 execution captures them without folding transport behavior into composer state.
 `AskSessionStateHolder` owns the monotonic feature-screen generation used by every
-Ask request holder for navigation-safe callback invalidation.
+Ask request holder for navigation-safe callback invalidation. Android request
+orchestration and tests consume it through the Ask aggregate directly, without
+root-state session accessors.
 
 `AIAutoSummaryRepository` and `SetAIAutoSummaryUseCase` own the first settings
 application boundary. Android adapters implement encrypted local persistence and

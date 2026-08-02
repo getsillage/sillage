@@ -10,8 +10,8 @@ application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
 one aggregate on root UI state, keeps transitional slice getters only for
-remaining conversation/load/variant call sites, and routes single-holder writes
-through `withAsk` / aggregate transitions. The Android root-state boundary
+remaining conversation/variant/source/memo-save/session call sites, and routes
+single-holder writes through `withAsk` / aggregate transitions. The Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
 
@@ -51,7 +51,9 @@ Offline generation and turn persistence cross the independent application
 the local model client and storage transaction.
 
 `AskLoadStateHolder` owns conversation/message loading and its durable retry
-message, with explicit begin, complete, fail, and cancel transitions.
+message, with explicit begin, complete, fail, and cancel transitions. Android
+request gates and tests consume this state through the Ask aggregate directly;
+the host root no longer exposes load compatibility getters.
 
 `AskComposerStateHolder` owns the draft question and retrieval scope/source
 options. Request execution captures these values but does not own or mutate the

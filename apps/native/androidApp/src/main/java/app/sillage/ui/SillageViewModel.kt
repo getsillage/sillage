@@ -525,13 +525,13 @@ class SillageViewModel(
 
     fun openAsk() {
         val current = state.value
-        val reloadConversations = !current.askLoading && !current.askSending && !current.askVariantLoading
+        val reloadConversations = !current.ask.loading && !current.askSending && !current.askVariantLoading
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
             it.withAsk { ask ->
                 ask.enterScreen(
-                    requestInFlight = it.askLoading || it.askSending || it.askVariantLoading,
+                    requestInFlight = it.ask.loading || it.askSending || it.askVariantLoading,
                 )
             }.copy(
                 screen = Screen.Ask,
@@ -2481,7 +2481,7 @@ class SillageViewModel(
     fun loadAskConversations() {
         val requestState = state.value
         if (
-            requestState.askLoading ||
+            requestState.ask.loading ||
             requestState.askSending ||
             requestState.askVariantLoading ||
             requestState.askSavingMessageId.isNotBlank()
@@ -2494,7 +2494,7 @@ class SillageViewModel(
         var started = false
         updateState { current ->
             if (
-                !current.askLoading &&
+                !current.ask.loading &&
                 !current.askSending &&
                 !current.askVariantLoading &&
                 current.askSavingMessageId.isBlank() &&
@@ -2561,7 +2561,7 @@ class SillageViewModel(
     fun selectAskConversation(id: String) {
         val current = state.value
         if (
-            current.askLoading ||
+            current.ask.loading ||
             current.askSending ||
             current.askVariantLoading ||
             current.askSourceLoading ||
@@ -2579,7 +2579,7 @@ class SillageViewModel(
                 latest.appMode == appMode &&
                 latest.clientContextGeneration == clientContextGeneration &&
                 latest.askScreenSessionId == current.askScreenSessionId &&
-                !latest.askLoading &&
+                !latest.ask.loading &&
                 !latest.askSending &&
                 !latest.askVariantLoading &&
                 !latest.askSourceLoading
@@ -2652,7 +2652,7 @@ class SillageViewModel(
 
     fun startNewAsk() {
         if (
-            state.value.askLoading ||
+            state.value.ask.loading ||
             state.value.askSending ||
             state.value.askVariantLoading ||
             state.value.askSourceLoading

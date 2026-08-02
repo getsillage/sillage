@@ -340,7 +340,9 @@ only while its captured conversation and client context match. Platform stream
 job cleanup and completion-announcement bridges read the holder through the Ask
 aggregate directly rather than host-root compatibility getters.
 `AskLoadStateHolder` owns conversation/message loading and retry presentation
-through explicit begin, complete, fail, and cancel transitions.
+through explicit begin, complete, fail, and cancel transitions. Platform request
+gates read it through the Ask aggregate directly rather than host-root load
+accessors.
 `AskComposerStateHolder` owns the question draft and retrieval scope/source
 options independently from stream execution.
 `AskSessionStateHolder` owns the monotonic screen generation captured by Ask

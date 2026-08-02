@@ -200,8 +200,6 @@ data class SillageUiState(
     val askSourceRequestId: Long get() = ask.sourceNavigation.requestId
     val askSourceLoading: Boolean get() = ask.sourceLoading
     val askSending: Boolean get() = ask.sending
-    val askLoading: Boolean get() = ask.loading
-    val askLoadError: String? get() = ask.loadErrorMessage
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
     val askSourceKind: String get() = ask.sourceKind
@@ -1042,7 +1040,7 @@ internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamCont
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = askLoading || askVariantLoading || askSourceLoading,
+    anotherRequestInProgress = ask.loading || askVariantLoading || askSourceLoading,
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
@@ -1088,7 +1086,7 @@ internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantC
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = askLoading || askSending || askSourceLoading,
+    anotherRequestInProgress = ask.loading || askSending || askSourceLoading,
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
@@ -1102,7 +1100,7 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
     destinationAvailable = screen == Screen.Ask,
     anotherRequestInProgress =
-        loading || askLoading || askSending || askVariantLoading || askSourceLoading,
+        loading || ask.loading || askSending || askVariantLoading || askSourceLoading,
     screenSessionId = askScreenSessionId,
     conversationId = activeAskId,
     headMessageId = askHeadId,

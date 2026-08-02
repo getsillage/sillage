@@ -205,8 +205,9 @@ the holder's stable destination/history keys to its `Screen` navigation model.
 Ask answer-generation request identity, live stream buffers, regeneration state,
 and completion events live in `AskStreamStateHolder`; Android retains SSE and
 device-local AI execution adapters.
-Conversation/message loading and its retry message also live in the shared
-`AskLoadStateHolder`.
+Conversation/message loading and its retry message also live in shared
+`AskLoadStateHolder`; Android request gates consume that state through the Ask
+aggregate without root load compatibility getters.
 Active Ask path entries, variant grouping, branch-leaf selection, and latest
 assistant lookup now come from `kmp-features:ask`; Android only consumes those
 shared projections in its ViewModel and Compose host.

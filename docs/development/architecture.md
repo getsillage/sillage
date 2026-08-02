@@ -358,7 +358,9 @@ Stream-job cleanup and the Compose completion-announcement bridge consume the
 holder through the Ask aggregate directly, without Android root-state stream
 accessors.
 `AskLoadStateHolder` owns the remaining conversation/message load status and
-durable retry message rather than leaving those transitions in the root ViewModel.
+durable retry message rather than leaving those transitions in the root
+ViewModel. Android request gates and tests read it through the Ask aggregate
+directly, without root-state load accessors.
 `AskComposerStateHolder` owns the prompt draft and retrieval options; stream
 execution captures them without folding transport behavior into composer state.
 `AskSessionStateHolder` owns the monotonic feature-screen generation used by every

@@ -530,7 +530,7 @@ class SillageUiStateTest {
         assertFalse(cleared.aiSettingsLoading)
         assertEquals("", cleared.activeAskId)
         assertEquals("", cleared.askQuestion)
-        assertFalse(cleared.askLoading)
+        assertFalse(cleared.ask.loading)
         assertEquals(4L, cleared.askScreenSessionId)
         // host-only fields stay put
         assertEquals(state.screen, cleared.screen)
@@ -1438,8 +1438,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskLoad(
-        loading: Boolean = askLoading,
-        errorMessage: String? = askLoadError,
+        loading: Boolean = ask.loading,
+        errorMessage: String? = ask.load.errorMessage,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             load = AskLoadStateHolder(

@@ -70,14 +70,17 @@ Shared records UI also owns reusable empty/error presentation. Hosts retain
 localized resources, icons, and mutation callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
-and mutation progress. Hosts retain date formatting, localized copy, swipe gesture
-orchestration, and mutation routing.
+and mutation progress. Hosts retain date formatting, localized copy, icons, and
+mutation routing.
 The shared swipe action pane owns favorite/archive action layout, record-state
 labels/icons, revealed-side visibility, and hidden-action semantics. Hosts provide
 localized labels, icons, enablement, and mutation routing.
 The shared quick-action sheet owns record excerpts, state-dependent supporting
 copy, bottom-sheet layout, destructive styling, and two-step delete confirmation.
 Hosts provide a localized date description, action strings, icons, and routing.
+The shared swipe row composes these pieces and owns drag bounds, settle thresholds,
+mutation resets, reveal closing, and action orchestration. Hosts only assemble
+localized resources/icons and route feature mutations.
 The shared recently deleted record row reads `RecordsFeatureStateHolder.mutation`
 directly for per-record busy state and owns restore/purge presentation plus the
 two-step permanent-delete confirmation. Hosts provide localized labels, icons,

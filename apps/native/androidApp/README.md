@@ -73,8 +73,9 @@ directly; the shared search bar reads query/request/result state from the same
 aggregate, and shared records UI owns reusable empty/error states. Android supplies
 localized labels, icons, and ViewModel routing. Active record rows also come from
 shared records UI and own card/content/status/mutation presentation; Android
-formats entry dates, supplies localized copy, and layers swipe gesture state plus
-routing. The revealed swipe action pane is shared too; Android supplies localized
+formats entry dates and supplies localized copy, icons, and routing. The complete
+swipe container is shared and owns drag/settle/action orchestration. The revealed
+swipe action pane is shared too; Android supplies localized
 labels, icons, and mutation callbacks. The quick-action bottom sheet is shared and
 owns state-based copy plus delete confirmation; Android formats its date description
 and supplies localized strings, icons, and routing. Recently deleted record

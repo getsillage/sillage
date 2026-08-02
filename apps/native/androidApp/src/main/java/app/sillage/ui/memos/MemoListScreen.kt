@@ -1,10 +1,6 @@
 package app.sillage.ui.memos
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -66,7 +61,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
@@ -104,13 +98,13 @@ import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
-import app.sillage.ui.records.SillageRecordRow
 import app.sillage.ui.records.SillageRecordRowStrings
 import app.sillage.ui.records.SillageRecordQuickActionIcons
-import app.sillage.ui.records.SillageRecordQuickActionsSheet
 import app.sillage.ui.records.SillageRecordQuickActionsStrings
-import app.sillage.ui.records.SillageRecordSwipeActionPane
 import app.sillage.ui.records.SillageRecordSwipeActionStrings
+import app.sillage.ui.records.SillageRecordSwipeRow
+import app.sillage.ui.records.SillageRecordSwipeRowIcons
+import app.sillage.ui.records.SillageRecordSwipeRowStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -120,8 +114,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -609,49 +601,25 @@ private fun MemoSwipeRow(
     onToggleArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var showActions by remember { mutableStateOf(false) }
-    val actionWidth = 92.dp
-    val actionWidthPx = with(androidx.compose.ui.platform.LocalDensity.current) { actionWidth.toPx() }
-    val settleThreshold = actionWidthPx * 0.56f
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
-    var offsetX by remember(memo.id) { mutableStateOf(0f) }
-    val dragState = rememberDraggableState { delta ->
-        offsetX = (offsetX + delta).coerceIn(-actionWidthPx, actionWidthPx)
-    }
-    fun animateOffsetTo(target: Float, after: (() -> Unit)? = null) {
-        coroutineScope.launch {
-            val animation = Animatable(offsetX)
-            animation.animateTo(target) {
-                offsetX = value
-            }
-            offsetX = target
-            after?.invoke()
-        }
-    }
-    fun closeActions() {
-        animateOffsetTo(0f)
-    }
-    fun settleActions() {
-        val target = when {
-            offsetX > settleThreshold -> actionWidthPx
-            offsetX < -settleThreshold -> -actionWidthPx
-            else -> 0f
-        }
-        animateOffsetTo(target)
-    }
-    fun runAction(action: () -> Unit) {
-        animateOffsetTo(0f, action)
-    }
-    LaunchedEffect(mutating) {
-        if (mutating) {
-            showActions = false
-            offsetX = 0f
-        }
-    }
-    if (showActions && !mutating) {
-        SillageRecordQuickActionsSheet(
-            memo = memo,
-            strings = SillageRecordQuickActionsStrings(
+    SillageRecordSwipeRow(
+        memo = memo,
+        mutating = mutating,
+        strings = SillageRecordSwipeRowStrings(
+            row = SillageRecordRowStrings(
+                blankRecord = stringResource(R.string.blank_record),
+                entryDateLabel = localizedDate(memo.entryDate),
+                moreActionsLabel = stringResource(R.string.action_more),
+                savingDescription = stringResource(R.string.action_saving),
+                favoritedStatus = stringResource(R.string.record_favorited),
+                archivedStatus = stringResource(R.string.record_archived),
+            ),
+            swipeActions = SillageRecordSwipeActionStrings(
+                favoriteAction = stringResource(R.string.action_favorite),
+                unfavoriteAction = stringResource(R.string.action_unfavorite),
+                archiveAction = stringResource(R.string.action_archive),
+                restoreAction = stringResource(R.string.action_restore),
+            ),
+            quickActions = SillageRecordQuickActionsStrings(
                 blankRecord = stringResource(R.string.blank_record),
                 recordDescription = stringResource(
                     R.string.quick_actions_description,
@@ -675,7 +643,12 @@ private fun MemoSwipeRow(
                 deleteSupporting = stringResource(R.string.quick_delete_supporting),
                 confirmDeleteSupporting = stringResource(R.string.quick_delete_confirm_supporting),
             ),
-            icons = SillageRecordQuickActionIcons(
+        ),
+        icons = SillageRecordSwipeRowIcons(
+            favorite = Icons.Rounded.StarBorder,
+            favorited = Icons.Rounded.Star,
+            archive = Icons.Rounded.Archive,
+            quickActions = SillageRecordQuickActionIcons(
                 edit = Icons.Rounded.Edit,
                 duplicate = Icons.Rounded.ContentCopy,
                 favorite = Icons.Rounded.StarBorder,
@@ -683,80 +656,12 @@ private fun MemoSwipeRow(
                 archive = Icons.Rounded.Archive,
                 delete = Icons.Rounded.Delete,
             ),
-            onDismiss = { showActions = false },
-            onEdit = {
-                showActions = false
-                onEdit()
-            },
-            onDuplicate = {
-                showActions = false
-                onDuplicate()
-            },
-            onToggleFavorite = {
-                showActions = false
-                onToggleFavorite()
-            },
-            onToggleArchive = {
-                showActions = false
-                onToggleArchive()
-            },
-            onDelete = {
-                showActions = false
-                onDelete()
-            },
-        )
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 92.dp),
-    ) {
-        SillageRecordSwipeActionPane(
-            memo = memo,
-            actionWidth = actionWidth,
-            revealedOffset = offsetX,
-            strings = SillageRecordSwipeActionStrings(
-                favoriteAction = stringResource(R.string.action_favorite),
-                unfavoriteAction = stringResource(R.string.action_unfavorite),
-                archiveAction = stringResource(R.string.action_archive),
-                restoreAction = stringResource(R.string.action_restore),
-            ),
-            favoriteIcon = Icons.Rounded.StarBorder,
-            favoritedIcon = Icons.Rounded.Star,
-            archiveIcon = Icons.Rounded.Archive,
-            onToggleFavorite = { runAction(onToggleFavorite) },
-            onToggleArchive = { runAction(onToggleArchive) },
-            enabled = !mutating,
-            modifier = Modifier.matchParentSize(),
-        )
-        SillageRecordRow(
-            memo = memo,
-            strings = SillageRecordRowStrings(
-                blankRecord = stringResource(R.string.blank_record),
-                entryDateLabel = localizedDate(memo.entryDate),
-                moreActionsLabel = stringResource(R.string.action_more),
-                savingDescription = stringResource(R.string.action_saving),
-                favoritedStatus = stringResource(R.string.record_favorited),
-                archivedStatus = stringResource(R.string.record_archived),
-            ),
-            modifier = Modifier
-                .heightIn(min = 92.dp)
-                .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = dragState,
-                    enabled = !mutating,
-                    onDragStopped = { settleActions() },
-                ),
-            mutating = mutating,
-            onClick = {
-                if (offsetX != 0f) {
-                    closeActions()
-                } else {
-                    onClick()
-                }
-            },
-            onLongClick = if (mutating) null else { { showActions = true } },
-        )
-    }
+        ),
+        onClick = onClick,
+        onEdit = onEdit,
+        onDuplicate = onDuplicate,
+        onToggleFavorite = onToggleFavorite,
+        onToggleArchive = onToggleArchive,
+        onDelete = onDelete,
+    )
 }

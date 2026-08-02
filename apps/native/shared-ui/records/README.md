@@ -16,6 +16,8 @@ mutation progress.
 labels and icons, revealed-side visibility, and hidden-action semantics.
 `SillageRecordQuickActionsSheet` owns record excerpts, state-based action copy,
 bottom-sheet layout, destructive styling, and two-step delete confirmation.
+`SillageRecordSwipeRow` composes the shared row, revealed actions, and quick-action
+sheet while owning drag bounds, settle thresholds, mutation reset, and action close.
 `SillageRecentlyDeletedRecordRow` consumes aggregate mutation ownership and a
 record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and

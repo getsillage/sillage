@@ -184,6 +184,9 @@ Android app-mode, records, appearance, and AI state without owning those adapter
 retrieval-range/source selection, selected-chip presentation, bottom-sheet
 layout, and heading semantics. Android supplies localized strings and routes
 feature callbacks while retaining streaming, Markdown, and navigation adapters.
+Its conversation sheet consumes the same aggregate and owns refresh/selection
+gates, empty/current row presentation, title fallback, and select-then-dismiss
+flow while Android maps localized copy and callbacks.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

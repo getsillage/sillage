@@ -248,6 +248,9 @@ Its first slice owns retrieval-range/source selection, selected chip state,
 bottom-sheet layout, and heading semantics. Hosts supply localized strings and
 route feature callbacks while retaining streaming, Markdown, navigation, and
 platform integrations.
+Its conversation sheet also owns aggregate-derived refresh/selection gates,
+empty/current row presentation, title fallback, and select-then-dismiss flow;
+hosts provide localized copy and callbacks.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

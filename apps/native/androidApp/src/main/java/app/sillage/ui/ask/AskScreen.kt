@@ -46,7 +46,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -78,7 +77,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AskPathEntry
 import app.sillage.core.domain.ask.AskSourceRef
@@ -168,10 +166,20 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         }
     }
     if (showConversations) {
-        AskConversationSheet(
-            state = state,
-            viewModel = viewModel,
+        SillageAskConversationSheet(
+            state = state.ask,
+            strings = SillageAskConversationStrings(
+                title = stringResource(R.string.ask_conversations_title),
+                refreshAction = stringResource(R.string.action_refresh),
+                emptyConversations = stringResource(R.string.ask_no_conversations),
+                untitledConversation = stringResource(R.string.ask_untitled_conversation),
+            ),
+            onRefresh = viewModel::loadAskConversations,
+            onSelect = viewModel::selectAskConversation,
             onDismiss = { showConversations = false },
+            currentConversationLabel = { title ->
+                stringResource(R.string.ask_current_conversation, title)
+            },
         )
     }
     if (showOptions) {
@@ -527,121 +535,6 @@ private fun AskComposer(
                         Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(R.string.ask_send))
                     }
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AskConversationSheet(
-    state: SillageUiState,
-    viewModel: SillageViewModel,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.ask_conversations_title),
-                    modifier = Modifier
-                        .weight(1f)
-                .semantics { applySillageHeadingSemantics() },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                TextButton(
-                    onClick = viewModel::loadAskConversations,
-                    enabled = !state.askLoading &&
-                        !state.askSending &&
-                        !state.askVariantLoading &&
-                        state.askSavingMessageId.isBlank(),
-                ) {
-                    Text(stringResource(R.string.action_refresh))
-                }
-            }
-            AskConversationList(
-                conversations = state.askConversations,
-                activeId = state.activeAskId,
-                enabled = !state.askLoading &&
-                    !state.askSending &&
-                    !state.askVariantLoading &&
-                    !state.askSourceLoading,
-                onSelect = {
-                    viewModel.selectAskConversation(it)
-                    onDismiss()
-                },
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-    }
-}
-
-@Composable
-private fun AskConversationList(
-    conversations: List<AskConversation>,
-    activeId: String,
-    enabled: Boolean,
-    onSelect: (String) -> Unit,
-) {
-    if (conversations.isEmpty()) {
-        Text(
-            stringResource(R.string.ask_no_conversations),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(280.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        items(conversations, key = { it.id }) { conversation ->
-            Card(
-                onClick = { onSelect(conversation.id) },
-                enabled = enabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (conversation.id == activeId) {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-                ),
-                border = BorderStroke(
-                    1.dp,
-                    if (conversation.id == activeId) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-                ),
-            ) {
-                Text(
-                    if (conversation.id == activeId) {
-                        stringResource(
-                            R.string.ask_current_conversation,
-                            conversation.title.ifBlank { stringResource(R.string.ask_untitled_conversation) },
-                        )
-                    } else {
-                        conversation.title.ifBlank { stringResource(R.string.ask_untitled_conversation) }
-                    },
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
     }

@@ -196,6 +196,9 @@ The question draft and retrieval scope/source options live in the shared
 The buildable `shared-ui:ask` module consumes that aggregate directly for the
 retrieval-range/source option sheet and selected-chip presentation. Android
 supplies localized strings and routes option changes to the ViewModel.
+The shared conversation sheet also owns refresh/selection gates, empty/current
+row presentation, and select-then-dismiss flow; Android maps localized titles
+and ViewModel callbacks.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

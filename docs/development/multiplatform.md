@@ -311,7 +311,9 @@ with them.
 
 The buildable `kmp-features:ask` module owns conversation selection, branch-head
 identity, and loaded message snapshots through `AskConversationStateHolder`.
-Its transitions reject cross-conversation messages and late snapshots for a
+Platform ViewModels, shared/native UI, and tests consume the holder through the Ask
+aggregate directly rather than host-root conversation accessors. Its transitions
+reject cross-conversation messages and late snapshots for a
 previous selection. The module also owns active-path entries, variant grouping,
 branch-leaf selection, and latest-assistant lookup so hosts do not rebuild
 message-tree policy in platform adapters. `AskFeatureStateHolder` composes the

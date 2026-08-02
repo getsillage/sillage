@@ -194,7 +194,9 @@ Android section slots only map localized values, icons, and callbacks.
 The settings overview card is shared as well; Android maps app mode, record count,
 theme, and AI preference into localized display values.
 Ask conversation selection, branch-head identity, and loaded message snapshots
-live in `kmp-features:ask`. Stream request identity, live presentation,
+live in `kmp-features:ask`. Android ViewModel, Compose path rendering, and tests
+consume `ask.conversation` directly, without root conversation compatibility
+getters. Stream request identity, live presentation,
 regeneration identity, and completion events are consumed directly from the Ask
 aggregate without host-root compatibility getters. Android retains SSE/device
 model execution and the platform accessibility announcement bridge.

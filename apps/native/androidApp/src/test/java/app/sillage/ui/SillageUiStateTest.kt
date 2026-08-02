@@ -528,7 +528,7 @@ class SillageUiStateTest {
         assertEquals(emptyList<AIProfileDraft>(), cleared.aiProfiles)
         assertFalse(cleared.aiAutoSummary)
         assertFalse(cleared.aiSettingsLoading)
-        assertEquals("", cleared.activeAskId)
+        assertEquals("", cleared.ask.conversation.activeConversationId)
         assertEquals("", cleared.askQuestion)
         assertFalse(cleared.ask.loading)
         assertEquals(4L, cleared.ask.session.generation)
@@ -1428,9 +1428,9 @@ class SillageUiStateTest {
     )
 
     private fun SillageUiState.withAskConversation(
-        activeConversationId: String = activeAskId,
-        headMessageId: String? = askHeadId,
-        messages: List<AskMessage> = askMessages,
+        activeConversationId: String = ask.conversation.activeConversationId,
+        headMessageId: String? = ask.conversation.headMessageId,
+        messages: List<AskMessage> = ask.conversation.messages,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             conversation = ask.conversation.copy(

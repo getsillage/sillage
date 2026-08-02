@@ -1,9 +1,7 @@
 package app.sillage.ui
 
 import app.sillage.core.domain.auth.Account
-import app.sillage.core.domain.ask.AskConversation
 import app.sillage.core.domain.ask.AskMessage
-import app.sillage.features.ask.AskConversationStateHolder
 import app.sillage.features.ask.AskComposerStateHolder
 import app.sillage.features.ask.AskFeatureStateHolder
 import app.sillage.features.ask.AskLoadStateHolder
@@ -139,7 +137,6 @@ data class SillageUiState(
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
-    val askConversation: AskConversationStateHolder get() = ask.conversation
     val askComposer: AskComposerStateHolder get() = ask.composer
     val askLoad: AskLoadStateHolder get() = ask.load
     val askVariant: AskVariantStateHolder get() = ask.variant
@@ -183,10 +180,6 @@ data class SillageUiState(
     val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
     val openingAttachmentPath: String? get() = records.attachmentOpen.path
     val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
-    val askConversations: List<AskConversation> get() = ask.conversations
-    val activeAskId: String get() = ask.activeConversationId
-    val askHeadId: String? get() = ask.headMessageId
-    val askMessages: List<AskMessage> get() = ask.messages
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
     val askSourceKind: String get() = ask.sourceKind
@@ -1023,7 +1016,7 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
 
 internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
     screenSessionId = ask.session.generation,
-    conversationId = activeAskId,
+    conversationId = ask.conversation.activeConversationId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
     anotherRequestInProgress = ask.loading || ask.variant.loading || ask.sourceNavigation.loading,
@@ -1069,7 +1062,7 @@ internal fun hasNewCompletedAskAnswer(
 internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantContext(
     destinationAvailable = screen == Screen.Ask,
     screenSessionId = ask.session.generation,
-    conversationId = activeAskId,
+    conversationId = ask.conversation.activeConversationId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
     anotherRequestInProgress = ask.loading || ask.stream.sending || ask.sourceNavigation.loading,
@@ -1092,9 +1085,9 @@ internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSa
             ask.variant.loading ||
             ask.sourceNavigation.loading,
     screenSessionId = ask.session.generation,
-    conversationId = activeAskId,
-    headMessageId = askHeadId,
-    messages = askMessages,
+    conversationId = ask.conversation.activeConversationId,
+    headMessageId = ask.conversation.headMessageId,
+    messages = ask.conversation.messages,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
 )
@@ -1128,7 +1121,7 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
         historyKeys = screenHistory.map(Screen::name),
         anotherRequestInProgress = loading || ask.stream.sending || ask.variant.loading,
         screenSessionId = ask.session.generation,
-        conversationId = activeAskId,
+        conversationId = ask.conversation.activeConversationId,
         appMode = appMode,
         clientContextGeneration = clientContextGeneration,
     )

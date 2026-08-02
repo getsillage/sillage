@@ -329,7 +329,9 @@ persistence transaction.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded
-messages consistent. The same module owns active-path entries, variant grouping,
+messages consistent. Android ViewModel, Compose path rendering, and tests consume
+the holder through the Ask aggregate directly, without root-state conversation
+accessors. The same module owns active-path entries, variant grouping,
 branch-leaf selection, and latest-assistant lookup so platform hosts do not
 rebuild message-tree policy in adapter data packages. `AskFeatureStateHolder`
 composes the extracted Ask holders

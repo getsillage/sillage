@@ -77,8 +77,8 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         mutableLongStateOf(state.ask.stream.completionEventId)
     }
     val listState = rememberLazyListState()
-    val entries = remember(state.askMessages, state.askHeadId) {
-        buildAskActivePath(state.askMessages, state.askHeadId)
+    val entries = remember(state.ask.conversation.messages, state.ask.conversation.headMessageId) {
+        buildAskActivePath(state.ask.conversation.messages, state.ask.conversation.headMessageId)
     }
     val latestAssistantId = remember(entries) {
         lastAssistantMessageId(entries)

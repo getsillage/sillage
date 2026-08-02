@@ -9,15 +9,17 @@ composition starts, conversation selection/load completion, variant head
 application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
-one aggregate on root UI state, keeps transitional slice getters only for
-remaining conversation call sites, and routes single-holder
-writes through `withAsk` / aggregate transitions. Android
+one aggregate on root UI state, keeps transitional slice getters only inside thin
+root transition wrappers, and routes single-holder writes through `withAsk` /
+aggregate transitions. Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
 
 `AskConversationStateHolder` owns the
 conversation collection, current conversation, selected branch head, and loaded
 messages. Its transitions reject cross-conversation messages and stale snapshots.
+Android ViewModel, Compose path rendering, and tests consume the holder through
+the Ask aggregate directly, without root conversation compatibility getters.
 
 `AskPathEntry`, active-path derivation, branch-leaf selection, and latest
 assistant lookup also live in this module so hosts do not rebuild message-tree

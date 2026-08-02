@@ -2571,7 +2571,7 @@ class SillageViewModel(
         ) {
             return
         }
-        val conversation = current.askConversations.find { it.id == id }
+        val conversation = current.ask.conversation.conversations.find { it.id == id }
         val appMode = current.appMode
         val clientContextGeneration = current.clientContextGeneration
         val screenSessionId = current.ask.session.generation + 1
@@ -2615,7 +2615,7 @@ class SillageViewModel(
                 .onSuccess { messages ->
                     updateState { latest ->
                         if (
-                            latest.activeAskId == id &&
+                            latest.ask.conversation.activeConversationId == id &&
                             latest.appMode == appMode &&
                             latest.clientContextGeneration == clientContextGeneration &&
                             latest.ask.session.generation == screenSessionId
@@ -2623,7 +2623,7 @@ class SillageViewModel(
                             latest.withAsk { ask ->
                                 ask.completeConversationLoad(
                                     conversationId = id,
-                                    headMessageId = latest.askHeadId,
+                                    headMessageId = latest.ask.conversation.headMessageId,
                                     messages = messages,
                                 )
                             }
@@ -2635,7 +2635,7 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { latest ->
                         if (
-                            latest.activeAskId == id &&
+                            latest.ask.conversation.activeConversationId == id &&
                             latest.appMode == appMode &&
                             latest.clientContextGeneration == clientContextGeneration &&
                             latest.ask.session.generation == screenSessionId
@@ -2683,8 +2683,11 @@ class SillageViewModel(
 
     fun retryAskLoad() {
         val current = state.value
-        if (current.activeAskId.isNotBlank() && current.askMessages.isEmpty()) {
-            selectAskConversation(current.activeAskId)
+        if (
+            current.ask.conversation.activeConversationId.isNotBlank() &&
+            current.ask.conversation.messages.isEmpty()
+        ) {
+            selectAskConversation(current.ask.conversation.activeConversationId)
         } else {
             loadAskConversations()
         }
@@ -2702,7 +2705,7 @@ class SillageViewModel(
     }
 
     fun regenerateAskAnswer(messageId: String) {
-        val conversationId = state.value.activeAskId
+        val conversationId = state.value.ask.conversation.activeConversationId
         if (
             conversationId.isBlank() ||
             state.value.ask.stream.sending ||
@@ -2725,8 +2728,8 @@ class SillageViewModel(
         invalidateAskMemoSaveNavigation()
         val current = state.value
         val request = current.nextAskVariantRequest() ?: return
-        val leafId = askBranchLeafId(current.askMessages, messageId)
-        val previousHeadId = current.askHeadId
+        val leafId = askBranchLeafId(current.ask.conversation.messages, messageId)
+        val previousHeadId = current.ask.conversation.headMessageId
         updateState {
             if (it.nextAskVariantRequest() == request) {
                 val variant = it.askVariant.begin(request, it.askVariantContext())
@@ -3449,7 +3452,7 @@ class SillageViewModel(
         val initialRequest = current.nextAskStreamRequest() ?: return
         val contextScope = current.askScope
         val sourceKind = current.askSourceKind
-        val previousHeadId = current.askHeadId
+        val previousHeadId = current.ask.conversation.headMessageId
         val regeneratingId = forkOfId.orEmpty()
         updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
@@ -3637,7 +3640,14 @@ class SillageViewModel(
                     }
                 }
                 val messages = listLocalAskMessages(conversationId)
-                val parentId = if (forkOfId == null) lastAssistantMessageId(buildAskActivePath(messages, state.value.askHeadId)) else null
+                val parentId =
+                    if (forkOfId == null) {
+                        lastAssistantMessageId(
+                            buildAskActivePath(messages, state.value.ask.conversation.headMessageId),
+                        )
+                    } else {
+                        null
+                    }
                 val question = if (forkOfId == null) {
                     content
                 } else {

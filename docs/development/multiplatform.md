@@ -175,6 +175,10 @@ announcement deduplication while hosts format localized result copy and bridge t
 platform announcement API.
 Its reusable empty/error state owns centered copy, icon treatment, and optional
 action layout while hosts choose localized condition-specific content.
+Its record list consumes `RecordsFeatureStateHolder` directly to select published
+search results, filter-specific empty states, On This Day visibility, active/deleted
+row branching, and pagination action state. It owns lazy-list composition while
+hosts fill localized card/row adapter slots and route callbacks.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

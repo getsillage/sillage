@@ -32,7 +32,6 @@ import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -65,7 +64,6 @@ import app.sillage.features.records.calendarMemoCoverage
 import app.sillage.features.records.entriesByDate
 import app.sillage.features.records.entryDateCounts
 import app.sillage.data.monthGrid
-import app.sillage.features.records.onThisDay
 import app.sillage.R
 import app.sillage.ui.MemoListLoadStatus
 import app.sillage.features.records.MemoViewMode
@@ -86,6 +84,8 @@ import app.sillage.ui.records.SillageOnThisDayCard
 import app.sillage.ui.records.SillageOnThisDayStrings
 import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
+import app.sillage.ui.records.SillageRecordList
+import app.sillage.ui.records.SillageRecordListStrings
 import app.sillage.ui.records.SillageRecordEmptyState
 import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStatus
@@ -123,7 +123,6 @@ internal fun MemoListScreen(
         state.memos
     }
     val today = remember { LocalDate.now().toString() }
-    val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -226,16 +225,10 @@ internal fun MemoListScreen(
                     actionLabel = stringResource(R.string.action_retry),
                     onAction = viewModel::searchMemos,
                 )
-                } else {
-                    MemoListView(
-                        visibleMemos = visibleMemos,
-                        showingSearchResults = showingSearchResults,
-                        searching = state.searching,
-                        memories = memories,
-                        today = today,
-                        hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
-                        loadingMore = state.loadingMoreMemos,
-                        recordsState = state.records,
+                    } else {
+                        MemoListView(
+                            today = today,
+                            recordsState = state.records,
                         listState = listState,
                         onLoadMore = viewModel::loadMoreMemos,
                         onMemoClick = viewModel::openMemoDetail,
@@ -246,8 +239,7 @@ internal fun MemoListScreen(
                         onMemoDelete = viewModel::deleteMemo,
                         onMemoRestore = viewModel::restoreMemo,
                         onMemoPurge = viewModel::purgeMemo,
-                        filter = state.memoListFilter,
-                    )
+                        )
                 }
             }
         }
@@ -291,13 +283,7 @@ private fun SearchStatusBlock(state: SillageUiState) {
 
 @Composable
 private fun MemoListView(
-    visibleMemos: List<Memo>,
-    showingSearchResults: Boolean,
-    searching: Boolean,
-    memories: List<Memo>,
     today: String,
-    hasMore: Boolean,
-    loadingMore: Boolean,
     recordsState: RecordsFeatureStateHolder,
     listState: LazyListState,
     onLoadMore: () -> Unit,
@@ -309,110 +295,83 @@ private fun MemoListView(
     onMemoDelete: (Memo) -> Unit,
     onMemoRestore: (Memo) -> Unit,
     onMemoPurge: (Memo) -> Unit,
-    filter: MemoListFilter,
 ) {
-    if (searching && visibleMemos.isEmpty()) {
-        SillageRecordEmptyState(
-            text = stringResource(R.string.searching),
-            icon = Icons.Rounded.Search,
-        )
-        return
-    }
-    if (visibleMemos.isEmpty()) {
-        SillageRecordEmptyState(
-            text = if (showingSearchResults) {
-                stringResource(R.string.search_no_matches)
-            } else {
-                when (filter) {
-                    MemoListFilter.Unarchived -> stringResource(R.string.empty_unarchived)
-                    MemoListFilter.Archived -> stringResource(R.string.empty_archived)
-                    MemoListFilter.Favorited -> stringResource(R.string.empty_favorited)
-                    MemoListFilter.Deleted -> stringResource(R.string.empty_deleted)
-                }
-            },
-            icon = if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (!showingSearchResults && memories.isNotEmpty()) {
-            item {
-                SillageOnThisDayCard(
-                    entries = memories,
-                    today = today,
-                    strings = SillageOnThisDayStrings(
-                        title = stringResource(R.string.on_this_day),
-                        blankRecord = stringResource(R.string.blank_record),
-                    ),
-                    calendarIcon = Icons.Rounded.CalendarMonth,
-                    recordLabel = { yearsAgo, contentExcerpt ->
-                        stringResource(
-                            R.string.years_ago_record,
-                            pluralStringResource(
-                                R.plurals.quantity_years_ago,
-                                yearsAgo,
-                                yearsAgo,
-                            ),
-                            contentExcerpt,
-                        )
-                    },
-                    onMemoClick = onMemoClick,
-                )
-            }
-        }
-        items(visibleMemos, key = { it.id }) { memo ->
-            if (filter == MemoListFilter.Deleted) {
-                val deletedAt = memo.deletedAt
-                SillageRecentlyDeletedRecordRow(
-                    state = recordsState,
-                    memo = memo,
-                    strings = SillageRecentlyDeletedRecordStrings(
-                        blankRecord = stringResource(R.string.blank_record),
-                        deletedAtLabel = stringResource(
-                            R.string.deleted_at,
-                            if (deletedAt != null) localizedTimestamp(deletedAt) else "—",
+    SillageRecordList(
+        state = recordsState,
+        today = today,
+        strings = SillageRecordListStrings(
+            searching = stringResource(R.string.searching),
+            searchNoMatches = stringResource(R.string.search_no_matches),
+            emptyUnarchived = stringResource(R.string.empty_unarchived),
+            emptyArchived = stringResource(R.string.empty_archived),
+            emptyFavorited = stringResource(R.string.empty_favorited),
+            emptyDeleted = stringResource(R.string.empty_deleted),
+            loadMore = stringResource(R.string.load_more),
+            loadingMore = stringResource(R.string.loading_more),
+        ),
+        searchIcon = Icons.Rounded.Search,
+        emptyIcon = Icons.Rounded.Edit,
+        listState = listState,
+        onLoadMore = onLoadMore,
+        onThisDayContent = { memories ->
+            SillageOnThisDayCard(
+                entries = memories,
+                today = today,
+                strings = SillageOnThisDayStrings(
+                    title = stringResource(R.string.on_this_day),
+                    blankRecord = stringResource(R.string.blank_record),
+                ),
+                calendarIcon = Icons.Rounded.CalendarMonth,
+                recordLabel = { yearsAgo, contentExcerpt ->
+                    stringResource(
+                        R.string.years_ago_record,
+                        pluralStringResource(
+                            R.plurals.quantity_years_ago,
+                            yearsAgo,
+                            yearsAgo,
                         ),
-                        purgeSupporting = stringResource(R.string.purge_record_supporting),
-                        restoreAction = stringResource(R.string.action_restore),
-                        deleteForeverAction = stringResource(R.string.action_delete_forever),
-                        confirmDeleteAction = stringResource(R.string.action_confirm_delete),
-                        cancelAction = stringResource(R.string.action_cancel),
+                        contentExcerpt,
+                    )
+                },
+                onMemoClick = onMemoClick,
+            )
+        },
+        activeRecordContent = { memo ->
+            MemoSwipeRow(
+                memo = memo,
+                mutating = recordsState.mutation.isActive(memo.id),
+                onClick = { onMemoClick(memo) },
+                onEdit = { onMemoEdit(memo) },
+                onDuplicate = { onMemoDuplicate(memo) },
+                onToggleFavorite = { onMemoToggleFavorite(memo) },
+                onToggleArchive = { onMemoToggleArchive(memo) },
+                onDelete = { onMemoDelete(memo) },
+            )
+        },
+        deletedRecordContent = { memo ->
+            val deletedAt = memo.deletedAt
+            SillageRecentlyDeletedRecordRow(
+                state = recordsState,
+                memo = memo,
+                strings = SillageRecentlyDeletedRecordStrings(
+                    blankRecord = stringResource(R.string.blank_record),
+                    deletedAtLabel = stringResource(
+                        R.string.deleted_at,
+                        if (deletedAt != null) localizedTimestamp(deletedAt) else "—",
                     ),
-                    restoreIcon = Icons.Rounded.RestoreFromTrash,
-                    purgeIcon = Icons.Rounded.DeleteForever,
-                    onRestore = { onMemoRestore(memo) },
-                    onPurge = { onMemoPurge(memo) },
-                )
-            } else {
-                MemoSwipeRow(
-                    memo = memo,
-                    mutating = recordsState.mutation.isActive(memo.id),
-                    onClick = { onMemoClick(memo) },
-                    onEdit = { onMemoEdit(memo) },
-                    onDuplicate = { onMemoDuplicate(memo) },
-                    onToggleFavorite = { onMemoToggleFavorite(memo) },
-                    onToggleArchive = { onMemoToggleArchive(memo) },
-                    onDelete = { onMemoDelete(memo) },
-                )
-            }
-        }
-        if (hasMore) {
-            item {
-                Button(
-                    onClick = onLoadMore,
-                    enabled = !loadingMore,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(if (loadingMore) R.string.loading_more else R.string.load_more))
-                }
-            }
-        }
-    }
+                    purgeSupporting = stringResource(R.string.purge_record_supporting),
+                    restoreAction = stringResource(R.string.action_restore),
+                    deleteForeverAction = stringResource(R.string.action_delete_forever),
+                    confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                    cancelAction = stringResource(R.string.action_cancel),
+                ),
+                restoreIcon = Icons.Rounded.RestoreFromTrash,
+                purgeIcon = Icons.Rounded.DeleteForever,
+                onRestore = { onMemoRestore(memo) },
+                onPurge = { onMemoPurge(memo) },
+            )
+        },
+    )
 }
 
 @Composable

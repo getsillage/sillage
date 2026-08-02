@@ -71,6 +71,10 @@ announcement deduplication while hosts format localized result copy and bridge t
 platform announcement API.
 Shared records UI also owns reusable empty/error presentation. Hosts retain
 localized resources, icons, and mutation callbacks.
+The shared record list consumes `RecordsFeatureStateHolder` directly for published
+search-result selection, filter-specific empty states, On This Day visibility,
+active/deleted row branching, and pagination action state. Hosts fill localized
+card/row adapter slots and route callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

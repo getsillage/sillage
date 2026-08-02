@@ -190,6 +190,10 @@ per-event announcement deduplication. Hosts format localized query/result-count
 copy and bridge the platform announcement API.
 Shared records empty/error presentation owns icon treatment, centered copy, and an
 optional action while Android selects localized copy for each list condition.
+The shared record list consumes `RecordsFeatureStateHolder` directly to select
+published search results, filter-specific empty states, On This Day visibility,
+active/deleted row branching, and pagination action state. It owns lazy-list
+composition while hosts fill localized card/row adapter slots and route callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and
@@ -317,11 +321,10 @@ application APIs do not expose Android, SQLite, JSON, HTTP, or generated DTO
 types.
 
 `packages/kmp-features/records` owns record list filters, ordering, On This Day,
-calendar aggregation, excerpts, and cursor-coverage selectors. Android storage,
-feature state, ViewModel orchestration, Compose UI, and tests consume these
-shared policies. Calendar grid construction remains Android presentation code;
-Android's repository adapter owns REST query mapping behind the shared
-application port.
+calendar aggregation, excerpts, and cursor-coverage selectors. Platform feature
+state, ViewModel orchestration, shared Compose UI, and tests consume these policies;
+repository adapters retain storage and REST query mapping behind shared application
+ports.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 

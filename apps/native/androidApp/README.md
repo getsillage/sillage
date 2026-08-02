@@ -73,7 +73,10 @@ directly; the shared search bar reads query/request/result state from the same
 aggregate. Its shared completion status owns layout, semantics, and announcement
 deduplication; Android formats localized result-count copy and bridges the platform
 announcement. Shared records UI also owns reusable empty/error states. Android
-supplies localized labels, icons, and ViewModel routing. Active record rows also come from
+supplies localized labels, icons, and ViewModel routing. The shared record list
+derives search/filter/pagination presentation from the records aggregate and owns
+lazy-list composition; Android fills localized On This Day and row adapter slots.
+Active record rows also come from
 shared records UI and own card/content/status/mutation presentation; Android
 formats entry dates and supplies localized copy, icons, and routing. The complete
 swipe container is shared and owns drag/settle/action orchestration. The revealed

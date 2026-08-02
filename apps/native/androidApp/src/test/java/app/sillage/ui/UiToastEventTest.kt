@@ -3,6 +3,8 @@ package app.sillage.ui
 import app.sillage.core.sync.SyncPushSummary
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.ui.appshell.AppClientContextStateHolder
+import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,7 +15,10 @@ class UiToastEventTest {
     fun repeatedMessagesReceiveIncreasingIdsAndKeepEmissionOrder() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
-        var state = SillageUiState(screen = Screen.Memos, baseUrl = "")
+        var state = SillageUiState(
+            baseUrl = "",
+            clientContext = AppClientContextStateHolder(screen = Screen.Memos),
+        )
 
         fun update(next: SillageUiState) {
             emitter.onStateChanged(state, next)
@@ -37,7 +42,10 @@ class UiToastEventTest {
     fun clearingFeedbackDoesNotEmitOrRemoveAnAlreadyQueuedEvent() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
-        val initial = SillageUiState(screen = Screen.Memos, baseUrl = "")
+        val initial = SillageUiState(
+            baseUrl = "",
+            clientContext = AppClientContextStateHolder(screen = Screen.Memos),
+        )
         val withNotice = initial.copy(notice = "同步完成")
 
         emitter.onStateChanged(initial, withNotice)
@@ -60,7 +68,10 @@ class UiToastEventTest {
     fun errorTakesPriorityOverANoticeFromTheSameStateChange() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
-        val initial = SillageUiState(screen = Screen.Memos, baseUrl = "")
+        val initial = SillageUiState(
+            baseUrl = "",
+            clientContext = AppClientContextStateHolder(screen = Screen.Memos),
+        )
 
         emitter.onStateChanged(
             initial,
@@ -84,7 +95,10 @@ class UiToastEventTest {
     fun forcedFeedbackEmitsAnUnchangedValidationErrorAgain() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
-        val initial = SillageUiState(screen = Screen.Memos, baseUrl = "")
+        val initial = SillageUiState(
+            baseUrl = "",
+            clientContext = AppClientContextStateHolder(screen = Screen.Memos),
+        )
         val invalid = initial.copy(error = "请先填写服务器地址")
 
         emitter.onStateChanged(initial, invalid)
@@ -100,9 +114,13 @@ class UiToastEventTest {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
         val busy = SillageUiState(
-            screen = Screen.Editor,
             baseUrl = "",
-            records = RecordsFeatureStateHolder(editor = RecordsEditorStateHolder(uploadingAttachment = true)),
+            clientContext = AppClientContextStateHolder(screen = Screen.Editor),
+            workspace = AppWorkspaceStateHolder(
+                records = RecordsFeatureStateHolder(
+                    editor = RecordsEditorStateHolder(uploadingAttachment = true),
+                ),
+            ),
             error = "旧错误",
         )
         val warning = busy.withMemoEditorBackBlockedNotice(
@@ -131,7 +149,10 @@ class UiToastEventTest {
     fun persistentAuthenticationErrorsDoNotEmitDuplicateGlobalFeedback() {
         val events = mutableListOf<UiToastEvent>()
         val emitter = UiToastEventEmitter(events::add)
-        val initial = SillageUiState(screen = Screen.Login, baseUrl = "")
+        val initial = SillageUiState(
+            baseUrl = "",
+            clientContext = AppClientContextStateHolder(screen = Screen.Login),
+        )
 
         emitter.onStateChanged(initial, initial.copy(authError = "Sign-in failed"))
 

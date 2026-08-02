@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Reserved Compose Multiplatform design system and application shell |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
@@ -96,7 +96,25 @@ The current Android code is the migration source for the shared native modules:
 | `apps/native/androidApp/src/main/java/app/sillage/data/` | REST client, sessions, local storage, and data models |
 | `apps/native/androidApp/src/main/res/values*/` | English and Simplified Chinese interface resources |
 
-`SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
+`SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens receive the root `SillageUiState` and `SillageViewModel`, but interactive feature state is nested under the shared `AppWorkspaceStateHolder`; those Android containers are implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
+
+`shared-ui:design-system` owns the common Compose theme plus reusable
+`SillageNavigationBar` and `SillageNavigationItem` components. Android's
+`MainNavigationBar` supplies translated labels, Material icons, selected
+destinations, and ViewModel callbacks; it does not own a second copy of the bar
+layout, insets, colors, item animation, or accessibility policy.
+`SillageSettingsSectionCard` similarly owns settings section heading semantics,
+spacing, shape, surface color, and border. Shared info, action, switch, and
+empty-state rows own common layout, disabled/selection colors, dividers, value
+selection, and Switch semantics. Android supplies localized text, icons, values,
+state, callbacks, and the remaining platform-specific controls.
+`SillageErrorCard` provides the shared error-container layout used by Ask and
+Settings; hosts retain localized messages, action labels, icons, and retry
+callbacks.
+Shared heading and status semantics are exposed by the design system and covered
+by common tests; Android call sites retain localized status-description assembly.
+Authentication form failures use shared `SillageInlineError` presentation and
+assertive error semantics; Android supplies localized messages and icons.
 
 `packages/kmp-core/domain` owns the shared `Memo` entity, its active-lifecycle
 policy, and the platform-neutral `MemoAI` derived metadata value. Android REST
@@ -125,6 +143,174 @@ callbacks. It contains no session token or transport type; Android supplies
 localized messages and implements the application ports. Android credential-draft
 updates and primary-credential clearing pass through root `withAuth` thin wrappers;
 application-level loading remains outside the auth aggregate.
+`shared-ui:auth` consumes `AuthFeatureStateHolder` directly for login and account
+initialization forms and also owns the server-address form plus reusable
+password-field, authentication-action, and mode-selection-card presentation.
+Android supplies localized strings, icons, accent colors, root loading state,
+navigation, protocol execution, and ViewModel callbacks. The shared scaffold owns
+centered layout, heading semantics, and inline-error placement; the shared header
+owns brand/language layout while Android supplies launcher resources, localized
+content, language state, and the toggle callback.
+Android authentication orchestration, ViewModel paths, Compose screens, and tests
+consume the aggregate directly, without root-state authentication accessors.
+The same module consumes the auth aggregate for settings password-change drafts
+and request state, and owns the account settings section wrapper. Android supplies
+account metadata and client-context gating.
+`shared-ui:settings` consumes `SettingsFeatureStateHolder` directly for the AI
+profile editor header and summary cards, including save progress, diagnostics
+feedback, and profile/action presentation.
+The same module owns AI profile detail editing, provider selection, model-result
+chips, connection feedback, delete confirmation, lazy-list composition, and
+expanded-profile selection. Android supplies localized strings, icons, and
+ViewModel callbacks while retaining adapters.
+The shared automatic-summary section reads preference and save lifecycle from the
+same aggregate, with Android supplying only its wider application operation gate.
+It also owns settings language-selection layout; Android supplies supported
+language identifiers, localized labels, and preference persistence.
+The shared appearance section composes theme selection and the language row while
+Android maps stored preference values and callbacks.
+The service/sync section owns online/offline and conditional sync-action layout;
+Android retains client-context mutation, navigation, and protocol execution.
+The data section owns import/export action presentation; Android retains document
+launchers, serialization, and storage adapters.
+The about section owns metadata-row and license-entry presentation; Android maps
+build/server protocol values and loads packaged notice resources.
+The shared settings list owns loading, retry error, list spacing/padding, and test
+semantics while Android supplies localized values and shared section items.
+`SillageSettingsContent` owns section ordering, optional account placement, and
+the multi-item profile tail; Android slots map resources and adapter callbacks.
+The shared settings overview card receives localized display values derived from
+Android app-mode, records, appearance, and AI state without owning those adapters.
+
+`shared-ui:ask` consumes `AskFeatureStateHolder` directly. Its first slice owns
+retrieval-range/source selection, selected-chip presentation, bottom-sheet
+layout, and heading semantics. Android supplies localized strings and routes
+feature callbacks while retaining streaming, Markdown, and navigation adapters.
+Its conversation sheet consumes the same aggregate and owns refresh/selection
+gates, empty/current row presentation, title fallback, and select-then-dismiss
+flow while Android maps localized copy and callbacks.
+The shared composer owns context-label selection, trimmed character count, IME
+Send gating, question layout, and send/stop action switching. Android supplies
+localized formatting, icons, and callbacks; the top bar reuses shared context
+selection.
+Shared Ask empty/live cards own prompt guidance, user/answer card layout,
+waiting fallback, colors, and message accessibility descriptions. Android maps
+localized copy, icon, and speaker-description formatting.
+Shared Ask message actions own neighboring-variant selection, regenerate/save
+visibility and request gates, saving progress, and polite variant-position
+semantics. Android maps localized resources, icons, and feature callbacks.
+Shared Ask source references own expansion state, the five-row display limit,
+row layout, and source-action gating. Android retains localized count/date
+formatting, icon mapping, and record-navigation callbacks.
+The shared Ask message card owns stored/streaming/regenerating content selection,
+user/assistant bubble presentation, message semantics, and source/action slot
+placement. Android supplies localized speaker descriptions and keeps final
+Markdown plus protected-attachment rendering in the platform slot.
+The shared Ask message list consumes the aggregate plus shared active path and
+owns initial loading, error/empty/message/live item order, lazy-list layout, and
+per-message action gates. Android fills localized/Markdown slots and retains
+Scaffold, TopAppBar, navigation, and platform accessibility announcements.
+Shared Ask auto-follow owns drag suspension, near-bottom reactivation, new-turn
+following, streamed-answer growth scrolling, and rendered-item counting. Android
+retains the completion-event bridge to `View.announceForAccessibility`.
+Shared Ask top-bar title/actions own title/context layout, saving progress
+semantics, action-button layout, and aggregate request gates. Android maps
+localized resources/icons and retains `TopAppBar`, Scaffold, and navigation.
+
+`shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
+filter selection. Its first slice owns the four-tab selectable layout, colors, and
+Tab semantics while Android supplies localized labels and the mutation callback.
+The shared search bar also reads query, searching, and result-presence state from
+the aggregate and owns IME submission, progress, clear, and search action layout.
+The shared search completion status owns visual layout, status semantics, and
+per-event announcement deduplication. Hosts format localized query/result-count
+copy and bridge the platform announcement API.
+Shared records empty/error presentation owns icon treatment, centered copy, and an
+optional action while Android selects localized copy for each list condition.
+The shared records content surface consumes `RecordsFeatureStateHolder` directly
+and owns list filter/search composition, pull-to-refresh, initial loading and
+failure selection, plus list/calendar body switching. Android retains Scaffold,
+navigation, localized resources, accessibility announcement bridging, and
+locale-aware calendar adapters.
+Shared records screen chrome consumes the same aggregate to own records/calendar
+title selection, heading layout, refresh request gates, deleted-filter FAB
+visibility, and action layout. Android supplies localized account/server subtitle
+formatting and retains the Scaffold shell.
+The shared record list consumes `RecordsFeatureStateHolder` directly to select
+published search results, filter-specific empty states, On This Day visibility,
+active/deleted row branching, and pagination action state. It owns lazy-list
+composition while hosts fill localized card/row adapter slots and route callbacks.
+The shared record summary section consumes aggregate summary state and owns
+summary-card layout,
+loading/action selection, body fallback, and provider/model/source/token metadata
+presentation. Android retains localized plural formatting and source-ID JSON
+parsing at its adapter boundary.
+The shared record detail card owns date/status layout, lifecycle status joining,
+content separation, and blank-record fallback. Android provides localized labels
+and keeps Markdown rendering plus protected-attachment opening in its content slot;
+the shared status line is reused by the editor adapter.
+Shared record metadata derives prior-revision count and owns divider/label layout;
+Android formats localized created/updated timestamps and revision plurals.
+The shared record detail content shell consumes aggregate selection state and owns
+missing-record fallback, section order,
+lazy-list spacing, and shared content width. Android retains Scaffold/TopAppBar placement
+and fills localized record, summary, and metadata slots.
+Shared record detail actions consume aggregate selection/mutation state and own
+edit/more enablement, lifecycle-aware favorite/archive choices, mutation-driven
+menu reset, and delete confirmation. Android supplies the host-operation gate,
+localized resources, icons, and ViewModel callbacks.
+Shared record editor actions consume aggregate selection/editor/mutation state plus
+`RecordsEditorActionContext` and own save-progress semantics, attachment-vs-save
+busy copy precedence, lifecycle-aware menu choices, and delete confirmation.
+Android maps destination/global-operation context, selects localized online/offline
+supporting copy, and routes callbacks.
+Shared editor screen chrome consumes the same aggregate/context and owns
+new-vs-edit title selection, heading semantics, back-button layout, and action
+gating. Android retains `TopAppBar`, system Back dispatch, localized resources,
+and icon mapping.
+Shared record editor close requests consume aggregate editor state plus
+`RecordsEditorActionContext` and own dirty-draft close selection and the
+discard-confirmation state/dialog. Android retains system Back integration and
+supplies localized copy plus the close callback.
+The shared record editor content shell consumes aggregate selection/editor state
+plus `RecordsEditorActionContext` and owns lazy-list section ordering, content
+width, lifecycle status, draft-date/action enablement, attachment action, and
+summary visibility. Android retains DatePicker/file launchers and fills the
+online-mode capability, Markdown, and summary slots.
+The shared active record row consumes `Memo` plus host-localized labels and owns
+card layout, blank-content fallback, favorite/archive status, long-click semantics,
+and mutation progress. Hosts retain date formatting, localized copy, icons, and
+feature routing.
+The shared swipe action pane owns favorite/archive button layout, record-state
+labels/icons, revealed-side visibility, and hidden-action semantics. Hosts provide
+localized labels, icons, enablement, and mutation callbacks.
+The shared quick-action sheet owns record excerpts, state-dependent supporting
+copy, bottom-sheet layout, destructive styling, and two-step delete confirmation.
+Hosts provide a localized date description, action strings, icons, and callbacks.
+The shared swipe row composes these pieces and owns drag bounds, settle thresholds,
+mutation resets, reveal closing, and action orchestration. Hosts only assemble
+localized resources/icons and route feature mutations.
+The shared recently deleted record row consumes the same aggregate plus `Memo`,
+derives mutation ownership, and owns two-step permanent-delete confirmation.
+Hosts retain localized labels, icons, formatted deletion timestamps, and mutation
+callbacks.
+The shared calendar coverage notice consumes `CalendarMemoCoverage` and aggregate
+pagination state, then owns partial-month copy selection, progress, and the
+load-earlier layout. Hosts format localized record-count copy and route pagination.
+The shared calendar empty-selection notice consumes the same coverage result and
+selects between definitive-empty and possibly-incomplete localized messages.
+The shared calendar header owns month-navigation layout and semantics. Hosts retain
+calendar arithmetic, locale-aware month labels, directional icons, and callbacks.
+The shared calendar grid owns weekday/date rows, counts, today/selection styling,
+and complete day semantics. Hosts provide locale-ordered weekday labels and
+localized per-day accessibility descriptions.
+The shared record calendar consumes `RecordsFeatureStateHolder` directly to derive
+date counts, selected records, month coverage, and empty-selection state while
+owning calendar-list composition. Hosts provide locale-aware grid/header values,
+localized descriptions, and record-row adapter slots.
+The shared on-this-day card consumes `Memo` entries and a host-provided current
+date, derives anniversaries and excerpts, and owns selection layout. Hosts provide
+localized title/plural formatting, the icon, and navigation callback.
 
 Ask conversation/message/source-reference values and secret-free AI settings
 metadata also live in `kmp-core:domain`. Android transport, persistence, feature,
@@ -145,34 +331,54 @@ persistence transaction.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded
-messages consistent. `AskFeatureStateHolder` composes the extracted Ask holders
+messages consistent. Android ViewModel, Compose path rendering, and tests consume
+the holder through the Ask aggregate directly, without root-state conversation
+accessors. The same module owns active-path entries, variant grouping,
+branch-leaf selection, and latest-assistant lookup so platform hosts do not
+rebuild message-tree policy in adapter data packages. `AskFeatureStateHolder`
+composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
-application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android also composes
-records/settings/ask clears through `clearClientWorkspace` for client-context
-changes without enlarging a global ViewModel. Android's root
-`SillageUiState` stores one `ask` aggregate value with transitional slice getters
-for the former top-level Ask holders. Android routes pure Ask mutations through
-`withAsk`, with thin composer and source-navigation wrappers at the root-state
-boundary, while persistence and streaming stay outside the feature module.
-The same module's `AskVariantStateHolder` owns branch-selection request identity;
+application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. `AppWorkspaceStateHolder` in
+`shared-ui:app-shell` aggregates the records, settings, and Ask feature holders.
+It owns coordinated client-workspace clearing and offline-workspace entry so
+these three aggregates advance in one state transition. Android's root
+`SillageUiState` stores one `workspace` value and exposes no root compatibility
+getters for its feature holders. Android routes pure Ask mutations through
+`workspace.ask` and `withAsk`, while persistence and streaming stay outside the
+feature module.
+The module's `AskVariantStateHolder` owns branch-selection request identity.
 Android supplies navigation and client context, then applies completion only when
-the shared holder still owns that request.
+the shared holder still owns the request. Navigation gates and request
+orchestration consume the holder through the Ask aggregate directly, without
+root-state variant accessors.
 `AskMemoSaveStateHolder` applies the same rule to answer-to-record requests and
 also captures source answer content and branch-head identity. It delegates the
-actual record creation to the records application boundary.
+actual record creation to the records application boundary. Android request gates,
+orchestration, and tests consume the holder through the Ask aggregate directly,
+without root-state memo-save accessors.
 `AskSourceNavigationStateHolder` owns source-record request identity using stable
-destination/history keys rather than Android navigation types. The Android host
-maps those keys to `Screen` only at its presentation boundary.
+destination/history keys rather than Android navigation types. Android request
+orchestration consumes the holder through the Ask aggregate directly and maps
+keys to `Screen` only at the presentation boundary.
 `AskStreamStateHolder` owns answer-generation request identity, live stream
 presentation, regeneration identity, and completion events. Android's SSE and
 device-local AI adapters feed it only after shared request-ownership validation.
+Stream-job cleanup and the Compose completion-announcement bridge consume the
+holder through the Ask aggregate directly, without Android root-state stream
+accessors.
 `AskLoadStateHolder` owns the remaining conversation/message load status and
-durable retry message rather than leaving those transitions in the root ViewModel.
+durable retry message rather than leaving those transitions in the root
+ViewModel. Android request gates and tests read it through the Ask aggregate
+directly, without root-state load accessors.
 `AskComposerStateHolder` owns the prompt draft and retrieval options; stream
 execution captures them without folding transport behavior into composer state.
+Android ViewModel and tests consume it through the Ask aggregate directly, without
+root-state composer accessors.
 `AskSessionStateHolder` owns the monotonic feature-screen generation used by every
-Ask request holder for navigation-safe callback invalidation.
+Ask request holder for navigation-safe callback invalidation. Android request
+orchestration and tests consume it through the Ask aggregate directly, without
+root-state session accessors.
 
 `AIAutoSummaryRepository` and `SetAIAutoSummaryUseCase` own the first settings
 application boundary. Android adapters implement encrypted local persistence and
@@ -209,11 +415,11 @@ state and results. Completion requires the same stable editor key, complete
 draft snapshot, mode, and client generation; adapter callbacks cannot attach
 results to a removed or subsequently edited profile.
 `SettingsFeatureStateHolder` composes those holders and owns coordinated
-workspace teardown, editable profile-draft replacement, and loaded/imported
+workspace teardown, editable profile-draft replacement, loaded/imported
 editable-settings snapshot application, diagnostic-result clearing, and host
 feedback recording. Request identity remains owned by the diagnostics holder.
-Android's root `SillageUiState` stores one `settings` aggregate field with
-transitional slice getters; coordinated writes move onto the aggregate.
+Android state orchestration, Compose screens, and tests consume the settings
+aggregate through `workspace.settings`, without root-state settings accessors.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;
@@ -222,21 +428,25 @@ application APIs do not expose Android, SQLite, JSON, HTTP, or generated DTO
 types.
 
 `packages/kmp-features/records` owns record list filters, ordering, On This Day,
-calendar aggregation, excerpts, and cursor-coverage selectors. Android storage,
-feature state, ViewModel orchestration, Compose UI, and tests consume these
-shared policies. Calendar grid construction remains Android presentation code;
-Android's repository adapter owns REST query mapping behind the shared
-application port.
+calendar aggregation, excerpts, and cursor-coverage selectors. Platform feature
+state, ViewModel orchestration, shared Compose UI, and tests consume these policies;
+repository adapters retain storage and REST query mapping behind shared application
+ports.
 
 `LocalDataStore` owns the offline business-data contract. Its persistence boundary is `LocalStateStore`: a SQLite WAL key/value database whose values are independently encrypted with Android Keystore AES-GCM. Operations that update records together with sync metadata use one SQLite transaction. First open performs an idempotent migration from the former `sillage.local_data` SharedPreferences store; unreadable ciphertext is retained and surfaced as corruption instead of being normalized to empty state. Bounded session and interface preferences remain in `SessionStore`.
 
-Android transient feedback is emitted once by `SillageViewModel` and consumed
-by the top-level Toast host in `SillageApp`. Feature screens do not render a
+`shared-ui:app-shell` turns root-state feedback changes into one-shot events and
+owns event IDs, duplicate suppression, error precedence, notice severity, and
+language binding. Android supplies localized messages through `SillageViewModel`
+and consumes events in the top-level Toast host in `SillageApp`. Feature screens
+do not render a
 second copy of global error or notice messages; durable retry, conflict, and
 confirmation state remains part of the relevant screen.
-The event channel is bounded, new events replace the active Toast, warning and
-error feedback stays visible longer, and language changes discard buffered
+Android's event channel is bounded, new events replace the active Toast, warning
+and error feedback stays visible longer, and language changes discard buffered
 messages from the previous locale.
+Android theme/language orchestration, Compose consumers, localized feedback, and
+tests read the nested appearance state directly without root appearance accessors.
 
 The records application slice also exposes a semantic online page query through
 `RecordsPageRepository` and `ListRecordsPageUseCase`. Android's
@@ -262,44 +472,70 @@ encrypted persistence, and REST execution remain adapter responsibilities.
 The records feature now also owns the immutable
 `RecordsPaginationStateHolder`, the first extracted records feature-state
 slice. It validates source, client context, filter, cache generation, cursor,
-and request identity before accepting a late page response. Android's root UI
-state retains transitional read accessors, while pagination writes use the
-shared holder's explicit begin, complete, fail, and cancel transitions.
+and request identity before accepting a late page response. Android pagination
+orchestration and tests consume the holder through the records aggregate directly,
+without root-state pagination accessors; local and remote adapters still execute
+the page query.
 
 The shared `RecordsRefreshStateHolder` now owns refresh status and request
 identity. It rejects responses after source, client context, filter, cache, or
 pagination generation changes, and a newer refresh supersedes an older one.
+Android refresh orchestration and tests consume it through the records aggregate
+directly, without root-state refresh accessors.
 The shared `RecordsSearchStateHolder` owns normalized query state, results,
 failure binding, completion events, and request identity. Android retains
 debounce timing and local/remote source orchestration, while every state
-transition and late-response check is shared.
+transition and late-response check is shared. Android orchestration, list
+reset/announcement gates, and tests consume the holder through the records
+aggregate directly, without root-state search accessors.
+Records surface selectors also own list-load and search failure visibility from
+the aggregate, removing those conditions from Android root state.
 
 The shared `RecordsSelectionStateHolder` owns the selected domain record and
 detail request identity. It validates source, client session, navigation
 destination, editor generation, cache generation, and record version before an
-Android detail response may update state. AI-derived summary presentation state
+Android detail response may update state. Android detail orchestration,
+editor/navigation gates, and tests consume the holder through the records aggregate
+directly, without root-state selection accessors. AI-derived summary presentation state
 is owned by `RecordsSummaryStateHolder`, including request identity and
 detail/editor context validation. Android retains AI execution orchestration and
-localized feedback. `RecordsEditorStateHolder` owns editor session identity,
+localized feedback, while orchestration state, save paths, and tests consume the
+holder through the records aggregate directly without root-state summary
+accessors. `RecordsEditorStateHolder` owns editor session identity,
 draft snapshots, dirty state, preview state, and attachment-upload ownership;
-Android retains draft persistence, URI access, and attachment execution. The
-underlying `MemoAI` value already belongs to the shared domain.
+Android retains draft persistence, URI access, and attachment execution; its
+orchestration, upload gates, and tests consume the holder through the records
+aggregate directly, without root-state editor accessors. Shared
+editor-action policy combines host destination/operation context with editor,
+selection, and mutation state to decide unsaved-draft and Back-blocking behavior;
+Android maps the result to localized feedback. The underlying `MemoAI` value
+already belongs to the shared domain.
 
 `RecordsMutationStateHolder` owns the active record identities exposed to list
 and editor presentation while lifecycle mutations run. Android retains keyed
-coroutine gates and localized mutation feedback.
+coroutine gates and localized mutation feedback. Operation gates and tests consume
+the holder through the records aggregate directly, without root-state mutation
+accessors.
 
 `RecordsCollectionStateHolder` owns the visible record cache and canonical
 mutation generation. Pagination and refresh replace snapshots without inventing
 a mutation, while canonical create/update/lifecycle responses advance the
-generation used by late-response validation.
+generation used by late-response validation. Android host counts, late-response
+checks, and tests consume the holder through the records aggregate directly,
+without root-state collection accessors.
 
 `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
 calendar month/day selection. `MemoViewMode` is a shared feature value; Android
 retains platform date arithmetic and refresh scheduling.
 
+Android browse contexts, navigation/calendar presentation, import/export reads,
+and tests consume the holder through the records aggregate directly, without
+root-state browse accessors.
+
 `RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
 invalidation so late staging or viewer events cannot cross navigation context.
+Android request gates, Compose surfaces, and tests consume it through the records
+aggregate directly, without root-state attachment-open accessors.
 Authenticated download crosses generic `AttachmentDownloadRepository` and
 `DownloadAttachmentUseCase`, streaming to a host-provided destination. Android
 retains cache/content-URI staging, MIME mapping, and native viewer launch.
@@ -311,8 +547,8 @@ Android adapter.
 `RecordsFeatureStateHolder` composes the extracted records holders and owns the
 cross-holder list-surface, browse filter/view-mode, interactive-workspace,
 detail/editor presentation, source-memo absorption, and canonical-memo
-transitions. Android's root UI state now owns one `records` aggregate value with
-transitional slice getters for the former top-level holder fields. Coordinated
+transitions. Android's root UI state now owns one `records` aggregate value and
+exposes no compatibility getters for former top-level holder fields. Coordinated
 list-surface, browse mode/filter, workspace teardown, selected-memo
 presentation, detail-request acceptance, editor session starts/returns,
 draft/Markdown updates, attachment-upload transitions, attachment-open request
@@ -333,11 +569,14 @@ it skips empty pushes, sends one pending batch, and acknowledges only applied
 results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
 `SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
-stores one `sync` aggregate with a transitional conflict-state getter. Platform
+stores one `sync` aggregate, and resolution callbacks look up the current item
+through `SyncFeatureStateHolder.findConflict`. Platform
 root-state writes for push results, conflict dismissal, and conflict-list
 replacement pass through `withSync` thin wrappers. Platform
-hosts retain confirmation UI and implement the transactional conflict repository
-adapter.
+`shared-ui:sync` consumes the aggregate directly and owns first-conflict
+selection, preview fallback and limits, dialog layout, and resource-ID action
+routing. Platform hosts retain localized strings, asynchronous resolution, and
+the transactional conflict repository adapter.
 
 Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
 `SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata

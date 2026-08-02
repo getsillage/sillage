@@ -116,15 +116,15 @@ import app.sillage.core.sync.RunSyncPushUseCase
 import app.sillage.core.sync.RunTwoWaySyncUseCase
 import app.sillage.core.sync.SyncPushPreparation
 import app.sillage.features.ask.askAnswerMemoContent
-import app.sillage.data.askBranchLeafId
+import app.sillage.features.ask.askBranchLeafId
 import app.sillage.data.attachmentMarkdown
-import app.sillage.data.buildAskActivePath
+import app.sillage.features.ask.buildAskActivePath
 import app.sillage.features.settings.AIProfileDraft
 import app.sillage.features.settings.AIProfilesMutationRequest
 import app.sillage.features.settings.firstBlankAIProfileNameIndex
 import app.sillage.features.settings.editorKey
 import app.sillage.core.domain.ask.isActive
-import app.sillage.data.lastAssistantMessageId
+import app.sillage.features.ask.lastAssistantMessageId
 import app.sillage.data.localAttachmentMarkdown
 import app.sillage.data.localAttachmentPath
 import app.sillage.features.records.markdownFormatSnippet
@@ -136,6 +136,8 @@ import app.sillage.data.pendingLocalAttachmentId
 import app.sillage.data.preferredAttachmentFilename
 import app.sillage.data.resolveAttachmentMimeType
 import app.sillage.features.settings.toDraft
+import app.sillage.ui.appshell.AppAppearanceStateHolder
+import app.sillage.ui.appshell.AppClientContextStateHolder
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -278,12 +280,13 @@ class SillageViewModel(
     private val stateUpdateLock = Any()
     private val _state = MutableStateFlow(
         SillageUiState(
-            screen = Screen.Loading,
             baseUrl = sessionStore.baseUrl(),
+            clientContext = AppClientContextStateHolder(appMode = sessionStore.appMode()),
             account = sessionStore.account(),
-            themeMode = sessionStore.themeMode(),
-            languageMode = sessionStore.languageMode(),
-            appMode = sessionStore.appMode(),
+            appearance = AppAppearanceStateHolder.hydrate(
+                themeMode = sessionStore.themeMode(),
+                languageMode = sessionStore.languageMode(),
+            ),
         ),
     )
 
@@ -311,7 +314,7 @@ class SillageViewModel(
             pruneAttachmentOpenCache(File(appContext.cacheDir, OPEN_ATTACHMENTS_CACHE_DIRECTORY))
         }
         if (!sessionStore.hasAppModeSelection()) {
-            updateState { it.copy(screen = Screen.ModeSelection) }
+            updateState { it.withClientContext { context -> context.show(Screen.ModeSelection) } }
         } else if (sessionStore.appMode() == SessionStore.MODE_OFFLINE) {
             enterOfflineMode(notice = null)
         } else {
@@ -342,18 +345,22 @@ class SillageViewModel(
     // not lose unsaved text.
     private fun persistEditorDraft(before: SillageUiState, after: SillageUiState) {
         val handle = savedStateHandle ?: return
-        val draftActive = after.screen == Screen.Editor && after.draftContent.isNotBlank()
-        val wasActive = before.screen == Screen.Editor && before.draftContent.isNotBlank()
+        val draftActive =
+            after.clientContext.screen == Screen.Editor && after.workspace.records.editor.draftContent.isNotBlank()
+        val wasActive =
+            before.clientContext.screen == Screen.Editor && before.workspace.records.editor.draftContent.isNotBlank()
         if (draftActive) {
             if (
-                before.draftContent != after.draftContent ||
-                before.draftEntryDate != after.draftEntryDate ||
-                before.selectedMemo?.id != after.selectedMemo?.id ||
+                before.workspace.records.editor.draftContent != after.workspace.records.editor.draftContent ||
+                before.workspace.records.editor.draftEntryDate != after.workspace.records.editor.draftEntryDate ||
+                before.workspace.records.selection.selectedMemo?.id !=
+                    after.workspace.records.selection.selectedMemo?.id ||
                 !wasActive
             ) {
-                handle[KEY_SAVED_DRAFT_CONTENT] = after.draftContent
-                handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.draftEntryDate
-                handle[KEY_SAVED_EDITING_MEMO_ID] = after.selectedMemo?.id.orEmpty()
+                handle[KEY_SAVED_DRAFT_CONTENT] = after.workspace.records.editor.draftContent
+                handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.workspace.records.editor.draftEntryDate
+                handle[KEY_SAVED_EDITING_MEMO_ID] =
+                    after.workspace.records.selection.selectedMemo?.id.orEmpty()
             }
         } else if (wasActive) {
             handle[KEY_SAVED_DRAFT_CONTENT] = ""
@@ -374,9 +381,7 @@ class SillageViewModel(
     fun chooseOnlineMode() {
         updateState {
             it.copy(
-                appMode = SessionStore.MODE_ONLINE,
-                screen = Screen.Server,
-                screenHistory = emptyList(),
+                clientContext = it.clientContext.chooseOnlineMode(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -414,11 +419,9 @@ class SillageViewModel(
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         updateState {
             it.invalidateAIAutoSummaryRequest().clearClientWorkspace().copy(
-                appMode = SessionStore.MODE_ONLINE,
-                clientContextGeneration = it.clientContextGeneration + 1,
+                clientContext = it.clientContext.resetForServerChange(),
                 baseUrl = sessionStore.baseUrl(),
                 account = null,
-                serverReturnScreen = null,
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -438,10 +441,7 @@ class SillageViewModel(
         sessionStore.saveAppMode(SessionStore.MODE_ONLINE)
         updateState {
             it.invalidateAIAutoSummaryRequest().clearClientWorkspace().copy(
-                appMode = SessionStore.MODE_ONLINE,
-                clientContextGeneration = it.clientContextGeneration + 1,
-                screen = Screen.Loading,
-                screenHistory = emptyList(),
+                clientContext = it.clientContext.switchToOnlineWorkspace(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -470,8 +470,7 @@ class SillageViewModel(
         cancelAttachmentOpen()
         updateState {
             it.copy(
-                screen = Screen.Server,
-                serverReturnScreen = it.screen.takeIf { screen -> screen != Screen.Server && screen != Screen.ModeSelection },
+                clientContext = it.clientContext.openServerSettings(),
                 authError = null,
                 authErrorResourceId = null,
                 error = null,
@@ -482,15 +481,11 @@ class SillageViewModel(
 
     fun cancelServerConnection() {
         updateState {
-            val target = when {
-                it.serverReturnScreen != null -> it.serverReturnScreen
-                sessionStore.hasAppModeSelection() && sessionStore.appMode() == SessionStore.MODE_OFFLINE -> Screen.Memos
-                else -> Screen.ModeSelection
-            }
             it.copy(
-                screen = target,
-                appMode = sessionStore.appMode(),
-                serverReturnScreen = null,
+                clientContext = it.clientContext.cancelServerConnection(
+                    persistedAppMode = sessionStore.appMode(),
+                    hasPersistedAppModeSelection = sessionStore.hasAppModeSelection(),
+                ),
                 baseUrl = sessionStore.baseUrl(),
                 authError = null,
                 authErrorResourceId = null,
@@ -501,16 +496,15 @@ class SillageViewModel(
     }
 
     fun openAISettings() {
-        if (state.value.askVariantLoading) {
+        if (state.value.workspace.ask.variant.loading) {
             return
         }
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
             it.copy(
-                screen = Screen.AISettings,
-                screenHistory = emptyList(),
-                records = it.records.finishDetailSummary(),
+                clientContext = it.clientContext.showRoot(Screen.AISettings),
+                workspace = it.workspace.copy(records = it.workspace.records.finishDetailSummary()),
                 error = null,
                 notice = null,
             )
@@ -522,18 +516,19 @@ class SillageViewModel(
 
     fun openAsk() {
         val current = state.value
-        val reloadConversations = !current.askLoading && !current.askSending && !current.askVariantLoading
+        val reloadConversations =
+            !current.workspace.ask.loading && !current.workspace.ask.stream.sending && !current.workspace.ask.variant.loading
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
             it.withAsk { ask ->
                 ask.enterScreen(
-                    requestInFlight = it.askLoading || it.askSending || it.askVariantLoading,
+                    requestInFlight =
+                        it.workspace.ask.loading || it.workspace.ask.stream.sending || it.workspace.ask.variant.loading,
                 )
             }.copy(
-                screen = Screen.Ask,
-                screenHistory = emptyList(),
-                records = it.records.finishDetailSummary(),
+                clientContext = it.clientContext.showRoot(Screen.Ask),
+                workspace = it.workspace.copy(records = it.workspace.records.finishDetailSummary()),
                 error = null,
                 notice = null,
             )
@@ -544,24 +539,20 @@ class SillageViewModel(
     }
 
     fun toggleThemeMode() {
-        val next = if (state.value.themeMode == SessionStore.THEME_DARK) {
-            SessionStore.THEME_LIGHT
-        } else {
-            SessionStore.THEME_DARK
-        }
+        val next = state.value.appearance.toggleTheme().themeMode
         sessionStore.saveThemeMode(next)
-        updateState { it.copy(themeMode = next) }
+        updateState { it.copy(appearance = it.appearance.setTheme(next)) }
     }
 
     fun setLanguageMode(value: String) {
         val next = SessionStore.normalizeLanguageMode(value)
-        if (state.value.languageMode == next) {
+        if (state.value.appearance.languageMode == next) {
             return
         }
         sessionStore.saveLanguageMode(next)
         updateState {
             it.copy(
-                languageMode = next,
+                appearance = it.appearance.setLanguage(next),
                 authError = it.authErrorResourceId?.let { resourceId ->
                     appContext.localizedString(next, resourceId)
                 } ?: it.authError,
@@ -573,7 +564,7 @@ class SillageViewModel(
 
     fun toggleLanguageMode() {
         setLanguageMode(
-            if (state.value.languageMode == SessionStore.LANGUAGE_ZH_CN) {
+            if (state.value.appearance.languageMode == SessionStore.LANGUAGE_ZH_CN) {
                 SessionStore.LANGUAGE_EN
             } else {
                 SessionStore.LANGUAGE_ZH_CN
@@ -582,18 +573,22 @@ class SillageViewModel(
     }
 
     private fun uiString(resourceId: Int, vararg formatArgs: Any): String {
-        return appContext.localizedString(state.value.languageMode, resourceId, *formatArgs)
+        return appContext.localizedString(
+            state.value.appearance.languageMode,
+            resourceId,
+            *formatArgs,
+        )
     }
 
     fun connect() {
-        if (state.value.appMode == SessionStore.MODE_OFFLINE) {
+        if (state.value.clientContext.appMode == SessionStore.MODE_OFFLINE) {
             enterOfflineMode(notice = null)
             return
         }
         if (SessionStore.normalizeBaseUrl(state.value.baseUrl).isBlank()) {
             updateState {
                 it.copy(
-                    screen = Screen.Server,
+                    clientContext = it.clientContext.show(Screen.Server),
                     authError = null,
                     authErrorResourceId = null,
                     error = null,
@@ -618,7 +613,7 @@ class SillageViewModel(
             if (updateRequired) {
                 updateState {
                     it.copy(
-                        screen = Screen.Server,
+                        clientContext = it.clientContext.show(Screen.Server),
                         authError = uiString(
                             R.string.error_android_update_required,
                             BuildConfig.VERSION_CODE,
@@ -633,20 +628,32 @@ class SillageViewModel(
             val token = sessionStore.accessToken()
             val account = sessionStore.account()
             if (!initialized) {
-                updateState { it.copy(screen = Screen.Initialize, initialized = false, account = null) }
+                updateState {
+                    it.copy(
+                        clientContext = it.clientContext.show(Screen.Initialize),
+                        initialized = false,
+                        account = null,
+                    )
+                }
                 return@launchAuthBusy
             }
             if (token.isNullOrBlank() || account == null) {
-                updateState { it.copy(screen = Screen.Login, initialized = true, account = null) }
+                updateState {
+                    it.copy(
+                        clientContext = it.clientContext.show(Screen.Login),
+                        initialized = true,
+                        account = null,
+                    )
+                }
                 return@launchAuthBusy
             }
             val verified = getCurrentRemoteAccount()
             updateState {
                 it.copy(
-                    screen = Screen.Memos,
+                    clientContext = it.clientContext.show(Screen.Memos),
                     initialized = true,
                     account = verified,
-                    records = it.records.markListLoading(),
+                    workspace = it.workspace.copy(records = it.workspace.records.markListLoading()),
                     notice = uiString(R.string.notice_connected),
                 )
             }
@@ -695,7 +702,7 @@ class SillageViewModel(
             return
         }
         val current = state.value
-        val validationError = when (current.authentication.passwordChangeValidation()) {
+        val validationError = when (current.auth.authentication.passwordChangeValidation()) {
             PasswordChangeValidation.RequiredFields -> R.string.error_password_required
             PasswordChangeValidation.ConfirmationMismatch -> R.string.error_password_mismatch
             PasswordChangeValidation.Unchanged -> R.string.error_password_same
@@ -753,15 +760,18 @@ class SillageViewModel(
         val current = state.value
         launchAuthBusy {
             val session = initializeRemoteAccount(
-            InitializeAccountCommand(current.username, current.displayName, current.password),
-        )
-        updateState {
-            it.clearAuthPrimaryCredentials(clearDisplayName = true).copy(
-                account = session.account,
-                screen = Screen.Memos,
-                    screenHistory = emptyList(),
+                InitializeAccountCommand(
+                    current.auth.username,
+                    current.auth.displayName,
+                    current.auth.password,
+                ),
+            )
+            updateState {
+                it.clearAuthPrimaryCredentials(clearDisplayName = true).copy(
+                    account = session.account,
+                    clientContext = it.clientContext.showRoot(Screen.Memos),
                     initialized = true,
-                    records = it.records.markListLoading(),
+                    workspace = it.workspace.copy(records = it.workspace.records.markListLoading()),
                     notice = uiString(R.string.notice_account_initialized),
                 )
             }
@@ -772,14 +782,13 @@ class SillageViewModel(
     fun signIn() {
         val current = state.value
         launchAuthBusy {
-        val session = signInRemote(SignInCommand(current.username, current.password))
-        updateState {
-            it.clearAuthPrimaryCredentials(clearDisplayName = false).copy(
-                account = session.account,
-                screen = Screen.Memos,
-                    screenHistory = emptyList(),
+            val session = signInRemote(SignInCommand(current.auth.username, current.auth.password))
+            updateState {
+                it.clearAuthPrimaryCredentials(clearDisplayName = false).copy(
+                    account = session.account,
+                    clientContext = it.clientContext.showRoot(Screen.Memos),
                     initialized = true,
-                    records = it.records.markListLoading(),
+                    workspace = it.workspace.copy(records = it.workspace.records.markListLoading()),
                     notice = uiString(R.string.notice_signed_in),
                 )
             }
@@ -793,13 +802,13 @@ class SillageViewModel(
             return
         }
         val lease = authOperationGate.tryAcquire() ?: return
-        val clientContextGeneration = current.clientContextGeneration
-        val offlineMode = current.appMode == SessionStore.MODE_OFFLINE
+        val clientContextGeneration = current.clientContext.generation
+        val offlineMode = current.clientContext.appMode == SessionStore.MODE_OFFLINE
         val preparedSignOut = signOutUseCase.prepare(
             if (offlineMode) SignOutMode.Offline else SignOutMode.Online,
         )
         updateState {
-            if (it.clientContextGeneration == clientContextGeneration) {
+            if (it.clientContext.generation == clientContextGeneration) {
                 it.copy(loading = true, error = null, notice = null)
             } else {
                 it
@@ -815,7 +824,7 @@ class SillageViewModel(
                 lease = lease,
                 onFailure = { error ->
                     updateState {
-                        if (it.clientContextGeneration == clientContextGeneration) {
+                        if (it.clientContext.generation == clientContextGeneration) {
                             it.copy(error = error.readableMessage())
                         } else {
                             it
@@ -824,7 +833,7 @@ class SillageViewModel(
                 },
                 onFinished = {
                     updateState {
-                        if (it.clientContextGeneration == clientContextGeneration) {
+                        if (it.clientContext.generation == clientContextGeneration) {
                             it.copy(loading = false)
                         } else {
                             it
@@ -835,20 +844,19 @@ class SillageViewModel(
                 val result = preparedSignOut() ?: return@runSingleFlightOperation
                 val feedback = signOutFeedback(result)
                 updateState {
-                    if (it.clientContextGeneration != clientContextGeneration) {
+                    if (it.clientContext.generation != clientContextGeneration) {
                         it
                     } else {
                         it.invalidateAIAutoSummaryRequest().clearClientWorkspace(
-                            settingsAutoSummaryEnabled = if (offlineMode) it.aiAutoSummary else false,
-                            askInvalidateStream = true,
-                            askInvalidateVariant = true,
-                        ).copy(
-                            clientContextGeneration = it.clientContextGeneration + 1,
-                            account = null,
-                            loading = false,
-                            screen = if (offlineMode) Screen.Memos else Screen.Login,
-                            screenHistory = emptyList(),
-                            authError = null,
+                            settingsAutoSummaryEnabled =
+                                if (offlineMode) it.workspace.settings.autoSummaryEnabled else false,
+                        askInvalidateStream = true,
+                        askInvalidateVariant = true,
+                    ).copy(
+                        clientContext = it.clientContext.afterSignOut(offlineMode),
+                        account = null,
+                        loading = false,
+                        authError = null,
                             authErrorResourceId = null,
                             notice = feedback.noticeResourceId?.let { resourceId -> uiString(resourceId) },
                             error = feedback.errorResourceId?.let { resourceId -> uiString(resourceId) },
@@ -888,9 +896,11 @@ class SillageViewModel(
                     updateState { current ->
                         current.completeMemoRefresh(request)?.let { completed ->
                             completed.copy(
-                                records = completed.records.replaceVisibleRecords(
-                                    records = memosForFilter(snapshot.memos, request.filter),
-                                    nextCursor = snapshot.nextCursor,
+                                workspace = completed.workspace.copy(
+                                    records = completed.workspace.records.replaceVisibleRecords(
+                                        records = memosForFilter(snapshot.memos, request.filter),
+                                        nextCursor = snapshot.nextCursor,
+                                    ),
                                 ),
                                 error = null,
                             )
@@ -901,7 +911,7 @@ class SillageViewModel(
                     updateState { current ->
                         current.failMemoRefresh(request)?.let { failed ->
                             failed.copy(
-                                records = failed.records.stopLoadingMore(),
+                                workspace = failed.workspace.copy(records = failed.workspace.records.stopLoadingMore()),
                                 error = error.readableMessage(),
                             )
                         } ?: current
@@ -928,10 +938,12 @@ class SillageViewModel(
                         updateState { current ->
                             current.completeMemoPage(request, page.nextCursor)?.let { completed ->
                                 completed.copy(
-                                    records = completed.records.appendVisiblePage(
-                                        pageRecords = page.memos,
-                                        nextCursor = page.nextCursor,
-                                        filter = request.filter,
+                                    workspace = completed.workspace.copy(
+                                        records = completed.workspace.records.appendVisiblePage(
+                                            pageRecords = page.memos,
+                                            nextCursor = page.nextCursor,
+                                            filter = request.filter,
+                                        ),
                                     ),
                                 )
                             } ?: current
@@ -944,7 +956,7 @@ class SillageViewModel(
                         }
                     }
                 synchronized(memoPageLock) {
-                    if (state.value.memoPageRequestId == request.requestId) {
+                    if (state.value.workspace.records.pagination.requestId == request.requestId) {
                         loadMoreMemosJob = null
                     }
                 }
@@ -960,13 +972,14 @@ class SillageViewModel(
         val restored = consumeRestoredEditorDraft(editingMemoId = "")
         updateState {
             it.copy(
-                screen = Screen.Editor,
-                screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.beginNewEditorDraft(
-                    draftContent = restored?.content ?: "",
-                    draftEntryDate = restored?.entryDate?.ifBlank { today } ?: today,
-                    initialDraftContent = "",
-                    initialDraftEntryDate = today,
+                clientContext = it.clientContext.navigateTo(Screen.Editor),
+                workspace = it.workspace.copy(
+                    records = it.workspace.records.beginNewEditorDraft(
+                        draftContent = restored?.content ?: "",
+                        draftEntryDate = restored?.entryDate?.ifBlank { today } ?: today,
+                        initialDraftContent = "",
+                        initialDraftEntryDate = today,
+                    ),
                 ),
                 error = null,
                 notice = null,
@@ -979,11 +992,12 @@ class SillageViewModel(
         cancelAttachmentOpen()
         updateState {
             it.copy(
-                screen = Screen.MemoDetail,
-                screenHistory = it.historyFor(Screen.MemoDetail),
-                records = it.records.presentMemoDetail(
-                    memo = memo,
-                    summaryLoading = !isOfflineMode(),
+                clientContext = it.clientContext.navigateTo(Screen.MemoDetail),
+                workspace = it.workspace.copy(
+                    records = it.workspace.records.presentMemoDetail(
+                        memo = memo,
+                        summaryLoading = !isOfflineMode(),
+                    ),
                 ),
                 error = null,
                 notice = null,
@@ -998,7 +1012,7 @@ class SillageViewModel(
     }
 
     fun editSelectedMemo() {
-        val memo = state.value.selectedMemo ?: return
+        val memo = state.value.workspace.records.selection.selectedMemo ?: return
         openEditorForMemo(memo)
         fetchSelectedMemoDetail(memo.id)
     }
@@ -1009,13 +1023,14 @@ class SillageViewModel(
         val today = LocalDate.now().toString()
         updateState {
             it.copy(
-                screen = Screen.Editor,
-                screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.beginNewEditorDraft(
-                    draftContent = memo.content,
-                    draftEntryDate = today,
-                    initialDraftContent = "",
-                    initialDraftEntryDate = today,
+                clientContext = it.clientContext.navigateTo(Screen.Editor),
+                workspace = it.workspace.copy(
+                    records = it.workspace.records.beginNewEditorDraft(
+                        draftContent = memo.content,
+                        draftEntryDate = today,
+                        initialDraftContent = "",
+                        initialDraftEntryDate = today,
+                    ),
                 ),
                 error = null,
                 notice = null,
@@ -1138,7 +1153,10 @@ class SillageViewModel(
                 aiSettingsFetched = pulled.aiSettingsAvailable
             }
             val json = withContext(Dispatchers.Default) {
-                val data = localDataStore.exportData(state.value.themeMode, state.value.memoViewMode.name)
+                val data = localDataStore.exportData(
+                    state.value.appearance.themeMode,
+                    state.value.workspace.records.browse.viewMode.name,
+                )
                 SillageExportCodec.toJson(data)
             }
             withContext(Dispatchers.IO) {
@@ -1181,14 +1199,16 @@ class SillageViewModel(
                     it.withAsk { ask -> ask.clearConversationCatalog() }
                         .applyRestoredMemoViewMode(result.memoViewMode)
                         .copy(
-                        themeMode = result.themeMode,
-                        settings = it.settings.applyImportedPreferences(
-                            profiles = result.aiProfiles,
-                            autoSummaryEnabled = result.aiAutoSummary,
-                    ),
-                    notice = uiString(R.string.notice_imported),
-                )
-            }
+                            appearance = it.appearance.setTheme(result.themeMode),
+                            workspace = it.workspace.copy(
+                                settings = it.workspace.settings.applyImportedPreferences(
+                                    profiles = result.aiProfiles,
+                                    autoSummaryEnabled = result.aiAutoSummary,
+                                ),
+                            ),
+                            notice = uiString(R.string.notice_imported),
+                        )
+                }
             refreshMemos()
         }
     }
@@ -1259,7 +1279,7 @@ class SillageViewModel(
     }
 
     fun resolveSyncConflictKeepLocal(resourceId: String) {
-        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        val item = state.value.sync.findConflict(resourceId) ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {
@@ -1280,7 +1300,7 @@ class SillageViewModel(
     }
 
     fun resolveSyncConflictTakeServer(resourceId: String) {
-        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        val item = state.value.sync.findConflict(resourceId) ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {
@@ -1329,20 +1349,21 @@ class SillageViewModel(
     }
 
     fun updateMemoViewMode(mode: MemoViewMode) {
-        if (state.value.askVariantLoading) {
+        if (state.value.workspace.ask.variant.loading) {
             return
         }
         cancelMemoSummary()
         cancelAttachmentOpen()
         val resetFilter = mode == MemoViewMode.Calendar &&
-            state.value.memoListFilter != MemoListFilter.Unarchived
+            state.value.workspace.records.browse.filter != MemoListFilter.Unarchived
         updateState {
             it.copy(
-                screen = Screen.Memos,
-                screenHistory = emptyList(),
-                records = it.records.applyViewMode(
-                    mode = mode,
-                    resetFilter = resetFilter,
+                clientContext = it.clientContext.showRoot(Screen.Memos),
+                workspace = it.workspace.copy(
+                    records = it.workspace.records.applyViewMode(
+                        mode = mode,
+                        resetFilter = resetFilter,
+                    ),
                 ),
                 error = if (mode == MemoViewMode.Calendar) null else it.error,
             )
@@ -1357,7 +1378,7 @@ class SillageViewModel(
         if (!current.shouldReturnToRecordsOnBack()) {
             return
         }
-        if (current.askVariantLoading) {
+        if (current.workspace.ask.variant.loading) {
             updateState(forceFeedback = true, noticeType = UiToastType.WARNING) {
                 it.copy(
                     error = null,
@@ -1370,13 +1391,13 @@ class SillageViewModel(
     }
 
     fun updateMemoListFilter(filter: MemoListFilter) {
-        if (state.value.memoListFilter == filter || state.value.askVariantLoading) {
+        if (state.value.workspace.records.browse.filter == filter || state.value.workspace.ask.variant.loading) {
             return
         }
         searchJob?.cancel()
         updateState {
             it.copy(
-                records = it.records.applyListFilter(filter),
+                workspace = it.workspace.copy(records = it.workspace.records.applyListFilter(filter)),
                 error = null,
                 notice = null,
             )
@@ -1386,16 +1407,19 @@ class SillageViewModel(
 
     fun changeCalendarMonth(delta: Int) {
         updateState {
-            val next = java.time.YearMonth.of(it.calendarYear, it.calendarMonth).plusMonths(delta.toLong())
+            val next = java.time.YearMonth.of(
+                it.workspace.records.browse.calendarYear,
+                it.workspace.records.browse.calendarMonth,
+            ).plusMonths(delta.toLong())
             it.copy(
-                records = it.records.selectCalendarMonth(next.year, next.monthValue),
+                workspace = it.workspace.copy(records = it.workspace.records.selectCalendarMonth(next.year, next.monthValue)),
             )
         }
     }
 
     fun selectCalendarDate(date: String) {
         updateState {
-            it.copy(records = it.records.selectCalendarDay(date))
+            it.withRecords { records -> records.selectCalendarDay(date) }
         }
     }
 
@@ -1404,13 +1428,13 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        if (current.draftContent.isBlank()) {
+        if (current.workspace.records.editor.draftContent.isBlank()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_record_empty))
             }
             return
         }
-        if (runCatching { LocalDate.parse(current.draftEntryDate.trim()) }.isFailure) {
+        if (runCatching { LocalDate.parse(current.workspace.records.editor.draftEntryDate.trim()) }.isFailure) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_entry_date_invalid))
             }
@@ -1418,57 +1442,58 @@ class SillageViewModel(
         }
         cancelMemoSummary()
         cancelAttachmentOpen()
-        val selectedMemo = current.selectedMemo
+        val selectedMemo = current.workspace.records.selection.selectedMemo
         launchMemoMutation(
             key = selectedMemo?.let {
-                MemoMutationKey.Memo(it.id, current.clientContextGeneration)
+                MemoMutationKey.Memo(it.id, current.clientContext.generation)
             }
                 ?: MemoMutationKey.Editor(
-                    sessionId = current.editorSessionId,
-                    clientContextGeneration = current.clientContextGeneration,
+                    sessionId = current.workspace.records.editor.sessionId,
+                    clientContextGeneration = current.clientContext.generation,
                 ),
             memoId = selectedMemo?.id,
             useGlobalBusy = selectedMemo == null,
         ) {
             val draft = RecordDraft(
-                content = current.draftContent.trim(),
-                entryDate = current.draftEntryDate.trim(),
+                content = current.workspace.records.editor.draftContent.trim(),
+                entryDate = current.workspace.records.editor.draftEntryDate.trim(),
             )
             val command = if (selectedMemo == null) {
                 SaveRecordCommand.Create(draft)
             } else {
                 SaveRecordCommand.Update(selectedMemo, draft)
             }
-            val saved = saveRecord(command, current.appMode)
-            if (!applyMemo(saved, current.appMode, current.clientContextGeneration)) {
+            val saved = saveRecord(command, current.clientContext.appMode)
+            if (!applyMemo(saved, current.clientContext.appMode, current.clientContext.generation)) {
                 return@launchMemoMutation
             }
             var opened = false
             updateState {
                 if (
-                    it.appMode != current.appMode ||
-                    it.clientContextGeneration != current.clientContextGeneration
+                    it.clientContext.appMode != current.clientContext.appMode ||
+                    it.clientContext.generation != current.clientContext.generation
                 ) {
                     it
                 } else {
                     opened = true
-                    val history = if (it.screenHistory.lastOrNull() == Screen.MemoDetail) {
-                        it.screenHistory.dropLast(1)
+                    val history = if (it.clientContext.history.lastOrNull() == Screen.MemoDetail) {
+                        it.clientContext.history.dropLast(1)
                     } else {
-                        it.screenHistory
-                    }
-                    it.copy(
-                        screen = Screen.MemoDetail,
-                        screenHistory = history,
-                        records = it.records.presentSavedMemo(
-                            memo = saved,
-                            summary = if (current.selectedMemo?.id == saved.id) {
-                                it.selectedSummary
-                            } else {
-                                null
-                            },
-                            summaryLoading = current.appMode != SessionStore.MODE_OFFLINE,
-                            resetEditorEntryDate = LocalDate.now().toString(),
+                        it.clientContext.history
+                        }
+                        it.copy(
+                            clientContext = it.clientContext.navigateTo(Screen.MemoDetail, history),
+                        workspace = it.workspace.copy(
+                            records = it.workspace.records.presentSavedMemo(
+                                memo = saved,
+                                summary = if (current.workspace.records.selection.selectedMemo?.id == saved.id) {
+                                    it.workspace.records.summary.summary
+                                } else {
+                                    null
+                                },
+                                summaryLoading = current.clientContext.appMode != SessionStore.MODE_OFFLINE,
+                                resetEditorEntryDate = LocalDate.now().toString(),
+                            ),
                         ),
                         notice = uiString(R.string.notice_saved),
                     )
@@ -1483,45 +1508,47 @@ class SillageViewModel(
 
     fun deleteSelectedMemo() {
         val current = state.value
-        if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
+        if (current.clientContext.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.workspace.records.selection.selectedMemo ?: return
         cancelMemoSummary()
         cancelAttachmentOpen()
-        val originScreen = current.screen
-        val originHistory = current.screenHistory
-        val originEditorSessionId = current.editorSessionId
-        val originDetailRequestId = current.memoDetailRequestId
+        val originScreen = current.clientContext.screen
+        val originHistory = current.clientContext.history
+        val originEditorSessionId = current.workspace.records.editor.sessionId
+        val originDetailRequestId = current.workspace.records.selection.detailRequestId
         launchMemoMutation(
-            MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
+            MemoMutationKey.Memo(memo.id, current.clientContext.generation),
             memoId = memo.id,
         ) {
             val deleted = mutateRecordLifecycle(
                 RecordLifecycleCommand.Delete(memo),
-                current.appMode,
+                current.clientContext.appMode,
             )
-            if (!applyMemo(deleted, current.appMode, current.clientContextGeneration)) {
+            if (!applyMemo(deleted, current.clientContext.appMode, current.clientContext.generation)) {
                 return@launchMemoMutation
             }
             updateState {
-                val stillAtOrigin = it.appMode == current.appMode &&
-                    it.clientContextGeneration == current.clientContextGeneration &&
-                    it.screen == originScreen &&
-                    it.screenHistory == originHistory &&
-                    it.selectedMemo?.id == memo.id &&
+                val stillAtOrigin = it.clientContext.appMode == current.clientContext.appMode &&
+                    it.clientContext.generation == current.clientContext.generation &&
+                    it.clientContext.screen == originScreen &&
+                    it.clientContext.history == originHistory &&
+                    it.workspace.records.selection.selectedMemo?.id == memo.id &&
                     when (originScreen) {
-                        Screen.Editor -> it.editorSessionId == originEditorSessionId
-                        Screen.MemoDetail -> it.memoDetailRequestId == originDetailRequestId
+                        Screen.Editor -> it.workspace.records.editor.sessionId == originEditorSessionId
+                        Screen.MemoDetail ->
+                            it.workspace.records.selection.detailRequestId == originDetailRequestId
                         else -> true
                     }
-                if (stillAtOrigin) {
-                    it.copy(
-                        screen = Screen.Memos,
-                        screenHistory = emptyList(),
-                        records = it.records.clearPresentedMemo(
-                            resetEditorEntryDate = LocalDate.now().toString(),
-                            clearSearch = true,
+                    if (stillAtOrigin) {
+                        it.copy(
+                            clientContext = it.clientContext.showRoot(Screen.Memos),
+                        workspace = it.workspace.copy(
+                            records = it.workspace.records.clearPresentedMemo(
+                                resetEditorEntryDate = LocalDate.now().toString(),
+                                clearSearch = true,
+                            ),
                         ),
                         notice = uiString(R.string.notice_deleted),
                     )
@@ -1530,8 +1557,8 @@ class SillageViewModel(
                 }
             }
             if (
-                state.value.appMode == current.appMode &&
-                state.value.clientContextGeneration == current.clientContextGeneration
+                state.value.clientContext.appMode == current.clientContext.appMode &&
+                state.value.clientContext.generation == current.clientContext.generation
             ) {
                 refreshMemos()
             }
@@ -1540,25 +1567,25 @@ class SillageViewModel(
 
     fun toggleSelectedMemoFavorited() {
         val current = state.value
-        if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
+        if (current.clientContext.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.workspace.records.selection.selectedMemo ?: return
         launchMemoMutation(
-            MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
+            MemoMutationKey.Memo(memo.id, current.clientContext.generation),
             memoId = memo.id,
         ) {
             val updated = mutateRecordLifecycle(
                 RecordLifecycleCommand.SetFavorited(memo, memo.favoritedAt == null),
-                current.appMode,
+                current.clientContext.appMode,
             )
-            if (!applyMemo(updated, current.appMode, current.clientContextGeneration)) {
+            if (!applyMemo(updated, current.clientContext.appMode, current.clientContext.generation)) {
                 return@launchMemoMutation
             }
             updateState {
                 if (
-                    it.appMode == current.appMode &&
-                    it.clientContextGeneration == current.clientContextGeneration
+                    it.clientContext.appMode == current.clientContext.appMode &&
+                    it.clientContext.generation == current.clientContext.generation
                 ) {
                     it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
                 } else {
@@ -1570,25 +1597,25 @@ class SillageViewModel(
 
     fun toggleSelectedMemoArchived() {
         val current = state.value
-        if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
+        if (current.clientContext.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.workspace.records.selection.selectedMemo ?: return
         launchMemoMutation(
-            MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
+            MemoMutationKey.Memo(memo.id, current.clientContext.generation),
             memoId = memo.id,
         ) {
             val updated = mutateRecordLifecycle(
                 RecordLifecycleCommand.SetArchived(memo, memo.archivedAt == null),
-                current.appMode,
+                current.clientContext.appMode,
             )
-            if (!applyMemo(updated, current.appMode, current.clientContextGeneration)) {
+            if (!applyMemo(updated, current.clientContext.appMode, current.clientContext.generation)) {
                 return@launchMemoMutation
             }
             updateState {
                 if (
-                    it.appMode == current.appMode &&
-                    it.clientContextGeneration == current.clientContextGeneration
+                    it.clientContext.appMode == current.clientContext.appMode &&
+                    it.clientContext.generation == current.clientContext.generation
                 ) {
                     it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
                 } else {
@@ -1600,8 +1627,8 @@ class SillageViewModel(
 
     fun toggleMemoFavorited(memo: Memo) {
         val current = state.value
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
@@ -1615,8 +1642,8 @@ class SillageViewModel(
             }
             updateState {
                 if (
-                    it.appMode == appMode &&
-                    it.clientContextGeneration == clientContextGeneration
+                    it.clientContext.appMode == appMode &&
+                    it.clientContext.generation == clientContextGeneration
                 ) {
                     it.copy(notice = uiString(if (updated.favoritedAt == null) R.string.notice_unfavorited else R.string.notice_favorited))
                 } else {
@@ -1628,8 +1655,8 @@ class SillageViewModel(
 
     fun toggleMemoArchived(memo: Memo) {
         val current = state.value
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
@@ -1643,8 +1670,8 @@ class SillageViewModel(
             }
             updateState {
                 if (
-                    it.appMode == appMode &&
-                    it.clientContextGeneration == clientContextGeneration
+                    it.clientContext.appMode == appMode &&
+                    it.clientContext.generation == clientContextGeneration
                 ) {
                     it.copy(notice = uiString(if (updated.archivedAt == null) R.string.notice_unarchived else R.string.notice_archived))
                 } else {
@@ -1656,8 +1683,8 @@ class SillageViewModel(
 
     fun deleteMemo(memo: Memo) {
         val current = state.value
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
@@ -1668,11 +1695,11 @@ class SillageViewModel(
             }
             updateState {
                 if (
-                    it.appMode == appMode &&
-                    it.clientContextGeneration == clientContextGeneration
+                    it.clientContext.appMode == appMode &&
+                    it.clientContext.generation == clientContextGeneration
                 ) {
                     it.copy(
-                        records = it.records.forgetMemoIfSelected(memo.id),
+                        workspace = it.workspace.copy(records = it.workspace.records.forgetMemoIfSelected(memo.id)),
                         notice = uiString(R.string.notice_deleted),
                     )
                 } else {
@@ -1680,8 +1707,8 @@ class SillageViewModel(
                 }
             }
             if (
-                state.value.appMode == appMode &&
-                state.value.clientContextGeneration == clientContextGeneration
+                state.value.clientContext.appMode == appMode &&
+                state.value.clientContext.generation == clientContextGeneration
             ) {
                 refreshMemos()
             }
@@ -1690,8 +1717,8 @@ class SillageViewModel(
 
     fun restoreMemo(memo: Memo) {
         val current = state.value
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
@@ -1699,7 +1726,7 @@ class SillageViewModel(
             val restored = mutateRecordLifecycle(RecordLifecycleCommand.Restore(memo), appMode)
             if (applyMemo(restored, appMode, clientContextGeneration)) {
                 updateState { state ->
-                    if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
+                    if (state.clientContext.appMode == appMode && state.clientContext.generation == clientContextGeneration) {
                         state.copy(notice = uiString(R.string.notice_restored))
                     } else {
                         state
@@ -1711,8 +1738,8 @@ class SillageViewModel(
 
     fun purgeMemo(memo: Memo) {
         val current = state.value
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, clientContextGeneration),
             memoId = memo.id,
@@ -1720,7 +1747,7 @@ class SillageViewModel(
             val purged = mutateRecordLifecycle(RecordLifecycleCommand.Purge(memo), appMode)
             if (applyMemo(purged, appMode, clientContextGeneration)) {
                 updateState { state ->
-                    if (state.appMode == appMode && state.clientContextGeneration == clientContextGeneration) {
+                    if (state.clientContext.appMode == appMode && state.clientContext.generation == clientContextGeneration) {
                         state.copy(notice = uiString(R.string.notice_purged))
                     } else {
                         state
@@ -1732,10 +1759,10 @@ class SillageViewModel(
 
     fun summarizeSelectedMemo() {
         val current = state.value
-        if (current.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
+        if (current.clientContext.screen == Screen.Editor && !current.canRunMemoEditorAction()) {
             return
         }
-        val memo = current.selectedMemo ?: return
+        val memo = current.workspace.records.selection.selectedMemo ?: return
         val request = current.nextMemoSummaryRequest() ?: return
         var started = false
         updateState { state ->
@@ -1755,8 +1782,8 @@ class SillageViewModel(
                     val generated = generateLocalRecordSummary(memo)
                     val latest = state.value
                     if (
-                        latest.appMode != request.sourceKey ||
-                        latest.clientContextGeneration != request.clientContextGeneration ||
+                        latest.clientContext.appMode != request.sourceKey ||
+                        latest.clientContext.generation != request.clientContextGeneration ||
                     getLocalRecordDetail(request.memoId).memo.version != request.memoVersion
                     ) {
                         return@launch
@@ -1805,14 +1832,14 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        val editorSessionId = current.editorSessionId
+        val editorSessionId = current.workspace.records.editor.sessionId
         val offline = isOfflineMode()
         updateState {
-            if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
-                val records = it.records.beginEditorAttachmentUpload(editorSessionId)
+            if (it.workspace.records.editor.sessionId == editorSessionId && it.canRunMemoEditorAction()) {
+                val records = it.workspace.records.beginEditorAttachmentUpload(editorSessionId)
                     ?: return@updateState it
                 it.copy(
-                    records = records,
+                    workspace = it.workspace.copy(records = records),
                     error = null,
                     notice = null,
                 )
@@ -1867,7 +1894,7 @@ class SillageViewModel(
                 if (it.canApplyAttachmentUpload(editorSessionId)) {
                     when {
                     failedCount == 0 -> it.copy(
-                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
+                        workspace = it.workspace.copy(records = it.workspace.records.finishEditorAttachmentUpload(editorSessionId)),
                         notice = uiString(
                                 if (offline) {
                                     R.string.notice_attachment_queued_offline
@@ -1877,12 +1904,12 @@ class SillageViewModel(
                             ),
                     )
                     partialFailure -> it.copy(
-                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
+                        workspace = it.workspace.copy(records = it.workspace.records.finishEditorAttachmentUpload(editorSessionId)),
                         error = null,
                         notice = uiString(R.string.notice_attachment_partial_failure, failedCount),
                     )
                     else -> it.copy(
-                        records = it.records.finishEditorAttachmentUpload(editorSessionId),
+                        workspace = it.workspace.copy(records = it.workspace.records.finishEditorAttachmentUpload(editorSessionId)),
                         error = firstError?.readableMessage(),
                     )
                     }
@@ -1906,7 +1933,10 @@ class SillageViewModel(
             return
         }
         val current = state.value
-        if (current.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
+        if (
+            current.workspace.records.attachmentOpen.path != null ||
+            attachmentOpenJob?.isActive == true
+        ) {
             return
         }
         val request = current.nextAttachmentOpenRequest(target.path) ?: return
@@ -1991,14 +2021,14 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiProfileDiagnostics.busy
+                !it.workspace.settings.loading &&
+                !it.workspace.settings.profilesSaving &&
+                !it.workspace.settings.diagnostics.busy
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles + AIProfileDraft(
+                    it.workspace.settings.profiles + AIProfileDraft(
                         draftKey = UUID.randomUUID().toString(),
-                        active = it.aiProfiles.isEmpty(),
+                        active = it.workspace.settings.profiles.isEmpty(),
                     ),
                 )
             } else {
@@ -2012,16 +2042,18 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiAutoSummarySaving &&
-                !it.aiProfileDiagnostics.busy &&
-                index in it.aiProfiles.indices
+                !it.workspace.settings.loading &&
+                !it.workspace.settings.profilesSaving &&
+                !it.workspace.settings.autoSummarySaving &&
+                !it.workspace.settings.diagnostics.busy &&
+                index in it.workspace.settings.profiles.indices
             ) {
                 removed = true
                 it.withAIProfiles(
                     normalizeAIProfilesForSave(
-                        it.aiProfiles.filterIndexed { profileIndex, _ -> profileIndex != index },
+                        it.workspace.settings.profiles.filterIndexed { profileIndex, _ ->
+                            profileIndex != index
+                        },
                     ),
                 )
             } else {
@@ -2073,14 +2105,14 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiAutoSummarySaving &&
-                !it.aiProfileDiagnostics.busy &&
-                index in it.aiProfiles.indices
+                !it.workspace.settings.loading &&
+                !it.workspace.settings.profilesSaving &&
+                !it.workspace.settings.autoSummarySaving &&
+                !it.workspace.settings.diagnostics.busy &&
+                index in it.workspace.settings.profiles.indices
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles.mapIndexed { profileIndex, profile ->
+                    it.workspace.settings.profiles.mapIndexed { profileIndex, profile ->
                         profile.copy(enabled = true, active = profileIndex == index)
                     },
                 )
@@ -2171,9 +2203,11 @@ class SillageViewModel(
                     updateState { current ->
                         if (current.canApplyAISettingsLoad(request)) {
                             current.completeAISettingsLoad(request).copy(
-                                settings = current.settings.applyLoadedSnapshot(
-                                    profiles = settings.profiles,
-                                    autoSummaryEnabled = settings.autoSummary,
+                                workspace = current.workspace.copy(
+                                    settings = current.workspace.settings.applyLoadedSnapshot(
+                                        profiles = settings.profiles,
+                                        autoSummaryEnabled = settings.autoSummary,
+                                    ),
                                 ),
                                 error = null,
                             )
@@ -2199,7 +2233,7 @@ class SillageViewModel(
 
     fun saveAIProfiles() {
         val current = state.value
-        val draftProfiles = current.aiProfiles
+        val draftProfiles = current.workspace.settings.profiles
         val blankNameIndex = firstBlankAIProfileNameIndex(draftProfiles)
         if (blankNameIndex != null) {
             updateState(forceFeedback = true) {
@@ -2303,8 +2337,8 @@ class SillageViewModel(
             saveRemoteAIProfiles(commands)
         }
         if (
-            state.value.appMode != appMode ||
-            state.value.clientContextGeneration != clientContextGeneration
+            state.value.clientContext.appMode != appMode ||
+            state.value.clientContext.generation != clientContextGeneration
         ) {
             return savedProfiles.map { it.toDraft() }
         }
@@ -2327,8 +2361,8 @@ class SillageViewModel(
         }
         val savedValue = setRemoteAIAutoSummary(request.targetValue)
         if (
-            state.value.appMode == request.appMode &&
-            state.value.clientContextGeneration == request.clientContextGeneration
+            state.value.clientContext.appMode == request.appMode &&
+            state.value.clientContext.generation == request.clientContextGeneration
         ) {
             setLocalAIAutoSummary(savedValue)
         }
@@ -2419,9 +2453,9 @@ class SillageViewModel(
 
     fun loadAIModels(index: Int) {
         val current = state.value
-        val profile = current.aiProfiles.getOrNull(index) ?: return
+        val profile = current.workspace.settings.profiles.getOrNull(index) ?: return
         val key = profile.editorKey(index)
-        if (current.appMode == SessionStore.MODE_OFFLINE) {
+        if (current.clientContext.appMode == SessionStore.MODE_OFFLINE) {
             val message = uiString(R.string.error_ai_models_offline)
             updateState(forceFeedback = true) {
                 it.recordAIProfileDiagnosticsFeedback(key, message).copy(
@@ -2482,26 +2516,26 @@ class SillageViewModel(
     fun loadAskConversations() {
         val requestState = state.value
         if (
-            requestState.askLoading ||
-            requestState.askSending ||
-            requestState.askVariantLoading ||
-            requestState.askSavingMessageId.isNotBlank()
+            requestState.workspace.ask.loading ||
+            requestState.workspace.ask.stream.sending ||
+            requestState.workspace.ask.variant.loading ||
+            requestState.workspace.ask.memoSave.savingMessageId.isNotBlank()
         ) {
             return
         }
-        val screenSessionId = requestState.askScreenSessionId
-        val appMode = requestState.appMode
-        val clientContextGeneration = requestState.clientContextGeneration
+        val screenSessionId = requestState.workspace.ask.session.generation
+        val appMode = requestState.clientContext.appMode
+        val clientContextGeneration = requestState.clientContext.generation
         var started = false
         updateState { current ->
             if (
-                !current.askLoading &&
-                !current.askSending &&
-                !current.askVariantLoading &&
-                current.askSavingMessageId.isBlank() &&
-                current.askScreenSessionId == screenSessionId &&
-                current.appMode == appMode &&
-                current.clientContextGeneration == clientContextGeneration
+                !current.workspace.ask.loading &&
+                !current.workspace.ask.stream.sending &&
+                !current.workspace.ask.variant.loading &&
+                current.workspace.ask.memoSave.savingMessageId.isBlank() &&
+                current.workspace.ask.session.generation == screenSessionId &&
+                current.clientContext.appMode == appMode &&
+                current.clientContext.generation == clientContextGeneration
             ) {
                 started = true
                 current.withAsk { ask -> ask.beginConversationCatalogLoad() }.copy(
@@ -2526,9 +2560,9 @@ class SillageViewModel(
                 .onSuccess { conversations ->
                     updateState { current ->
                         if (
-                            current.askScreenSessionId == screenSessionId &&
-                            current.appMode == appMode &&
-                            current.clientContextGeneration == clientContextGeneration
+                            current.workspace.ask.session.generation == screenSessionId &&
+                            current.clientContext.appMode == appMode &&
+                            current.clientContext.generation == clientContextGeneration
                         ) {
                             current.withAsk { ask ->
                                 ask.completeConversationCatalog(
@@ -2543,9 +2577,9 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { current ->
                         if (
-                            current.askScreenSessionId == screenSessionId &&
-                            current.appMode == appMode &&
-                            current.clientContextGeneration == clientContextGeneration
+                            current.workspace.ask.session.generation == screenSessionId &&
+                            current.clientContext.appMode == appMode &&
+                            current.clientContext.generation == clientContextGeneration
                         ) {
                             val message = error.readableMessage()
                             current.withAsk { ask ->
@@ -2562,28 +2596,28 @@ class SillageViewModel(
     fun selectAskConversation(id: String) {
         val current = state.value
         if (
-            current.askLoading ||
-            current.askSending ||
-            current.askVariantLoading ||
-            current.askSourceLoading ||
+            current.workspace.ask.loading ||
+            current.workspace.ask.stream.sending ||
+            current.workspace.ask.variant.loading ||
+            current.workspace.ask.sourceNavigation.loading ||
             id.isBlank()
         ) {
             return
         }
-        val conversation = current.askConversations.find { it.id == id }
-        val appMode = current.appMode
-        val clientContextGeneration = current.clientContextGeneration
-        val screenSessionId = current.askScreenSessionId + 1
+        val conversation = current.workspace.ask.conversation.conversations.find { it.id == id }
+        val appMode = current.clientContext.appMode
+        val clientContextGeneration = current.clientContext.generation
+        val screenSessionId = current.workspace.ask.session.generation + 1
         var started = false
         updateState { latest ->
             if (
-                latest.appMode == appMode &&
-                latest.clientContextGeneration == clientContextGeneration &&
-                latest.askScreenSessionId == current.askScreenSessionId &&
-                !latest.askLoading &&
-                !latest.askSending &&
-                !latest.askVariantLoading &&
-                !latest.askSourceLoading
+                latest.clientContext.appMode == appMode &&
+                latest.clientContext.generation == clientContextGeneration &&
+                latest.workspace.ask.session.generation == current.workspace.ask.session.generation &&
+                !latest.workspace.ask.loading &&
+                !latest.workspace.ask.stream.sending &&
+                !latest.workspace.ask.variant.loading &&
+                !latest.workspace.ask.sourceNavigation.loading
             ) {
                 started = true
                 latest.withAsk { ask ->
@@ -2614,15 +2648,15 @@ class SillageViewModel(
                 .onSuccess { messages ->
                     updateState { latest ->
                         if (
-                            latest.activeAskId == id &&
-                            latest.appMode == appMode &&
-                            latest.clientContextGeneration == clientContextGeneration &&
-                            latest.askScreenSessionId == screenSessionId
+                            latest.workspace.ask.conversation.activeConversationId == id &&
+                            latest.clientContext.appMode == appMode &&
+                            latest.clientContext.generation == clientContextGeneration &&
+                            latest.workspace.ask.session.generation == screenSessionId
                         ) {
                             latest.withAsk { ask ->
                                 ask.completeConversationLoad(
                                     conversationId = id,
-                                    headMessageId = latest.askHeadId,
+                                    headMessageId = latest.workspace.ask.conversation.headMessageId,
                                     messages = messages,
                                 )
                             }
@@ -2634,10 +2668,10 @@ class SillageViewModel(
                 .onFailure { error ->
                     updateState { latest ->
                         if (
-                            latest.activeAskId == id &&
-                            latest.appMode == appMode &&
-                            latest.clientContextGeneration == clientContextGeneration &&
-                            latest.askScreenSessionId == screenSessionId
+                            latest.workspace.ask.conversation.activeConversationId == id &&
+                            latest.clientContext.appMode == appMode &&
+                            latest.clientContext.generation == clientContextGeneration &&
+                            latest.workspace.ask.session.generation == screenSessionId
                         ) {
                             val message = error.readableMessage()
                             latest.withAsk { ask ->
@@ -2653,10 +2687,10 @@ class SillageViewModel(
 
     fun startNewAsk() {
         if (
-            state.value.askLoading ||
-            state.value.askSending ||
-            state.value.askVariantLoading ||
-            state.value.askSourceLoading
+            state.value.workspace.ask.loading ||
+            state.value.workspace.ask.stream.sending ||
+            state.value.workspace.ask.variant.loading ||
+            state.value.workspace.ask.sourceNavigation.loading
         ) {
             return
         }
@@ -2682,15 +2716,18 @@ class SillageViewModel(
 
     fun retryAskLoad() {
         val current = state.value
-        if (current.activeAskId.isNotBlank() && current.askMessages.isEmpty()) {
-            selectAskConversation(current.activeAskId)
+        if (
+            current.workspace.ask.conversation.activeConversationId.isNotBlank() &&
+            current.workspace.ask.conversation.messages.isEmpty()
+        ) {
+            selectAskConversation(current.workspace.ask.conversation.activeConversationId)
         } else {
             loadAskConversations()
         }
     }
 
     fun sendAskQuestion() {
-        val question = state.value.askQuestion.trim()
+        val question = state.value.workspace.ask.composer.question.trim()
         if (question.isBlank()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_ask_question_required))
@@ -2701,8 +2738,12 @@ class SillageViewModel(
     }
 
     fun regenerateAskAnswer(messageId: String) {
-        val conversationId = state.value.activeAskId
-        if (conversationId.isBlank() || state.value.askSending || state.value.askVariantLoading) {
+        val conversationId = state.value.workspace.ask.conversation.activeConversationId
+        if (
+            conversationId.isBlank() ||
+            state.value.workspace.ask.stream.sending ||
+            state.value.workspace.ask.variant.loading
+        ) {
             return
         }
         startAskStream(content = "", forkOfId = messageId)
@@ -2720,11 +2761,11 @@ class SillageViewModel(
         invalidateAskMemoSaveNavigation()
         val current = state.value
         val request = current.nextAskVariantRequest() ?: return
-        val leafId = askBranchLeafId(current.askMessages, messageId)
-        val previousHeadId = current.askHeadId
+        val leafId = askBranchLeafId(current.workspace.ask.conversation.messages, messageId)
+        val previousHeadId = current.workspace.ask.conversation.headMessageId
         updateState {
             if (it.nextAskVariantRequest() == request) {
-                val variant = it.askVariant.begin(request, it.askVariantContext())
+                val variant = it.workspace.ask.variant.begin(request, it.askVariantContext())
                     ?: return@updateState it
                 it.withAsk { ask ->
                     ask.applyVariantHead(
@@ -2810,14 +2851,15 @@ class SillageViewModel(
                 }
                 var opened = false
                 updateState { current ->
-                    if (current.canApplyAskMemoSave(request)) {
-                        opened = true
-                        current.copy(
-                            screen = Screen.MemoDetail,
-                            screenHistory = current.historyFor(Screen.MemoDetail),
-                            records = current.records.presentMemoDetail(
-                                memo = memo,
-                                summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+                if (current.canApplyAskMemoSave(request)) {
+                    opened = true
+                    current.copy(
+                        clientContext = current.clientContext.navigateTo(Screen.MemoDetail),
+                            workspace = current.workspace.copy(
+                                records = current.workspace.records.presentMemoDetail(
+                                    memo = memo,
+                                    summaryLoading = request.appMode != SessionStore.MODE_OFFLINE,
+                                ),
                             ),
                             error = null,
                             notice = uiString(R.string.notice_ask_saved_record),
@@ -2858,7 +2900,7 @@ class SillageViewModel(
                 .onSuccess { detail ->
                     updateState { current ->
                         if (!current.canApplyAskSourceNavigation(request)) {
-                            if (current.askSourceRequestId == request.requestId) {
+                            if (current.workspace.ask.sourceNavigation.requestId == request.requestId) {
                                 current.finishAskSourceNavigation(request)
                             } else {
                                 current
@@ -2875,7 +2917,7 @@ class SillageViewModel(
                                 current.finishAskSourceNavigation(request).copy(
                                     error = error.readableMessage(),
                                 )
-                            current.askSourceRequestId == request.requestId ->
+                            current.workspace.ask.sourceNavigation.requestId == request.requestId ->
                                 current.finishAskSourceNavigation(request)
                             else -> current
                         }
@@ -2888,11 +2930,10 @@ class SillageViewModel(
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
-            val navigation = it.backNavigation(Screen.Memos)
+            val navigation = it.clientContext.back(Screen.Memos)
             it.copy(
-                screen = navigation.screen,
-                screenHistory = navigation.history,
-                records = it.records.clearPresentedMemo(stopAttachmentUpload = true),
+                clientContext = navigation,
+                workspace = it.workspace.copy(records = it.workspace.records.clearPresentedMemo(stopAttachmentUpload = true)),
                 error = null,
                 notice = null,
             )
@@ -2906,29 +2947,43 @@ class SillageViewModel(
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
-            val navigation = it.backNavigation(
-                if (it.selectedMemo == null) Screen.Memos else Screen.MemoDetail,
-            )
-            val returningToDetail = navigation.screen == Screen.MemoDetail && it.selectedMemo != null
-            it.copy(
-                screen = if (returningToDetail) Screen.MemoDetail else navigation.screen,
-                screenHistory = navigation.history,
-                records = if (returningToDetail) {
-                    it.records.returnToPresentedMemo(
-                        resetEditorEntryDate = LocalDate.now().toString(),
-                        summaryLoading = !isOfflineMode(),
-                    )
+            val navigation = it.clientContext.back(
+                if (it.workspace.records.selection.selectedMemo == null) {
+                    Screen.Memos
                 } else {
-                    it.records.clearPresentedMemo(
-                        resetEditorEntryDate = LocalDate.now().toString(),
-                    )
+                    Screen.MemoDetail
                 },
+            )
+            val returningToDetail =
+                navigation.screen == Screen.MemoDetail &&
+                    it.workspace.records.selection.selectedMemo != null
+            it.copy(
+                clientContext = if (returningToDetail) {
+                    navigation.show(Screen.MemoDetail)
+                } else {
+                    navigation
+                },
+                workspace = it.workspace.copy(
+                    records = if (returningToDetail) {
+                        it.workspace.records.returnToPresentedMemo(
+                            resetEditorEntryDate = LocalDate.now().toString(),
+                            summaryLoading = !isOfflineMode(),
+                        )
+                    } else {
+                        it.workspace.records.clearPresentedMemo(
+                            resetEditorEntryDate = LocalDate.now().toString(),
+                        )
+                    },
+                ),
                 error = null,
                 notice = null,
             )
         }
         state.value
-            .takeIf { it.screen == Screen.MemoDetail }
+            .takeIf { it.clientContext.screen == Screen.MemoDetail }
+            ?.workspace
+            ?.records
+            ?.selection
             ?.selectedMemo
             ?.id
             ?.let(::fetchSelectedMemoDetail)
@@ -2952,12 +3007,12 @@ class SillageViewModel(
         updateState {
             if (
                 !it.loading &&
-                !it.aiSettingsLoading &&
-                !it.aiSettingsSaving &&
-                !it.aiProfileDiagnostics.busy
+                !it.workspace.settings.loading &&
+                !it.workspace.settings.profilesSaving &&
+                !it.workspace.settings.diagnostics.busy
             ) {
                 it.withAIProfiles(
-                    it.aiProfiles.mapIndexed { i, profile ->
+                    it.workspace.settings.profiles.mapIndexed { i, profile ->
                         if (i == index) transform(profile) else profile
                     },
                 )
@@ -3097,7 +3152,7 @@ class SillageViewModel(
             loadMoreMemosJob = null
         }
         updateState {
-            it.copy(records = it.records.cancelPagination())
+            it.withRecords { records -> records.cancelPagination() }
         }
     }
 
@@ -3110,7 +3165,7 @@ class SillageViewModel(
     private fun completeAskVariantSelection(request: AskVariantRequest, leafId: String) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
-                val variant = current.askVariant.finish(request, current.askVariantContext())
+                val variant = current.workspace.ask.variant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.withAsk { ask ->
                     ask.applyVariantHead(
@@ -3134,7 +3189,7 @@ class SillageViewModel(
     ) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
-                val variant = current.askVariant.finish(request, current.askVariantContext())
+                val variant = current.workspace.ask.variant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.withAsk { ask ->
                     ask.applyVariantHead(
@@ -3162,7 +3217,7 @@ class SillageViewModel(
 
     private fun invalidateAskMemoSaveNavigation() {
         updateState {
-            if (it.askSavingMessageId.isNotBlank()) {
+            if (it.workspace.ask.memoSave.savingMessageId.isNotBlank()) {
                 it.withAsk { ask -> ask.advanceSession() }
             } else {
                 it
@@ -3218,7 +3273,7 @@ class SillageViewModel(
     private fun fetchSelectedMemoDetail(memoId: String) {
         val request = state.value.nextMemoDetailRequest(memoId) ?: return
         updateState { current -> current.startMemoDetailRequest(request) }
-        if (state.value.memoDetailRequestId != request.requestId) {
+        if (state.value.workspace.records.selection.detailRequestId != request.requestId) {
             return
         }
         viewModelScope.launch {
@@ -3233,9 +3288,11 @@ class SillageViewModel(
                     var restartSearch = false
                     updateState { current ->
                         val completed = current.completeMemoDetailRequest(request, detail)
-                        restartSearch = current.searching &&
-                            current.searchQuery.isNotBlank() &&
-                            completed.memoCacheGeneration != current.memoCacheGeneration
+                        restartSearch =
+                            current.workspace.records.search.searching &&
+                                current.workspace.records.search.query.isNotBlank() &&
+                                completed.workspace.records.collection.cacheGeneration !=
+                                    current.workspace.records.collection.cacheGeneration
                         completed
                     }
                     if (restartSearch) {
@@ -3341,18 +3398,18 @@ class SillageViewModel(
         }
         if (draftRewrites.isNotEmpty()) {
             updateState { current ->
-                if (current.screen != Screen.Editor) {
+                if (current.clientContext.screen != Screen.Editor) {
                     return@updateState current
                 }
-                var draft = current.draftContent
+                var draft = current.workspace.records.editor.draftContent
                 draftRewrites.forEach { (from, to) ->
                     if (draft.contains(from)) {
                         draft = draft.replace(from, to)
                     }
                 }
-            if (draft == current.draftContent) {
-                current
-            } else {
+                if (draft == current.workspace.records.editor.draftContent) {
+                    current
+                } else {
                     current.withRecords { records -> records.updateEditorContent(draft) }
                 }
             }
@@ -3374,7 +3431,10 @@ class SillageViewModel(
             }
             return
         }
-        if (state.value.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
+        if (
+            state.value.workspace.records.attachmentOpen.path != null ||
+            attachmentOpenJob?.isActive == true
+        ) {
             return
         }
         val openPath = localAttachmentPath(pending)
@@ -3442,13 +3502,13 @@ class SillageViewModel(
         invalidateAskMemoSaveNavigation()
         val current = state.value
         val initialRequest = current.nextAskStreamRequest() ?: return
-        val contextScope = current.askScope
-        val sourceKind = current.askSourceKind
-        val previousHeadId = current.askHeadId
+        val contextScope = current.workspace.ask.composer.contextScope
+        val sourceKind = current.workspace.ask.composer.sourceKind
+        val previousHeadId = current.workspace.ask.conversation.headMessageId
         val regeneratingId = forkOfId.orEmpty()
         updateState {
             if (it.nextAskStreamRequest() == initialRequest) {
-                val stream = it.askStream.begin(
+                val stream = it.workspace.ask.stream.begin(
                     request = initialRequest,
                     context = it.askStreamContext(),
                     regeneratingMessageId = regeneratingId,
@@ -3488,7 +3548,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                ask = currentState.ask.activateConversation(created),
+                                workspace = currentState.workspace.copy(ask = currentState.workspace.ask.activateConversation(created)),
                             )
                         } else {
                             currentState
@@ -3513,8 +3573,10 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                        ask = currentState.ask.startStreaming(
-                                            if (event.regenerating) null else event.userMessage,
+                                        workspace = currentState.workspace.copy(
+                                            ask = currentState.workspace.ask.startStreaming(
+                                                if (event.regenerating) null else event.userMessage,
+                                            ),
                                         ),
                                     )
                             } else {
@@ -3526,7 +3588,7 @@ class SillageViewModel(
                             updateState { currentState ->
                                 if (currentState.canApplyAskStream(request)) {
                                     currentState.copy(
-                                        ask = currentState.ask.appendStreamDelta(event.text),
+                                        workspace = currentState.workspace.copy(ask = currentState.workspace.ask.appendStreamDelta(event.text)),
                                     )
                             } else {
                                 currentState
@@ -3569,11 +3631,13 @@ class SillageViewModel(
                                             previousHeadId = previousHeadId,
                                         )
                                         currentState.copy(
-                                            ask = currentState.ask.replaceActiveSnapshot(
-                                                conversationId = request.conversationId,
-                                                conversations = snapshot.conversations,
-                                                headMessageId = snapshot.headId,
-                                                messages = snapshot.messages,
+                                            workspace = currentState.workspace.copy(
+                                                ask = currentState.workspace.ask.replaceActiveSnapshot(
+                                                    conversationId = request.conversationId,
+                                                    conversations = snapshot.conversations,
+                                                    headMessageId = snapshot.headId,
+                                                    messages = snapshot.messages,
+                                                ),
                                             ),
                                         )
                                     } else {
@@ -3592,7 +3656,7 @@ class SillageViewModel(
                             currentState
                         }
                     }
-                    if (state.value.askStreamRequestId == request.requestId) {
+                    if (state.value.workspace.ask.stream.requestId == request.requestId) {
                         askStreamJob = null
                     }
                 }
@@ -3620,7 +3684,7 @@ class SillageViewModel(
                     updateState { currentState ->
                         if (currentState.canApplyAskStream(request)) {
                             currentState.copy(
-                                ask = currentState.ask.activateConversation(created),
+                                workspace = currentState.workspace.copy(ask = currentState.workspace.ask.activateConversation(created)),
                             )
                         } else {
                             currentState
@@ -3632,7 +3696,14 @@ class SillageViewModel(
                     }
                 }
                 val messages = listLocalAskMessages(conversationId)
-                val parentId = if (forkOfId == null) lastAssistantMessageId(buildAskActivePath(messages, state.value.askHeadId)) else null
+                val parentId =
+                    if (forkOfId == null) {
+                        lastAssistantMessageId(
+                            buildAskActivePath(messages, state.value.workspace.ask.conversation.headMessageId),
+                        )
+                    } else {
+                        null
+                    }
                 val question = if (forkOfId == null) {
                     content
                 } else {
@@ -3680,12 +3751,14 @@ class SillageViewModel(
                             previousHeadId = previousHeadId,
                         )
                         currentState.copy(
-                            ask = currentState.ask.replaceActiveSnapshot(
-                                conversationId = request.conversationId,
-                                conversations = conversations,
-                                headMessageId = refreshedHeadId,
-                                messages = refreshedMessages,
-                                clearQuestion = forkOfId == null,
+                            workspace = currentState.workspace.copy(
+                                ask = currentState.workspace.ask.replaceActiveSnapshot(
+                                    conversationId = request.conversationId,
+                                    conversations = conversations,
+                                    headMessageId = refreshedHeadId,
+                                    messages = refreshedMessages,
+                                    clearQuestion = forkOfId == null,
+                                ),
                             ),
                         )
                     } else {
@@ -3713,7 +3786,7 @@ class SillageViewModel(
                     currentState
                 }
             }
-            if (state.value.askStreamRequestId == request.requestId) {
+            if (state.value.workspace.ask.stream.requestId == request.requestId) {
                 askStreamJob = null
             }
         }
@@ -3731,11 +3804,11 @@ class SillageViewModel(
             is MemoMutationKey.Memo -> key.clientContextGeneration
         }
         val current = state.value
-        if (current.clientContextGeneration != clientContextGeneration) {
+        if (current.clientContext.generation != clientContextGeneration) {
             lease.release()
             return
         }
-        val appMode = current.appMode
+        val appMode = current.clientContext.appMode
         updateState { current ->
             current.beginMemoMutation(memoId).copy(
                 loading = current.loading || useGlobalBusy,
@@ -3749,11 +3822,17 @@ class SillageViewModel(
                 onFailure = { error ->
                     updateState { current ->
                         if (
-                            current.appMode == appMode &&
-                            current.clientContextGeneration == clientContextGeneration
-                        ) {
-                            current.copy(
-                                screen = if (current.screen == Screen.Loading) Screen.Server else current.screen,
+                            current.clientContext.appMode == appMode &&
+                            current.clientContext.generation == clientContextGeneration
+                ) {
+                    current.copy(
+                        clientContext = current.clientContext.show(
+                            if (current.clientContext.screen == Screen.Loading) {
+                                Screen.Server
+                            } else {
+                                current.clientContext.screen
+                            },
+                        ),
                                 error = error.readableMessage(),
                             )
                         } else {
@@ -3764,25 +3843,25 @@ class SillageViewModel(
                 onFinished = {
                     updateState { current ->
                 if (
-                    current.appMode == appMode &&
-                    current.clientContextGeneration == clientContextGeneration
+                    current.clientContext.appMode == appMode &&
+                    current.clientContext.generation == clientContextGeneration
                 ) {
                     current.finishMemoMutation(memoId).copy(
                         loading = if (
                             useGlobalBusy &&
                             key is MemoMutationKey.Editor &&
-                                    current.editorSessionId == key.sessionId
-                                ) {
-                                    false
-                                } else {
-                                    current.loading
-                                },
-                    )
+                            current.workspace.records.editor.sessionId == key.sessionId
+                        ) {
+                            false
                         } else {
-                            current
-                        }
-                    }
-                },
+                            current.loading
+                        },
+                    )
+                } else {
+                    current
+                }
+            }
+        },
             ) {
                 block()
             }
@@ -3806,11 +3885,17 @@ class SillageViewModel(
                 onFailure = { error ->
                     val resourceId = readableErrorResourceId(
                         error.message,
-                        state.value.languageMode,
+                        state.value.appearance.languageMode,
                     )
-                    updateState {
-                        it.copy(
-                            screen = if (it.screen == Screen.Loading) Screen.Server else it.screen,
+            updateState {
+                it.copy(
+                    clientContext = it.clientContext.show(
+                        if (it.clientContext.screen == Screen.Loading) {
+                            Screen.Server
+                        } else {
+                            it.clientContext.screen
+                        },
+                    ),
                             authError = error.readableMessage(),
                             authErrorResourceId = resourceId,
                         )
@@ -3827,7 +3912,7 @@ class SillageViewModel(
 
     private fun enterOfflineMode(notice: String?) {
         cancelAIAutoSummarySave()
-        val filter = state.value.memoListFilter
+        val filter = state.value.workspace.records.browse.filter
         // Corrupted local data must surface as an error, not crash the app or
         // silently show an empty diary.
         val localSnapshot = runCatching {
@@ -3847,12 +3932,9 @@ class SillageViewModel(
                 settingsProfiles = aiProfiles,
                 settingsAutoSummaryEnabled = autoSummary,
             ).copy(
-                appMode = SessionStore.MODE_OFFLINE,
-                clientContextGeneration = it.clientContextGeneration + 1,
+                clientContext = it.clientContext.enterOfflineWorkspace(),
                 initialized = true,
                 account = null,
-                screen = Screen.Memos,
-                screenHistory = emptyList(),
                 authError = null,
                 authErrorResourceId = null,
                 error = loadError,
@@ -3867,7 +3949,7 @@ class SillageViewModel(
         val autoSummary: Boolean,
     )
 
-    private fun isOfflineMode(): Boolean = state.value.appMode == SessionStore.MODE_OFFLINE
+    private fun isOfflineMode(): Boolean = state.value.clientContext.appMode == SessionStore.MODE_OFFLINE
 
     private fun cancelAIAutoSummarySave() {
         aiAutoSummaryJob?.cancel()
@@ -3887,8 +3969,8 @@ class SillageViewModel(
         var restartSearch = false
         synchronized(memoPageLock) {
             if (
-                state.value.appMode != appMode ||
-                state.value.clientContextGeneration != clientContextGeneration
+                state.value.clientContext.appMode != appMode ||
+                state.value.clientContext.generation != clientContextGeneration
             ) {
                 return false
             }
@@ -3899,11 +3981,13 @@ class SillageViewModel(
         searchJob = null
         updateState { current ->
             if (
-                current.appMode == appMode &&
-                current.clientContextGeneration == clientContextGeneration
+                current.clientContext.appMode == appMode &&
+                current.clientContext.generation == clientContextGeneration
             ) {
                 applied = true
-                restartSearch = current.searching && current.searchQuery.isNotBlank()
+                restartSearch =
+                    current.workspace.records.search.searching &&
+                        current.workspace.records.search.query.isNotBlank()
                 current.applyMemoToCache(memo)
             } else {
                 current
@@ -3929,15 +4013,16 @@ class SillageViewModel(
         val restored = consumeRestoredEditorDraft(editingMemoId = memo.id)
         updateState {
             it.copy(
-                screen = Screen.Editor,
-                screenHistory = it.historyFor(Screen.Editor),
-                records = it.records.beginMemoEditor(
-                    memo = memo,
-                    draftContent = restored?.content ?: memo.content,
-                    draftEntryDate = restored?.entryDate?.ifBlank { memo.entryDate } ?: memo.entryDate,
-                    initialDraftContent = memo.content,
-                    initialDraftEntryDate = memo.entryDate,
-                    summaryLoading = !isOfflineMode(),
+                clientContext = it.clientContext.navigateTo(Screen.Editor),
+                workspace = it.workspace.copy(
+                    records = it.workspace.records.beginMemoEditor(
+                        memo = memo,
+                        draftContent = restored?.content ?: memo.content,
+                        draftEntryDate = restored?.entryDate?.ifBlank { memo.entryDate } ?: memo.entryDate,
+                        initialDraftContent = memo.content,
+                        initialDraftEntryDate = memo.entryDate,
+                        summaryLoading = !isOfflineMode(),
+                    ),
                 ),
                 error = null,
                 notice = null,
@@ -3954,7 +4039,7 @@ class SillageViewModel(
         }
         val raw = message?.trim().orEmpty()
         val normalized = raw.trimEnd('。')
-        val resourceId = readableErrorResourceId(raw, state.value.languageMode)
+        val resourceId = readableErrorResourceId(raw, state.value.appearance.languageMode)
         if (resourceId != null) {
             return uiString(resourceId)
         }
@@ -3967,7 +4052,7 @@ class SillageViewModel(
     private fun blockForRequiredAndroidUpdate(): Boolean {
         if (
             !state.value.androidUpdateRequired ||
-            state.value.appMode == SessionStore.MODE_OFFLINE
+            state.value.clientContext.appMode == SessionStore.MODE_OFFLINE
         ) {
             return false
         }

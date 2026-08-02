@@ -17,11 +17,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,12 +44,10 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import app.sillage.BuildConfig
 import app.sillage.R
-import app.sillage.data.SessionStore
 import app.sillage.ui.ask.AskScreen
 import app.sillage.ui.auth.InitializeScreen
 import app.sillage.ui.auth.LoginScreen
@@ -64,6 +57,8 @@ import app.sillage.ui.memos.MemoDetailScreen
 import app.sillage.ui.memos.MemoEditorScreen
 import app.sillage.ui.memos.MemoListScreen
 import app.sillage.ui.settings.AISettingsScreen
+import app.sillage.ui.sync.SillageSyncConflictDialog
+import app.sillage.ui.sync.SillageSyncConflictStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.collectLatest
@@ -82,9 +77,9 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     // screen leaves composition (detail/editor) and the user comes back.
     val memoListState = remember { LazyListState() }
     LaunchedEffect(
-        state.memoListFilter,
-        state.searchQuery.isBlank(),
-        state.searchResultQuery,
+        state.workspace.records.browse.filter,
+        state.workspace.records.search.query.isBlank(),
+        state.workspace.records.search.resultQuery,
     ) {
         // The visible list context changed (filter or search), reset to top.
         memoListState.scrollToItem(0)
@@ -144,10 +139,10 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             }
         }
     }
-    LaunchedEffect(viewModel, snackbarHostState, state.languageMode) {
+    LaunchedEffect(viewModel, snackbarHostState, state.appearance.languageMode) {
         snackbarHostState.currentSnackbarData?.dismiss()
         viewModel.toastEvents.collectLatest { event ->
-            if (!event.matchesLanguage(state.languageMode)) {
+            if (!event.matchesLanguage(state.appearance.languageMode)) {
                 return@collectLatest
             }
             snackbarHostState.currentSnackbarData?.dismiss()
@@ -163,8 +158,7 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             )
         }
     }
-    val activeConflict = state.syncConflicts.firstOrNull()
-    if (state.androidUpdateRequired && state.appMode == SessionStore.MODE_ONLINE) {
+        if (state.androidUpdateRequired && state.clientContext.online) {
         RequiredAndroidUpdateDialog(
             minimumVersionCode = state.minimumAndroidVersionCode,
             currentVersionCode = BuildConfig.VERSION_CODE,
@@ -182,23 +176,28 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             },
             onUseOfflineMode = viewModel::useOfflineMode,
         )
-    } else if (activeConflict != null) {
-        SyncConflictDialog(
-            item = activeConflict,
-            onKeepLocal = {
-                viewModel.resolveSyncConflictKeepLocal(activeConflict.conflict.resourceId)
-            },
-            onTakeServer = {
-                viewModel.resolveSyncConflictTakeServer(activeConflict.conflict.resourceId)
-            },
-            onDismiss = {
-                viewModel.dismissSyncConflict(activeConflict.conflict.resourceId)
-            },
+    } else {
+        SillageSyncConflictDialog(
+            state = state.sync,
+            strings = SillageSyncConflictStrings(
+                title = stringResource(R.string.sync_conflict_title),
+                supporting = stringResource(R.string.sync_conflict_supporting),
+                localLabel = stringResource(R.string.sync_conflict_local_label),
+                serverLabel = stringResource(R.string.sync_conflict_server_label),
+                emptyLocal = stringResource(R.string.sync_conflict_empty_local),
+                emptyServer = stringResource(R.string.sync_conflict_empty_server),
+                keepLocal = stringResource(R.string.sync_conflict_keep_local),
+                takeServer = stringResource(R.string.sync_conflict_take_server),
+                dismiss = stringResource(R.string.sync_conflict_dismiss),
+            ),
+            onKeepLocal = viewModel::resolveSyncConflictKeepLocal,
+            onTakeServer = viewModel::resolveSyncConflictTakeServer,
+            onDismiss = viewModel::dismissSyncConflict,
         )
     }
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            when (state.screen) {
+            when (state.clientContext.screen) {
                 Screen.Loading -> LoadingScreen()
                 Screen.ModeSelection -> ModeSelectionScreen(state, viewModel)
                 Screen.Server -> ServerScreen(state, viewModel)
@@ -278,60 +277,6 @@ private fun RequiredAndroidUpdateDialog(
         dismissButton = {
             TextButton(onClick = onUseOfflineMode) {
                 Text(stringResource(R.string.update_required_offline))
-            }
-        },
-    )
-}
-
-@Composable
-private fun SyncConflictDialog(
-    item: SyncConflictItem,
-    onKeepLocal: () -> Unit,
-    onTakeServer: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val localPreview = item.localMemo?.content?.trim().orEmpty()
-        .ifBlank { stringResource(R.string.sync_conflict_empty_local) }
-    val serverPreview = item.conflict.serverMemo?.content?.trim().orEmpty()
-        .ifBlank { stringResource(R.string.sync_conflict_empty_server) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.sync_conflict_title)) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 320.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(stringResource(R.string.sync_conflict_supporting))
-                Text(
-                    stringResource(R.string.sync_conflict_local_label),
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(localPreview.take(800))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.sync_conflict_server_label),
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(serverPreview.take(800))
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onKeepLocal) {
-                Text(stringResource(R.string.sync_conflict_keep_local))
-            }
-        },
-        dismissButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                TextButton(onClick = onTakeServer) {
-                    Text(stringResource(R.string.sync_conflict_take_server))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.sync_conflict_dismiss))
-                }
             }
         },
     )

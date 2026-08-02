@@ -28,6 +28,43 @@ Offline records, Ask history, local AI configuration, attachment metadata, and s
 
 ## Architecture
 
+Application-wide theme and interface-language state is consumed from the
+buildable `shared-ui:app-shell` module. Android hydrates and persists those
+values through `SessionStore`, then applies the resulting system theme and
+locale. Root destination identity, history, and return-to-Records back policy
+also come from that module; Android retains system Back dispatch and Compose
+navigation effects. `AppClientContextStateHolder` additionally aggregates
+application mode, workspace generation, and the server-settings return
+destination. Android persists preferences and executes network connections and
+task cancellation while shared code owns the pure lifecycle transitions.
+`AppWorkspaceStateHolder` aggregates records, settings, and Ask presentation
+state. Android updates that nested aggregate as one value when clearing a
+client workspace or entering an offline workspace, while repository access,
+persistence, cancellation, and other platform effects remain in the host.
+Global feedback event sequencing, duplicate suppression,
+error precedence, and language binding are shared as well; Android still
+generates localized messages and renders the top-level Toast.
+Android theme/language orchestration, Compose consumers, localized feedback, and
+tests read the nested appearance state directly without root appearance accessors.
+They also consume nested client-context state directly without root compatibility
+accessors.
+
+The semantic light/dark colors, typography, shapes, and common `MaterialTheme`
+come from the buildable `shared-ui:design-system` module. Android's theme wrapper
+only applies status/navigation-bar icon appearance through `WindowCompat`.
+The primary-navigation bar shell and items also come from that module; Android
+supplies translated labels, Material icons, current destination state, and
+ViewModel callbacks.
+Settings section cards and common info, action, switch, and empty-state rows
+likewise come from the shared design system. Android supplies localized labels,
+icons, values, state, and callbacks; platform-specific controls remain in host UI.
+Ask and Settings loading failures use the shared `SillageErrorCard`; Android
+supplies localized messages, retry labels, icons, and retry callbacks.
+Heading and status accessibility semantics also come from the shared design
+system; Android supplies localized status descriptions at call sites.
+Authentication form failures use the shared `SillageInlineError`; Android
+supplies the localized message and Material error icon.
+
 Android is a Compose Multiplatform host. The host owns Android lifecycle, encrypted
 storage, networking, attachment handling, and other platform integrations. Record
 listing, search, detail retrieval, editor saves, lifecycle mutations, and summary generation cross repository ports and use cases in
@@ -42,12 +79,106 @@ inside the remote adapter. Offline generation and turn persistence cross
 and local storage adapters. Reusable record
 collection, browsing, refresh, search, selection, detail-request validation, summary, editor, attachment-open request, and mutation state
 lives in `kmp-features:records`. Android UI code may compose those shared feature states, but
-must not duplicate domain, storage, synchronization, or protocol rules. Remote
+must not duplicate domain, storage, synchronization, or protocol rules. Record-list
+filter tabs come from buildable `shared-ui:records` and consume the records aggregate
+directly; the shared search bar reads query/request/result state from the same
+aggregate. Android search orchestration, list reset/announcement gates, and tests
+also consume `records.search` directly, without root search compatibility getters.
+Its shared completion status owns layout, semantics, and announcement
+deduplication; Android formats localized result-count copy and bridges the platform
+announcement. Shared records UI also owns reusable empty/error states. Android
+supplies localized labels, icons, and ViewModel routing. The shared records
+content surface owns filter/search composition, pull-to-refresh, initial loading,
+failure selection, and list/calendar switching; Android keeps Scaffold,
+navigation, accessibility announcement bridging, and locale-aware calendar
+adapters.
+Shared records screen chrome now owns records/calendar title selection, heading
+layout, refresh gates, and deleted-filter new-record FAB visibility. Android
+supplies localized account/server subtitle text, resources, and Scaffold wiring.
+Refresh orchestration and tests consume `records.refresh` directly, without root
+refresh compatibility getters.
+The shared record list
+derives search/filter/pagination presentation from the records aggregate and owns
+lazy-list composition; Android fills localized On This Day and row adapter slots.
+Browse contexts, navigation/calendar presentation, import/export reads, and tests
+consume `records.browse` directly, without root browse compatibility getters.
+Host record counts, late-response checks, and tests consume `records.collection`
+directly, without root collection compatibility getters.
+Pagination orchestration and tests consume `records.pagination` directly, without
+root pagination compatibility getters.
+List-load and search failure visibility also come from shared records selectors;
+Android only supplies localized retry presentation and callbacks.
+Active record rows also come from
+shared records UI and own card/content/status/mutation presentation; Android
+formats entry dates and supplies localized copy, icons, and routing. The complete
+swipe container is shared and owns drag/settle/action orchestration. The revealed
+swipe action pane is shared too; Android supplies localized
+labels, icons, and mutation callbacks. The quick-action bottom sheet is shared and
+owns state-based copy plus delete confirmation; Android formats its date description
+and supplies localized strings, icons, and routing. Recently deleted record
+rows also
+come from shared records UI, which derives mutation ownership from the aggregate
+and owns permanent-delete confirmation; Android formats deletion timestamps and
+routes restore and purge callbacks. Calendar coverage notices also come from the
+shared module and derive loading state from the records aggregate; Android formats
+record-count copy and routes pagination. Calendar empty-selection copy is chosen
+by shared UI from the same coverage value. Calendar header layout and navigation
+also come from shared UI, while Android retains locale-aware month formatting and
+directional icon mapping. Calendar grid/day layout, counts, selection styling, and
+semantics are shared; Android rotates localized weekday labels and formats each
+day's accessibility description. The surrounding calendar list also consumes the
+records aggregate in shared UI for coverage, selection, and row composition;
+Android supplies locale-aware grid/header values and localized row adapters.
+On-this-day cards also come from shared
+records UI; Android supplies localized title/plural formatting and the calendar
+icon. The AI summary card consumes records summary state directly across detail
+and editor surfaces and owns
+loading/action/body/metadata presentation; Android only maps localized strings,
+JSON source-count parsing, and plural labels. Summary orchestration, save paths,
+and tests also consume `records.summary` directly, without root summary
+compatibility getters. The detail card and reusable status
+line are shared too; Android supplies localized dates/status labels and retains
+Markdown rendering plus protected-attachment opening. Record metadata revision
+selection and layout are shared; Android formats timestamps and revision plurals.
+The shared detail content shell consumes records selection state directly and owns
+missing-record fallback, section order,
+lazy-list spacing, and content width; Android keeps Scaffold/TopAppBar placement and fills
+the localized record, summary, and metadata slots.
+Detail orchestration, editor/navigation gates, and tests consume
+`records.selection` directly, without root selection compatibility getters.
+The shared detail actions consume records selection/mutation state directly and
+own edit/more enablement, favorite/archive menu choices, busy-state reset, and
+delete confirmation; Android maps the host-operation gate, resources, and
+ViewModel callbacks. Editor save/more actions consume records selection/editor/
+mutation state directly and own progress semantics, busy-copy precedence, lifecycle
+menu choices, and delete confirmation; Android maps destination/global-operation
+context, selects localized online/offline supporting copy, and routes callbacks.
+Mutation operation gates and tests also consume `records.mutation` directly,
+without root mutation compatibility getters; keyed coroutine execution remains
+Android-specific.
+Shared editor screen chrome owns new-vs-edit title selection, heading semantics,
+and back-button action gating. Android retains `TopAppBar`, system Back dispatch,
+localized resources, and icon mapping.
+Shared editor close requests consume records editor state plus the same context
+and own dirty-draft selection and discard confirmation; Android retains system
+Back integration and maps localized copy plus the close callback.
+The shared editor content shell consumes records selection/editor state plus the
+same action context and owns lazy-list ordering, shared width, lifecycle status,
+draft-date/action enablement, attachment action, and summary visibility. Android
+retains DatePicker/file launchers and supplies online-mode capability, Markdown,
+and summary adapters.
+Editor orchestration, SavedStateHandle persistence, attachment-upload gates, and
+tests consume `records.editor` directly, without root editor compatibility getters.
+Editor unsaved-draft and Back-blocking policy also lives in the module; Android
+supplies destination/global-operation context and maps the shared busy reason to
+localized feedback. Remote
 attachment upload crosses `AttachmentUploadRepository` and
 `UploadAttachmentUseCase`; Android retains content-URI reading, multipart mapping,
 and offline file staging. Authenticated download crosses generic
 `AttachmentDownloadRepository`; its Android adapter streams to a cache `File`
-before platform MIME resolution and viewer launch.
+before platform MIME resolution and viewer launch. Request gates and Compose
+surfaces consume `records.attachmentOpen` directly, without root attachment-open
+compatibility getters.
 Account identity is imported from shared domain, while token-bearing sessions
 and public bootstrap metadata use shared application models. Android retains
 HTTP parsing and encrypted session persistence.
@@ -60,22 +191,109 @@ captured session. The root UI state composes
 `AuthenticationStateHolder` from `kmp-features:auth` for credential drafts and
 password-change request lifecycle. Transitional screen accessors delegate to that
 holder; token storage and REST execution remain Android adapter responsibilities.
+The login, account-initialization, and server-address forms, password field,
+authentication action content, and mode-selection cards come from the buildable
+`shared-ui:auth` module. The credential forms consume `AuthFeatureStateHolder`
+directly. Android supplies localized strings, Material icons, accent colors, root
+loading state, navigation, protocol execution, and ViewModel callbacks; the
+shared authentication scaffold and header receive Android launcher resources,
+localized brand text, language state, and the language-toggle callback.
+The settings account section also comes from `shared-ui:auth`; Android supplies
+the account summary, localized strings, mutation gate, icon, and callbacks.
+Android authentication orchestration, ViewModel paths, Compose screens, and tests
+consume `auth` directly, without root authentication compatibility getters.
+The shared auth module owns its settings section wrapper as well.
+The AI profile editor header and summary cards come from `shared-ui:settings` and
+consume the settings feature aggregate directly; Android supplies localized
+strings, icons, and callbacks.
+AI profile detail editing also comes from that module; Android retains ViewModel
+event routing plus encrypted persistence and remote/local protocol adapters.
+Shared lazy-list orchestration now owns profile expansion selection, empty-state,
+summary, and detail composition instead of Android screen-local UI state.
+The automatic-summary section also consumes the settings aggregate in shared UI;
+Android supplies localized content, icon, global operation gate, and callback.
+The settings language selector also comes from `shared-ui:settings`; Android
+supplies supported language identifiers, localized labels, and persistence callback.
+Shared appearance composition now combines it with theme selection; Android maps
+stored theme/language values and their persistence callbacks.
+The service/sync section is also shared; Android supplies current mode, server
+address, operation gates, icons, and protocol/navigation callbacks.
+The data section is shared while Android retains document launchers and import/export
+execution.
+The about section is shared while Android supplies BuildConfig/server metadata and
+loads the packaged third-party notice resource for its native dialog.
+The settings loading/error/list shell is shared; Android supplies localized retry
+content and emits the already shared sections into its lazy content slot.
+Shared settings content now owns section ordering and optional account placement;
+Android section slots only map localized values, icons, and callbacks.
+The settings overview card is shared as well; Android maps app mode, record count,
+theme, and AI preference into localized display values.
 Ask conversation selection, branch-head identity, and loaded message snapshots
-live in `kmp-features:ask`; Android retains transitional read accessors while
-streaming and remaining request lifecycle state are extracted in later slices.
-Branch-variant and answer-to-record requests use shared feature single-flight
-holders; Android still supplies navigation context and adapter execution.
-Ask source-record navigation also uses a shared single-flight holder; Android maps
-the holder's stable destination/history keys to its `Screen` navigation model.
+live in `kmp-features:ask`. Android ViewModel, Compose path rendering, and tests
+consume `ask.conversation` directly, without root conversation compatibility
+getters. Stream request identity, live presentation,
+regeneration identity, and completion events are consumed directly from the Ask
+aggregate without host-root compatibility getters. Android retains SSE/device
+model execution and the platform accessibility announcement bridge.
+Branch-variant requests use the shared feature single-flight holder directly
+through the Ask aggregate; Android only supplies navigation context and adapter
+execution, without root variant compatibility getters.
+Answer-to-record requests likewise consume `AskMemoSaveStateHolder` directly
+through the aggregate. Android retains only the records application adapter and
+does not expose root memo-save compatibility getters.
+Ask source-record navigation also uses a shared single-flight holder directly
+through the aggregate. Android maps stable destination/history keys to its
+`Screen` navigation model and retains only adapter execution.
 Ask answer-generation request identity, live stream buffers, regeneration state,
 and completion events live in `AskStreamStateHolder`; Android retains SSE and
 device-local AI execution adapters.
-Conversation/message loading and its retry message also live in the shared
-`AskLoadStateHolder`.
+Conversation/message loading and its retry message also live in shared
+`AskLoadStateHolder`; Android request gates consume that state through the Ask
+aggregate without root load compatibility getters.
+Active Ask path entries, variant grouping, branch-leaf selection, and latest
+assistant lookup now come from `kmp-features:ask`; Android only consumes those
+shared projections in its ViewModel and Compose host.
 The question draft and retrieval scope/source options live in the shared
-`AskComposerStateHolder`.
+`AskComposerStateHolder`. Android ViewModel and tests consume `ask.composer`
+directly, without root composer compatibility getters.
+The root UI state exposes the Ask aggregate without transitional holder aliases;
+thin transition wrappers also read nested holders through that aggregate.
+The buildable `shared-ui:ask` module consumes that aggregate directly for the
+retrieval-range/source option sheet and selected-chip presentation. Android
+supplies localized strings and routes option changes to the ViewModel.
+The shared conversation sheet also owns refresh/selection gates, empty/current
+row presentation, and select-then-dismiss flow; Android maps localized titles
+and ViewModel callbacks.
+The shared composer owns context selection, character-count and IME send gates,
+question layout, and send/stop action switching. Android supplies plural/context
+formatting, Material icons, and ViewModel callbacks; the top bar reuses the same
+shared context selection.
+Shared Ask empty/live cards own prompt guidance, user/answer card layout,
+thinking fallback, colors, and message semantics. Android supplies localized
+copy, prompt icon, and speaker-description formatting.
+Shared message actions own variant navigation, regenerate/save gates, saving
+progress, and variant-position semantics. Android maps localized resources,
+Material icons, and ViewModel callbacks.
+Shared source references own expansion, the five-row display limit, row layout,
+and source-action gates. Android retains plural/date formatting, icon mapping,
+and record navigation callbacks.
+The shared message card owns stored/streaming/regenerating content selection,
+user/assistant bubble layout, semantics, and source/action slot placement.
+Android retains final-answer Markdown, protected attachments, and localized
+speaker descriptions through the host slot.
+The shared Ask message list consumes the aggregate and active path to own initial
+loading, error/empty/message/live item order, lazy-list layout, and per-message
+action gates. Android fills localized and Markdown-aware item slots while keeping
+Scaffold, top bar, navigation, and accessibility announcements.
+Shared Ask auto-follow now owns drag suspension, near-bottom reactivation,
+new-turn following, streamed-answer growth scrolling, and rendered-item counts.
+Android retains only the completion announcement bridge to the platform view.
+Shared Ask top-bar title/actions own context presentation, saving progress
+semantics, button layout, and aggregate request gates. Android supplies localized
+resources/icons and retains Material `TopAppBar`, Scaffold, and navigation.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
-invalidate callbacks after navigation.
+invalidate callbacks after navigation. Android reads that generation through the
+Ask aggregate directly, without root session compatibility getters.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared
 application use case; Android local and remote adapters retain SQLite and REST.
 AI profile saves cross `AIProfilesRepository` and `SaveAIProfilesUseCase`;
@@ -92,19 +310,21 @@ shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save
 response reconciliation also live in that module. Android keeps encrypted
 storage, REST inputs, and device-local AI execution as adapters.
-The root state composes `AIProfilesMutationStateHolder` for editable profiles,
-optimistic save, rollback, and stale-callback rejection, with transitional read
-accessors for the existing Compose screens.
-It also composes `AISettingsLoadStateHolder`; settings loads and profile saves
-have separate request identities and invalidate one another at their boundary.
-Provider-test and model-list progress/results live in
-`AIProfileDiagnosticsStateHolder`, which rejects callbacks after profile edits,
-removal, mode changes, or client-context replacement.
+The settings aggregate composes profile mutation, automatic-summary,
+settings-load, and diagnostics holders. Android orchestration, Compose screens,
+and tests consume it through `workspace.settings` without a root compatibility
+getter. Settings loads and profile saves retain separate request
+identities and invalidate one another at the boundary; diagnostics still reject
+callbacks after profile edits, removal, mode changes, or client-context replacement.
 Pure outbox, applied-result, conflict, and push-summary models live in
 `kmp-core:sync`; Android owns their current JSON, REST, and transactional storage
 adapters. Pending memo pushes run through the shared outbox/gateway use case.
 Shared `kmp-features:sync` conflict state and core resolution commands own the explicit choice workflow;
-Android retains the confirmation UI and transactional local-storage adapter.
+`shared-ui:sync` consumes the aggregate directly and owns first-conflict
+selection, preview fallback/limits, dialog layout, and resource-ID action
+routing. Android supplies localized strings, asynchronous resolution, and the
+transactional local-storage adapter; resolution callbacks also look up conflicts
+through the aggregate contract rather than host-root compatibility getters.
 Ask and secret-free AI settings values are imported directly from shared domain;
 cross-platform AI profile drafts come from the settings feature, while
 Android-local models are limited to API inputs and platform adapters.

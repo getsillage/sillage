@@ -1,54 +1,32 @@
 package app.sillage.ui
 
-internal enum class UiToastType {
-    SUCCESS,
-    WARNING,
-    ERROR,
-}
+import app.sillage.ui.appshell.AppFeedbackEvent
+import app.sillage.ui.appshell.AppFeedbackEventEmitter
+import app.sillage.ui.appshell.AppFeedbackSnapshot
+import app.sillage.ui.appshell.AppFeedbackType
 
-internal data class UiToastEvent(
-    val id: Long,
-    val type: UiToastType,
-    val message: String,
-    val languageMode: String,
-)
+internal typealias UiToastType = AppFeedbackType
+internal typealias UiToastEvent = AppFeedbackEvent
+internal typealias UiToastEventEmitter = AppFeedbackEventEmitter
 
-internal fun UiToastEvent.matchesLanguage(languageMode: String): Boolean {
-    return this.languageMode == languageMode
-}
-
-internal class UiToastEventEmitter(
-    private val emit: (UiToastEvent) -> Unit,
+internal fun UiToastEventEmitter.onStateChanged(
+    before: SillageUiState,
+    after: SillageUiState,
+    forceFeedback: Boolean = false,
+    noticeType: UiToastType = UiToastType.SUCCESS,
 ) {
-    private var nextId = 0L
+    onStateChanged(
+        before = before.feedbackSnapshot(),
+        after = after.feedbackSnapshot(),
+        forceFeedback = forceFeedback,
+        noticeType = noticeType,
+    )
+}
 
-    @Synchronized
-    fun onStateChanged(
-        before: SillageUiState,
-        after: SillageUiState,
-        forceFeedback: Boolean = false,
-        noticeType: UiToastType = UiToastType.SUCCESS,
-    ) {
-        val error = after.error?.takeIf { forceFeedback || it != before.error }
-        if (error != null) {
-            emit(nextEvent(UiToastType.ERROR, error, after.languageMode))
-            return
-        }
-        if (after.error != null) {
-            return
-        }
-        after.notice
-            ?.takeIf { forceFeedback || it != before.notice }
-            ?.let { emit(nextEvent(noticeType, it, after.languageMode)) }
-    }
-
-    private fun nextEvent(type: UiToastType, message: String, languageMode: String): UiToastEvent {
-        nextId += 1
-        return UiToastEvent(
-            id = nextId,
-            type = type,
-            message = message,
-            languageMode = languageMode,
-        )
-    }
+private fun SillageUiState.feedbackSnapshot(): AppFeedbackSnapshot {
+    return AppFeedbackSnapshot(
+        error = error,
+        notice = notice,
+        languageMode = appearance.languageMode,
+    )
 }

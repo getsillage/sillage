@@ -37,6 +37,16 @@ request, so late stream chunks and late source-record loads are ignored. A
 completion event is published only for an available, successfully completed
 answer.
 
+The Android Ask surface uses the same shared presentation contract for online
+and offline conversations. It keeps the selected answer branch, regeneration
+variants, source references, save-as-record progress, and composer context
+controls together while a turn is active. A new or growing answer follows the
+bottom of the conversation until you drag away; returning near the bottom
+resumes automatic following. Completed assistant answers render Markdown, while
+partial streaming text remains plain until generation finishes. Source links
+open only after the current conversation and client context still own the
+request.
+
 ## Automatic Summaries
 
 When Automatically Summarize New Records (`新建记录后自动总结`) is enabled, the server sends a new record's content asynchronously after the record has been saved successfully. A generation failure does not roll back the record and is not retried indefinitely. Disabling the setting only prevents future automatic calls; it does not delete existing summaries or data already received by the provider.

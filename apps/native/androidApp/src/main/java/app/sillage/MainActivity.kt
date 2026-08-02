@@ -38,10 +38,10 @@ class MainActivity : AppCompatActivity() {
         )
         setContent {
             val state by viewModel.state.collectAsState()
-            LaunchedEffect(state.languageMode) {
-                applyLanguage(state.languageMode)
+            LaunchedEffect(state.appearance.languageMode) {
+                applyLanguage(state.appearance.languageMode)
             }
-            SillageTheme(darkTheme = state.themeMode == SessionStore.THEME_DARK) {
+            SillageTheme(darkTheme = state.appearance.themeMode == SessionStore.THEME_DARK) {
                 SillageApp(viewModel = viewModel)
             }
         }

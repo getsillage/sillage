@@ -1,38 +1,14 @@
 package app.sillage.ui.memos
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -49,79 +25,59 @@ import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
-import app.sillage.features.records.MemoListFilter
-import app.sillage.data.SessionStore
+import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.data.adjacentMonth
-import app.sillage.features.records.calendarMemoCoverage
-import app.sillage.features.records.entriesByDate
-import app.sillage.features.records.entryDateCounts
-import app.sillage.features.records.excerpt
 import app.sillage.data.monthGrid
-import app.sillage.features.records.onThisDay
-import app.sillage.features.records.yearsBetween
 import app.sillage.R
-import app.sillage.ui.MemoListLoadStatus
-import app.sillage.features.records.MemoViewMode
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
-import app.sillage.ui.applyHeadingSemantics
-import app.sillage.ui.applyStatusSemantics
 import app.sillage.ui.completedMemoSearch
-import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
-import app.sillage.ui.shouldShowMemoListLoadFailure
-import app.sillage.ui.shouldShowMemoSearchFailure
+import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
+import app.sillage.ui.records.SillageCalendarCoverageStrings
+import app.sillage.ui.records.SillageCalendarHeader
+import app.sillage.ui.records.SillageCalendarHeaderStrings
+import app.sillage.ui.records.SillageOnThisDayCard
+import app.sillage.ui.records.SillageOnThisDayStrings
+import app.sillage.ui.records.SillageRecordFilterStrings
+import app.sillage.ui.records.SillageRecordList
+import app.sillage.ui.records.SillageRecordListStrings
+import app.sillage.ui.records.SillageRecordCalendar
+import app.sillage.ui.records.SillageRecordCalendarStrings
+import app.sillage.ui.records.SillageRecordSearchStatus
+import app.sillage.ui.records.SillageRecordSearchStrings
+import app.sillage.ui.records.SillageRecordsContent
+import app.sillage.ui.records.SillageRecordsContentStrings
+import app.sillage.ui.records.SillageRecordsNewRecordAction
+import app.sillage.ui.records.SillageRecordsRefreshAction
+import app.sillage.ui.records.SillageRecordsScreenChromeStrings
+import app.sillage.ui.records.SillageRecordsTopBarTitle
+import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
+import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
+import app.sillage.ui.records.SillageRecordRowStrings
+import app.sillage.ui.records.SillageRecordQuickActionIcons
+import app.sillage.ui.records.SillageRecordQuickActionsStrings
+import app.sillage.ui.records.SillageRecordSwipeActionStrings
+import app.sillage.ui.records.SillageRecordSwipeRow
+import app.sillage.ui.records.SillageRecordSwipeRowIcons
+import app.sillage.ui.records.SillageRecordSwipeRowStrings
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 import java.time.DayOfWeek
@@ -129,8 +85,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,127 +93,99 @@ internal fun MemoListScreen(
     viewModel: SillageViewModel,
     listState: LazyListState = rememberLazyListState(),
 ) {
-    val showingSearchResults = state.searchQuery.isNotBlank()
-    val visibleMemos = if (showingSearchResults) {
-        state.currentMemoSearchResults().orEmpty()
-    } else {
-        state.memos
-    }
     val today = remember { LocalDate.now().toString() }
-    val memories = remember(state.memos, today) { onThisDay(state.memos, today) }
+    val screenChromeStrings = SillageRecordsScreenChromeStrings(
+        recordsTitle = stringResource(R.string.records_title),
+        calendarTitle = stringResource(R.string.nav_calendar),
+        refreshContentDescription = stringResource(R.string.records_refresh),
+        newRecordContentDescription = stringResource(R.string.records_new),
+    )
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            stringResource(if (state.memoViewMode == MemoViewMode.Calendar) R.string.nav_calendar else R.string.records_title),
-                            modifier = Modifier.semantics { applyHeadingSemantics() },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    title = {
+                        SillageRecordsTopBarTitle(
+                            state = state.workspace.records,
+                            subtitle = memoListSubtitle(state),
+                            strings = screenChromeStrings,
                         )
-                        Text(
-                            memoListSubtitle(state),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    },
+                    actions = {
+                        SillageRecordsRefreshAction(
+                            state = state.workspace.records,
+                            hostActionsEnabled = !state.loading,
+                            strings = screenChromeStrings,
+                            icon = Icons.Rounded.Refresh,
+                            onRefresh = viewModel::refreshMemos,
                         )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::refreshMemos,
-                        enabled = !state.loading && state.memoListLoadStatus != MemoListLoadStatus.Loading,
-                    ) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.records_refresh))
-                    }
-                },
+                    },
             )
-        },
-        floatingActionButton = {
-            if (state.memoListFilter != MemoListFilter.Deleted) {
-                FloatingActionButton(onClick = viewModel::startNewMemo) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.records_new))
-                }
-            }
-        },
+            },
+            floatingActionButton = {
+                SillageRecordsNewRecordAction(
+                    state = state.workspace.records,
+                    strings = screenChromeStrings,
+                    icon = Icons.Rounded.Add,
+                    onNewRecord = viewModel::startNewMemo,
+                )
+            },
         bottomBar = {
             MainNavigationBar(state = state, viewModel = viewModel)
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            if (state.memoViewMode == MemoViewMode.List) {
-                MemoListFilterTabs(
-                    selected = state.memoListFilter,
-                    onSelect = viewModel::updateMemoListFilter,
+        SillageRecordsContent(
+            state = state.workspace.records,
+            initialLoading = state.loading,
+            strings = SillageRecordsContentStrings(
+                filters = SillageRecordFilterStrings(
+                    unarchived = stringResource(R.string.filter_unarchived),
+                    archived = stringResource(R.string.filter_archived),
+                    favorited = stringResource(R.string.filter_favorited),
+                    deleted = stringResource(R.string.filter_deleted),
+                ),
+                search = SillageRecordSearchStrings(
+                    label = stringResource(R.string.search_records),
+                    clearContentDescription = stringResource(R.string.search_clear),
+                    searchContentDescription = stringResource(R.string.action_search),
+                ),
+                loadFailed = stringResource(R.string.records_load_failed),
+                searchFailed = stringResource(R.string.records_search_failed),
+                retry = stringResource(R.string.action_retry),
+            ),
+            searchIcon = Icons.Rounded.Search,
+            clearSearchIcon = Icons.Rounded.Close,
+            refreshIcon = Icons.Rounded.Refresh,
+            onSelectFilter = viewModel::updateMemoListFilter,
+            onQueryChange = viewModel::updateSearchQuery,
+            onClearSearch = viewModel::clearSearch,
+            onSearch = viewModel::searchMemos,
+            onRefresh = viewModel::refreshMemos,
+            searchStatusContent = { SearchStatusBlock(state = state) },
+            calendarContent = { CalendarMemoView(state = state, viewModel = viewModel) },
+            listContent = {
+                MemoListView(
+                    today = today,
+                    recordsState = state.workspace.records,
+                    listState = listState,
+                    onLoadMore = viewModel::loadMoreMemos,
+                    onMemoClick = viewModel::openMemoDetail,
+                    onMemoEdit = viewModel::editMemo,
+                    onMemoDuplicate = viewModel::duplicateMemoDraft,
+                    onMemoToggleFavorite = viewModel::toggleMemoFavorited,
+                    onMemoToggleArchive = viewModel::toggleMemoArchived,
+                    onMemoDelete = viewModel::deleteMemo,
+                    onMemoRestore = viewModel::restoreMemo,
+                    onMemoPurge = viewModel::purgeMemo,
                 )
-                SearchBlock(state = state, viewModel = viewModel)
-                SearchStatusBlock(state = state)
-            }
-            // Swipe-down-to-refresh is the expected gesture for a manual-sync
-            // feed; the toolbar button stays for accessibility.
-            PullToRefreshBox(
-                isRefreshing = state.memoListLoadStatus == MemoListLoadStatus.Loading,
-                onRefresh = viewModel::refreshMemos,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                if (
-                    (state.loading || state.memoListLoadStatus == MemoListLoadStatus.Loading) &&
-                    visibleMemos.isEmpty()
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else if (state.memoViewMode == MemoViewMode.Calendar) {
-                    CalendarMemoView(state = state, viewModel = viewModel)
-                } else if (state.shouldShowMemoListLoadFailure()) {
-                    EmptyState(
-                        stringResource(R.string.records_load_failed),
-                        Icons.Rounded.Refresh,
-                        onRetry = viewModel::refreshMemos,
-                    )
-                } else if (state.shouldShowMemoSearchFailure()) {
-                    EmptyState(
-                        stringResource(R.string.records_search_failed),
-                        Icons.Rounded.Refresh,
-                        onRetry = viewModel::searchMemos,
-                    )
-                } else {
-                    MemoListView(
-                        visibleMemos = visibleMemos,
-                        showingSearchResults = showingSearchResults,
-                        searching = state.searching,
-                        memories = memories,
-                        today = today,
-                        hasMore = !showingSearchResults && state.memoNextCursor.isNotBlank(),
-                        loadingMore = state.loadingMoreMemos,
-                        memoMutationIds = state.memoMutationIds,
-                        listState = listState,
-                        onLoadMore = viewModel::loadMoreMemos,
-                        onMemoClick = viewModel::openMemoDetail,
-                        onMemoEdit = viewModel::editMemo,
-                        onMemoDuplicate = viewModel::duplicateMemoDraft,
-                        onMemoToggleFavorite = viewModel::toggleMemoFavorited,
-                        onMemoToggleArchive = viewModel::toggleMemoArchived,
-                        onMemoDelete = viewModel::deleteMemo,
-                        onMemoRestore = viewModel::restoreMemo,
-                        onMemoPurge = viewModel::purgeMemo,
-                        filter = state.memoListFilter,
-                    )
-                }
-            }
-        }
+            },
+            modifier = Modifier.padding(padding),
+        )
     }
 }
 
 @Composable
 private fun memoListSubtitle(state: SillageUiState): String {
-    val mode = if (state.appMode == SessionStore.MODE_OFFLINE) {
+    val mode = if (!state.clientContext.online) {
         stringResource(R.string.status_offline)
     } else {
         state.account?.displayName ?: state.baseUrl.ifBlank { stringResource(R.string.status_online) }
@@ -267,79 +193,17 @@ private fun memoListSubtitle(state: SillageUiState): String {
     return stringResource(
         R.string.quantity_joiner,
         mode,
-        pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size),
+        pluralStringResource(
+            R.plurals.quantity_records,
+            state.workspace.records.collection.records.size,
+            state.workspace.records.collection.records.size,
+        ),
     )
-}
-
-@Composable
-private fun MemoListFilterTabs(
-    selected: MemoListFilter,
-    onSelect: (MemoListFilter) -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Row(modifier = Modifier.selectableGroup()) {
-            MemoListFilter.entries.forEach { filter ->
-                val isSelected = selected == filter
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .selectable(
-                            selected = isSelected,
-                            onClick = { onSelect(filter) },
-                            role = Role.Tab,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 3.dp)
-                            .height(36.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        },
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                when (filter) {
-                                    MemoListFilter.Unarchived -> stringResource(R.string.filter_unarchived)
-                                    MemoListFilter.Archived -> stringResource(R.string.filter_archived)
-                                    MemoListFilter.Favorited -> stringResource(R.string.filter_favorited)
-                                    MemoListFilter.Deleted -> stringResource(R.string.filter_deleted)
-                                },
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
 private fun SearchStatusBlock(state: SillageUiState) {
     val view = LocalView.current
-    var observedCompletionEventId by remember {
-        mutableLongStateOf(state.searchCompletionEventId)
-    }
     val completed = state.completedMemoSearch() ?: return
     val summary = stringResource(
         R.string.search_results_summary,
@@ -350,46 +214,18 @@ private fun SearchStatusBlock(state: SillageUiState) {
             completed.resultCount,
         ),
     )
-    LaunchedEffect(state.searchCompletionEventId, summary, view) {
-        if (observedCompletionEventId != state.searchCompletionEventId) {
-            observedCompletionEventId = state.searchCompletionEventId
-            view.announceForAccessibility(summary)
-        }
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .clearAndSetSemantics { applyStatusSemantics(summary) },
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Rounded.Search,
-            contentDescription = null,
-            modifier = Modifier.size(15.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            summary,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    SillageRecordSearchStatus(
+        summary = summary,
+        completionEventId = state.workspace.records.search.completionEventId,
+        icon = Icons.Rounded.Search,
+        onAnnounce = view::announceForAccessibility,
+    )
 }
 
 @Composable
 private fun MemoListView(
-    visibleMemos: List<Memo>,
-    showingSearchResults: Boolean,
-    searching: Boolean,
-    memories: List<Memo>,
     today: String,
-    hasMore: Boolean,
-    loadingMore: Boolean,
-    memoMutationIds: Set<String>,
+    recordsState: RecordsFeatureStateHolder,
     listState: LazyListState,
     onLoadMore: () -> Unit,
     onMemoClick: (Memo) -> Unit,
@@ -400,304 +236,83 @@ private fun MemoListView(
     onMemoDelete: (Memo) -> Unit,
     onMemoRestore: (Memo) -> Unit,
     onMemoPurge: (Memo) -> Unit,
-    filter: MemoListFilter,
 ) {
-    if (searching && visibleMemos.isEmpty()) {
-        EmptyState(stringResource(R.string.searching), Icons.Rounded.Search)
-        return
-    }
-    if (visibleMemos.isEmpty()) {
-        EmptyState(
-            if (showingSearchResults) {
-                stringResource(R.string.search_no_matches)
-            } else {
-                when (filter) {
-                    MemoListFilter.Unarchived -> stringResource(R.string.empty_unarchived)
-                    MemoListFilter.Archived -> stringResource(R.string.empty_archived)
-                    MemoListFilter.Favorited -> stringResource(R.string.empty_favorited)
-                    MemoListFilter.Deleted -> stringResource(R.string.empty_deleted)
-                }
-            },
-            if (showingSearchResults) Icons.Rounded.Search else Icons.Rounded.Edit,
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (!showingSearchResults && memories.isNotEmpty()) {
-            item {
-                OnThisDayCard(entries = memories, today = today, onMemoClick = onMemoClick)
-            }
-        }
-        items(visibleMemos, key = { it.id }) { memo ->
-            if (filter == MemoListFilter.Deleted) {
-                RecentlyDeletedMemoRow(
-                    memo = memo,
-                    mutating = memo.id in memoMutationIds,
-                    onRestore = { onMemoRestore(memo) },
-                    onPurge = { onMemoPurge(memo) },
-                )
-            } else {
-                MemoSwipeRow(
-                    memo = memo,
-                    mutating = memo.id in memoMutationIds,
-                    onClick = { onMemoClick(memo) },
-                    onEdit = { onMemoEdit(memo) },
-                    onDuplicate = { onMemoDuplicate(memo) },
-                    onToggleFavorite = { onMemoToggleFavorite(memo) },
-                    onToggleArchive = { onMemoToggleArchive(memo) },
-                    onDelete = { onMemoDelete(memo) },
-                )
-            }
-        }
-        if (hasMore) {
-            item {
-                Button(
-                    onClick = onLoadMore,
-                    enabled = !loadingMore,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(if (loadingMore) R.string.loading_more else R.string.load_more))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun RecentlyDeletedMemoRow(
-    memo: Memo,
-    mutating: Boolean,
-    onRestore: () -> Unit,
-    onPurge: () -> Unit,
-) {
-    var confirmingPurge by remember(memo.id) { mutableStateOf(false) }
-    val deletedAt = memo.deletedAt
-    val formattedDeletedAt = if (deletedAt != null) localizedTimestamp(deletedAt) else "—"
-    LaunchedEffect(mutating) {
-        if (mutating) confirmingPurge = false
-    }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                excerpt(memo.content, 120).ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stringResource(
-                    R.string.deleted_at,
-                    formattedDeletedAt,
+    SillageRecordList(
+        state = recordsState,
+        today = today,
+        strings = SillageRecordListStrings(
+            searching = stringResource(R.string.searching),
+            searchNoMatches = stringResource(R.string.search_no_matches),
+            emptyUnarchived = stringResource(R.string.empty_unarchived),
+            emptyArchived = stringResource(R.string.empty_archived),
+            emptyFavorited = stringResource(R.string.empty_favorited),
+            emptyDeleted = stringResource(R.string.empty_deleted),
+            loadMore = stringResource(R.string.load_more),
+            loadingMore = stringResource(R.string.loading_more),
+        ),
+        searchIcon = Icons.Rounded.Search,
+        emptyIcon = Icons.Rounded.Edit,
+        listState = listState,
+        onLoadMore = onLoadMore,
+        onThisDayContent = { memories ->
+            SillageOnThisDayCard(
+                entries = memories,
+                today = today,
+                strings = SillageOnThisDayStrings(
+                    title = stringResource(R.string.on_this_day),
+                    blankRecord = stringResource(R.string.blank_record),
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            if (confirmingPurge) {
-                Text(
-                    stringResource(R.string.purge_record_supporting),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onRestore,
-                    enabled = !mutating,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(RECENTLY_DELETED_RESTORE_TEST_TAG),
-                ) {
-                    Icon(Icons.Rounded.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.action_restore))
-                }
-                Button(
-                    onClick = {
-                        if (confirmingPurge) onPurge() else confirmingPurge = true
-                    },
-                    enabled = !mutating,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(RECENTLY_DELETED_PURGE_TEST_TAG),
-                ) {
-                    Icon(Icons.Rounded.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        stringResource(
-                            if (confirmingPurge) R.string.action_confirm_delete else R.string.action_delete_forever,
-                        ),
-                    )
-                }
-            }
-            if (confirmingPurge) {
-                TextButton(
-                    onClick = { confirmingPurge = false },
-                    enabled = !mutating,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
-        }
-    }
-}
-
-internal const val RECENTLY_DELETED_RESTORE_TEST_TAG = "recently-deleted-restore"
-internal const val RECENTLY_DELETED_PURGE_TEST_TAG = "recently-deleted-purge"
-
-@Composable
-private fun SearchBlock(state: SillageUiState, viewModel: SillageViewModel) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = viewModel::updateSearchQuery,
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            label = { Text(stringResource(R.string.search_records)) },
-            leadingIcon = {
-                if (state.searching) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
-                }
-            },
-            trailingIcon = {
-                if (state.searchQuery.isNotBlank() || state.searchResults != null) {
-                    IconButton(onClick = viewModel::clearSearch) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.search_clear))
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { viewModel.searchMemos() }),
-        )
-        FilledIconButton(
-            onClick = viewModel::searchMemos,
-            enabled = !state.searching && state.searchQuery.isNotBlank(),
-        ) {
-            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(
-    text: String,
-    icon: ImageVector? = null,
-    onRetry: (() -> Unit)? = null,
-) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (icon != null) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null)
-                    }
-                }
-            }
-            Text(
-                text,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-            )
-            if (onRetry != null) {
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.action_retry))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OnThisDayCard(entries: List<Memo>, today: String, onMemoClick: (Memo) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    modifier = Modifier.size(26.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Text(
-                    stringResource(R.string.on_this_day),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-            }
-            entries.forEachIndexed { index, memo ->
-                if (index > 0) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                }
-                Text(
+                calendarIcon = Icons.Rounded.CalendarMonth,
+                recordLabel = { yearsAgo, contentExcerpt ->
                     stringResource(
                         R.string.years_ago_record,
                         pluralStringResource(
                             R.plurals.quantity_years_ago,
-                            yearsBetween(memo.entryDate, today),
-                            yearsBetween(memo.entryDate, today),
+                            yearsAgo,
+                            yearsAgo,
                         ),
-                        excerpt(memo.content, 56).ifBlank { stringResource(R.string.blank_record) },
+                        contentExcerpt,
+                    )
+                },
+                onMemoClick = onMemoClick,
+            )
+        },
+        activeRecordContent = { memo ->
+            MemoSwipeRow(
+                memo = memo,
+                mutating = recordsState.mutation.isActive(memo.id),
+                onClick = { onMemoClick(memo) },
+                onEdit = { onMemoEdit(memo) },
+                onDuplicate = { onMemoDuplicate(memo) },
+                onToggleFavorite = { onMemoToggleFavorite(memo) },
+                onToggleArchive = { onMemoToggleArchive(memo) },
+                onDelete = { onMemoDelete(memo) },
+            )
+        },
+        deletedRecordContent = { memo ->
+            val deletedAt = memo.deletedAt
+            SillageRecentlyDeletedRecordRow(
+                state = recordsState,
+                memo = memo,
+                strings = SillageRecentlyDeletedRecordStrings(
+                    blankRecord = stringResource(R.string.blank_record),
+                    deletedAtLabel = stringResource(
+                        R.string.deleted_at,
+                        if (deletedAt != null) localizedTimestamp(deletedAt) else "—",
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onMemoClick(memo) }
-                        .heightIn(min = 48.dp)
-                        .padding(vertical = 8.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
+                    purgeSupporting = stringResource(R.string.purge_record_supporting),
+                    restoreAction = stringResource(R.string.action_restore),
+                    deleteForeverAction = stringResource(R.string.action_delete_forever),
+                    confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                    cancelAction = stringResource(R.string.action_cancel),
+                ),
+                restoreIcon = Icons.Rounded.RestoreFromTrash,
+                purgeIcon = Icons.Rounded.DeleteForever,
+                onRestore = { onMemoRestore(memo) },
+                onPurge = { onMemoPurge(memo) },
+            )
+        },
+    )
 }
 
 @Composable
@@ -705,71 +320,63 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
     val today = remember { LocalDate.now().toString() }
     val locale = LocalConfiguration.current.locales[0]
     val firstDayOfWeek = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
-    val weeks = remember(state.calendarYear, state.calendarMonth, firstDayOfWeek) {
-        monthGrid(state.calendarYear, state.calendarMonth, firstDayOfWeek)
-    }
-    val counts = remember(state.memos) { entryDateCounts(state.memos) }
-    val selectedEntries = remember(state.memos, state.selectedCalendarDate) {
-        state.selectedCalendarDate?.let { entriesByDate(state.memos, it) }.orEmpty()
-    }
-    val coverage = remember(
-        state.memos,
-        state.memoNextCursor,
-        state.calendarYear,
-        state.calendarMonth,
+    val weeks = remember(
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
+        firstDayOfWeek,
     ) {
-        calendarMemoCoverage(
-            memos = state.memos,
-            nextCursor = state.memoNextCursor,
-            year = state.calendarYear,
-            month = state.calendarMonth,
+        monthGrid(
+            state.workspace.records.browse.calendarYear,
+            state.workspace.records.browse.calendarMonth,
+            firstDayOfWeek,
         )
     }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
+    SillageRecordCalendar(
+        state = state.workspace.records,
+        today = today,
+        weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
+        weeks = weeks,
+        strings = SillageRecordCalendarStrings(
+            selectedDateLabel = state.workspace.records.browse.selectedCalendarDate?.let { localizedDate(it) }
+                ?: stringResource(R.string.calendar_select_day),
+            coverage = SillageCalendarCoverageStrings(
+                partialMonth = stringResource(
+                    R.string.calendar_partial_month,
+                    pluralStringResource(
+                        R.plurals.quantity_records,
+                        state.workspace.records.collection.records.size,
+                        state.workspace.records.collection.records.size,
+                    ),
+                ),
+                completeMonth = stringResource(R.string.calendar_complete_month),
+                loadEarlierAction = stringResource(R.string.calendar_load_earlier),
+                loadingEarlierAction = stringResource(R.string.calendar_loading_earlier),
+            ),
+            emptySelection = SillageCalendarEmptySelectionStrings(
+                empty = stringResource(R.string.calendar_day_empty),
+                mayBeIncomplete = stringResource(R.string.calendar_day_maybe_incomplete),
+            ),
+        ),
+        dayDescription = { date, count, isToday ->
+            stringResource(
+                if (isToday) {
+                    R.string.calendar_day_today_description
+                } else {
+                    R.string.calendar_day_description
+                },
+                localizedDate(date),
+                pluralStringResource(R.plurals.quantity_records, count, count),
+            )
+        },
+        onSelectDate = viewModel::selectCalendarDate,
+        onLoadMore = viewModel::loadMoreMemos,
+        headerContent = {
             CalendarHeader(state, viewModel)
-        }
-        item {
-            CalendarGrid(
-                weeks = weeks,
-                counts = counts,
-                today = today,
-                selectedDate = state.selectedCalendarDate,
-                firstDayOfWeek = firstDayOfWeek,
-                onSelectDate = viewModel::selectCalendarDate,
-            )
-        }
-        if (coverage.hasMoreOlderRecords) {
-            item {
-                CalendarCoverageNotice(
-                    loadedCount = state.memos.size,
-                    currentMonthMayBeIncomplete = coverage.currentMonthMayBeIncomplete,
-                    loading = state.loadingMoreMemos,
-                    onLoadMore = viewModel::loadMoreMemos,
-                )
-            }
-        }
-        item {
-            Text(
-                state.selectedCalendarDate?.let { localizedDate(it) }
-                    ?: stringResource(R.string.calendar_select_day),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        if (state.selectedCalendarDate != null && selectedEntries.isEmpty()) {
-            item {
-                EmptyCalendarSelection(mayBeIncomplete = coverage.currentMonthMayBeIncomplete)
-            }
-        }
-        items(selectedEntries, key = { it.id }) { memo ->
+        },
+        selectedRecordContent = { memo ->
             MemoSwipeRow(
                 memo = memo,
-                mutating = memo.id in state.memoMutationIds,
+                mutating = state.workspace.records.mutation.isActive(memo.id),
                 onClick = { viewModel.openMemoDetail(memo) },
                 onEdit = { viewModel.editMemo(memo) },
                 onDuplicate = { viewModel.duplicateMemoDraft(memo) },
@@ -777,97 +384,37 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onToggleArchive = { viewModel.toggleMemoArchived(memo) },
                 onDelete = { viewModel.deleteMemo(memo) },
             )
-        }
-    }
-}
-
-@Composable
-private fun CalendarCoverageNotice(
-    loadedCount: Int,
-    currentMonthMayBeIncomplete: Boolean,
-    loading: Boolean,
-    onLoadMore: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                if (currentMonthMayBeIncomplete) {
-                    stringResource(
-                        R.string.calendar_partial_month,
-                        pluralStringResource(R.plurals.quantity_records, loadedCount, loadedCount),
-                    )
-                } else {
-                    stringResource(R.string.calendar_complete_month)
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(
-                onClick = onLoadMore,
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(modifier = Modifier.size(8.dp))
-                }
-                Text(stringResource(if (loading) R.string.calendar_loading_earlier else R.string.calendar_load_earlier))
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
-    val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
-    val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
-    val previousLabel = localizedMonth(previous.first, previous.second)
-    val currentLabel = localizedMonth(state.calendarYear, state.calendarMonth)
-    val nextLabel = localizedMonth(next.first, next.second)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        IconButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = previousLabel,
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                currentLabel,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(R.string.calendar_browse_by_date),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        IconButton(onClick = { viewModel.changeCalendarMonth(1) }) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = nextLabel,
-            )
-        }
-    }
+    val previous = adjacentMonth(
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
+        -1,
+    )
+    val next = adjacentMonth(
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
+        1,
+    )
+    SillageCalendarHeader(
+        strings = SillageCalendarHeaderStrings(
+            currentMonth = localizedMonth(
+                state.workspace.records.browse.calendarYear,
+                state.workspace.records.browse.calendarMonth,
+            ),
+            browseByDate = stringResource(R.string.calendar_browse_by_date),
+            previousMonthDescription = localizedMonth(previous.first, previous.second),
+            nextMonthDescription = localizedMonth(next.first, next.second),
+        ),
+        previousIcon = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+        nextIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+        onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
+        onNextMonth = { viewModel.changeCalendarMonth(1) },
+    )
 }
 
 @Composable
@@ -880,141 +427,10 @@ private fun localizedMonth(year: Int, month: Int): String {
 }
 
 @Composable
-private fun CalendarGrid(
-    weeks: List<List<String?>>,
-    counts: Map<String, Int>,
-    today: String,
-    selectedDate: String?,
-    firstDayOfWeek: DayOfWeek,
-    onSelectDate: (String) -> Unit,
-) {
+private fun calendarWeekdayLabels(firstDayOfWeek: DayOfWeek): List<String> {
     val sundayFirst = stringArrayResource(R.array.calendar_weekdays_short).toList()
     val firstIndex = if (firstDayOfWeek == DayOfWeek.SUNDAY) 0 else firstDayOfWeek.value
-    val weekdays = sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
-    Column(
-        modifier = Modifier.selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            weekdays.forEach { day ->
-                Text(
-                    day,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-        weeks.forEach { week ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                week.forEach { date ->
-                    if (date == null) {
-                        Spacer(modifier = Modifier.weight(1f).height(44.dp))
-                    } else {
-                        CalendarDayCell(
-                            date = date,
-                            count = counts[date] ?: 0,
-                            isToday = date == today,
-                            selected = date == selectedDate,
-                            onClick = { onSelectDate(date) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CalendarDayCell(
-    date: String,
-    count: Int,
-    isToday: Boolean,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val recordCount = pluralStringResource(R.plurals.quantity_records, count, count)
-    val description = stringResource(
-        if (isToday) R.string.calendar_day_today_description else R.string.calendar_day_description,
-        localizedDate(date),
-        recordCount,
-    )
-    val color = when {
-        selected -> MaterialTheme.colorScheme.surfaceContainerHighest
-        count > 0 -> MaterialTheme.colorScheme.surfaceContainerLow
-        else -> Color.Transparent
-    }
-    val border = when {
-        selected -> BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
-        isToday -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        else -> null
-    }
-    Surface(
-        selected = selected,
-        onClick = onClick,
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .semantics { applyCalendarDaySemantics(description, selected) },
-        shape = RoundedCornerShape(8.dp),
-        color = color,
-        border = border,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clearAndSetSemantics { }
-                .padding(vertical = 5.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                date.takeLast(2).toInt().toString(),
-                fontWeight = if (isToday || selected) FontWeight.SemiBold else FontWeight.Normal,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                if (count > 0) count.toString() else " ",
-                color = if (count > 0) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    Color.Transparent
-                },
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-}
-
-internal fun SemanticsPropertyReceiver.applyCalendarDaySemantics(
-    description: String,
-    isSelected: Boolean,
-) {
-    contentDescription = description
-    selected = isSelected
-}
-
-@Composable
-private fun EmptyCalendarSelection(mayBeIncomplete: Boolean) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-    ) {
-        Text(
-            if (mayBeIncomplete) {
-                stringResource(R.string.calendar_day_maybe_incomplete)
-            } else {
-                stringResource(R.string.calendar_day_empty)
-            },
-            modifier = Modifier.padding(14.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
+    return sundayFirst.drop(firstIndex) + sundayFirst.take(firstIndex)
 }
 
 @Composable
@@ -1028,388 +444,67 @@ private fun MemoSwipeRow(
     onToggleArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var showActions by remember { mutableStateOf(false) }
-    val actionWidth = 92.dp
-    val actionWidthPx = with(androidx.compose.ui.platform.LocalDensity.current) { actionWidth.toPx() }
-    val settleThreshold = actionWidthPx * 0.56f
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
-    var offsetX by remember(memo.id) { mutableStateOf(0f) }
-    val dragState = rememberDraggableState { delta ->
-        offsetX = (offsetX + delta).coerceIn(-actionWidthPx, actionWidthPx)
-    }
-    fun animateOffsetTo(target: Float, after: (() -> Unit)? = null) {
-        coroutineScope.launch {
-            val animation = Animatable(offsetX)
-            animation.animateTo(target) {
-                offsetX = value
-            }
-            offsetX = target
-            after?.invoke()
-        }
-    }
-    fun closeActions() {
-        animateOffsetTo(0f)
-    }
-    fun settleActions() {
-        val target = when {
-            offsetX > settleThreshold -> actionWidthPx
-            offsetX < -settleThreshold -> -actionWidthPx
-            else -> 0f
-        }
-        animateOffsetTo(target)
-    }
-    fun runAction(action: () -> Unit) {
-        animateOffsetTo(0f, action)
-    }
-    LaunchedEffect(mutating) {
-        if (mutating) {
-            showActions = false
-            offsetX = 0f
-        }
-    }
-    if (showActions && !mutating) {
-        MemoQuickActionsSheet(
-            memo = memo,
-            onDismiss = { showActions = false },
-            onEdit = {
-                showActions = false
-                onEdit()
-            },
-            onDuplicate = {
-                showActions = false
-                onDuplicate()
-            },
-            onToggleFavorite = {
-                showActions = false
-                onToggleFavorite()
-            },
-            onToggleArchive = {
-                showActions = false
-                onToggleArchive()
-            },
-            onDelete = {
-                showActions = false
-                onDelete()
-            },
-        )
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 92.dp),
-    ) {
-        MemoSwipeActionPane(
-            memo = memo,
-            actionWidth = actionWidth,
-            revealedOffset = offsetX,
-            onToggleFavorite = { runAction(onToggleFavorite) },
-            onToggleArchive = { runAction(onToggleArchive) },
-            enabled = !mutating,
-            modifier = Modifier.matchParentSize(),
-        )
-        MemoRow(
-            memo = memo,
-            modifier = Modifier
-                .heightIn(min = 92.dp)
-                .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = dragState,
-                    enabled = !mutating,
-                    onDragStopped = { settleActions() },
-                ),
-            mutating = mutating,
-            onClick = {
-                if (offsetX != 0f) {
-                    closeActions()
-                } else {
-                    onClick()
-                }
-            },
-            onLongClick = if (mutating) null else { { showActions = true } },
-        )
-    }
-}
-
-@Composable
-private fun MemoSwipeActionPane(
-    memo: Memo,
-    actionWidth: androidx.compose.ui.unit.Dp,
-    revealedOffset: Float,
-    onToggleFavorite: () -> Unit,
-    onToggleArchive: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        SwipeActionButton(
-            icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-            label = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
-            visible = revealedOffset > 0f,
-            enabled = enabled,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = onToggleFavorite,
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(actionWidth),
-        )
-        SwipeActionButton(
-            icon = Icons.Rounded.Archive,
-            label = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_restore),
-            visible = revealedOffset < 0f,
-            enabled = enabled,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            onClick = onToggleArchive,
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(actionWidth),
-        )
-    }
-}
-
-@Composable
-private fun SwipeActionButton(
-    icon: ImageVector,
-    label: String,
-    visible: Boolean,
-    enabled: Boolean,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (visible) color else MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics {
-                    if (!visible) {
-                        invisibleToUser()
-                    }
-                }
-                .clickable(enabled = visible && enabled, onClick = onClick)
-                .padding(horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MemoQuickActionsSheet(
-    memo: Memo,
-    onDismiss: () -> Unit,
-    onEdit: () -> Unit,
-    onDuplicate: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onToggleArchive: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var confirmingDelete by remember(memo.id) { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-        ) {
-            Text(
-                excerpt(memo.content, 64).ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stringResource(R.string.quick_actions_description, localizedDate(memo.entryDate)),
-                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-            QuickActionRow(
-                icon = Icons.Rounded.Edit,
-                title = stringResource(R.string.action_edit),
-                supporting = stringResource(R.string.quick_edit_supporting),
-                onClick = onEdit,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.ContentCopy,
-                title = stringResource(R.string.quick_copy_title),
-                supporting = stringResource(R.string.quick_copy_supporting),
-                onClick = onDuplicate,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-                title = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
-                supporting = if (memo.favoritedAt == null) {
-                    stringResource(R.string.quick_favorite_supporting)
-                } else if (memo.archivedAt == null) {
-                    stringResource(R.string.quick_unfavorite_to_records)
-                } else {
-                    stringResource(R.string.quick_unfavorite_to_archive)
-                },
-                onClick = onToggleFavorite,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.Archive,
-                title = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_unarchive),
-                supporting = stringResource(if (memo.archivedAt == null) R.string.quick_archive_supporting else R.string.quick_unarchive_supporting),
-                onClick = onToggleArchive,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.Delete,
-                title = stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete),
-                supporting = stringResource(
-                    if (confirmingDelete) R.string.quick_delete_confirm_supporting else R.string.quick_delete_supporting,
-                ),
-                destructive = true,
-                onClick = {
-                    if (confirmingDelete) {
-                        onDelete()
-                    } else {
-                        confirmingDelete = true
-                    }
-                },
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-        }
-    }
-}
-
-@Composable
-private fun QuickActionDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 48.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-    )
-}
-
-@Composable
-private fun QuickActionRow(
-    icon: ImageVector,
-    title: String,
-    supporting: String,
-    destructive: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(34.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(19.dp),
-                tint = if (destructive) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                title,
-                color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                supporting,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun MemoRow(
-    memo: Memo,
-    mutating: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)?,
-) {
-    val moreActionsLabel = if (onLongClick == null) null else stringResource(R.string.action_more)
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClickLabel = moreActionsLabel,
-                onLongClick = onLongClick,
+    SillageRecordSwipeRow(
+        memo = memo,
+        mutating = mutating,
+        strings = SillageRecordSwipeRowStrings(
+            row = SillageRecordRowStrings(
+                blankRecord = stringResource(R.string.blank_record),
+                entryDateLabel = localizedDate(memo.entryDate),
+                moreActionsLabel = stringResource(R.string.action_more),
+                savingDescription = stringResource(R.string.action_saving),
+                favoritedStatus = stringResource(R.string.record_favorited),
+                archivedStatus = stringResource(R.string.record_archived),
             ),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                memo.content.ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
+            swipeActions = SillageRecordSwipeActionStrings(
+                favoriteAction = stringResource(R.string.action_favorite),
+                unfavoriteAction = stringResource(R.string.action_unfavorite),
+                archiveAction = stringResource(R.string.action_archive),
+                restoreAction = stringResource(R.string.action_restore),
+            ),
+            quickActions = SillageRecordQuickActionsStrings(
+                blankRecord = stringResource(R.string.blank_record),
+                recordDescription = stringResource(
+                    R.string.quick_actions_description,
                     localizedDate(memo.entryDate),
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Box(
-                    modifier = Modifier.size(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (mutating) {
-                        val savingDescription = stringResource(R.string.action_saving)
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics { contentDescription = savingDescription },
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-                MemoStatusLine(memo)
-            }
-        }
-    }
+                ),
+                editAction = stringResource(R.string.action_edit),
+                editSupporting = stringResource(R.string.quick_edit_supporting),
+                duplicateAction = stringResource(R.string.quick_copy_title),
+                duplicateSupporting = stringResource(R.string.quick_copy_supporting),
+                favoriteAction = stringResource(R.string.action_favorite),
+                unfavoriteAction = stringResource(R.string.action_unfavorite),
+                favoriteSupporting = stringResource(R.string.quick_favorite_supporting),
+                unfavoriteToRecordsSupporting = stringResource(R.string.quick_unfavorite_to_records),
+                unfavoriteToArchiveSupporting = stringResource(R.string.quick_unfavorite_to_archive),
+                archiveAction = stringResource(R.string.action_archive),
+                unarchiveAction = stringResource(R.string.action_unarchive),
+                archiveSupporting = stringResource(R.string.quick_archive_supporting),
+                unarchiveSupporting = stringResource(R.string.quick_unarchive_supporting),
+                deleteAction = stringResource(R.string.action_delete),
+                confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                deleteSupporting = stringResource(R.string.quick_delete_supporting),
+                confirmDeleteSupporting = stringResource(R.string.quick_delete_confirm_supporting),
+            ),
+        ),
+        icons = SillageRecordSwipeRowIcons(
+            favorite = Icons.Rounded.StarBorder,
+            favorited = Icons.Rounded.Star,
+            archive = Icons.Rounded.Archive,
+            quickActions = SillageRecordQuickActionIcons(
+                edit = Icons.Rounded.Edit,
+                duplicate = Icons.Rounded.ContentCopy,
+                favorite = Icons.Rounded.StarBorder,
+                favorited = Icons.Rounded.Star,
+                archive = Icons.Rounded.Archive,
+                delete = Icons.Rounded.Delete,
+            ),
+        ),
+        onClick = onClick,
+        onEdit = onEdit,
+        onDuplicate = onDuplicate,
+        onToggleFavorite = onToggleFavorite,
+        onToggleArchive = onToggleArchive,
+        onDelete = onDelete,
+    )
 }

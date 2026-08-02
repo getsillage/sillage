@@ -29,6 +29,23 @@ class SillageViewModelToastTest {
     }
 
     @Test
+    fun appearanceTransitionsPersistAndHydrateSharedState() {
+        val viewModel = SillageViewModel(context)
+
+        viewModel.toggleThemeMode()
+        viewModel.setLanguageMode("en-US")
+
+        assertEquals(SessionStore.THEME_DARK, viewModel.state.value.appearance.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, viewModel.state.value.appearance.languageMode)
+        assertEquals(SessionStore.THEME_DARK, SessionStore(context).themeMode())
+        assertEquals(SessionStore.LANGUAGE_EN, SessionStore(context).languageMode())
+
+        val restored = SillageViewModel(context)
+        assertEquals(SessionStore.THEME_DARK, restored.state.value.appearance.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, restored.state.value.appearance.languageMode)
+    }
+
+    @Test
     fun emptyServerValidationStaysInTheFormWithoutDuplicateToastEvents() = runBlocking {
         val viewModel = SillageViewModel(context)
 
@@ -37,7 +54,7 @@ class SillageViewModelToastTest {
 
         assertEquals("请先填写服务器地址。", viewModel.state.value.authError)
         assertNull(withTimeoutOrNull(100) { viewModel.toastEvents.first() })
-        assertEquals(SessionStore.LANGUAGE_ZH_CN, viewModel.state.value.languageMode)
+        assertEquals(SessionStore.LANGUAGE_ZH_CN, viewModel.state.value.appearance.languageMode)
 
         viewModel.setLanguageMode(SessionStore.LANGUAGE_EN)
 
@@ -62,7 +79,7 @@ class SillageViewModelToastTest {
 
         viewModel.useOnlineMode()
 
-        assertEquals(Screen.Server, viewModel.state.value.screen)
+        assertEquals(Screen.Server, viewModel.state.value.clientContext.screen)
         assertFalse(viewModel.state.value.loading)
         assertTrue(viewModel.state.value.authError?.isNotBlank() == true)
         assertNull(viewModel.state.value.authErrorResourceId)
@@ -79,13 +96,13 @@ class SillageViewModelToastTest {
         val sessionStore = SessionStore(context)
         sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
         val viewModel = SillageViewModel(context)
-        val profiles = viewModel.state.value.aiProfiles
+        val profiles = viewModel.state.value.workspace.settings.profiles
 
         viewModel.openAISettings()
 
-        assertEquals(Screen.AISettings, viewModel.state.value.screen)
-        assertFalse(viewModel.state.value.aiSettingsLoading)
-        assertEquals(profiles, viewModel.state.value.aiProfiles)
+        assertEquals(Screen.AISettings, viewModel.state.value.clientContext.screen)
+        assertFalse(viewModel.state.value.workspace.settings.loading)
+        assertEquals(profiles, viewModel.state.value.workspace.settings.profiles)
     }
 
     @Test
@@ -96,18 +113,18 @@ class SillageViewModelToastTest {
 
         viewModel.openAsk()
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
 
         viewModel.updateMemoViewMode(MemoViewMode.Calendar)
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
 
         viewModel.openAISettings()
         viewModel.returnToRecords()
-        assertEquals(Screen.Memos, viewModel.state.value.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.memoViewMode)
+        assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
     }
 
     @Test

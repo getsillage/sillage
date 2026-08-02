@@ -111,7 +111,9 @@ JSON source-count parsing, and plural labels. The detail card and reusable statu
 line are shared too; Android supplies localized dates/status labels and retains
 Markdown rendering plus protected-attachment opening. Record metadata revision
 selection and layout are shared; Android formats timestamps and revision plurals.
-Editor unsaved-draft and
+The shared detail content shell also owns missing-record fallback, section order,
+lazy-list spacing, and content width; Android keeps Scaffold/top actions and fills
+the localized record, summary, and metadata slots. Editor unsaved-draft and
 Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

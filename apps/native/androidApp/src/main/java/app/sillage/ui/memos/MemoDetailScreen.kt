@@ -1,14 +1,8 @@
 package app.sillage.ui.memos
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Archive
@@ -23,7 +17,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,13 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
 import app.sillage.data.memoSummarySourceCount
@@ -51,6 +42,7 @@ import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 import app.sillage.ui.records.SillageRecordDetailCard
+import app.sillage.ui.records.SillageRecordDetailContent
 import app.sillage.ui.records.SillageRecordDetailStrings
 import app.sillage.ui.records.SillageRecordMetadataBlock
 import app.sillage.ui.records.SillageRecordStatusLine
@@ -172,63 +164,43 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
             )
         },
     ) { padding ->
-        if (memo == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.record_missing), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            return@Scaffold
-        }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            item {
+        SillageRecordDetailContent(
+            memo = memo,
+            missingRecord = stringResource(R.string.record_missing),
+            recordContent = { record, itemModifier ->
                 SillageRecordDetailCard(
-                    memo = memo,
+                    memo = record,
                     strings = SillageRecordDetailStrings(
-                        entryDateLabel = localizedDate(memo.entryDate),
+                        entryDateLabel = localizedDate(record.entryDate),
                         blankRecord = stringResource(R.string.blank_record),
                         favoritedStatus = stringResource(R.string.record_favorited),
                         archivedStatus = stringResource(R.string.record_archived),
                     ),
-                    modifier = Modifier
-                        .widthIn(max = 720.dp)
-                        .fillMaxWidth(),
-                ) { record ->
+                    modifier = itemModifier,
+                ) { contentMemo ->
                     MarkdownContent(
-                        content = record.content,
+                        content = contentMemo.content,
                         baseUrl = state.baseUrl,
                         openingAttachmentPath = state.openingAttachmentPath,
                         onOpenAttachment = viewModel::openProtectedAttachment,
                     )
                 }
-            }
-            item {
+            },
+            summaryContent = { _, itemModifier ->
                 MemoSummarySection(
                     summary = state.selectedSummary,
                     loading = state.summaryLoading,
                     onGenerate = viewModel::summarizeSelectedMemo,
-                    modifier = Modifier
-                        .widthIn(max = 720.dp)
-                        .fillMaxWidth(),
+                    modifier = itemModifier,
                 )
-            }
-            item {
-                val updatedTimestamp = localizedTimestamp(memo.updatedAt)
+            },
+            metadataContent = { record, itemModifier ->
+                val updatedTimestamp = localizedTimestamp(record.updatedAt)
                 SillageRecordMetadataBlock(
-                    memo = memo,
+                    memo = record,
                     createdLabel = stringResource(
                         R.string.metadata_created,
-                        localizedTimestamp(memo.createdAt),
+                        localizedTimestamp(record.createdAt),
                     ),
                     updatedLabel = { revisions ->
                         stringResource(
@@ -241,12 +213,11 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                             ),
                         )
                     },
-                    modifier = Modifier
-                        .widthIn(max = 720.dp)
-                        .fillMaxWidth(),
+                    modifier = itemModifier,
                 )
-            }
-        }
+            },
+            modifier = Modifier.padding(padding),
+        )
     }
 }
 

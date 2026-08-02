@@ -28,6 +28,9 @@ selection for editor and other host surfaces.
 `SillageRecordMetadataBlock` owns revision-count derivation, divider treatment,
 and created/updated label layout while hosts format localized timestamps and
 revision plurals.
+`SillageRecordDetailContent` owns missing-record fallback, detail-section ordering,
+lazy-list spacing, and shared content width while hosts fill record, summary, and
+metadata adapter slots.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

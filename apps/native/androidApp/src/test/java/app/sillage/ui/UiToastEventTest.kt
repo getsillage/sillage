@@ -4,6 +4,7 @@ import app.sillage.core.sync.SyncPushSummary
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.ui.appshell.AppClientContextStateHolder
+import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -115,7 +116,11 @@ class UiToastEventTest {
         val busy = SillageUiState(
             baseUrl = "",
             clientContext = AppClientContextStateHolder(screen = Screen.Editor),
-            records = RecordsFeatureStateHolder(editor = RecordsEditorStateHolder(uploadingAttachment = true)),
+            workspace = AppWorkspaceStateHolder(
+                records = RecordsFeatureStateHolder(
+                    editor = RecordsEditorStateHolder(uploadingAttachment = true),
+                ),
+            ),
             error = "旧错误",
         )
         val warning = busy.withMemoEditorBackBlockedNotice(

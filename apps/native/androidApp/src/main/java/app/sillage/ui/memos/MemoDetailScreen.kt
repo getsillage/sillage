@@ -65,7 +65,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                 },
                 actions = {
                     SillageRecordDetailActions(
-                        state = state.records,
+                        state = state.workspace.records,
                         hostOperationBlocked = state.loading,
                         strings = SillageRecordDetailActionStrings(
                             editContentDescription = stringResource(R.string.record_edit_description),
@@ -98,7 +98,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
         },
     ) { padding ->
             SillageRecordDetailContent(
-                state = state.records,
+                state = state.workspace.records,
             missingRecord = stringResource(R.string.record_missing),
             recordContent = { record, itemModifier ->
                 SillageRecordDetailCard(
@@ -114,14 +114,14 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     MarkdownContent(
                         content = contentMemo.content,
                         baseUrl = state.baseUrl,
-                        openingAttachmentPath = state.records.attachmentOpen.path,
+                        openingAttachmentPath = state.workspace.records.attachmentOpen.path,
                         onOpenAttachment = viewModel::openProtectedAttachment,
                     )
                 }
             },
                 summaryContent = { _, itemModifier ->
                     MemoSummarySection(
-                        records = state.records,
+                        records = state.workspace.records,
                         onGenerate = viewModel::summarizeSelectedMemo,
                     modifier = itemModifier,
                 )

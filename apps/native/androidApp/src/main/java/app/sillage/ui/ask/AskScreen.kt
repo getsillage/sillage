@@ -73,36 +73,36 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             R.string.ask_new_conversation_description,
         ),
     )
-    var observedCompletionEventId by remember(state.ask.screenSessionId) {
-        mutableLongStateOf(state.ask.stream.completionEventId)
+    var observedCompletionEventId by remember(state.workspace.ask.screenSessionId) {
+        mutableLongStateOf(state.workspace.ask.stream.completionEventId)
     }
     val listState = rememberLazyListState()
-    val entries = remember(state.ask.conversation.messages, state.ask.conversation.headMessageId) {
-        buildAskActivePath(state.ask.conversation.messages, state.ask.conversation.headMessageId)
+    val entries = remember(state.workspace.ask.conversation.messages, state.workspace.ask.conversation.headMessageId) {
+        buildAskActivePath(state.workspace.ask.conversation.messages, state.workspace.ask.conversation.headMessageId)
     }
     val latestAssistantId = remember(entries) {
         lastAssistantMessageId(entries)
     }
-    val contextControlsEnabled = sillageAskContextControlsEnabled(state.ask)
+    val contextControlsEnabled = sillageAskContextControlsEnabled(state.workspace.ask)
     SillageAskAutoFollow(
-        state = state.ask,
+        state = state.workspace.ask,
         entries = entries,
         listState = listState,
     )
     LaunchedEffect(
-        state.ask.screenSessionId,
-        state.ask.stream.completionEventId,
+        state.workspace.ask.screenSessionId,
+        state.workspace.ask.stream.completionEventId,
         completedDescription,
         view,
     ) {
-        if (observedCompletionEventId != state.ask.stream.completionEventId) {
-            observedCompletionEventId = state.ask.stream.completionEventId
+        if (observedCompletionEventId != state.workspace.ask.stream.completionEventId) {
+            observedCompletionEventId = state.workspace.ask.stream.completionEventId
             view.announceForAccessibility(completedDescription)
         }
     }
     if (showConversations) {
         SillageAskConversationSheet(
-            state = state.ask,
+            state = state.workspace.ask,
             strings = SillageAskConversationStrings(
                 title = stringResource(R.string.ask_conversations_title),
                 refreshAction = stringResource(R.string.action_refresh),
@@ -119,7 +119,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     }
     if (showOptions) {
         SillageAskOptionsSheet(
-            state = state.ask,
+            state = state.workspace.ask,
             enabled = contextControlsEnabled,
             strings = SillageAskOptionsStrings(
                 title = stringResource(R.string.ask_context_title),
@@ -141,7 +141,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             TopAppBar(
                     title = {
                         SillageAskTopBarTitle(
-                            state = state.ask,
+                            state = state.workspace.ask,
                             strings = topBarStrings,
                             contextStrings = contextStrings,
                             contextSummary = { scope, source ->
@@ -151,7 +151,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     },
                     actions = {
                         SillageAskTopBarActions(
-                            state = state.ask,
+                            state = state.workspace.ask,
                             strings = topBarStrings,
                             icons = SillageAskTopBarIcons(
                                 conversations = Icons.AutoMirrored.Rounded.List,
@@ -176,7 +176,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                 .consumeWindowInsets(padding),
         ) {
             SillageAskMessageList(
-                state = state.ask,
+                state = state.workspace.ask,
                 entries = entries,
                 latestAssistantId = latestAssistantId,
                 hostActionsEnabled = !state.loading,
@@ -210,7 +210,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         sourceActionsEnabled = item.sourceActionsEnabled,
                         streamingText = item.streamingText,
                         baseUrl = state.baseUrl,
-                        openingAttachmentPath = state.records.attachmentOpen.path,
+                        openingAttachmentPath = state.workspace.records.attachmentOpen.path,
                         onRegenerate = {
                             viewModel.regenerateAskAnswer(item.entry.message.id)
                         },
@@ -242,7 +242,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
 
             SillageAskComposer(
-                state = state.ask,
+                state = state.workspace.ask,
                 strings = SillageAskComposerStrings(
                     context = contextStrings,
                     questionLabel = stringResource(R.string.ask_question_label),

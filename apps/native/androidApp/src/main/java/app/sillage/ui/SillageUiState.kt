@@ -57,6 +57,7 @@ import app.sillage.ui.appshell.AppAppearanceStateHolder
 import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.appshell.AppNavigationPolicy
+import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import java.time.LocalDate
 
 internal fun defaultRecordsFeatureState(
@@ -85,10 +86,10 @@ data class SillageUiState(
     val minimumAndroidVersionCode: Int = 0,
     val androidUpdateRequired: Boolean = false,
     val account: Account? = null,
-    val records: RecordsFeatureStateHolder = defaultRecordsFeatureState(),
-    val settings: SettingsFeatureStateHolder = SettingsFeatureStateHolder(),
+    val workspace: AppWorkspaceStateHolder = AppWorkspaceStateHolder(
+        records = defaultRecordsFeatureState(),
+    ),
     val auth: AuthFeatureStateHolder = AuthFeatureStateHolder(),
-    val ask: AskFeatureStateHolder = AskFeatureStateHolder(),
     val sync: SyncFeatureStateHolder = SyncFeatureStateHolder(),
     val loading: Boolean = false,
     val authError: String? = null,
@@ -105,7 +106,7 @@ internal inline fun SillageUiState.withClientContext(
 /** Applies a pure records-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withRecords(
     transform: (RecordsFeatureStateHolder) -> RecordsFeatureStateHolder,
-): SillageUiState = copy(records = transform(records))
+): SillageUiState = copy(workspace = workspace.updateRecords(transform))
 
 /** Updates records search presentation through the aggregate holder. */
 internal fun SillageUiState.withMemoSearchQuery(value: String): SillageUiState {
@@ -125,7 +126,7 @@ internal fun SillageUiState.applyRestoredMemoViewMode(mode: MemoViewMode): Silla
 /** Applies a pure Ask-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withAsk(
     transform: (AskFeatureStateHolder) -> AskFeatureStateHolder,
-): SillageUiState = copy(ask = transform(ask))
+): SillageUiState = copy(workspace = workspace.updateAsk(transform))
 
 /** Updates the Ask composer draft through the aggregate holder. */
 internal fun SillageUiState.withAskQuestion(value: String): SillageUiState {
@@ -145,7 +146,7 @@ internal fun SillageUiState.withAskSourceKind(value: String): SillageUiState {
 /** Applies a pure settings-feature transition without touching host-only fields. */
 internal inline fun SillageUiState.withSettings(
     transform: (SettingsFeatureStateHolder) -> SettingsFeatureStateHolder,
-): SillageUiState = copy(settings = transform(settings))
+): SillageUiState = copy(workspace = workspace.updateSettings(transform))
 
 /** Replaces editable AI profile drafts through the settings aggregate. */
 internal fun SillageUiState.withAIProfiles(
@@ -235,14 +236,11 @@ internal fun SillageUiState.clearClientWorkspace(
     askInvalidateVariant: Boolean = false,
 ): SillageUiState {
     return copy(
-        records = records.clearInteractiveSurface(),
-        settings = settings.clearWorkspace(
-            profiles = settingsProfiles,
-            autoSummaryEnabled = settingsAutoSummaryEnabled,
-        ),
-        ask = ask.clearWorkspace(
-            invalidateStream = askInvalidateStream,
-            invalidateVariant = askInvalidateVariant,
+        workspace = workspace.clearClientWorkspace(
+            settingsProfiles = settingsProfiles,
+            settingsAutoSummaryEnabled = settingsAutoSummaryEnabled,
+            askInvalidateStream = askInvalidateStream,
+            askInvalidateVariant = askInvalidateVariant,
         ),
     )
 }
@@ -256,12 +254,12 @@ internal fun SillageUiState.enterOfflineClientWorkspace(
     settingsProfiles: List<AIProfileDraft>,
     settingsAutoSummaryEnabled: Boolean,
 ): SillageUiState {
-    val cleared = clearClientWorkspace(
-        settingsProfiles = settingsProfiles,
-        settingsAutoSummaryEnabled = settingsAutoSummaryEnabled,
-    )
-    return cleared.copy(
-        records = cleared.records.replaceVisibleRecords(memos),
+    return copy(
+        workspace = workspace.enterOfflineClientWorkspace(
+            memos = memos,
+            settingsProfiles = settingsProfiles,
+            settingsAutoSummaryEnabled = settingsAutoSummaryEnabled,
+        ),
     )
 }
 
@@ -273,7 +271,7 @@ typealias SyncConflictItem = MemoSyncConflictItem
 internal typealias MemoEditorBusyReason = RecordsEditorBusyReason
 
 internal fun SillageUiState.memoEditorBusyReason(): MemoEditorBusyReason? {
-    return records.editorBusyReason(memoEditorActionContext())
+    return workspace.records.editorBusyReason(memoEditorActionContext())
 }
 
 internal fun SillageUiState.withMemoEditorBackBlockedNotice(
@@ -289,7 +287,7 @@ internal fun SillageUiState.withMemoEditorBackBlockedNotice(
 }
 
 internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
-    return records.canRunEditorAction(memoEditorActionContext())
+    return workspace.records.canRunEditorAction(memoEditorActionContext())
 }
 
 internal fun SillageUiState.memoEditorActionContext(): RecordsEditorActionContext {
@@ -300,7 +298,7 @@ internal fun SillageUiState.memoEditorActionContext(): RecordsEditorActionContex
 }
 
 internal fun SillageUiState.isMemoMutationInProgress(memoId: String): Boolean {
-    return records.mutation.isActive(memoId)
+    return workspace.records.mutation.isActive(memoId)
 }
 
 internal fun SillageUiState.beginMemoMutation(memoId: String?): SillageUiState {
@@ -313,13 +311,13 @@ internal fun SillageUiState.finishMemoMutation(memoId: String?): SillageUiState 
 
 internal fun SillageUiState.hasClientContextOperationInProgress(): Boolean {
     return loading ||
-        records.summary.loading ||
-        records.mutation.active ||
-        ask.memoSave.savingMessageId.isNotBlank() ||
-        settings.profilesSaving ||
-        settings.autoSummarySaving ||
-        settings.testingProfileKey.isNotBlank() ||
-        settings.loadingModelsProfileKey.isNotBlank() ||
+        workspace.records.summary.loading ||
+        workspace.records.mutation.active ||
+        workspace.ask.memoSave.savingMessageId.isNotBlank() ||
+        workspace.settings.profilesSaving ||
+        workspace.settings.autoSummarySaving ||
+        workspace.settings.testingProfileKey.isNotBlank() ||
+        workspace.settings.loadingModelsProfileKey.isNotBlank() ||
         auth.passwordChanging
 }
 
@@ -357,51 +355,55 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
         clientContextGeneration = clientContext.generation,
         online = clientContext.online,
         anotherOperationInProgress = loading ||
-            records.summary.loading ||
-            records.mutation.active ||
-            ask.memoSave.savingMessageId.isNotBlank() ||
-            settings.profilesSaving ||
-            settings.autoSummarySaving ||
-            settings.diagnostics.busy,
+            workspace.records.summary.loading ||
+            workspace.records.mutation.active ||
+            workspace.ask.memoSave.savingMessageId.isNotBlank() ||
+            workspace.settings.profilesSaving ||
+            workspace.settings.autoSummarySaving ||
+            workspace.settings.diagnostics.busy,
     )
 }
 
 internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
     return clientContext.screen == Screen.Editor &&
-        records.editor.canApplyAttachmentUpload(sessionId)
+        workspace.records.editor.canApplyAttachmentUpload(sessionId)
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
-    return records.attachmentOpen.owns(requestId)
+    return workspace.records.attachmentOpen.owns(requestId)
 }
 
 internal fun SillageUiState.nextAttachmentOpenRequest(
     path: String,
 ): RecordsAttachmentOpenRequest? {
-    return records.nextAttachmentOpenRequest(path)
+    return workspace.records.nextAttachmentOpenRequest(path)
 }
 
 internal fun SillageUiState.beginAttachmentOpenRequest(
     request: RecordsAttachmentOpenRequest,
 ): SillageUiState? {
-    val nextRecords = records.beginAttachmentOpen(request) ?: return null
-    return copy(records = nextRecords)
+    val nextRecords = workspace.records.beginAttachmentOpen(request) ?: return null
+    return copy(workspace = workspace.copy(records = nextRecords))
 }
 
 internal fun SillageUiState.completeAttachmentOpenRequest(
     requestId: Long,
 ): SillageUiState {
-    val nextRecords = records.completeAttachmentOpen(requestId)
-    return if (nextRecords === records) this else copy(records = nextRecords)
+    val nextRecords = workspace.records.completeAttachmentOpen(requestId)
+    return if (nextRecords === workspace.records) this else copy(
+        workspace = workspace.copy(records = nextRecords),
+    )
 }
 
 internal fun SillageUiState.invalidateAttachmentOpenRequest(): SillageUiState {
-    val nextRecords = records.invalidateAttachmentOpen()
-    return if (nextRecords === records) this else copy(records = nextRecords)
+    val nextRecords = workspace.records.invalidateAttachmentOpen()
+    return if (nextRecords === workspace.records) this else copy(
+        workspace = workspace.copy(records = nextRecords),
+    )
 }
 
 internal fun SillageUiState.withAskStreamingStoppedNotice(message: String): SillageUiState {
-    if (!ask.stream.sending) {
+    if (!workspace.ask.stream.sending) {
         return this
     }
     return copy(error = null, notice = message)
@@ -415,19 +417,21 @@ private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
         clientContextGeneration = clientContext.generation,
         destinationKey = clientContext.screen.name,
         destinationGeneration =
-            if (clientContext.screen == Screen.Editor) records.editor.sessionId else 0,
-        cacheGeneration = records.collection.cacheGeneration,
+            if (clientContext.screen == Screen.Editor) workspace.records.editor.sessionId else 0,
+        cacheGeneration = workspace.records.collection.cacheGeneration,
         detailAvailable = detailAvailable,
     )
 }
 
 internal fun SillageUiState.nextMemoDetailRequest(memoId: String): RecordsDetailRequest? {
-    return records.selection.nextDetailRequest(memoId, recordsDetailContext())
+    return workspace.records.selection.nextDetailRequest(memoId, recordsDetailContext())
 }
 
 internal fun SillageUiState.startMemoDetailRequest(request: RecordsDetailRequest): SillageUiState {
-    val selection =
-        records.selection.beginDetailRequest(request, recordsDetailContext()) ?: return this
+    val selection = workspace.records.selection.beginDetailRequest(
+        request,
+        recordsDetailContext(),
+    ) ?: return this
     return withRecords {
         it.acceptDetailRequest(
             selection = selection,
@@ -441,7 +445,7 @@ internal fun SillageUiState.completeMemoDetailRequest(
     detail: RecordDetail,
 ): SillageUiState {
     return when (
-        records.selection.detailResponseDisposition(
+        workspace.records.selection.detailResponseDisposition(
             request,
             recordsDetailContext(),
             detail.memo,
@@ -459,7 +463,9 @@ internal fun SillageUiState.failMemoDetailRequest(
     request: RecordsDetailRequest,
     message: String,
 ): SillageUiState {
-    return when (records.selection.detailFailureDisposition(request, recordsDetailContext())) {
+    return when (
+        workspace.records.selection.detailFailureDisposition(request, recordsDetailContext())
+    ) {
         RecordsDetailResponseDisposition.Ignore -> this
         RecordsDetailResponseDisposition.Superseded -> withRecords { it.finishDetailSummary() }
         RecordsDetailResponseDisposition.Apply -> withRecords { it.finishDetailSummary() }
@@ -475,24 +481,24 @@ private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
         clientContextGeneration = clientContext.generation,
         destinationKey = clientContext.screen.name,
         destinationGeneration =
-            if (clientContext.screen == Screen.Editor) records.editor.sessionId else 0,
-        detailRequestId = records.selection.detailRequestId,
+            if (clientContext.screen == Screen.Editor) workspace.records.editor.sessionId else 0,
+        detailRequestId = workspace.records.selection.detailRequestId,
         summaryAvailable =
             clientContext.screen == Screen.MemoDetail || clientContext.screen == Screen.Editor,
     )
 }
 
 internal fun SillageUiState.nextMemoSummaryRequest(): MemoSummaryRequest? {
-    return records.summary.nextRequest(
-        records.selection.selectedMemo,
+    return workspace.records.summary.nextRequest(
+        workspace.records.selection.selectedMemo,
         recordsSummaryContext(),
     )
 }
 
 internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest): SillageUiState {
-    val summaryState = records.summary.begin(
+    val summaryState = workspace.records.summary.begin(
         request,
-        records.selection.selectedMemo,
+        workspace.records.selection.selectedMemo,
         recordsSummaryContext(),
     )
         ?: return this
@@ -503,13 +509,13 @@ internal fun SillageUiState.startMemoSummaryRequest(request: MemoSummaryRequest)
 }
 
 private fun SillageUiState.ownsMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return records.summary.owns(request)
+    return workspace.records.summary.owns(request)
 }
 
 internal fun SillageUiState.canApplyMemoSummaryRequest(request: MemoSummaryRequest): Boolean {
-    return records.summary.canApply(
+    return workspace.records.summary.canApply(
         request,
-        records.selection.selectedMemo,
+        workspace.records.selection.selectedMemo,
         recordsSummaryContext(),
     )
 }
@@ -526,7 +532,7 @@ internal fun SillageUiState.completeMemoSummaryRequest(
         it.copy(
             summary = it.summary.complete(
                 request,
-                records.selection.selectedMemo,
+                workspace.records.selection.selectedMemo,
                 recordsSummaryContext(),
                 summary,
             ),
@@ -549,7 +555,7 @@ internal fun SillageUiState.failMemoSummaryRequest(
             summary =
                 it.summary.fail(
                     request,
-                    records.selection.selectedMemo,
+                    workspace.records.selection.selectedMemo,
                     recordsSummaryContext(),
                 ),
         )
@@ -562,7 +568,7 @@ internal fun SillageUiState.finishMemoSummaryRequest(request: MemoSummaryRequest
 }
 
 internal fun SillageUiState.invalidateMemoSummaryRequest(): SillageUiState {
-    if (!records.summary.loading) return this
+    if (!workspace.records.summary.loading) return this
     return withRecords { it.copy(summary = it.summary.invalidate()) }
 }
 
@@ -570,35 +576,35 @@ internal fun SillageUiState.aiAutoSummaryContext(): AIAutoSummaryContext =
     AIAutoSummaryContext(
         appMode = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
-        anotherMutationInProgress = settings.loading ||
-            settings.profilesSaving ||
-            settings.diagnostics.busy,
+        anotherMutationInProgress = workspace.settings.loading ||
+            workspace.settings.profilesSaving ||
+            workspace.settings.diagnostics.busy,
     )
 
 internal fun SillageUiState.nextAIAutoSummaryRequest(
     targetValue: Boolean,
 ): AIAutoSummaryRequest? {
-    return settings.autoSummary.nextRequest(targetValue, aiAutoSummaryContext())
+    return workspace.settings.autoSummary.nextRequest(targetValue, aiAutoSummaryContext())
 }
 
 internal fun SillageUiState.startAIAutoSummaryRequest(
     request: AIAutoSummaryRequest,
 ): SillageUiState {
-    val pending = settings.autoSummary.begin(request, aiAutoSummaryContext()) ?: return this
+    val pending = workspace.settings.autoSummary.begin(request, aiAutoSummaryContext()) ?: return this
     return withSettings { it.copy(autoSummary = pending) }
 }
 
 internal fun SillageUiState.canApplyAIAutoSummaryRequest(
     request: AIAutoSummaryRequest,
 ): Boolean {
-    return settings.autoSummary.canApply(request, aiAutoSummaryContext())
+    return workspace.settings.autoSummary.canApply(request, aiAutoSummaryContext())
 }
 
 internal fun SillageUiState.completeAIAutoSummaryRequest(
     request: AIAutoSummaryRequest,
     savedValue: Boolean,
 ): SillageUiState {
-    val completed = settings.autoSummary.complete(
+    val completed = workspace.settings.autoSummary.complete(
         request,
         savedValue,
         aiAutoSummaryContext(),
@@ -607,7 +613,7 @@ internal fun SillageUiState.completeAIAutoSummaryRequest(
 }
 
 internal fun SillageUiState.failAIAutoSummaryRequest(request: AIAutoSummaryRequest): SillageUiState {
-    val failed = settings.autoSummary.fail(request, aiAutoSummaryContext()) ?: return this
+    val failed = workspace.settings.autoSummary.fail(request, aiAutoSummaryContext()) ?: return this
     return withSettings { it.copy(autoSummary = failed) }
 }
 
@@ -619,7 +625,7 @@ internal fun SillageUiState.nextAIProfilesMutationRequest(
     pendingProfiles: List<AIProfileDraft>,
     submittedProfiles: List<AIProfileDraft> = pendingProfiles,
 ): AIProfilesMutationRequest? {
-    return settings.profilesMutation.nextRequest(
+    return workspace.settings.profilesMutation.nextRequest(
         pendingProfiles = pendingProfiles.toList(),
         context = aiProfilesMutationContext(),
         submittedProfiles = submittedProfiles.toList(),
@@ -629,7 +635,7 @@ internal fun SillageUiState.nextAIProfilesMutationRequest(
 internal fun SillageUiState.startAIProfilesMutation(
     request: AIProfilesMutationRequest,
 ): SillageUiState {
-    val started = settings.profilesMutation.begin(request, aiProfilesMutationContext())
+    val started = workspace.settings.profilesMutation.begin(request, aiProfilesMutationContext())
         ?: return this
     return withSettings {
         it.copy(
@@ -642,14 +648,14 @@ internal fun SillageUiState.startAIProfilesMutation(
 internal fun SillageUiState.canApplyAIProfilesMutation(
     request: AIProfilesMutationRequest,
 ): Boolean {
-    return settings.profilesMutation.canApply(request, aiProfilesMutationContext())
+    return workspace.settings.profilesMutation.canApply(request, aiProfilesMutationContext())
 }
 
 internal fun SillageUiState.completeAIProfilesMutation(
     request: AIProfilesMutationRequest,
     savedProfiles: List<AIProfileDraft>,
 ): SillageUiState {
-    val completed = settings.profilesMutation.complete(
+    val completed = workspace.settings.profilesMutation.complete(
         request = request,
         savedProfiles = savedProfiles,
         context = aiProfilesMutationContext(),
@@ -660,7 +666,7 @@ internal fun SillageUiState.completeAIProfilesMutation(
 internal fun SillageUiState.failAIProfilesMutation(
     request: AIProfilesMutationRequest,
 ): SillageUiState {
-    val failed = settings.profilesMutation.fail(
+    val failed = workspace.settings.profilesMutation.fail(
         request = request,
         context = aiProfilesMutationContext(),
     ) ?: return this
@@ -672,20 +678,20 @@ private fun SillageUiState.aiProfilesMutationContext(): AIProfilesMutationContex
         appMode = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
-            settings.loading ||
-            settings.autoSummarySaving ||
-            settings.diagnostics.busy,
+        workspace.settings.loading ||
+        workspace.settings.autoSummarySaving ||
+        workspace.settings.diagnostics.busy,
     )
 }
 
 internal fun SillageUiState.nextAISettingsLoadRequest(): AISettingsLoadRequest? {
-    return settings.load.nextRequest(aiSettingsLoadContext())
+    return workspace.settings.load.nextRequest(aiSettingsLoadContext())
 }
 
 internal fun SillageUiState.startAISettingsLoad(
     request: AISettingsLoadRequest,
 ): SillageUiState {
-    val started = settings.load.begin(request, aiSettingsLoadContext()) ?: return this
+    val started = workspace.settings.load.begin(request, aiSettingsLoadContext()) ?: return this
     return withSettings {
         it.copy(
             load = started,
@@ -696,11 +702,11 @@ internal fun SillageUiState.startAISettingsLoad(
 }
 
 internal fun SillageUiState.canApplyAISettingsLoad(request: AISettingsLoadRequest): Boolean {
-    return settings.load.canApply(request, aiSettingsLoadContext())
+    return workspace.settings.load.canApply(request, aiSettingsLoadContext())
 }
 
 internal fun SillageUiState.completeAISettingsLoad(request: AISettingsLoadRequest): SillageUiState {
-    val completed = settings.load.complete(request, aiSettingsLoadContext()) ?: return this
+    val completed = workspace.settings.load.complete(request, aiSettingsLoadContext()) ?: return this
     return withSettings { it.copy(load = completed) }
 }
 
@@ -708,7 +714,7 @@ internal fun SillageUiState.failAISettingsLoad(
     request: AISettingsLoadRequest,
     message: String,
 ): SillageUiState {
-    val failed = settings.load.fail(request, message, aiSettingsLoadContext()) ?: return this
+    val failed = workspace.settings.load.fail(request, message, aiSettingsLoadContext()) ?: return this
     return withSettings { it.copy(load = failed) }
 }
 
@@ -721,30 +727,34 @@ private fun SillageUiState.aiSettingsLoadContext(): AISettingsLoadContext {
         appMode = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
-            settings.profilesSaving ||
-            settings.autoSummarySaving ||
-            settings.diagnostics.busy,
+        workspace.settings.profilesSaving ||
+        workspace.settings.autoSummarySaving ||
+        workspace.settings.diagnostics.busy,
     )
 }
 
 internal fun SillageUiState.nextAIProfileTestRequest(index: Int): AIProfileTestRequest? {
-    val profile = settings.profiles.getOrNull(index) ?: return null
-    return settings.diagnostics.nextTestRequest(profile, index, aiProfileDiagnosticsContext())
+    val profile = workspace.settings.profiles.getOrNull(index) ?: return null
+    return workspace.settings.diagnostics.nextTestRequest(
+        profile,
+        index,
+        aiProfileDiagnosticsContext(),
+    )
 }
 
 internal fun SillageUiState.startAIProfileTest(request: AIProfileTestRequest): SillageUiState {
-    val started = settings.diagnostics.beginTest(
+    val started = workspace.settings.diagnostics.beginTest(
         request,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     ) ?: return this
     return withSettings { it.copy(diagnostics = started) }
 }
 
 internal fun SillageUiState.canApplyAIProfileTest(request: AIProfileTestRequest): Boolean {
-    return settings.diagnostics.canApplyTest(
+    return workspace.settings.diagnostics.canApplyTest(
         request,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     )
 }
@@ -753,18 +763,18 @@ internal fun SillageUiState.completeAIProfileTest(
     request: AIProfileTestRequest,
     message: String,
 ): SillageUiState {
-    val completed = settings.diagnostics.completeTest(
+    val completed = workspace.settings.diagnostics.completeTest(
         request,
         message,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     ) ?: return this
     return withSettings { it.copy(diagnostics = completed) }
 }
 
 internal fun SillageUiState.nextAIProfileModelsRequest(index: Int): AIProfileModelsRequest? {
-    val profile = settings.profiles.getOrNull(index) ?: return null
-    return settings.diagnostics.nextModelsRequest(
+    val profile = workspace.settings.profiles.getOrNull(index) ?: return null
+    return workspace.settings.diagnostics.nextModelsRequest(
         profile,
         index,
         aiProfileDiagnosticsContext(),
@@ -772,18 +782,18 @@ internal fun SillageUiState.nextAIProfileModelsRequest(index: Int): AIProfileMod
 }
 
 internal fun SillageUiState.startAIProfileModels(request: AIProfileModelsRequest): SillageUiState {
-    val started = settings.diagnostics.beginModels(
+    val started = workspace.settings.diagnostics.beginModels(
         request,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     ) ?: return this
     return withSettings { it.copy(diagnostics = started) }
 }
 
 internal fun SillageUiState.canApplyAIProfileModels(request: AIProfileModelsRequest): Boolean {
-    return settings.diagnostics.canApplyModels(
+    return workspace.settings.diagnostics.canApplyModels(
         request,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     )
 }
@@ -793,11 +803,11 @@ internal fun SillageUiState.completeAIProfileModels(
     models: List<String>,
     message: String,
 ): SillageUiState {
-    val completed = settings.diagnostics.completeModels(
+    val completed = workspace.settings.diagnostics.completeModels(
         request,
         models,
         message,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     ) ?: return this
     return withSettings { it.copy(diagnostics = completed) }
@@ -807,10 +817,10 @@ internal fun SillageUiState.failAIProfileModels(
     request: AIProfileModelsRequest,
     message: String,
 ): SillageUiState {
-    val failed = settings.diagnostics.failModels(
+    val failed = workspace.settings.diagnostics.failModels(
         request,
         message,
-        settings.profiles,
+        workspace.settings.profiles,
         aiProfileDiagnosticsContext(),
     ) ?: return this
     return withSettings { it.copy(diagnostics = failed) }
@@ -821,9 +831,9 @@ private fun SillageUiState.aiProfileDiagnosticsContext(): AIProfileDiagnosticsCo
         appMode = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
         anotherOperationInProgress = loading ||
-            settings.loading ||
-            settings.profilesSaving ||
-            settings.autoSummarySaving,
+            workspace.settings.loading ||
+            workspace.settings.profilesSaving ||
+            workspace.settings.autoSummarySaving,
     )
 }
 private fun SillageUiState.recordsPageContext(): RecordsPageContext {
@@ -831,17 +841,17 @@ private fun SillageUiState.recordsPageContext(): RecordsPageContext {
         sourceKey = clientContext.appMode,
         sourceAvailable = clientContext.online,
         clientContextGeneration = clientContext.generation,
-        filter = records.browse.filter,
-        cacheGeneration = records.collection.cacheGeneration,
+        filter = workspace.records.browse.filter,
+        cacheGeneration = workspace.records.collection.cacheGeneration,
     )
 }
 
 internal fun SillageUiState.nextMemoPageRequest(): RecordsPageRequest? {
-    return records.pagination.nextRequest(recordsPageContext())
+    return workspace.records.pagination.nextRequest(recordsPageContext())
 }
 
 internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageUiState? {
-    val pagination = records.pagination.begin(request, recordsPageContext()) ?: return null
+    val pagination = workspace.records.pagination.begin(request, recordsPageContext()) ?: return null
     return withRecords { it.copy(pagination = pagination) }.copy(
         error = null,
         notice = null,
@@ -849,7 +859,7 @@ internal fun SillageUiState.beginMemoPage(request: RecordsPageRequest): SillageU
 }
 
 internal fun SillageUiState.canApplyMemoPage(request: RecordsPageRequest): Boolean {
-    return records.pagination.canApply(request, recordsPageContext())
+    return workspace.records.pagination.canApply(request, recordsPageContext())
 }
 
 internal fun SillageUiState.completeMemoPage(
@@ -857,12 +867,16 @@ internal fun SillageUiState.completeMemoPage(
     nextCursor: String,
 ): SillageUiState? {
     val pagination =
-        records.pagination.complete(request, recordsPageContext(), nextCursor) ?: return null
+        workspace.records.pagination.complete(
+            request,
+            recordsPageContext(),
+            nextCursor,
+        ) ?: return null
     return withRecords { it.copy(pagination = pagination) }
 }
 
 internal fun SillageUiState.failMemoPage(request: RecordsPageRequest): SillageUiState? {
-    val pagination = records.pagination.fail(request, recordsPageContext()) ?: return null
+    val pagination = workspace.records.pagination.fail(request, recordsPageContext()) ?: return null
     return withRecords { it.copy(pagination = pagination) }
 }
 
@@ -870,32 +884,32 @@ private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
     return RecordsRefreshContext(
         sourceKey = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
-        filter = records.browse.filter,
-        cacheGeneration = records.collection.cacheGeneration,
-        paginationRequestId = records.pagination.requestId,
+        filter = workspace.records.browse.filter,
+        cacheGeneration = workspace.records.collection.cacheGeneration,
+        paginationRequestId = workspace.records.pagination.requestId,
     )
 }
 
 internal fun SillageUiState.nextMemoRefreshRequest(): RecordsRefreshRequest {
-    return records.refresh.nextRequest(recordsRefreshContext())
+    return workspace.records.refresh.nextRequest(recordsRefreshContext())
 }
 
 internal fun SillageUiState.beginMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = records.refresh.begin(request, recordsRefreshContext()) ?: return null
+    val refresh = workspace.records.refresh.begin(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.canApplyMemoRefresh(request: RecordsRefreshRequest): Boolean {
-    return records.refresh.canApply(request, recordsRefreshContext())
+    return workspace.records.refresh.canApply(request, recordsRefreshContext())
 }
 
 internal fun SillageUiState.completeMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = records.refresh.complete(request, recordsRefreshContext()) ?: return null
+    val refresh = workspace.records.refresh.complete(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.failMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = records.refresh.fail(request, recordsRefreshContext()) ?: return null
+    val refresh = workspace.records.refresh.fail(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
@@ -903,17 +917,17 @@ private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
     return RecordsSearchContext(
         sourceKey = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
-        filter = records.browse.filter,
-        cacheGeneration = records.collection.cacheGeneration,
+        filter = workspace.records.browse.filter,
+        cacheGeneration = workspace.records.collection.cacheGeneration,
     )
 }
 
 internal fun SillageUiState.nextMemoSearchRequest(): RecordsSearchRequest? {
-    return records.search.nextRequest(recordsSearchContext())
+    return workspace.records.search.nextRequest(recordsSearchContext())
 }
 
 internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): SillageUiState {
-    val search = records.search.begin(request, recordsSearchContext()) ?: return this
+    val search = workspace.records.search.begin(request, recordsSearchContext()) ?: return this
     return withRecords { it.copy(search = search) }.copy(
         error = null,
         notice = null,
@@ -921,22 +935,26 @@ internal fun SillageUiState.startMemoSearch(request: RecordsSearchRequest): Sill
 }
 
 internal fun SillageUiState.canApplyMemoSearch(request: RecordsSearchRequest): Boolean {
-    return records.search.canApply(request, recordsSearchContext())
+    return workspace.records.search.canApply(request, recordsSearchContext())
 }
 
 internal fun SillageUiState.currentMemoSearchResults(): List<Memo>? {
-    return records.search.currentResults()
+    return workspace.records.search.currentResults()
 }
 
 internal fun SillageUiState.completedMemoSearch(): CompletedRecordsSearch? {
-    return records.search.completed()
+    return workspace.records.search.completed()
 }
 
 internal fun SillageUiState.completeMemoSearch(
     request: RecordsSearchRequest,
     results: List<Memo>,
 ): SillageUiState {
-    val search = records.search.complete(request, recordsSearchContext(), results) ?: return this
+    val search = workspace.records.search.complete(
+        request,
+        recordsSearchContext(),
+        results,
+    ) ?: return this
     return withRecords { it.copy(search = search) }.copy(error = null)
 }
 
@@ -944,7 +962,7 @@ internal fun SillageUiState.failMemoSearch(
     request: RecordsSearchRequest,
     message: String,
 ): SillageUiState {
-    val search = records.search.fail(request, recordsSearchContext()) ?: return this
+    val search = workspace.records.search.fail(request, recordsSearchContext()) ?: return this
     return withRecords { it.copy(search = search) }.copy(error = message)
 }
 
@@ -953,19 +971,21 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
 }
 
 internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
-    screenSessionId = ask.session.generation,
-    conversationId = ask.conversation.activeConversationId,
+    screenSessionId = workspace.ask.session.generation,
+    conversationId = workspace.ask.conversation.activeConversationId,
     appMode = clientContext.appMode,
     clientContextGeneration = clientContext.generation,
-    anotherRequestInProgress = ask.loading || ask.variant.loading || ask.sourceNavigation.loading,
+    anotherRequestInProgress = workspace.ask.loading ||
+        workspace.ask.variant.loading ||
+        workspace.ask.sourceNavigation.loading,
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
-    return ask.stream.nextRequest(askStreamContext())
+    return workspace.ask.stream.nextRequest(askStreamContext())
 }
 
 internal fun SillageUiState.canApplyAskStream(request: AskStreamRequest): Boolean {
-    return ask.stream.canApply(request, askStreamContext())
+    return workspace.ask.stream.canApply(request, askStreamContext())
 }
 
 internal fun SillageUiState.finishAskStream(
@@ -999,33 +1019,35 @@ internal fun hasNewCompletedAskAnswer(
 
 internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantContext(
     destinationAvailable = clientContext.screen == Screen.Ask,
-    screenSessionId = ask.session.generation,
-    conversationId = ask.conversation.activeConversationId,
+    screenSessionId = workspace.ask.session.generation,
+    conversationId = workspace.ask.conversation.activeConversationId,
     appMode = clientContext.appMode,
     clientContextGeneration = clientContext.generation,
-    anotherRequestInProgress = ask.loading || ask.stream.sending || ask.sourceNavigation.loading,
+    anotherRequestInProgress = workspace.ask.loading ||
+        workspace.ask.stream.sending ||
+        workspace.ask.sourceNavigation.loading,
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
-    return ask.variant.nextRequest(askVariantContext())
+    return workspace.ask.variant.nextRequest(askVariantContext())
 }
 
 internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Boolean {
-    return ask.variant.canApply(request, askVariantContext())
+    return workspace.ask.variant.canApply(request, askVariantContext())
 }
 
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
     destinationAvailable = clientContext.screen == Screen.Ask,
     anotherRequestInProgress =
         loading ||
-            ask.loading ||
-            ask.stream.sending ||
-            ask.variant.loading ||
-            ask.sourceNavigation.loading,
-    screenSessionId = ask.session.generation,
-    conversationId = ask.conversation.activeConversationId,
-    headMessageId = ask.conversation.headMessageId,
-    messages = ask.conversation.messages,
+            workspace.ask.loading ||
+            workspace.ask.stream.sending ||
+            workspace.ask.variant.loading ||
+            workspace.ask.sourceNavigation.loading,
+    screenSessionId = workspace.ask.session.generation,
+    conversationId = workspace.ask.conversation.activeConversationId,
+    headMessageId = workspace.ask.conversation.headMessageId,
+    messages = workspace.ask.conversation.messages,
     appMode = clientContext.appMode,
     clientContextGeneration = clientContext.generation,
 )
@@ -1033,10 +1055,14 @@ internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSa
 internal fun SillageUiState.nextAskMemoSaveRequest(
     message: AskMessage,
     memoContent: String,
-): AskMemoSaveRequest? = ask.memoSave.nextRequest(message, memoContent, askMemoSaveContext())
+): AskMemoSaveRequest? = workspace.ask.memoSave.nextRequest(
+    message,
+    memoContent,
+    askMemoSaveContext(),
+)
 
 internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    val pending = ask.memoSave.begin(request, askMemoSaveContext()) ?: return this
+    val pending = workspace.ask.memoSave.begin(request, askMemoSaveContext()) ?: return this
     return withAsk { it.beginMemoSave(pending) }.copy(
         error = null,
         notice = null,
@@ -1044,11 +1070,11 @@ internal fun SillageUiState.startAskMemoSave(request: AskMemoSaveRequest): Silla
 }
 
 internal fun SillageUiState.canApplyAskMemoSave(request: AskMemoSaveRequest): Boolean {
-    return ask.memoSave.canApply(request, askMemoSaveContext())
+    return workspace.ask.memoSave.canApply(request, askMemoSaveContext())
 }
 
 internal fun SillageUiState.finishAskMemoSave(request: AskMemoSaveRequest): SillageUiState {
-    val finished = ask.finishMemoSave(request) ?: return this
+    val finished = workspace.ask.finishMemoSave(request) ?: return this
     return withAsk { finished }
 }
 
@@ -1057,9 +1083,11 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
         destinationKey = clientContext.screen.name,
         destinationAvailable = clientContext.screen == Screen.Ask,
         historyKeys = clientContext.history.map(Screen::name),
-        anotherRequestInProgress = loading || ask.stream.sending || ask.variant.loading,
-        screenSessionId = ask.session.generation,
-        conversationId = ask.conversation.activeConversationId,
+        anotherRequestInProgress = loading ||
+            workspace.ask.stream.sending ||
+            workspace.ask.variant.loading,
+        screenSessionId = workspace.ask.session.generation,
+        conversationId = workspace.ask.conversation.activeConversationId,
         appMode = clientContext.appMode,
         clientContextGeneration = clientContext.generation,
     )
@@ -1067,19 +1095,19 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
 internal fun SillageUiState.nextAskSourceNavigationRequest(
     memoId: String,
 ): AskSourceNavigationRequest? {
-    return ask.sourceNavigation.nextRequest(memoId, askSourceNavigationContext())
+    return workspace.ask.sourceNavigation.nextRequest(memoId, askSourceNavigationContext())
 }
 
 internal fun SillageUiState.canApplyAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): Boolean {
-    return ask.sourceNavigation.canApply(request, askSourceNavigationContext())
+    return workspace.ask.sourceNavigation.canApply(request, askSourceNavigationContext())
 }
 
 internal fun SillageUiState.startAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
-    val pending = ask.sourceNavigation.begin(request, askSourceNavigationContext())
+    val pending = workspace.ask.sourceNavigation.begin(request, askSourceNavigationContext())
         ?: return this
     return withAsk { it.beginSourceNavigation(pending) }.copy(
         error = null,
@@ -1090,7 +1118,7 @@ internal fun SillageUiState.startAskSourceNavigation(
 internal fun SillageUiState.finishAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
-    val finished = ask.finishSourceNavigation(request) ?: return this
+    val finished = workspace.ask.finishSourceNavigation(request) ?: return this
     return withAsk { finished }
 }
 
@@ -1111,11 +1139,13 @@ internal fun SillageUiState.openAskSourceDetail(
             Screen.MemoDetail,
             request.destinationHistory(),
         ),
-        records = finished.records.absorbVisibleMemo(
-            memo = detail.memo,
-            summary = detail.ai,
-            filter = finished.records.browse.filter,
-        ),
+        workspace = finished.workspace.updateRecords {
+            it.absorbVisibleMemo(
+                memo = detail.memo,
+                summary = detail.ai,
+                filter = it.browse.filter,
+            )
+        },
     )
 }
 
@@ -1142,7 +1172,7 @@ internal fun AskSourceNavigationRequest.destinationHistory(): List<Screen> {
 internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
     return AppNavigationPolicy.shouldReturnToRecords(
         current = clientContext.screen,
-        recordsCalendarActive = records.browse.viewMode == MemoViewMode.Calendar,
+        recordsCalendarActive = workspace.records.browse.viewMode == MemoViewMode.Calendar,
     )
 }
 

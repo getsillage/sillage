@@ -85,12 +85,12 @@ internal const val SETTINGS_SCREEN_TEST_TAG = "settings-screen"
 fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showOpenSourceLicenses by remember { mutableStateOf(false) }
     val aiProfilesEditorState = rememberSillageAIProfilesEditorState()
-    val aiProfileOperationInProgress = state.settings.profilesSaving ||
-        state.settings.testingProfileKey.isNotBlank() ||
-        state.settings.loadingModelsProfileKey.isNotBlank() ||
+    val aiProfileOperationInProgress = state.workspace.settings.profilesSaving ||
+        state.workspace.settings.testingProfileKey.isNotBlank() ||
+        state.workspace.settings.loadingModelsProfileKey.isNotBlank() ||
         state.loading
     val aiProfileMutationBlocked =
-        aiProfileOperationInProgress || state.settings.autoSummarySaving
+        aiProfileOperationInProgress || state.workspace.settings.autoSummarySaving
     val clientContextChangeBlocked = state.hasClientContextOperationInProgress()
     val aiProfilesEditorStrings = SillageAIProfilesEditorStrings(
         header = SillageAIProfilesHeaderStrings(
@@ -171,8 +171,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
         },
     ) { padding ->
         SillageSettingsContent(
-            loading = state.settings.loading,
-            errorMessage = state.settings.loadErrorMessage,
+            loading = state.workspace.settings.loading,
+            errorMessage = state.workspace.settings.loadErrorMessage,
             retryLabel = stringResource(R.string.action_retry),
             retryIcon = Icons.Rounded.Refresh,
             onRetry = viewModel::loadAISettings,
@@ -195,8 +195,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             } else {
                                 pluralStringResource(
                                     R.plurals.quantity_records,
-                                    state.records.collection.records.size,
-                                    state.records.collection.records.size,
+                                    state.workspace.records.collection.records.size,
+                                    state.workspace.records.collection.records.size,
                                 )
                             },
                         ),
@@ -213,7 +213,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         SillageSettingsOverviewItem(
                             label = stringResource(R.string.settings_section_ai),
                             value = stringResource(
-                                if (state.settings.autoSummaryEnabled) {
+                                if (state.workspace.settings.autoSummaryEnabled) {
                                     R.string.settings_auto_summary
                                 } else {
                                     R.string.settings_summary_manual
@@ -225,7 +225,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             },
             autoSummary = {
                 SillageAIAutoSummarySection(
-                    state = state.settings,
+                    state = state.workspace.settings,
                     strings = SillageAIAutoSummaryStrings(
                         sectionTitle = stringResource(R.string.settings_section_ai),
                         title = stringResource(R.string.settings_auto_summary),
@@ -419,7 +419,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             },
             profileItems = {
                 sillageAIProfilesEditorItems(
-                    state = state.settings,
+                    state = state.workspace.settings,
                     editorState = aiProfilesEditorState,
                     strings = aiProfilesEditorStrings,
                     addIcon = Icons.Rounded.Add,

@@ -77,9 +77,9 @@ internal fun SillageApp(viewModel: SillageViewModel) {
     // screen leaves composition (detail/editor) and the user comes back.
     val memoListState = remember { LazyListState() }
     LaunchedEffect(
-        state.records.browse.filter,
-        state.records.search.query.isBlank(),
-        state.records.search.resultQuery,
+        state.workspace.records.browse.filter,
+        state.workspace.records.search.query.isBlank(),
+        state.workspace.records.search.resultQuery,
     ) {
         // The visible list context changed (filter or search), reset to top.
         memoListState.scrollToItem(0)

@@ -105,14 +105,14 @@ internal fun MemoListScreen(
             TopAppBar(
                     title = {
                         SillageRecordsTopBarTitle(
-                            state = state.records,
+                            state = state.workspace.records,
                             subtitle = memoListSubtitle(state),
                             strings = screenChromeStrings,
                         )
                     },
                     actions = {
                         SillageRecordsRefreshAction(
-                            state = state.records,
+                            state = state.workspace.records,
                             hostActionsEnabled = !state.loading,
                             strings = screenChromeStrings,
                             icon = Icons.Rounded.Refresh,
@@ -123,7 +123,7 @@ internal fun MemoListScreen(
             },
             floatingActionButton = {
                 SillageRecordsNewRecordAction(
-                    state = state.records,
+                    state = state.workspace.records,
                     strings = screenChromeStrings,
                     icon = Icons.Rounded.Add,
                     onNewRecord = viewModel::startNewMemo,
@@ -134,7 +134,7 @@ internal fun MemoListScreen(
         },
     ) { padding ->
         SillageRecordsContent(
-            state = state.records,
+            state = state.workspace.records,
             initialLoading = state.loading,
             strings = SillageRecordsContentStrings(
                 filters = SillageRecordFilterStrings(
@@ -165,7 +165,7 @@ internal fun MemoListScreen(
             listContent = {
                 MemoListView(
                     today = today,
-                    recordsState = state.records,
+                    recordsState = state.workspace.records,
                     listState = listState,
                     onLoadMore = viewModel::loadMoreMemos,
                     onMemoClick = viewModel::openMemoDetail,
@@ -195,8 +195,8 @@ private fun memoListSubtitle(state: SillageUiState): String {
         mode,
         pluralStringResource(
             R.plurals.quantity_records,
-            state.records.collection.records.size,
-            state.records.collection.records.size,
+            state.workspace.records.collection.records.size,
+            state.workspace.records.collection.records.size,
         ),
     )
 }
@@ -216,7 +216,7 @@ private fun SearchStatusBlock(state: SillageUiState) {
     )
     SillageRecordSearchStatus(
         summary = summary,
-        completionEventId = state.records.search.completionEventId,
+        completionEventId = state.workspace.records.search.completionEventId,
         icon = Icons.Rounded.Search,
         onAnnounce = view::announceForAccessibility,
     )
@@ -321,31 +321,31 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
     val locale = LocalConfiguration.current.locales[0]
     val firstDayOfWeek = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
     val weeks = remember(
-        state.records.browse.calendarYear,
-        state.records.browse.calendarMonth,
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
         firstDayOfWeek,
     ) {
         monthGrid(
-            state.records.browse.calendarYear,
-            state.records.browse.calendarMonth,
+            state.workspace.records.browse.calendarYear,
+            state.workspace.records.browse.calendarMonth,
             firstDayOfWeek,
         )
     }
     SillageRecordCalendar(
-        state = state.records,
+        state = state.workspace.records,
         today = today,
         weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
         weeks = weeks,
         strings = SillageRecordCalendarStrings(
-            selectedDateLabel = state.records.browse.selectedCalendarDate?.let { localizedDate(it) }
+            selectedDateLabel = state.workspace.records.browse.selectedCalendarDate?.let { localizedDate(it) }
                 ?: stringResource(R.string.calendar_select_day),
             coverage = SillageCalendarCoverageStrings(
                 partialMonth = stringResource(
                     R.string.calendar_partial_month,
                     pluralStringResource(
                         R.plurals.quantity_records,
-                        state.records.collection.records.size,
-                        state.records.collection.records.size,
+                        state.workspace.records.collection.records.size,
+                        state.workspace.records.collection.records.size,
                     ),
                 ),
                 completeMonth = stringResource(R.string.calendar_complete_month),
@@ -376,7 +376,7 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
         selectedRecordContent = { memo ->
             MemoSwipeRow(
                 memo = memo,
-                mutating = state.records.mutation.isActive(memo.id),
+                mutating = state.workspace.records.mutation.isActive(memo.id),
                 onClick = { viewModel.openMemoDetail(memo) },
                 onEdit = { viewModel.editMemo(memo) },
                 onDuplicate = { viewModel.duplicateMemoDraft(memo) },
@@ -391,20 +391,20 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
 @Composable
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
     val previous = adjacentMonth(
-        state.records.browse.calendarYear,
-        state.records.browse.calendarMonth,
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
         -1,
     )
     val next = adjacentMonth(
-        state.records.browse.calendarYear,
-        state.records.browse.calendarMonth,
+        state.workspace.records.browse.calendarYear,
+        state.workspace.records.browse.calendarMonth,
         1,
     )
     SillageCalendarHeader(
         strings = SillageCalendarHeaderStrings(
             currentMonth = localizedMonth(
-                state.records.browse.calendarYear,
-                state.records.browse.calendarMonth,
+                state.workspace.records.browse.calendarYear,
+                state.workspace.records.browse.calendarMonth,
             ),
             browseByDate = stringResource(R.string.calendar_browse_by_date),
             previousMonthDescription = localizedMonth(previous.first, previous.second),

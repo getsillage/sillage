@@ -37,6 +37,10 @@ navigation effects. `AppClientContextStateHolder` additionally aggregates
 application mode, workspace generation, and the server-settings return
 destination. Android persists preferences and executes network connections and
 task cancellation while shared code owns the pure lifecycle transitions.
+`AppWorkspaceStateHolder` aggregates records, settings, and Ask presentation
+state. Android updates that nested aggregate as one value when clearing a
+client workspace or entering an offline workspace, while repository access,
+persistence, cancellation, and other platform effects remain in the host.
 Global feedback event sequencing, duplicate suppression,
 error precedence, and language binding are shared as well; Android still
 generates localized messages and renders the top-level Toast.
@@ -306,10 +310,10 @@ shared `kmp-features:settings` module.
 AI profile editor drafts, raw numeric inputs, validation, and secret-safe save
 response reconciliation also live in that module. Android keeps encrypted
 storage, REST inputs, and device-local AI execution as adapters.
-The root state stores one `settings` aggregate composing profile mutation,
-automatic-summary, settings-load, and diagnostics holders. Android orchestration,
-Compose screens, and tests consume that aggregate directly without root settings
-compatibility getters. Settings loads and profile saves retain separate request
+The settings aggregate composes profile mutation, automatic-summary,
+settings-load, and diagnostics holders. Android orchestration, Compose screens,
+and tests consume it through `workspace.settings` without a root compatibility
+getter. Settings loads and profile saves retain separate request
 identities and invalidate one another at the boundary; diagnostics still reject
 callbacks after profile edits, removal, mode changes, or client-context replacement.
 Pure outbox, applied-result, conflict, and push-summary models live in

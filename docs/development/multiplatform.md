@@ -105,6 +105,10 @@ destination. It owns their pure selection, workspace reset, sign-out reset,
 server return, and navigation transitions. Hosts retain preference persistence,
 network and cancellation effects, system Back dispatch, and platform navigation
 effects.
+`AppWorkspaceStateHolder` aggregates the records, settings, and Ask feature
+holders. It owns coordinated clearing and offline-workspace entry, preventing a
+host from publishing a partially reset interactive workspace. Hosts still own
+repository reads and writes, cancellation, and platform-specific side effects.
 Android theme/language orchestration, Compose consumers, localized feedback, and
 tests read the nested appearance state directly without root appearance accessors.
 They also consume nested client-context state directly without root compatibility
@@ -334,9 +338,9 @@ extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
 application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android's root
-`SillageUiState` stores one `ask` aggregate field without transitional Ask slice
-getters. Thin root transition wrappers also read nested holders through the
-aggregate directly. Persistence, SSE, and device-local AI
+`SillageUiState` stores one `workspace` aggregate without transitional feature
+getters. Thin root transition wrappers read Ask state through `workspace.ask`.
+Persistence, SSE, and device-local AI
 execution remain platform adapters.
 `AskVariantStateHolder` also owns branch-selection single-flight identity and
 validates screen session, conversation, source mode, and client generation before
@@ -409,8 +413,9 @@ workspace teardown, editable profile-draft replacement, and loaded/imported
 editable-settings snapshot application. Diagnostic-result clearing and host
 feedback recording also go through the settings aggregate; request identity remains
 owned by the diagnostics holder. Android state orchestration, Compose screens, and
-tests consume the aggregate directly rather than former host-root settings
-accessors. Offline workspace entry already hydrates the aggregate, so Android
+tests consume the aggregate through `workspace.settings`, rather than former
+host-root settings accessors. Offline workspace entry hydrates the complete
+workspace aggregate atomically, so Android
 settings screen entry reuses that snapshot; online entry still loads through the
 shared application port and request-identity holder.
 
@@ -423,8 +428,8 @@ apply this convention because they own platform lifecycle and packaging.
 
 There is no global feature ViewModel. Each feature owns its state holder and
 exposes an explicit contract. Application-wide state is limited to the active
-workspace, authenticated session, locale, theme, navigation root, and a summary
-of synchronization status.
+workspace aggregate, authenticated session, locale, theme, navigation root, and
+a summary of synchronization status.
 
 The first extracted records holder governs load-more state. Its immutable
 transitions capture and validate source, client context, filter, cache
@@ -549,9 +554,9 @@ extracted holders and owns cross-holder transitions for visible-list reset/
 replace, pre-refresh loading marks, browse filter/view-mode application,
 interactive workspace teardown, detail/editor presentation, source-memo
 absorption, and canonical memo application so list loads, search ownership, and
-selection stay consistent. Android's root `SillageUiState` now stores one
-`records` aggregate field and exposes no compatibility getters for former
-top-level holder fields. Coordinated host writes such as cache mutation,
+selection stay consistent. Android consumes the aggregate through
+`workspace.records` and exposes no root compatibility getter. Coordinated host
+writes such as cache mutation,
 visible-list clear/replace/append, pagination cancel/stop-loading-more, browse
 mode/filter/calendar changes, workspace teardown, selected-memo presentation,
 detail-request acceptance, editor session starts/returns, draft/Markdown updates,

@@ -15,10 +15,15 @@ owns pure mode selection, workspace switching, server return, sign-out reset,
 and navigation transitions. Hosts persist accepted preferences and execute
 network connections, cancellation, system Back dispatch, and other platform
 effects.
+`AppWorkspaceStateHolder` aggregates the records, settings, and Ask feature
+holders. Its `clearClientWorkspace` and `enterOfflineClientWorkspace`
+transitions update all three holders together, so hosts cannot expose a
+partially reset or partially hydrated interactive workspace. Repository work,
+cancellation, persistence, and other side effects remain host responsibilities.
 `AppFeedbackEventEmitter` owns one-shot event IDs, error precedence, duplicate
 suppression, notice severity, and language binding. Platform lifecycle, system
 Back dispatch, Toast rendering, and packaging remain in each application host.
 
 Android theme/language orchestration, Compose screens, localized feedback, and
-tests consume `appearance` and `clientContext` directly, without root
-compatibility getters.
+tests consume `appearance`, `clientContext`, and `workspace` directly, without
+root compatibility getters.

@@ -42,7 +42,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
 | `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
 | `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation and client-context lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
@@ -96,7 +96,7 @@ The current Android code is the migration source for the shared native modules:
 | `apps/native/androidApp/src/main/java/app/sillage/data/` | REST client, sessions, local storage, and data models |
 | `apps/native/androidApp/src/main/res/values*/` | English and Simplified Chinese interface resources |
 
-`SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens currently depend on the root `SillageUiState` and `SillageViewModel`; those containers are existing implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
+`SillageApp` currently composes the UI and hands attachments to external viewers. Feature screens receive the root `SillageUiState` and `SillageViewModel`, but interactive feature state is nested under the shared `AppWorkspaceStateHolder`; those Android containers are implementation facts, not the target cross-platform boundary. Their behavior contracts—manual sync, navigation history, request IDs, online/offline modes, conflict handling, and feedback delivery—must be preserved while state moves into feature-scoped shared modules. New cross-platform behavior must not further enlarge the application-wide ViewModel.
 
 `shared-ui:design-system` owns the common Compose theme plus reusable
 `SillageNavigationBar` and `SillageNavigationItem` components. Android's
@@ -339,13 +339,14 @@ rebuild message-tree policy in adapter data packages. `AskFeatureStateHolder`
 composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
-application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android also composes
-records/settings/ask clears through `clearClientWorkspace` for client-context
-changes without enlarging a global ViewModel. Android's root
-`SillageUiState` stores one `ask` aggregate value and exposes no transitional Ask
-slice getters. Android routes pure Ask mutations through
-`withAsk`, with thin composer and source-navigation wrappers at the root-state
-boundary, while persistence and streaming stay outside the feature module.
+application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. `AppWorkspaceStateHolder` in
+`shared-ui:app-shell` aggregates the records, settings, and Ask feature holders.
+It owns coordinated client-workspace clearing and offline-workspace entry so
+these three aggregates advance in one state transition. Android's root
+`SillageUiState` stores one `workspace` value and exposes no root compatibility
+getters for its feature holders. Android routes pure Ask mutations through
+`workspace.ask` and `withAsk`, while persistence and streaming stay outside the
+feature module.
 The module's `AskVariantStateHolder` owns branch-selection request identity.
 Android supplies navigation and client context, then applies completion only when
 the shared holder still owns the request. Navigation gates and request
@@ -417,9 +418,8 @@ results to a removed or subsequently edited profile.
 workspace teardown, editable profile-draft replacement, loaded/imported
 editable-settings snapshot application, diagnostic-result clearing, and host
 feedback recording. Request identity remains owned by the diagnostics holder.
-Android's root `SillageUiState` stores one `settings` aggregate field. State
-orchestration, Compose screens, and tests consume it directly without root-state
-settings accessors.
+Android state orchestration, Compose screens, and tests consume the settings
+aggregate through `workspace.settings`, without root-state settings accessors.
 
 `packages/kmp-core/application` owns repository ports and use cases. Its first
 slice exposes a platform-neutral record snapshot port and list use case;

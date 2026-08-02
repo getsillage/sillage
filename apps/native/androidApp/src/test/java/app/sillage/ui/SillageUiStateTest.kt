@@ -37,6 +37,7 @@ import app.sillage.features.records.RecordsSummaryStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.features.sync.MemoSyncConflictItem
 import app.sillage.ui.appshell.AppClientContextStateHolder
+import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,7 +50,7 @@ class SillageUiStateTest {
         assertFalse(editorState().copy(loading = true).canRunMemoEditorAction())
         val uploading = editorState().let {
             it.copy(
-                records = it.records.copy(editor = it.records.editor.copy(uploadingAttachment = true)),
+                workspace = it.workspace.copy(records = it.workspace.records.copy(editor = it.workspace.records.editor.copy(uploadingAttachment = true))),
             )
         }
         assertFalse(uploading.canRunMemoEditorAction())
@@ -60,9 +61,11 @@ class SillageUiStateTest {
         )
         assertFalse(
             editorState().let { base -> base.copy(
-                records = base.records.copy(
-                    selection = RecordsSelectionStateHolder(selectedMemo = memo()),
-                    mutation = RecordsMutationStateHolder(setOf("memo-1")),
+                workspace = base.workspace.copy(
+                    records = base.workspace.records.copy(
+                        selection = RecordsSelectionStateHolder(selectedMemo = memo()),
+                        mutation = RecordsMutationStateHolder(setOf("memo-1")),
+                    ),
                 ),
             ) }.canRunMemoEditorAction(),
         )
@@ -71,14 +74,14 @@ class SillageUiStateTest {
     @Test
     fun memoEditorBusyReasonOnlyCoversBlockingOperations() {
         val selected = editorState().let { base -> base.copy(
-            records = base.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = memo())),
+            workspace = base.workspace.copy(records = base.workspace.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = memo()))),
         ) }
 
         assertEquals(null, selected.memoEditorBusyReason())
         assertEquals(
             MemoEditorBusyReason.AttachmentUpload,
             selected.copy(
-                records = selected.records.copy(editor = selected.records.editor.copy(uploadingAttachment = true)),
+                workspace = selected.workspace.copy(records = selected.workspace.records.copy(editor = selected.workspace.records.editor.copy(uploadingAttachment = true))),
             ).memoEditorBusyReason(),
         )
         assertEquals(
@@ -88,32 +91,34 @@ class SillageUiStateTest {
         assertEquals(
             MemoEditorBusyReason.Operation,
             selected.copy(
-                records = selected.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1"))),
+                workspace = selected.workspace.copy(records = selected.workspace.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1")))),
             )
                 .memoEditorBusyReason(),
         )
         assertEquals(
             null,
             selected.copy(
-                records = selected.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-2"))),
+                workspace = selected.workspace.copy(records = selected.workspace.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-2")))),
             )
                 .memoEditorBusyReason(),
         )
         assertEquals(
             null,
             selected.copy(
-                records = selected.records.copy(summary = selected.records.summary.copy(loading = true)),
+                workspace = selected.workspace.copy(records = selected.workspace.records.copy(summary = selected.workspace.records.summary.copy(loading = true))),
             )
                 .memoEditorBusyReason(),
         )
         assertEquals(
             null,
             selected.copy(
-                records = selected.records.copy(
-                    attachmentOpen = RecordsAttachmentOpenStateHolder(
-                    path = "/attachments/file-1",
-                    requestId = 1,
-                ),
+                workspace = selected.workspace.copy(
+                    records = selected.workspace.records.copy(
+                        attachmentOpen = RecordsAttachmentOpenStateHolder(
+                            path = "/attachments/file-1",
+                            requestId = 1,
+                        ),
+                    ),
                 ),
             ).memoEditorBusyReason(),
         )
@@ -128,7 +133,7 @@ class SillageUiStateTest {
     @Test
     fun memoEditorBackBlockedNoticeClearsOldErrorAndKeepsIdleStateUnchanged() {
         val uploading = editorState().let { base -> base.copy(
-            records = base.records.copy(editor = RecordsEditorStateHolder(uploadingAttachment = true)),
+            workspace = base.workspace.copy(records = base.workspace.records.copy(editor = RecordsEditorStateHolder(uploadingAttachment = true))),
             error = "旧错误",
             notice = "旧提示",
         ) }
@@ -163,25 +168,25 @@ class SillageUiStateTest {
         assertFalse(idle.hasClientContextOperationInProgress())
         assertTrue(
             idle.copy(
-                records = idle.records.copy(summary = idle.records.summary.copy(loading = true)),
+                workspace = idle.workspace.copy(records = idle.workspace.records.copy(summary = idle.workspace.records.summary.copy(loading = true))),
             )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
             idle.copy(
-                records = idle.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1"))),
+                workspace = idle.workspace.copy(records = idle.workspace.records.copy(mutation = RecordsMutationStateHolder(setOf("memo-1")))),
             )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
             idle.copy(
-                ask = idle.ask.copy(memoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1")),
+                workspace = idle.workspace.copy(ask = idle.workspace.ask.copy(memoSave = AskMemoSaveStateHolder(savingMessageId = "answer-1"))),
             )
                 .hasClientContextOperationInProgress(),
         )
         assertTrue(
             idle.copy(
-                settings = idle.settings.copy(profilesMutation = idle.settings.profilesMutation.copy(saving = true)),
+                workspace = idle.workspace.copy(settings = idle.workspace.settings.copy(profilesMutation = idle.workspace.settings.profilesMutation.copy(saving = true))),
             )
                 .hasClientContextOperationInProgress(),
         )
@@ -191,11 +196,13 @@ class SillageUiStateTest {
     @Test
     fun attachmentResultOnlyAppliesToActiveUploadingEditorSession() {
         val uploading = editorState().let { base -> base.copy(
-            records = base.records.copy(
-                editor = RecordsEditorStateHolder(
-                sessionId = 7,
-                uploadingAttachment = true,
-            ),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    editor = RecordsEditorStateHolder(
+                        sessionId = 7,
+                        uploadingAttachment = true,
+                    ),
+                ),
             ),
         ) }
 
@@ -203,7 +210,7 @@ class SillageUiStateTest {
         assertFalse(uploading.canApplyAttachmentUpload(6))
         assertFalse(
             uploading.copy(
-                records = uploading.records.copy(editor = uploading.records.editor.copy(sessionId = 8)),
+                workspace = uploading.workspace.copy(records = uploading.workspace.records.copy(editor = uploading.workspace.records.editor.copy(sessionId = 8))),
             )
                 .canApplyAttachmentUpload(7),
         )
@@ -213,7 +220,7 @@ class SillageUiStateTest {
         )
         assertFalse(
             uploading.copy(
-                records = uploading.records.copy(editor = uploading.records.editor.copy(uploadingAttachment = false)),
+                workspace = uploading.workspace.copy(records = uploading.workspace.records.copy(editor = uploading.workspace.records.editor.copy(uploadingAttachment = false))),
             ).canApplyAttachmentUpload(7),
         )
     }
@@ -229,8 +236,8 @@ class SillageUiStateTest {
         val completed = opening.completeAttachmentOpenRequest(request.requestId)
 
         assertTrue(opening.canHandleAttachmentOpen(request.requestId))
-        assertEquals("/api/v1/attachments/file-1", opening.records.attachmentOpen.path)
-        assertEquals(null, completed.records.attachmentOpen.path)
+        assertEquals("/api/v1/attachments/file-1", opening.workspace.records.attachmentOpen.path)
+        assertEquals(null, completed.workspace.records.attachmentOpen.path)
         assertFalse(completed.canHandleAttachmentOpen(request.requestId))
         assertEquals(null, completed.beginAttachmentOpenRequest(request))
     }
@@ -238,19 +245,21 @@ class SillageUiStateTest {
     @Test
     fun leavingAttachmentContextInvalidatesAQueuedOpenEvent() {
         val opening = editorState().let { base -> base.copy(
-            records = base.records.copy(
-                attachmentOpen = RecordsAttachmentOpenStateHolder(
-                path = "/api/v1/attachments/file-1",
-                requestId = 8,
-            ),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    attachmentOpen = RecordsAttachmentOpenStateHolder(
+                        path = "/api/v1/attachments/file-1",
+                        requestId = 8,
+                    ),
+                ),
             ),
         ) }
 
         assertTrue(opening.canHandleAttachmentOpen(8))
         val invalidated = opening.invalidateAttachmentOpenRequest()
 
-        assertEquals(null, invalidated.records.attachmentOpen.path)
-        assertEquals(9L, invalidated.records.attachmentOpen.requestId)
+        assertEquals(null, invalidated.workspace.records.attachmentOpen.path)
+        assertEquals(9L, invalidated.workspace.records.attachmentOpen.requestId)
         assertFalse(invalidated.canHandleAttachmentOpen(8))
         assertEquals(invalidated, invalidated.invalidateAttachmentOpenRequest())
     }
@@ -259,21 +268,23 @@ class SillageUiStateTest {
     fun stoppingAskKeepsGeneratedContentAndAddsFeedback() {
         val streaming = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                stream = AskStreamStateHolder(
-                sending = true,
-                streaming = true,
-                liveAnswer = "已生成的部分",
-            ),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    stream = AskStreamStateHolder(
+                        sending = true,
+                        streaming = true,
+                        liveAnswer = "已生成的部分",
+                    ),
+                ),
             ),
             error = "旧错误",
         ) }
 
         val stopped = streaming.withAskStreamingStoppedNotice("已停止生成")
 
-        assertEquals("已生成的部分", stopped.ask.stream.liveAnswer)
-        assertTrue(stopped.ask.sending)
-        assertTrue(stopped.ask.streaming)
+        assertEquals("已生成的部分", stopped.workspace.ask.stream.liveAnswer)
+        assertTrue(stopped.workspace.ask.sending)
+        assertTrue(stopped.workspace.ask.streaming)
         assertEquals(null, stopped.error)
         assertEquals("已停止生成", stopped.notice)
         val idle = streaming.withAskStream(sending = false)
@@ -287,7 +298,7 @@ class SillageUiStateTest {
                 screen = Screen.Memos,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            records = base.records.copy(pagination = RecordsPaginationStateHolder(nextCursor = "cursor-1", requestId = 4)),
+            workspace = base.workspace.copy(records = base.workspace.records.copy(pagination = RecordsPaginationStateHolder(nextCursor = "cursor-1", requestId = 4))),
         ) }
         val request = requireNotNull(state.nextMemoPageRequest())
         val pending = requireNotNull(state.beginMemoPage(request))
@@ -298,13 +309,13 @@ class SillageUiStateTest {
         assertTrue(pending.canApplyMemoPage(request))
         assertFalse(
             pending.copy(
-                records = pending.records.copy(pagination = pending.records.pagination.copy(nextCursor = "cursor-2")),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(pagination = pending.workspace.records.pagination.copy(nextCursor = "cursor-2"))),
             )
                 .canApplyMemoPage(request),
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(pagination = pending.records.pagination.copy(requestId = request.requestId + 1)),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(pagination = pending.workspace.records.pagination.copy(requestId = request.requestId + 1))),
             ).canApplyMemoPage(request),
         )
         assertFalse(
@@ -322,17 +333,17 @@ class SillageUiStateTest {
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(browse = pending.records.browse.selectFilter(MemoListFilter.Archived)),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(browse = pending.workspace.records.browse.selectFilter(MemoListFilter.Archived))),
             ).canApplyMemoPage(request),
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(collection = pending.records.collection.copy(cacheGeneration = 1)),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(collection = pending.workspace.records.collection.copy(cacheGeneration = 1))),
             ).canApplyMemoPage(request),
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(pagination = pending.records.pagination.copy(loadingMore = false)),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(pagination = pending.workspace.records.pagination.copy(loadingMore = false))),
             )
                 .canApplyMemoPage(request),
         )
@@ -349,16 +360,16 @@ class SillageUiStateTest {
             )
         }
 
-        assertEquals(listOf(original), state.records.collection.records)
-        assertEquals("cursor-9", state.records.pagination.nextCursor)
-        assertEquals(2L, state.records.collection.cacheGeneration)
-        assertEquals(original, state.records.selection.selectedMemo)
+        assertEquals(listOf(original), state.workspace.records.collection.records)
+        assertEquals("cursor-9", state.workspace.records.pagination.nextCursor)
+        assertEquals(2L, state.workspace.records.collection.cacheGeneration)
+        assertEquals(original, state.workspace.records.selection.selectedMemo)
 
         val applied = state.applyMemoToCache(
             original.copy(content = "更新", version = 2, updatedAt = "2026-07-10T02:00:00Z"),
         )
-        assertEquals(3L, applied.records.collection.cacheGeneration)
-        assertFalse(applied.records.pagination.loadingMore)
+        assertEquals(3L, applied.workspace.records.collection.cacheGeneration)
+        assertFalse(applied.workspace.records.pagination.loadingMore)
     }
 
     @Test
@@ -371,10 +382,10 @@ class SillageUiStateTest {
 
         val restored = state.applyRestoredMemoViewMode(MemoViewMode.Calendar)
 
-        assertEquals(MemoViewMode.Calendar, restored.records.browse.viewMode)
-        assertEquals(MemoListFilter.Archived, restored.records.browse.filter)
-        assertEquals(null, restored.records.selection.selectedMemo)
-        assertEquals("", restored.records.search.query)
+        assertEquals(MemoViewMode.Calendar, restored.workspace.records.browse.viewMode)
+        assertEquals(MemoListFilter.Archived, restored.workspace.records.browse.filter)
+        assertEquals(null, restored.workspace.records.selection.selectedMemo)
+        assertEquals("", restored.workspace.records.search.query)
         assertEquals("keep", restored.error)
     }
 
@@ -385,10 +396,10 @@ class SillageUiStateTest {
         val updated = state.withMemoSearchQuery("memo")
         val cleared = updated.clearMemoSearchState()
 
-        assertEquals("memo", updated.records.search.query)
-        assertTrue(updated.records.search.searching)
-        assertEquals("", cleared.records.search.query)
-        assertFalse(cleared.records.search.searching)
+        assertEquals("memo", updated.workspace.records.search.query)
+        assertTrue(updated.workspace.records.search.searching)
+        assertEquals("", cleared.workspace.records.search.query)
+        assertFalse(cleared.workspace.records.search.searching)
         assertEquals("keep", cleared.error)
         assertEquals(state.clientContext.screen, cleared.clientContext.screen)
     }
@@ -400,7 +411,7 @@ class SillageUiStateTest {
         val started = state.beginMemoMutation("memo-1")
         val finished = started.finishMemoMutation("memo-1")
 
-        assertEquals(setOf("memo-1"), started.records.mutation.activeMemoIds)
+        assertEquals(setOf("memo-1"), started.workspace.records.mutation.activeMemoIds)
         assertTrue(started.isMemoMutationInProgress("memo-1"))
         assertFalse(finished.isMemoMutationInProgress("memo-1"))
         assertTrue(finished.loading)
@@ -419,9 +430,9 @@ class SillageUiStateTest {
                 .appendEditorFormattedSnippet("**bold**")
         }
 
-        assertEquals("draft **bold**", updated.records.editor.draftContent)
-        assertEquals("2026-08-02", updated.records.editor.draftEntryDate)
-        assertFalse(updated.records.editor.markdownPreview)
+        assertEquals("draft **bold**", updated.workspace.records.editor.draftContent)
+        assertEquals("2026-08-02", updated.workspace.records.editor.draftEntryDate)
+        assertFalse(updated.workspace.records.editor.markdownPreview)
         assertEquals("keep", updated.error)
         assertEquals(state.clientContext.screen, updated.clientContext.screen)
     }
@@ -470,42 +481,50 @@ class SillageUiStateTest {
 
     @Test
     fun rootSettingsDiagnosticsTransitionsPreserveHostState() {
-        val state = editorState().copy(
-            error = "keep",
-            settings = SettingsFeatureStateHolder(
-                diagnostics = AIProfileDiagnosticsStateHolder(
-                    testResults = mapOf("p1" to "old"),
-                    modelResults = mapOf("p1" to listOf("model-a")),
+        val state = editorState().let { base ->
+            base.copy(
+                error = "keep",
+                workspace = base.workspace.copy(
+                    settings = SettingsFeatureStateHolder(
+                        diagnostics = AIProfileDiagnosticsStateHolder(
+                            testResults = mapOf("p1" to "old"),
+                            modelResults = mapOf("p1" to listOf("model-a")),
+                        ),
+                    ),
                 ),
-            ),
-        )
+            )
+        }
 
         val recorded = state.recordAIProfileDiagnosticsFeedback("p2", "offline")
         val cleared = recorded.clearAIProfileDiagnosticsResults()
 
-        assertEquals("offline", recorded.settings.testResults["p2"])
-        assertEquals(listOf("model-a"), recorded.settings.modelResults["p1"])
-        assertTrue(cleared.settings.testResults.isEmpty())
-        assertTrue(cleared.settings.modelResults.isEmpty())
+        assertEquals("offline", recorded.workspace.settings.testResults["p2"])
+        assertEquals(listOf("model-a"), recorded.workspace.settings.modelResults["p1"])
+        assertTrue(cleared.workspace.settings.testResults.isEmpty())
+        assertTrue(cleared.workspace.settings.modelResults.isEmpty())
         assertEquals("keep", cleared.error)
     }
 
     @Test
     fun rootSettingsProfileReplacementPreservesHostAndOtherSettingsState() {
         val replacement = listOf(AIProfileDraft(id = "p2", name = "Two"))
-        val state = editorState().copy(
-            error = "keep",
-            settings = SettingsFeatureStateHolder(
-                autoSummary = AIAutoSummaryStateHolder(enabled = true),
-                load = AISettingsLoadStateHolder(loading = true, requestId = 4),
-            ),
-        )
+        val state = editorState().let { base ->
+            base.copy(
+                error = "keep",
+                workspace = base.workspace.copy(
+                    settings = SettingsFeatureStateHolder(
+                        autoSummary = AIAutoSummaryStateHolder(enabled = true),
+                        load = AISettingsLoadStateHolder(loading = true, requestId = 4),
+                    ),
+                ),
+            )
+        }
 
         val updated = state.withAIProfiles(replacement)
 
-        assertEquals(replacement, updated.settings.profiles)
-        assertTrue(updated.settings.autoSummaryEnabled)
-        assertTrue(updated.settings.loading)
+        assertEquals(replacement, updated.workspace.settings.profiles)
+        assertTrue(updated.workspace.settings.autoSummaryEnabled)
+        assertTrue(updated.workspace.settings.loading)
         assertEquals("keep", updated.error)
         assertEquals(state.clientContext.screen, updated.clientContext.screen)
     }
@@ -523,36 +542,43 @@ class SillageUiStateTest {
             enabled = true,
             active = true,
         )
-        val state = editorState().copy(
-            records = editorState().records.copy(
-                collection = RecordsCollectionStateHolder(records = listOf(memo), cacheGeneration = 2),
-                selection = RecordsSelectionStateHolder(selectedMemo = memo),
-            ),
-            settings = SettingsFeatureStateHolder(
-                profilesMutation = AIProfilesMutationStateHolder(profiles = listOf(profile)),
-                autoSummary = AIAutoSummaryStateHolder(enabled = true),
-                load = AISettingsLoadStateHolder(loading = true),
-            ),
-            ask = AskFeatureStateHolder(
-                conversation = AskConversationStateHolder(activeConversationId = "c1"),
-                composer = AskComposerStateHolder(question = "问"),
-                load = AskLoadStateHolder(loading = true),
-                session = AskSessionStateHolder(generation = 3),
-            ),
-        )
+        val state = editorState().let { base ->
+            base.copy(
+                workspace = base.workspace.copy(
+                    records = base.workspace.records.copy(
+                        collection = RecordsCollectionStateHolder(
+                            records = listOf(memo),
+                            cacheGeneration = 2,
+                        ),
+                        selection = RecordsSelectionStateHolder(selectedMemo = memo),
+                    ),
+                    settings = SettingsFeatureStateHolder(
+                        profilesMutation = AIProfilesMutationStateHolder(profiles = listOf(profile)),
+                        autoSummary = AIAutoSummaryStateHolder(enabled = true),
+                        load = AISettingsLoadStateHolder(loading = true),
+                    ),
+                    ask = AskFeatureStateHolder(
+                        conversation = AskConversationStateHolder(activeConversationId = "c1"),
+                        composer = AskComposerStateHolder(question = "问"),
+                        load = AskLoadStateHolder(loading = true),
+                        session = AskSessionStateHolder(generation = 3),
+                    ),
+                ),
+            )
+        }
 
         val cleared = state.clearClientWorkspace()
 
-        assertEquals(emptyList<Memo>(), cleared.records.collection.records)
-        assertEquals(2L, cleared.records.collection.cacheGeneration)
-        assertEquals(null, cleared.records.selection.selectedMemo)
-        assertEquals(emptyList<AIProfileDraft>(), cleared.settings.profiles)
-        assertFalse(cleared.settings.autoSummaryEnabled)
-        assertFalse(cleared.settings.loading)
-        assertEquals("", cleared.ask.conversation.activeConversationId)
-        assertEquals("", cleared.ask.composer.question)
-        assertFalse(cleared.ask.loading)
-        assertEquals(4L, cleared.ask.session.generation)
+        assertEquals(emptyList<Memo>(), cleared.workspace.records.collection.records)
+        assertEquals(2L, cleared.workspace.records.collection.cacheGeneration)
+        assertEquals(null, cleared.workspace.records.selection.selectedMemo)
+        assertEquals(emptyList<AIProfileDraft>(), cleared.workspace.settings.profiles)
+        assertFalse(cleared.workspace.settings.autoSummaryEnabled)
+        assertFalse(cleared.workspace.settings.loading)
+        assertEquals("", cleared.workspace.ask.conversation.activeConversationId)
+        assertEquals("", cleared.workspace.ask.composer.question)
+        assertFalse(cleared.workspace.ask.loading)
+        assertEquals(4L, cleared.workspace.ask.session.generation)
         // host-only fields stay put
         assertEquals(state.clientContext.screen, cleared.clientContext.screen)
         assertEquals(state.loading, cleared.loading)
@@ -566,14 +592,16 @@ class SillageUiStateTest {
                 screen = Screen.Memos,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            records = base.records.copy(
-                collection = RecordsCollectionStateHolder(records = listOf(original)),
-                search = RecordsSearchStateHolder(
-                query = "记录",
-                results = listOf(original),
-                resultQuery = "记录",
-                completionEventId = 4,
-            ),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    collection = RecordsCollectionStateHolder(records = listOf(original)),
+                    search = RecordsSearchStateHolder(
+                        query = "记录",
+                        results = listOf(original),
+                        resultQuery = "记录",
+                        completionEventId = 4,
+                    ),
+                ),
             ),
         ) }
         val refresh = initial.nextMemoRefreshRequest()
@@ -581,8 +609,8 @@ class SillageUiStateTest {
         val refreshing = requireNotNull(initial.beginMemoRefresh(refresh))
         val pending = refreshing.startMemoSearch(search)
 
-        assertEquals(refresh.requestId, refreshing.records.refresh.requestId)
-        assertEquals(RecordsRefreshStatus.Loading, refreshing.records.refresh.status)
+        assertEquals(refresh.requestId, refreshing.workspace.records.refresh.requestId)
+        assertEquals(RecordsRefreshStatus.Loading, refreshing.workspace.records.refresh.status)
         assertTrue(pending.canApplyMemoRefresh(refresh))
         assertTrue(pending.canApplyMemoSearch(search))
         assertFalse(
@@ -609,15 +637,15 @@ class SillageUiStateTest {
         )
         val updated = pending.applyMemoToCache(canonical)
 
-        assertEquals(1L, updated.records.collection.cacheGeneration)
+        assertEquals(1L, updated.workspace.records.collection.cacheGeneration)
         assertFalse(updated.canApplyMemoRefresh(refresh))
         assertFalse(updated.canApplyMemoSearch(search))
-        assertTrue(updated.records.collection.records.isEmpty())
-        assertEquals(emptyList<Memo>(), updated.records.search.results)
-        assertEquals("", updated.records.search.resultQuery)
-        assertEquals(4L, updated.records.search.completionEventId)
+        assertTrue(updated.workspace.records.collection.records.isEmpty())
+        assertEquals(emptyList<Memo>(), updated.workspace.records.search.results)
+        assertEquals("", updated.workspace.records.search.resultQuery)
+        assertEquals(4L, updated.workspace.records.search.completionEventId)
         assertEquals(null, updated.completedMemoSearch())
-        assertFalse(updated.records.search.searching)
+        assertFalse(updated.workspace.records.search.searching)
     }
 
     @Test
@@ -628,10 +656,12 @@ class SillageUiStateTest {
                 screen = Screen.MemoDetail,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            records = base.records.copy(
-                collection = RecordsCollectionStateHolder(records = listOf(original)),
-                selection = RecordsSelectionStateHolder(selectedMemo = original),
-                summary = RecordsSummaryStateHolder(loading = true),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    collection = RecordsCollectionStateHolder(records = listOf(original)),
+                    selection = RecordsSelectionStateHolder(selectedMemo = original),
+                    summary = RecordsSummaryStateHolder(loading = true),
+                ),
             ),
         ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
@@ -648,13 +678,13 @@ class SillageUiStateTest {
             RecordDetail(memo = original, ai = null),
         )
 
-        assertEquals(canonical, completed.records.selection.selectedMemo)
-        assertTrue(completed.records.collection.records.isEmpty())
+        assertEquals(canonical, completed.workspace.records.selection.selectedMemo)
+        assertTrue(completed.workspace.records.collection.records.isEmpty())
         assertEquals(
-            mutated.records.collection.cacheGeneration,
-            completed.records.collection.cacheGeneration,
+            mutated.workspace.records.collection.cacheGeneration,
+            completed.workspace.records.collection.cacheGeneration,
         )
-        assertFalse(completed.records.summary.loading)
+        assertFalse(completed.workspace.records.summary.loading)
     }
 
     @Test
@@ -665,9 +695,11 @@ class SillageUiStateTest {
                 screen = Screen.MemoDetail,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            records = base.records.copy(
-                collection = RecordsCollectionStateHolder(records = listOf(original)),
-                selection = RecordsSelectionStateHolder(selectedMemo = original),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    collection = RecordsCollectionStateHolder(records = listOf(original)),
+                    selection = RecordsSelectionStateHolder(selectedMemo = original),
+                ),
             ),
         ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
@@ -683,13 +715,13 @@ class SillageUiStateTest {
             RecordDetail(memo = canonical, ai = null),
         )
 
-        assertEquals(canonical, completed.records.selection.selectedMemo)
-        assertTrue(completed.records.collection.records.isEmpty())
+        assertEquals(canonical, completed.workspace.records.selection.selectedMemo)
+        assertTrue(completed.workspace.records.collection.records.isEmpty())
         assertEquals(
-            pending.records.collection.cacheGeneration + 1,
-            completed.records.collection.cacheGeneration,
+            pending.workspace.records.collection.cacheGeneration + 1,
+            completed.workspace.records.collection.cacheGeneration,
         )
-        assertFalse(completed.records.summary.loading)
+        assertFalse(completed.workspace.records.summary.loading)
     }
 
     @Test
@@ -700,7 +732,7 @@ class SillageUiStateTest {
                 screen = Screen.MemoDetail,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            records = base.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = original)),
+            workspace = base.workspace.copy(records = base.workspace.records.copy(selection = RecordsSelectionStateHolder(selectedMemo = original))),
         ) }
         val request = requireNotNull(initial.nextMemoDetailRequest(original.id))
         val pending = initial.startMemoDetailRequest(request)
@@ -713,9 +745,9 @@ class SillageUiStateTest {
 
         val failed = mutated.failMemoDetailRequest(request, "旧请求失败")
 
-        assertEquals(canonical, failed.records.selection.selectedMemo)
+        assertEquals(canonical, failed.workspace.records.selection.selectedMemo)
         assertEquals(null, failed.error)
-        assertFalse(failed.records.summary.loading)
+        assertFalse(failed.workspace.records.summary.loading)
     }
 
     @Test
@@ -727,12 +759,14 @@ class SillageUiStateTest {
                 appMode = SessionStore.MODE_OFFLINE,
                 generation = 3,
             ),
-            records = base.records.copy(
-                selection = RecordsSelectionStateHolder(
-                selectedMemo = original,
-                detailRequestId = 11,
-            ),
-                editor = RecordsEditorStateHolder(sessionId = 7),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    selection = RecordsSelectionStateHolder(
+                        selectedMemo = original,
+                        detailRequestId = 11,
+                    ),
+                    editor = RecordsEditorStateHolder(sessionId = 7),
+                ),
             ),
         ) }
         val request = requireNotNull(initial.nextMemoSummaryRequest())
@@ -742,13 +776,13 @@ class SillageUiStateTest {
         assertEquals(null, pending.nextMemoSummaryRequest())
         assertFalse(
             pending.copy(
-                records = pending.records.copy(selection = pending.records.selection.select(original.copy(id = "memo-2"))),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(selection = pending.workspace.records.selection.select(original.copy(id = "memo-2")))),
             )
                 .canApplyMemoSummaryRequest(request),
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(selection = pending.records.selection.select(original.copy(version = 2))),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(selection = pending.workspace.records.selection.select(original.copy(version = 2)))),
             )
                 .canApplyMemoSummaryRequest(request),
         )
@@ -762,15 +796,15 @@ class SillageUiStateTest {
         )
         assertFalse(
             pending.copy(
-                records = pending.records.copy(selection = pending.records.selection.copy(detailRequestId = 12)),
+                workspace = pending.workspace.copy(records = pending.workspace.records.copy(selection = pending.workspace.records.selection.copy(detailRequestId = 12))),
             )
                 .canApplyMemoSummaryRequest(request),
         )
 
         val summary = memoAI("新总结")
         val completed = pending.completeMemoSummaryRequest(request, summary, "总结已生成")
-        assertEquals(summary, completed.records.summary.summary)
-        assertFalse(completed.records.summary.loading)
+        assertEquals(summary, completed.workspace.records.summary.summary)
+        assertFalse(completed.workspace.records.summary.loading)
         assertEquals("总结已生成", completed.notice)
 
         val stale = pending.withClientContext { it.show(Screen.Memos) }
@@ -781,15 +815,15 @@ class SillageUiStateTest {
         assertEquals(stale, stale.failMemoSummaryRequest(request, "旧请求失败"))
 
         val versionChanged = pending.copy(
-            records = pending.records.copy(selection = pending.records.selection.select(original.copy(version = 2))),
+            workspace = pending.workspace.copy(records = pending.workspace.records.copy(selection = pending.workspace.records.selection.select(original.copy(version = 2)))),
         )
         val finished = versionChanged.finishMemoSummaryRequest(request)
-        assertFalse(finished.records.summary.loading)
-        assertEquals(null, finished.records.summary.summary)
+        assertFalse(finished.workspace.records.summary.loading)
+        assertEquals(null, finished.workspace.records.summary.summary)
 
         val invalidated = pending.invalidateMemoSummaryRequest()
-        assertFalse(invalidated.records.summary.loading)
-        assertEquals(request.requestId + 1, invalidated.records.summary.requestId)
+        assertFalse(invalidated.workspace.records.summary.loading)
+        assertEquals(request.requestId + 1, invalidated.workspace.records.summary.requestId)
         assertEquals(invalidated, invalidated.finishMemoSummaryRequest(request))
     }
 
@@ -798,13 +832,15 @@ class SillageUiStateTest {
         val loaded = listOf(memo())
         val initial = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Memos),
-            records = base.records.copy(
-                search = RecordsSearchStateHolder(
-                query = "记录",
-                results = loaded,
-                resultQuery = "记录",
-                completionEventId = 4,
-            ),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    search = RecordsSearchStateHolder(
+                        query = "记录",
+                        results = loaded,
+                        resultQuery = "记录",
+                        completionEventId = 4,
+                    ),
+                ),
             ),
         ) }
         val request = requireNotNull(initial.nextMemoSearchRequest())
@@ -812,11 +848,11 @@ class SillageUiStateTest {
 
         val failed = pending.failMemoSearch(request, "网络错误")
 
-        assertEquals(loaded, failed.records.search.results)
-        assertEquals("", failed.records.search.resultQuery)
-        assertEquals("记录", failed.records.search.failureQuery)
-        assertEquals(4L, failed.records.search.completionEventId)
-        assertFalse(failed.records.search.searching)
+        assertEquals(loaded, failed.workspace.records.search.results)
+        assertEquals("", failed.workspace.records.search.resultQuery)
+        assertEquals("记录", failed.workspace.records.search.failureQuery)
+        assertEquals(4L, failed.workspace.records.search.completionEventId)
+        assertFalse(failed.workspace.records.search.searching)
         assertEquals("网络错误", failed.error)
         assertFalse(failed.canApplyMemoSearch(request))
         val retry = requireNotNull(failed.nextMemoSearchRequest())
@@ -829,7 +865,7 @@ class SillageUiStateTest {
         val initial = editorState().let { base ->
             base.copy(
                 clientContext = base.clientContext.show(Screen.Memos),
-                records = base.records.copy(search = RecordsSearchStateHolder(query = "记录")),
+                workspace = base.workspace.copy(records = base.workspace.records.copy(search = RecordsSearchStateHolder(query = "记录"))),
             )
         }
         val firstRequest = requireNotNull(initial.nextMemoSearchRequest())
@@ -844,8 +880,8 @@ class SillageUiStateTest {
         assertEquals(second, second.completeMemoSearch(firstRequest, listOf(memo())))
 
         val completed = second.completeMemoSearch(secondRequest, listOf(memo()))
-        assertEquals(1L, completed.records.search.completionEventId)
-        assertFalse(completed.records.search.searching)
+        assertEquals(1L, completed.workspace.records.search.completionEventId)
+        assertFalse(completed.workspace.records.search.searching)
     }
 
     @Test
@@ -853,13 +889,15 @@ class SillageUiStateTest {
         val oldResults = listOf(memo(id = "memo-old"))
         val initial = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Memos),
-            records = base.records.copy(
-                search = RecordsSearchStateHolder(
-                query = "新查询",
-                results = oldResults,
-                resultQuery = "旧查询",
-                completionEventId = 4,
-            ),
+            workspace = base.workspace.copy(
+                records = base.workspace.records.copy(
+                    search = RecordsSearchStateHolder(
+                        query = "新查询",
+                        results = oldResults,
+                        resultQuery = "旧查询",
+                        completionEventId = 4,
+                    ),
+                ),
             ),
         ) }
         val request = requireNotNull(initial.nextMemoSearchRequest())
@@ -871,38 +909,38 @@ class SillageUiStateTest {
         val results = listOf(memo(id = "memo-new"))
         val completed = pending.completeMemoSearch(request, results)
 
-        assertEquals(results, completed.records.search.results)
-        assertEquals("新查询", completed.records.search.resultQuery)
-        assertEquals(5L, completed.records.search.completionEventId)
-        assertFalse(completed.records.search.searching)
+        assertEquals(results, completed.workspace.records.search.results)
+        assertEquals("新查询", completed.workspace.records.search.resultQuery)
+        assertEquals(5L, completed.workspace.records.search.completionEventId)
+        assertFalse(completed.workspace.records.search.searching)
         assertEquals(results, completed.currentMemoSearchResults())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 1), completed.completedMemoSearch())
         assertEquals(
             null,
             completed.copy(
-                records = completed.records.copy(search = completed.records.search.copy(query = "又一查询")),
+                workspace = completed.workspace.copy(records = completed.workspace.records.copy(search = completed.workspace.records.search.copy(query = "又一查询"))),
             ).currentMemoSearchResults(),
         )
         assertEquals(
             null,
             completed.copy(
-                records = completed.records.copy(search = completed.records.search.copy(query = "又一查询")),
+                workspace = completed.workspace.copy(records = completed.workspace.records.copy(search = completed.workspace.records.search.copy(query = "又一查询"))),
             ).completedMemoSearch(),
         )
         assertEquals(
             null,
             completed.copy(
-                records = completed.records.copy(search = completed.records.search.copy(searching = true)),
+                workspace = completed.workspace.copy(records = completed.workspace.records.copy(search = completed.workspace.records.search.copy(searching = true))),
             ).completedMemoSearch(),
         )
         assertEquals(completed.completedMemoSearch(), completed.copy(error = "无关错误").completedMemoSearch())
 
         val empty = pending.completeMemoSearch(request, emptyList())
         assertEquals(CompletedMemoSearch(query = "新查询", resultCount = 0), empty.completedMemoSearch())
-        assertEquals(5L, empty.records.search.completionEventId)
+        assertEquals(5L, empty.workspace.records.search.completionEventId)
 
         val stale = pending.copy(
-            records = pending.records.copy(search = pending.records.search.copy(query = "其他查询")),
+            workspace = pending.workspace.copy(records = pending.workspace.records.copy(search = pending.workspace.records.search.copy(query = "其他查询"))),
         )
         assertEquals(stale, stale.completeMemoSearch(request, results))
     }
@@ -951,7 +989,7 @@ class SillageUiStateTest {
                 screen = Screen.AISettings,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            settings = base.settings.copy(autoSummary = AIAutoSummaryStateHolder(requestId = 4)),
+            workspace = base.workspace.copy(settings = base.workspace.settings.copy(autoSummary = AIAutoSummaryStateHolder(requestId = 4))),
         ) }
         val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
         val pending = idle.startAIAutoSummaryRequest(request)
@@ -959,8 +997,8 @@ class SillageUiStateTest {
         assertEquals(5L, request.requestId)
         assertFalse(request.previousValue)
         assertTrue(request.targetValue)
-        assertTrue(pending.settings.autoSummaryEnabled)
-        assertTrue(pending.settings.autoSummarySaving)
+        assertTrue(pending.workspace.settings.autoSummaryEnabled)
+        assertTrue(pending.workspace.settings.autoSummarySaving)
         assertEquals(null, pending.nextAIAutoSummaryRequest(false))
         assertTrue(pending.canApplyAIAutoSummaryRequest(request))
         assertFalse(
@@ -979,13 +1017,19 @@ class SillageUiStateTest {
         )
 
         val invalidated = pending.invalidateAIAutoSummaryRequest()
-        assertFalse(invalidated.settings.autoSummarySaving)
-        assertEquals(6L, invalidated.settings.autoSummaryRequestId)
+        assertFalse(invalidated.workspace.settings.autoSummarySaving)
+        assertEquals(6L, invalidated.workspace.settings.autoSummaryRequestId)
         assertFalse(invalidated.canApplyAIAutoSummaryRequest(request))
         assertEquals(null, idle.nextAIAutoSummaryRequest(false))
         assertEquals(
             null,
-            idle.copy(settings = idle.settings.copy(load = idle.settings.load.copy(loading = true)))
+            idle.copy(
+                workspace = idle.workspace.copy(
+                    settings = idle.workspace.settings.copy(
+                        load = idle.workspace.settings.load.copy(loading = true),
+                    ),
+                ),
+            )
                 .nextAIAutoSummaryRequest(true),
         )
     }
@@ -995,23 +1039,25 @@ class SillageUiStateTest {
         val profiles = listOf(AIProfileDraft(id = "p1", name = "未保存名称"))
         val idle = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.AISettings),
-            settings = base.settings.copy(
-                profilesMutation = AIProfilesMutationStateHolder(profiles = profiles),
-                autoSummary = AIAutoSummaryStateHolder(enabled = false),
+            workspace = base.workspace.copy(
+                settings = base.workspace.settings.copy(
+                    profilesMutation = AIProfilesMutationStateHolder(profiles = profiles),
+                    autoSummary = AIAutoSummaryStateHolder(enabled = false),
+                ),
             ),
         ) }
         val request = requireNotNull(idle.nextAIAutoSummaryRequest(true))
         val pending = idle.startAIAutoSummaryRequest(request)
 
         val completed = pending.completeAIAutoSummaryRequest(request, savedValue = true)
-        assertTrue(completed.settings.autoSummaryEnabled)
-        assertFalse(completed.settings.autoSummarySaving)
-        assertEquals(profiles, completed.settings.profiles)
+        assertTrue(completed.workspace.settings.autoSummaryEnabled)
+        assertFalse(completed.workspace.settings.autoSummarySaving)
+        assertEquals(profiles, completed.workspace.settings.profiles)
 
         val failed = pending.failAIAutoSummaryRequest(request)
-        assertFalse(failed.settings.autoSummaryEnabled)
-        assertFalse(failed.settings.autoSummarySaving)
-        assertEquals(profiles, failed.settings.profiles)
+        assertFalse(failed.workspace.settings.autoSummaryEnabled)
+        assertFalse(failed.workspace.settings.autoSummarySaving)
+        assertEquals(profiles, failed.workspace.settings.profiles)
 
         val invalidated = pending.invalidateAIAutoSummaryRequest()
         assertEquals(invalidated, invalidated.completeAIAutoSummaryRequest(request, savedValue = true))
@@ -1023,8 +1069,10 @@ class SillageUiStateTest {
         val idle = editorState().let { base ->
             base.copy(
                 clientContext = base.clientContext.show(Screen.AISettings),
-                settings = base.settings.copy(
-                    autoSummary = AIAutoSummaryStateHolder(enabled = false),
+                workspace = base.workspace.copy(
+                    settings = base.workspace.settings.copy(
+                        autoSummary = AIAutoSummaryStateHolder(enabled = false),
+                    ),
                 ),
             )
         }
@@ -1048,22 +1096,24 @@ class SillageUiStateTest {
                 screen = Screen.AISettings,
                 appMode = SessionStore.MODE_ONLINE,
             ),
-            settings = base.settings.copy(
-                profilesMutation = AIProfilesMutationStateHolder(
-                profiles = original,
-                requestId = 6,
-            ),
+            workspace = base.workspace.copy(
+                settings = base.workspace.settings.copy(
+                    profilesMutation = AIProfilesMutationStateHolder(
+                        profiles = original,
+                        requestId = 6,
+                    ),
+                ),
             ),
         ) }
-        val earlierLoadGeneration = idle.settings.profilesRequestId
+        val earlierLoadGeneration = idle.workspace.settings.profilesRequestId
         val request = requireNotNull(idle.nextAIProfilesMutationRequest(edited))
 
         val pending = idle.startAIProfilesMutation(request)
 
         assertEquals(earlierLoadGeneration + 1, request.requestId)
-        assertEquals(request.requestId, pending.settings.profilesRequestId)
-        assertEquals(edited, pending.settings.profiles)
-        assertTrue(pending.settings.profilesSaving)
+        assertEquals(request.requestId, pending.workspace.settings.profilesRequestId)
+        assertEquals(edited, pending.workspace.settings.profiles)
+        assertTrue(pending.workspace.settings.profilesSaving)
         assertTrue(pending.canApplyAIProfilesMutation(request))
         assertEquals(null, pending.nextAIProfilesMutationRequest(original))
         assertEquals(pending, pending.startAIProfilesMutation(request))
@@ -1090,7 +1140,7 @@ class SillageUiStateTest {
         val firstSaved = listOf(AIProfileDraft(id = "profile-1", name = "服务端名称"))
         val initial = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.AISettings),
-            settings = base.settings.copy(profilesMutation = AIProfilesMutationStateHolder(profiles = original)),
+            workspace = base.workspace.copy(settings = base.workspace.settings.copy(profilesMutation = AIProfilesMutationStateHolder(profiles = original))),
         ) }
         val firstRequest = requireNotNull(initial.nextAIProfilesMutationRequest(firstPending))
         val firstCompleted = initial.startAIProfilesMutation(firstRequest)
@@ -1104,16 +1154,16 @@ class SillageUiStateTest {
         assertEquals(secondSaving, secondSaving.failAIProfilesMutation(firstRequest))
 
         val secondFailed = secondSaving.failAIProfilesMutation(secondRequest)
-        assertEquals(firstSaved, secondFailed.settings.profiles)
-        assertFalse(secondFailed.settings.profilesSaving)
+        assertEquals(firstSaved, secondFailed.workspace.settings.profiles)
+        assertFalse(secondFailed.workspace.settings.profilesSaving)
 
         val laterDraft = listOf(AIProfileDraft(id = "profile-1", name = "请求后继续编辑"))
         val changedWhileSaving = secondSaving.copy(
-            settings = secondSaving.settings.copy(profilesMutation = secondSaving.settings.profilesMutation.replace(laterDraft)),
+            workspace = secondSaving.workspace.copy(settings = secondSaving.workspace.settings.copy(profilesMutation = secondSaving.workspace.settings.profilesMutation.replace(laterDraft))),
         )
         val preserved = changedWhileSaving.failAIProfilesMutation(secondRequest)
-        assertEquals(laterDraft, preserved.settings.profiles)
-        assertFalse(preserved.settings.profilesSaving)
+        assertEquals(laterDraft, preserved.workspace.settings.profiles)
+        assertFalse(preserved.workspace.settings.profilesSaving)
     }
 
     @Test
@@ -1124,7 +1174,7 @@ class SillageUiStateTest {
         )
         val idle = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.AISettings),
-            settings = base.settings.copy(profilesMutation = AIProfilesMutationStateHolder(profiles = staged)),
+            workspace = base.workspace.copy(settings = base.workspace.settings.copy(profilesMutation = AIProfilesMutationStateHolder(profiles = staged))),
         ) }
         val request = requireNotNull(
             idle.nextAIProfilesMutationRequest(
@@ -1136,8 +1186,8 @@ class SillageUiStateTest {
         val failed = idle.startAIProfilesMutation(request)
             .failAIProfilesMutation(request)
 
-        assertEquals(staged, failed.settings.profiles)
-        assertFalse(failed.settings.profilesSaving)
+        assertEquals(staged, failed.workspace.settings.profiles)
+        assertFalse(failed.workspace.settings.profilesSaving)
     }
 
     @Test
@@ -1146,12 +1196,14 @@ class SillageUiStateTest {
         val secondAnswer = askMessage(id = "answer-2", content = "第二条回答")
         val idle = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                conversation = AskConversationStateHolder(
-                activeConversationId = "conversation-1",
-                headMessageId = firstAnswer.id,
-                messages = listOf(firstAnswer, secondAnswer),
-            ),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    conversation = AskConversationStateHolder(
+                        activeConversationId = "conversation-1",
+                        headMessageId = firstAnswer.id,
+                        messages = listOf(firstAnswer, secondAnswer),
+                    ),
+                ),
             ),
         ) }
         val request = requireNotNull(
@@ -1160,7 +1212,7 @@ class SillageUiStateTest {
 
         val pending = idle.startAskMemoSave(request)
 
-        assertEquals(firstAnswer.id, pending.ask.memoSave.savingMessageId)
+        assertEquals(firstAnswer.id, pending.workspace.ask.memoSave.savingMessageId)
         assertTrue(pending.canApplyAskMemoSave(request))
         assertTrue(pending.withAskLoad(loading = true).canApplyAskMemoSave(request))
         assertEquals(
@@ -1186,11 +1238,11 @@ class SillageUiStateTest {
             .withAskContextScope("recent_30_days")
             .withAskSourceKind("summaries")
 
-        assertEquals("问题", updated.ask.composer.question)
-        assertEquals("recent_30_days", updated.ask.composer.contextScope)
-        assertEquals("summaries", updated.ask.composer.sourceKind)
+        assertEquals("问题", updated.workspace.ask.composer.question)
+        assertEquals("recent_30_days", updated.workspace.ask.composer.contextScope)
+        assertEquals("summaries", updated.workspace.ask.composer.sourceKind)
         assertEquals(original.notice, updated.notice)
-        assertEquals(original.records, updated.records)
+        assertEquals(original.workspace.records, updated.workspace.records)
     }
 
     @Test
@@ -1198,13 +1250,15 @@ class SillageUiStateTest {
         val answer = askMessage(id = "answer-1", content = "原回答")
         val idle = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                conversation = AskConversationStateHolder(
-                activeConversationId = "conversation-1",
-                headMessageId = answer.id,
-                messages = listOf(answer),
-            ),
-                session = AskSessionStateHolder(generation = 4),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    conversation = AskConversationStateHolder(
+                        activeConversationId = "conversation-1",
+                        headMessageId = answer.id,
+                        messages = listOf(answer),
+                    ),
+                    session = AskSessionStateHolder(generation = 4),
+                ),
             ),
         ) }
         val request = requireNotNull(
@@ -1231,7 +1285,7 @@ class SillageUiStateTest {
             assertEquals(
                 context,
                 "",
-                stale.finishAskMemoSave(request).ask.memoSave.savingMessageId,
+                stale.finishAskMemoSave(request).workspace.ask.memoSave.savingMessageId,
             )
         }
     }
@@ -1240,10 +1294,12 @@ class SillageUiStateTest {
     fun askStreamCallbacksRequireOriginalConversationAndSession() {
         val state = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-                session = AskSessionStateHolder(generation = 3),
-                stream = AskStreamStateHolder(requestId = 8),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                    session = AskSessionStateHolder(generation = 3),
+                    stream = AskStreamStateHolder(requestId = 8),
+                ),
             ),
         ) }
         val request = requireNotNull(state.nextAskStreamRequest())
@@ -1282,10 +1338,12 @@ class SillageUiStateTest {
     fun askVariantCallbacksRequireOriginalRequestConversationSessionAndMode() {
         val state = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-                session = AskSessionStateHolder(generation = 3),
-                variant = AskVariantStateHolder(requestId = 8),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                    session = AskSessionStateHolder(generation = 3),
+                    variant = AskVariantStateHolder(requestId = 8),
+                ),
             ),
         ) }
         val request = requireNotNull(state.nextAskVariantRequest())
@@ -1325,7 +1383,7 @@ class SillageUiStateTest {
     fun askVariantRequestCannotStartOutsideAnIdleAskConversation() {
         val ask = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(conversation = AskConversationStateHolder(activeConversationId = "conversation-1")),
+            workspace = base.workspace.copy(ask = base.workspace.ask.copy(conversation = AskConversationStateHolder(activeConversationId = "conversation-1"))),
         ) }
 
         assertEquals(1L, ask.nextAskVariantRequest()?.requestId)
@@ -1344,10 +1402,12 @@ class SillageUiStateTest {
     fun askSourceNavigationRequiresOriginalRequestScreenAndSession() {
         val origin = editorState().let { base -> base.copy(
             clientContext = base.clientContext.showRoot(Screen.Ask),
-            ask = base.ask.copy(
-                conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
-                session = AskSessionStateHolder(generation = 4),
-                sourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    conversation = AskConversationStateHolder(activeConversationId = "conversation-1"),
+                    session = AskSessionStateHolder(generation = 4),
+                    sourceNavigation = AskSourceNavigationStateHolder(requestId = 9),
+                ),
             ),
         ) }
         val request = requireNotNull(origin.nextAskSourceNavigationRequest("memo-1"))
@@ -1403,13 +1463,13 @@ class SillageUiStateTest {
         val pending = origin.startAskSourceNavigation(request)
         val finished = pending.finishAskSourceNavigation(request)
 
-        assertTrue(pending.ask.sourceNavigation.loading)
-        assertEquals(request.requestId, pending.ask.sourceNavigation.requestId)
+        assertTrue(pending.workspace.ask.sourceNavigation.loading)
+        assertEquals(request.requestId, pending.workspace.ask.sourceNavigation.requestId)
         assertEquals(null, pending.error)
         assertEquals(null, pending.notice)
-        assertFalse(finished.ask.sourceNavigation.loading)
-        assertEquals(request.requestId, finished.ask.sourceNavigation.requestId)
-        assertEquals(finished.records, pending.records)
+        assertFalse(finished.workspace.ask.sourceNavigation.loading)
+        assertEquals(request.requestId, finished.workspace.ask.sourceNavigation.requestId)
+        assertEquals(finished.workspace.records, pending.workspace.records)
     }
 
     @Test
@@ -1457,38 +1517,40 @@ class SillageUiStateTest {
     fun onlyAvailableSuccessfulAskAnswersEmitCompletionEvents() {
         val pending = editorState().let { base -> base.copy(
             clientContext = base.clientContext.show(Screen.Ask),
-            ask = base.ask.copy(
-                composer = AskComposerStateHolder(question = "问题"),
-                stream = AskStreamStateHolder(
-                sending = true,
-                streaming = true,
-                regeneratingMessageId = "answer-1",
-                liveUser = askMessage("question-1", "问题", role = "user"),
-                liveAnswer = "回答",
-                completionEventId = 4,
-            ),
+            workspace = base.workspace.copy(
+                ask = base.workspace.ask.copy(
+                    composer = AskComposerStateHolder(question = "问题"),
+                    stream = AskStreamStateHolder(
+                        sending = true,
+                        streaming = true,
+                        regeneratingMessageId = "answer-1",
+                        liveUser = askMessage("question-1", "问题", role = "user"),
+                        liveAnswer = "回答",
+                        completionEventId = 4,
+                    ),
+                ),
             ),
         ) }
 
         val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertFalse(completed.ask.sending)
-        assertFalse(completed.ask.streaming)
-        assertEquals("", completed.ask.composer.question)
-        assertEquals("", completed.ask.stream.regeneratingMessageId)
-        assertEquals(null, completed.ask.stream.liveUser)
-        assertEquals("", completed.ask.stream.liveAnswer)
-        assertEquals(5L, completed.ask.stream.completionEventId)
+        assertFalse(completed.workspace.ask.sending)
+        assertFalse(completed.workspace.ask.streaming)
+        assertEquals("", completed.workspace.ask.composer.question)
+        assertEquals("", completed.workspace.ask.stream.regeneratingMessageId)
+        assertEquals(null, completed.workspace.ask.stream.liveUser)
+        assertEquals("", completed.workspace.ask.stream.liveAnswer)
+        assertEquals(5L, completed.workspace.ask.stream.completionEventId)
 
         val unavailable = pending.finishAskStream(answerAvailable = false, clearQuestion = true)
-        assertEquals(4L, unavailable.ask.stream.completionEventId)
+        assertEquals(4L, unavailable.workspace.ask.stream.completionEventId)
 
         val failed = pending.copy(error = "失败").finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertEquals("问题", failed.ask.composer.question)
-        assertEquals(4L, failed.ask.stream.completionEventId)
+        assertEquals("问题", failed.workspace.ask.composer.question)
+        assertEquals(4L, failed.workspace.ask.stream.completionEventId)
 
         val stopped = pending.copy(notice = "已停止").finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertEquals("", stopped.ask.composer.question)
-        assertEquals(4L, stopped.ask.stream.completionEventId)
+        assertEquals("", stopped.workspace.ask.composer.question)
+        assertEquals(4L, stopped.workspace.ask.stream.completionEventId)
     }
 
     @Test
@@ -1520,13 +1582,13 @@ class SillageUiStateTest {
         assertTrue(
             state.copy(
                 clientContext = state.clientContext.show(Screen.Memos),
-                records = state.records.copy(browse = state.records.browse.selectViewMode(MemoViewMode.Calendar)),
+                workspace = state.workspace.copy(records = state.workspace.records.copy(browse = state.workspace.records.browse.selectViewMode(MemoViewMode.Calendar))),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(
             state.copy(
                 clientContext = state.clientContext.show(Screen.Memos),
-                records = state.records.copy(browse = state.records.browse.selectViewMode(MemoViewMode.List)),
+                workspace = state.workspace.copy(records = state.workspace.records.copy(browse = state.workspace.records.browse.selectViewMode(MemoViewMode.List))),
             ).shouldReturnToRecordsOnBack(),
         )
         assertFalse(
@@ -1540,23 +1602,25 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAIAutoSummary(
-        enabled: Boolean = settings.autoSummaryEnabled,
-        saving: Boolean = settings.autoSummarySaving,
-        requestId: Long = settings.autoSummaryRequestId,
+        enabled: Boolean = workspace.settings.autoSummaryEnabled,
+        saving: Boolean = workspace.settings.autoSummarySaving,
+        requestId: Long = workspace.settings.autoSummaryRequestId,
     ): SillageUiState = copy(
-        settings = settings.copy(
-            autoSummary = AIAutoSummaryStateHolder(
-            enabled = enabled,
-            saving = saving,
-            requestId = requestId,
-        ),
+        workspace = workspace.copy(
+            settings = workspace.settings.copy(
+                autoSummary = AIAutoSummaryStateHolder(
+                    enabled = enabled,
+                    saving = saving,
+                    requestId = requestId,
+                ),
+            ),
         ),
     )
 
     private fun SillageUiState.withAskConversation(
-        activeConversationId: String = ask.conversation.activeConversationId,
-        headMessageId: String? = ask.conversation.headMessageId,
-        messages: List<AskMessage> = ask.conversation.messages,
+        activeConversationId: String = workspace.ask.conversation.activeConversationId,
+        headMessageId: String? = workspace.ask.conversation.headMessageId,
+        messages: List<AskMessage> = workspace.ask.conversation.messages,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             conversation = ask.conversation.copy(
@@ -1568,8 +1632,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskLoad(
-        loading: Boolean = ask.loading,
-        errorMessage: String? = ask.load.errorMessage,
+        loading: Boolean = workspace.ask.loading,
+        errorMessage: String? = workspace.ask.load.errorMessage,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             load = AskLoadStateHolder(
@@ -1580,8 +1644,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskVariant(
-        requestId: Long = ask.variant.requestId,
-        loading: Boolean = ask.variant.loading,
+        requestId: Long = workspace.ask.variant.requestId,
+        loading: Boolean = workspace.ask.variant.loading,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             variant = AskVariantStateHolder(
@@ -1592,8 +1656,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskSourceNavigation(
-        requestId: Long = ask.sourceNavigation.requestId,
-        loading: Boolean = ask.sourceNavigation.loading,
+        requestId: Long = workspace.ask.sourceNavigation.requestId,
+        loading: Boolean = workspace.ask.sourceNavigation.loading,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             sourceNavigation = AskSourceNavigationStateHolder(
@@ -1610,13 +1674,13 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskStream(
-        sending: Boolean = ask.sending,
-        streaming: Boolean = ask.streaming,
-        requestId: Long = ask.stream.requestId,
-        completionEventId: Long = ask.stream.completionEventId,
-        regeneratingMessageId: String = ask.stream.regeneratingMessageId,
-        liveUser: AskMessage? = ask.stream.liveUser,
-        liveAnswer: String = ask.stream.liveAnswer,
+        sending: Boolean = workspace.ask.sending,
+        streaming: Boolean = workspace.ask.streaming,
+        requestId: Long = workspace.ask.stream.requestId,
+        completionEventId: Long = workspace.ask.stream.completionEventId,
+        regeneratingMessageId: String = workspace.ask.stream.regeneratingMessageId,
+        liveUser: AskMessage? = workspace.ask.stream.liveUser,
+        liveAnswer: String = workspace.ask.stream.liveAnswer,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             stream = AskStreamStateHolder(
@@ -1640,12 +1704,14 @@ class SillageUiStateTest {
         return SillageUiState(
             baseUrl = "",
             clientContext = AppClientContextStateHolder(screen = Screen.Editor),
-            records = defaultRecordsFeatureState().copy(
-                editor = RecordsEditorStateHolder(
-                    draftContent = draftContent,
-                    draftEntryDate = draftEntryDate,
-                    initialDraftContent = initialDraftContent,
-                    initialDraftEntryDate = initialDraftEntryDate,
+            workspace = AppWorkspaceStateHolder(
+                records = defaultRecordsFeatureState().copy(
+                    editor = RecordsEditorStateHolder(
+                        draftContent = draftContent,
+                        draftEntryDate = draftEntryDate,
+                        initialDraftContent = initialDraftContent,
+                        initialDraftEntryDate = initialDraftEntryDate,
+                    ),
                 ),
             ),
         )

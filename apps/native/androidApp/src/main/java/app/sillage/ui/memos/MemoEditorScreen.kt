@@ -60,7 +60,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     val editorActionContext = state.memoEditorActionContext()
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor = rememberSillageRecordEditorCloseRequest(
-        state = state.records,
+        state = state.workspace.records,
         context = editorActionContext,
         strings = SillageRecordEditorDiscardStrings(
             title = stringResource(R.string.discard_changes_title),
@@ -82,7 +82,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
     }
     if (showDatePicker) {
         val initialMillis =
-            runCatching { LocalDate.parse(state.records.editor.draftEntryDate.trim()) }
+            runCatching { LocalDate.parse(state.workspace.records.editor.draftEntryDate.trim()) }
                 .getOrElse { LocalDate.now() }
                 .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
@@ -121,14 +121,14 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             TopAppBar(
                 title = {
                     SillageRecordEditorTopBarTitle(
-                        state = state.records,
+                        state = state.workspace.records,
                         context = editorActionContext,
                         strings = screenChromeStrings,
                     )
                 },
                 navigationIcon = {
                     SillageRecordEditorBackAction(
-                        state = state.records,
+                        state = state.workspace.records,
                         context = editorActionContext,
                         strings = screenChromeStrings,
                         icon = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -137,7 +137,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                 },
                 actions = {
                     SillageRecordEditorActions(
-                        state = state.records,
+                        state = state.workspace.records,
                         context = editorActionContext,
                         strings = SillageRecordEditorActionStrings(
                             saveContentDescription = stringResource(R.string.action_save),
@@ -178,7 +178,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
         },
     ) { padding ->
         SillageRecordEditorContent(
-            state = state.records,
+            state = state.workspace.records,
             context = editorActionContext,
             showAttachmentAction = state.clientContext.online,
             strings = SillageRecordEditorContentStrings(
@@ -199,10 +199,10 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             onAddAttachment = { attachmentLauncher.launch("*/*") },
             editorContent = { editorModifier, editorHeight, actionsEnabled ->
                 MarkdownEditorSection(
-                    content = state.records.editor.draftContent,
+                    content = state.workspace.records.editor.draftContent,
                     baseUrl = state.baseUrl,
-                    openingAttachmentPath = state.records.attachmentOpen.path,
-                    preview = state.records.editor.markdownPreview,
+                    openingAttachmentPath = state.workspace.records.attachmentOpen.path,
+                    preview = state.workspace.records.editor.markdownPreview,
                     enabled = actionsEnabled,
                     onContentChange = viewModel::updateDraftContent,
                     onPreviewChange = viewModel::updateMarkdownPreview,
@@ -213,7 +213,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             },
             summaryContent = { summaryModifier, actionsEnabled ->
                 MemoSummarySection(
-                    records = state.records,
+                    records = state.workspace.records,
                     actionEnabled = actionsEnabled,
                     onGenerate = viewModel::summarizeSelectedMemo,
                     modifier = summaryModifier,

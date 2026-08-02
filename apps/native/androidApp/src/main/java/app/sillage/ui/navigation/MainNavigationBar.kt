@@ -17,12 +17,12 @@ import app.sillage.ui.designsystem.SillageNavigationItem
 
 @Composable
 internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewModel) {
-    val enabled = !state.ask.variant.loading
+    val enabled = !state.workspace.ask.variant.loading
 
     SillageNavigationBar {
         SillageNavigationItem(
             selected = state.clientContext.screen == Screen.Memos &&
-                state.records.browse.viewMode == MemoViewMode.List,
+                state.workspace.records.browse.viewMode == MemoViewMode.List,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.List) },
             enabled = enabled,
             icon = Icons.Rounded.Home,
@@ -30,7 +30,7 @@ internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewMode
         )
         SillageNavigationItem(
             selected = state.clientContext.screen == Screen.Memos &&
-                state.records.browse.viewMode == MemoViewMode.Calendar,
+                state.workspace.records.browse.viewMode == MemoViewMode.Calendar,
             onClick = { viewModel.updateMemoViewMode(MemoViewMode.Calendar) },
             enabled = enabled,
             icon = Icons.Rounded.CalendarMonth,

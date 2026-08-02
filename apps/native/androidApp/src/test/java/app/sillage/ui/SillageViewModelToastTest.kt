@@ -96,13 +96,13 @@ class SillageViewModelToastTest {
         val sessionStore = SessionStore(context)
         sessionStore.saveAppMode(SessionStore.MODE_OFFLINE)
         val viewModel = SillageViewModel(context)
-        val profiles = viewModel.state.value.settings.profiles
+        val profiles = viewModel.state.value.workspace.settings.profiles
 
         viewModel.openAISettings()
 
         assertEquals(Screen.AISettings, viewModel.state.value.clientContext.screen)
-        assertFalse(viewModel.state.value.settings.loading)
-        assertEquals(profiles, viewModel.state.value.settings.profiles)
+        assertFalse(viewModel.state.value.workspace.settings.loading)
+        assertEquals(profiles, viewModel.state.value.workspace.settings.profiles)
     }
 
     @Test
@@ -114,17 +114,17 @@ class SillageViewModelToastTest {
         viewModel.openAsk()
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
 
         viewModel.updateMemoViewMode(MemoViewMode.Calendar)
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
 
         viewModel.openAISettings()
         viewModel.returnToRecords()
         assertEquals(Screen.Memos, viewModel.state.value.clientContext.screen)
-        assertEquals(MemoViewMode.List, viewModel.state.value.records.browse.viewMode)
+        assertEquals(MemoViewMode.List, viewModel.state.value.workspace.records.browse.viewMode)
     }
 
     @Test

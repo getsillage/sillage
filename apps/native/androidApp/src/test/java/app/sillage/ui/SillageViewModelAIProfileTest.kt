@@ -41,13 +41,13 @@ class SillageViewModelAIProfileTest {
         )
         val storedJson = prepareOfflineProfiles(original)
         val viewModel = SillageViewModel(context, localDataStore = localDataStore)
-        val requestId = viewModel.state.value.settings.profilesRequestId
+        val requestId = viewModel.state.value.workspace.settings.profilesRequestId
 
         viewModel.setAIProfileDefault(1)
 
-        assertEquals(listOf(false, true), viewModel.state.value.settings.profiles.map { it.active })
-        assertEquals(requestId, viewModel.state.value.settings.profilesRequestId)
-        assertFalse(viewModel.state.value.settings.profilesSaving)
+        assertEquals(listOf(false, true), viewModel.state.value.workspace.settings.profiles.map { it.active })
+        assertEquals(requestId, viewModel.state.value.workspace.settings.profilesRequestId)
+        assertFalse(viewModel.state.value.workspace.settings.profilesSaving)
         assertNull(viewModel.state.value.notice)
         assertStoredProfilesAreUnchanged(storedJson)
     }
@@ -60,14 +60,14 @@ class SillageViewModelAIProfileTest {
         )
         val storedJson = prepareOfflineProfiles(original)
         val viewModel = SillageViewModel(context, localDataStore = localDataStore)
-        val requestId = viewModel.state.value.settings.profilesRequestId
+        val requestId = viewModel.state.value.workspace.settings.profilesRequestId
 
         assertTrue(viewModel.removeAIProfile(0))
 
-        assertEquals(listOf("profile-2"), viewModel.state.value.settings.profiles.map { it.id })
-        assertTrue(viewModel.state.value.settings.profiles.single().active)
-        assertEquals(requestId, viewModel.state.value.settings.profilesRequestId)
-        assertFalse(viewModel.state.value.settings.profilesSaving)
+        assertEquals(listOf("profile-2"), viewModel.state.value.workspace.settings.profiles.map { it.id })
+        assertTrue(viewModel.state.value.workspace.settings.profiles.single().active)
+        assertEquals(requestId, viewModel.state.value.workspace.settings.profilesRequestId)
+        assertFalse(viewModel.state.value.workspace.settings.profilesSaving)
         assertNull(viewModel.state.value.notice)
         assertStoredProfilesAreUnchanged(storedJson)
     }
@@ -78,19 +78,19 @@ class SillageViewModelAIProfileTest {
         val viewModel = SillageViewModel(context, localDataStore = localDataStore)
         viewModel.addAIProfile()
         viewModel.addAIProfile()
-        val drafts = viewModel.state.value.settings.profiles
+        val drafts = viewModel.state.value.workspace.settings.profiles
         val laterDraftKey = drafts[1].editorKey(1)
         assertTrue(drafts[0].draftKey.isNotBlank())
         assertTrue(drafts[1].draftKey.isNotBlank())
         assertFalse(drafts[0].draftKey == drafts[1].draftKey)
 
         viewModel.loadAIModels(1)
-        val result = requireNotNull(viewModel.state.value.settings.testResults[laterDraftKey])
+        val result = requireNotNull(viewModel.state.value.workspace.settings.testResults[laterDraftKey])
         assertTrue(viewModel.removeAIProfile(0))
 
-        val remainingKey = viewModel.state.value.settings.profiles.single().editorKey(0)
+        val remainingKey = viewModel.state.value.workspace.settings.profiles.single().editorKey(0)
         assertEquals(laterDraftKey, remainingKey)
-        assertEquals(result, viewModel.state.value.settings.testResults[remainingKey])
+        assertEquals(result, viewModel.state.value.workspace.settings.testResults[remainingKey])
     }
 
     private fun prepareOfflineProfiles(profiles: List<AIProfileDraft>): String {

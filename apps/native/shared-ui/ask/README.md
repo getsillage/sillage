@@ -17,5 +17,10 @@ IME Send gating, question field layout, and send/stop action switching.
 `SillageAskContextLabel` exposes the same context selection to host top bars.
 Hosts provide localized formatting, icons, and feature callbacks.
 
+`SillageAskEmptyPrompt`, `SillageAskLiveUserCard`, and
+`SillageAskLiveAnswerCard` own empty-conversation guidance plus live user/answer
+card layout, waiting fallback, colors, and message accessibility descriptions.
+Hosts provide localized copy, icons, and speaker-description formatting.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

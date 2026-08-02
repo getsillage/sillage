@@ -254,6 +254,9 @@ hosts provide localized copy and callbacks.
 Its composer owns context-label selection, trimmed character count, IME Send
 gating, question layout, and send/stop action switching. Hosts provide localized
 formatting, icons, callbacks, and may reuse the shared context label elsewhere.
+Its empty/live cards own prompt guidance, user/answer card layout, waiting
+fallback, colors, and message accessibility descriptions while hosts provide
+localized copy, icons, and speaker-description formatting.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

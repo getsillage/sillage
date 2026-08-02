@@ -191,6 +191,9 @@ The shared composer owns context-label selection, trimmed character count, IME
 Send gating, question layout, and send/stop action switching. Android supplies
 localized formatting, icons, and callbacks; the top bar reuses shared context
 selection.
+Shared Ask empty/live cards own prompt guidance, user/answer card layout,
+waiting fallback, colors, and message accessibility descriptions. Android maps
+localized copy, icon, and speaker-description formatting.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

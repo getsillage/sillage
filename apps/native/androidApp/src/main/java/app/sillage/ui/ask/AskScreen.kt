@@ -43,7 +43,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -71,7 +70,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.sillage.core.domain.ask.AskMessage
 import app.sillage.data.AskPathEntry
 import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.data.MarkdownLinkTarget
@@ -308,7 +306,13 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     if (entries.isEmpty() && state.askLoadError == null) {
                         item {
-                            AskEmptyPrompt()
+                            SillageAskEmptyPrompt(
+                                strings = SillageAskEmptyPromptStrings(
+                                    title = stringResource(R.string.ask_prompt_title),
+                                    example = stringResource(R.string.ask_prompt_example),
+                                ),
+                                icon = Icons.Rounded.AutoAwesome,
+                            )
                         }
                     }
                     items(entries, key = { it.message.id }) { entry ->
@@ -345,12 +349,23 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                     }
                     state.askLiveUser?.let { liveUser ->
                         item {
-                            AskLiveUserCard(liveUser)
+                            SillageAskLiveUserCard(
+                                message = liveUser,
+                                messageDescription = { content ->
+                                    askMessageDescription(isAssistant = false, content = content)
+                                },
+                            )
                         }
                     }
                     if (state.askSending && state.askRegeneratingId.isBlank()) {
                         item {
-                            AskLiveAnswerCard(state.askLiveAnswer)
+                            SillageAskLiveAnswerCard(
+                                answer = state.askLiveAnswer,
+                                thinking = stringResource(R.string.ask_thinking),
+                                messageDescription = { content ->
+                                    askMessageDescription(isAssistant = true, content = content)
+                                },
+                            )
                         }
                     }
                 }
@@ -421,47 +436,6 @@ internal fun isAskListNearBottom(
         return false
     }
     return lastVisibleEnd - viewportEnd <= thresholdPx.coerceAtLeast(0)
-}
-
-@Composable
-private fun AskEmptyPrompt() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
-                    }
-                }
-                Text(
-                    stringResource(R.string.ask_prompt_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            Text(
-                stringResource(R.string.ask_prompt_example),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
 }
 
 @Composable
@@ -619,57 +593,6 @@ private fun AskSourceRefs(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AskLiveUserCard(message: AskMessage) {
-    val messageDescription = askMessageDescription(isAssistant = false, content = message.content)
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.End,
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(0.84f),
-            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 8.dp, bottomEnd = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
-        ) {
-            Text(
-                message.content,
-                modifier = Modifier
-                    .clearAndSetSemantics { applyAskMessageSemantics(messageDescription) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AskLiveAnswerCard(answer: String) {
-    val displayedContent = answer.ifBlank { stringResource(R.string.ask_thinking) }
-    val messageDescription = askMessageDescription(isAssistant = true, content = displayedContent)
-    Card(
-        modifier = Modifier.fillMaxWidth(0.94f),
-        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                displayedContent,
-                modifier = Modifier.clearAndSetSemantics {
-                    applyAskMessageSemantics(messageDescription)
-                },
-                color = if (answer.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-            )
         }
     }
 }

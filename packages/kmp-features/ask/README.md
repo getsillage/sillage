@@ -60,3 +60,6 @@ aggregate and owns empty/current row presentation plus select-then-dismiss flow.
 The shared composer consumes composer/load/stream/variant/source-navigation
 state directly to own context labels, character count, IME send gating, and
 send/stop presentation while hosts route aggregate updates and execution.
+Shared empty/live cards consume domain messages and stream text to own prompt,
+waiting fallback, card presentation, and message accessibility semantics while
+hosts provide localized copy and speaker formatting.

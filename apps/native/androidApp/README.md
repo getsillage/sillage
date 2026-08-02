@@ -203,6 +203,9 @@ The shared composer owns context selection, character-count and IME send gates,
 question layout, and send/stop action switching. Android supplies plural/context
 formatting, Material icons, and ViewModel callbacks; the top bar reuses the same
 shared context selection.
+Shared Ask empty/live cards own prompt guidance, user/answer card layout,
+thinking fallback, colors, and message semantics. Android supplies localized
+copy, the prompt icon, and speaker-description formatting.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

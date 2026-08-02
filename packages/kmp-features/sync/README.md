@@ -7,7 +7,8 @@ Shared feature-scoped synchronization presentation state.
 replacement, dismissal, lookup, and push-result application so hosts do not keep
 conflict presentation as a loose top-level root field.
 Android routes push-result application, conflict dismissal, and conflict-list
-replacement through root `withSync` thin wrappers.
+replacement through root `withSync` thin wrappers. Conflict-resolution callbacks
+look up the current item through `SyncFeatureStateHolder.findConflict`.
 
 The buildable `shared-ui:sync` module consumes the aggregate directly for the
 conflict dialog, including first-open-conflict selection and resource-ID action

@@ -406,10 +406,9 @@ class SillageUiStateTest {
     }
 
     @Test
-    fun syncAggregateOwnsConflictPresentationWithTransitionalGetter() {
+    fun syncAggregateOwnsConflictPresentation() {
         val state = editorState()
-        assertEquals(emptyList<MemoSyncConflictItem>(), state.syncConflicts)
-        assertEquals(state.sync.conflicts, state.syncConflictState)
+        assertEquals(emptyList<MemoSyncConflictItem>(), state.sync.items)
     }
 
     @Test
@@ -418,7 +417,7 @@ class SillageUiStateTest {
 
         val cleared = state.replaceSyncConflicts(emptyList())
 
-        assertTrue(cleared.syncConflicts.isEmpty())
+        assertTrue(cleared.sync.items.isEmpty())
         assertEquals("keep", cleared.error)
         assertEquals(state.screen, cleared.screen)
     }

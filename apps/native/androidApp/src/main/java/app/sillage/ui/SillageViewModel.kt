@@ -1258,7 +1258,7 @@ class SillageViewModel(
     }
 
     fun resolveSyncConflictKeepLocal(resourceId: String) {
-        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        val item = state.value.sync.findConflict(resourceId) ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {
@@ -1279,7 +1279,7 @@ class SillageViewModel(
     }
 
     fun resolveSyncConflictTakeServer(resourceId: String) {
-        val item = state.value.syncConflicts.find { it.conflict.resourceId == resourceId } ?: return
+        val item = state.value.sync.findConflict(resourceId) ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.Default) {

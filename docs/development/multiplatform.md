@@ -529,6 +529,8 @@ are platform-independent.
 `SyncFeatureStateHolder` / `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns the explicit keep-local/take-server
 command workflow. Android stores one `sync` aggregate on root UI state.
+Resolution callbacks look up the current item through
+`SyncFeatureStateHolder.findConflict` rather than host-root compatibility getters.
 Push-result application, conflict dismissal, and conflict-list replacement pass
 through root `withSync` thin wrappers.
 The buildable `shared-ui:sync` module consumes the aggregate directly and owns

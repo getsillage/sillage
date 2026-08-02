@@ -276,7 +276,8 @@ Shared `kmp-features:sync` conflict state and core resolution commands own the e
 `shared-ui:sync` consumes the aggregate directly and owns first-conflict
 selection, preview fallback/limits, dialog layout, and resource-ID action
 routing. Android supplies localized strings, asynchronous resolution, and the
-transactional local-storage adapter.
+transactional local-storage adapter; resolution callbacks also look up conflicts
+through the aggregate contract rather than host-root compatibility getters.
 Ask and secret-free AI settings values are imported directly from shared domain;
 cross-platform AI profile drafts come from the settings feature, while
 Android-local models are limited to API inputs and platform adapters.

@@ -527,7 +527,8 @@ it skips empty pushes, sends one pending batch, and acknowledges only applied
 results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
 `SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
-stores one `sync` aggregate with a transitional conflict-state getter. Platform
+stores one `sync` aggregate, and resolution callbacks look up the current item
+through `SyncFeatureStateHolder.findConflict`. Platform
 root-state writes for push results, conflict dismissal, and conflict-list
 replacement pass through `withSync` thin wrappers. Platform
 `shared-ui:sync` consumes the aggregate directly and owns first-conflict

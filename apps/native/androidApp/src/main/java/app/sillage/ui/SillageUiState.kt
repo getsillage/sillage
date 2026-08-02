@@ -25,7 +25,6 @@ import app.sillage.features.auth.AuthenticationStateHolder
 import app.sillage.features.auth.PasswordChangeContext
 import app.sillage.features.auth.PasswordChangeRequest
 import app.sillage.features.sync.MemoSyncConflictItem
-import app.sillage.features.sync.MemoSyncConflictStateHolder
 import app.sillage.features.sync.SyncFeatureStateHolder
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.application.records.RecordDetail
@@ -156,7 +155,6 @@ data class SillageUiState(
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
-    val syncConflictState: MemoSyncConflictStateHolder get() = sync.conflicts
 
     val memoNextCursor: String get() = records.pagination.nextCursor
     val memos: List<Memo> get() = records.collection.records
@@ -191,7 +189,6 @@ data class SillageUiState(
     val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
     val openingAttachmentPath: String? get() = records.attachmentOpen.path
     val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
-    val syncConflicts: List<MemoSyncConflictItem> get() = sync.items
     val askConversations: List<AskConversation> get() = ask.conversations
     val activeAskId: String get() = ask.activeConversationId
     val askHeadId: String? get() = ask.headMessageId

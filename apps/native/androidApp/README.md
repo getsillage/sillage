@@ -201,8 +201,9 @@ model execution and the platform accessibility announcement bridge.
 Branch-variant requests use the shared feature single-flight holder directly
 through the Ask aggregate; Android only supplies navigation context and adapter
 execution, without root variant compatibility getters.
-Ask source-record navigation also uses a shared single-flight holder; Android maps
-the holder's stable destination/history keys to its `Screen` navigation model.
+Ask source-record navigation also uses a shared single-flight holder directly
+through the aggregate. Android maps stable destination/history keys to its
+`Screen` navigation model and retains only adapter execution.
 Ask answer-generation request identity, live stream buffers, regeneration state,
 and completion events live in `AskStreamStateHolder`; Android retains SSE and
 device-local AI execution adapters.

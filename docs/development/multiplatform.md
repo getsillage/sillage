@@ -332,8 +332,9 @@ or client context changes. Record persistence still crosses the records
 application port.
 `AskSourceNavigationStateHolder` captures platform-neutral destination/history
 keys and rejects source-record responses after navigation, conversation, source,
-or client context changes. Platform hosts map the stable keys to their own
-navigation types.
+or client-context changes. Platform request orchestration reads the holder through
+the Ask aggregate directly, while hosts map stable keys to their own navigation
+types.
 `AskStreamStateHolder` owns generation single-flight identity, transient live
 messages, regeneration identity, and completion events. SSE parsing and
 device-local model execution remain platform adapters and may update the holder

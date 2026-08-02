@@ -1283,12 +1283,12 @@ class SillageUiStateTest {
         val pending = origin.startAskSourceNavigation(request)
         val finished = pending.finishAskSourceNavigation(request)
 
-        assertTrue(pending.askSourceLoading)
-        assertEquals(request.requestId, pending.askSourceRequestId)
+        assertTrue(pending.ask.sourceNavigation.loading)
+        assertEquals(request.requestId, pending.ask.sourceNavigation.requestId)
         assertEquals(null, pending.error)
         assertEquals(null, pending.notice)
-        assertFalse(finished.askSourceLoading)
-        assertEquals(request.requestId, finished.askSourceRequestId)
+        assertFalse(finished.ask.sourceNavigation.loading)
+        assertEquals(request.requestId, finished.ask.sourceNavigation.requestId)
         assertEquals(finished.records, pending.records)
     }
 
@@ -1462,8 +1462,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskSourceNavigation(
-        requestId: Long = askSourceRequestId,
-        loading: Boolean = askSourceLoading,
+        requestId: Long = ask.sourceNavigation.requestId,
+        loading: Boolean = ask.sourceNavigation.loading,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             sourceNavigation = AskSourceNavigationStateHolder(

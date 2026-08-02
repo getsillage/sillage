@@ -2564,7 +2564,7 @@ class SillageViewModel(
             current.ask.loading ||
             current.askSending ||
             current.ask.variant.loading ||
-            current.askSourceLoading ||
+            current.ask.sourceNavigation.loading ||
             id.isBlank()
         ) {
             return
@@ -2582,7 +2582,7 @@ class SillageViewModel(
                 !latest.ask.loading &&
                 !latest.askSending &&
                 !latest.ask.variant.loading &&
-                !latest.askSourceLoading
+                !latest.ask.sourceNavigation.loading
             ) {
                 started = true
                 latest.withAsk { ask ->
@@ -2655,7 +2655,7 @@ class SillageViewModel(
             state.value.ask.loading ||
             state.value.askSending ||
             state.value.ask.variant.loading ||
-            state.value.askSourceLoading
+            state.value.ask.sourceNavigation.loading
         ) {
             return
         }
@@ -2857,7 +2857,7 @@ class SillageViewModel(
                 .onSuccess { detail ->
                     updateState { current ->
                         if (!current.canApplyAskSourceNavigation(request)) {
-                            if (current.askSourceRequestId == request.requestId) {
+                            if (current.ask.sourceNavigation.requestId == request.requestId) {
                                 current.finishAskSourceNavigation(request)
                             } else {
                                 current
@@ -2874,7 +2874,7 @@ class SillageViewModel(
                                 current.finishAskSourceNavigation(request).copy(
                                     error = error.readableMessage(),
                                 )
-                            current.askSourceRequestId == request.requestId ->
+                            current.ask.sourceNavigation.requestId == request.requestId ->
                                 current.finishAskSourceNavigation(request)
                             else -> current
                         }

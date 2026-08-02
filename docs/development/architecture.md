@@ -351,8 +351,9 @@ root-state variant accessors.
 also captures source answer content and branch-head identity. It delegates the
 actual record creation to the records application boundary.
 `AskSourceNavigationStateHolder` owns source-record request identity using stable
-destination/history keys rather than Android navigation types. The Android host
-maps those keys to `Screen` only at its presentation boundary.
+destination/history keys rather than Android navigation types. Android request
+orchestration consumes the holder through the Ask aggregate directly and maps
+keys to `Screen` only at the presentation boundary.
 `AskStreamStateHolder` owns answer-generation request identity, live stream
 presentation, regeneration identity, and completion events. Android's SSE and
 device-local AI adapters feed it only after shared request-ownership validation.

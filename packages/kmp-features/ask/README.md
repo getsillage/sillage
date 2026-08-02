@@ -10,8 +10,8 @@ application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
 one aggregate on root UI state, keeps transitional slice getters only for
-remaining conversation/source/memo-save/session call sites, and routes
-single-holder writes through `withAsk` / aggregate transitions. Android
+remaining conversation/memo-save/session call sites, and routes single-holder
+writes through `withAsk` / aggregate transitions. Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
 
@@ -36,8 +36,9 @@ records application use case.
 
 `AskSourceNavigationStateHolder` owns source-record navigation requests without
 depending on a platform navigation enum. It captures stable destination/history
-keys plus conversation and client context, while each host maps those keys to its
-navigation model.
+keys plus conversation and client context. Android request orchestration and tests
+consume the holder through the Ask aggregate directly, while each host maps the
+stable keys to its navigation model.
 
 `AskStreamStateHolder` owns answer-generation request identity, live user/answer
 presentation, regeneration identity, and completion events. Android retains the

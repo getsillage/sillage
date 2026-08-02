@@ -195,8 +195,6 @@ data class SillageUiState(
     val askMessages: List<AskMessage> get() = ask.messages
     val askMemoSaveRequestId: Long get() = ask.memoSave.requestId
     val askSavingMessageId: String get() = ask.savingMessageId
-    val askSourceRequestId: Long get() = ask.sourceNavigation.requestId
-    val askSourceLoading: Boolean get() = ask.sourceLoading
     val askSending: Boolean get() = ask.sending
     val askQuestion: String get() = ask.question
     val askScope: String get() = ask.contextScope
@@ -1038,7 +1036,7 @@ internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamCont
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = ask.loading || ask.variant.loading || askSourceLoading,
+    anotherRequestInProgress = ask.loading || ask.variant.loading || ask.sourceNavigation.loading,
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
@@ -1084,7 +1082,7 @@ internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantC
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = ask.loading || askSending || askSourceLoading,
+    anotherRequestInProgress = ask.loading || askSending || ask.sourceNavigation.loading,
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
@@ -1098,7 +1096,7 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
     destinationAvailable = screen == Screen.Ask,
     anotherRequestInProgress =
-        loading || ask.loading || askSending || ask.variant.loading || askSourceLoading,
+        loading || ask.loading || askSending || ask.variant.loading || ask.sourceNavigation.loading,
     screenSessionId = askScreenSessionId,
     conversationId = activeAskId,
     headMessageId = askHeadId,

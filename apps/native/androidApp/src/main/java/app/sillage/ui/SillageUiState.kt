@@ -25,7 +25,6 @@ import app.sillage.features.records.RecordsPageContext
 import app.sillage.features.records.RecordsPageRequest
 import app.sillage.features.records.RecordsRefreshContext
 import app.sillage.features.records.RecordsRefreshRequest
-import app.sillage.features.records.RecordsRefreshStatus
 import app.sillage.features.records.CompletedRecordsSearch
 import app.sillage.features.records.RecordsSearchContext
 import app.sillage.features.records.RecordsSearchRequest
@@ -43,7 +42,6 @@ import app.sillage.features.records.RecordsEditorBusyReason
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
-import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
@@ -124,7 +122,6 @@ data class SillageUiState(
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsPagination: RecordsPaginationStateHolder get() = records.pagination
-    val recordsRefresh: RecordsRefreshStateHolder get() = records.refresh
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
     val recordsMutation: RecordsMutationStateHolder get() = records.mutation
     val recordsSummary: RecordsSummaryStateHolder get() = records.summary
@@ -142,7 +139,6 @@ data class SillageUiState(
     val memoCacheGeneration: Long get() = records.collection.cacheGeneration
     val loadingMoreMemos: Boolean get() = records.pagination.loadingMore
     val memoPageRequestId: Long get() = records.pagination.requestId
-    val memoListLoadStatus: MemoListLoadStatus get() = records.refresh.status
     val searchQuery: String get() = records.search.query
     val searchResults: List<Memo>? get() = records.search.results
     val searchResultQuery: String get() = records.search.resultQuery
@@ -924,25 +920,25 @@ private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
 }
 
 internal fun SillageUiState.nextMemoRefreshRequest(): RecordsRefreshRequest {
-    return recordsRefresh.nextRequest(recordsRefreshContext())
+    return records.refresh.nextRequest(recordsRefreshContext())
 }
 
 internal fun SillageUiState.beginMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = recordsRefresh.begin(request, recordsRefreshContext()) ?: return null
+    val refresh = records.refresh.begin(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.canApplyMemoRefresh(request: RecordsRefreshRequest): Boolean {
-    return recordsRefresh.canApply(request, recordsRefreshContext())
+    return records.refresh.canApply(request, recordsRefreshContext())
 }
 
 internal fun SillageUiState.completeMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = recordsRefresh.complete(request, recordsRefreshContext()) ?: return null
+    val refresh = records.refresh.complete(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
 internal fun SillageUiState.failMemoRefresh(request: RecordsRefreshRequest): SillageUiState? {
-    val refresh = recordsRefresh.fail(request, recordsRefreshContext()) ?: return null
+    val refresh = records.refresh.fail(request, recordsRefreshContext()) ?: return null
     return withRecords { it.copy(refresh = refresh) }
 }
 
@@ -1201,7 +1197,6 @@ internal fun SillageUiState.shouldReturnToRecordsOnBack(): Boolean {
     )
 }
 
-typealias MemoListLoadStatus = RecordsRefreshStatus
 typealias CompletedMemoSearch = CompletedRecordsSearch
 
 typealias Screen = AppDestination

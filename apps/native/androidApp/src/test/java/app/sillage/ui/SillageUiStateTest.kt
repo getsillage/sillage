@@ -30,6 +30,7 @@ import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
+import app.sillage.features.records.RecordsRefreshStatus
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
@@ -558,6 +559,8 @@ class SillageUiStateTest {
         val refreshing = requireNotNull(initial.beginMemoRefresh(refresh))
         val pending = refreshing.startMemoSearch(search)
 
+        assertEquals(refresh.requestId, refreshing.records.refresh.requestId)
+        assertEquals(RecordsRefreshStatus.Loading, refreshing.records.refresh.status)
         assertTrue(pending.canApplyMemoRefresh(refresh))
         assertTrue(pending.canApplyMemoSearch(search))
         assertFalse(

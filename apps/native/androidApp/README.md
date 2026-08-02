@@ -81,6 +81,8 @@ adapters.
 Shared records screen chrome now owns records/calendar title selection, heading
 layout, refresh gates, and deleted-filter new-record FAB visibility. Android
 supplies localized account/server subtitle text, resources, and Scaffold wiring.
+Refresh orchestration and tests consume `records.refresh` directly, without root
+refresh compatibility getters.
 The shared record list
 derives search/filter/pagination presentation from the records aggregate and owns
 lazy-list composition; Android fills localized On This Day and row adapter slots.

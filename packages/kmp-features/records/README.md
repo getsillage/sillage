@@ -12,7 +12,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
 - `RecordsPaginationStateHolder` owns cursor, single-flight, loading,
   completion, failure, and cancellation transitions for load-more requests.
 - `RecordsRefreshStateHolder` owns snapshot replacement status and request
-  identity independently from pagination.
+  identity independently from pagination. Android refresh orchestration and tests
+  consume it through the records aggregate directly, without root refresh
+  compatibility getters.
 - `RecordsSearchStateHolder` owns query input, results, failure binding,
   completion events, and request identity.
 - Records surface selectors choose list-load and search failure visibility from

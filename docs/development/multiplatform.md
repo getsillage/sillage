@@ -427,7 +427,9 @@ transport DTO conversion.
 
 Records refresh is the second extracted state slice. Its shared holder owns
 loading/failure status and request identity independently from pagination, while
-validating the same query context before replacing the visible snapshot.
+validating the same query context before replacing the visible snapshot. Platform
+refresh orchestration and tests consume it through the records aggregate directly
+rather than host-root refresh accessors.
 
 Records search also crosses an application port: shared callers provide text
 and semantic scope, while local and remote platform adapters own storage or REST

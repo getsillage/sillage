@@ -175,6 +175,11 @@ announcement deduplication while hosts format localized result copy and bridge t
 platform announcement API.
 Its reusable empty/error state owns centered copy, icon treatment, and optional
 action layout while hosts choose localized condition-specific content.
+Its records content surface consumes `RecordsFeatureStateHolder` directly and
+owns list filter/search composition, pull-to-refresh, initial loading and failure
+selection, plus list/calendar body switching. Hosts retain Scaffold/navigation,
+localized resources, accessibility announcement bridges, and locale-aware
+calendar adapters.
 Its record list consumes `RecordsFeatureStateHolder` directly to select published
 search results, filter-specific empty states, On This Day visibility, active/deleted
 row branching, and pagination action state. It owns lazy-list composition while

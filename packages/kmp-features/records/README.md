@@ -73,6 +73,10 @@ announcement deduplication while hosts format localized result copy and bridge t
 platform announcement API.
 Shared records UI also owns reusable empty/error presentation. Hosts retain
 localized resources, icons, and mutation callbacks.
+The shared records content surface consumes this aggregate directly to compose
+list filter/search controls, pull-to-refresh, initial loading and failure states,
+and list/calendar body selection. Hosts provide localized and platform-specific
+presentation slots.
 The shared record list consumes `RecordsFeatureStateHolder` directly for published
 search-result selection, filter-specific empty states, On This Day visibility,
 active/deleted row branching, and pagination action state. Hosts fill localized

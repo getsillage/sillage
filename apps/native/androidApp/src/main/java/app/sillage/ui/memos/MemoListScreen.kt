@@ -2,17 +2,14 @@ package app.sillage.ui.memos
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -29,7 +26,6 @@ import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -40,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
@@ -55,8 +50,6 @@ import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsFeatureStateHolder
-import app.sillage.features.records.shouldShowRecordListLoadFailure
-import app.sillage.features.records.shouldShowRecordSearchFailure
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.data.monthGrid
@@ -67,7 +60,6 @@ import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.completedMemoSearch
-import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
 import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
 import app.sillage.ui.records.SillageCalendarCoverageStrings
@@ -76,15 +68,14 @@ import app.sillage.ui.records.SillageCalendarHeaderStrings
 import app.sillage.ui.records.SillageOnThisDayCard
 import app.sillage.ui.records.SillageOnThisDayStrings
 import app.sillage.ui.records.SillageRecordFilterStrings
-import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordList
 import app.sillage.ui.records.SillageRecordListStrings
 import app.sillage.ui.records.SillageRecordCalendar
 import app.sillage.ui.records.SillageRecordCalendarStrings
-import app.sillage.ui.records.SillageRecordEmptyState
-import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStatus
 import app.sillage.ui.records.SillageRecordSearchStrings
+import app.sillage.ui.records.SillageRecordsContent
+import app.sillage.ui.records.SillageRecordsContentStrings
 import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.records.SillageRecordRowStrings
@@ -109,12 +100,6 @@ internal fun MemoListScreen(
     viewModel: SillageViewModel,
     listState: LazyListState = rememberLazyListState(),
 ) {
-    val showingSearchResults = state.searchQuery.isNotBlank()
-    val visibleMemos = if (showingSearchResults) {
-        state.currentMemoSearchResults().orEmpty()
-    } else {
-        state.memos
-    }
     val today = remember { LocalDate.now().toString() }
     Scaffold(
         topBar = {
@@ -157,85 +142,53 @@ internal fun MemoListScreen(
             MainNavigationBar(state = state, viewModel = viewModel)
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            if (state.memoViewMode == MemoViewMode.List) {
-                        SillageRecordFilterTabs(
-                            state = state.records,
-                            strings = SillageRecordFilterStrings(
-                                unarchived = stringResource(R.string.filter_unarchived),
-                                archived = stringResource(R.string.filter_archived),
-                                favorited = stringResource(R.string.filter_favorited),
-                                deleted = stringResource(R.string.filter_deleted),
-                            ),
-                            onSelect = viewModel::updateMemoListFilter,
-                        )
-                        SillageRecordSearchBar(
-                            state = state.records,
-                            strings = SillageRecordSearchStrings(
-                                label = stringResource(R.string.search_records),
-                                clearContentDescription = stringResource(R.string.search_clear),
-                                searchContentDescription = stringResource(R.string.action_search),
-                            ),
-                            searchIcon = Icons.Rounded.Search,
-                            clearIcon = Icons.Rounded.Close,
-                            onQueryChange = viewModel::updateSearchQuery,
-                            onClear = viewModel::clearSearch,
-                            onSearch = viewModel::searchMemos,
-                        )
-                SearchStatusBlock(state = state)
-            }
-            // Swipe-down-to-refresh is the expected gesture for a manual-sync
-            // feed; the toolbar button stays for accessibility.
-            PullToRefreshBox(
-                isRefreshing = state.memoListLoadStatus == MemoListLoadStatus.Loading,
-                onRefresh = viewModel::refreshMemos,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                if (
-                    (state.loading || state.memoListLoadStatus == MemoListLoadStatus.Loading) &&
-                    visibleMemos.isEmpty()
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else if (state.memoViewMode == MemoViewMode.Calendar) {
-                    CalendarMemoView(state = state, viewModel = viewModel)
-                    } else if (state.records.shouldShowRecordListLoadFailure()) {
-                SillageRecordEmptyState(
-                    text = stringResource(R.string.records_load_failed),
-                    icon = Icons.Rounded.Refresh,
-                    actionLabel = stringResource(R.string.action_retry),
-                    onAction = viewModel::refreshMemos,
+        SillageRecordsContent(
+            state = state.records,
+            initialLoading = state.loading,
+            strings = SillageRecordsContentStrings(
+                filters = SillageRecordFilterStrings(
+                    unarchived = stringResource(R.string.filter_unarchived),
+                    archived = stringResource(R.string.filter_archived),
+                    favorited = stringResource(R.string.filter_favorited),
+                    deleted = stringResource(R.string.filter_deleted),
+                ),
+                search = SillageRecordSearchStrings(
+                    label = stringResource(R.string.search_records),
+                    clearContentDescription = stringResource(R.string.search_clear),
+                    searchContentDescription = stringResource(R.string.action_search),
+                ),
+                loadFailed = stringResource(R.string.records_load_failed),
+                searchFailed = stringResource(R.string.records_search_failed),
+                retry = stringResource(R.string.action_retry),
+            ),
+            searchIcon = Icons.Rounded.Search,
+            clearSearchIcon = Icons.Rounded.Close,
+            refreshIcon = Icons.Rounded.Refresh,
+            onSelectFilter = viewModel::updateMemoListFilter,
+            onQueryChange = viewModel::updateSearchQuery,
+            onClearSearch = viewModel::clearSearch,
+            onSearch = viewModel::searchMemos,
+            onRefresh = viewModel::refreshMemos,
+            searchStatusContent = { SearchStatusBlock(state = state) },
+            calendarContent = { CalendarMemoView(state = state, viewModel = viewModel) },
+            listContent = {
+                MemoListView(
+                    today = today,
+                    recordsState = state.records,
+                    listState = listState,
+                    onLoadMore = viewModel::loadMoreMemos,
+                    onMemoClick = viewModel::openMemoDetail,
+                    onMemoEdit = viewModel::editMemo,
+                    onMemoDuplicate = viewModel::duplicateMemoDraft,
+                    onMemoToggleFavorite = viewModel::toggleMemoFavorited,
+                    onMemoToggleArchive = viewModel::toggleMemoArchived,
+                    onMemoDelete = viewModel::deleteMemo,
+                    onMemoRestore = viewModel::restoreMemo,
+                    onMemoPurge = viewModel::purgeMemo,
                 )
-                    } else if (state.records.shouldShowRecordSearchFailure()) {
-                SillageRecordEmptyState(
-                    text = stringResource(R.string.records_search_failed),
-                    icon = Icons.Rounded.Refresh,
-                    actionLabel = stringResource(R.string.action_retry),
-                    onAction = viewModel::searchMemos,
-                )
-                    } else {
-                        MemoListView(
-                            today = today,
-                            recordsState = state.records,
-                        listState = listState,
-                        onLoadMore = viewModel::loadMoreMemos,
-                        onMemoClick = viewModel::openMemoDetail,
-                        onMemoEdit = viewModel::editMemo,
-                        onMemoDuplicate = viewModel::duplicateMemoDraft,
-                        onMemoToggleFavorite = viewModel::toggleMemoFavorited,
-                        onMemoToggleArchive = viewModel::toggleMemoArchived,
-                        onMemoDelete = viewModel::deleteMemo,
-                        onMemoRestore = viewModel::restoreMemo,
-                        onMemoPurge = viewModel::purgeMemo,
-                        )
-                }
-            }
-        }
+            },
+            modifier = Modifier.padding(padding),
+        )
     }
 }
 

@@ -190,6 +190,11 @@ per-event announcement deduplication. Hosts format localized query/result-count
 copy and bridge the platform announcement API.
 Shared records empty/error presentation owns icon treatment, centered copy, and an
 optional action while Android selects localized copy for each list condition.
+The shared records content surface consumes `RecordsFeatureStateHolder` directly
+and owns list filter/search composition, pull-to-refresh, initial loading and
+failure selection, plus list/calendar body switching. Android retains Scaffold,
+navigation, localized resources, accessibility announcement bridging, and
+locale-aware calendar adapters.
 The shared record list consumes `RecordsFeatureStateHolder` directly to select
 published search results, filter-specific empty states, On This Day visibility,
 active/deleted row branching, and pagination action state. It owns lazy-list

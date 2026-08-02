@@ -11,6 +11,10 @@ published-result presence while owning IME search, progress, clear, and action U
 per-completion announcement deduplication from host-formatted summary copy.
 `SillageRecordEmptyState` owns reusable records empty/error presentation, optional
 icon treatment, and optional action layout.
+`SillageRecordsContent` consumes `RecordsFeatureStateHolder` directly and owns
+list-mode filter/search composition, pull-to-refresh, initial loading, failure
+selection, and list/calendar body switching. Hosts provide localized strings,
+icons, search announcements, locale-aware calendar content, and record-row slots.
 `SillageRecordList` consumes `RecordsFeatureStateHolder` directly and owns search
 result selection, filter-specific empty states, On This Day visibility, lazy-list
 composition, active/deleted row branching, and pagination action presentation.

@@ -192,6 +192,8 @@ Its record detail card owns date/status layout, lifecycle status joining, conten
 separation, and blank-record fallback. Hosts provide localized labels and retain
 platform Markdown/attachment handling in the content slot; the shared status line
 is reusable outside the detail card.
+Its metadata block derives prior-revision count and owns divider/label layout while
+hosts format localized created/updated timestamps and revision plurals.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

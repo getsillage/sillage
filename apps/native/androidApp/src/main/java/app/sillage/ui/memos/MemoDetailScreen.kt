@@ -3,7 +3,6 @@ package app.sillage.ui.memos
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +21,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +52,7 @@ import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 import app.sillage.ui.records.SillageRecordDetailCard
 import app.sillage.ui.records.SillageRecordDetailStrings
+import app.sillage.ui.records.SillageRecordMetadataBlock
 import app.sillage.ui.records.SillageRecordStatusLine
 import app.sillage.ui.records.SillageRecordSummarySection
 import app.sillage.ui.records.SillageRecordSummaryStrings
@@ -224,8 +223,24 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                 )
             }
             item {
-                MemoMetadataBlock(
-                    memo,
+                val updatedTimestamp = localizedTimestamp(memo.updatedAt)
+                SillageRecordMetadataBlock(
+                    memo = memo,
+                    createdLabel = stringResource(
+                        R.string.metadata_created,
+                        localizedTimestamp(memo.createdAt),
+                    ),
+                    updatedLabel = { revisions ->
+                        stringResource(
+                            R.string.metadata_updated,
+                            updatedTimestamp,
+                            pluralStringResource(
+                                R.plurals.quantity_revisions,
+                                revisions,
+                                revisions,
+                            ),
+                        )
+                    },
                     modifier = Modifier
                         .widthIn(max = 720.dp)
                         .fillMaxWidth(),
@@ -242,41 +257,6 @@ internal fun MemoStatusLine(memo: Memo?) {
         favoritedStatus = stringResource(R.string.record_favorited),
         archivedStatus = stringResource(R.string.record_archived),
     )
-}
-
-@Composable
-internal fun MemoMetadataBlock(memo: Memo?, modifier: Modifier = Modifier) {
-    if (memo == null) {
-        return
-    }
-    val created = localizedTimestamp(memo.createdAt)
-    val updated = localizedTimestamp(memo.updatedAt)
-    val revisions = (memo.version - 1).coerceAtLeast(0).toInt()
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        HorizontalDivider(
-            modifier = Modifier.padding(bottom = 8.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-        )
-        Text(
-            stringResource(R.string.metadata_created, created),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall,
-        )
-        if (revisions > 0) {
-            Text(
-                stringResource(
-                    R.string.metadata_updated,
-                    updated,
-                    pluralStringResource(R.plurals.quantity_revisions, revisions, revisions),
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
 }
 
 @Composable

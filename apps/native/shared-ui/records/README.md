@@ -25,6 +25,9 @@ provider/model/source/token metadata layout. Hosts format localized plural label
 content separation, and blank-record fallback while hosts provide localized labels
 and the Markdown/content slot. `SillageRecordStatusLine` reuses the same status
 selection for editor and other host surfaces.
+`SillageRecordMetadataBlock` owns revision-count derivation, divider treatment,
+and created/updated label layout while hosts format localized timestamps and
+revision plurals.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

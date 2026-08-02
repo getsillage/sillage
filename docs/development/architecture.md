@@ -207,6 +207,8 @@ The shared record detail card owns date/status layout, lifecycle status joining,
 content separation, and blank-record fallback. Android provides localized labels
 and keeps Markdown rendering plus protected-attachment opening in its content slot;
 the shared status line is reused by the editor adapter.
+Shared record metadata derives prior-revision count and owns divider/label layout;
+Android formats localized created/updated timestamps and revision plurals.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

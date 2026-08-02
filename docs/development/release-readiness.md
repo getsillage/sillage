@@ -50,6 +50,13 @@ The release commit must have a successful CI run containing every required job c
 - container build, supply-chain inventory, SBOM generation, and vulnerability scan;
 - long-term scale acceptance, isolated backup/restore recovery, and a real latest-stable-to-candidate upgrade plus backup-backed rollback.
 
+The Android application host explicitly packages the shared app shell, design
+system, authentication, records, Ask, settings, and sync UI modules. A release
+candidate must therefore validate the assembled APK rather than treating green
+shared-module tests as sufficient evidence: dependency verification, lint, unit
+tests, both supported-boundary device journeys, bundled notices, and APK build
+must all run against the same commit.
+
 Do not release from a locally green commit that lacks the matching successful remote CI run. Local environment failures may be diagnosed independently, but the release workflow must never waive a required job.
 
 The same commit must contain `.github/release-notes/vX.Y.Z.md`. Candidate notes may explicitly identify unfinished manual evidence while work continues, but Release preflight validates the version metadata, required sections, comparison link, upgrade/rollback language, supported Android boundaries, and absence of pending markers before any image or GitHub Release is published.

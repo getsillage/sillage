@@ -131,6 +131,13 @@ Dependabot runs weekly for Go, npm (`apps/web/`), Gradle (`apps/native/`), Docke
 
 Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
 
+Android third-party notices are generated from the verified Gradle dependency
+graph. JetBrains Compose and JetBrains AndroidX coordinates use the same
+reviewed JetBrains/Kotlin license classification as the other JetBrains runtime
+artifacts; they are not silently omitted from the packaged inventory. Changes
+to this classification must regenerate the checked-in Android notice asset and
+pass the dependency-verification and notice-drift checks before merge.
+
 The main CI workflow also performs CodeQL analysis for Go, JavaScript/TypeScript, and Java/Kotlin. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires all three language jobs on the exact release commit.
 
 Files under `third_party/licenses/` are copied byte-for-byte from upstream packages and are therefore exempt from Sillage's whitespace normalization rule. The notice generator's byte comparison remains authoritative for those files; all project-authored files continue to pass `git diff --check`.

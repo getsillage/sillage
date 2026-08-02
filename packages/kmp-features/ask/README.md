@@ -10,8 +10,8 @@ application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
 one aggregate on root UI state, keeps transitional slice getters only for
-remaining conversation/variant/source/memo-save/session call sites, and routes
-single-holder writes through `withAsk` / aggregate transitions. The Android
+remaining conversation/source/memo-save/session call sites, and routes
+single-holder writes through `withAsk` / aggregate transitions. Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
 
@@ -23,9 +23,11 @@ messages. Its transitions reject cross-conversation messages and stale snapshots
 assistant lookup also live in this module so hosts do not rebuild message-tree
 policy in platform data layers.
 
-`AskVariantStateHolder` owns the single-flight branch-selection request identity.
-It captures screen session, conversation, source mode, and client generation so a
-late response cannot cross a navigation or workspace boundary.
+`AskVariantStateHolder` owns single-flight branch-selection request identity.
+It captures screen session, conversation, source mode, and client generation so
+a late response cannot cross navigation or workspace boundaries. Android
+navigation gates, request orchestration, and tests consume the holder through the
+Ask aggregate directly rather than root variant compatibility getters.
 
 `AskMemoSaveStateHolder` owns the answer-to-record request identity and validates
 the captured answer content, conversation, branch head, screen session, source

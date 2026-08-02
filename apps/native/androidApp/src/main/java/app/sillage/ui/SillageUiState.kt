@@ -193,8 +193,6 @@ data class SillageUiState(
     val activeAskId: String get() = ask.activeConversationId
     val askHeadId: String? get() = ask.headMessageId
     val askMessages: List<AskMessage> get() = ask.messages
-    val askVariantRequestId: Long get() = ask.variant.requestId
-    val askVariantLoading: Boolean get() = ask.variantLoading
     val askMemoSaveRequestId: Long get() = ask.memoSave.requestId
     val askSavingMessageId: String get() = ask.savingMessageId
     val askSourceRequestId: Long get() = ask.sourceNavigation.requestId
@@ -1040,7 +1038,7 @@ internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamCont
     conversationId = activeAskId,
     appMode = appMode,
     clientContextGeneration = clientContextGeneration,
-    anotherRequestInProgress = ask.loading || askVariantLoading || askSourceLoading,
+    anotherRequestInProgress = ask.loading || ask.variant.loading || askSourceLoading,
 )
 
 internal fun SillageUiState.nextAskStreamRequest(): AskStreamRequest? {
@@ -1100,7 +1098,7 @@ internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Bool
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
     destinationAvailable = screen == Screen.Ask,
     anotherRequestInProgress =
-        loading || ask.loading || askSending || askVariantLoading || askSourceLoading,
+        loading || ask.loading || askSending || ask.variant.loading || askSourceLoading,
     screenSessionId = askScreenSessionId,
     conversationId = activeAskId,
     headMessageId = askHeadId,
@@ -1136,7 +1134,7 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
         destinationKey = screen.name,
         destinationAvailable = screen == Screen.Ask,
         historyKeys = screenHistory.map(Screen::name),
-        anotherRequestInProgress = loading || askSending || askVariantLoading,
+        anotherRequestInProgress = loading || askSending || ask.variant.loading,
         screenSessionId = askScreenSessionId,
         conversationId = activeAskId,
         appMode = appMode,

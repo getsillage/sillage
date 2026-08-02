@@ -17,7 +17,7 @@ import app.sillage.ui.designsystem.SillageNavigationItem
 
 @Composable
 internal fun MainNavigationBar(state: SillageUiState, viewModel: SillageViewModel) {
-    val enabled = !state.askVariantLoading
+    val enabled = !state.ask.variant.loading
 
     SillageNavigationBar {
         SillageNavigationItem(

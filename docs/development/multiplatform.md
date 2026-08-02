@@ -324,7 +324,8 @@ for the former top-level Ask holders. Persistence, SSE, and device-local AI
 execution remain platform adapters.
 `AskVariantStateHolder` also owns branch-selection single-flight identity and
 validates screen session, conversation, source mode, and client generation before
-accepting completion.
+accepting completion. Platform navigation gates and request orchestration read it
+through the Ask aggregate directly rather than host-root variant accessors.
 `AskMemoSaveStateHolder` similarly owns answer-to-record request identity and
 rejects completion after answer content, branch head, navigation session, source,
 or client context changes. Record persistence still crosses the records

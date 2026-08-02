@@ -1450,8 +1450,8 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskVariant(
-        requestId: Long = askVariantRequestId,
-        loading: Boolean = askVariantLoading,
+        requestId: Long = ask.variant.requestId,
+        loading: Boolean = ask.variant.loading,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             variant = AskVariantStateHolder(

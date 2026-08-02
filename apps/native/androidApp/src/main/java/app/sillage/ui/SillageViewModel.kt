@@ -504,7 +504,7 @@ class SillageViewModel(
     }
 
     fun openAISettings() {
-        if (state.value.askVariantLoading) {
+        if (state.value.ask.variant.loading) {
             return
         }
         cancelMemoSummary()
@@ -525,13 +525,13 @@ class SillageViewModel(
 
     fun openAsk() {
         val current = state.value
-        val reloadConversations = !current.ask.loading && !current.askSending && !current.askVariantLoading
+        val reloadConversations = !current.ask.loading && !current.askSending && !current.ask.variant.loading
         cancelMemoSummary()
         cancelAttachmentOpen()
         updateState {
             it.withAsk { ask ->
                 ask.enterScreen(
-                    requestInFlight = it.ask.loading || it.askSending || it.askVariantLoading,
+                    requestInFlight = it.ask.loading || it.askSending || it.ask.variant.loading,
                 )
             }.copy(
                 screen = Screen.Ask,
@@ -1328,7 +1328,7 @@ class SillageViewModel(
     }
 
     fun updateMemoViewMode(mode: MemoViewMode) {
-        if (state.value.askVariantLoading) {
+        if (state.value.ask.variant.loading) {
             return
         }
         cancelMemoSummary()
@@ -1356,7 +1356,7 @@ class SillageViewModel(
         if (!current.shouldReturnToRecordsOnBack()) {
             return
         }
-        if (current.askVariantLoading) {
+        if (current.ask.variant.loading) {
             updateState(forceFeedback = true, noticeType = UiToastType.WARNING) {
                 it.copy(
                     error = null,
@@ -1369,7 +1369,7 @@ class SillageViewModel(
     }
 
     fun updateMemoListFilter(filter: MemoListFilter) {
-        if (state.value.memoListFilter == filter || state.value.askVariantLoading) {
+        if (state.value.memoListFilter == filter || state.value.ask.variant.loading) {
             return
         }
         searchJob?.cancel()
@@ -2483,7 +2483,7 @@ class SillageViewModel(
         if (
             requestState.ask.loading ||
             requestState.askSending ||
-            requestState.askVariantLoading ||
+            requestState.ask.variant.loading ||
             requestState.askSavingMessageId.isNotBlank()
         ) {
             return
@@ -2496,7 +2496,7 @@ class SillageViewModel(
             if (
                 !current.ask.loading &&
                 !current.askSending &&
-                !current.askVariantLoading &&
+                !current.ask.variant.loading &&
                 current.askSavingMessageId.isBlank() &&
                 current.askScreenSessionId == screenSessionId &&
                 current.appMode == appMode &&
@@ -2563,7 +2563,7 @@ class SillageViewModel(
         if (
             current.ask.loading ||
             current.askSending ||
-            current.askVariantLoading ||
+            current.ask.variant.loading ||
             current.askSourceLoading ||
             id.isBlank()
         ) {
@@ -2581,7 +2581,7 @@ class SillageViewModel(
                 latest.askScreenSessionId == current.askScreenSessionId &&
                 !latest.ask.loading &&
                 !latest.askSending &&
-                !latest.askVariantLoading &&
+                !latest.ask.variant.loading &&
                 !latest.askSourceLoading
             ) {
                 started = true
@@ -2654,7 +2654,7 @@ class SillageViewModel(
         if (
             state.value.ask.loading ||
             state.value.askSending ||
-            state.value.askVariantLoading ||
+            state.value.ask.variant.loading ||
             state.value.askSourceLoading
         ) {
             return
@@ -2701,7 +2701,7 @@ class SillageViewModel(
 
     fun regenerateAskAnswer(messageId: String) {
         val conversationId = state.value.activeAskId
-        if (conversationId.isBlank() || state.value.askSending || state.value.askVariantLoading) {
+        if (conversationId.isBlank() || state.value.askSending || state.value.ask.variant.loading) {
             return
         }
         startAskStream(content = "", forkOfId = messageId)

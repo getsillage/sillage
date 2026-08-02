@@ -342,9 +342,11 @@ changes without enlarging a global ViewModel. Android's root
 for the former top-level Ask holders. Android routes pure Ask mutations through
 `withAsk`, with thin composer and source-navigation wrappers at the root-state
 boundary, while persistence and streaming stay outside the feature module.
-The same module's `AskVariantStateHolder` owns branch-selection request identity;
+The module's `AskVariantStateHolder` owns branch-selection request identity.
 Android supplies navigation and client context, then applies completion only when
-the shared holder still owns that request.
+the shared holder still owns the request. Navigation gates and request
+orchestration consume the holder through the Ask aggregate directly, without
+root-state variant accessors.
 `AskMemoSaveStateHolder` applies the same rule to answer-to-record requests and
 also captures source answer content and branch-head identity. It delegates the
 actual record creation to the records application boundary.

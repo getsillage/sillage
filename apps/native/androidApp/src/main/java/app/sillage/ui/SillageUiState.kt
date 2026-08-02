@@ -3,17 +3,14 @@ package app.sillage.ui
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.domain.ask.AskMessage
 import app.sillage.features.ask.AskFeatureStateHolder
-import app.sillage.features.ask.AskLoadStateHolder
 import app.sillage.features.ask.AskMemoSaveContext
 import app.sillage.features.ask.AskMemoSaveRequest
 import app.sillage.features.ask.AskSourceNavigationContext
 import app.sillage.features.ask.AskSourceNavigationRequest
-import app.sillage.features.ask.AskSourceNavigationStateHolder
 import app.sillage.features.ask.AskStreamContext
 import app.sillage.features.ask.AskStreamRequest
 import app.sillage.features.ask.AskVariantContext
 import app.sillage.features.ask.AskVariantRequest
-import app.sillage.features.ask.AskVariantStateHolder
 import app.sillage.features.auth.AuthFeatureStateHolder
 import app.sillage.features.auth.AuthenticationStateHolder
 import app.sillage.features.auth.PasswordChangeContext
@@ -124,7 +121,7 @@ data class SillageUiState(
         get() = appearance.languageMode
 
     // Transitional slice accessors while hosts finish moving writes onto the
-    // aggregate records/ask/settings/sync holders. Prefer the aggregates for
+    // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
     val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsPagination: RecordsPaginationStateHolder get() = records.pagination
@@ -136,9 +133,6 @@ data class SillageUiState(
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
-    val askLoad: AskLoadStateHolder get() = ask.load
-    val askVariant: AskVariantStateHolder get() = ask.variant
-    val askSourceNavigation: AskSourceNavigationStateHolder get() = ask.sourceNavigation
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
     val aiSettingsLoad: AISettingsLoadStateHolder get() = settings.load
@@ -1064,11 +1058,11 @@ internal fun SillageUiState.askVariantContext(): AskVariantContext = AskVariantC
 )
 
 internal fun SillageUiState.nextAskVariantRequest(): AskVariantRequest? {
-    return askVariant.nextRequest(askVariantContext())
+    return ask.variant.nextRequest(askVariantContext())
 }
 
 internal fun SillageUiState.canApplyAskVariant(request: AskVariantRequest): Boolean {
-    return askVariant.canApply(request, askVariantContext())
+    return ask.variant.canApply(request, askVariantContext())
 }
 
 internal fun SillageUiState.askMemoSaveContext(): AskMemoSaveContext = AskMemoSaveContext(
@@ -1124,19 +1118,19 @@ internal fun SillageUiState.askSourceNavigationContext(): AskSourceNavigationCon
 internal fun SillageUiState.nextAskSourceNavigationRequest(
     memoId: String,
 ): AskSourceNavigationRequest? {
-    return askSourceNavigation.nextRequest(memoId, askSourceNavigationContext())
+    return ask.sourceNavigation.nextRequest(memoId, askSourceNavigationContext())
 }
 
 internal fun SillageUiState.canApplyAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): Boolean {
-    return askSourceNavigation.canApply(request, askSourceNavigationContext())
+    return ask.sourceNavigation.canApply(request, askSourceNavigationContext())
 }
 
 internal fun SillageUiState.startAskSourceNavigation(
     request: AskSourceNavigationRequest,
 ): SillageUiState {
-    val pending = askSourceNavigation.begin(request, askSourceNavigationContext())
+    val pending = ask.sourceNavigation.begin(request, askSourceNavigationContext())
         ?: return this
     return withAsk { it.beginSourceNavigation(pending) }.copy(
         error = null,

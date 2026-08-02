@@ -9,9 +9,9 @@ composition starts, conversation selection/load completion, variant head
 application, stream begin/delta/finish, composer updates,
 memo-save/source-navigation ownership, active snapshot replacement, and catalog
 clearing. Individual holders remain the unit of request identity. Android stores
-one aggregate on root UI state, keeps transitional slice getters only inside thin
-root transition wrappers, and routes single-holder writes through `withAsk` /
-aggregate transitions. Android
+one aggregate on root UI state and exposes no transitional Ask slice getters.
+Thin root transition wrappers read holders through the aggregate directly and
+route single-holder writes through `withAsk` / aggregate transitions. Android
 provides thin composer and source-navigation wrappers so platform callbacks do
 not replace nested Ask slices directly.
 

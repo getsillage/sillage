@@ -2732,7 +2732,7 @@ class SillageViewModel(
         val previousHeadId = current.ask.conversation.headMessageId
         updateState {
             if (it.nextAskVariantRequest() == request) {
-                val variant = it.askVariant.begin(request, it.askVariantContext())
+                val variant = it.ask.variant.begin(request, it.askVariantContext())
                     ?: return@updateState it
                 it.withAsk { ask ->
                     ask.applyVariantHead(
@@ -3118,7 +3118,7 @@ class SillageViewModel(
     private fun completeAskVariantSelection(request: AskVariantRequest, leafId: String) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
-                val variant = current.askVariant.finish(request, current.askVariantContext())
+                val variant = current.ask.variant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.withAsk { ask ->
                     ask.applyVariantHead(
@@ -3142,7 +3142,7 @@ class SillageViewModel(
     ) {
         updateState { current ->
             if (current.canApplyAskVariant(request)) {
-                val variant = current.askVariant.finish(request, current.askVariantContext())
+                val variant = current.ask.variant.finish(request, current.askVariantContext())
                     ?: return@updateState current
                 current.withAsk { ask ->
                     ask.applyVariantHead(

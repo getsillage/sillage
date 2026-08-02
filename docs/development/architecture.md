@@ -340,8 +340,8 @@ blank-composition starts, conversation load transitions, variant-head
 application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android also composes
 records/settings/ask clears through `clearClientWorkspace` for client-context
 changes without enlarging a global ViewModel. Android's root
-`SillageUiState` stores one `ask` aggregate value with transitional slice getters
-for the former top-level Ask holders. Android routes pure Ask mutations through
+`SillageUiState` stores one `ask` aggregate value and exposes no transitional Ask
+slice getters. Android routes pure Ask mutations through
 `withAsk`, with thin composer and source-navigation wrappers at the root-state
 boundary, while persistence and streaming stay outside the feature module.
 The module's `AskVariantStateHolder` owns branch-selection request identity.

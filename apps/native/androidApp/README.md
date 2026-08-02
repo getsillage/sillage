@@ -221,6 +221,8 @@ shared projections in its ViewModel and Compose host.
 The question draft and retrieval scope/source options live in the shared
 `AskComposerStateHolder`. Android ViewModel and tests consume `ask.composer`
 directly, without root composer compatibility getters.
+The root UI state exposes the Ask aggregate without transitional holder aliases;
+thin transition wrappers also read nested holders through that aggregate.
 The buildable `shared-ui:ask` module consumes that aggregate directly for the
 retrieval-range/source option sheet and selected-chip presentation. Android
 supplies localized strings and routes option changes to the ViewModel.

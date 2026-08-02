@@ -321,8 +321,9 @@ extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
 application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android's root
-`SillageUiState` stores one `ask` aggregate field with transitional slice getters
-for the former top-level Ask holders. Persistence, SSE, and device-local AI
+`SillageUiState` stores one `ask` aggregate field without transitional Ask slice
+getters. Thin root transition wrappers also read nested holders through the
+aggregate directly. Persistence, SSE, and device-local AI
 execution remain platform adapters.
 `AskVariantStateHolder` also owns branch-selection single-flight identity and
 validates screen session, conversation, source mode, and client generation before

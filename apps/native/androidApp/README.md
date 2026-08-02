@@ -193,6 +193,9 @@ Conversation/message loading and its retry message also live in the shared
 `AskLoadStateHolder`.
 The question draft and retrieval scope/source options live in the shared
 `AskComposerStateHolder`.
+The buildable `shared-ui:ask` module consumes that aggregate directly for the
+retrieval-range/source option sheet and selected-chip presentation. Android
+supplies localized strings and routes option changes to the ViewModel.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

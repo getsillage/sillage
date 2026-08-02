@@ -243,6 +243,12 @@ Its on-this-day card consumes record entries plus the host date, owns anniversar
 calculation, excerpts, dividers, and selection, and leaves localized plural
 formatting, the icon, and navigation to hosts.
 
+The buildable `shared-ui:ask` module consumes `AskFeatureStateHolder` directly.
+Its first slice owns retrieval-range/source selection, selected chip state,
+bottom-sheet layout, and heading semantics. Hosts supply localized strings and
+route feature callbacks while retaining streaming, Markdown, navigation, and
+platform integrations.
+
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature
 aggregate composed by Android root state; `AuthenticationStateHolder` performs

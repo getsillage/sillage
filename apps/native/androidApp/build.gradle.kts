@@ -84,6 +84,7 @@ dependencies {
     implementation(project(":kmp-features:settings"))
     implementation(project(":kmp-features:sync"))
     implementation(project(":shared-ui:app-shell"))
+    implementation(project(":shared-ui:ask"))
     implementation(project(":shared-ui:auth"))
     implementation(project(":shared-ui:design-system"))
     implementation(project(":shared-ui:records"))

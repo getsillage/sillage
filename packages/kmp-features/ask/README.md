@@ -51,3 +51,7 @@ composer draft implicitly.
 
 `AskSessionStateHolder` provides the monotonic screen generation used by all Ask
 request holders to reject callbacks after navigation or client-context changes.
+
+The buildable `shared-ui:ask` module consumes `AskFeatureStateHolder` directly.
+Its first slice owns retrieval-range/source option selection and bottom-sheet
+presentation while hosts provide localized strings and route aggregate updates.

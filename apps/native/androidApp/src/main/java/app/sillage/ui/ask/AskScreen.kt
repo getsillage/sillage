@@ -1,7 +1,6 @@
 package app.sillage.ui.ask
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,7 +43,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -178,11 +175,22 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         )
     }
     if (showOptions) {
-        AskOptionsSheet(
-            state = state,
-            viewModel = viewModel,
+        SillageAskOptionsSheet(
+            state = state.ask,
             enabled = contextControlsEnabled,
+            strings = SillageAskOptionsStrings(
+                title = stringResource(R.string.ask_context_title),
+                timeRangeLabel = stringResource(R.string.ask_time_range),
+                recentSevenDaysAction = stringResource(R.string.ask_scope_7_days_short),
+                recentThirtyDaysAction = stringResource(R.string.ask_scope_30_days_short),
+                allTimeAction = stringResource(R.string.ask_scope_all_short),
+                sourceLabel = stringResource(R.string.ask_source_title),
+                recordsSourceAction = stringResource(R.string.ask_source_records),
+                summariesSourceAction = stringResource(R.string.ask_source_summaries),
+            ),
             onDismiss = { showOptions = false },
+            onContextScopeChange = viewModel::updateAskScope,
+            onSourceKindChange = viewModel::updateAskSourceKind,
         )
     }
     Scaffold(
@@ -572,93 +580,6 @@ private fun AskConversationSheet(
             Spacer(modifier = Modifier.height(4.dp))
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AskOptionsSheet(
-    state: SillageUiState,
-    viewModel: SillageViewModel,
-    enabled: Boolean,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                stringResource(R.string.ask_context_title),
-                modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            AskOptions(state, viewModel, enabled)
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-    }
-}
-
-@Composable
-private fun AskOptions(
-    state: SillageUiState,
-    viewModel: SillageViewModel,
-    enabled: Boolean,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            stringResource(R.string.ask_time_range),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            AskOptionButton(stringResource(R.string.ask_scope_7_days_short), state.askScope == "recent_7_days", enabled) {
-                viewModel.updateAskScope("recent_7_days")
-            }
-            AskOptionButton(stringResource(R.string.ask_scope_30_days_short), state.askScope == "recent_30_days", enabled) {
-                viewModel.updateAskScope("recent_30_days")
-            }
-            AskOptionButton(stringResource(R.string.ask_scope_all_short), state.askScope == "all", enabled) {
-                viewModel.updateAskScope("all")
-            }
-        }
-        Text(
-            stringResource(R.string.ask_source_title),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            AskOptionButton(stringResource(R.string.ask_source_records), state.askSourceKind == "records", enabled) {
-                viewModel.updateAskSourceKind("records")
-            }
-            AskOptionButton(stringResource(R.string.ask_source_summaries), state.askSourceKind == "summaries", enabled) {
-                viewModel.updateAskSourceKind("summaries")
-            }
-        }
-    }
-}
-
-@Composable
-private fun AskOptionButton(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        enabled = enabled,
-        label = { Text(label) },
-    )
 }
 
 @Composable

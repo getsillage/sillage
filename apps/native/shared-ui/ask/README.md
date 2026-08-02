@@ -44,5 +44,9 @@ message action gates. Hosts fill localized error, prompt, message, and live slot
 following, streamed-answer growth scrolling, and rendered-item counting. Hosts
 provide the shared list state while platform announcement bridges remain outside.
 
+`SillageAskTopBarTitle` and `SillageAskTopBarActions` own title/context layout,
+saving progress semantics, Material action layout, and aggregate-derived gates.
+Hosts provide localized strings/icons and retain the actual top-app-bar shell.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

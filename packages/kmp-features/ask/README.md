@@ -82,3 +82,6 @@ per-message action gates while hosts fill localized content slots.
 Shared Ask auto-follow consumes the same aggregate and path projections to own
 drag suspension, near-bottom reactivation, new-turn/stream growth scrolling, and
 rendered-item counts without moving platform announcement APIs into the feature.
+Shared Ask top-bar title/actions consume the aggregate to own context
+presentation, saving progress semantics, button layout, and request gates while
+hosts retain the app-bar shell and map localized resources/icons.

@@ -1,16 +1,12 @@
 package app.sillage.ui.ask
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
@@ -25,13 +21,8 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,15 +31,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.features.ask.AskPathEntry
 import app.sillage.data.MarkdownLinkTarget
@@ -61,7 +47,6 @@ import app.sillage.ui.designsystem.SillageErrorCard
 import app.sillage.ui.memos.MarkdownContent
 import app.sillage.ui.localizedDate
 import app.sillage.ui.navigation.MainNavigationBar
-import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +62,17 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         recordsSource = stringResource(R.string.ask_source_records),
         summariesSource = stringResource(R.string.ask_source_summaries),
     )
+    val topBarStrings = SillageAskTopBarStrings(
+        title = stringResource(R.string.ask_title),
+        savingContentDescription = stringResource(R.string.action_saving),
+        conversationsContentDescription = stringResource(
+            R.string.ask_conversations_description,
+        ),
+        contextContentDescription = stringResource(R.string.ask_context_description),
+        newConversationContentDescription = stringResource(
+            R.string.ask_new_conversation_description,
+        ),
+    )
     var observedCompletionEventId by remember(state.askScreenSessionId) {
         mutableLongStateOf(state.askCompletionEventId)
     }
@@ -87,10 +83,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val latestAssistantId = remember(entries) {
         lastAssistantMessageId(entries)
     }
-    val contextControlsEnabled = !state.askLoading &&
-        !state.askSending &&
-        !state.askVariantLoading &&
-        !state.askSourceLoading
+    val contextControlsEnabled = sillageAskContextControlsEnabled(state.ask)
     SillageAskAutoFollow(
         state = state.ask,
         entries = entries,
@@ -146,67 +139,30 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(R.string.ask_title),
-                        modifier = Modifier.semantics { applySillageHeadingSemantics() },
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                SillageAskContextLabel(
-                                    state = state.ask,
-                                    strings = contextStrings,
-                                    contextSummary = { scope, source ->
-                                        stringResource(R.string.ask_record_context_summary, scope, source)
-                                    },
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                            if (state.askSavingMessageId.isNotBlank()) {
-                                val savingDescription = stringResource(R.string.action_saving)
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .semantics { contentDescription = savingDescription },
-                                    strokeWidth = 2.dp,
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showConversations = true },
-                        enabled = contextControlsEnabled,
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.List, contentDescription = stringResource(R.string.ask_conversations_description))
-                    }
-                    IconButton(
-                        onClick = { showOptions = true },
-                        enabled = contextControlsEnabled,
-                    ) {
-                        Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.ask_context_description))
-                    }
-                    IconButton(
-                        onClick = viewModel::startNewAsk,
-                        enabled = contextControlsEnabled,
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ask_new_conversation_description))
-                    }
-                },
+                    title = {
+                        SillageAskTopBarTitle(
+                            state = state.ask,
+                            strings = topBarStrings,
+                            contextStrings = contextStrings,
+                            contextSummary = { scope, source ->
+                                stringResource(R.string.ask_record_context_summary, scope, source)
+                            },
+                        )
+                    },
+                    actions = {
+                        SillageAskTopBarActions(
+                            state = state.ask,
+                            strings = topBarStrings,
+                            icons = SillageAskTopBarIcons(
+                                conversations = Icons.AutoMirrored.Rounded.List,
+                                context = Icons.Rounded.Tune,
+                                newConversation = Icons.Rounded.Add,
+                            ),
+                            onShowConversations = { showConversations = true },
+                            onShowContext = { showOptions = true },
+                            onNewConversation = viewModel::startNewAsk,
+                        )
+                    },
             )
         },
         bottomBar = {

@@ -274,6 +274,9 @@ navigation, and platform announcement bridges.
 Its auto-follow behavior owns drag suspension, near-bottom reactivation,
 new-turn following, streamed-answer growth scrolling, and rendered-item counts;
 hosts retain platform completion-announcement bridges.
+Its top-bar title/actions own context presentation, saving progress semantics,
+Material action layout, and aggregate request gates; hosts provide localized
+resources/icons and retain the top-app-bar/Scaffold shell.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

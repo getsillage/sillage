@@ -211,6 +211,9 @@ Scaffold, TopAppBar, navigation, and platform accessibility announcements.
 Shared Ask auto-follow owns drag suspension, near-bottom reactivation, new-turn
 following, streamed-answer growth scrolling, and rendered-item counting. Android
 retains the completion-event bridge to `View.announceForAccessibility`.
+Shared Ask top-bar title/actions own title/context layout, saving progress
+semantics, action-button layout, and aggregate request gates. Android maps
+localized resources/icons and retains `TopAppBar`, Scaffold, and navigation.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

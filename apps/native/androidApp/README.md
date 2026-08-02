@@ -226,6 +226,9 @@ Scaffold, top bar, navigation, and accessibility announcements.
 Shared Ask auto-follow now owns drag suspension, near-bottom reactivation,
 new-turn following, streamed-answer growth scrolling, and rendered-item counts.
 Android retains only the completion announcement bridge to the platform view.
+Shared Ask top-bar title/actions own context presentation, saving progress
+semantics, button layout, and aggregate request gates. Android supplies localized
+resources/icons and retains Material `TopAppBar`, Scaffold, and navigation.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

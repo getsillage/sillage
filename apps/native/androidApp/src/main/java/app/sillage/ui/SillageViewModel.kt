@@ -345,18 +345,20 @@ class SillageViewModel(
     // not lose unsaved text.
     private fun persistEditorDraft(before: SillageUiState, after: SillageUiState) {
         val handle = savedStateHandle ?: return
-        val draftActive = after.screen == Screen.Editor && after.draftContent.isNotBlank()
-        val wasActive = before.screen == Screen.Editor && before.draftContent.isNotBlank()
+        val draftActive =
+            after.screen == Screen.Editor && after.records.editor.draftContent.isNotBlank()
+        val wasActive =
+            before.screen == Screen.Editor && before.records.editor.draftContent.isNotBlank()
         if (draftActive) {
             if (
-                before.draftContent != after.draftContent ||
-                before.draftEntryDate != after.draftEntryDate ||
+                before.records.editor.draftContent != after.records.editor.draftContent ||
+                before.records.editor.draftEntryDate != after.records.editor.draftEntryDate ||
                 before.records.selection.selectedMemo?.id !=
                     after.records.selection.selectedMemo?.id ||
                 !wasActive
             ) {
-                handle[KEY_SAVED_DRAFT_CONTENT] = after.draftContent
-                handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.draftEntryDate
+                handle[KEY_SAVED_DRAFT_CONTENT] = after.records.editor.draftContent
+                handle[KEY_SAVED_DRAFT_ENTRY_DATE] = after.records.editor.draftEntryDate
                 handle[KEY_SAVED_EDITING_MEMO_ID] =
                     after.records.selection.selectedMemo?.id.orEmpty()
             }
@@ -1407,13 +1409,13 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        if (current.draftContent.isBlank()) {
+        if (current.records.editor.draftContent.isBlank()) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_record_empty))
             }
             return
         }
-        if (runCatching { LocalDate.parse(current.draftEntryDate.trim()) }.isFailure) {
+        if (runCatching { LocalDate.parse(current.records.editor.draftEntryDate.trim()) }.isFailure) {
             updateState(forceFeedback = true) {
                 it.copy(error = uiString(R.string.error_entry_date_invalid))
             }
@@ -1427,15 +1429,15 @@ class SillageViewModel(
                 MemoMutationKey.Memo(it.id, current.clientContextGeneration)
             }
                 ?: MemoMutationKey.Editor(
-                    sessionId = current.editorSessionId,
+                    sessionId = current.records.editor.sessionId,
                     clientContextGeneration = current.clientContextGeneration,
                 ),
             memoId = selectedMemo?.id,
             useGlobalBusy = selectedMemo == null,
         ) {
             val draft = RecordDraft(
-                content = current.draftContent.trim(),
-                entryDate = current.draftEntryDate.trim(),
+                content = current.records.editor.draftContent.trim(),
+                entryDate = current.records.editor.draftEntryDate.trim(),
             )
             val command = if (selectedMemo == null) {
                 SaveRecordCommand.Create(draft)
@@ -1494,7 +1496,7 @@ class SillageViewModel(
         cancelAttachmentOpen()
         val originScreen = current.screen
         val originHistory = current.screenHistory
-        val originEditorSessionId = current.editorSessionId
+        val originEditorSessionId = current.records.editor.sessionId
         val originDetailRequestId = current.records.selection.detailRequestId
         launchMemoMutation(
             MemoMutationKey.Memo(memo.id, current.clientContextGeneration),
@@ -1514,7 +1516,7 @@ class SillageViewModel(
                     it.screenHistory == originHistory &&
                     it.records.selection.selectedMemo?.id == memo.id &&
                     when (originScreen) {
-                        Screen.Editor -> it.editorSessionId == originEditorSessionId
+                        Screen.Editor -> it.records.editor.sessionId == originEditorSessionId
                         Screen.MemoDetail ->
                             it.records.selection.detailRequestId == originDetailRequestId
                         else -> true
@@ -1809,10 +1811,10 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        val editorSessionId = current.editorSessionId
+        val editorSessionId = current.records.editor.sessionId
         val offline = isOfflineMode()
         updateState {
-            if (it.editorSessionId == editorSessionId && it.canRunMemoEditorAction()) {
+            if (it.records.editor.sessionId == editorSessionId && it.canRunMemoEditorAction()) {
                 val records = it.records.beginEditorAttachmentUpload(editorSessionId)
                     ?: return@updateState it
                 it.copy(
@@ -3368,15 +3370,15 @@ class SillageViewModel(
                 if (current.screen != Screen.Editor) {
                     return@updateState current
                 }
-                var draft = current.draftContent
+                var draft = current.records.editor.draftContent
                 draftRewrites.forEach { (from, to) ->
                     if (draft.contains(from)) {
                         draft = draft.replace(from, to)
                     }
                 }
-            if (draft == current.draftContent) {
-                current
-            } else {
+                if (draft == current.records.editor.draftContent) {
+                    current
+                } else {
                     current.withRecords { records -> records.updateEditorContent(draft) }
                 }
             }
@@ -3805,18 +3807,18 @@ class SillageViewModel(
                         loading = if (
                             useGlobalBusy &&
                             key is MemoMutationKey.Editor &&
-                                    current.editorSessionId == key.sessionId
-                                ) {
-                                    false
-                                } else {
-                                    current.loading
-                                },
-                    )
+                            current.records.editor.sessionId == key.sessionId
+                        ) {
+                            false
                         } else {
-                            current
-                        }
-                    }
-                },
+                            current.loading
+                        },
+                    )
+                } else {
+                    current
+                }
+            }
+        },
             ) {
                 block()
             }

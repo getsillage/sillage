@@ -82,9 +82,10 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
         viewModel.uploadAttachments(uris)
     }
     if (showDatePicker) {
-        val initialMillis = runCatching { LocalDate.parse(state.draftEntryDate.trim()) }
-            .getOrElse { LocalDate.now() }
-            .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val initialMillis =
+            runCatching { LocalDate.parse(state.records.editor.draftEntryDate.trim()) }
+                .getOrElse { LocalDate.now() }
+                .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -199,10 +200,10 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             onAddAttachment = { attachmentLauncher.launch("*/*") },
             editorContent = { editorModifier, editorHeight, actionsEnabled ->
                 MarkdownEditorSection(
-                    content = state.draftContent,
+                    content = state.records.editor.draftContent,
                     baseUrl = state.baseUrl,
                     openingAttachmentPath = state.records.attachmentOpen.path,
-                    preview = state.markdownPreview,
+                    preview = state.records.editor.markdownPreview,
                     enabled = actionsEnabled,
                     onContentChange = viewModel::updateDraftContent,
                     onPreviewChange = viewModel::updateMarkdownPreview,

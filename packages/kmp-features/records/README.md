@@ -33,7 +33,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   save paths, and tests consume it through the records aggregate directly, without
   root summary compatibility getters.
 - `RecordsEditorStateHolder` owns editor sessions, draft and initial snapshots,
-  dirty state, Markdown preview, and attachment-upload request ownership.
+  dirty state, Markdown preview, and attachment-upload request ownership. Android
+  orchestration, draft persistence, upload gates, and tests consume the holder
+  through the records aggregate directly, without root editor compatibility getters.
 - `RecordsEditorActionPolicy` combines editor, selection, and mutation state with
   host destination/operation context to decide unsaved-draft and Back-blocking
   behavior; hosts map its reason to localized feedback.

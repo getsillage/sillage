@@ -396,9 +396,9 @@ class SillageUiStateTest {
                 .appendEditorFormattedSnippet("**bold**")
         }
 
-        assertEquals("draft **bold**", updated.draftContent)
-        assertEquals("2026-08-02", updated.draftEntryDate)
-        assertFalse(updated.markdownPreview)
+        assertEquals("draft **bold**", updated.records.editor.draftContent)
+        assertEquals("2026-08-02", updated.records.editor.draftEntryDate)
+        assertFalse(updated.records.editor.markdownPreview)
         assertEquals("keep", updated.error)
         assertEquals(state.screen, updated.screen)
     }

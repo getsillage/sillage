@@ -114,7 +114,6 @@ data class SillageUiState(
     // Transitional slice accessors while hosts finish moving writes onto the
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
-    val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
     val aiProfilesMutation: AIProfilesMutationStateHolder get() = settings.profilesMutation
     val aiAutoSummaryState: AIAutoSummaryStateHolder get() = settings.autoSummary
@@ -122,13 +121,6 @@ data class SillageUiState(
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
 
-    val uploadingAttachment: Boolean get() = records.editor.uploadingAttachment
-    val editorSessionId: Long get() = records.editor.sessionId
-    val draftContent: String get() = records.editor.draftContent
-    val draftEntryDate: String get() = records.editor.draftEntryDate
-    val initialDraftContent: String get() = records.editor.initialDraftContent
-    val initialDraftEntryDate: String get() = records.editor.initialDraftEntryDate
-    val markdownPreview: Boolean get() = records.editor.markdownPreview
     val memoViewMode: MemoViewMode get() = records.browse.viewMode
     val memoListFilter: MemoListFilter get() = records.browse.filter
     val calendarYear: Int get() = records.browse.calendarYear
@@ -418,7 +410,7 @@ private fun SillageUiState.passwordChangeContext(): PasswordChangeContext {
 }
 
 internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
-    return screen == Screen.Editor && recordsEditor.canApplyAttachmentUpload(sessionId)
+    return screen == Screen.Editor && records.editor.canApplyAttachmentUpload(sessionId)
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
@@ -463,7 +455,7 @@ private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
         destinationKey = screen.name,
-        destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
+        destinationGeneration = if (screen == Screen.Editor) records.editor.sessionId else 0,
         cacheGeneration = records.collection.cacheGeneration,
         detailAvailable = detailAvailable,
     )
@@ -522,7 +514,7 @@ private fun SillageUiState.recordsSummaryContext(): RecordsSummaryContext {
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
         destinationKey = screen.name,
-        destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
+        destinationGeneration = if (screen == Screen.Editor) records.editor.sessionId else 0,
         detailRequestId = records.selection.detailRequestId,
         summaryAvailable = screen == Screen.MemoDetail || screen == Screen.Editor,
     )

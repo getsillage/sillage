@@ -498,7 +498,9 @@ localized feedback, while orchestration state, save paths, and tests consume the
 holder through the records aggregate directly without root-state summary
 accessors. `RecordsEditorStateHolder` owns editor session identity,
 draft snapshots, dirty state, preview state, and attachment-upload ownership;
-Android retains draft persistence, URI access, and attachment execution. Shared
+Android retains draft persistence, URI access, and attachment execution; its
+orchestration, upload gates, and tests consume the holder through the records
+aggregate directly, without root-state editor accessors. Shared
 editor-action policy combines host destination/operation context with editor,
 selection, and mutation state to decide unsaved-draft and Back-blocking behavior;
 Android maps the result to localized feedback. The underlying `MemoAI` value

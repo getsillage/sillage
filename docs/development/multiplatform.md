@@ -491,7 +491,9 @@ execution adapters.
 Records editor is the sixth extracted state slice. Its shared holder owns editor
 session identity, draft and initial snapshots, dirty state, Markdown preview,
 and attachment-upload request ownership. Android retains SavedStateHandle draft
-restoration and content-URI access. Remote uploads cross
+restoration and content-URI access. Android orchestration, draft persistence,
+upload gates, and tests consume the holder through the records aggregate directly
+rather than host-root editor accessors. Remote uploads cross
 `AttachmentUploadRepository` and `UploadAttachmentUseCase`; Android maps the
 shared byte command to multipart HTTP while uploaded metadata remains
 platform-neutral.

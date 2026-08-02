@@ -77,7 +77,9 @@ and owns permanent-delete confirmation; Android formats deletion timestamps and
 routes restore and purge callbacks. Calendar coverage notices also come from the
 shared module and derive loading state from the records aggregate; Android formats
 record-count copy and routes pagination. Calendar empty-selection copy is chosen
-by shared UI from the same coverage value. On-this-day cards also come from shared
+by shared UI from the same coverage value. Calendar header layout and navigation
+also come from shared UI, while Android retains locale-aware month formatting and
+directional icon mapping. On-this-day cards also come from shared
 records UI; Android supplies localized title/plural formatting and the calendar
 icon. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android

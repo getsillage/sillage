@@ -115,6 +115,8 @@ import app.sillage.ui.records.SillageCalendarEmptySelection
 import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
 import app.sillage.ui.records.SillageCalendarCoverageNotice
 import app.sillage.ui.records.SillageCalendarCoverageStrings
+import app.sillage.ui.records.SillageCalendarHeader
+import app.sillage.ui.records.SillageCalendarHeaderStrings
 import app.sillage.ui.records.SillageOnThisDayCard
 import app.sillage.ui.records.SillageOnThisDayStrings
 import app.sillage.ui.records.SillageRecordFilterStrings
@@ -570,42 +572,18 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
 private fun CalendarHeader(state: SillageUiState, viewModel: SillageViewModel) {
     val previous = adjacentMonth(state.calendarYear, state.calendarMonth, -1)
     val next = adjacentMonth(state.calendarYear, state.calendarMonth, 1)
-    val previousLabel = localizedMonth(previous.first, previous.second)
-    val currentLabel = localizedMonth(state.calendarYear, state.calendarMonth)
-    val nextLabel = localizedMonth(next.first, next.second)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        IconButton(onClick = { viewModel.changeCalendarMonth(-1) }) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = previousLabel,
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                currentLabel,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(R.string.calendar_browse_by_date),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        IconButton(onClick = { viewModel.changeCalendarMonth(1) }) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = nextLabel,
-            )
-        }
-    }
+    SillageCalendarHeader(
+        strings = SillageCalendarHeaderStrings(
+            currentMonth = localizedMonth(state.calendarYear, state.calendarMonth),
+            browseByDate = stringResource(R.string.calendar_browse_by_date),
+            previousMonthDescription = localizedMonth(previous.first, previous.second),
+            nextMonthDescription = localizedMonth(next.first, next.second),
+        ),
+        previousIcon = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+        nextIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+        onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
+        onNextMonth = { viewModel.changeCalendarMonth(1) },
+    )
 }
 
 @Composable

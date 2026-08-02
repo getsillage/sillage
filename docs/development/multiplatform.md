@@ -180,6 +180,8 @@ partial-coverage selection and loading presentation, and leaves localized
 record-count copy plus pagination routing to hosts.
 Its calendar empty-selection notice consumes the same coverage result and owns the
 choice between definitive-empty and possibly-incomplete host strings.
+Its calendar header owns navigation layout and semantics while hosts supply
+calendar arithmetic, locale-formatted month labels, icons, and callbacks.
 Its on-this-day card consumes record entries plus the host date, owns anniversary
 calculation, excerpts, dividers, and selection, and leaves localized plural
 formatting, the icon, and navigation to hosts.

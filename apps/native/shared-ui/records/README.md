@@ -16,6 +16,8 @@ record while owning the row layout and two-step permanent-delete confirmation.
 and the load-earlier action layout.
 `SillageCalendarEmptySelection` consumes the same coverage value and selects the
 definitive-empty or possibly-incomplete calendar message.
+`SillageCalendarHeader` owns month navigation layout and semantics from
+host-formatted month labels and platform-provided directional icons.
 `SillageOnThisDayCard` consumes record entries and the current date while owning
 anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and

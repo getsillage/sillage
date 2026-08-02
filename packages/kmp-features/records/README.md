@@ -77,6 +77,8 @@ and `CalendarMemoCoverage` directly for partial-month and loading presentation;
 hosts provide localized record-count copy and the load-more callback.
 The shared calendar empty-selection notice reads the same coverage result to
 choose definitive-empty or possibly-incomplete host copy.
+The shared calendar header owns month navigation presentation while hosts retain
+locale-aware month formatting, icons, and feature mutation callbacks.
 The shared on-this-day card reuses `yearsBetween` and `excerpt` for anniversary
 entries while hosts provide the current date, localized title/plural formatter,
 icon, and navigation callback.

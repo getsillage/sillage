@@ -33,21 +33,30 @@ test("Android changes stay within the Android gate", () => {
   assert.ok(!gates.includes("go"));
 });
 
-test("shared Kotlin modules use Android as the current compilation gate", () => {
+test("shared Kotlin modules use Android and desktop compilation gates", () => {
   const gates = gatesFor("packages/kmp-core/sync/src/commonMain/SyncEngine.kt");
   assert.ok(gates.includes("android"));
+  assert.ok(gates.includes("desktop"));
   assert.ok(gates.includes("docs"));
   assert.ok(!gates.includes("web"));
 });
 
-test("native build conventions use the Android gate", () => {
+test("native build conventions use both native host gates", () => {
   const gates = gatesFor("apps/native/build-logic/src/main/kotlin/sillage.kmp-library.gradle.kts");
   assert.ok(gates.includes("android"));
+  assert.ok(gates.includes("desktop"));
   assert.ok(!gates.includes("web"));
 });
 
-test("reserved native hosts require architecture documentation", () => {
+test("iOS host remains documentation-gated until its build exists", () => {
   assert.deepEqual(gatesFor("apps/native/iosApp/README.md"), ["docs"]);
+});
+
+test("desktop host changes run desktop compilation and documentation", () => {
+  const gates = gatesFor("apps/native/desktopApp/src/main/kotlin/Main.kt");
+  assert.ok(gates.includes("desktop"));
+  assert.ok(gates.includes("docs"));
+  assert.ok(!gates.includes("android"));
 });
 
 test("extended wire contracts cover every current client", () => {

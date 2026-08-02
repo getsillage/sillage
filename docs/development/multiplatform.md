@@ -10,10 +10,10 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | Platform | Primary UI | Shared runtime | Current state |
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
-| Android | Compose Multiplatform | Kotlin Multiplatform | Existing Compose app; shared-module extraction pending |
+| Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
 | iOS | Compose Multiplatform | Kotlin Multiplatform | Application and native-UI boundaries reserved |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Desktop packaging and integration boundaries reserved |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Desktop packaging and integration boundaries reserved |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; server integration pending |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG builds; server integration pending |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -63,13 +63,25 @@ tests.
 ## Shared Native Modules
 
 `packages/kmp-core/` owns domain, application, network, database,
-synchronization, and security foundations. Its buildable `domain`, `application`,
-and `sync` modules produce Android, desktop JVM, and Apple targets from
-common source. `application` declares inward-facing use cases and repository
-ports; platform adapters implement those ports. `packages/kmp-features/` owns
+synchronization, and security foundations. Its buildable `domain`,
+`application`, `local-data`, and `sync` modules produce Android, desktop JVM,
+and Apple targets from common source. `application` declares inward-facing use
+cases and repository ports; platform adapters implement those ports.
+`local-data` owns the versioned JSON client-snapshot codec, optimistic record
+version checks, lifecycle rules, and device-local preference persistence.
+Platform hosts supply atomic string storage, timestamps, and record IDs without
+forking the codec or lifecycle behavior. `packages/kmp-features/` owns
 feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
+
+The buildable `shared-ui:application` composition root provides a responsive
+records list/detail/editor workflow, record search and lifecycle actions,
+appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
+iOS hosts supply only platform adapters and lifecycle entry points. This first
+host slice is intentionally device-local: online authentication, remote sync,
+Ask, attachments, and credential storage must arrive through existing shared
+application ports rather than host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -605,9 +617,16 @@ attachment staging and present the resulting status.
   source.
 - `apps/native/iosApp/` owns the Xcode host, Apple lifecycle, signing, Keychain,
   file and share integration, and optional SwiftUI/UIKit adapters.
-- `apps/native/desktopApp/` owns the shared desktop executable plus Windows and
-  macOS packaging, signing, secure-storage, window, menu, shortcut, and optional
-  native-UI adapters.
+- `apps/native/desktopApp/` owns the shared desktop executable, atomic local
+  snapshot file adapter, platform time and identity values, data-folder action,
+  and Windows/macOS packaging. DMG generation works on macOS; MSI generation is
+  configured and must be verified on Windows. Signing, notarization, credential
+  storage, updater, and native menu integration remain future release work.
+
+Desktop packages produced by local Gradle tasks are engineering verification
+artifacts. They are not attached by the official release workflow until the
+Windows build, signing, notarization, and update policy are implemented and
+covered by release-candidate checks.
 
 Platform hosts may depend on shared modules. They must not depend directly on
 another platform host.
@@ -643,3 +662,10 @@ language-neutral fixtures under `contracts/fixtures/` and `tests/conformance/`.
 Each platform retains packaging, signing, accessibility, lifecycle, and device
 tests. Platform-native UI replacements must pass the same feature contract and
 acceptance scenarios as the shared Compose surface.
+
+Run `make check-desktop` for shared native common tests, desktop host tests,
+and desktop JVM production compilation. On macOS, additionally run
+`:desktopApp:packageDistributionForCurrentOS` to exercise DMG packaging; the
+equivalent MSI task must run on a Windows host before Windows distribution is
+considered verified. Packaging checks do not replace signing, notarization,
+accessibility, or installer lifecycle testing.

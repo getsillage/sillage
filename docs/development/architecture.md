@@ -4,7 +4,7 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is currently implemented; iOS, Windows, and macOS have reserved application boundaries and will share a Kotlin Multiplatform core.
+Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on device. Android is the implemented server-connected client; Windows and macOS have a device-local prototype, and iOS remains an application-host boundary. All native hosts share a Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
@@ -40,10 +40,10 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
-| `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
-| `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
-| `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
+| `apps/native/iosApp/` | iOS host boundary for Apple lifecycle, platform adapters, Xcode integration, and packaging |
+| `apps/native/desktopApp/` | Compose Desktop host, atomic local snapshot adapter, Windows/macOS integration, and local package generation |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `application` composes the device-local records workspace, `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus the common `MaterialTheme` |
+| `packages/kmp-core/` | Shared native domain, application, local data, sync, and security modules; `domain`, `application`, `local-data`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
 | `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |

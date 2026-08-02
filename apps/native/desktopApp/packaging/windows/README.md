@@ -1,5 +1,6 @@
 # Windows packaging and integration
 
-Reserved for Windows installers, signing, Credential Manager integration,
-window behavior, menus, shortcuts, and optional WinUI interop around the shared
-Compose Desktop application.
+The Compose Desktop distribution declares a stable upgrade UUID and produces an
+MSI with Start Menu and desktop shortcut integration when built on Windows.
+Release signing, Credential Manager-backed online credentials, update behavior,
+and optional WinUI integration remain release-readiness work.

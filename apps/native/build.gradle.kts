@@ -2,8 +2,11 @@ import org.gradle.api.artifacts.ProjectDependency
 
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 
 allprojects {
@@ -49,6 +52,14 @@ val checkShared = tasks.register("checkShared") {
     group = "verification"
     description = "Runs shared native architecture checks and host tests."
     dependsOn(checkNativeArchitecture)
+}
+
+tasks.register("checkDesktop") {
+    group = "verification"
+    description = "Runs the desktop host tests and production compilation."
+    dependsOn(checkShared)
+    dependsOn(":desktopApp:check")
+    dependsOn(":desktopApp:jar")
 }
 
 subprojects {

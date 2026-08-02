@@ -1,12 +1,22 @@
 # Desktop application
 
-Reserved for the Compose Desktop application targeting Windows and macOS.
-Platform-specific packaging, signing, window integration, secure credential
-storage, menus, and update behavior belong here.
+Compose Desktop host for Windows and macOS. It supplies atomic filesystem
+storage, platform time and record identifiers, data-folder integration, window
+lifecycle, and native installer configuration to the shared native application.
 
-Compose Multiplatform is the default UI. WinUI, SwiftUI, or AppKit interop is
-allowed for platform-specific system surfaces when it does not fork shared
-business or synchronization behavior.
+Run the development application:
 
-No desktop product code has been implemented yet. Both desktop targets must use
-the shared Kotlin Multiplatform domain and synchronization modules.
+```bash
+./gradlew :desktopApp:run
+```
+
+Build the installer supported by the current host:
+
+```bash
+./gradlew :desktopApp:packageDistributionForCurrentOS
+```
+
+The current product slice is a functional device-local records workspace. It
+does not yet connect to a Sillage server, synchronize, store credentials, open
+attachments, or run Ask. Those integrations must reuse KMP application ports
+instead of introducing desktop-only business behavior.

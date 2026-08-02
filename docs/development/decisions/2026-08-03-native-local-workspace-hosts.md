@@ -1,0 +1,48 @@
+# Shared device-local workspace and native hosts
+
+## Context
+
+The iOS and desktop paths were reserved application boundaries, so the native
+architecture had no small end-to-end host outside Android. Reusing Android's
+current persistence and root ViewModel directly would couple new clients to
+Android framework APIs and preserve duplicate lifecycle behavior during the
+shared-module migration.
+
+Windows and macOS also need an installable prototype before server transport,
+credential storage, and synchronization adapters are ready. That prototype
+must remain honest about its device-local behavior and must not establish a
+second record model or an incompatible persistence policy.
+
+## Decision
+
+`kmp-core:local-data` owns a versioned JSON client snapshot, record lifecycle
+operations, optimistic version checks, and device-local appearance
+preferences. It exposes platform-neutral ports for atomic string storage,
+timestamps, and identifiers. The snapshot is private client persistence, not
+the sync protocol or a user backup format.
+
+`shared-ui:application` is the shared Compose composition root for the first
+native host slice. It owns the responsive records list, detail, editor,
+search, lifecycle actions, settings, localization, and unsaved-draft policy.
+Platform hosts provide only lifecycle and storage adapters. Features that
+require a server, including Ask and synchronization, remain unavailable until
+their existing shared application ports have host implementations.
+
+`desktopApp` is the Windows/macOS host and may generate local DMG or MSI
+packages. These packages are engineering verification artifacts, not official
+release assets. The release workflow remains unchanged until Windows
+packaging, code signing, macOS notarization, updates, and release-candidate
+coverage are defined and verified.
+
+## Consequences
+
+Desktop and iOS can consume the same record behavior and Compose surface
+without depending on Android code. A host cannot fork snapshot decoding,
+record lifecycle rules, or conflict checks. Corrupt snapshots fail closed and
+remain untouched so the user can recover or inspect them.
+
+The first hosts are intentionally incomplete compared with Android: they do
+not imply server compatibility, remote synchronization, Ask, attachment,
+secure-credential, or production-distribution readiness. Adding those
+capabilities requires adapters at the existing shared boundaries and the
+corresponding platform and release verification.

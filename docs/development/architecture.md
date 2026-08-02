@@ -221,6 +221,10 @@ calendar arithmetic, locale-aware month labels, directional icons, and callbacks
 The shared calendar grid owns weekday/date rows, counts, today/selection styling,
 and complete day semantics. Hosts provide locale-ordered weekday labels and
 localized per-day accessibility descriptions.
+The shared record calendar consumes `RecordsFeatureStateHolder` directly to derive
+date counts, selected records, month coverage, and empty-selection state while
+owning calendar-list composition. Hosts provide locale-aware grid/header values,
+localized descriptions, and record-row adapter slots.
 The shared on-this-day card consumes `Memo` entries and a host-provided current
 date, derives anniversaries and excerpts, and owns selection layout. Hosts provide
 localized title/plural formatting, the icon, and navigation callback.

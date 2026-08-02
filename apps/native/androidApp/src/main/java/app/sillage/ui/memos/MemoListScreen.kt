@@ -4,16 +4,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material.icons.Icons
@@ -60,9 +57,6 @@ import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
-import app.sillage.features.records.calendarMemoCoverage
-import app.sillage.features.records.entriesByDate
-import app.sillage.features.records.entryDateCounts
 import app.sillage.data.monthGrid
 import app.sillage.R
 import app.sillage.ui.MemoListLoadStatus
@@ -73,11 +67,8 @@ import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.completedMemoSearch
 import app.sillage.ui.currentMemoSearchResults
 import app.sillage.ui.navigation.MainNavigationBar
-import app.sillage.ui.records.SillageCalendarEmptySelection
 import app.sillage.ui.records.SillageCalendarEmptySelectionStrings
-import app.sillage.ui.records.SillageCalendarCoverageNotice
 import app.sillage.ui.records.SillageCalendarCoverageStrings
-import app.sillage.ui.records.SillageCalendarGrid
 import app.sillage.ui.records.SillageCalendarHeader
 import app.sillage.ui.records.SillageCalendarHeaderStrings
 import app.sillage.ui.records.SillageOnThisDayCard
@@ -86,6 +77,8 @@ import app.sillage.ui.records.SillageRecordFilterStrings
 import app.sillage.ui.records.SillageRecordFilterTabs
 import app.sillage.ui.records.SillageRecordList
 import app.sillage.ui.records.SillageRecordListStrings
+import app.sillage.ui.records.SillageRecordCalendar
+import app.sillage.ui.records.SillageRecordCalendarStrings
 import app.sillage.ui.records.SillageRecordEmptyState
 import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStatus
@@ -382,97 +375,52 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
     val weeks = remember(state.calendarYear, state.calendarMonth, firstDayOfWeek) {
         monthGrid(state.calendarYear, state.calendarMonth, firstDayOfWeek)
     }
-    val counts = remember(state.memos) { entryDateCounts(state.memos) }
-    val selectedEntries = remember(state.memos, state.selectedCalendarDate) {
-        state.selectedCalendarDate?.let { entriesByDate(state.memos, it) }.orEmpty()
-    }
-    val coverage = remember(
-        state.memos,
-        state.memoNextCursor,
-        state.calendarYear,
-        state.calendarMonth,
-    ) {
-        calendarMemoCoverage(
-            memos = state.memos,
-            nextCursor = state.memoNextCursor,
-            year = state.calendarYear,
-            month = state.calendarMonth,
-        )
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            CalendarHeader(state, viewModel)
-        }
-        item {
-            SillageCalendarGrid(
-                weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
-                weeks = weeks,
-                counts = counts,
-                today = today,
-                selectedDate = state.selectedCalendarDate,
-                dayDescription = { date, count, isToday ->
-                    stringResource(
-                        if (isToday) {
-                            R.string.calendar_day_today_description
-                        } else {
-                            R.string.calendar_day_description
-                        },
-                        localizedDate(date),
-                        pluralStringResource(R.plurals.quantity_records, count, count),
-                    )
-                },
-                onSelectDate = viewModel::selectCalendarDate,
-            )
-        }
-        if (coverage.hasMoreOlderRecords) {
-            item {
-                SillageCalendarCoverageNotice(
-                    state = state.records,
-                    coverage = coverage,
-                    strings = SillageCalendarCoverageStrings(
-                        partialMonth = stringResource(
-                            R.string.calendar_partial_month,
-                            pluralStringResource(
-                                R.plurals.quantity_records,
-                                state.memos.size,
-                                state.memos.size,
-                            ),
-                        ),
-                        completeMonth = stringResource(R.string.calendar_complete_month),
-                        loadEarlierAction = stringResource(R.string.calendar_load_earlier),
-                        loadingEarlierAction = stringResource(R.string.calendar_loading_earlier),
+    SillageRecordCalendar(
+        state = state.records,
+        today = today,
+        weekdayLabels = calendarWeekdayLabels(firstDayOfWeek),
+        weeks = weeks,
+        strings = SillageRecordCalendarStrings(
+            selectedDateLabel = state.selectedCalendarDate?.let { localizedDate(it) }
+                ?: stringResource(R.string.calendar_select_day),
+            coverage = SillageCalendarCoverageStrings(
+                partialMonth = stringResource(
+                    R.string.calendar_partial_month,
+                    pluralStringResource(
+                        R.plurals.quantity_records,
+                        state.memos.size,
+                        state.memos.size,
                     ),
-                    onLoadMore = viewModel::loadMoreMemos,
-                )
-            }
-        }
-        item {
-            Text(
-                state.selectedCalendarDate?.let { localizedDate(it) }
-                    ?: stringResource(R.string.calendar_select_day),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
+                ),
+                completeMonth = stringResource(R.string.calendar_complete_month),
+                loadEarlierAction = stringResource(R.string.calendar_load_earlier),
+                loadingEarlierAction = stringResource(R.string.calendar_loading_earlier),
+            ),
+            emptySelection = SillageCalendarEmptySelectionStrings(
+                empty = stringResource(R.string.calendar_day_empty),
+                mayBeIncomplete = stringResource(R.string.calendar_day_maybe_incomplete),
+            ),
+        ),
+        dayDescription = { date, count, isToday ->
+            stringResource(
+                if (isToday) {
+                    R.string.calendar_day_today_description
+                } else {
+                    R.string.calendar_day_description
+                },
+                localizedDate(date),
+                pluralStringResource(R.plurals.quantity_records, count, count),
             )
-        }
-        if (state.selectedCalendarDate != null && selectedEntries.isEmpty()) {
-            item {
-                    SillageCalendarEmptySelection(
-                        coverage = coverage,
-                        strings = SillageCalendarEmptySelectionStrings(
-                            empty = stringResource(R.string.calendar_day_empty),
-                            mayBeIncomplete = stringResource(R.string.calendar_day_maybe_incomplete),
-                        ),
-                    )
-            }
-        }
-        items(selectedEntries, key = { it.id }) { memo ->
+        },
+        onSelectDate = viewModel::selectCalendarDate,
+        onLoadMore = viewModel::loadMoreMemos,
+        headerContent = {
+            CalendarHeader(state, viewModel)
+        },
+        selectedRecordContent = { memo ->
             MemoSwipeRow(
                 memo = memo,
-                mutating = memo.id in state.memoMutationIds,
+                mutating = state.records.mutation.isActive(memo.id),
                 onClick = { viewModel.openMemoDetail(memo) },
                 onEdit = { viewModel.editMemo(memo) },
                 onDuplicate = { viewModel.duplicateMemoDraft(memo) },
@@ -480,8 +428,8 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                 onToggleArchive = { viewModel.toggleMemoArchived(memo) },
                 onDelete = { viewModel.deleteMemo(memo) },
             )
-        }
-    }
+        },
+    )
 }
 
 @Composable

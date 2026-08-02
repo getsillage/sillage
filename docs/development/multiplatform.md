@@ -204,6 +204,10 @@ Its calendar header owns navigation layout and semantics while hosts supply
 calendar arithmetic, locale-formatted month labels, icons, and callbacks.
 Its calendar grid owns date layout, counts, today/selection styling, and semantics;
 hosts provide locale-ordered weekday labels and localized day descriptions.
+Its record calendar consumes `RecordsFeatureStateHolder` directly to derive date
+counts, selected records, month coverage, and empty-selection state while owning
+calendar-list composition. Hosts provide locale-aware grid/header values,
+localized descriptions, and record-row adapter slots.
 Its on-this-day card consumes record entries plus the host date, owns anniversary
 calculation, excerpts, dividers, and selection, and leaves localized plural
 formatting, the icon, and navigation to hosts.

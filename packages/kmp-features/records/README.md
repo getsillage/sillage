@@ -102,6 +102,10 @@ locale-aware month formatting, icons, and feature mutation callbacks.
 The shared calendar grid consumes month rows and entry-date counts derived by the
 records feature, owns date selection presentation and semantics, and leaves
 weekday ordering plus localized day descriptions to hosts.
+The shared record calendar consumes `RecordsFeatureStateHolder` directly to derive
+date counts, selected records, month coverage, and empty-selection state while
+owning calendar-list composition. Hosts provide locale-aware grid/header values,
+localized descriptions, and record-row adapter slots.
 The shared on-this-day card reuses `yearsBetween` and `excerpt` for anniversary
 entries while hosts provide the current date, localized title/plural formatter,
 icon, and navigation callback.

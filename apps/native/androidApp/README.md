@@ -94,7 +94,10 @@ by shared UI from the same coverage value. Calendar header layout and navigation
 also come from shared UI, while Android retains locale-aware month formatting and
 directional icon mapping. Calendar grid/day layout, counts, selection styling, and
 semantics are shared; Android rotates localized weekday labels and formats each
-day's accessibility description. On-this-day cards also come from shared
+day's accessibility description. The surrounding calendar list also consumes the
+records aggregate in shared UI for coverage, selection, and row composition;
+Android supplies locale-aware grid/header values and localized row adapters.
+On-this-day cards also come from shared
 records UI; Android supplies localized title/plural formatting and the calendar
 icon. Editor
 unsaved-draft and Back-blocking policy also lives in that module; Android

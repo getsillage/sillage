@@ -34,6 +34,9 @@ definitive-empty or possibly-incomplete calendar message.
 host-formatted month labels and platform-provided directional icons.
 `SillageCalendarGrid` owns weekday/date rows, record counts, today/selection
 styling, and complete day semantics from host-formatted labels and descriptions.
+`SillageRecordCalendar` consumes `RecordsFeatureStateHolder` directly for date
+counts, selected records, month coverage, empty-selection state, and calendar-list
+composition while hosts provide locale-aware grid/header and record-row adapters.
 `SillageOnThisDayCard` consumes record entries and the current date while owning
 anniversary calculation, excerpts, dividers, and record selection.
 Hosts supply localized labels, icons, already-formatted deletion timestamps, and

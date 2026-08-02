@@ -31,6 +31,9 @@ revision plurals.
 `SillageRecordDetailContent` owns missing-record fallback, detail-section ordering,
 lazy-list spacing, and shared content width while hosts fill record, summary, and
 metadata adapter slots.
+`SillageRecordDetailActions` owns edit/more action enablement, lifecycle-aware
+favorite/archive menu choices, mutation-driven menu reset, and delete confirmation.
+Hosts supply localized strings, icons, and mutation/navigation callbacks.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.

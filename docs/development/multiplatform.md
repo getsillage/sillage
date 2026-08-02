@@ -195,8 +195,11 @@ is reusable outside the detail card.
 Its metadata block derives prior-revision count and owns divider/label layout while
 hosts format localized created/updated timestamps and revision plurals.
 Its record detail content shell owns missing-record fallback, section order,
-lazy-list spacing, and shared content width while hosts retain Scaffold/top actions
+lazy-list spacing, and shared content width while hosts retain Scaffold/TopAppBar placement
 and fill localized record, summary, and metadata slots.
+Its record detail actions own edit/more enablement, lifecycle-aware
+favorite/archive choices, mutation-driven menu reset, and delete confirmation;
+hosts supply localized resources, icons, and feature callbacks.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, icons, and feature

@@ -112,8 +112,11 @@ line are shared too; Android supplies localized dates/status labels and retains
 Markdown rendering plus protected-attachment opening. Record metadata revision
 selection and layout are shared; Android formats timestamps and revision plurals.
 The shared detail content shell also owns missing-record fallback, section order,
-lazy-list spacing, and content width; Android keeps Scaffold/top actions and fills
-the localized record, summary, and metadata slots. Editor unsaved-draft and
+lazy-list spacing, and content width; Android keeps Scaffold/TopAppBar placement and fills
+the localized record, summary, and metadata slots.
+The shared detail actions own edit/more enablement, favorite/archive menu choices,
+busy-state reset, and delete confirmation; Android maps resources and ViewModel
+callbacks. Editor unsaved-draft and
 Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote

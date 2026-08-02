@@ -92,6 +92,9 @@ owns created/updated label layout while hosts format localized timestamps/plural
 The shared detail content shell selects missing/content presentation and owns
 section ordering, lazy-list spacing, and content width while hosts fill localized
 record, summary, and metadata slots.
+The shared detail actions consume `Memo` lifecycle state and host busy context to
+own action enablement, inverse favorite/archive choices, menu reset, and delete
+confirmation while hosts route callbacks.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

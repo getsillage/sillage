@@ -1,7 +1,6 @@
 package app.sillage.ui.memos
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -11,22 +10,13 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -41,6 +31,9 @@ import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
+import app.sillage.ui.records.SillageRecordDetailActionIcons
+import app.sillage.ui.records.SillageRecordDetailActionStrings
+import app.sillage.ui.records.SillageRecordDetailActions
 import app.sillage.ui.records.SillageRecordDetailCard
 import app.sillage.ui.records.SillageRecordDetailContent
 import app.sillage.ui.records.SillageRecordDetailStrings
@@ -54,38 +47,7 @@ import app.sillage.ui.records.SillageRecordSummaryStrings
 internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel) {
     val memo = state.selectedMemo
     val memoMutating = memo?.id?.let(state.memoMutationIds::contains) == true
-    var menuExpanded by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    LaunchedEffect(memoMutating) {
-        if (memoMutating) {
-            menuExpanded = false
-            confirmDelete = false
-        }
-    }
     BackHandler(onBack = viewModel::closeMemoDetail)
-    if (confirmDelete && memo != null) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.delete_record_title)) },
-            text = { Text(stringResource(R.string.delete_record_supporting)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDelete = false
-                        viewModel.deleteSelectedMemo()
-                    },
-                    enabled = !state.loading && !memoMutating,
-                ) {
-                    Text(stringResource(R.string.action_confirm_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }, enabled = !state.loading) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -103,63 +65,36 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = viewModel::editSelectedMemo,
-                        enabled = memo != null && !state.loading && !memoMutating,
-                    ) {
-                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.record_edit_description))
-                    }
-                    Box {
-                        IconButton(
-                            onClick = { menuExpanded = true },
-                            enabled = memo != null && !state.loading && !memoMutating,
-                        ) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded && !memoMutating,
-                            onDismissRequest = { menuExpanded = false },
-                        ) {
-                            if (memo != null) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite))
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        menuExpanded = false
-                                        viewModel.toggleSelectedMemoFavorited()
-                                    },
-                                    enabled = !state.loading && !memoMutating,
-                                )
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_unarchive))
-                                    },
-                                    leadingIcon = { Icon(Icons.Rounded.Archive, contentDescription = null) },
-                                    onClick = {
-                                        menuExpanded = false
-                                        viewModel.toggleSelectedMemoArchived()
-                                    },
-                                    enabled = !state.loading && !memoMutating,
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.action_delete)) },
-                                    leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-                                    onClick = {
-                                        menuExpanded = false
-                                        confirmDelete = true
-                                    },
-                                    enabled = !state.loading && !memoMutating,
-                                )
-                            }
-                        }
-                    }
+                    SillageRecordDetailActions(
+                        memo = memo,
+                        operationBlocked = state.loading,
+                        mutating = memoMutating,
+                        strings = SillageRecordDetailActionStrings(
+                            editContentDescription = stringResource(R.string.record_edit_description),
+                            moreContentDescription = stringResource(R.string.action_more),
+                            favoriteAction = stringResource(R.string.action_favorite),
+                            unfavoriteAction = stringResource(R.string.action_unfavorite),
+                            archiveAction = stringResource(R.string.action_archive),
+                            unarchiveAction = stringResource(R.string.action_unarchive),
+                            deleteAction = stringResource(R.string.action_delete),
+                            deleteTitle = stringResource(R.string.delete_record_title),
+                            deleteSupporting = stringResource(R.string.delete_record_supporting),
+                            confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                            cancelAction = stringResource(R.string.action_cancel),
+                        ),
+                        icons = SillageRecordDetailActionIcons(
+                            edit = Icons.Rounded.Edit,
+                            more = Icons.Rounded.MoreVert,
+                            favorite = Icons.Rounded.StarBorder,
+                            unfavorite = Icons.Rounded.Star,
+                            archive = Icons.Rounded.Archive,
+                            delete = Icons.Rounded.Delete,
+                        ),
+                        onEdit = viewModel::editSelectedMemo,
+                        onToggleFavorite = viewModel::toggleSelectedMemoFavorited,
+                        onToggleArchive = viewModel::toggleSelectedMemoArchived,
+                        onDelete = viewModel::deleteSelectedMemo,
+                    )
                 },
             )
         },

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,13 +18,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -52,7 +49,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -73,7 +69,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -118,6 +113,8 @@ import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.records.SillageRecordRow
 import app.sillage.ui.records.SillageRecordRowStrings
+import app.sillage.ui.records.SillageRecordSwipeActionPane
+import app.sillage.ui.records.SillageRecordSwipeActionStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -686,10 +683,19 @@ private fun MemoSwipeRow(
             .fillMaxWidth()
             .heightIn(min = 92.dp),
     ) {
-        MemoSwipeActionPane(
+        SillageRecordSwipeActionPane(
             memo = memo,
             actionWidth = actionWidth,
             revealedOffset = offsetX,
+            strings = SillageRecordSwipeActionStrings(
+                favoriteAction = stringResource(R.string.action_favorite),
+                unfavoriteAction = stringResource(R.string.action_unfavorite),
+                archiveAction = stringResource(R.string.action_archive),
+                restoreAction = stringResource(R.string.action_restore),
+            ),
+            favoriteIcon = Icons.Rounded.StarBorder,
+            favoritedIcon = Icons.Rounded.Star,
+            archiveIcon = Icons.Rounded.Archive,
             onToggleFavorite = { runAction(onToggleFavorite) },
             onToggleArchive = { runAction(onToggleArchive) },
             enabled = !mutating,
@@ -724,80 +730,6 @@ private fun MemoSwipeRow(
             },
             onLongClick = if (mutating) null else { { showActions = true } },
         )
-    }
-}
-
-@Composable
-private fun MemoSwipeActionPane(
-    memo: Memo,
-    actionWidth: androidx.compose.ui.unit.Dp,
-    revealedOffset: Float,
-    onToggleFavorite: () -> Unit,
-    onToggleArchive: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        SwipeActionButton(
-            icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-            label = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
-            visible = revealedOffset > 0f,
-            enabled = enabled,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = onToggleFavorite,
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(actionWidth),
-        )
-        SwipeActionButton(
-            icon = Icons.Rounded.Archive,
-            label = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_restore),
-            visible = revealedOffset < 0f,
-            enabled = enabled,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            onClick = onToggleArchive,
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(actionWidth),
-        )
-    }
-}
-
-@Composable
-private fun SwipeActionButton(
-    icon: ImageVector,
-    label: String,
-    visible: Boolean,
-    enabled: Boolean,
-    color: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (visible) color else MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics {
-                    if (!visible) {
-                        invisibleToUser()
-                    }
-                }
-                .clickable(enabled = visible && enabled, onClick = onClick)
-                .padding(horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        }
     }
 }
 

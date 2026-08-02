@@ -12,6 +12,8 @@ icon treatment, and optional action layout.
 `SillageRecordRow` consumes a record plus host-localized labels and owns card
 layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.
+`SillageRecordSwipeActionPane` owns favorite/archive action layout, state-based
+labels and icons, revealed-side visibility, and hidden-action semantics.
 `SillageRecentlyDeletedRecordRow` consumes aggregate mutation ownership and a
 record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and

@@ -176,6 +176,9 @@ Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
 mutation progress. Hosts retain date formatting, localized copy, swipe/action
 presentation, and feature routing.
+Its swipe action pane owns favorite/archive action layout, record-state labels and
+icons, revealed-side visibility, and hidden-action semantics. Hosts provide
+localized labels, icons, enablement, and mutation callbacks.
 Its recently deleted record row also consumes the records aggregate and `Memo`,
 owns mutation-aware restore and two-step permanent-delete presentation, and leaves
 localized labels, icons, formatted deletion timestamps, and callbacks to hosts.

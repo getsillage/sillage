@@ -72,6 +72,9 @@ The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, swipe/action
 presentation, and mutation routing.
+The shared swipe action pane owns favorite/archive action layout, record-state
+labels/icons, revealed-side visibility, and hidden-action semantics. Hosts provide
+localized labels, icons, enablement, and mutation routing.
 The shared recently deleted record row reads `RecordsFeatureStateHolder.mutation`
 directly for per-record busy state and owns restore/purge presentation plus the
 two-step permanent-delete confirmation. Hosts provide localized labels, icons,

@@ -74,7 +74,9 @@ aggregate, and shared records UI owns reusable empty/error states. Android suppl
 localized labels, icons, and ViewModel routing. Active record rows also come from
 shared records UI and own card/content/status/mutation presentation; Android
 formats entry dates, supplies localized copy, and layers swipe/quick-action
-interactions plus routing. Recently deleted record rows also
+interactions plus routing. The revealed swipe action pane is shared too; Android
+supplies localized labels, icons, and mutation callbacks. Recently deleted record
+rows also
 come from shared records UI, which derives mutation ownership from the aggregate
 and owns permanent-delete confirmation; Android formats deletion timestamps and
 routes restore and purge callbacks. Calendar coverage notices also come from the

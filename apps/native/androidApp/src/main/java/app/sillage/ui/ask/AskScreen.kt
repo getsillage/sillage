@@ -59,10 +59,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.sillage.data.AskPathEntry
+import app.sillage.features.ask.AskPathEntry
 import app.sillage.data.MarkdownLinkTarget
-import app.sillage.data.buildAskActivePath
-import app.sillage.data.lastAssistantMessageId
+import app.sillage.features.ask.buildAskActivePath
+import app.sillage.features.ask.lastAssistantMessageId
 import app.sillage.R
 import app.sillage.ui.SillageUiState
 import app.sillage.ui.SillageViewModel

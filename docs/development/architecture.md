@@ -303,7 +303,10 @@ persistence transaction.
 
 `packages/kmp-features/ask` owns `AskConversationStateHolder`, which keeps the
 conversation collection, current conversation, selected branch head, and loaded
-messages consistent. `AskFeatureStateHolder` composes the extracted Ask holders
+messages consistent. The same module owns active-path entries, variant grouping,
+branch-leaf selection, and latest-assistant lookup so platform hosts do not
+rebuild message-tree policy in adapter data packages. `AskFeatureStateHolder`
+composes the extracted Ask holders
 and owns coordinated workspace teardown, screen-entry session advancement,
 blank-composition starts, conversation load transitions, variant-head
 application, stream finish coordination, composer updates, source-detail opening, and active snapshot replacement. Android also composes

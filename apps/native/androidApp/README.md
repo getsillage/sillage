@@ -191,6 +191,9 @@ and completion events live in `AskStreamStateHolder`; Android retains SSE and
 device-local AI execution adapters.
 Conversation/message loading and its retry message also live in the shared
 `AskLoadStateHolder`.
+Active Ask path entries, variant grouping, branch-leaf selection, and latest
+assistant lookup now come from `kmp-features:ask`; Android only consumes those
+shared projections in its ViewModel and Compose host.
 The question draft and retrieval scope/source options live in the shared
 `AskComposerStateHolder`.
 The buildable `shared-ui:ask` module consumes that aggregate directly for the

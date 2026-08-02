@@ -17,6 +17,10 @@ nested Ask slices directly.
 conversation collection, current conversation, selected branch head, and loaded
 messages. Its transitions reject cross-conversation messages and stale snapshots.
 
+`AskPathEntry`, active-path derivation, branch-leaf selection, and latest
+assistant lookup also live in this module so hosts do not rebuild message-tree
+policy in platform data layers.
+
 `AskVariantStateHolder` owns the single-flight branch-selection request identity.
 It captures screen session, conversation, source mode, and client generation so a
 late response cannot cross a navigation or workspace boundary.

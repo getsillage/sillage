@@ -506,7 +506,9 @@ Android retains platform date arithmetic and refresh scheduling.
 
 Attachment opening is the tenth extracted records state slice.
 `RecordsAttachmentOpenStateHolder` owns request identity, late-result ownership,
-and invalidation. Authenticated download crosses generic
+and invalidation. Platform request gates, Compose surfaces, and tests read it
+through the records aggregate directly rather than host-root attachment-open
+accessors. Authenticated download crosses generic
 `AttachmentDownloadRepository` and `DownloadAttachmentUseCase`, which accept a
 host destination without materializing response bytes in shared state. Android
 retains content-URI/cache staging, MIME resolution, and native viewer launch.

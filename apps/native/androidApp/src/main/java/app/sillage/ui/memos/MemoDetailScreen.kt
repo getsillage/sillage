@@ -114,7 +114,7 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     MarkdownContent(
                         content = contentMemo.content,
                         baseUrl = state.baseUrl,
-                        openingAttachmentPath = state.openingAttachmentPath,
+                        openingAttachmentPath = state.records.attachmentOpen.path,
                         onOpenAttachment = viewModel::openProtectedAttachment,
                     )
                 }

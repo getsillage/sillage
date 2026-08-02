@@ -201,7 +201,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                 MarkdownEditorSection(
                     content = state.draftContent,
                     baseUrl = state.baseUrl,
-                    openingAttachmentPath = state.openingAttachmentPath,
+                    openingAttachmentPath = state.records.attachmentOpen.path,
                     preview = state.markdownPreview,
                     enabled = actionsEnabled,
                     onContentChange = viewModel::updateDraftContent,

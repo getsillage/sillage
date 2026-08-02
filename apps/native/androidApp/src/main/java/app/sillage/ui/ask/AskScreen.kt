@@ -210,7 +210,7 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         sourceActionsEnabled = item.sourceActionsEnabled,
                         streamingText = item.streamingText,
                         baseUrl = state.baseUrl,
-                        openingAttachmentPath = state.openingAttachmentPath,
+                        openingAttachmentPath = state.records.attachmentOpen.path,
                         onRegenerate = {
                             viewModel.regenerateAskAnswer(item.entry.message.id)
                         },

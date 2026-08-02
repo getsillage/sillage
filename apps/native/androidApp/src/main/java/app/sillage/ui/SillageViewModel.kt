@@ -1907,7 +1907,10 @@ class SillageViewModel(
             return
         }
         val current = state.value
-        if (current.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
+        if (
+            current.records.attachmentOpen.path != null ||
+            attachmentOpenJob?.isActive == true
+        ) {
             return
         }
         val request = current.nextAttachmentOpenRequest(target.path) ?: return
@@ -3382,7 +3385,10 @@ class SillageViewModel(
             }
             return
         }
-        if (state.value.openingAttachmentPath != null || attachmentOpenJob?.isActive == true) {
+        if (
+            state.value.records.attachmentOpen.path != null ||
+            attachmentOpenJob?.isActive == true
+        ) {
             return
         }
         val openPath = localAttachmentPath(pending)

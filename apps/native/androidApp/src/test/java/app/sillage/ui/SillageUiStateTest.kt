@@ -215,8 +215,8 @@ class SillageUiStateTest {
         val completed = opening.completeAttachmentOpenRequest(request.requestId)
 
         assertTrue(opening.canHandleAttachmentOpen(request.requestId))
-        assertEquals("/api/v1/attachments/file-1", opening.openingAttachmentPath)
-        assertEquals(null, completed.openingAttachmentPath)
+        assertEquals("/api/v1/attachments/file-1", opening.records.attachmentOpen.path)
+        assertEquals(null, completed.records.attachmentOpen.path)
         assertFalse(completed.canHandleAttachmentOpen(request.requestId))
         assertEquals(null, completed.beginAttachmentOpenRequest(request))
     }
@@ -235,8 +235,8 @@ class SillageUiStateTest {
         assertTrue(opening.canHandleAttachmentOpen(8))
         val invalidated = opening.invalidateAttachmentOpenRequest()
 
-        assertEquals(null, invalidated.openingAttachmentPath)
-        assertEquals(9L, invalidated.attachmentOpenRequestId)
+        assertEquals(null, invalidated.records.attachmentOpen.path)
+        assertEquals(9L, invalidated.records.attachmentOpen.requestId)
         assertFalse(invalidated.canHandleAttachmentOpen(8))
         assertEquals(invalidated, invalidated.invalidateAttachmentOpenRequest())
     }

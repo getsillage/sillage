@@ -145,7 +145,9 @@ attachment upload crosses `AttachmentUploadRepository` and
 `UploadAttachmentUseCase`; Android retains content-URI reading, multipart mapping,
 and offline file staging. Authenticated download crosses generic
 `AttachmentDownloadRepository`; its Android adapter streams to a cache `File`
-before platform MIME resolution and viewer launch.
+before platform MIME resolution and viewer launch. Request gates and Compose
+surfaces consume `records.attachmentOpen` directly, without root attachment-open
+compatibility getters.
 Account identity is imported from shared domain, while token-bearing sessions
 and public bootstrap metadata use shared application models. Android retains
 HTTP parsing and encrypted session persistence.

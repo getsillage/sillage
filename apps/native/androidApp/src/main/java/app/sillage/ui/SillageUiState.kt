@@ -35,7 +35,6 @@ import app.sillage.features.records.RecordsDetailContext
 import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
 import app.sillage.features.records.RecordsAttachmentOpenRequest
-import app.sillage.features.records.RecordsAttachmentOpenStateHolder
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
@@ -129,7 +128,6 @@ data class SillageUiState(
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
     val recordsMutation: RecordsMutationStateHolder get() = records.mutation
     val recordsSummary: RecordsSummaryStateHolder get() = records.summary
-    val recordsAttachmentOpen: RecordsAttachmentOpenStateHolder get() = records.attachmentOpen
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
     val recordsBrowse: RecordsBrowseStateHolder get() = records.browse
@@ -170,8 +168,6 @@ data class SillageUiState(
     val calendarYear: Int get() = records.browse.calendarYear
     val calendarMonth: Int get() = records.browse.calendarMonth
     val selectedCalendarDate: String? get() = records.browse.selectedCalendarDate
-    val openingAttachmentPath: String? get() = records.attachmentOpen.path
-    val attachmentOpenRequestId: Long get() = records.attachmentOpen.requestId
     val aiAutoSummary: Boolean get() = settings.autoSummaryEnabled
     val aiAutoSummarySaving: Boolean get() = settings.autoSummarySaving
     val aiAutoSummaryRequestId: Long get() = settings.autoSummaryRequestId
@@ -460,7 +456,7 @@ internal fun SillageUiState.canApplyAttachmentUpload(sessionId: Long): Boolean {
 }
 
 internal fun SillageUiState.canHandleAttachmentOpen(requestId: Long): Boolean {
-    return recordsAttachmentOpen.owns(requestId)
+    return records.attachmentOpen.owns(requestId)
 }
 
 internal fun SillageUiState.nextAttachmentOpenRequest(

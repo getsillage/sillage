@@ -36,7 +36,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   not invent an interactive filter change.
 - `RecordsAttachmentOpenStateHolder` owns prepared attachment-open request
   identity, start/completion, and invalidation while platform hosts stage bytes
-  and launch native viewers.
+  and launch native viewers. Android request gates, Compose consumers, and tests
+  read it through the records aggregate directly, without root attachment-open
+  compatibility getters.
 - `RecordsFeatureStateHolder` composes the holders above and owns coordinated
   multi-holder transitions for the visible list surface (clear/reset/replace/
   append, pre-refresh loading marks, and pagination cancel/stop-loading-more),

@@ -510,6 +510,8 @@ retains platform date arithmetic and refresh scheduling.
 
 `RecordsAttachmentOpenStateHolder` owns attachment-open request identity and
 invalidation so late staging or viewer events cannot cross navigation context.
+Android request gates, Compose surfaces, and tests consume it through the records
+aggregate directly, without root-state attachment-open accessors.
 Authenticated download crosses generic `AttachmentDownloadRepository` and
 `DownloadAttachmentUseCase`, streaming to a host-provided destination. Android
 retains cache/content-URI staging, MIME mapping, and native viewer launch.

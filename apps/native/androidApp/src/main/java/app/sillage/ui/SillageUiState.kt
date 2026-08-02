@@ -35,7 +35,6 @@ import app.sillage.features.records.RecordsDetailRequest
 import app.sillage.features.records.RecordsDetailResponseDisposition
 import app.sillage.features.records.RecordsAttachmentOpenRequest
 import app.sillage.features.records.RecordsBrowseStateHolder
-import app.sillage.features.records.RecordsCollectionStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsEditorActionContext
 import app.sillage.features.records.RecordsEditorBusyReason
@@ -117,7 +116,6 @@ data class SillageUiState(
     // Transitional slice accessors while hosts finish moving writes onto the
     // aggregate records/settings/sync holders. Prefer the aggregates for
     // coordinated transitions.
-    val recordsCollection: RecordsCollectionStateHolder get() = records.collection
     val recordsSelection: RecordsSelectionStateHolder get() = records.selection
     val recordsEditor: RecordsEditorStateHolder get() = records.editor
     val recordsSearch: RecordsSearchStateHolder get() = records.search
@@ -128,8 +126,6 @@ data class SillageUiState(
     val aiProfileDiagnostics: AIProfileDiagnosticsStateHolder get() = settings.diagnostics
     val authentication: AuthenticationStateHolder get() = auth.authentication
 
-    val memos: List<Memo> get() = records.collection.records
-    val memoCacheGeneration: Long get() = records.collection.cacheGeneration
     val searchQuery: String get() = records.search.query
     val searchResults: List<Memo>? get() = records.search.results
     val searchResultQuery: String get() = records.search.resultQuery
@@ -481,7 +477,7 @@ private fun SillageUiState.recordsDetailContext(): RecordsDetailContext {
         clientContextGeneration = clientContextGeneration,
         destinationKey = screen.name,
         destinationGeneration = if (screen == Screen.Editor) editorSessionId else 0,
-        cacheGeneration = memoCacheGeneration,
+        cacheGeneration = records.collection.cacheGeneration,
         detailAvailable = detailAvailable,
     )
 }
@@ -863,7 +859,7 @@ private fun SillageUiState.recordsPageContext(): RecordsPageContext {
         sourceAvailable = appMode != SessionStore.MODE_OFFLINE,
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
-        cacheGeneration = memoCacheGeneration,
+        cacheGeneration = records.collection.cacheGeneration,
     )
 }
 
@@ -902,7 +898,7 @@ private fun SillageUiState.recordsRefreshContext(): RecordsRefreshContext {
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
-        cacheGeneration = memoCacheGeneration,
+        cacheGeneration = records.collection.cacheGeneration,
         paginationRequestId = records.pagination.requestId,
     )
 }
@@ -935,7 +931,7 @@ private fun SillageUiState.recordsSearchContext(): RecordsSearchContext {
         sourceKey = appMode,
         clientContextGeneration = clientContextGeneration,
         filter = memoListFilter,
-        cacheGeneration = memoCacheGeneration,
+        cacheGeneration = records.collection.cacheGeneration,
     )
 }
 

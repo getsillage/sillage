@@ -505,7 +505,9 @@ gates, source selection, and localized feedback.
 Records collection is the eighth extracted state slice. Its shared holder owns
 the visible record cache and canonical mutation generation. Snapshot and page
 replacement preserve that generation; applying a canonical mutation advances it
-and re-applies the active semantic filter.
+and re-applies the active semantic filter. Platform host counts, late-response
+checks, and tests consume the holder through the records aggregate directly rather
+than host-root collection accessors.
 
 Records browsing is the ninth extracted state slice. Its shared holder owns
 list/calendar mode, semantic filtering, and calendar month/day selection.

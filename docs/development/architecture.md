@@ -509,7 +509,9 @@ accessors.
 `RecordsCollectionStateHolder` owns the visible record cache and canonical
 mutation generation. Pagination and refresh replace snapshots without inventing
 a mutation, while canonical create/update/lifecycle responses advance the
-generation used by late-response validation.
+generation used by late-response validation. Android host counts, late-response
+checks, and tests consume the holder through the records aggregate directly,
+without root-state collection accessors.
 
 `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering, and
 calendar month/day selection. `MemoViewMode` is a shared feature value; Android

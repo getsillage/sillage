@@ -194,8 +194,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                             } else {
                                 pluralStringResource(
                                     R.plurals.quantity_records,
-                                    state.memos.size,
-                                    state.memos.size,
+                                    state.records.collection.records.size,
+                                    state.records.collection.records.size,
                                 )
                             },
                         ),

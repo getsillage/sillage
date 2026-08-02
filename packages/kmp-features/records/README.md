@@ -38,7 +38,9 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   consume it through the records aggregate directly, without root mutation
   compatibility getters.
 - `RecordsCollectionStateHolder` owns the visible record cache and its canonical
-  mutation generation.
+  mutation generation. Android host counts, late-response checks, and tests consume
+  it through the records aggregate directly, without root collection compatibility
+  getters.
 - `RecordsBrowseStateHolder` owns list/calendar mode, semantic filtering,
   calendar month/day selection, and persisted view-mode restoration that does
   not invent an interactive filter change.

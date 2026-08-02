@@ -194,7 +194,11 @@ private fun memoListSubtitle(state: SillageUiState): String {
     return stringResource(
         R.string.quantity_joiner,
         mode,
-        pluralStringResource(R.plurals.quantity_records, state.memos.size, state.memos.size),
+        pluralStringResource(
+            R.plurals.quantity_records,
+            state.records.collection.records.size,
+            state.records.collection.records.size,
+        ),
     )
 }
 
@@ -333,8 +337,8 @@ private fun CalendarMemoView(state: SillageUiState, viewModel: SillageViewModel)
                     R.string.calendar_partial_month,
                     pluralStringResource(
                         R.plurals.quantity_records,
-                        state.memos.size,
-                        state.memos.size,
+                        state.records.collection.records.size,
+                        state.records.collection.records.size,
                     ),
                 ),
                 completeMonth = stringResource(R.string.calendar_complete_month),

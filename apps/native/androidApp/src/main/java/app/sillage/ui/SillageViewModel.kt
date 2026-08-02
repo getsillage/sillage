@@ -3246,7 +3246,8 @@ class SillageViewModel(
                         val completed = current.completeMemoDetailRequest(request, detail)
                         restartSearch = current.searching &&
                             current.searchQuery.isNotBlank() &&
-                            completed.memoCacheGeneration != current.memoCacheGeneration
+                                completed.records.collection.cacheGeneration !=
+                                    current.records.collection.cacheGeneration
                         completed
                     }
                     if (restartSearch) {

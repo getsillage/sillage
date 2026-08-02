@@ -327,17 +327,15 @@ class SillageUiStateTest {
         }
 
         assertEquals(listOf(original), state.records.collection.records)
-        assertEquals(state.records.collection, state.recordsCollection)
         assertEquals(state.records.selection, state.recordsSelection)
         assertEquals("cursor-9", state.records.pagination.nextCursor)
-        assertEquals(2L, state.memoCacheGeneration)
+        assertEquals(2L, state.records.collection.cacheGeneration)
         assertEquals(original, state.selectedMemo)
 
         val applied = state.applyMemoToCache(
             original.copy(content = "更新", version = 2, updatedAt = "2026-07-10T02:00:00Z"),
         )
-        assertEquals(3L, applied.memoCacheGeneration)
-        assertEquals(applied.records.collection, applied.recordsCollection)
+        assertEquals(3L, applied.records.collection.cacheGeneration)
         assertFalse(applied.records.pagination.loadingMore)
     }
 
@@ -523,8 +521,8 @@ class SillageUiStateTest {
 
         val cleared = state.clearClientWorkspace()
 
-        assertEquals(emptyList<Memo>(), cleared.memos)
-        assertEquals(2L, cleared.memoCacheGeneration)
+        assertEquals(emptyList<Memo>(), cleared.records.collection.records)
+        assertEquals(2L, cleared.records.collection.cacheGeneration)
         assertEquals(null, cleared.selectedMemo)
         assertEquals(emptyList<AIProfileDraft>(), cleared.aiProfiles)
         assertFalse(cleared.aiAutoSummary)
@@ -579,10 +577,10 @@ class SillageUiStateTest {
         )
         val updated = pending.applyMemoToCache(canonical)
 
-        assertEquals(1L, updated.memoCacheGeneration)
+        assertEquals(1L, updated.records.collection.cacheGeneration)
         assertFalse(updated.canApplyMemoRefresh(refresh))
         assertFalse(updated.canApplyMemoSearch(search))
-        assertTrue(updated.memos.isEmpty())
+        assertTrue(updated.records.collection.records.isEmpty())
         assertEquals(emptyList<Memo>(), updated.searchResults)
         assertEquals("", updated.searchResultQuery)
         assertEquals(4L, updated.searchCompletionEventId)
@@ -617,8 +615,11 @@ class SillageUiStateTest {
         )
 
         assertEquals(canonical, completed.selectedMemo)
-        assertTrue(completed.memos.isEmpty())
-        assertEquals(mutated.memoCacheGeneration, completed.memoCacheGeneration)
+        assertTrue(completed.records.collection.records.isEmpty())
+        assertEquals(
+            mutated.records.collection.cacheGeneration,
+            completed.records.collection.cacheGeneration,
+        )
         assertFalse(completed.records.summary.loading)
     }
 
@@ -647,8 +648,11 @@ class SillageUiStateTest {
         )
 
         assertEquals(canonical, completed.selectedMemo)
-        assertTrue(completed.memos.isEmpty())
-        assertEquals(pending.memoCacheGeneration + 1, completed.memoCacheGeneration)
+        assertTrue(completed.records.collection.records.isEmpty())
+        assertEquals(
+            pending.records.collection.cacheGeneration + 1,
+            completed.records.collection.cacheGeneration,
+        )
         assertFalse(completed.records.summary.loading)
     }
 

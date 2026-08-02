@@ -121,9 +121,10 @@ the localized record, summary, and metadata slots.
 The shared detail actions consume records selection/mutation state directly and
 own edit/more enablement, favorite/archive menu choices, busy-state reset, and
 delete confirmation; Android maps the host-operation gate, resources, and
-ViewModel callbacks. Editor save/more actions are shared too, including progress semantics,
-busy-copy precedence, lifecycle menu choices, and delete confirmation; Android
-selects localized online/offline supporting copy and routes callbacks. Shared editor
+ViewModel callbacks. Editor save/more actions consume records selection/editor/
+mutation state directly and own progress semantics, busy-copy precedence, lifecycle
+menu choices, and delete confirmation; Android maps destination/global-operation
+context, selects localized online/offline supporting copy, and routes callbacks. Shared editor
 close requests also own dirty-draft selection and discard confirmation; Android
 retains system Back integration and maps localized copy plus the close callback.
 The shared editor content shell also owns lazy-list ordering, shared width,

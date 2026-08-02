@@ -35,9 +35,11 @@ metadata adapter slots.
 owns edit/more action enablement, lifecycle-aware favorite/archive menu choices,
 mutation-driven menu reset, and delete confirmation. Hosts supply the
 host-operation gate, localized strings, icons, and mutation/navigation callbacks.
-`SillageRecordEditorActions` owns save progress semantics, attachment-vs-save busy
-copy, existing-record lifecycle menu choices, and editor delete confirmation.
-Hosts supply localized online/offline copy, icons, and callbacks.
+`SillageRecordEditorActions` consumes aggregate selection/editor/mutation state
+plus `RecordsEditorActionContext` and owns save progress semantics,
+attachment-vs-save busy copy, existing-record lifecycle menu choices, and editor
+delete confirmation. Hosts supply localized online/offline copy, icons, callbacks,
+and the destination/global-operation context.
 `rememberSillageRecordEditorCloseRequest` owns dirty-draft close selection and
 discard-confirmation state/dialog while hosts retain platform Back integration,
 localized copy, and the close callback.

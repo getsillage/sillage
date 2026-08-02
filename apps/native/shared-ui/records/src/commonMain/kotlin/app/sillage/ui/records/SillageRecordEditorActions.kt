@@ -20,7 +20,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.canRunEditorAction
 
 data class SillageRecordEditorActionStrings(
     val saveContentDescription: String,
@@ -49,11 +51,8 @@ data class SillageRecordEditorActionIcons(
 
 @Composable
 fun SillageRecordEditorActions(
-    memo: Memo?,
-    actionsEnabled: Boolean,
-    saving: Boolean,
-    uploadingAttachment: Boolean,
-    deleteDismissEnabled: Boolean,
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
     strings: SillageRecordEditorActionStrings,
     icons: SillageRecordEditorActionIcons,
     onSave: () -> Unit,
@@ -64,12 +63,11 @@ fun SillageRecordEditorActions(
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val presentation = sillageRecordEditorActionPresentation(
-        memo = memo,
-        actionsEnabled = actionsEnabled,
-        saving = saving,
-        uploadingAttachment = uploadingAttachment,
+        state = state,
+        context = context,
         strings = strings,
     )
+    val memo = state.selection.selectedMemo
 
     if (confirmDelete) {
         AlertDialog(
@@ -90,7 +88,7 @@ fun SillageRecordEditorActions(
             dismissButton = {
                 TextButton(
                     onClick = { confirmDelete = false },
-                    enabled = deleteDismissEnabled,
+                    enabled = !context.hostOperationInProgress,
                 ) {
                     Text(strings.cancelAction)
                 }
@@ -173,28 +171,32 @@ internal data class SillageRecordEditorActionPresentation(
 )
 
 internal fun sillageRecordEditorActionPresentation(
-    memo: Memo?,
-    actionsEnabled: Boolean,
-    saving: Boolean,
-    uploadingAttachment: Boolean,
+    state: RecordsFeatureStateHolder,
+    context: RecordsEditorActionContext,
     strings: SillageRecordEditorActionStrings,
-): SillageRecordEditorActionPresentation = SillageRecordEditorActionPresentation(
-    actionsEnabled = actionsEnabled,
-    saveContentDescription = when {
-        uploadingAttachment -> strings.attachmentUploadingContentDescription
-        saving -> strings.savingContentDescription
-        else -> strings.saveContentDescription
-    },
-    showSaveProgress = uploadingAttachment || saving,
-    favorited = memo?.favoritedAt != null,
-    favoriteAction = if (memo?.favoritedAt == null) {
-        strings.favoriteAction
-    } else {
-        strings.unfavoriteAction
-    },
-    archiveAction = if (memo?.archivedAt == null) {
-        strings.archiveAction
-    } else {
-        strings.unarchiveAction
-    },
-)
+): SillageRecordEditorActionPresentation {
+    val memo = state.selection.selectedMemo
+    val uploadingAttachment = state.editor.uploadingAttachment
+    val selectedMemoMutating = memo?.id?.let(state.mutation::isActive) == true
+    val saving = context.hostOperationInProgress || selectedMemoMutating
+    return SillageRecordEditorActionPresentation(
+        actionsEnabled = state.canRunEditorAction(context),
+        saveContentDescription = when {
+            uploadingAttachment -> strings.attachmentUploadingContentDescription
+            saving -> strings.savingContentDescription
+            else -> strings.saveContentDescription
+        },
+        showSaveProgress = uploadingAttachment || saving,
+        favorited = memo?.favoritedAt != null,
+        favoriteAction = if (memo?.favoritedAt == null) {
+            strings.favoriteAction
+        } else {
+            strings.unfavoriteAction
+        },
+        archiveAction = if (memo?.archivedAt == null) {
+            strings.archiveAction
+        } else {
+            strings.unarchiveAction
+        },
+    )
+}

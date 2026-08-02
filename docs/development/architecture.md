@@ -255,9 +255,11 @@ Shared record detail actions consume aggregate selection/mutation state and own
 edit/more enablement, lifecycle-aware favorite/archive choices, mutation-driven
 menu reset, and delete confirmation. Android supplies the host-operation gate,
 localized resources, icons, and ViewModel callbacks.
-Shared record editor actions own save-progress semantics, attachment-vs-save busy
-copy precedence, lifecycle-aware menu choices, and delete confirmation. Android
-selects localized online/offline supporting copy and routes callbacks.
+Shared record editor actions consume aggregate selection/editor/mutation state plus
+`RecordsEditorActionContext` and own save-progress semantics, attachment-vs-save
+busy copy precedence, lifecycle-aware menu choices, and delete confirmation.
+Android maps destination/global-operation context, selects localized online/offline
+supporting copy, and routes callbacks.
 Shared record editor close requests own dirty-draft close selection and the
 discard-confirmation state/dialog. Android retains system Back integration and
 supplies localized copy plus the close callback.

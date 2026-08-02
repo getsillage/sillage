@@ -95,9 +95,10 @@ record, summary, and metadata slots.
 The shared detail actions consume aggregate selection/mutation state plus host
 busy context to own action enablement, inverse favorite/archive choices, menu
 reset, and delete confirmation while hosts route callbacks.
-The shared editor actions consume selected `Memo` lifecycle state plus aggregate
-busy flags to own save progress semantics, lifecycle menus, and delete confirmation
-while hosts provide localized mode-specific copy and route callbacks.
+The shared editor actions consume aggregate selection/editor/mutation state plus
+`RecordsEditorActionContext` to own save progress semantics, lifecycle menus, and
+delete confirmation while hosts map destination/global-operation context, provide
+localized mode-specific copy, and route callbacks.
 The shared editor close request consumes host-provided dirty state and owns
 close-vs-confirm selection plus discard-confirmation state/dialog while hosts
 retain platform Back integration and route the final close.

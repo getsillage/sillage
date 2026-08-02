@@ -205,9 +205,11 @@ Its record detail actions consume aggregate selection/mutation state and own
 edit/more enablement, lifecycle-aware favorite/archive choices, mutation-driven
 menu reset, and delete confirmation; hosts supply the host-operation gate,
 localized resources, icons, and feature callbacks.
-Its record editor actions own save-progress semantics, attachment-vs-save busy copy
-precedence, lifecycle-aware menu choices, and delete confirmation while hosts
-provide localized mode-specific supporting copy, icons, and callbacks.
+Its record editor actions consume aggregate selection/editor/mutation state plus
+`RecordsEditorActionContext` and own save-progress semantics, attachment-vs-save
+busy copy precedence, lifecycle-aware menu choices, and delete confirmation while
+hosts map destination/global-operation context and provide localized mode-specific
+supporting copy, icons, and callbacks.
 Its editor close request owns dirty-draft selection and discard-confirmation
 state/dialog while hosts retain platform Back integration and supply localized
 copy plus the close callback.

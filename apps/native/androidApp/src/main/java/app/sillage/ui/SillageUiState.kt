@@ -406,13 +406,13 @@ internal fun SillageUiState.enterOfflineClientWorkspace(
 typealias SyncConflictItem = MemoSyncConflictItem
 
 internal fun SillageUiState.hasUnsavedMemoDraft(): Boolean {
-    return records.hasUnsavedEditorDraft(recordsEditorActionContext())
+    return records.hasUnsavedEditorDraft(memoEditorActionContext())
 }
 
 internal typealias MemoEditorBusyReason = RecordsEditorBusyReason
 
 internal fun SillageUiState.memoEditorBusyReason(): MemoEditorBusyReason? {
-    return records.editorBusyReason(recordsEditorActionContext())
+    return records.editorBusyReason(memoEditorActionContext())
 }
 
 internal fun SillageUiState.withMemoEditorBackBlockedNotice(
@@ -428,10 +428,10 @@ internal fun SillageUiState.withMemoEditorBackBlockedNotice(
 }
 
 internal fun SillageUiState.canRunMemoEditorAction(): Boolean {
-    return records.canRunEditorAction(recordsEditorActionContext())
+    return records.canRunEditorAction(memoEditorActionContext())
 }
 
-private fun SillageUiState.recordsEditorActionContext(): RecordsEditorActionContext {
+internal fun SillageUiState.memoEditorActionContext(): RecordsEditorActionContext {
     return RecordsEditorActionContext(
         destinationAvailable = screen == Screen.Editor,
         hostOperationInProgress = loading,

@@ -46,7 +46,7 @@ import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.canRunMemoEditorAction
 import app.sillage.ui.hasUnsavedMemoDraft
-import app.sillage.ui.isMemoMutationInProgress
+import app.sillage.ui.memoEditorActionContext
 import app.sillage.ui.records.SillageRecordEditorActionIcons
 import app.sillage.ui.records.SillageRecordEditorActionStrings
 import app.sillage.ui.records.SillageRecordEditorActions
@@ -60,7 +60,6 @@ import app.sillage.ui.records.rememberSillageRecordEditorCloseRequest
 @Composable
 internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel) {
     var showDatePicker by remember { mutableStateOf(false) }
-    val memoMutationInProgress = state.selectedMemo?.id?.let(state::isMemoMutationInProgress) == true
     val editorActionsEnabled = state.canRunMemoEditorAction()
     val requestCloseEditor = rememberSillageRecordEditorCloseRequest(
         hasUnsavedChanges = state.hasUnsavedMemoDraft(),
@@ -132,11 +131,8 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
                 },
                 actions = {
                     SillageRecordEditorActions(
-                        memo = state.selectedMemo,
-                        actionsEnabled = editorActionsEnabled,
-                        saving = state.loading || memoMutationInProgress,
-                        uploadingAttachment = state.uploadingAttachment,
-                        deleteDismissEnabled = !state.loading,
+                        state = state.records,
+                        context = state.memoEditorActionContext(),
                         strings = SillageRecordEditorActionStrings(
                             saveContentDescription = stringResource(R.string.action_save),
                             savingContentDescription = stringResource(R.string.action_saving),

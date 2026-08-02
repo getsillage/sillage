@@ -1,6 +1,11 @@
 package app.sillage.ui.records
 
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.records.RecordsEditorActionContext
+import app.sillage.features.records.RecordsEditorStateHolder
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.RecordsMutationStateHolder
+import app.sillage.features.records.RecordsSelectionStateHolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,6 +18,7 @@ class SillageRecordEditorActionsTest {
 
         assertEquals("Save", presentation.saveContentDescription)
         assertFalse(presentation.showSaveProgress)
+        assertTrue(presentation.actionsEnabled)
     }
 
     @Test
@@ -36,6 +42,15 @@ class SillageRecordEditorActionsTest {
     }
 
     @Test
+    fun selectedMemoMutationUsesSavingPresentationAndDisablesActions() {
+        val presentation = presentation(memo(), mutating = true)
+
+        assertEquals("Saving", presentation.saveContentDescription)
+        assertTrue(presentation.showSaveProgress)
+        assertFalse(presentation.actionsEnabled)
+    }
+
+    @Test
     fun lifecycleStateSelectsInverseMenuActions() {
         val presentation = presentation(
             memo(
@@ -53,11 +68,19 @@ class SillageRecordEditorActionsTest {
         memo: Memo?,
         saving: Boolean = false,
         uploadingAttachment: Boolean = false,
+        mutating: Boolean = false,
     ): SillageRecordEditorActionPresentation = sillageRecordEditorActionPresentation(
-        memo = memo,
-        actionsEnabled = true,
-        saving = saving,
-        uploadingAttachment = uploadingAttachment,
+        state = RecordsFeatureStateHolder(
+            selection = RecordsSelectionStateHolder(selectedMemo = memo),
+            editor = RecordsEditorStateHolder(uploadingAttachment = uploadingAttachment),
+            mutation = RecordsMutationStateHolder(
+                activeMemoIds = if (mutating && memo != null) setOf(memo.id) else emptySet(),
+            ),
+        ),
+        context = RecordsEditorActionContext(
+            destinationAvailable = true,
+            hostOperationInProgress = saving,
+        ),
         strings = strings(),
     )
 

@@ -1,7 +1,6 @@
 package app.sillage.ui.memos
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Archive
@@ -23,8 +20,6 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.data.MarkdownLinkTarget
@@ -60,6 +54,8 @@ import app.sillage.ui.SillageViewModel
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
+import app.sillage.ui.records.SillageRecordSummarySection
+import app.sillage.ui.records.SillageRecordSummaryStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -330,93 +326,34 @@ internal fun MemoSummarySection(
     actionEnabled: Boolean = true,
     onGenerate: () -> Unit,
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
+    SillageRecordSummarySection(
+        summary = summary,
+        loading = loading,
+        strings = SillageRecordSummaryStrings(
+            title = stringResource(R.string.summary_title),
+            readingAction = stringResource(R.string.summary_reading),
+            generatingAction = stringResource(R.string.summary_generating),
+            generateAction = stringResource(R.string.summary_generate),
+            regenerateAction = stringResource(R.string.summary_regenerate),
+            loadingBody = stringResource(R.string.summary_loading_body),
+            emptyBody = stringResource(R.string.summary_empty_body),
         ),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.summary_title),
-                    modifier = Modifier
-                        .weight(1f)
-                .semantics { applySillageHeadingSemantics() },
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                TextButton(
-                    onClick = onGenerate,
-                    enabled = actionEnabled && !loading,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                ) {
-                    Text(
-                        when {
-                            loading && summary == null -> stringResource(R.string.summary_reading)
-                            loading -> stringResource(R.string.summary_generating)
-                            summary == null -> stringResource(R.string.summary_generate)
-                            else -> stringResource(R.string.summary_regenerate)
-                        },
-                    )
-                }
-            }
-            val body = summary?.summary?.takeIf { it.isNotBlank() }
-            if (body != null) {
-                Text(
-                    body,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                SummaryMeta(summary)
-            } else {
-                Text(
-                    stringResource(if (loading) R.string.summary_loading_body else R.string.summary_empty_body),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
+        sourceRecordsLabel = memoSummarySourceLabel(summary),
+        tokenCountLabel = memoSummaryTokenLabel(summary),
+        actionEnabled = actionEnabled,
+        onGenerate = onGenerate,
+        modifier = modifier,
+    )
 }
 
 @Composable
-private fun SummaryMeta(summary: MemoAI) {
-    val sourceCount = memoSummarySourceCount(summary.sourceMemoIds)
-    val model = listOf(summary.provider, summary.model)
-        .filter { it.isNotBlank() }
-        .joinToString(" / ")
-    val technicalDetails = buildList {
-        if (model.isNotBlank()) {
-            add(model)
-        }
-        if (summary.totalTokens > 0) {
-            add(pluralStringResource(R.plurals.quantity_tokens, summary.totalTokens.toInt(), summary.totalTokens))
-        }
-    }.joinToString(" · ")
-    if (sourceCount == null && technicalDetails.isBlank()) {
-        return
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (sourceCount != null) {
-            Text(
-                pluralStringResource(R.plurals.quantity_source_records, sourceCount, sourceCount),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        if (technicalDetails.isNotBlank()) {
-            Text(
-                technicalDetails,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
+private fun memoSummarySourceLabel(summary: MemoAI?): String? {
+    val sourceCount = summary?.let { memoSummarySourceCount(it.sourceMemoIds) } ?: return null
+    return pluralStringResource(R.plurals.quantity_source_records, sourceCount, sourceCount)
+}
+
+@Composable
+private fun memoSummaryTokenLabel(summary: MemoAI?): String? {
+    val tokenCount = summary?.totalTokens?.takeIf { it > 0 } ?: return null
+    return pluralStringResource(R.plurals.quantity_tokens, tokenCount.toInt(), tokenCount)
 }

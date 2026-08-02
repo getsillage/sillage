@@ -105,8 +105,10 @@ records aggregate in shared UI for coverage, selection, and row composition;
 Android supplies locale-aware grid/header values and localized row adapters.
 On-this-day cards also come from shared
 records UI; Android supplies localized title/plural formatting and the calendar
-icon. Editor
-unsaved-draft and Back-blocking policy also lives in that module; Android
+icon. The AI summary card is shared across detail and editor surfaces and owns
+loading/action/body/metadata presentation; Android only maps localized strings,
+JSON source-count parsing, and plural labels. Editor unsaved-draft and
+Back-blocking policy also lives in that module; Android
 supplies destination/global-operation context and maps the shared busy reason to
 localized feedback. Remote
 attachment upload crosses `AttachmentUploadRepository` and

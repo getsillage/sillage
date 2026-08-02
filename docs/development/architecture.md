@@ -199,6 +199,10 @@ The shared record list consumes `RecordsFeatureStateHolder` directly to select
 published search results, filter-specific empty states, On This Day visibility,
 active/deleted row branching, and pagination action state. It owns lazy-list
 composition while hosts fill localized card/row adapter slots and route callbacks.
+The shared record summary section consumes `MemoAI` and owns summary-card layout,
+loading/action selection, body fallback, and provider/model/source/token metadata
+presentation. Android retains localized plural formatting and source-ID JSON
+parsing at its adapter boundary.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
 and mutation progress. Hosts retain date formatting, localized copy, icons, and

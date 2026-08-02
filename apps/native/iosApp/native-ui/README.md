@@ -1,8 +1,10 @@
 # iOS native UI adapters
 
-Reserved for SwiftUI or UIKit views and controllers used when a platform-native
-surface provides materially better system integration, accessibility,
-performance, or interaction behavior than the shared Compose implementation.
+The implemented SwiftUI lifecycle wrapper lives under `../Sillage/` and hosts
+the shared Compose `UIViewController`. This directory remains the boundary for
+future feature-specific SwiftUI or UIKit surfaces where native controls provide
+materially better system integration, accessibility, performance, or
+platform-standard interaction.
 
-Native views consume shared feature state and use cases; they must not duplicate
-domain, persistence, synchronization, or protocol logic.
+Native views must consume shared feature state and use cases. They must not
+duplicate domain, persistence, synchronization, or protocol logic.

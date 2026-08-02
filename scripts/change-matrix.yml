@@ -1,6 +1,6 @@
 # Path → required verification gates and documentation surfaces.
 # Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
-# Gates: go | proto | web | android | desktop | scale | docs | container | supply-chain | e2e | restore | upgrade
+# Gates: go | proto | web | android | desktop | ios | scale | docs | container | supply-chain | e2e | restore | upgrade
 
 version: 1
 
@@ -18,6 +18,7 @@ gates:
   upgrade: "Latest-stable data upgrade and backup-backed rollback drill"
 
   desktop: "Shared native common tests, desktop host tests, and desktop JVM production compilation"
+  ios: "Shared native common tests, Apple framework links, Swift bridge typecheck, and unsigned simulator host build"
 
 rules:
   - id: proto-contract
@@ -110,7 +111,7 @@ rules:
       - "apps/native/gradle/**"
       - "apps/native/gradlew"
       - "apps/native/gradlew.bat"
-    gates: [android, desktop]
+    gates: [android, desktop, ios]
     docs:
       - "docs/development/multiplatform.md"
 
@@ -129,7 +130,7 @@ rules:
       - "packages/kmp-core/**"
       - "packages/kmp-features/**"
       - "apps/native/shared-ui/**"
-    gates: [android, desktop, docs]
+    gates: [android, desktop, ios, docs]
     docs:
       - "docs/development/multiplatform.md"
       - "docs/development/architecture.md"
@@ -137,7 +138,7 @@ rules:
   - id: ios-host
     paths:
       - "apps/native/iosApp/**"
-    gates: [docs]
+    gates: [ios, docs]
     docs:
       - "docs/development/multiplatform.md"
       - "docs/development/architecture.md"
@@ -258,7 +259,7 @@ rules:
       - ".github/workflows/ci.yml"
       - "scripts/affected.mjs"
       - "scripts/change-matrix.yml"
-    gates: [go, proto, web, android, desktop, scale, docs, container, supply-chain, e2e, restore, upgrade]
+    gates: [go, proto, web, android, desktop, ios, scale, docs, container, supply-chain, e2e, restore, upgrade]
     docs:
       - "docs/development/governance.md"
       - "CONTRIBUTING.md"

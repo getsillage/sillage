@@ -11,7 +11,7 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform | Kotlin Multiplatform | Application and native-UI boundaries reserved |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; server integration pending |
 | Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; server integration pending |
 | macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG builds; server integration pending |
 
@@ -615,18 +615,20 @@ attachment staging and present the resulting status.
 
 - `apps/native/androidApp/` is the Android application and current migration
   source.
-- `apps/native/iosApp/` owns the Xcode host, Apple lifecycle, signing, Keychain,
-  file and share integration, and optional SwiftUI/UIKit adapters.
+- `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
+  host, `NSUserDefaults` snapshot adapter, Foundation time/identity values, and
+  Xcode integration. Keychain credentials, file sharing, signing, and App Store
+  packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, platform time and identity values, data-folder action,
   and Windows/macOS packaging. DMG generation works on macOS; MSI generation is
   configured and must be verified on Windows. Signing, notarization, credential
   storage, updater, and native menu integration remain future release work.
 
-Desktop packages produced by local Gradle tasks are engineering verification
-artifacts. They are not attached by the official release workflow until the
-Windows build, signing, notarization, and update policy are implemented and
-covered by release-candidate checks.
+Desktop and iOS packages produced by local build tasks are engineering
+verification artifacts. They are not attached by the official release workflow
+until Windows installer verification, macOS/iOS signing, macOS notarization,
+updates, and platform release-candidate coverage are implemented.
 
 Platform hosts may depend on shared modules. They must not depend directly on
 another platform host.
@@ -669,3 +671,9 @@ and desktop JVM production compilation. On macOS, additionally run
 equivalent MSI task must run on a Windows host before Windows distribution is
 considered verified. Packaging checks do not replace signing, notarization,
 accessibility, or installer lifecycle testing.
+
+Run `make check-ios` on macOS to link the static device and simulator
+frameworks, typecheck the Swift bridge, and build the unsigned simulator host.
+The complete target requires Xcode with an iOS Simulator platform installed;
+framework linking alone does not prove app lifecycle, accessibility, signing,
+device behavior, or App Store readiness.

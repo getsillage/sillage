@@ -68,6 +68,7 @@ const targetByGate = {
   web: "check-web",
   android: "check-android",
   desktop: "check-desktop",
+  ios: "check-ios",
   scale: "check-scale",
   docs: "check-docs",
   container: "check-container",

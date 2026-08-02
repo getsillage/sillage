@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.serialization) apply false
 }
 
@@ -60,6 +61,16 @@ tasks.register("checkDesktop") {
     dependsOn(checkShared)
     dependsOn(":desktopApp:check")
     dependsOn(":desktopApp:jar")
+}
+
+tasks.register("checkIos") {
+    group = "verification"
+    description = "Links the shared iOS frameworks for device and simulator targets."
+    dependsOn(checkShared)
+    dependsOn(":iosApp:linkDebugFrameworkIosArm64")
+    dependsOn(":iosApp:linkDebugFrameworkIosSimulatorArm64")
+    dependsOn(":iosApp:linkDebugFrameworkIosX64")
+    dependsOn(":iosApp:linkReleaseFrameworkIosArm64")
 }
 
 subprojects {

@@ -26,6 +26,7 @@ jobs:
       web: ${{ steps.affected.outputs.web }}
       android: ${{ steps.affected.outputs.android }}
       desktop: ${{ steps.affected.outputs.desktop }}
+      ios: ${{ steps.affected.outputs.ios }}
       scale: ${{ steps.affected.outputs.scale }}
       docs: ${{ steps.affected.outputs.docs }}
       container: ${{ steps.affected.outputs.container }}
@@ -355,6 +356,26 @@ jobs:
 
       - name: Check Desktop
         run: make check-desktop
+
+  ios:
+    name: iOS
+    needs: commits
+    if: ${{ github.event_name == 'push' || needs.commits.outputs.ios == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - name: Check iOS
+        run: make check-ios
 
   android-device:
     name: Android Device (API ${{ matrix.api-level }})

@@ -42,7 +42,7 @@ data class SillageNativePlatform(
     val name: String,
     val dataLocation: String,
     val version: String,
-    val openDataLocation: () -> Boolean,
+    val openDataLocation: (() -> Boolean)? = null,
 )
 
 data class SillageNativeState(

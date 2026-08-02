@@ -18,6 +18,7 @@ dependencyResolutionManagement {
 rootProject.name = "SillageNative"
 include(":androidApp")
 include(":desktopApp")
+include(":iosApp")
 include(":kmp-core:application")
 include(":kmp-core:domain")
 include(":kmp-core:local-data")

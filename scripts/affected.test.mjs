@@ -33,23 +33,28 @@ test("Android changes stay within the Android gate", () => {
   assert.ok(!gates.includes("go"));
 });
 
-test("shared Kotlin modules use Android and desktop compilation gates", () => {
+test("shared Kotlin modules use all native host compilation gates", () => {
   const gates = gatesFor("packages/kmp-core/sync/src/commonMain/SyncEngine.kt");
   assert.ok(gates.includes("android"));
   assert.ok(gates.includes("desktop"));
+  assert.ok(gates.includes("ios"));
   assert.ok(gates.includes("docs"));
   assert.ok(!gates.includes("web"));
 });
 
-test("native build conventions use both native host gates", () => {
+test("native build conventions use every native host gate", () => {
   const gates = gatesFor("apps/native/build-logic/src/main/kotlin/sillage.kmp-library.gradle.kts");
   assert.ok(gates.includes("android"));
   assert.ok(gates.includes("desktop"));
+  assert.ok(gates.includes("ios"));
   assert.ok(!gates.includes("web"));
 });
 
-test("iOS host remains documentation-gated until its build exists", () => {
-  assert.deepEqual(gatesFor("apps/native/iosApp/README.md"), ["docs"]);
+test("iOS host changes run Apple compilation and documentation", () => {
+  const gates = gatesFor("apps/native/iosApp/src/iosMain/kotlin/app/sillage/ios/MainViewController.kt");
+  assert.ok(gates.includes("ios"));
+  assert.ok(gates.includes("docs"));
+  assert.ok(!gates.includes("android"));
 });
 
 test("desktop host changes run desktop compilation and documentation", () => {

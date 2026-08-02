@@ -96,13 +96,21 @@ internal fun SillageNativeSettings(
                 }
                 item {
                     SillageSettingsSectionCard(strings.data) {
-                        SillageSettingsActionRow(
-                            icon = Icons.Outlined.FolderOpen,
-                            title = strings.openDataLocation,
-                            supporting = platform.dataLocation,
-                            onClick = { platform.openDataLocation() },
-                            enabled = state.storageAvailable,
-                        )
+                        val openDataLocation = platform.openDataLocation
+                        if (openDataLocation == null) {
+                            SillageSettingsInfoRow(
+                                label = strings.dataLocation,
+                                value = platform.dataLocation,
+                            )
+                        } else {
+                            SillageSettingsActionRow(
+                                icon = Icons.Outlined.FolderOpen,
+                                title = strings.openDataLocation,
+                                supporting = platform.dataLocation,
+                                onClick = { openDataLocation() },
+                                enabled = state.storageAvailable,
+                            )
+                        }
                     }
                 }
                 item {

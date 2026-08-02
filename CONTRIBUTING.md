@@ -116,6 +116,7 @@ make print-affected     # show gates without running them
 | Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
 | Android | `make check-android` | shared native common tests, Android unit tests, lint, debug/test APKs, strict dependency integrity, notices, OSV release-runtime scan, release manifest policy, min/target device-matrix consistency |
 | Desktop | `make check-desktop` | shared native common tests, desktop host tests, desktop JVM production compilation |
+| iOS | `make check-ios` | shared native common tests, device/simulator framework links, Swift bridge typecheck, unsigned simulator host build |
 | Android device | `make check-android-device` | Keystore/SQLite migration and critical Compose journeys on a connected device or emulator |
 | Scale | `make check-scale` | 10,000 active records, 2,000 recoverable deletions, HTTP list/search/sync pagination, and SQLite integrity budgets |
 | Upgrade | `make check-upgrade` | latest stable binary/data creation, candidate migration, representative data checks, old-binary schema rejection, and complete-backup rollback |

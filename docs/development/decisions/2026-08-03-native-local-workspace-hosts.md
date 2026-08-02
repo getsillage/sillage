@@ -28,6 +28,12 @@ Platform hosts provide only lifecycle and storage adapters. Features that
 require a server, including Ask and synchronization, remain unavailable until
 their existing shared application ports have host implementations.
 
+`iosApp` exports a static KMP framework consumed by a SwiftUI/UIKit lifecycle
+host. It stores the same JSON snapshot as one `NSUserDefaults` value and uses
+Foundation for timestamps and record identifiers. The Xcode project selects a
+device or simulator framework from Xcode's build environment rather than
+duplicating application behavior in Swift.
+
 `desktopApp` is the Windows/macOS host and may generate local DMG or MSI
 packages. These packages are engineering verification artifacts, not official
 release assets. The release workflow remains unchanged until Windows

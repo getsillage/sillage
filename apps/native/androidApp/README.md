@@ -209,6 +209,9 @@ copy, prompt icon, and speaker-description formatting.
 Shared message actions own variant navigation, regenerate/save gates, saving
 progress, and variant-position semantics. Android maps localized resources,
 Material icons, and ViewModel callbacks.
+Shared source references own expansion, the five-row display limit, row layout,
+and source-action gates. Android retains plural/date formatting, icon mapping,
+and record navigation callbacks.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

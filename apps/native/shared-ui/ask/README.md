@@ -27,5 +27,9 @@ semantics, regenerate/save visibility and request gating, plus saving progress
 presentation. Hosts provide localized strings, Material icons, and feature
 callbacks.
 
+`SillageAskSourceReferences` owns source expansion, the five-row display limit,
+row layout, and source-action enablement. Hosts provide localized count/date
+formatting, expand/collapse icons, and navigation callbacks.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

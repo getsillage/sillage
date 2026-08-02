@@ -260,6 +260,9 @@ localized copy, icons, and speaker-description formatting.
 Its message actions own neighboring-variant selection, regenerate/save
 visibility and request gates, saving progress, and polite position semantics;
 hosts provide localized strings, icons, and callbacks.
+Its source references own expansion state, the five-row display limit, row
+layout, and action gating; hosts provide localized count/date formatting,
+expand/collapse icons, and navigation callbacks.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

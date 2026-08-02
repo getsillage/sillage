@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -44,7 +42,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +66,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sillage.data.AskPathEntry
-import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.data.MarkdownLinkTarget
 import app.sillage.data.buildAskActivePath
 import app.sillage.data.lastAssistantMessageId
@@ -525,9 +521,31 @@ private fun AskMessageCard(
                     )
                 }
                 if (isAssistant && message.sourceRefs.isNotEmpty()) {
-                    AskSourceRefs(
+                    SillageAskSourceReferences(
                         sources = message.sourceRefs,
                         enabled = sourceActionsEnabled,
+                        strings = SillageAskSourceReferenceStrings(
+                            sourceCount = { count ->
+                                pluralStringResource(R.plurals.quantity_sources, count, count)
+                            },
+                            sourceLabel = { source ->
+                                stringResource(
+                                    R.string.quantity_joiner,
+                                    localizedDate(source.entryDate),
+                                    source.excerpt,
+                                )
+                            },
+                            showSourcesContentDescription = stringResource(
+                                R.string.ask_show_sources,
+                            ),
+                            hideSourcesContentDescription = stringResource(
+                                R.string.ask_hide_sources,
+                            ),
+                        ),
+                        icons = SillageAskSourceReferenceIcons(
+                            expand = Icons.Rounded.ExpandMore,
+                            collapse = Icons.Rounded.ExpandLess,
+                        ),
                         onOpenSource = onOpenSource,
                     )
                 }
@@ -568,52 +586,6 @@ private fun AskMessageCard(
                         onRegenerate = onRegenerate,
                         onSave = onSaveAsMemo,
                         onSelectVariant = onSelectVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AskSourceRefs(
-    sources: List<AskSourceRef>,
-    enabled: Boolean,
-    onOpenSource: (String) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        TextButton(
-            onClick = { expanded = !expanded },
-            modifier = Modifier.height(48.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-        ) {
-            Text(
-                pluralStringResource(R.plurals.quantity_sources, sources.size, sources.size),
-                style = MaterialTheme.typography.labelSmall,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                contentDescription = stringResource(if (expanded) R.string.ask_hide_sources else R.string.ask_show_sources),
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        if (expanded) {
-            sources.take(5).forEach { source ->
-                TextButton(
-                    onClick = { onOpenSource(source.memoId) },
-                    enabled = enabled && source.memoId.isNotBlank(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.quantity_joiner, localizedDate(source.entryDate), source.excerpt),
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

@@ -66,3 +66,6 @@ hosts provide localized copy and speaker formatting.
 Shared message actions consume domain messages and branch variants, then own
 neighbor selection, regenerate/save gates, saving progress, and variant-position
 semantics while hosts provide localized resources, icons, and callbacks.
+Shared source references consume domain source values and own expansion, the
+five-row display limit, row layout, and action gates while hosts provide
+localized count/date formatting, icons, and navigation callbacks.

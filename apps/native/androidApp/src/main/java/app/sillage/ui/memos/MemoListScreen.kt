@@ -1,10 +1,7 @@
 package app.sillage.ui.memos
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -46,8 +43,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -121,6 +116,8 @@ import app.sillage.ui.records.SillageRecordSearchBar
 import app.sillage.ui.records.SillageRecordSearchStrings
 import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
+import app.sillage.ui.records.SillageRecordRow
+import app.sillage.ui.records.SillageRecordRowStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
 import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
@@ -698,8 +695,16 @@ private fun MemoSwipeRow(
             enabled = !mutating,
             modifier = Modifier.matchParentSize(),
         )
-        MemoRow(
+        SillageRecordRow(
             memo = memo,
+            strings = SillageRecordRowStrings(
+                blankRecord = stringResource(R.string.blank_record),
+                entryDateLabel = localizedDate(memo.entryDate),
+                moreActionsLabel = stringResource(R.string.action_more),
+                savingDescription = stringResource(R.string.action_saving),
+                favoritedStatus = stringResource(R.string.record_favorited),
+                archivedStatus = stringResource(R.string.record_archived),
+            ),
             modifier = Modifier
                 .heightIn(min = 92.dp)
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
@@ -937,70 +942,6 @@ private fun QuickActionRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun MemoRow(
-    memo: Memo,
-    mutating: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)?,
-) {
-    val moreActionsLabel = if (onLongClick == null) null else stringResource(R.string.action_more)
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClickLabel = moreActionsLabel,
-                onLongClick = onLongClick,
-            ),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                memo.content.ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    localizedDate(memo.entryDate),
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Box(
-                    modifier = Modifier.size(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (mutating) {
-                        val savingDescription = stringResource(R.string.action_saving)
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .semantics { contentDescription = savingDescription },
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-                MemoStatusLine(memo)
-            }
         }
     }
 }

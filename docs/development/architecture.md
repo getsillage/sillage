@@ -187,6 +187,10 @@ The shared search bar also reads query, searching, and result-presence state fro
 the aggregate and owns IME submission, progress, clear, and search action layout.
 Shared records empty/error presentation owns icon treatment, centered copy, and an
 optional action while Android selects localized copy for each list condition.
+The shared active record row consumes `Memo` plus host-localized labels and owns
+card layout, blank-content fallback, favorite/archive status, long-click semantics,
+and mutation progress. Hosts retain date formatting, localized copy, swipe/action
+presentation, and feature routing.
 The shared recently deleted record row consumes the same aggregate plus `Memo`,
 derives mutation ownership, and owns two-step permanent-delete confirmation.
 Hosts retain localized labels, icons, formatted deletion timestamps, and mutation

@@ -9,6 +9,9 @@ active list filter and owns the selectable-tab layout, colors, and semantics.
 published-result presence while owning IME search, progress, clear, and action UI.
 `SillageRecordEmptyState` owns reusable records empty/error presentation, optional
 icon treatment, and optional action layout.
+`SillageRecordRow` consumes a record plus host-localized labels and owns card
+layout, blank-content fallback, status presentation, long-click semantics, and
+mutation progress.
 `SillageRecentlyDeletedRecordRow` consumes aggregate mutation ownership and a
 record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and

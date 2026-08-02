@@ -73,8 +73,8 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             R.string.ask_new_conversation_description,
         ),
     )
-    var observedCompletionEventId by remember(state.askScreenSessionId) {
-        mutableLongStateOf(state.askCompletionEventId)
+    var observedCompletionEventId by remember(state.ask.screenSessionId) {
+        mutableLongStateOf(state.ask.stream.completionEventId)
     }
     val listState = rememberLazyListState()
     val entries = remember(state.askMessages, state.askHeadId) {
@@ -90,13 +90,13 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         listState = listState,
     )
     LaunchedEffect(
-        state.askScreenSessionId,
-        state.askCompletionEventId,
+        state.ask.screenSessionId,
+        state.ask.stream.completionEventId,
         completedDescription,
         view,
     ) {
-        if (observedCompletionEventId != state.askCompletionEventId) {
-            observedCompletionEventId = state.askCompletionEventId
+        if (observedCompletionEventId != state.ask.stream.completionEventId) {
+            observedCompletionEventId = state.ask.stream.completionEventId
             view.announceForAccessibility(completedDescription)
         }
     }

@@ -354,6 +354,9 @@ maps those keys to `Screen` only at its presentation boundary.
 `AskStreamStateHolder` owns answer-generation request identity, live stream
 presentation, regeneration identity, and completion events. Android's SSE and
 device-local AI adapters feed it only after shared request-ownership validation.
+Stream-job cleanup and the Compose completion-announcement bridge consume the
+holder through the Ask aggregate directly, without Android root-state stream
+accessors.
 `AskLoadStateHolder` owns the remaining conversation/message load status and
 durable retry message rather than leaving those transitions in the root ViewModel.
 `AskComposerStateHolder` owns the prompt draft and retrieval options; stream

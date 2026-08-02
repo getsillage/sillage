@@ -335,8 +335,10 @@ or client context changes. Platform hosts map the stable keys to their own
 navigation types.
 `AskStreamStateHolder` owns generation single-flight identity, transient live
 messages, regeneration identity, and completion events. SSE parsing and
-device-local model execution remain platform adapters that may update the holder
-only while its captured conversation and client context match.
+device-local model execution remain platform adapters and may update the holder
+only while its captured conversation and client context match. Platform stream
+job cleanup and completion-announcement bridges read the holder through the Ask
+aggregate directly rather than host-root compatibility getters.
 `AskLoadStateHolder` owns conversation/message loading and retry presentation
 through explicit begin, complete, fail, and cancel transitions.
 `AskComposerStateHolder` owns the question draft and retrieval scope/source

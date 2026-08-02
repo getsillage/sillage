@@ -3591,7 +3591,7 @@ class SillageViewModel(
                             currentState
                         }
                     }
-                    if (state.value.askStreamRequestId == request.requestId) {
+                    if (state.value.ask.stream.requestId == request.requestId) {
                         askStreamJob = null
                     }
                 }
@@ -3712,7 +3712,7 @@ class SillageViewModel(
                     currentState
                 }
             }
-            if (state.value.askStreamRequestId == request.requestId) {
+            if (state.value.ask.stream.requestId == request.requestId) {
                 askStreamJob = null
             }
         }

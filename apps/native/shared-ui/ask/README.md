@@ -42,7 +42,8 @@ message action gates. Hosts fill localized error, prompt, message, and live slot
 
 `SillageAskAutoFollow` owns drag suspension, near-bottom reactivation, new-turn
 following, streamed-answer growth scrolling, and rendered-item counting. Hosts
-provide the shared list state while platform announcement bridges remain outside.
+provide the shared list state and read aggregate completion events for platform
+announcement bridges, which remain outside shared UI.
 
 `SillageAskTopBarTitle` and `SillageAskTopBarActions` own title/context layout,
 saving progress semantics, Material action layout, and aggregate-derived gates.

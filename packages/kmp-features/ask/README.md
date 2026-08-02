@@ -6,12 +6,14 @@ answer-to-record feature-scoped state.
 `AskFeatureStateHolder` composes the holders below and owns coordinated
 multi-holder transitions for workspace teardown, Ask-screen entry, blank
 composition starts, conversation selection/load completion, variant head
-application, stream begin/delta/finish, composer updates, memo-save/source-navigation ownership, active snapshot replacement, and catalog clearing. Individual
-holders remain the unit of request identity. Android stores one aggregate on
-root UI state, keeps transitional slice getters, and routes single-holder writes
-through `withAsk` / aggregate transitions. Android's root-state boundary provides
-thin composer and source-navigation wrappers so platform callbacks do not replace
-nested Ask slices directly.
+application, stream begin/delta/finish, composer updates,
+memo-save/source-navigation ownership, active snapshot replacement, and catalog
+clearing. Individual holders remain the unit of request identity. Android stores
+one aggregate on root UI state, keeps transitional slice getters only for
+remaining conversation/load/variant call sites, and routes single-holder writes
+through `withAsk` / aggregate transitions. The Android root-state boundary
+provides thin composer and source-navigation wrappers so platform callbacks do
+not replace nested Ask slices directly.
 
 `AskConversationStateHolder` owns the
 conversation collection, current conversation, selected branch head, and loaded
@@ -38,7 +40,9 @@ navigation model.
 `AskStreamStateHolder` owns answer-generation request identity, live user/answer
 presentation, regeneration identity, and completion events. Android retains the
 SSE client and device-local model execution; callbacks update shared state only
-while the captured conversation and client context still match.
+while the captured conversation and client context still match. Stream-job
+cleanup, Compose completion observation, and Android tests consume this state
+through the aggregate directly rather than host-root compatibility getters.
 Remote streaming crosses the application `AskAnswerStreamer` contract as ordered
 start, delta, and failure events; SSE parsing and HTTP stay in the platform
 adapter.

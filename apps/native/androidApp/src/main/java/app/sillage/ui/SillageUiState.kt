@@ -200,12 +200,6 @@ data class SillageUiState(
     val askSourceRequestId: Long get() = ask.sourceNavigation.requestId
     val askSourceLoading: Boolean get() = ask.sourceLoading
     val askSending: Boolean get() = ask.sending
-    val askStreaming: Boolean get() = ask.streaming
-    val askStreamRequestId: Long get() = ask.stream.requestId
-    val askCompletionEventId: Long get() = ask.stream.completionEventId
-    val askRegeneratingId: String get() = ask.stream.regeneratingMessageId
-    val askLiveUser: AskMessage? get() = ask.stream.liveUser
-    val askLiveAnswer: String get() = ask.stream.liveAnswer
     val askLoading: Boolean get() = ask.loading
     val askLoadError: String? get() = ask.loadErrorMessage
     val askQuestion: String get() = ask.question

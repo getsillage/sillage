@@ -257,9 +257,9 @@ class SillageUiStateTest {
 
         val stopped = streaming.withAskStreamingStoppedNotice("已停止生成")
 
-        assertEquals("已生成的部分", stopped.askLiveAnswer)
-        assertTrue(stopped.askSending)
-        assertTrue(stopped.askStreaming)
+        assertEquals("已生成的部分", stopped.ask.stream.liveAnswer)
+        assertTrue(stopped.ask.sending)
+        assertTrue(stopped.ask.streaming)
         assertEquals(null, stopped.error)
         assertEquals("已停止生成", stopped.notice)
         val idle = streaming.withAskStream(sending = false)
@@ -1350,24 +1350,24 @@ class SillageUiStateTest {
         ) }
 
         val completed = pending.finishAskStream(answerAvailable = true, clearQuestion = true)
-        assertFalse(completed.askSending)
-        assertFalse(completed.askStreaming)
+        assertFalse(completed.ask.sending)
+        assertFalse(completed.ask.streaming)
         assertEquals("", completed.askQuestion)
-        assertEquals("", completed.askRegeneratingId)
-        assertEquals(null, completed.askLiveUser)
-        assertEquals("", completed.askLiveAnswer)
-        assertEquals(5L, completed.askCompletionEventId)
+        assertEquals("", completed.ask.stream.regeneratingMessageId)
+        assertEquals(null, completed.ask.stream.liveUser)
+        assertEquals("", completed.ask.stream.liveAnswer)
+        assertEquals(5L, completed.ask.stream.completionEventId)
 
         val unavailable = pending.finishAskStream(answerAvailable = false, clearQuestion = true)
-        assertEquals(4L, unavailable.askCompletionEventId)
+        assertEquals(4L, unavailable.ask.stream.completionEventId)
 
         val failed = pending.copy(error = "失败").finishAskStream(answerAvailable = true, clearQuestion = true)
         assertEquals("问题", failed.askQuestion)
-        assertEquals(4L, failed.askCompletionEventId)
+        assertEquals(4L, failed.ask.stream.completionEventId)
 
         val stopped = pending.copy(notice = "已停止").finishAskStream(answerAvailable = true, clearQuestion = true)
         assertEquals("", stopped.askQuestion)
-        assertEquals(4L, stopped.askCompletionEventId)
+        assertEquals(4L, stopped.ask.stream.completionEventId)
     }
 
     @Test
@@ -1480,13 +1480,13 @@ class SillageUiStateTest {
     }
 
     private fun SillageUiState.withAskStream(
-        sending: Boolean = askSending,
-        streaming: Boolean = askStreaming,
-        requestId: Long = askStreamRequestId,
-        completionEventId: Long = askCompletionEventId,
-        regeneratingMessageId: String = askRegeneratingId,
-        liveUser: AskMessage? = askLiveUser,
-        liveAnswer: String = askLiveAnswer,
+        sending: Boolean = ask.sending,
+        streaming: Boolean = ask.streaming,
+        requestId: Long = ask.stream.requestId,
+        completionEventId: Long = ask.stream.completionEventId,
+        regeneratingMessageId: String = ask.stream.regeneratingMessageId,
+        liveUser: AskMessage? = ask.stream.liveUser,
+        liveAnswer: String = ask.stream.liveAnswer,
     ): SillageUiState = withAsk { ask ->
         ask.copy(
             stream = AskStreamStateHolder(

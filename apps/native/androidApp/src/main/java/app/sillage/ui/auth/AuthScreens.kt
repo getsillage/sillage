@@ -179,7 +179,10 @@ private fun AuthScaffold(
                 logoContainerColor = colorResource(R.color.ic_launcher_background),
                 languageIcon = Icons.Rounded.Language,
                 languageContentDescription = stringResource(
-                    if (state.languageMode == app.sillage.data.SessionStore.LANGUAGE_ZH_CN) {
+                    if (
+                        state.appearance.languageMode ==
+                        app.sillage.data.SessionStore.LANGUAGE_ZH_CN
+                    ) {
                         R.string.language_switch_to_english
                     } else {
                         R.string.language_switch_to_chinese

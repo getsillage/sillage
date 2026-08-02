@@ -35,14 +35,14 @@ class SillageViewModelToastTest {
         viewModel.toggleThemeMode()
         viewModel.setLanguageMode("en-US")
 
-        assertEquals(SessionStore.THEME_DARK, viewModel.state.value.themeMode)
-        assertEquals(SessionStore.LANGUAGE_EN, viewModel.state.value.languageMode)
+        assertEquals(SessionStore.THEME_DARK, viewModel.state.value.appearance.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, viewModel.state.value.appearance.languageMode)
         assertEquals(SessionStore.THEME_DARK, SessionStore(context).themeMode())
         assertEquals(SessionStore.LANGUAGE_EN, SessionStore(context).languageMode())
 
         val restored = SillageViewModel(context)
-        assertEquals(SessionStore.THEME_DARK, restored.state.value.themeMode)
-        assertEquals(SessionStore.LANGUAGE_EN, restored.state.value.languageMode)
+        assertEquals(SessionStore.THEME_DARK, restored.state.value.appearance.themeMode)
+        assertEquals(SessionStore.LANGUAGE_EN, restored.state.value.appearance.languageMode)
     }
 
     @Test
@@ -54,7 +54,7 @@ class SillageViewModelToastTest {
 
         assertEquals("请先填写服务器地址。", viewModel.state.value.authError)
         assertNull(withTimeoutOrNull(100) { viewModel.toastEvents.first() })
-        assertEquals(SessionStore.LANGUAGE_ZH_CN, viewModel.state.value.languageMode)
+        assertEquals(SessionStore.LANGUAGE_ZH_CN, viewModel.state.value.appearance.languageMode)
 
         viewModel.setLanguageMode(SessionStore.LANGUAGE_EN)
 

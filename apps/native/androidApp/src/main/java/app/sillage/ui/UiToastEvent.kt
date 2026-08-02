@@ -27,6 +27,6 @@ private fun SillageUiState.feedbackSnapshot(): AppFeedbackSnapshot {
     return AppFeedbackSnapshot(
         error = error,
         notice = notice,
-        languageMode = languageMode,
+        languageMode = appearance.languageMode,
     )
 }

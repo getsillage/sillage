@@ -140,10 +140,10 @@ internal fun SillageApp(viewModel: SillageViewModel) {
             }
         }
     }
-    LaunchedEffect(viewModel, snackbarHostState, state.languageMode) {
+    LaunchedEffect(viewModel, snackbarHostState, state.appearance.languageMode) {
         snackbarHostState.currentSnackbarData?.dismiss()
         viewModel.toastEvents.collectLatest { event ->
-            if (!event.matchesLanguage(state.languageMode)) {
+            if (!event.matchesLanguage(state.appearance.languageMode)) {
                 return@collectLatest
             }
             snackbarHostState.currentSnackbarData?.dismiss()

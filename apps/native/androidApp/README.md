@@ -36,6 +36,8 @@ also come from that module; Android retains system Back dispatch and Compose
 navigation effects. Global feedback event sequencing, duplicate suppression,
 error precedence, and language binding are shared as well; Android still
 generates localized messages and renders the top-level Toast.
+Android theme/language orchestration, Compose consumers, localized feedback, and
+tests read the nested appearance state directly without root appearance accessors.
 
 The semantic light/dark colors, typography, shapes, and common `MaterialTheme`
 come from the buildable `shared-ui:design-system` module. Android's theme wrapper
@@ -188,6 +190,8 @@ shared authentication scaffold and header receive Android launcher resources,
 localized brand text, language state, and the language-toggle callback.
 The settings account section also comes from `shared-ui:auth`; Android supplies
 the account summary, localized strings, mutation gate, icon, and callbacks.
+Android authentication orchestration, ViewModel paths, Compose screens, and tests
+consume `auth` directly, without root authentication compatibility getters.
 The shared auth module owns its settings section wrapper as well.
 The AI profile editor header and summary cards come from `shared-ui:settings` and
 consume the settings feature aggregate directly; Android supplies localized

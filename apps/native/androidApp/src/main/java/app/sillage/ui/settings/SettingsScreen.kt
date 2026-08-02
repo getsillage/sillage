@@ -203,7 +203,7 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
                         SillageSettingsOverviewItem(
                             label = stringResource(R.string.settings_theme_label),
                             value = stringResource(
-                                if (state.themeMode == SessionStore.THEME_DARK) {
+                                if (state.appearance.themeMode == SessionStore.THEME_DARK) {
                                     R.string.settings_theme_dark
                                 } else {
                                     R.string.settings_theme_light
@@ -238,8 +238,8 @@ fun AISettingsScreen(state: SillageUiState, viewModel: SillageViewModel) {
             },
             appearance = {
                 SillageSettingsAppearanceSection(
-                    darkMode = state.themeMode == SessionStore.THEME_DARK,
-                    selectedLanguage = state.languageMode,
+                    darkMode = state.appearance.themeMode == SessionStore.THEME_DARK,
+                    selectedLanguage = state.appearance.languageMode,
                     languageOptions = listOf(
                         SillageSettingsLanguageOption(
                             value = SessionStore.LANGUAGE_ZH_CN,

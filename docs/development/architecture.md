@@ -151,6 +151,8 @@ navigation, protocol execution, and ViewModel callbacks. The shared scaffold own
 centered layout, heading semantics, and inline-error placement; the shared header
 owns brand/language layout while Android supplies launcher resources, localized
 content, language state, and the toggle callback.
+Android authentication orchestration, ViewModel paths, Compose screens, and tests
+consume the aggregate directly, without root-state authentication accessors.
 The same module consumes the auth aggregate for settings password-change drafts
 and request state, and owns the account settings section wrapper. Android supplies
 account metadata and client-context gating.
@@ -443,6 +445,8 @@ confirmation state remains part of the relevant screen.
 Android's event channel is bounded, new events replace the active Toast, warning
 and error feedback stays visible longer, and language changes discard buffered
 messages from the previous locale.
+Android theme/language orchestration, Compose consumers, localized feedback, and
+tests read the nested appearance state directly without root appearance accessors.
 
 The records application slice also exposes a semantic online page query through
 `RecordsPageRepository` and `ListRecordsPageUseCase`. Android's
@@ -543,8 +547,8 @@ Android adapter.
 `RecordsFeatureStateHolder` composes the extracted records holders and owns the
 cross-holder list-surface, browse filter/view-mode, interactive-workspace,
 detail/editor presentation, source-memo absorption, and canonical-memo
-transitions. Android's root UI state now owns one `records` aggregate value with
-transitional slice getters for the former top-level holder fields. Coordinated
+transitions. Android's root UI state now owns one `records` aggregate value and
+exposes no compatibility getters for former top-level holder fields. Coordinated
 list-surface, browse mode/filter, workspace teardown, selected-memo
 presentation, detail-request acceptance, editor session starts/returns,
 draft/Markdown updates, attachment-upload transitions, attachment-open request

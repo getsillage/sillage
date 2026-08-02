@@ -433,16 +433,16 @@ class SillageUiStateTest {
             .withAuthConfirmPassword("new")
         val cleared = updated.clearAuthPrimaryCredentials(clearDisplayName = true)
 
-        assertEquals("alice", updated.username)
-        assertEquals("Alice", updated.displayName)
-        assertEquals("secret", updated.password)
-        assertEquals("old", updated.currentPassword)
-        assertEquals("new", updated.newPassword)
-        assertEquals("new", updated.confirmPassword)
+        assertEquals("alice", updated.auth.username)
+        assertEquals("Alice", updated.auth.displayName)
+        assertEquals("secret", updated.auth.password)
+        assertEquals("old", updated.auth.currentPassword)
+        assertEquals("new", updated.auth.newPassword)
+        assertEquals("new", updated.auth.confirmPassword)
         assertEquals("keep", updated.authError)
-        assertEquals("", cleared.username)
-        assertEquals("", cleared.displayName)
-        assertEquals("", cleared.password)
+        assertEquals("", cleared.auth.username)
+        assertEquals("", cleared.auth.displayName)
+        assertEquals("", cleared.auth.password)
     }
 
     @Test

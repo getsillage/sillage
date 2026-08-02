@@ -560,7 +560,7 @@ class SillageViewModel(
 
     fun setLanguageMode(value: String) {
         val next = SessionStore.normalizeLanguageMode(value)
-        if (state.value.languageMode == next) {
+        if (state.value.appearance.languageMode == next) {
             return
         }
         sessionStore.saveLanguageMode(next)
@@ -578,7 +578,7 @@ class SillageViewModel(
 
     fun toggleLanguageMode() {
         setLanguageMode(
-            if (state.value.languageMode == SessionStore.LANGUAGE_ZH_CN) {
+            if (state.value.appearance.languageMode == SessionStore.LANGUAGE_ZH_CN) {
                 SessionStore.LANGUAGE_EN
             } else {
                 SessionStore.LANGUAGE_ZH_CN
@@ -587,7 +587,11 @@ class SillageViewModel(
     }
 
     private fun uiString(resourceId: Int, vararg formatArgs: Any): String {
-        return appContext.localizedString(state.value.languageMode, resourceId, *formatArgs)
+        return appContext.localizedString(
+            state.value.appearance.languageMode,
+            resourceId,
+            *formatArgs,
+        )
     }
 
     fun connect() {
@@ -700,7 +704,7 @@ class SillageViewModel(
             return
         }
         val current = state.value
-        val validationError = when (current.authentication.passwordChangeValidation()) {
+        val validationError = when (current.auth.authentication.passwordChangeValidation()) {
             PasswordChangeValidation.RequiredFields -> R.string.error_password_required
             PasswordChangeValidation.ConfirmationMismatch -> R.string.error_password_mismatch
             PasswordChangeValidation.Unchanged -> R.string.error_password_same
@@ -758,12 +762,16 @@ class SillageViewModel(
         val current = state.value
         launchAuthBusy {
             val session = initializeRemoteAccount(
-            InitializeAccountCommand(current.username, current.displayName, current.password),
-        )
-        updateState {
-            it.clearAuthPrimaryCredentials(clearDisplayName = true).copy(
-                account = session.account,
-                screen = Screen.Memos,
+                InitializeAccountCommand(
+                    current.auth.username,
+                    current.auth.displayName,
+                    current.auth.password,
+                ),
+            )
+            updateState {
+                it.clearAuthPrimaryCredentials(clearDisplayName = true).copy(
+                    account = session.account,
+                    screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
                     records = it.records.markListLoading(),
@@ -777,11 +785,11 @@ class SillageViewModel(
     fun signIn() {
         val current = state.value
         launchAuthBusy {
-        val session = signInRemote(SignInCommand(current.username, current.password))
-        updateState {
-            it.clearAuthPrimaryCredentials(clearDisplayName = false).copy(
-                account = session.account,
-                screen = Screen.Memos,
+            val session = signInRemote(SignInCommand(current.auth.username, current.auth.password))
+            updateState {
+                it.clearAuthPrimaryCredentials(clearDisplayName = false).copy(
+                    account = session.account,
+                    screen = Screen.Memos,
                     screenHistory = emptyList(),
                     initialized = true,
                     records = it.records.markListLoading(),
@@ -1145,7 +1153,7 @@ class SillageViewModel(
             }
             val json = withContext(Dispatchers.Default) {
                 val data = localDataStore.exportData(
-                    state.value.themeMode,
+                    state.value.appearance.themeMode,
                     state.value.records.browse.viewMode.name,
                 )
                 SillageExportCodec.toJson(data)
@@ -3851,7 +3859,7 @@ class SillageViewModel(
                 onFailure = { error ->
                     val resourceId = readableErrorResourceId(
                         error.message,
-                        state.value.languageMode,
+                        state.value.appearance.languageMode,
                     )
                     updateState {
                         it.copy(
@@ -4001,7 +4009,7 @@ class SillageViewModel(
         }
         val raw = message?.trim().orEmpty()
         val normalized = raw.trimEnd('。')
-        val resourceId = readableErrorResourceId(raw, state.value.languageMode)
+        val resourceId = readableErrorResourceId(raw, state.value.appearance.languageMode)
         if (resourceId != null) {
             return uiString(resourceId)
         }

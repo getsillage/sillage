@@ -12,3 +12,6 @@ that secondary destinations return to Records before the host exits.
 `AppFeedbackEventEmitter` owns one-shot event IDs, error precedence, duplicate
 suppression, notice severity, and language binding. Platform lifecycle, system
 Back dispatch, Toast rendering, and packaging remain in each application host.
+
+Android theme/language orchestration, Compose screens, localized feedback, and
+tests consume `appearance` directly, without root appearance compatibility getters.

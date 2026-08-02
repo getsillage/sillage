@@ -98,6 +98,8 @@ and platform navigation effects. One-shot global feedback sequencing, error
 precedence, duplicate suppression, notice severity, and language binding also
 belong to the app shell; hosts retain localized message production and native
 feedback rendering.
+Android theme/language orchestration, Compose consumers, localized feedback, and
+tests read the nested appearance state directly without root appearance accessors.
 
 The buildable `shared-ui:design-system` module is the first shared Compose
 surface. It owns Sillage's semantic light/dark color schemes, typography, shapes,
@@ -302,6 +304,8 @@ and execute the application use case; tokens and secure session storage never
 enter feature state. Android routes credential-draft updates and primary-credential
 clearing through root `withAuth` thin wrappers; application-level loading remains
 outside the auth feature.
+Android authentication orchestration, ViewModel paths, Compose screens, and tests
+consume the aggregate directly rather than host-root authentication accessors.
 
 The buildable `kmp-features:records` module is the first shared feature slice.
 It depends only on `kmp-core:domain` and owns list/filter/calendar query policy;
@@ -537,9 +541,8 @@ replace, pre-refresh loading marks, browse filter/view-mode application,
 interactive workspace teardown, detail/editor presentation, source-memo
 absorption, and canonical memo application so list loads, search ownership, and
 selection stay consistent. Android's root `SillageUiState` now stores one
-`records` aggregate field and keeps transitional slice getters
-(`recordsCollection`, `recordsPagination`, and the other former top-level
-fields) for existing call sites. Coordinated host writes such as cache mutation,
+`records` aggregate field and exposes no compatibility getters for former
+top-level holder fields. Coordinated host writes such as cache mutation,
 visible-list clear/replace/append, pagination cancel/stop-loading-more, browse
 mode/filter/calendar changes, workspace teardown, selected-memo presentation,
 detail-request acceptance, editor session starts/returns, draft/Markdown updates,

@@ -81,7 +81,7 @@ The shared record list consumes `RecordsFeatureStateHolder` directly for publish
 search-result selection, filter-specific empty states, On This Day visibility,
 active/deleted row branching, and pagination action state. Hosts fill localized
 card/row adapter slots and route callbacks.
-The shared record summary section consumes the aggregate's `MemoAI` presentation
+The shared record summary section consumes aggregate summary state directly
 and owns loading/action/body/metadata layout while hosts format localized source
 and token labels.
 The shared record detail card consumes `Memo` for lifecycle status and blank-body

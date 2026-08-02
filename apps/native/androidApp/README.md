@@ -109,7 +109,8 @@ records aggregate in shared UI for coverage, selection, and row composition;
 Android supplies locale-aware grid/header values and localized row adapters.
 On-this-day cards also come from shared
 records UI; Android supplies localized title/plural formatting and the calendar
-icon. The AI summary card is shared across detail and editor surfaces and owns
+icon. The AI summary card consumes records summary state directly across detail
+and editor surfaces and owns
 loading/action/body/metadata presentation; Android only maps localized strings,
 JSON source-count parsing, and plural labels. The detail card and reusable status
 line are shared too; Android supplies localized dates/status labels and retains

@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.data.memoSummarySourceCount
 import app.sillage.R
 import app.sillage.ui.SillageUiState
@@ -118,11 +119,10 @@ internal fun MemoDetailScreen(state: SillageUiState, viewModel: SillageViewModel
                     )
                 }
             },
-            summaryContent = { _, itemModifier ->
-                MemoSummarySection(
-                    summary = state.selectedSummary,
-                    loading = state.summaryLoading,
-                    onGenerate = viewModel::summarizeSelectedMemo,
+                summaryContent = { _, itemModifier ->
+                    MemoSummarySection(
+                        records = state.records,
+                        onGenerate = viewModel::summarizeSelectedMemo,
                     modifier = itemModifier,
                 )
             },
@@ -164,15 +164,14 @@ internal fun MemoStatusLine(memo: Memo?) {
 
 @Composable
 internal fun MemoSummarySection(
-    summary: MemoAI?,
-    loading: Boolean,
+    records: RecordsFeatureStateHolder,
     modifier: Modifier = Modifier,
     actionEnabled: Boolean = true,
     onGenerate: () -> Unit,
 ) {
+    val summary = records.summary.summary
     SillageRecordSummarySection(
-        summary = summary,
-        loading = loading,
+        state = records,
         strings = SillageRecordSummaryStrings(
             title = stringResource(R.string.summary_title),
             readingAction = stringResource(R.string.summary_reading),

@@ -213,8 +213,7 @@ internal fun MemoEditorScreen(state: SillageUiState, viewModel: SillageViewModel
             },
             summaryContent = { summaryModifier, actionsEnabled ->
                 MemoSummarySection(
-                    summary = state.selectedSummary,
-                    loading = state.summaryLoading,
+                    records = state.records,
                     actionEnabled = actionsEnabled,
                     onGenerate = viewModel::summarizeSelectedMemo,
                     modifier = summaryModifier,

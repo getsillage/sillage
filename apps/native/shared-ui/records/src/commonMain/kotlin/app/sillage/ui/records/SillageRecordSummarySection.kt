@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.ui.designsystem.applySillageHeadingSemantics
 
 data class SillageRecordSummaryStrings(
@@ -35,8 +36,7 @@ data class SillageRecordSummaryStrings(
 
 @Composable
 fun SillageRecordSummarySection(
-    summary: MemoAI?,
-    loading: Boolean,
+    state: RecordsFeatureStateHolder,
     strings: SillageRecordSummaryStrings,
     sourceRecordsLabel: String?,
     tokenCountLabel: String?,
@@ -45,15 +45,13 @@ fun SillageRecordSummarySection(
     onGenerate: () -> Unit,
 ) {
     val presentation = remember(
-        summary,
-        loading,
+        state.summary,
         strings,
         sourceRecordsLabel,
         tokenCountLabel,
     ) {
         sillageRecordSummaryPresentation(
-            summary = summary,
-            loading = loading,
+            state = state,
             strings = strings,
             sourceRecordsLabel = sourceRecordsLabel,
             tokenCountLabel = tokenCountLabel,
@@ -84,7 +82,7 @@ fun SillageRecordSummarySection(
                 )
                 TextButton(
                     onClick = onGenerate,
-                    enabled = actionEnabled && !loading,
+                enabled = actionEnabled && !state.summary.loading,
                     modifier = Modifier.heightIn(min = 48.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) {
@@ -133,12 +131,13 @@ internal data class SillageRecordSummaryPresentation(
 )
 
 internal fun sillageRecordSummaryPresentation(
-    summary: MemoAI?,
-    loading: Boolean,
+    state: RecordsFeatureStateHolder,
     strings: SillageRecordSummaryStrings,
     sourceRecordsLabel: String?,
     tokenCountLabel: String?,
 ): SillageRecordSummaryPresentation {
+    val summary = state.summary.summary
+    val loading = state.summary.loading
     val summaryBody = summary?.summary?.takeIf { it.isNotBlank() }
     val actionLabel = when {
         loading && summary == null -> strings.readingAction

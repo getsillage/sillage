@@ -1,6 +1,8 @@
 package app.sillage.ui.records
 
 import app.sillage.core.domain.records.MemoAI
+import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.RecordsSummaryStateHolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -72,8 +74,12 @@ class SillageRecordSummarySectionTest {
         summary: MemoAI?,
         loading: Boolean,
     ): SillageRecordSummaryPresentation = sillageRecordSummaryPresentation(
-        summary = summary,
-        loading = loading,
+        state = RecordsFeatureStateHolder(
+            summary = RecordsSummaryStateHolder(
+                summary = summary,
+                loading = loading,
+            ),
+        ),
         strings = strings(),
         sourceRecordsLabel = "2 source records",
         tokenCountLabel = "42 tokens",

@@ -18,7 +18,7 @@ icons, search announcements, locale-aware calendar content, and record-row slots
 `SillageRecordList` consumes `RecordsFeatureStateHolder` directly and owns search
 result selection, filter-specific empty states, On This Day visibility, lazy-list
 composition, active/deleted row branching, and pagination action presentation.
-`SillageRecordSummarySection` consumes shared `MemoAI` presentation and owns the
+`SillageRecordSummarySection` consumes aggregate summary state and owns the
 summary card, loading/action copy selection, published-body fallback, and
 provider/model/source/token metadata layout. Hosts format localized plural labels.
 `SillageRecordDetailCard` owns entry-date/status layout, lifecycle status joining,

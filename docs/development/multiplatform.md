@@ -188,7 +188,8 @@ Its record list consumes `RecordsFeatureStateHolder` directly to select publishe
 search results, filter-specific empty states, On This Day visibility, active/deleted
 row branching, and pagination action state. It owns lazy-list composition while
 hosts fill localized card/row adapter slots and route callbacks.
-Its record summary section consumes shared `MemoAI` and owns summary-card layout,
+Its record summary section consumes aggregate summary state and owns
+summary-card layout,
 loading/action selection, body fallback, and provider/model/source/token metadata
 presentation. Hosts retain localized plural formatting and any platform codec
 needed to interpret source identifiers.

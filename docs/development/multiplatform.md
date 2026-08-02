@@ -271,6 +271,9 @@ Its message list consumes the aggregate plus shared active path to own initial
 loading, error/empty/message/live item order, lazy-list layout, and per-message
 action gates. Hosts fill localized content slots and retain Scaffold/top-bar,
 navigation, and platform announcement bridges.
+Its auto-follow behavior owns drag suspension, near-bottom reactivation,
+new-turn following, streamed-answer growth scrolling, and rendered-item counts;
+hosts retain platform completion-announcement bridges.
 
 The buildable `kmp-features:auth` module owns native authentication form drafts
 and password-change presentation state. `AuthFeatureStateHolder` is the feature

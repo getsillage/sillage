@@ -1,7 +1,5 @@
 package app.sillage.ui.ask
 
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
@@ -43,11 +40,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -87,9 +81,6 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         mutableLongStateOf(state.askCompletionEventId)
     }
     val listState = rememberLazyListState()
-    val isUserDragging by listState.interactionSource.collectIsDraggedAsState()
-    val autoFollowThresholdPx = with(LocalDensity.current) { 96.dp.roundToPx() }
-    var autoFollow by remember(state.activeAskId) { mutableStateOf(true) }
     val entries = remember(state.askMessages, state.askHeadId) {
         buildAskActivePath(state.askMessages, state.askHeadId)
     }
@@ -100,32 +91,11 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         !state.askSending &&
         !state.askVariantLoading &&
         !state.askSourceLoading
-    val listItemCount = entries.size +
-        (if (entries.isEmpty()) 1 else 0) +
-        (if (state.askLiveUser != null) 1 else 0) +
-        (if (state.askSending && state.askRegeneratingId.isBlank()) 1 else 0)
-    LaunchedEffect(isUserDragging) {
-        if (isUserDragging) {
-            autoFollow = false
-        }
-    }
-    LaunchedEffect(listState, isUserDragging, autoFollow, autoFollowThresholdPx) {
-        if (!isUserDragging && !autoFollow) {
-            snapshotFlow { listState.isNearAskBottom(autoFollowThresholdPx) }
-                .collect { nearBottom ->
-                    if (nearBottom) {
-                        autoFollow = true
-                    }
-                }
-        }
-    }
-    LaunchedEffect(state.askSending) {
-        if (state.askSending && listItemCount > 0) {
-            autoFollow = true
-            withFrameNanos { }
-            listState.scrollToAskBottom()
-        }
-    }
+    SillageAskAutoFollow(
+        state = state.ask,
+        entries = entries,
+        listState = listState,
+    )
     LaunchedEffect(
         state.askScreenSessionId,
         state.askCompletionEventId,
@@ -135,18 +105,6 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
         if (observedCompletionEventId != state.askCompletionEventId) {
             observedCompletionEventId = state.askCompletionEventId
             view.announceForAccessibility(completedDescription)
-        }
-    }
-    LaunchedEffect(
-        listItemCount,
-        entries.lastOrNull()?.message?.id,
-        state.askLiveAnswer.length,
-        autoFollow,
-        isUserDragging,
-    ) {
-        if (!state.askLoading && listItemCount > 0 && autoFollow && !isUserDragging) {
-            withFrameNanos { }
-            listState.scrollToAskBottom()
         }
     }
     if (showConversations) {
@@ -351,48 +309,6 @@ fun AskScreen(state: SillageUiState, viewModel: SillageViewModel) {
             )
         }
     }
-}
-
-private fun LazyListState.isNearAskBottom(thresholdPx: Int): Boolean {
-    val layout = layoutInfo
-    val lastVisibleItem = layout.visibleItemsInfo.lastOrNull()
-    return isAskListNearBottom(
-        lastVisibleIndex = lastVisibleItem?.index,
-        totalItemsCount = layout.totalItemsCount,
-        lastVisibleEnd = lastVisibleItem?.let { it.offset + it.size },
-        viewportEnd = layout.viewportEndOffset,
-        thresholdPx = thresholdPx,
-    )
-}
-
-private suspend fun LazyListState.scrollToAskBottom() {
-    val totalItemsCount = layoutInfo.totalItemsCount
-    if (totalItemsCount <= 0) {
-        return
-    }
-    val lastIndex = totalItemsCount - 1
-    if (layoutInfo.visibleItemsInfo.none { it.index == lastIndex }) {
-        scrollToItem(lastIndex)
-    }
-    val layout = layoutInfo
-    val lastItem = layout.visibleItemsInfo.lastOrNull { it.index == lastIndex } ?: return
-    val remainingDistance = lastItem.offset + lastItem.size - layout.viewportEndOffset
-    if (remainingDistance > 0) {
-        scrollBy(remainingDistance.toFloat())
-    }
-}
-
-internal fun isAskListNearBottom(
-    lastVisibleIndex: Int?,
-    totalItemsCount: Int,
-    lastVisibleEnd: Int?,
-    viewportEnd: Int,
-    thresholdPx: Int,
-): Boolean {
-    if (totalItemsCount <= 0 || lastVisibleIndex != totalItemsCount - 1 || lastVisibleEnd == null) {
-        return false
-    }
-    return lastVisibleEnd - viewportEnd <= thresholdPx.coerceAtLeast(0)
 }
 
 @Composable

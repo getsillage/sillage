@@ -40,5 +40,9 @@ inside the platform slot.
 initial loading, error/empty/message/live item ordering, lazy-list layout, and
 message action gates. Hosts fill localized error, prompt, message, and live slots.
 
+`SillageAskAutoFollow` owns drag suspension, near-bottom reactivation, new-turn
+following, streamed-answer growth scrolling, and rendered-item counting. Hosts
+provide the shared list state while platform announcement bridges remain outside.
+
 Streaming transports, Markdown rendering, navigation, persistence, and native
 system integration remain platform-adapter responsibilities.

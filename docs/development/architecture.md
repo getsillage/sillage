@@ -208,6 +208,9 @@ The shared Ask message list consumes the aggregate plus shared active path and
 owns initial loading, error/empty/message/live item order, lazy-list layout, and
 per-message action gates. Android fills localized/Markdown slots and retains
 Scaffold, TopAppBar, navigation, and platform accessibility announcements.
+Shared Ask auto-follow owns drag suspension, near-bottom reactivation, new-turn
+following, streamed-answer growth scrolling, and rendered-item counting. Android
+retains the completion-event bridge to `View.announceForAccessibility`.
 
 `shared-ui:records` consumes `RecordsFeatureStateHolder` directly for record-list
 filter selection. Its first slice owns the four-tab selectable layout, colors, and

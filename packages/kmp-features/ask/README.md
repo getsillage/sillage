@@ -79,3 +79,6 @@ slots while hosts retain final Markdown and protected-attachment rendering.
 The shared message list combines this aggregate with `AskPathEntry` projections
 to own initial loading, error/empty/message/live ordering, lazy layout, and
 per-message action gates while hosts fill localized content slots.
+Shared Ask auto-follow consumes the same aggregate and path projections to own
+drag suspension, near-bottom reactivation, new-turn/stream growth scrolling, and
+rendered-item counts without moving platform announcement APIs into the feature.

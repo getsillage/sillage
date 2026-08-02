@@ -223,6 +223,9 @@ The shared Ask message list consumes the aggregate and active path to own initia
 loading, error/empty/message/live item order, lazy-list layout, and per-message
 action gates. Android fills localized and Markdown-aware item slots while keeping
 Scaffold, top bar, navigation, and accessibility announcements.
+Shared Ask auto-follow now owns drag suspension, near-bottom reactivation,
+new-turn following, streamed-answer growth scrolling, and rendered-item counts.
+Android retains only the completion announcement bridge to the platform view.
 All Ask request holders share a monotonic `AskSessionStateHolder` generation to
 invalidate callbacks after navigation.
 Automatic-summary persistence crosses `AIAutoSummaryRepository` and its shared

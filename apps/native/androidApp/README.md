@@ -76,6 +76,8 @@ announcement. Shared records UI also owns reusable empty/error states. Android
 supplies localized labels, icons, and ViewModel routing. The shared record list
 derives search/filter/pagination presentation from the records aggregate and owns
 lazy-list composition; Android fills localized On This Day and row adapter slots.
+List-load and search failure visibility also come from shared records selectors;
+Android only supplies localized retry presentation and callbacks.
 Active record rows also come from
 shared records UI and own card/content/status/mutation presentation; Android
 formats entry dates and supplies localized copy, icons, and routing. The complete

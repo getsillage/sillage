@@ -371,6 +371,8 @@ resolution, AI clients, encrypted persistence, and REST execution.
 Records search is the third extracted state slice. The shared holder owns query,
 result, failure, completion-event, and request-identity transitions; hosts own
 debounce scheduling and choose the active local or remote application adapter.
+Shared records surface selectors also choose list-load and search failure
+visibility directly from the aggregate, without host-root-state policy.
 
 Records selection/detail is the fourth extracted state slice. The shared holder
 owns the selected `Memo` and detail request validation. `MemoAI` is now a shared

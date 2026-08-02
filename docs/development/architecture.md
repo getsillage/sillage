@@ -378,6 +378,8 @@ The shared `RecordsSearchStateHolder` owns normalized query state, results,
 failure binding, completion events, and request identity. Android retains
 debounce timing and local/remote source orchestration, while every state
 transition and late-response check is shared.
+Records surface selectors also own list-load and search failure visibility from
+the aggregate, removing those conditions from Android root state.
 
 The shared `RecordsSelectionStateHolder` owns the selected domain record and
 detail request identity. It validates source, client session, navigation

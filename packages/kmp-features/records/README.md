@@ -15,6 +15,8 @@ On This Day calendar selectors, excerpts, and pagination-coverage decisions.
   identity independently from pagination.
 - `RecordsSearchStateHolder` owns query input, results, failure binding,
   completion events, and request identity.
+- Records surface selectors choose list-load and search failure visibility from
+  the aggregate without depending on Android root state.
 - `RecordsSelectionStateHolder` owns the selected domain record and validates
   detail responses against source, destination, session, cache, and version
   generations.

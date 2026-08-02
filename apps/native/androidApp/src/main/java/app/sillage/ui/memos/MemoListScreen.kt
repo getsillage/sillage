@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsFeatureStateHolder
+import app.sillage.features.records.shouldShowRecordListLoadFailure
+import app.sillage.features.records.shouldShowRecordSearchFailure
 import app.sillage.data.SessionStore
 import app.sillage.data.adjacentMonth
 import app.sillage.data.monthGrid
@@ -92,8 +94,6 @@ import app.sillage.ui.records.SillageRecordSwipeActionStrings
 import app.sillage.ui.records.SillageRecordSwipeRow
 import app.sillage.ui.records.SillageRecordSwipeRowIcons
 import app.sillage.ui.records.SillageRecordSwipeRowStrings
-import app.sillage.ui.shouldShowMemoListLoadFailure
-import app.sillage.ui.shouldShowMemoSearchFailure
 import app.sillage.ui.localizedDate
 import app.sillage.ui.localizedTimestamp
 import java.time.DayOfWeek
@@ -204,14 +204,14 @@ internal fun MemoListScreen(
                     }
                 } else if (state.memoViewMode == MemoViewMode.Calendar) {
                     CalendarMemoView(state = state, viewModel = viewModel)
-                } else if (state.shouldShowMemoListLoadFailure()) {
+                    } else if (state.records.shouldShowRecordListLoadFailure()) {
                 SillageRecordEmptyState(
                     text = stringResource(R.string.records_load_failed),
                     icon = Icons.Rounded.Refresh,
                     actionLabel = stringResource(R.string.action_retry),
                     onAction = viewModel::refreshMemos,
                 )
-                } else if (state.shouldShowMemoSearchFailure()) {
+                    } else if (state.records.shouldShowRecordSearchFailure()) {
                 SillageRecordEmptyState(
                     text = stringResource(R.string.records_search_failed),
                     icon = Icons.Rounded.Refresh,

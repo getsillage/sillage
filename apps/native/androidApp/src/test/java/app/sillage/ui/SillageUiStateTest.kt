@@ -30,7 +30,6 @@ import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsMutationStateHolder
 import app.sillage.features.records.RecordsPaginationStateHolder
-import app.sillage.features.records.RecordsRefreshStateHolder
 import app.sillage.features.records.RecordsSearchStateHolder
 import app.sillage.features.records.RecordsSelectionStateHolder
 import app.sillage.features.records.RecordsSummaryStateHolder
@@ -890,45 +889,6 @@ class SillageUiStateTest {
     }
 
     @Test
-    fun failedSearchStateIsBoundToTheFailedQuery() {
-        val failed = editorState().let { base -> base.copy(
-            screen = Screen.Memos,
-            records = base.records.copy(
-                search = RecordsSearchStateHolder(
-                query = "新查询",
-                results = listOf(memo()),
-                resultQuery = "旧查询",
-                failureQuery = "新查询",
-                searching = false,
-            ),
-            ),
-            error = "网络错误",
-        ) }
-
-        assertEquals(null, failed.currentMemoSearchResults())
-        assertTrue(failed.shouldShowMemoSearchFailure())
-        assertTrue(failed.copy(error = null).shouldShowMemoSearchFailure())
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(search = failed.records.search.copy(searching = true)),
-            ).shouldShowMemoSearchFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(search = failed.records.search.copy(failureQuery = "旧查询")),
-            ).shouldShowMemoSearchFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(search = failed.records.search.copy(resultQuery = "新查询")),
-            ).shouldShowMemoSearchFailure(),
-        )
-        assertFalse(
-            failed.copy(records = failed.records.copy(search = failed.records.search.copy(query = ""))).shouldShowMemoSearchFailure(),
-        )
-    }
-
-    @Test
     fun memoListFiltersMapToApplicationAndSearchQueries() {
         assertEquals(
             RecordsPageQuery(RecordsQueryScope.Unarchived, cursor = "cursor-1"),
@@ -962,44 +922,6 @@ class SillageUiStateTest {
         assertEquals(
             RecordsSearchQuery("query", RecordsQueryScope.Deleted),
             MemoListFilter.Deleted.recordsSearchQuery("query"),
-        )
-    }
-
-    @Test
-    fun failedEmptyMemoLoadUsesFailureStateInsteadOfBusinessEmptyState() {
-        val failed = editorState().let { base -> base.copy(
-            screen = Screen.Memos,
-            records = base.records.copy(
-                collection = RecordsCollectionStateHolder(),
-                refresh = RecordsRefreshStateHolder(status = MemoListLoadStatus.Failed),
-            ),
-        ) }
-
-        assertTrue(failed.shouldShowMemoListLoadFailure())
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(search = failed.records.search.copy(query = "记录")),
-            ).shouldShowMemoListLoadFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(refresh = failed.records.refresh.copy(status = MemoListLoadStatus.Loading)),
-            ).shouldShowMemoListLoadFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(refresh = failed.records.refresh.copy(status = MemoListLoadStatus.Idle)),
-            ).shouldShowMemoListLoadFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(collection = RecordsCollectionStateHolder(records = listOf(memo()))),
-            ).shouldShowMemoListLoadFailure(),
-        )
-        assertFalse(
-            failed.copy(
-                records = failed.records.copy(search = failed.records.search.copy(results = emptyList())),
-            ).shouldShowMemoListLoadFailure(),
         )
     }
 

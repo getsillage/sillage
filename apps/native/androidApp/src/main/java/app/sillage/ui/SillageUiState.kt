@@ -1051,23 +1051,6 @@ internal fun SillageUiState.applyMemoToCache(memo: Memo): SillageUiState {
     return withRecords { it.applyCanonicalMemo(memo) }
 }
 
-internal fun SillageUiState.shouldShowMemoListLoadFailure(): Boolean {
-    return memoViewMode == MemoViewMode.List &&
-        searchQuery.isBlank() &&
-        memoListLoadStatus == MemoListLoadStatus.Failed &&
-        memos.isEmpty() &&
-        searchResults == null
-}
-
-internal fun SillageUiState.shouldShowMemoSearchFailure(): Boolean {
-    val query = searchQuery.trim()
-    return memoViewMode == MemoViewMode.List &&
-        query.isNotBlank() &&
-        query == searchFailureQuery.trim() &&
-        !searching &&
-        currentMemoSearchResults() == null
-}
-
 internal fun SillageUiState.askStreamContext(): AskStreamContext = AskStreamContext(
     screenSessionId = askScreenSessionId,
     conversationId = activeAskId,

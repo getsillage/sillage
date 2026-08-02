@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -43,11 +41,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -60,7 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
@@ -70,7 +65,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -82,7 +76,6 @@ import app.sillage.data.adjacentMonth
 import app.sillage.features.records.calendarMemoCoverage
 import app.sillage.features.records.entriesByDate
 import app.sillage.features.records.entryDateCounts
-import app.sillage.features.records.excerpt
 import app.sillage.data.monthGrid
 import app.sillage.features.records.onThisDay
 import app.sillage.R
@@ -113,6 +106,9 @@ import app.sillage.ui.records.SillageRecentlyDeletedRecordRow
 import app.sillage.ui.records.SillageRecentlyDeletedRecordStrings
 import app.sillage.ui.records.SillageRecordRow
 import app.sillage.ui.records.SillageRecordRowStrings
+import app.sillage.ui.records.SillageRecordQuickActionIcons
+import app.sillage.ui.records.SillageRecordQuickActionsSheet
+import app.sillage.ui.records.SillageRecordQuickActionsStrings
 import app.sillage.ui.records.SillageRecordSwipeActionPane
 import app.sillage.ui.records.SillageRecordSwipeActionStrings
 import app.sillage.ui.shouldShowMemoListLoadFailure
@@ -653,8 +649,40 @@ private fun MemoSwipeRow(
         }
     }
     if (showActions && !mutating) {
-        MemoQuickActionsSheet(
+        SillageRecordQuickActionsSheet(
             memo = memo,
+            strings = SillageRecordQuickActionsStrings(
+                blankRecord = stringResource(R.string.blank_record),
+                recordDescription = stringResource(
+                    R.string.quick_actions_description,
+                    localizedDate(memo.entryDate),
+                ),
+                editAction = stringResource(R.string.action_edit),
+                editSupporting = stringResource(R.string.quick_edit_supporting),
+                duplicateAction = stringResource(R.string.quick_copy_title),
+                duplicateSupporting = stringResource(R.string.quick_copy_supporting),
+                favoriteAction = stringResource(R.string.action_favorite),
+                unfavoriteAction = stringResource(R.string.action_unfavorite),
+                favoriteSupporting = stringResource(R.string.quick_favorite_supporting),
+                unfavoriteToRecordsSupporting = stringResource(R.string.quick_unfavorite_to_records),
+                unfavoriteToArchiveSupporting = stringResource(R.string.quick_unfavorite_to_archive),
+                archiveAction = stringResource(R.string.action_archive),
+                unarchiveAction = stringResource(R.string.action_unarchive),
+                archiveSupporting = stringResource(R.string.quick_archive_supporting),
+                unarchiveSupporting = stringResource(R.string.quick_unarchive_supporting),
+                deleteAction = stringResource(R.string.action_delete),
+                confirmDeleteAction = stringResource(R.string.action_confirm_delete),
+                deleteSupporting = stringResource(R.string.quick_delete_supporting),
+                confirmDeleteSupporting = stringResource(R.string.quick_delete_confirm_supporting),
+            ),
+            icons = SillageRecordQuickActionIcons(
+                edit = Icons.Rounded.Edit,
+                duplicate = Icons.Rounded.ContentCopy,
+                favorite = Icons.Rounded.StarBorder,
+                favorited = Icons.Rounded.Star,
+                archive = Icons.Rounded.Archive,
+                delete = Icons.Rounded.Delete,
+            ),
             onDismiss = { showActions = false },
             onEdit = {
                 showActions = false
@@ -730,150 +758,5 @@ private fun MemoSwipeRow(
             },
             onLongClick = if (mutating) null else { { showActions = true } },
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MemoQuickActionsSheet(
-    memo: Memo,
-    onDismiss: () -> Unit,
-    onEdit: () -> Unit,
-    onDuplicate: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onToggleArchive: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var confirmingDelete by remember(memo.id) { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-        ) {
-            Text(
-                excerpt(memo.content, 64).ifBlank { stringResource(R.string.blank_record) },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stringResource(R.string.quick_actions_description, localizedDate(memo.entryDate)),
-                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-            QuickActionRow(
-                icon = Icons.Rounded.Edit,
-                title = stringResource(R.string.action_edit),
-                supporting = stringResource(R.string.quick_edit_supporting),
-                onClick = onEdit,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.ContentCopy,
-                title = stringResource(R.string.quick_copy_title),
-                supporting = stringResource(R.string.quick_copy_supporting),
-                onClick = onDuplicate,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = if (memo.favoritedAt == null) Icons.Rounded.StarBorder else Icons.Rounded.Star,
-                title = stringResource(if (memo.favoritedAt == null) R.string.action_favorite else R.string.action_unfavorite),
-                supporting = if (memo.favoritedAt == null) {
-                    stringResource(R.string.quick_favorite_supporting)
-                } else if (memo.archivedAt == null) {
-                    stringResource(R.string.quick_unfavorite_to_records)
-                } else {
-                    stringResource(R.string.quick_unfavorite_to_archive)
-                },
-                onClick = onToggleFavorite,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.Archive,
-                title = stringResource(if (memo.archivedAt == null) R.string.action_archive else R.string.action_unarchive),
-                supporting = stringResource(if (memo.archivedAt == null) R.string.quick_archive_supporting else R.string.quick_unarchive_supporting),
-                onClick = onToggleArchive,
-            )
-            QuickActionDivider()
-            QuickActionRow(
-                icon = Icons.Rounded.Delete,
-                title = stringResource(if (confirmingDelete) R.string.action_confirm_delete else R.string.action_delete),
-                supporting = stringResource(
-                    if (confirmingDelete) R.string.quick_delete_confirm_supporting else R.string.quick_delete_supporting,
-                ),
-                destructive = true,
-                onClick = {
-                    if (confirmingDelete) {
-                        onDelete()
-                    } else {
-                        confirmingDelete = true
-                    }
-                },
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-        }
-    }
-}
-
-@Composable
-private fun QuickActionDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 48.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-    )
-}
-
-@Composable
-private fun QuickActionRow(
-    icon: ImageVector,
-    title: String,
-    supporting: String,
-    destructive: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(34.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(19.dp),
-                tint = if (destructive) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                title,
-                color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                supporting,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
     }
 }

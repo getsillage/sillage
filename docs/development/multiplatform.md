@@ -174,11 +174,14 @@ Its reusable empty/error state owns centered copy, icon treatment, and optional
 action layout while hosts choose localized condition-specific content.
 Its active record row consumes `Memo` plus host-localized labels and owns card
 layout, blank-content fallback, favorite/archive status, long-click semantics, and
-mutation progress. Hosts retain date formatting, localized copy, swipe/action
-presentation, and feature routing.
+mutation progress. Hosts retain date formatting, localized copy, swipe gesture
+orchestration, and feature routing.
 Its swipe action pane owns favorite/archive action layout, record-state labels and
 icons, revealed-side visibility, and hidden-action semantics. Hosts provide
 localized labels, icons, enablement, and mutation callbacks.
+Its quick-action sheet owns record excerpts, state-dependent supporting copy,
+bottom-sheet layout, destructive styling, and two-step delete confirmation. Hosts
+provide a localized date description, action strings, icons, and callbacks.
 Its recently deleted record row also consumes the records aggregate and `Memo`,
 owns mutation-aware restore and two-step permanent-delete presentation, and leaves
 localized labels, icons, formatted deletion timestamps, and callbacks to hosts.

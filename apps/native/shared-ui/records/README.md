@@ -14,6 +14,8 @@ layout, blank-content fallback, status presentation, long-click semantics, and
 mutation progress.
 `SillageRecordSwipeActionPane` owns favorite/archive action layout, state-based
 labels and icons, revealed-side visibility, and hidden-action semantics.
+`SillageRecordQuickActionsSheet` owns record excerpts, state-based action copy,
+bottom-sheet layout, destructive styling, and two-step delete confirmation.
 `SillageRecentlyDeletedRecordRow` consumes aggregate mutation ownership and a
 record while owning the row layout and two-step permanent-delete confirmation.
 `SillageCalendarCoverageNotice` consumes aggregate pagination state and

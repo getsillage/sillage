@@ -189,11 +189,14 @@ Shared records empty/error presentation owns icon treatment, centered copy, and 
 optional action while Android selects localized copy for each list condition.
 The shared active record row consumes `Memo` plus host-localized labels and owns
 card layout, blank-content fallback, favorite/archive status, long-click semantics,
-and mutation progress. Hosts retain date formatting, localized copy, swipe/action
-presentation, and feature routing.
+and mutation progress. Hosts retain date formatting, localized copy, swipe gesture
+orchestration, and feature routing.
 The shared swipe action pane owns favorite/archive button layout, record-state
 labels/icons, revealed-side visibility, and hidden-action semantics. Hosts provide
 localized labels, icons, enablement, and mutation callbacks.
+The shared quick-action sheet owns record excerpts, state-dependent supporting
+copy, bottom-sheet layout, destructive styling, and two-step delete confirmation.
+Hosts provide a localized date description, action strings, icons, and callbacks.
 The shared recently deleted record row consumes the same aggregate plus `Memo`,
 derives mutation ownership, and owns two-step permanent-delete confirmation.
 Hosts retain localized labels, icons, formatted deletion timestamps, and mutation

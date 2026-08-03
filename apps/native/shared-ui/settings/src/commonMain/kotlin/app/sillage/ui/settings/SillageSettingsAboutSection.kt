@@ -9,9 +9,15 @@ import app.sillage.ui.designsystem.SillageSettingsSectionCard
 
 data class SillageSettingsAboutStrings(
     val sectionTitle: String,
-    val licensesTitle: String,
-    val licensesSupporting: String,
-)
+    val licensesTitle: String? = null,
+    val licensesSupporting: String? = null,
+) {
+    init {
+        require((licensesTitle == null) == (licensesSupporting == null)) {
+            "License title and supporting text must be provided together"
+        }
+    }
+}
 
 data class SillageSettingsAboutValue(
     val label: String,
@@ -22,8 +28,8 @@ data class SillageSettingsAboutValue(
 fun SillageSettingsAboutSection(
     strings: SillageSettingsAboutStrings,
     values: List<SillageSettingsAboutValue>,
-    licensesIcon: ImageVector,
-    onOpenLicenses: () -> Unit,
+    licensesIcon: ImageVector? = null,
+    onOpenLicenses: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val presentation = sillageSettingsAboutPresentation(strings = strings, values = values)
@@ -39,21 +45,30 @@ fun SillageSettingsAboutSection(
                 showDivider = index > 0,
             )
         }
-        SillageSettingsActionRow(
-            icon = licensesIcon,
-            title = presentation.licensesTitle,
-            supporting = presentation.licensesSupporting,
-            onClick = onOpenLicenses,
-            showDivider = presentation.values.isNotEmpty(),
-        )
+        val licensesTitle = presentation.licensesTitle
+        val licensesSupporting = presentation.licensesSupporting
+        if (
+            licensesTitle != null &&
+            licensesSupporting != null &&
+            licensesIcon != null &&
+            onOpenLicenses != null
+        ) {
+            SillageSettingsActionRow(
+                icon = licensesIcon,
+                title = licensesTitle,
+                supporting = licensesSupporting,
+                onClick = onOpenLicenses,
+                showDivider = presentation.values.isNotEmpty(),
+            )
+        }
     }
 }
 
 internal data class SillageSettingsAboutPresentation(
     val sectionTitle: String,
     val values: List<SillageSettingsAboutValue>,
-    val licensesTitle: String,
-    val licensesSupporting: String,
+    val licensesTitle: String?,
+    val licensesSupporting: String?,
 )
 
 internal fun sillageSettingsAboutPresentation(

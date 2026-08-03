@@ -199,10 +199,13 @@ The shared appearance section composes theme selection and the language row whil
 Android maps stored preference values and callbacks.
 The service/sync section owns online/offline and conditional sync-action layout;
 Android retains client-context mutation, navigation, and protocol execution.
-The data section owns import/export action presentation; Android retains document
-launchers, serialization, and storage adapters.
-The about section owns metadata-row and license-entry presentation; Android maps
-build/server protocol values and loads packaged notice resources.
+The data section owns optional host-leading content, optional import/export
+action presentation, and shared plus per-action gates; hosts retain document
+launchers, serialization, and storage adapters. The about section owns ordered
+metadata rows and an optional license entry; hosts map platform/build/protocol
+values and load any native notice resources. Android and the shared native
+application both consume the appearance, data, and about sections; the shared
+native application supplies its data-location row and platform metadata.
 The shared settings list owns loading, retry error, list spacing/padding, and test
 semantics while Android supplies localized values and shared section items.
 `SillageSettingsContent` owns section ordering, optional account placement, and

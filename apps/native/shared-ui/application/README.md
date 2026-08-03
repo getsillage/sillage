@@ -20,7 +20,10 @@ Its Data settings surface also owns portable-backup actions, destructive restore
 confirmation, busy-state gating, and localized success/failure feedback. Restore
 remains available after snapshot hydration fails, while export and record
 mutations stay disabled until valid data has been restored. Hosts retain only
-the native document picker and file I/O adapters.
+the native document picker and file I/O adapters. Appearance, Data, and About
+cards reuse `shared-ui:settings`; this module maps localized native copy,
+platform metadata, data-location content, optional backup actions, and their
+capability gates into those shared presentations.
 
 Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and

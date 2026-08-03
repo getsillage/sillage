@@ -2,6 +2,7 @@ package app.sillage.ui.settings
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SillageSettingsAboutSectionTest {
     @Test
@@ -24,5 +25,17 @@ class SillageSettingsAboutSectionTest {
         assertEquals("About", presentation.sectionTitle)
         assertEquals(values, presentation.values)
         assertEquals("Open-source licenses", presentation.licensesTitle)
+    }
+
+    @Test
+    fun presentationAllowsMetadataWithoutLicenseAction() {
+        val presentation = sillageSettingsAboutPresentation(
+            strings = SillageSettingsAboutStrings(sectionTitle = "About"),
+            values = listOf(SillageSettingsAboutValue(label = "Platform", value = "macOS")),
+        )
+
+        assertEquals("About", presentation.sectionTitle)
+        assertNull(presentation.licensesTitle)
+        assertNull(presentation.licensesSupporting)
     }
 }

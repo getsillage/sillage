@@ -15,6 +15,7 @@ kotlin {
             implementation(project(":shared-ui:auth"))
             implementation(project(":shared-ui:design-system"))
             implementation(project(":shared-ui:records"))
+            implementation(project(":shared-ui:settings"))
             implementation(project(":shared-ui:sync"))
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

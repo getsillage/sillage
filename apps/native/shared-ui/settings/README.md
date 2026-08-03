@@ -17,10 +17,12 @@ presentation while hosts supply supported language identifiers and persistence.
 shared enable-state presentation.
 `SillageSettingsServiceSyncSection` owns online/offline selection and conditional
 server/sync action composition while hosts execute client-context operations.
-`SillageSettingsDataSection` owns import/export action layout and shared blocking;
-hosts retain native file pickers and serialization callbacks.
-`SillageSettingsAboutSection` owns metadata-row and license-entry layout while
-hosts supply build/protocol values and native notice resources.
+`SillageSettingsDataSection` owns optional host-leading content, optional
+import/export action layout, and shared plus per-action blocking; hosts retain
+native file pickers and serialization callbacks.
+`SillageSettingsAboutSection` owns ordered metadata rows and an optional license
+entry while hosts supply platform/build/protocol values and native notice
+resources.
 `SillageSettingsList` owns settings loading, retry error, lazy-list spacing,
 content padding, and list test semantics while accepting shared section items.
 `SillageSettingsContent` fixes cross-platform section order, including optional

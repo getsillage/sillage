@@ -3,6 +3,7 @@ package app.sillage.ui.settings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SillageSettingsDataSectionTest {
     @Test
@@ -21,6 +22,26 @@ class SillageSettingsDataSectionTest {
         assertEquals("Data", presentation.sectionTitle)
         assertEquals("Export", presentation.exportTitle)
         assertEquals("Import", presentation.importTitle)
-        assertFalse(presentation.enabled)
+        assertFalse(presentation.exportEnabled)
+        assertFalse(presentation.importEnabled)
+    }
+
+    @Test
+    fun presentationPreservesIndependentActionGates() {
+        val presentation = sillageSettingsDataPresentation(
+            strings = SillageSettingsDataStrings(
+                sectionTitle = "Data",
+                exportTitle = "Export",
+                exportSupporting = "Save a JSON backup",
+                importTitle = "Import",
+                importSupporting = "Restore a JSON backup",
+            ),
+            enabled = true,
+            exportEnabled = false,
+            importEnabled = true,
+        )
+
+        assertFalse(presentation.exportEnabled)
+        assertTrue(presentation.importEnabled)
     }
 }

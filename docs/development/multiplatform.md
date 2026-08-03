@@ -229,10 +229,13 @@ Its appearance section composes theme selection with that row while hosts map
 stored preference values and persistence callbacks.
 Its service/sync section owns mode-selection and conditional server/sync action
 composition while hosts retain navigation, client-context mutation, and protocols.
-Its data section owns import/export action presentation while hosts retain native
-file pickers, serialization, and storage adapters.
-Its about section owns metadata-row and license-entry presentation while hosts
-provide build/protocol values and native notice resources.
+Its data section owns optional host-leading content, optional import/export
+action presentation, and shared plus per-action gates while hosts retain native
+file pickers, serialization, and storage adapters. Its about section owns
+ordered metadata rows and an optional license entry while hosts provide
+platform/build/protocol values and native notice resources. Android and the
+shared native application both consume the appearance, data, and about sections;
+the latter maps its data-location row and platform metadata into the shared UI.
 Its settings list owns loading, retry error, lazy spacing/padding, and list test
 semantics while hosts emit shared sections into the content slot.
 `SillageSettingsContent` owns section order, optional account placement, and the

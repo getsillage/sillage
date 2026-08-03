@@ -2,7 +2,6 @@ package app.sillage.ui.application
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,13 +14,13 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.NightsStay
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,7 +53,15 @@ import app.sillage.ui.designsystem.SillageInlineError
 import app.sillage.ui.designsystem.SillageSettingsActionRow
 import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
-import app.sillage.ui.designsystem.SillageSettingsSwitchRow
+import app.sillage.ui.settings.SillageSettingsAboutSection
+import app.sillage.ui.settings.SillageSettingsAboutStrings
+import app.sillage.ui.settings.SillageSettingsAboutValue
+import app.sillage.ui.settings.SillageSettingsAppearanceSection
+import app.sillage.ui.settings.SillageSettingsAppearanceStrings
+import app.sillage.ui.settings.SillageSettingsDataSection
+import app.sillage.ui.settings.SillageSettingsDataStrings
+import app.sillage.ui.settings.SillageSettingsLanguageOption
+import app.sillage.ui.settings.SillageSettingsLanguageStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +87,7 @@ internal fun SillageNativeSettings(
     onRestoreBackup: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val presentation = sillageNativeSettingsPresentation(strings = strings, platform = platform)
     var restoreConfirmationVisible by remember { mutableStateOf(false) }
 
     if (restoreConfirmationVisible) {
@@ -125,81 +133,47 @@ internal fun SillageNativeSettings(
                 verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
                 item {
-                    SillageSettingsSectionCard(strings.appearance) {
-                        SillageSettingsSwitchRow(
-                            icon = Icons.Outlined.NightsStay,
-                            title = strings.darkTheme,
-                            supporting = strings.darkThemeSupporting,
-                            checked = state.appearance.themeMode == ClientPreferenceValues.THEME_DARK,
-                            enabled = state.storageAvailable,
-                            onCheckedChange = onDarkThemeChange,
-                        )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(strings.language)
-                            FilterChip(
-                                selected = state.appearance.languageMode ==
-                                    ClientPreferenceValues.LANGUAGE_ZH_CN,
-                                onClick = {
-                                    onLanguageChange(ClientPreferenceValues.LANGUAGE_ZH_CN)
-                                },
-                                enabled = state.storageAvailable,
-                                label = { Text(strings.simplifiedChinese) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            FilterChip(
-                                selected = state.appearance.languageMode ==
-                                    ClientPreferenceValues.LANGUAGE_EN,
-                                onClick = { onLanguageChange(ClientPreferenceValues.LANGUAGE_EN) },
-                                enabled = state.storageAvailable,
-                                label = { Text(strings.english) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
+                    SillageSettingsAppearanceSection(
+                        darkMode = state.appearance.themeMode == ClientPreferenceValues.THEME_DARK,
+                        selectedLanguage = state.appearance.languageMode,
+                        languageOptions = presentation.languageOptions,
+                        strings = presentation.appearanceStrings,
+                        darkModeIcon = Icons.Outlined.NightsStay,
+                        languageIcon = Icons.Outlined.Language,
+                        enabled = state.storageAvailable,
+                        onDarkModeChange = onDarkThemeChange,
+                        onLanguageChange = onLanguageChange,
+                    )
                 }
                 item {
-                    SillageSettingsSectionCard(strings.data) {
-                        val openDataLocation = platform.openDataLocation
-                        if (openDataLocation == null) {
-                            SillageSettingsInfoRow(
-                                label = strings.dataLocation,
-                                value = platform.dataLocation,
-                            )
-                        } else {
-                            SillageSettingsActionRow(
-                                icon = Icons.Outlined.FolderOpen,
-                                title = strings.openDataLocation,
-                                supporting = platform.dataLocation,
-                                onClick = { openDataLocation() },
-                                enabled = !state.busy,
-                            )
-                        }
-                        onExportBackup?.let { exportBackup ->
-                            SillageSettingsActionRow(
-                                icon = Icons.Outlined.UploadFile,
-                                title = strings.exportBackup,
-                                supporting = strings.exportBackupSupporting,
-                                onClick = exportBackup,
-                                enabled = state.storageAvailable && !state.busy,
-                                showDivider = true,
-                            )
-                        }
-                        onRestoreBackup?.let {
-                            SillageSettingsActionRow(
-                                icon = Icons.Outlined.FileDownload,
-                                title = strings.restoreBackup,
-                                supporting = strings.restoreBackupSupporting,
-                                onClick = { restoreConfirmationVisible = true },
-                                enabled = !state.busy,
-                                showDivider = true,
-                            )
-                        }
-                    }
+                    SillageSettingsDataSection(
+                        strings = presentation.dataStrings,
+                        exportIcon = Icons.Outlined.UploadFile,
+                        importIcon = Icons.Outlined.FileDownload,
+                        enabled = !state.busy,
+                        exportEnabled = state.storageAvailable,
+                        onExport = onExportBackup,
+                        onImport = onRestoreBackup?.let {
+                            { restoreConfirmationVisible = true }
+                        },
+                        leadingContent = {
+                            val openDataLocation = platform.openDataLocation
+                            if (openDataLocation == null) {
+                                SillageSettingsInfoRow(
+                                    label = strings.dataLocation,
+                                    value = platform.dataLocation,
+                                )
+                            } else {
+                                SillageSettingsActionRow(
+                                    icon = Icons.Outlined.FolderOpen,
+                                    title = strings.openDataLocation,
+                                    supporting = platform.dataLocation,
+                                    onClick = { openDataLocation() },
+                                    enabled = !state.busy,
+                                )
+                            }
+                        },
+                    )
                 }
             item {
                 SillageSettingsSectionCard(strings.service) {
@@ -351,22 +325,13 @@ internal fun SillageNativeSettings(
                             )
                         }
                         }
-                    SillageSettingsInfoRow(
-                        label = strings.mode,
-                        value = strings.offlineModeValue,
-                        showDivider = true,
-                    )
-                        SillageSettingsInfoRow(
-                            label = strings.platform,
-                            value = platform.name,
-                            showDivider = true,
-                        )
-                        SillageSettingsInfoRow(
-                            label = strings.version,
-                            value = platform.version,
-                            showDivider = true,
-                        )
                     }
+                }
+                item {
+                    SillageSettingsAboutSection(
+                        strings = presentation.aboutStrings,
+                        values = presentation.aboutValues,
+                    )
                 }
                 state.authentication.account?.let { account ->
                     item {
@@ -412,6 +377,53 @@ internal fun SillageNativeSettings(
         }
     }
 }
+
+internal data class SillageNativeSettingsPresentation(
+    val appearanceStrings: SillageSettingsAppearanceStrings,
+    val languageOptions: List<SillageSettingsLanguageOption>,
+    val dataStrings: SillageSettingsDataStrings,
+    val aboutStrings: SillageSettingsAboutStrings,
+    val aboutValues: List<SillageSettingsAboutValue>,
+)
+
+internal fun sillageNativeSettingsPresentation(
+    strings: SillageNativeStrings,
+    platform: SillageNativePlatform,
+) = SillageNativeSettingsPresentation(
+    appearanceStrings = SillageSettingsAppearanceStrings(
+        sectionTitle = strings.appearance,
+        darkModeTitle = strings.darkTheme,
+        darkModeOn = strings.darkThemeSupporting,
+        darkModeOff = strings.darkThemeSupporting,
+        language = SillageSettingsLanguageStrings(
+            title = strings.language,
+            supporting = strings.languageSupporting,
+        ),
+    ),
+    languageOptions = listOf(
+        SillageSettingsLanguageOption(
+            value = ClientPreferenceValues.LANGUAGE_ZH_CN,
+            label = strings.simplifiedChinese,
+        ),
+        SillageSettingsLanguageOption(
+            value = ClientPreferenceValues.LANGUAGE_EN,
+            label = strings.english,
+        ),
+    ),
+    dataStrings = SillageSettingsDataStrings(
+        sectionTitle = strings.data,
+        exportTitle = strings.exportBackup,
+        exportSupporting = strings.exportBackupSupporting,
+        importTitle = strings.restoreBackup,
+        importSupporting = strings.restoreBackupSupporting,
+    ),
+    aboutStrings = SillageSettingsAboutStrings(sectionTitle = strings.about),
+    aboutValues = listOf(
+        SillageSettingsAboutValue(label = strings.mode, value = strings.offlineModeValue),
+        SillageSettingsAboutValue(label = strings.platform, value = platform.name),
+        SillageSettingsAboutValue(label = strings.version, value = platform.version),
+    ),
+)
 
 private fun SillageNativeStrings.authenticationFailure(
     failure: InstanceAuthenticationFailure,

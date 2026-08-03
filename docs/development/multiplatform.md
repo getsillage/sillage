@@ -12,8 +12,8 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
 | iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public bootstrap, authentication, and Keychain session restoration implemented; sync pending |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public bootstrap and memory-only authentication implemented; sync and Credential Manager persistence pending |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG, public bootstrap, and memory-only authentication implemented; sync and Keychain persistence pending |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public bootstrap, authentication, and Credential Manager session restoration implemented; sync pending |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG, public bootstrap, authentication, and Keychain session restoration implemented; sync pending |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -84,7 +84,9 @@ generation-checked memory session. `AuthenticationCredentialStore` is the only
 cross-launch persistence port and accepts only the refresh credential. iOS
 supplies a non-synchronizing, device-bound Keychain adapter; the macOS desktop
 host supplies a non-synchronizing Generic Password adapter through
-Security.framework. Windows retains the memory-only default.
+Security.framework; and Windows supplies a non-roaming Generic Credential
+adapter through WinCred. Unsupported desktop hosts retain the memory-only
+default.
 
 Record create and update commands share the server's draft constraints in
 `application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
@@ -115,9 +117,9 @@ Public capability discovery crosses `InstanceBootstrapRepository`.
 Initialization, sign-in, current-account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android retains REST,
 refresh coordination, and context-safe encrypted session persistence.
-Desktop and iOS use the shared remote repository. iOS and macOS advertise
-cross-launch persistence and therefore perform bootstrap followed by refresh
-restoration during startup; Windows does not.
+Desktop and iOS use the shared remote repository. iOS, macOS, and Windows
+advertise cross-launch persistence and therefore perform bootstrap followed by
+refresh restoration during startup.
 Sign-out crosses a separate `SignOutRepository`: its prepared operation captures
 the current session before asynchronous work, deletes that session's durable
 credential before remote revocation, and lets shared application policy own
@@ -654,13 +656,13 @@ attachment staging and present the resulting status.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
   values, data-folder action, native backup save/open dialogs, authentication
-  JDK HTTP transport, macOS Keychain refresh-credential adapter, native menu and
-  guarded-close integration, branded ICNS/ICO assets, and Windows/macOS
-  packaging. Shared local-data code owns the distinct portable backup envelope,
-  validation, and replace-after-validation policy.
+  JDK HTTP transport, macOS Keychain and Windows Credential Manager
+  refresh-credential adapters, native menu and guarded-close integration,
+  branded ICNS/ICO assets, and Windows/macOS packaging. Shared local-data code
+  owns the distinct portable backup envelope, validation, and
+  replace-after-validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
-  Credential Manager session persistence, the updater, and deeper OS
-  integration remain future release work.
+  the updater, and deeper OS integration remain future release work.
 
 Desktop and iOS packages produced by local build tasks are engineering
 verification artifacts. They are not attached by the official release workflow

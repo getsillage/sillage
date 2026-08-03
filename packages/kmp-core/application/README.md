@@ -14,10 +14,10 @@ shared UI map failures without exposing server response bodies. Android's remote
 adapter maps those contracts to REST while `SillageApi` retains session refresh
 context-safe encrypted persistence. Desktop and iOS use the shared remote
 repository and its optional refresh-credential store; iOS and macOS inject
-Security.framework Keychain adapters, while Windows retains the memory-only
-default. `InstanceAuthenticationRepository.restore` exchanges the stored
-refresh credential for a newly rotated session without exposing it to feature
-state.
+Security.framework Keychain adapters, while Windows injects a Credential
+Manager adapter. `InstanceAuthenticationRepository.restore` exchanges the
+stored refresh credential for a newly rotated session without exposing it to
+feature state.
 `SignOutRepository` captures a session-bound capability before asynchronous
 execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
 cancellation semantics without exposing tokens or platform session snapshots.

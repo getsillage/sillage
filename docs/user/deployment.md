@@ -140,12 +140,12 @@ account or sign in and sign out. Their records still remain device-local and are
 not synchronized in this build. Access tokens always remain in memory, and no
 authentication credential is included in record snapshots or portable backups.
 iOS and macOS store only the refresh credential in non-synchronizing Keychain
-Generic Password items and can restore a valid session after public bootstrap
-on a later launch. The iOS item is additionally device-bound. Use in-app
-sign-out or revoke the server session when sign-out must be guaranteed;
-Keychain items may survive application removal. Windows remains memory-only
-and requires sign-in after every launch until a Credential Manager adapter is
-implemented. No platform has a plaintext credential fallback.
+Generic Password items. Windows stores only that credential as a non-roaming
+Generic Credential in the current user's Credential Manager. All three can
+restore a valid session after public bootstrap on a later launch; the iOS item
+is additionally device-bound. Use in-app sign-out or revoke the server session
+when sign-out must be guaranteed because operating-system vault items may
+survive application removal. No platform has a plaintext credential fallback.
 
 ## Probes and Upgrades
 

@@ -124,9 +124,15 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   material to the `security` CLI. Keychain failures use the same stable
   `SecureStorageUnavailable` reason. A macOS Keychain item may outlive removal
   of the application bundle, so uninstalling is not guaranteed sign-out.
-- Windows remains memory-only and discards session material when the
-  application closes. A future Credential Manager adapter must provide the
-  same no-fallback behavior before advertising cross-launch persistence.
+- Windows stores the refresh credential as a `CRED_TYPE_GENERIC`,
+  `CRED_PERSIST_LOCAL_MACHINE` item in the current user's Credential Manager.
+  Its target is the application service prefix plus the normalized server URL.
+  The JVM host calls `CredReadW`, `CredWriteW`, `CredDeleteW`, and
+  `CredFree` through JNA and never passes token material to `cmdkey`,
+  PowerShell, or process arguments. The local-machine persistence mode is
+  non-roaming, and vault failures surface as `SecureStorageUnavailable`.
+  Credential Manager items may outlive application removal, so uninstalling is
+  not guaranteed sign-out.
 - Online sign-out deletes the captured durable refresh credential before
   requesting server revocation. If deletion fails, the remote request is not
   sent and the current session remains visible with a secure-storage error.

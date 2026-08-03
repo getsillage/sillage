@@ -57,7 +57,18 @@ Core Foundation objects are released on every path, and transient UTF-8 byte
 arrays and JNA memory are cleared after transfer. Update-then-add behavior
 retries an update after a duplicate-item race.
 
-Only the refresh credential is stored on either platform; access tokens and
+The Windows desktop host stores a `CRED_TYPE_GENERIC` item in the current
+user's Credential Manager. Its target name is
+`app.sillage.native.authentication.refresh:` plus the normalized server URL,
+and `CRED_PERSIST_LOCAL_MACHINE` keeps it on the same computer without
+enterprise roaming. The JVM host uses JNA to call `CredReadW`, `CredWriteW`,
+`CredDeleteW`, and `CredFree` directly. It does not invoke `cmdkey`,
+PowerShell, or another command-line credential bridge. Credential blobs are
+bounded to WinCred's 2,560-byte maximum. Transient UTF-8 byte arrays and native
+memory are cleared after writes; a blob returned by `CredReadW` is cleared
+before `CredFree`.
+
+Only the refresh credential is stored on any platform; access tokens and
 passwords remain process-memory-only. When a host advertises persistent
 authentication, application startup loads the saved server address, performs
 unauthenticated bootstrap discovery, and only then exchanges a stored refresh
@@ -75,23 +86,27 @@ the captured memory session; it cannot clear or delete credentials written by
 a newer sign-in.
 
 The iOS test target defines real Keychain round-trip, rotation, and deletion
-coverage for a simulator or device. The macOS JVM test executes the same
-round-trip, rotation, deletion, and invalid-value behavior against the user's
-real Keychain on macOS. Windows remains memory-only until a Credential Manager
-adapter provides equivalent fail-closed behavior and real-vault coverage.
+coverage for a simulator or device. The macOS JVM test executes round-trip,
+rotation, deletion, and invalid-value behavior against the user's real
+Keychain. The Windows JVM test executes the equivalent behavior against the
+current user's real Credential Manager on Windows hosts. A platform-independent
+test also verifies the JNA `CREDENTIALW` structure size for 32-bit and 64-bit
+pointer layouts.
 
 ## Consequences
 
-iOS and macOS can resume a valid session after relaunch without persisting an
-access token or password. Restoration requires the relevant Keychain to be
-available and the server to be reachable. On iOS,
+iOS, macOS, and Windows can resume a valid session after relaunch without
+persisting an access token or password. Restoration requires the relevant
+operating-system vault to be available and the server to be reachable. On iOS,
 `ThisDeviceOnly` prevents the credential from migrating to another device.
-The macOS item is non-synchronizing but is not device-bound.
+The macOS item is non-synchronizing but is not device-bound. The Windows item
+belongs to the current user and persists on the same computer without
+enterprise roaming.
 
-Keychain items may outlive removal of the application. Uninstalling Sillage is
-therefore not guaranteed sign-out on either persistent host; users must use
-in-app sign-out or server-side session revocation when that guarantee is
-required.
+Operating-system vault items may outlive removal of the application.
+Uninstalling Sillage is therefore not guaranteed sign-out on a persistent host;
+users must use in-app sign-out or server-side session revocation when that
+guarantee is required.
 
 Loss, denial, or corruption of secure-vault access is explicit and fail-closed.
 There is no recovery path that copies a refresh credential into less secure
@@ -99,6 +114,5 @@ storage. A successful sign-in can replace an obsolete item once vault access is
 available again.
 
 Persistent hosts perform one public bootstrap request and, when a credential
-is present, one refresh request during startup. Windows continues to require
-sign-in after each launch until its operating-system adapter and real-vault
-tests land.
+is present, one refresh request during startup. Unsupported desktop hosts
+continue to require sign-in after each launch.

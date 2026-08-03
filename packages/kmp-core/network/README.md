@@ -14,9 +14,10 @@ Access tokens and the active refresh credential stay in a generation-checked
 memory session. `AuthenticationCredentialStore` is the only optional durable
 boundary and stores only the refresh credential; its default is memory-only.
 iOS and macOS inject Security.framework Keychain implementations, while
-Windows can add a Credential Manager adapter without changing repository or
-feature contracts. Every refresh rotation is persisted before the new memory
-session is accepted, and durable deletion precedes online sign-out.
-and durable deletion precedes online sign-out. Authenticated record REST/SSE and
+Windows injects a WinCred Credential Manager implementation. Every refresh
+rotation is persisted before the new memory session is accepted, and durable
+deletion precedes online sign-out. Authenticated record REST/SSE and broader
+retry coordination remain follow-up slices. Wire payloads must always be
+mapped before they reach feature state.
 broader retry coordination remain follow-up slices. Wire payloads must always be
 mapped before they reach feature state.

@@ -59,10 +59,10 @@ bootstrap endpoint, then initialize the single account or sign in and sign out.
 The JDK transport performs cancellable JSON requests and preserves only the
 explicit refresh cookie needed by the shared repository. On macOS, the host
 stores that refresh credential in a non-synchronizing Keychain Generic
-Password item keyed by the normalized server URL and can restore the session
-after public bootstrap on a later launch. Access tokens and passwords remain
-memory-only. Windows retains the memory-only credential-store default and
-requires sign-in after each launch. Credential Manager persistence,
-synchronized records, attachments, and Ask remain follow-up work. Those
-integrations must reuse KMP application ports instead of introducing
-desktop-only business behavior.
+Password item. On Windows, it stores the same value as a non-roaming Generic
+Credential in the current user's Credential Manager. Both are keyed by the
+normalized server URL and can restore the session after public bootstrap on a
+later launch. Access tokens and passwords remain memory-only. Synchronized
+records, attachments, and Ask remain follow-up work. Those integrations must
+reuse KMP application ports instead of introducing desktop-only business
+behavior.

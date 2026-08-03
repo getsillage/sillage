@@ -24,15 +24,18 @@ import java.nio.charset.StandardCharsets
 internal fun desktopAuthenticationCredentialStore(
     osName: String = System.getProperty("os.name"),
 ): AuthenticationCredentialStore {
-    return if (isMacOsName(osName)) {
-        MacOsAuthenticationCredentialStore()
-    } else {
-        MemoryOnlyAuthenticationCredentialStore
+    return when {
+        isMacOsName(osName) -> MacOsAuthenticationCredentialStore()
+        isWindowsName(osName) -> WindowsAuthenticationCredentialStore()
+        else -> MemoryOnlyAuthenticationCredentialStore
     }
 }
 
 internal fun isMacOsName(osName: String): Boolean =
     osName.contains("mac", ignoreCase = true)
+
+internal fun isWindowsName(osName: String): Boolean =
+    osName.contains("windows", ignoreCase = true)
 
 /** Stores only the refresh credential in the current user's non-synchronizing macOS Keychain. */
 internal class MacOsAuthenticationCredentialStore : AuthenticationCredentialStore {
@@ -148,8 +151,8 @@ internal class MacOsAuthenticationCredentialStore : AuthenticationCredentialStor
 
     private fun createUtf8Data(value: String): CFDataRef {
         val bytes = value.toByteArray(StandardCharsets.UTF_8)
-        if (bytes.isEmpty() || bytes.size > MaxStoredCredentialBytes) unavailable()
         try {
+            if (bytes.isEmpty() || bytes.size > MaxStoredCredentialBytes) unavailable()
             val memory = Memory(bytes.size.toLong())
             try {
                 memory.write(0, bytes, 0, bytes.size)

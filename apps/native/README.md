@@ -60,12 +60,11 @@ The public check sends no records, credentials, cookies, or authorization
 headers. After a successful check, the same Settings surface can initialize or
 sign in to the instance. Automatic platform cookie storage is disabled and
 access tokens always stay in process memory. iOS and macOS store only the
-refresh credential in non-synchronizing Keychain Generic Password items keyed
-by the normalized server URL. iOS additionally uses a device-bound
-accessibility class. On a later launch, either persistent host performs public
-bootstrap before attempting refresh rotation. Windows remains memory-only and
-requires signing in again after the application closes. No credential enters
-the client snapshot or a portable backup. Use operator-managed HTTPS except
-for explicit loopback or trusted-LAN engineering development. Windows
-Credential Manager integration and synchronized records remain follow-up
-slices.
+refresh credential in non-synchronizing Keychain Generic Password items.
+Windows stores only the refresh credential as a non-roaming Generic Credential
+in the current user's Credential Manager. Each item is keyed by the normalized
+server URL; iOS additionally uses a device-bound accessibility class. On a
+later launch, every persistent host performs public bootstrap before attempting
+refresh rotation. No credential enters the client snapshot or a portable
+backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
+engineering development. Synchronized records remain a follow-up slice.

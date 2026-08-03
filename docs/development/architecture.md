@@ -137,8 +137,10 @@ memory session, and exposes `AuthenticationCredentialStore` as the only
 durable refresh-credential boundary. iOS supplies a non-synchronizing,
 `ThisDeviceOnly` Keychain adapter. The macOS desktop host supplies a
 non-synchronizing Generic Password adapter through modern Security.framework
-`SecItem*` APIs. Windows uses the memory-only default until its Credential
-Manager adapter lands. Access tokens never cross the memory boundary.
+`SecItem*` APIs. The Windows desktop host supplies a non-roaming Generic
+Credential adapter through `CredReadW`, `CredWriteW`, `CredDeleteW`, and
+`CredFree`. Unsupported desktop hosts use the memory-only default. Access
+tokens never cross the memory boundary.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
 durable-credential deletion, remote invalidation, and conditional local clearing
 to one captured session. Durable deletion happens before the remote request; if

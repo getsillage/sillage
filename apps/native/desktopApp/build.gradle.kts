@@ -16,9 +16,12 @@ kotlin {
 
 dependencies {
     implementation(project(":kmp-core:local-data"))
+    implementation(project(":kmp-core:network"))
     implementation(project(":shared-ui:application"))
     implementation(compose.desktop.currentOs)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 val desktopPackageName = "Sillage"

@@ -1,5 +1,7 @@
 package app.sillage.ui.application
 
+import app.sillage.core.application.auth.BootstrapInfo
+import app.sillage.core.application.auth.InstanceBootstrapRepository
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
@@ -10,15 +12,87 @@ import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.records.MemoListFilter
 import app.sillage.ui.appshell.AppDestination
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 
 class SillageNativeControllerTest {
+    @Test
+    fun checksServerAndPersistsNormalizedAddress() = runTest {
+        val repository = FakeRecordsRepository().apply {
+            preferences = ClientPreferences(serverBaseUrl = "https://old.example")
+        }
+        val bootstrap = BootstrapInfo(
+            initialized = true,
+            serverVersion = "0.3.1",
+            serverRevision = "abc",
+            apiVersion = "v1",
+            minimumAndroidVersionCode = 1,
+        )
+        val remote = FakeBootstrapRepository(bootstrap)
+        val controller = controller(repository, remote)
+
+        assertEquals("https://old.example", controller.state.serverConnection.baseUrl)
+        controller.updateServerBaseUrl("new.example/")
+        controller.checkServerConnection()
+
+        assertEquals("https://new.example", remote.requestedBaseUrl)
+        assertEquals(bootstrap, controller.state.serverConnection.bootstrap)
+        assertEquals("https://new.example", repository.preferences.serverBaseUrl)
+        assertFalse(controller.state.serverConnection.failed)
+
+        controller.setDarkTheme(true)
+        assertEquals("https://new.example", repository.preferences.serverBaseUrl)
+        assertEquals(ClientPreferenceValues.THEME_DARK, repository.preferences.themeMode)
+    }
+
+    @Test
+    fun failedServerCheckKeepsLastPersistedAddress() = runTest {
+        val repository = FakeRecordsRepository().apply {
+            preferences = ClientPreferences(serverBaseUrl = "https://working.example")
+        }
+        val controller = controller(
+            repository,
+            FakeBootstrapRepository(error = IllegalStateException("offline")),
+        )
+
+        controller.updateServerBaseUrl("unavailable.example")
+        controller.checkServerConnection()
+
+        assertTrue(controller.state.serverConnection.failed)
+        assertEquals("https://unavailable.example", controller.state.serverConnection.checkedBaseUrl)
+        assertEquals("https://working.example", repository.preferences.serverBaseUrl)
+        assertTrue(controller.state.storageAvailable)
+    }
+
+    @Test
+    fun cancelledServerCheckUnlocksRetryAndPropagatesCancellation() = runTest {
+        val controller = controller(
+            FakeRecordsRepository(),
+            FakeBootstrapRepository(error = CancellationException("left settings")),
+        )
+        controller.updateServerBaseUrl("example.test")
+
+        assertFailsWith<CancellationException> {
+            controller.checkServerConnection()
+        }
+
+        assertFalse(controller.state.serverConnection.checking)
+        assertFalse(controller.state.serverConnection.failed)
+        assertTrue(
+            controller.state.serverConnection.nextRequest(
+                InstanceBootstrapContext(controller.state.clientContext.generation),
+            ) != null,
+        )
+    }
+
     @Test
     fun reportsUnsavedEditorChangesForHostLifecycleGuards() {
         val controller = controller(FakeRecordsRepository())
@@ -201,13 +275,36 @@ class SillageNativeControllerTest {
 
 }
 
-private fun controller(repository: FakeRecordsRepository) = SillageNativeController(
+private fun controller(
+    repository: FakeRecordsRepository,
+    bootstrapRepository: InstanceBootstrapRepository = FakeBootstrapRepository(),
+) = SillageNativeController(
     recordsRepository = repository,
     recordWriteRepository = repository,
     recordLifecycleRepository = repository,
     preferencesRepository = repository,
+    bootstrapRepository = bootstrapRepository,
     todayProvider = { "2026-08-03" },
 )
+
+private class FakeBootstrapRepository(
+    private val result: BootstrapInfo = BootstrapInfo(
+        initialized = false,
+        serverVersion = "",
+        serverRevision = "",
+        apiVersion = "",
+        minimumAndroidVersionCode = 0,
+    ),
+    private val error: Throwable? = null,
+) : InstanceBootstrapRepository {
+    var requestedBaseUrl: String? = null
+
+    override suspend fun load(baseUrl: String): BootstrapInfo {
+        requestedBaseUrl = baseUrl
+        error?.let { throw it }
+        return result
+    }
+}
 
 private class FakeRecordsRepository(
     val records: MutableList<Memo> = mutableListOf(),

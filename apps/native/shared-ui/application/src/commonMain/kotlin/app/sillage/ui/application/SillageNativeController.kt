@@ -3,6 +3,7 @@ package app.sillage.ui.application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import app.sillage.core.application.auth.InstanceBootstrapRepository
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
@@ -17,6 +18,8 @@ import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.auth.InstanceBootstrapContext
+import app.sillage.features.auth.InstanceBootstrapStateHolder
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
@@ -27,6 +30,7 @@ import app.sillage.ui.appshell.AppAppearanceStateHolder
 import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.appshell.AppWorkspaceStateHolder
+import kotlinx.coroutines.CancellationException
 
 enum class SillageNativeFeedback {
     RecordSaved,
@@ -52,6 +56,7 @@ data class SillageNativeState(
     val clientContext: AppClientContextStateHolder,
     val appearance: AppAppearanceStateHolder,
     val workspace: AppWorkspaceStateHolder,
+    val serverConnection: InstanceBootstrapStateHolder,
     val busy: Boolean = false,
     val storageAvailable: Boolean = true,
     val feedback: SillageNativeFeedback? = null,
@@ -63,11 +68,13 @@ class SillageNativeController(
     recordWriteRepository: RecordWriteRepository,
     recordLifecycleRepository: RecordLifecycleRepository,
     private val preferencesRepository: ClientPreferencesRepository,
+    private val bootstrapRepository: InstanceBootstrapRepository,
     private val todayProvider: () -> String,
 ) {
     private val saveRecord = SaveRecordUseCase(recordWriteRepository)
     private val mutateRecordLifecycle = MutateRecordLifecycleUseCase(recordLifecycleRepository)
     private var allRecords: List<Memo> = emptyList()
+    private var preferences = ClientPreferences()
 
     var state by mutableStateOf(initialState(todayProvider()))
         private set
@@ -291,6 +298,46 @@ class SillageNativeController(
         saveAppearance(state.appearance.setLanguage(language))
     }
 
+    fun updateServerBaseUrl(value: String) {
+        state = state.copy(serverConnection = state.serverConnection.updateBaseUrl(value))
+    }
+
+    suspend fun checkServerConnection() {
+        val context = bootstrapContext()
+        val request = state.serverConnection.nextRequest(context) ?: return
+        val started = state.serverConnection.begin(request, context) ?: return
+        state = state.copy(serverConnection = started)
+
+        val bootstrap = try {
+            bootstrapRepository.load(request.baseUrl)
+        } catch (error: CancellationException) {
+            state.serverConnection.cancel(request, bootstrapContext())?.let { cancelled ->
+                state = state.copy(serverConnection = cancelled)
+            }
+            throw error
+        } catch (_: Exception) {
+            state.serverConnection.fail(request, bootstrapContext())?.let { failed ->
+                state = state.copy(serverConnection = failed)
+            }
+            return
+        }
+
+        val completed = state.serverConnection.complete(
+            request = request,
+            context = bootstrapContext(),
+            result = bootstrap,
+        ) ?: return
+
+        state = state.copy(serverConnection = completed)
+        try {
+            val updated = preferences.copy(serverBaseUrl = request.baseUrl)
+            preferencesRepository.savePreferences(updated)
+            preferences = updated
+        } catch (_: Exception) {
+            markStorageUnavailable()
+        }
+    }
+
     fun dismissFeedback() {
         state = state.copy(feedback = null)
     }
@@ -346,12 +393,12 @@ class SillageNativeController(
     private fun saveAppearance(appearance: AppAppearanceStateHolder) {
         if (!state.storageAvailable) return
         try {
-            preferencesRepository.savePreferences(
-                ClientPreferences(
-                    themeMode = appearance.themeMode,
-                    languageMode = appearance.languageMode,
-                ),
+            val updated = preferences.copy(
+                themeMode = appearance.themeMode,
+                languageMode = appearance.languageMode,
             )
+            preferencesRepository.savePreferences(updated)
+            preferences = updated
             state = state.copy(appearance = appearance)
         } catch (_: Exception) {
             markStorageUnavailable()
@@ -400,7 +447,7 @@ class SillageNativeController(
 
     private fun hydrate() {
         try {
-            val preferences = preferencesRepository.loadPreferences()
+            preferences = preferencesRepository.loadPreferences()
             allRecords = recordsRepository.listRecords()
             val records = state.workspace.records.replaceVisibleRecords(
                 memosForFilter(allRecords, state.workspace.records.filter),
@@ -411,6 +458,9 @@ class SillageNativeController(
                     languageMode = preferences.languageMode,
                 ),
                 workspace = state.workspace.copy(records = records),
+                serverConnection = InstanceBootstrapStateHolder(
+                    baseUrl = preferences.serverBaseUrl,
+                ),
             )
         } catch (_: Exception) {
             markStorageUnavailable()
@@ -430,6 +480,12 @@ class SillageNativeController(
     }
 
     private fun canStartOperation(): Boolean = state.storageAvailable && !state.busy
+
+    private fun bootstrapContext(): InstanceBootstrapContext {
+        return InstanceBootstrapContext(
+            clientContextGeneration = state.clientContext.generation,
+        )
+    }
 }
 
 private fun initialState(today: String): SillageNativeState {
@@ -449,6 +505,7 @@ private fun initialState(today: String): SillageNativeState {
         ),
         appearance = AppAppearanceStateHolder(),
         workspace = AppWorkspaceStateHolder(records = records),
+        serverConnection = InstanceBootstrapStateHolder(),
     )
 }
 

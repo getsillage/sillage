@@ -34,6 +34,7 @@ internal object LocalClientBackupCodec {
                     ?: fallbackPreferences.themeMode,
                 languageMode = persisted.languageMode?.let(::normalizeLanguageMode)
                     ?: fallbackPreferences.languageMode,
+                serverBaseUrl = fallbackPreferences.serverBaseUrl,
             ),
             records = validateLocalRecords(persisted.memos.map(PersistedMemo::toDomain)),
         )

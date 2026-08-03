@@ -25,6 +25,7 @@ class LocalClientRepositoryTest {
             ClientPreferences(
                 themeMode = ClientPreferenceValues.THEME_DARK,
                 languageMode = ClientPreferenceValues.LANGUAGE_EN,
+                serverBaseUrl = "https://sillage.example",
             ),
         )
         val created = repository.createRecord(
@@ -37,6 +38,7 @@ class LocalClientRepositoryTest {
         val reloaded = LocalClientRepository(storage, runtime)
         assertEquals(ClientPreferenceValues.THEME_DARK, reloaded.loadPreferences().themeMode)
         assertEquals(ClientPreferenceValues.LANGUAGE_EN, reloaded.loadPreferences().languageMode)
+        assertEquals("https://sillage.example", reloaded.loadPreferences().serverBaseUrl)
         assertEquals(listOf(created), reloaded.listRecords())
         assertTrue(storage.value.orEmpty().contains("\\n"))
     }
@@ -162,6 +164,24 @@ class LocalClientRepositoryTest {
     }
 
     @Test
+    fun portableBackupDoesNotExportOrReplaceDeviceServerAddress() {
+        val source = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        source.savePreferences(
+            ClientPreferences(serverBaseUrl = "https://source.example"),
+        )
+        val target = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        target.savePreferences(
+            ClientPreferences(serverBaseUrl = "https://target.example"),
+        )
+
+        val backup = source.exportBackup()
+        target.restoreBackup(backup)
+
+        assertFalse(backup.contains("source.example"))
+        assertEquals("https://target.example", target.loadPreferences().serverBaseUrl)
+    }
+
+    @Test
     fun validatedBackupCanReplaceUnreadablePrivateSnapshot() = runTest {
         val source = LocalClientRepository(MemoryStorage(), QueueRuntime())
         source.savePreferences(
@@ -206,6 +226,7 @@ class LocalClientRepositoryTest {
             ClientPreferences(
                 themeMode = ClientPreferenceValues.THEME_LIGHT,
                 languageMode = ClientPreferenceValues.LANGUAGE_EN,
+                serverBaseUrl = "https://device.example",
             ),
         )
         val androidBackup = """
@@ -237,6 +258,7 @@ class LocalClientRepositoryTest {
         assertEquals("from Android", repository.listRecords().single().content)
         assertEquals(ClientPreferenceValues.THEME_DARK, repository.loadPreferences().themeMode)
         assertEquals(ClientPreferenceValues.LANGUAGE_EN, repository.loadPreferences().languageMode)
+        assertEquals("https://device.example", repository.loadPreferences().serverBaseUrl)
     }
 
     @Test

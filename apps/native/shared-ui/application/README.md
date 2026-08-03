@@ -22,6 +22,11 @@ remains available after snapshot hydration fails, while export and record
 mutations stay disabled until valid data has been restored. Hosts retain only
 the native document picker and file I/O adapters.
 
+Its Service settings surface owns public server-address editing, bounded
+bootstrap request identity, late-result rejection, connection status, and
+bilingual errors. Hosts provide HTTP transport only. Successful checks persist
+the normalized address without changing the device-local records mode.
+
 Online authentication, remote synchronization, Ask, attachments, and secure
 credential adapters remain follow-up integration slices. The current host is a
 functional device-local records workspace rather than a simulated server.

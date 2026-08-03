@@ -2,6 +2,7 @@ package app.sillage.core.localdata
 
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
+import app.sillage.core.application.preferences.normalizeBaseUrl
 import app.sillage.core.application.preferences.normalizeLanguageMode
 import app.sillage.core.application.preferences.normalizeThemeMode
 import app.sillage.core.domain.records.Memo
@@ -51,6 +52,7 @@ internal object LocalClientSnapshotCodec {
             preferences = ClientPreferences(
                 themeMode = normalizeThemeMode(persisted.themeMode),
                 languageMode = normalizeLanguageMode(persisted.languageMode),
+                serverBaseUrl = normalizeBaseUrl(persisted.serverBaseUrl),
             ),
             records = records,
         )
@@ -61,6 +63,7 @@ internal object LocalClientSnapshotCodec {
             schemaVersion = CurrentSchemaVersion,
             themeMode = normalizeThemeMode(snapshot.preferences.themeMode),
             languageMode = normalizeLanguageMode(snapshot.preferences.languageMode),
+            serverBaseUrl = normalizeBaseUrl(snapshot.preferences.serverBaseUrl),
             records = snapshot.records.map(PersistedMemo::fromDomain),
         )
         return json.encodeToString(PersistedClientSnapshot.serializer(), persisted)
@@ -85,6 +88,7 @@ private data class PersistedClientSnapshot(
     val schemaVersion: Int = 1,
     val themeMode: String = ClientPreferenceValues.THEME_LIGHT,
     val languageMode: String = ClientPreferenceValues.LANGUAGE_ZH_CN,
+    val serverBaseUrl: String = "",
     val records: List<PersistedMemo> = emptyList(),
 )
 

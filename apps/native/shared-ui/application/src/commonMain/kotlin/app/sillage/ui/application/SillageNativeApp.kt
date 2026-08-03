@@ -161,6 +161,8 @@ private fun SillageNativeContent(
             strings = strings,
             onDarkThemeChange = controller::setDarkTheme,
             onLanguageChange = controller::setLanguage,
+            onServerBaseUrlChange = controller::updateServerBaseUrl,
+            onCheckServer = { scope.launch { controller.checkServerConnection() } },
             onExportBackup = platform.exportBackup?.let { operation ->
                 { scope.launch { controller.exportBackup(operation) } }
             },

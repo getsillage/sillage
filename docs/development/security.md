@@ -72,6 +72,25 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   rule; compatibility reads must not silently rewrite or discard that content.
 - The HTTP server enforces header, header-read, body-read, write, and idle timeouts. Streaming Ask responses use the longer write timeout but remain cancellable through the request context.
 
+## Native Public Server Discovery
+
+- The iOS, Windows, and macOS engineering clients may call only the public
+  `GET /api/v1/auth/bootstrap` endpoint before authentication. The request sends
+  a versioned user agent and JSON accept header, but no record content,
+  credentials, cookies, authorization header, or request body.
+- Server addresses are user-controlled trusted configuration. Embedded URL
+  credentials, query strings, fragments, unsupported schemes, whitespace, and
+  empty authorities fail before transport. Bootstrap bodies are bounded and
+  mapped into application values; HTTP response bodies are never surfaced in
+  user-facing errors.
+- A successful check stores the normalized address in the private native client
+  snapshot. Portable record backups preserve the current device address rather
+  than exporting or replacing it.
+- Published clients must use operator-managed HTTPS. Plain HTTP is limited to
+  explicit loopback or trusted-LAN engineering use; iOS additionally enforces
+  App Transport Security. This unauthenticated diagnostic does not establish a
+  session or authorize later requests.
+
 ## Android
 
 - Release APKs require HTTPS. Cleartext HTTP is enabled only in debug builds for emulators and trusted LAN development.

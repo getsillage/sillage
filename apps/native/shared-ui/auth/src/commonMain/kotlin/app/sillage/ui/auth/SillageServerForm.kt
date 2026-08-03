@@ -36,10 +36,10 @@ fun SillageServerForm(
     loading: Boolean,
     strings: SillageServerFormStrings,
     connectIcon: ImageVector,
-    offlineIcon: ImageVector,
+    offlineIcon: ImageVector? = null,
     onBaseUrlChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    onUseOffline: () -> Unit,
+    onUseOffline: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val presentation = sillageServerFormPresentation(
@@ -63,12 +63,14 @@ fun SillageServerForm(
                 keyboardType = KeyboardType.Uri,
                 imeAction = ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+            keyboardActions = KeyboardActions(
+                onDone = { if (presentation.submitEnabled) onSubmit() },
+            ),
             enabled = presentation.controlsEnabled,
         )
         Button(
             onClick = onSubmit,
-            enabled = presentation.controlsEnabled,
+            enabled = presentation.submitEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 48.dp),
@@ -79,18 +81,20 @@ fun SillageServerForm(
                 text = presentation.actionText,
             )
         }
-        TextButton(
-            onClick = onUseOffline,
-            enabled = presentation.controlsEnabled,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(
-                offlineIcon,
-                contentDescription = null,
-                modifier = Modifier.size(ButtonDefaults.IconSize),
-            )
-            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-            Text(strings.useOffline)
+        if (onUseOffline != null && offlineIcon != null) {
+            TextButton(
+                onClick = onUseOffline,
+                enabled = presentation.controlsEnabled,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    offlineIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                )
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                Text(strings.useOffline)
+            }
         }
     }
 }
@@ -98,6 +102,7 @@ fun SillageServerForm(
 internal data class SillageServerFormPresentation(
     val baseUrl: String,
     val controlsEnabled: Boolean,
+    val submitEnabled: Boolean,
     val actionText: String,
 )
 
@@ -108,5 +113,6 @@ internal fun sillageServerFormPresentation(
 ) = SillageServerFormPresentation(
     baseUrl = baseUrl,
     controlsEnabled = !loading,
+    submitEnabled = !loading && baseUrl.isNotBlank(),
     actionText = if (loading) strings.submitting else strings.submit,
 )

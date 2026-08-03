@@ -128,6 +128,13 @@ X-Forwarded-For
 
 Do not simply append untrusted forwarding headers. Sillage ignores them when the direct peer is outside the configured CIDRs; for a trusted peer it uses `X-Forwarded-Proto` to mark Cookies as Secure and `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
 
+The iOS, Windows, and macOS engineering clients can check this address from
+Settings before authenticated integration is enabled. The check calls only
+`GET /api/v1/auth/bootstrap`; it sends no records or credentials and remembers
+the normalized address only on that device. Use the external HTTPS address for
+this check. Plain HTTP is for explicit loopback or trusted-LAN engineering use
+only, and iOS App Transport Security may reject it.
+
 ## Probes and Upgrades
 
 ```bash

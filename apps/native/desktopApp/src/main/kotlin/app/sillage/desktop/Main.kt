@@ -13,6 +13,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.sillage.core.localdata.LocalClientRepository
+import app.sillage.core.network.RemoteInstanceBootstrapRepository
 import app.sillage.ui.application.SillageNativeApp
 import app.sillage.ui.application.SillageNativeController
 import app.sillage.ui.application.SillageNativeDiscardChangesDialog
@@ -31,7 +32,7 @@ import java.time.LocalDate
 import java.util.Locale
 import javax.swing.JOptionPane
 
-private const val DesktopVersion = "0.3.1"
+internal const val DesktopVersion = "0.3.1"
 
 fun main() {
     val snapshotPath = DesktopDataPaths.defaultSnapshotPath()
@@ -56,12 +57,16 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
     val repository = remember(storage) {
         LocalClientRepository(storage, DesktopRuntimeValues())
     }
-    val controller = remember(repository) {
+    val bootstrapRepository = remember {
+        RemoteInstanceBootstrapRepository(DesktopSillageHttpTransport())
+    }
+    val controller = remember(repository, bootstrapRepository) {
         SillageNativeController(
             recordsRepository = repository,
             recordWriteRepository = repository,
             recordLifecycleRepository = repository,
             preferencesRepository = repository,
+            bootstrapRepository = bootstrapRepository,
             todayProvider = { LocalDate.now().toString() },
         )
     }

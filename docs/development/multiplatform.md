@@ -11,9 +11,9 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; server integration pending |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; server integration pending |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG builds; server integration pending |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public server bootstrap diagnostics implemented; authentication and sync pending |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public server bootstrap diagnostics implemented; authentication and sync pending |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG builds and public server bootstrap diagnostics implemented; authentication and sync pending |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -64,14 +64,21 @@ tests.
 
 `packages/kmp-core/` owns domain, application, network, database,
 synchronization, and security foundations. Its buildable `domain`,
-`application`, `local-data`, and `sync` modules produce Android, desktop JVM,
-and Apple targets from common source. `application` declares inward-facing use
+`application`, `local-data`, `network`, and `sync` modules produce Android,
+desktop JVM, and Apple targets from common source. `application` declares inward-facing use
 cases and repository ports; platform adapters implement those ports.
 `local-data` owns the versioned JSON client-snapshot codec, optimistic record
 version checks, lifecycle rules, device-local preference persistence, and a
 separate validated backup-v1 envelope compatible with Android's record subset.
 Platform hosts supply atomic string storage, timestamps, record IDs, and native
 document pickers without forking codec, restore, or lifecycle behavior.
+
+`network` owns public server bootstrap URL validation, response bounds, HTTP
+status handling, JSON mapping, and conversion into application values behind a
+small host HTTP port. Desktop and Apple networking APIs remain platform
+adapters. This public request carries no records, credentials, cookies, or
+authorization headers; authenticated transport and refresh coordination remain
+later slices.
 
 Record create and update commands share the server's draft constraints in
 `application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
@@ -627,15 +634,16 @@ attachment staging and present the resulting status.
   source.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
   host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
-  migration, Foundation time/identity values, system JSON backup document
-  pickers, a branded AppIcon catalog, and Xcode integration. Keychain
+  migration, Foundation time/identity values, public bootstrap `NSURLSession`
+  transport, system JSON backup document pickers, a branded AppIcon catalog,
+  and Xcode integration. Keychain
   credentials, signing, and App Store
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
-  values, data-folder action, native backup save/open dialogs, native menu and
-  guarded close integration, branded ICNS/ICO assets, and Windows/macOS
-  packaging. Shared local-data code
+  values, data-folder action, native backup save/open dialogs, public bootstrap
+  JDK HTTP transport, native menu and guarded close integration, branded
+  ICNS/ICO assets, and Windows/macOS packaging. Shared local-data code
   owns the distinct portable backup envelope, validation, and replace-after-
   validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,

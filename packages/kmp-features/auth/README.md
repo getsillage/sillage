@@ -8,6 +8,11 @@ state. `AuthenticationStateHolder` owns initialization and sign-in form drafts
 plus the password-change lifecycle: validation, single-flight request identity,
 client-context validation, and secret clearing after success.
 
+`InstanceBootstrapStateHolder` owns the server-address draft, normalized public
+bootstrap request identity, late-result rejection, and success/failure state.
+Desktop and iOS consume it for connection diagnostics; Android retains its
+existing host orchestration until that online path is migrated.
+
 The module does not own tokens, secure session persistence, HTTP mapping, or
 platform navigation. Those remain behind `kmp-core:application` repository ports
 and host adapters. Android state orchestration, screens, and tests consume the

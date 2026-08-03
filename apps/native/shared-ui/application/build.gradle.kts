@@ -8,7 +8,9 @@ kotlin {
         commonMain.dependencies {
             api(project(":kmp-core:application"))
             api(project(":shared-ui:app-shell"))
+            implementation(project(":kmp-features:auth"))
             implementation(project(":kmp-features:records"))
+            implementation(project(":shared-ui:auth"))
             implementation(project(":shared-ui:design-system"))
             implementation(project(":shared-ui:records"))
             implementation(libs.compose.foundation)

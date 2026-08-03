@@ -3,13 +3,14 @@ package app.sillage.ios
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import app.sillage.core.localdata.LocalClientRepository
+import app.sillage.core.network.RemoteInstanceBootstrapRepository
 import app.sillage.ui.application.SillageNativeApp
 import app.sillage.ui.application.SillageNativeController
 import app.sillage.ui.application.SillageNativePlatform
 import platform.Foundation.NSBundle
 import platform.UIKit.UIViewController
 
-private const val FallbackIosVersion = "0.3.1"
+internal const val FallbackIosVersion = "0.3.1"
 
 fun MainViewController(): UIViewController {
     val viewControllerReference = IosViewControllerReference()
@@ -21,12 +22,16 @@ fun MainViewController(): UIViewController {
                 runtimeValues = IosRuntimeValues(),
             )
         }
-        val controller = remember(repository) {
+        val bootstrapRepository = remember {
+            RemoteInstanceBootstrapRepository(IosSillageHttpTransport())
+        }
+        val controller = remember(repository, bootstrapRepository) {
             SillageNativeController(
                 recordsRepository = repository,
                 recordWriteRepository = repository,
                 recordLifecycleRepository = repository,
                 preferencesRepository = repository,
+                bootstrapRepository = bootstrapRepository,
                 todayProvider = ::currentLocalDate,
             )
         }

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.NightsStay
@@ -28,8 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.sillage.core.application.preferences.ClientPreferenceValues
+import app.sillage.ui.auth.SillageServerForm
+import app.sillage.ui.auth.SillageServerFormStrings
+import app.sillage.ui.designsystem.SillageInlineError
 import app.sillage.ui.designsystem.SillageSettingsActionRow
 import app.sillage.ui.designsystem.SillageSettingsInfoRow
 import app.sillage.ui.designsystem.SillageSettingsSectionCard
@@ -43,6 +51,8 @@ internal fun SillageNativeSettings(
     strings: SillageNativeStrings,
     onDarkThemeChange: (Boolean) -> Unit,
     onLanguageChange: (String) -> Unit,
+    onServerBaseUrlChange: (String) -> Unit,
+    onCheckServer: () -> Unit,
     onExportBackup: (() -> Unit)?,
     onRestoreBackup: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -168,12 +178,65 @@ internal fun SillageNativeSettings(
                         }
                     }
                 }
-                item {
-                    SillageSettingsSectionCard(strings.service) {
-                        SillageSettingsInfoRow(
-                            label = strings.mode,
-                            value = strings.offlineModeValue,
+            item {
+                SillageSettingsSectionCard(strings.service) {
+                    val connection = state.serverConnection
+                    SillageServerForm(
+                        baseUrl = connection.baseUrl,
+                        loading = connection.checking,
+                        strings = SillageServerFormStrings(
+                            addressLabel = strings.serverAddress,
+                            addressPlaceholder = strings.serverAddressPlaceholder,
+                            submit = strings.checkServer,
+                            submitting = strings.checkingServer,
+                            useOffline = strings.offlineModeValue,
+                        ),
+                        connectIcon = Icons.Outlined.CloudSync,
+                        onBaseUrlChange = onServerBaseUrlChange,
+                        onSubmit = onCheckServer,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    )
+                    if (connection.failed) {
+                        SillageInlineError(
+                            message = strings.serverConnectionFailed,
+                            icon = Icons.Outlined.ErrorOutline,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
                         )
+                    }
+                    connection.bootstrap?.let { bootstrap ->
+                        SillageSettingsInfoRow(
+                            label = strings.serverConnection,
+                            value = strings.serverConnectionAvailable,
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                            showDivider = true,
+                        )
+                        SillageSettingsInfoRow(
+                            label = strings.serverInitialization,
+                            value = if (bootstrap.initialized) {
+                                strings.serverInitialized
+                            } else {
+                                strings.serverNeedsInitialization
+                            },
+                            showDivider = true,
+                        )
+                        SillageSettingsInfoRow(
+                            label = strings.serverVersion,
+                            value = bootstrap.serverVersion.ifBlank { strings.unknownValue },
+                            showDivider = true,
+                        )
+                        SillageSettingsInfoRow(
+                            label = strings.apiVersion,
+                            value = bootstrap.apiVersion.ifBlank { strings.unknownValue },
+                            showDivider = true,
+                        )
+                    }
+                    SillageSettingsInfoRow(
+                        label = strings.mode,
+                        value = strings.offlineModeValue,
+                        showDivider = true,
+                    )
                         SillageSettingsInfoRow(
                             label = strings.platform,
                             value = platform.name,

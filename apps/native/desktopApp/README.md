@@ -3,8 +3,9 @@
 The Compose Desktop host runs on Windows and macOS. It supplies atomic
 filesystem storage, a data-directory instance lock, platform time and record
 identifiers, data-folder integration, native JSON backup export and validated
-restore, window lifecycle, native menus and shortcuts, guarded window exit, and
-native installer configuration to the shared native application.
+restore, window lifecycle, native menus and shortcuts, guarded window exit,
+public server bootstrap HTTP transport, and native installer configuration to
+the shared native application.
 
 Native distributions use the committed branded `Sillage.icns` on macOS and
 `Sillage.ico` on Windows. The UI reports product version `0.3.1`, matching the
@@ -52,7 +53,9 @@ artifacts. CI runs it on both host operating systems and retains the unsigned
 packages temporarily for engineering inspection. They are not official
 release assets.
 
-The current product slice is a functional device-local records workspace. It
-does not yet connect to a Sillage server, synchronize, store credentials, open
-attachments, or run Ask. Those integrations must reuse KMP application ports
-instead of introducing desktop-only business behavior.
+The current product slice is a functional device-local records workspace. Its
+Settings screen can validate and remember a Sillage server through the public
+bootstrap endpoint without sending records or credentials. It does not yet
+authenticate, synchronize, store credentials, open attachments, or run Ask.
+Those integrations must reuse KMP application ports instead of introducing
+desktop-only business behavior.

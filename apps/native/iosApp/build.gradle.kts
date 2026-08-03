@@ -24,9 +24,11 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":kmp-core:local-data"))
+            implementation(project(":kmp-core:network"))
             implementation(project(":shared-ui:application"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
+            implementation(libs.kotlinx.coroutines.core)
         }
     }
 }

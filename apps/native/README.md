@@ -2,8 +2,8 @@
 
 This directory is the Kotlin Multiplatform workspace for native Sillage clients.
 Android is the server-connected native application. Windows, macOS, and iOS
-share a functional device-local records workspace while online integration
-continues.
+share a functional device-local records workspace plus public Sillage server
+bootstrap diagnostics while authenticated online integration continues.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under
@@ -44,3 +44,18 @@ ICNS, and Windows ICO using `sips` and `iconutil`. Other hosts consume the
 committed outputs and do not need Apple tooling. `checkNativeIdentity` verifies
 catalog dimensions and alpha rules, ICNS/ICO container headers, host wiring,
 and that Android, iOS, and desktop show the same product version.
+
+## Public server discovery
+
+`packages/kmp-core/network` maps the unauthenticated
+`GET /api/v1/auth/bootstrap` response behind a host-neutral HTTP boundary.
+Desktop uses the JDK HTTP client and iOS uses Foundation `NSURLSession`; the
+shared application settings surface owns address draft, request identity,
+result, and failure presentation. A successful check remembers only the
+normalized server address in the private client snapshot. Portable JSON
+backups deliberately do not export it.
+
+The check sends no records, credentials, cookies, or authorization headers.
+Use operator-managed HTTPS except explicit loopback or trusted-LAN engineering
+development. Authentication, secure session storage, and synchronization are
+separate follow-up slices.

@@ -22,6 +22,11 @@ The Data settings section uses operating-system save/open dialogs. Restore asks
 for confirmation before replacing records and appearance, and invalid backups
 leave the current local snapshot untouched.
 
+The About section opens the generated desktop runtime dependency inventory from
+`src/main/resources/third_party_notices.txt`. The same resource is packaged in
+the application JAR and native DMG/MSI image; desktop checks reject notice drift
+against `gradle.lockfile`.
+
 Run the development application:
 
 ```bash

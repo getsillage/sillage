@@ -60,11 +60,18 @@ fun MainViewController(): UIViewController {
                 presenter = viewControllerReference::get,
             )
         }
-        val platform = remember(storage, backupTransfer, authenticationCredentialStore) {
+        val thirdPartyNotices = remember { loadIosThirdPartyNotices() }
+        val platform = remember(
+            storage,
+            backupTransfer,
+            authenticationCredentialStore,
+            thirdPartyNotices,
+        ) {
             SillageNativePlatform(
                 name = "iOS",
                 dataLocation = storage.location,
                 version = currentIosVersion(),
+                thirdPartyNotices = thirdPartyNotices,
                 authenticationPersistsAcrossLaunches =
                     authenticationCredentialStore.persistsAcrossLaunches,
                 exportBackup = backupTransfer::exportBackup,

@@ -670,6 +670,12 @@ The shared desktop/iOS shell renders only implemented Records and Settings
 destinations; it does not expose a disabled Ask destination before the Ask
 application port and screen exist end to end.
 
+Desktop and iOS About surfaces expose separate lockfile-derived dependency
+inventories through the shared selectable licenses dialog. Desktop packages the
+notice in the application JAR/native image; Xcode copies the iOS notice into the
+application bundle. Host loaders treat missing or blank resources as packaging
+errors, and the desktop/iOS gates reject generated-notice drift.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

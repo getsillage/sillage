@@ -37,4 +37,24 @@ class SillageNativeSettingsTest {
             presentation.aboutValues.map { it.value },
         )
     }
+
+    @Test
+    fun presentationOffersPackagedLicenseNotices() {
+        val strings = sillageNativeStrings(ClientPreferenceValues.LANGUAGE_EN)
+        val presentation = sillageNativeSettingsPresentation(
+            strings = strings,
+            platform = SillageNativePlatform(
+                name = "Windows",
+                dataLocation = "client-v1.json",
+                version = "1.2.3",
+                thirdPartyNotices = "Package inventory",
+            ),
+        )
+
+        assertEquals("Open-source licenses", presentation.aboutStrings.licensesTitle)
+        assertEquals(
+            "Review licenses and notices included with this app",
+            presentation.aboutStrings.licensesSupporting,
+        )
+    }
 }

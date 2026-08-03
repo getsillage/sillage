@@ -648,6 +648,12 @@ Settings destinations. `AppDestination.Ask` remains available to Android and
 future hosts, but the shared native primary navigation does not render it until
 an Ask application port and screen exist end to end.
 
+Desktop and iOS hosts load separate lockfile-derived third-party notice resources
+and pass them through `SillageNativePlatform`; `shared-ui:application` maps their
+availability into the shared About action and licenses dialog. The host gates
+reject unknown license families, stale generated files, and missing iOS resource
+wiring.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

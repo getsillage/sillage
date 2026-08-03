@@ -21,6 +21,10 @@ better system integration, accessibility, performance, or platform-standard
 interaction. Native UI must consume shared feature state and use cases instead
 of duplicating domain, persistence, synchronization, or protocol behavior.
 
+Desktop and iOS packages include lockfile-derived third-party notices. Their
+About screens load the packaged host-specific inventory through the shared
+settings dialog; `checkDesktop` and `checkIos` reject missing or stale notices.
+
 ## Build conventions
 
 Shared modules apply the `sillage.kmp-library` convention from `build-logic/`.

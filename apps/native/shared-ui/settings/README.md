@@ -23,6 +23,9 @@ native file pickers and serialization callbacks.
 `SillageSettingsAboutSection` owns ordered metadata rows and an optional license
 entry while hosts supply platform/build/protocol values and native notice
 resources.
+`SillageSettingsLicensesDialog` owns the selectable, bounded, scrollable notice
+presentation shared by Android, iOS, Windows, and macOS while each host loads its
+own packaged dependency inventory.
 `SillageSettingsList` owns settings loading, retry error, lazy-list spacing,
 content padding, and list test semantics while accepting shared section items.
 `SillageSettingsContent` fixes cross-platform section order, including optional

@@ -2,13 +2,8 @@ package app.sillage.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
@@ -23,13 +18,9 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SettingsEthernet
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.UploadFile
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,7 +33,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import app.sillage.BuildConfig
 import app.sillage.R
 import app.sillage.data.SessionStore
@@ -69,6 +59,8 @@ import app.sillage.ui.settings.SillageSettingsDataSection
 import app.sillage.ui.settings.SillageSettingsDataStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
+import app.sillage.ui.settings.SillageSettingsLicensesDialog
+import app.sillage.ui.settings.SillageSettingsLicensesDialogStrings
 import app.sillage.ui.settings.SillageSettingsContent
 import app.sillage.ui.settings.SillageSettingsOverviewCard
 import app.sillage.ui.settings.SillageSettingsOverviewItem
@@ -456,25 +448,12 @@ private fun OpenSourceLicensesDialog(onDismiss: () -> Unit) {
             .bufferedReader()
             .use { it.readText() }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_open_source_licenses)) },
-        text = {
-            SelectionContainer {
-                Text(
-                    text = notices,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 460.dp)
-                        .verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
-            }
-        },
+    SillageSettingsLicensesDialog(
+        notices = notices,
+        strings = SillageSettingsLicensesDialogStrings(
+            title = stringResource(R.string.settings_open_source_licenses),
+            close = stringResource(R.string.action_close),
+        ),
+        onDismiss = onDismiss,
     )
 }

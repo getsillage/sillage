@@ -93,6 +93,7 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }
     val hostStrings = sillageNativeHostStrings(controller.state.appearance.languageMode)
+    val thirdPartyNotices = remember { loadDesktopThirdPartyNotices() }
     var pendingHostAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     fun runGuarded(action: () -> Unit) {
@@ -118,6 +119,7 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
             snapshotPath,
             repository,
             hostStrings,
+            thirdPartyNotices,
             window,
             authenticationCredentialStore,
         ) {
@@ -125,6 +127,7 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
                 name = desktopPlatformName(),
                 dataLocation = snapshotPath.toAbsolutePath().normalize().toString(),
                 version = DesktopVersion,
+                thirdPartyNotices = thirdPartyNotices,
                 authenticationPersistsAcrossLaunches =
                     authenticationCredentialStore.persistsAcrossLaunches,
                 openDataLocation = { openDataFolder(snapshotPath) },

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.NightsStay
 import androidx.compose.material.icons.outlined.UploadFile
@@ -62,6 +63,8 @@ import app.sillage.ui.settings.SillageSettingsDataSection
 import app.sillage.ui.settings.SillageSettingsDataStrings
 import app.sillage.ui.settings.SillageSettingsLanguageOption
 import app.sillage.ui.settings.SillageSettingsLanguageStrings
+import app.sillage.ui.settings.SillageSettingsLicensesDialog
+import app.sillage.ui.settings.SillageSettingsLicensesDialogStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +91,20 @@ internal fun SillageNativeSettings(
     modifier: Modifier = Modifier,
 ) {
     val presentation = sillageNativeSettingsPresentation(strings = strings, platform = platform)
+    val thirdPartyNotices = platform.thirdPartyNotices?.takeIf(String::isNotBlank)
     var restoreConfirmationVisible by remember { mutableStateOf(false) }
+    var licensesVisible by remember { mutableStateOf(false) }
+
+    if (licensesVisible && thirdPartyNotices != null) {
+        SillageSettingsLicensesDialog(
+            notices = thirdPartyNotices,
+            strings = SillageSettingsLicensesDialogStrings(
+                title = strings.openSourceLicenses,
+                close = strings.close,
+            ),
+            onDismiss = { licensesVisible = false },
+        )
+    }
 
     if (restoreConfirmationVisible) {
         AlertDialog(
@@ -331,6 +347,10 @@ internal fun SillageNativeSettings(
                     SillageSettingsAboutSection(
                         strings = presentation.aboutStrings,
                         values = presentation.aboutValues,
+                        licensesIcon = Icons.Outlined.Info,
+                        onOpenLicenses = thirdPartyNotices?.let {
+                            { licensesVisible = true }
+                        },
                     )
                 }
                 state.authentication.account?.let { account ->
@@ -417,7 +437,15 @@ internal fun sillageNativeSettingsPresentation(
         importTitle = strings.restoreBackup,
         importSupporting = strings.restoreBackupSupporting,
     ),
-    aboutStrings = SillageSettingsAboutStrings(sectionTitle = strings.about),
+    aboutStrings = SillageSettingsAboutStrings(
+        sectionTitle = strings.about,
+        licensesTitle = platform.thirdPartyNotices
+            ?.takeIf(String::isNotBlank)
+            ?.let { strings.openSourceLicenses },
+        licensesSupporting = platform.thirdPartyNotices
+            ?.takeIf(String::isNotBlank)
+            ?.let { strings.openSourceLicensesSupporting },
+    ),
     aboutValues = listOf(
         SillageSettingsAboutValue(label = strings.mode, value = strings.offlineModeValue),
         SillageSettingsAboutValue(label = strings.platform, value = platform.name),

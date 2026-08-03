@@ -22,6 +22,11 @@ On first launch after this storage upgrade, the host copies the legacy defaults
 value into `Library/Application Support/Sillage/client-v1.json` and clears the
 legacy key only after the atomic file write succeeds.
 
+The About section opens `ThirdPartyNotices.txt`, generated from the iOS device
+compile graph in `gradle.lockfile`. Xcode copies it into the application bundle,
+and the shared settings dialog renders it; iOS checks reject missing wiring or
+notice drift.
+
 Build the framework and unsigned simulator host from the repository root:
 
 ```bash

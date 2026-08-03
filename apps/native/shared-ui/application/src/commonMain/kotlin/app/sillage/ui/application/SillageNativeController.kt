@@ -88,6 +88,7 @@ data class SillageNativePlatform(
     val name: String,
     val dataLocation: String,
     val version: String,
+    val thirdPartyNotices: String? = null,
     val authenticationPersistsAcrossLaunches: Boolean = false,
     val openDataLocation: (() -> Boolean)? = null,
     val exportBackup: (suspend () -> Boolean)? = null,

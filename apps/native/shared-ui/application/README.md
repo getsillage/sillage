@@ -25,6 +25,10 @@ cards reuse `shared-ui:settings`; this module maps localized native copy,
 platform metadata, data-location content, optional backup actions, and their
 capability gates into those shared presentations.
 
+The About card exposes host-packaged third-party notices when available and uses
+the shared selectable licenses dialog. Missing notice resources remain a host
+packaging failure rather than application-owned fallback content.
+
 Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and
 bilingual errors. After a successful check it also owns initialization/sign-in

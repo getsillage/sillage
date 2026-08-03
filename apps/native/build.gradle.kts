@@ -1,4 +1,5 @@
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.tasks.Exec
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.imageio.ImageIO
@@ -55,11 +56,12 @@ val checkNativeArchitecture = tasks.register("checkNativeArchitecture") {
 
 val checkNativeIdentity = tasks.register("checkNativeIdentity") {
     group = "verification"
-    description = "Checks native application icons and visible product versions."
+    description = "Checks native application identity resources and visible product versions."
 
     val iosIconDirectory = file("iosApp/Sillage/Assets.xcassets/AppIcon.appiconset")
     val iosContents = iosIconDirectory.resolve("Contents.json")
     val iosProject = file("iosApp/Sillage.xcodeproj/project.pbxproj")
+    val iosThirdPartyNotices = file("iosApp/Sillage/ThirdPartyNotices.txt")
     val desktopIcns = file("desktopApp/src/main/resources/Sillage.icns")
     val desktopIco = file("desktopApp/src/main/resources/Sillage.ico")
     val desktopBuild = file("desktopApp/build.gradle.kts")
@@ -74,6 +76,7 @@ val checkNativeIdentity = tasks.register("checkNativeIdentity") {
         iosContents,
         fileTree(iosIconDirectory) { include("*.png") },
         iosProject,
+        iosThirdPartyNotices,
         desktopIcns,
         desktopIco,
         desktopBuild,
@@ -159,6 +162,15 @@ val checkNativeIdentity = tasks.register("checkNativeIdentity") {
         check("Assets.xcassets in Resources" in iosProjectText) {
             "The iOS asset catalog must be included in the Resources build phase."
         }
+        check("ThirdPartyNotices.txt in Resources" in iosProjectText) {
+            "The iOS third-party notices must be included in the Resources build phase."
+        }
+        check(
+            iosThirdPartyNotices.readText()
+                .startsWith("Sillage iOS - Open-source software notices"),
+        ) {
+            "The iOS third-party notices resource is missing or invalid."
+        }
 
         val desktopBuildText = desktopBuild.readText()
         check("Sillage.icns" in desktopBuildText && "Sillage.ico" in desktopBuildText) {
@@ -194,6 +206,30 @@ val checkNativeIdentity = tasks.register("checkNativeIdentity") {
     }
 }
 
+val repositoryRoot = rootDir.parentFile.parentFile
+val checkNativeThirdPartyNoticesGenerator =
+    tasks.register<Exec>("checkNativeThirdPartyNoticesGenerator") {
+        group = "verification"
+        description = "Tests native third-party notice generation policy."
+        workingDir(repositoryRoot)
+        commandLine("node", "--test", "scripts/generate-native-third-party-notices.test.mjs")
+    }
+
+val checkNativeThirdPartyNotices = tasks.register<Exec>("checkNativeThirdPartyNotices") {
+    group = "verification"
+    description = "Checks desktop and iOS packaged notices against host lockfiles."
+    dependsOn(checkNativeThirdPartyNoticesGenerator)
+    workingDir(repositoryRoot)
+    commandLine("node", "scripts/generate-native-third-party-notices.mjs")
+}
+
+tasks.register<Exec>("generateNativeThirdPartyNotices") {
+    group = "build setup"
+    description = "Regenerates desktop and iOS packaged third-party notices."
+    workingDir(repositoryRoot)
+    commandLine("node", "scripts/generate-native-third-party-notices.mjs", "--write")
+}
+
 val checkShared = tasks.register("checkShared") {
     group = "verification"
     description = "Runs shared native architecture checks and host tests."
@@ -205,6 +241,7 @@ tasks.register("checkDesktop") {
     group = "verification"
     description = "Runs the desktop host tests and production compilation."
     dependsOn(checkShared)
+    dependsOn(checkNativeThirdPartyNotices)
     dependsOn(":desktopApp:check")
     dependsOn(":desktopApp:jar")
 }
@@ -213,6 +250,7 @@ tasks.register("checkDesktopPackage") {
     group = "verification"
     description = "Builds and verifies the host-native DMG or MSI package."
     dependsOn(checkNativeIdentity)
+    dependsOn(checkNativeThirdPartyNotices)
     dependsOn(":desktopApp:checkNativeDistribution")
 }
 
@@ -220,6 +258,7 @@ tasks.register("checkIos") {
     group = "verification"
     description = "Links the shared iOS frameworks for device and simulator targets."
     dependsOn(checkShared)
+    dependsOn(checkNativeThirdPartyNotices)
     dependsOn(":iosApp:linkDebugFrameworkIosArm64")
     dependsOn(":iosApp:linkDebugFrameworkIosSimulatorArm64")
     dependsOn(":iosApp:linkDebugFrameworkIosX64")

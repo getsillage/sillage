@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.sillage.core.application.auth.AuthenticationFailureException
 import app.sillage.core.application.auth.AuthenticationFailureReason
+import app.sillage.core.application.auth.ChangePasswordCommand
+import app.sillage.core.application.auth.ChangePasswordUseCase
 import app.sillage.core.application.auth.InitializeAccountCommand
 import app.sillage.core.application.auth.InstanceAuthenticationRepository
 import app.sillage.core.application.auth.InstanceAuthenticationRepositoryFactory
@@ -43,6 +45,7 @@ import app.sillage.features.auth.InstanceAuthenticationRequest
 import app.sillage.features.auth.InstanceAuthenticationStateHolder
 import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.auth.InstanceBootstrapStateHolder
+import app.sillage.features.auth.PasswordChangeContext
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
@@ -66,6 +69,7 @@ enum class SillageNativeFeedback {
     BackupRestored,
     AccountInitialized,
     SignedIn,
+    PasswordChanged,
     SignedOut,
     SignedOutLocally,
     MemoSyncCompleted,
@@ -413,6 +417,18 @@ class SillageNativeController(
         state = state.copy(authentication = state.authentication.updatePassword(value))
     }
 
+    fun updateAuthenticationCurrentPassword(value: String) {
+        state = state.copy(authentication = state.authentication.updateCurrentPassword(value))
+    }
+
+    fun updateAuthenticationNewPassword(value: String) {
+        state = state.copy(authentication = state.authentication.updateNewPassword(value))
+    }
+
+    fun updateAuthenticationConfirmPassword(value: String) {
+        state = state.copy(authentication = state.authentication.updateConfirmPassword(value))
+    }
+
     private suspend fun restoreAuthentication() {
         val context = authenticationContext() ?: return
         val request = state.authentication.nextRestoreRequest(context) ?: return
@@ -571,6 +587,78 @@ class SillageNativeController(
                 SillageNativeFeedback.SignedIn
             },
         )
+    }
+
+    suspend fun changePassword() {
+        if (!canStartOperation()) return
+        val repository = activeAuthenticationRepository ?: return
+        val context = passwordChangeContext()
+        if (state.authentication.passwordChangeValidation() != null) {
+            state = state.copy(
+                authentication = state.authentication.showPasswordChangeValidationFailure(),
+            )
+            return
+        }
+        val request = state.authentication.nextPasswordChangeRequest(context) ?: return
+        val started = state.authentication.beginPasswordChange(request, context) ?: return
+        state = state.copy(
+            authentication = started,
+            busy = true,
+            feedback = null,
+        )
+
+        try {
+            val session = ChangePasswordUseCase(repository)(
+                ChangePasswordCommand(request.currentPassword, request.newPassword),
+            )
+            val completed = state.authentication.completePasswordChange(
+                request = request,
+                context = passwordChangeContext(),
+                account = session.account,
+            ) ?: return
+            state = state.copy(
+                authentication = completed,
+                feedback = SillageNativeFeedback.PasswordChanged,
+            )
+        } catch (error: CancellationException) {
+            state.authentication.cancelPasswordChange(request, passwordChangeContext())?.let { cancelled ->
+                state = state.copy(authentication = cancelled)
+            }
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            if (
+                error.reason == AuthenticationFailureReason.SessionExpired ||
+                error.reason == AuthenticationFailureReason.SecureStorageUnavailable
+            ) {
+                if (state.authentication.canApplyPasswordChange(request, passwordChangeContext())) {
+                    activeAuthenticationRepository = null
+                    state = state.copy(
+                        authentication = state.authentication.resetForServerChange().copy(
+                            failure = error.reason.toNativeFailure(),
+                        ),
+                        sync = SyncFeatureStateHolder(),
+                    )
+                }
+            } else {
+                state.authentication.failPasswordChange(
+                    request = request,
+                    context = passwordChangeContext(),
+                    failure = error.reason.toNativeFailure(),
+                )?.let { failed ->
+                    state = state.copy(authentication = failed)
+                }
+            }
+        } catch (_: Exception) {
+            state.authentication.failPasswordChange(
+                request = request,
+                context = passwordChangeContext(),
+                failure = InstanceAuthenticationFailure.Connection,
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+        } finally {
+            state = state.copy(busy = false)
+        }
     }
 
     suspend fun signOut() {
@@ -896,7 +984,8 @@ class SillageNativeController(
         )
     }
 
-    private fun canStartOperation(): Boolean = state.storageAvailable && !state.busy
+    private fun canStartOperation(): Boolean =
+        state.storageAvailable && !state.busy && !state.authentication.form.passwordChanging
 
     private fun bootstrapContext(): InstanceBootstrapContext {
         return InstanceBootstrapContext(
@@ -918,6 +1007,17 @@ class SillageNativeController(
         fallback: InstanceAuthenticationContext,
     ): InstanceAuthenticationContext {
         return authenticationContext() ?: fallback
+    }
+
+    private fun passwordChangeContext(): PasswordChangeContext {
+        return PasswordChangeContext(
+            appMode = state.clientContext.appMode,
+            clientContextGeneration = state.clientContext.generation,
+            online = state.serverConnection.checkedBaseUrl != null &&
+                state.authentication.account != null &&
+                activeAuthenticationRepository != null,
+            anotherOperationInProgress = state.busy || state.authentication.loading,
+        )
     }
 
     private fun clearCancelledAuthenticationSession(

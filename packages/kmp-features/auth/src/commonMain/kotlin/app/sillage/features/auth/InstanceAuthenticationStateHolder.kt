@@ -11,6 +11,8 @@ enum class InstanceAuthenticationOperation {
 
 enum class InstanceAuthenticationFailure {
     RequiredFields,
+    PasswordConfirmationMismatch,
+    PasswordUnchanged,
     InvalidRequest,
     InvalidCredentials,
     AlreadyInitialized,
@@ -67,6 +69,97 @@ data class InstanceAuthenticationStateHolder(
         return updateForm(form.updatePassword(value))
     }
 
+    fun updateCurrentPassword(value: String): InstanceAuthenticationStateHolder {
+        return updatePasswordChangeForm(form.updateCurrentPassword(value))
+    }
+
+    fun updateNewPassword(value: String): InstanceAuthenticationStateHolder {
+        return updatePasswordChangeForm(form.updateNewPassword(value))
+    }
+
+    fun updateConfirmPassword(value: String): InstanceAuthenticationStateHolder {
+        return updatePasswordChangeForm(form.updateConfirmPassword(value))
+    }
+
+    fun passwordChangeValidation(): PasswordChangeValidation? {
+        return form.authentication.passwordChangeValidation()
+    }
+
+    fun nextPasswordChangeRequest(context: PasswordChangeContext): PasswordChangeRequest? {
+        if (account == null || loading) return null
+        return form.authentication.nextPasswordChangeRequest(context)
+    }
+
+    fun beginPasswordChange(
+        request: PasswordChangeRequest,
+        context: PasswordChangeContext,
+    ): InstanceAuthenticationStateHolder? {
+        if (nextPasswordChangeRequest(context) != request) return null
+        val started = form.authentication.beginPasswordChange(request, context) ?: return null
+        return copy(
+            form = form.withAuthentication { started },
+            failure = null,
+        )
+    }
+
+    fun canApplyPasswordChange(
+        request: PasswordChangeRequest,
+        context: PasswordChangeContext,
+    ): Boolean {
+        return account != null && form.authentication.canApplyPasswordChange(request, context)
+    }
+
+    fun completePasswordChange(
+        request: PasswordChangeRequest,
+        context: PasswordChangeContext,
+        account: Account,
+    ): InstanceAuthenticationStateHolder? {
+        if (!canApplyPasswordChange(request, context)) return null
+        val completed = form.authentication.completePasswordChange(request, context) ?: return null
+        return copy(
+            form = form.withAuthentication { completed },
+            account = account,
+            failure = null,
+        )
+    }
+
+    fun failPasswordChange(
+        request: PasswordChangeRequest,
+        context: PasswordChangeContext,
+        failure: InstanceAuthenticationFailure,
+    ): InstanceAuthenticationStateHolder? {
+        if (!canApplyPasswordChange(request, context)) return null
+        val failed = form.authentication.failPasswordChange(request, context) ?: return null
+        return copy(
+            form = form.withAuthentication { failed },
+            failure = failure,
+        )
+    }
+
+    fun cancelPasswordChange(
+        request: PasswordChangeRequest,
+        context: PasswordChangeContext,
+    ): InstanceAuthenticationStateHolder? {
+        if (!canApplyPasswordChange(request, context)) return null
+        val cancelled = form.authentication.failPasswordChange(request, context) ?: return null
+        return copy(
+            form = form.withAuthentication { cancelled },
+            failure = null,
+        )
+    }
+
+    fun showPasswordChangeValidationFailure(): InstanceAuthenticationStateHolder {
+        val failure = when (passwordChangeValidation()) {
+            PasswordChangeValidation.RequiredFields -> InstanceAuthenticationFailure.RequiredFields
+            PasswordChangeValidation.ConfirmationMismatch -> {
+                InstanceAuthenticationFailure.PasswordConfirmationMismatch
+            }
+            PasswordChangeValidation.Unchanged -> InstanceAuthenticationFailure.PasswordUnchanged
+            null -> null
+        }
+        return copy(failure = failure)
+    }
+
     fun validation(context: InstanceAuthenticationContext): InstanceAuthenticationFailure? {
         return if (
             context.baseUrl.isBlank() ||
@@ -121,7 +214,7 @@ data class InstanceAuthenticationStateHolder(
         context: InstanceAuthenticationContext,
     ): InstanceAuthenticationRequest? {
         val currentAccount = account ?: return null
-        if (loading || context.baseUrl.isBlank()) return null
+        if (loading || form.passwordChanging || context.baseUrl.isBlank()) return null
         return InstanceAuthenticationRequest(
             requestId = requestId + 1,
             operation = InstanceAuthenticationOperation.SignOut,
@@ -239,6 +332,16 @@ data class InstanceAuthenticationStateHolder(
             loading = false,
             requestId = requestId + if (loading) 1 else 0,
             operation = null,
+            failure = null,
+        )
+    }
+
+    private fun updatePasswordChangeForm(
+        nextForm: AuthFeatureStateHolder,
+    ): InstanceAuthenticationStateHolder {
+        if (form.passwordChanging) return this
+        return copy(
+            form = nextForm,
             failure = null,
         )
     }

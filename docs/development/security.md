@@ -105,6 +105,16 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   credential in a generation-checked memory session, and retries one 401 after
   rotating the refresh session. A replaced session cannot be cleared by an
   older request.
+- Authenticated iOS, Windows, and macOS clients send password changes only to
+  the normalized server's fixed `POST /api/v1/auth/change-password` path.
+  Current, new, and confirmation values stay in transient UI/request state and
+  never enter snapshots, backups, logs, or credential stores. The operation is
+  single-flight and context-bound, and blocks record writes, synchronization,
+  and sign-out until it completes. Success stores the rotated refresh
+  credential before accepting the new memory session, clears all password
+  drafts, and informs the user that every other session was revoked. Ordinary
+  failures retain the drafts for retry; session expiry or secure-storage
+  failure clears the displayed authenticated account and requires sign-in.
 - Shared native memo synchronization is created by the same authentication
   factory. It sends Bearer credentials only to the normalized server's fixed
   `GET /api/v1/sync` and `POST /api/v1/sync:push` paths. Pull requests use the

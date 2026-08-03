@@ -136,7 +136,10 @@ this check. Plain HTTP is for explicit loopback or trusted-LAN engineering use
 only, and iOS App Transport Security may reject it.
 
 After the check succeeds, these engineering clients can initialize the single
-account or sign in and sign out. Their record workspace remains local-first, but
+account or sign in and sign out. An authenticated user can also change the
+password under Account in Settings; success keeps the current client signed in
+with a rotated device credential and ends every other refresh session. Their
+record workspace remains local-first, but
 an authenticated user can manually synchronize records from Settings. Each run
 pushes pending creates, updates, deletions, restorations, and permanent deletions
 before pulling every page of current server records. It does not run

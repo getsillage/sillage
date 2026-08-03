@@ -27,7 +27,12 @@ bootstrap request identity, late-result rejection, connection status, and
 bilingual errors. After a successful check it also owns initialization/sign-in
 form state, startup restore request identity, stable authentication error copy,
 in-memory account presentation, manual memo two-way synchronization, conflict
-presentation and resolution, and sign-out orchestration. Manual sync is
+presentation and resolution, authenticated password change, and sign-out
+orchestration. Password change reuses the shared single-flight auth lifecycle,
+blocks record writes and sync while active, clears password drafts on success,
+and retains them for retry after ordinary failures. Session expiry or a failed
+secure credential rotation returns the client to sign-in instead of presenting
+a stale authenticated account. Manual sync is
 available only for the checked and authenticated server, locks record writes
 while active, pushes before pulling, refreshes canonical server records, and
 preserves rejected or conflicting mutations.

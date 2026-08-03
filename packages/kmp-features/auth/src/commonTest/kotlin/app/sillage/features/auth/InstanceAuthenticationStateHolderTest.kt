@@ -119,6 +119,82 @@ class InstanceAuthenticationStateHolderTest {
     }
 
     @Test
+    fun passwordChangeIsSingleFlightContextBoundAndUpdatesAccountOnSuccess() {
+        val passwordContext = PasswordChangeContext(
+            appMode = "online",
+            clientContextGeneration = 4,
+            online = true,
+            anotherOperationInProgress = false,
+        )
+        val draft = InstanceAuthenticationStateHolder(account = account())
+            .updateCurrentPassword("current password")
+            .updateNewPassword("new password")
+            .updateConfirmPassword("new password")
+        val request = requireNotNull(draft.nextPasswordChangeRequest(passwordContext))
+        val started = requireNotNull(draft.beginPasswordChange(request, passwordContext))
+
+        assertTrue(started.form.passwordChanging)
+        assertNull(started.nextPasswordChangeRequest(passwordContext))
+        assertNull(started.nextSignOutRequest(context(initialized = true)))
+        assertEquals(
+            "current password",
+            started.updateCurrentPassword("ignored").form.currentPassword,
+        )
+        assertNull(
+            started.completePasswordChange(
+                request,
+                passwordContext.copy(clientContextGeneration = 5),
+                account(),
+            ),
+        )
+
+        val failed = requireNotNull(
+            started.failPasswordChange(
+                request,
+                passwordContext,
+                InstanceAuthenticationFailure.InvalidCredentials,
+            ),
+        )
+        assertEquals("current password", failed.form.currentPassword)
+        assertEquals("new password", failed.form.newPassword)
+        assertEquals(InstanceAuthenticationFailure.InvalidCredentials, failed.failure)
+
+        val retry = requireNotNull(failed.nextPasswordChangeRequest(passwordContext))
+        val retrying = requireNotNull(failed.beginPasswordChange(retry, passwordContext))
+        val changedAccount = account().copy(displayName = "Updated")
+        val completed = requireNotNull(
+            retrying.completePasswordChange(retry, passwordContext, changedAccount),
+        )
+        assertEquals(changedAccount, completed.account)
+        assertEquals("", completed.form.currentPassword)
+        assertEquals("", completed.form.newPassword)
+        assertEquals("", completed.form.confirmPassword)
+        assertFalse(completed.form.passwordChanging)
+        assertNull(completed.failure)
+    }
+
+    @Test
+    fun passwordChangeValidationPublishesSpecificFailure() {
+        val mismatch = InstanceAuthenticationStateHolder(account = account())
+            .updateCurrentPassword("current password")
+            .updateNewPassword("new password")
+            .updateConfirmPassword("different password")
+
+        assertEquals(
+            InstanceAuthenticationFailure.PasswordConfirmationMismatch,
+            mismatch.showPasswordChangeValidationFailure().failure,
+        )
+        assertEquals(
+            InstanceAuthenticationFailure.PasswordUnchanged,
+            mismatch
+                .updateNewPassword("current password")
+                .updateConfirmPassword("current password")
+                .showPasswordChangeValidationFailure()
+                .failure,
+        )
+    }
+
+    @Test
     fun requiredFieldsPublishLocalValidationWithoutStartingRequest() {
         val state = InstanceAuthenticationStateHolder()
         val context = context(initialized = true)

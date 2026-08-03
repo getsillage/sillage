@@ -260,6 +260,164 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun passwordChangeValidationDoesNotCallRepository() = runTest {
+        val remote = FakeAuthenticationRepository()
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        signIn(controller)
+
+        controller.updateAuthenticationNewPassword("new password")
+        controller.updateAuthenticationConfirmPassword("different password")
+        controller.changePassword()
+
+        assertEquals(0, remote.changePasswordCalls)
+        assertEquals(
+            InstanceAuthenticationFailure.RequiredFields,
+            controller.state.authentication.failure,
+        )
+
+        controller.updateAuthenticationCurrentPassword("current password")
+        controller.changePassword()
+        assertEquals(0, remote.changePasswordCalls)
+        assertEquals(
+            InstanceAuthenticationFailure.PasswordConfirmationMismatch,
+            controller.state.authentication.failure,
+        )
+    }
+
+    @Test
+    fun passwordChangeRotatesSessionClearsSecretsAndRefreshesAccount() = runTest {
+        val remote = FakeAuthenticationRepository().apply {
+            changePasswordSession = session.copy(
+                account = session.account.copy(displayName = "Updated Felix"),
+                accessToken = "rotated-access-token",
+            )
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        signIn(controller)
+        controller.updateAuthenticationCurrentPassword("current password")
+        controller.updateAuthenticationNewPassword("new password")
+        controller.updateAuthenticationConfirmPassword("new password")
+
+        controller.changePassword()
+
+        assertEquals(1, remote.changePasswordCalls)
+        assertEquals("current password", remote.lastChangePasswordCommand?.currentPassword)
+        assertEquals("new password", remote.lastChangePasswordCommand?.newPassword)
+        assertEquals("Updated Felix", controller.state.authentication.account?.displayName)
+        assertEquals("", controller.state.authentication.form.currentPassword)
+        assertEquals("", controller.state.authentication.form.newPassword)
+        assertEquals("", controller.state.authentication.form.confirmPassword)
+        assertEquals(SillageNativeFeedback.PasswordChanged, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun failedPasswordChangeKeepsDraftAndMapsCurrentPasswordFailure() = runTest {
+        val remote = FakeAuthenticationRepository().apply {
+            changePasswordError = AuthenticationFailureException(
+                AuthenticationFailureReason.InvalidCredentials,
+            )
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        signIn(controller)
+        controller.updateAuthenticationCurrentPassword("wrong password")
+        controller.updateAuthenticationNewPassword("new password")
+        controller.updateAuthenticationConfirmPassword("new password")
+
+        controller.changePassword()
+
+        assertEquals("wrong password", controller.state.authentication.form.currentPassword)
+        assertEquals("new password", controller.state.authentication.form.newPassword)
+        assertEquals("new password", controller.state.authentication.form.confirmPassword)
+        assertEquals(
+            InstanceAuthenticationFailure.InvalidCredentials,
+            controller.state.authentication.failure,
+        )
+        assertEquals("account-1", controller.state.authentication.account?.id)
+        assertFalse(controller.state.authentication.form.passwordChanging)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun passwordChangeLocksRecordWritesAndSignOutUntilCompletion() = runTest {
+        val repository = FakeRecordsRepository()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val remote = FakeAuthenticationRepository().apply {
+            beforeChangePassword = {
+                entered.complete(Unit)
+                release.await()
+            }
+        }
+        val controller = controller(
+            repository = repository,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        signIn(controller)
+        controller.updateAuthenticationCurrentPassword("current password")
+        controller.updateAuthenticationNewPassword("new password")
+        controller.updateAuthenticationConfirmPassword("new password")
+
+        val job = launch { controller.changePassword() }
+        entered.await()
+        assertTrue(controller.state.busy)
+        assertTrue(controller.state.authentication.form.passwordChanging)
+
+        controller.startNewRecord()
+        controller.updateEditorContent("must wait")
+        controller.saveEditor()
+        controller.signOut()
+        assertTrue(repository.records.isEmpty())
+        assertEquals("account-1", controller.state.authentication.account?.id)
+
+        release.complete(Unit)
+        job.join()
+        assertEquals(SillageNativeFeedback.PasswordChanged, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun secureStorageFailureAfterPasswordChangeEndsLocalSession() = runTest {
+        val remote = FakeAuthenticationRepository().apply {
+            changePasswordError = AuthenticationFailureException(
+                AuthenticationFailureReason.SecureStorageUnavailable,
+            )
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        signIn(controller)
+        controller.updateAuthenticationCurrentPassword("current password")
+        controller.updateAuthenticationNewPassword("new password")
+        controller.updateAuthenticationConfirmPassword("new password")
+
+        controller.changePassword()
+
+        assertNull(controller.state.authentication.account)
+        assertEquals(
+            InstanceAuthenticationFailure.SecureStorageUnavailable,
+            controller.state.authentication.failure,
+        )
+        assertEquals("", controller.state.authentication.form.currentPassword)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
     fun failedRemoteSignOutStillClearsMemorySession() = runTest {
         val remote = FakeAuthenticationRepository()
         val controller = controller(
@@ -768,12 +926,17 @@ private class FakeAuthenticationRepository(
     var baseUrl: String = ""
     var signedOut: Boolean = false
     var localSessionCleared: Boolean = false
-    var authenticationError: Throwable? = null
-    var signOutError: Throwable? = null
+        var authenticationError: Throwable? = null
+        var changePasswordError: Throwable? = null
+        var signOutError: Throwable? = null
     var localSessionClearError: Throwable? = null
     var restoredSession: AuthSession? = null
     var restoreError: Throwable? = null
-    var restoreCalls: Int = 0
+        var restoreCalls: Int = 0
+        var changePasswordCalls: Int = 0
+        var lastChangePasswordCommand: ChangePasswordCommand? = null
+        var changePasswordSession: AuthSession = session
+        var beforeChangePassword: suspend () -> Unit = {}
 
     override suspend fun restore(): AuthSession? {
         restoreCalls += 1
@@ -793,7 +956,13 @@ private class FakeAuthenticationRepository(
 
     override suspend fun currentAccount(): Account = session.account
 
-    override suspend fun changePassword(command: ChangePasswordCommand): AuthSession = session
+        override suspend fun changePassword(command: ChangePasswordCommand): AuthSession {
+            changePasswordCalls += 1
+            lastChangePasswordCommand = command
+            beforeChangePassword()
+            changePasswordError?.let { throw it }
+            return changePasswordSession
+        }
 
     override fun captureSession(): CapturedSignOutSession {
         return object : CapturedSignOutSession {

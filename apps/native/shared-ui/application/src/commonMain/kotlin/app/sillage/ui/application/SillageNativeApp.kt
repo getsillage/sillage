@@ -196,7 +196,11 @@ private fun SillageNativeContent(
             onAuthenticationUsernameChange = controller::updateAuthenticationUsername,
             onAuthenticationDisplayNameChange = controller::updateAuthenticationDisplayName,
             onAuthenticationPasswordChange = controller::updateAuthenticationPassword,
+            onAuthenticationCurrentPasswordChange = controller::updateAuthenticationCurrentPassword,
+            onAuthenticationNewPasswordChange = controller::updateAuthenticationNewPassword,
+            onAuthenticationConfirmPasswordChange = controller::updateAuthenticationConfirmPassword,
             onAuthenticate = { scope.launch { controller.authenticate() } },
+            onChangePassword = { scope.launch { controller.changePassword() } },
             onSyncMemos = { scope.launch { controller.syncMemos() } },
             onSignOut = { scope.launch { controller.signOut() } },
             onExportBackup = platform.exportBackup?.let { operation ->
@@ -325,6 +329,7 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.BackupRestored -> backupRestored
     SillageNativeFeedback.AccountInitialized -> accountInitialized
     SillageNativeFeedback.SignedIn -> signedIn
+    SillageNativeFeedback.PasswordChanged -> passwordChanged
     SillageNativeFeedback.SignedOut -> signedOut
     SillageNativeFeedback.SignedOutLocally -> signedOutLocally
     SillageNativeFeedback.MemoSyncCompleted -> memoSyncCompleted

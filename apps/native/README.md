@@ -61,7 +61,10 @@ deliberately export neither server address nor sync metadata.
 
 The public check sends no records, credentials, cookies, or authorization
 headers. After a successful check, the same Settings surface can initialize or
-sign in to the instance. Automatic platform cookie storage is disabled and
+sign in to the instance. An authenticated account can also change its password
+from Settings; the current and new passwords remain only in transient form and
+request state. Success rotates the caller's refresh credential and signs out
+every other session. Automatic platform cookie storage is disabled and
 access tokens always stay in process memory. iOS and macOS store only the
 refresh credential in non-synchronizing Keychain Generic Password items.
 Windows stores only the refresh credential as a non-roaming Generic Credential

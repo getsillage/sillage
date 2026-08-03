@@ -4,7 +4,7 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated manual two-way memo synchronization while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
+Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated manual two-way memo synchronization and authenticated password change while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
@@ -141,6 +141,15 @@ non-synchronizing Generic Password adapter through modern Security.framework
 Credential adapter through `CredReadW`, `CredWriteW`, `CredDeleteW`, and
 `CredFree`. Unsupported desktop hosts use the memory-only default. Access
 tokens never cross the memory boundary.
+
+The shared iOS/desktop application controller drives password change through
+the same base-URL-scoped repository. Its feature-owned request identity rejects
+responses after the application mode or client generation changes. While the
+request is active, record writes, synchronization, and sign-out are blocked.
+Success accepts the rotated caller session and clears all password drafts;
+ordinary failures preserve drafts for retry. Session expiry or failure to store
+the rotated refresh credential clears the displayed authenticated account so a
+stale session is never presented as usable.
 The same `RemoteInstanceAuthenticationRepositoryFactory` creates
 `RemoteMemoSyncGateway`, so memo push and pull use that exact base-URL-scoped
 session, one-time 401 refresh, and credential rotation. The adapter owns

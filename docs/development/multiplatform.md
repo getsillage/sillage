@@ -11,9 +11,9 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public bootstrap, authentication, and Keychain session restoration implemented; sync pending |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public bootstrap, authentication, and Credential Manager session restoration implemented; sync pending |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG, public bootstrap, authentication, and Keychain session restoration implemented; sync pending |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, public bootstrap, authentication, and Keychain session restoration implemented |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, public bootstrap, authentication, and Credential Manager session restoration implemented |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, DMG, public bootstrap, authentication, and Keychain session restoration implemented |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -119,7 +119,10 @@ appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
 iOS hosts supply only platform adapters and lifecycle entry points. Their records
 workspace is local-first and supports authenticated manual memo push-then-pull
 plus explicit conflict resolution through shared application, sync, network, and
-local-data ports. Automatic synchronization, broader pull streams, Ask, and
+local-data ports. Its account settings also run authenticated password change
+through the shared feature lifecycle and base-URL-scoped repository, blocking
+other writes until the caller's rotated session is safely accepted. Automatic
+synchronization, broader pull streams, Ask, and
 attachments continue to arrive through ports and host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
@@ -205,8 +208,9 @@ localized strings, icons, accent colors, root loading state, navigation, protoco
 callbacks, brand resources, and language state; platform adapters retain resource
 lookup and language persistence.
 The shared auth module also owns settings account/password-change content and
-its section wrapper, consuming the auth aggregate directly; hosts supply account
-metadata and client-context mutation gates.
+its section wrapper, consuming the auth aggregate directly, including transient
+draft presentation, in-progress gating, and optional inline failure copy; hosts
+supply account metadata and client-context mutation gates.
 
 The buildable `shared-ui:settings` module owns the AI profile editor header and
 summary cards. It consumes `SettingsFeatureStateHolder` directly for save

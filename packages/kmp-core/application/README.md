@@ -17,7 +17,9 @@ repository and its optional refresh-credential store; iOS and macOS inject
 Security.framework Keychain adapters, while Windows injects a Credential
 Manager adapter. `InstanceAuthenticationRepository.restore` exchanges the
 stored refresh credential for a newly rotated session without exposing it to
-feature state.
+feature state. The shared iOS/desktop controller invokes the same
+password-change use case and applies the returned account only after the
+feature-owned request context is still current.
 `SignOutRepository` captures a session-bound capability before asynchronous
 execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
 cancellation semantics without exposing tokens or platform session snapshots.

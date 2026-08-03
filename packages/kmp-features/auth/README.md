@@ -16,7 +16,10 @@ existing host orchestration until that online path is migrated.
 `InstanceAuthenticationStateHolder` owns desktop/iOS restoration,
 initialization, sign-in, and sign-out request identity, form retention on
 failure, password clearing on success, late-result rejection, and the
-secret-free authenticated account shown by Settings. Missing stored credentials
+secret-free authenticated account shown by Settings. It also forwards the
+shared password-change validation and context-bound request lifecycle, keeps
+ordinary failure drafts retryable, prevents sign-out during rotation, and
+updates the secret-free account only for the owned response. Missing stored credentials
 return to the sign-in form without an error, while secure-vault failures remain
 stable presentation state. It never owns access tokens or refresh cookies.
 

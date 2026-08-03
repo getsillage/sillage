@@ -40,6 +40,7 @@ fun SillageAccountSettingsContent(
     strings: SillageAccountSettingsStrings,
     signOutSupporting: String,
     signOutIcon: ImageVector,
+    errorMessage: String? = null,
     onCurrentPasswordChange: (String) -> Unit,
     onNewPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
@@ -63,6 +64,14 @@ fun SillageAccountSettingsContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+        }
         OutlinedTextField(
             value = presentation.currentPassword,
             onValueChange = onCurrentPasswordChange,

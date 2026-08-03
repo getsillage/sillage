@@ -34,7 +34,12 @@ class AuthenticationStateHolderTest {
 
     @Test
     fun passwordChangeIsSingleFlightAndContextBound() {
-        val draft = validDraft().copy(passwordChangeRequestId = 6)
+        val draft = validDraft().copy(
+            currentPassword = "private-current-secret",
+            newPassword = "private-next-secret",
+            confirmPassword = "private-next-secret",
+            passwordChangeRequestId = 6,
+        )
         val request = requireNotNull(draft.nextPasswordChangeRequest(context))
         val changing = requireNotNull(draft.beginPasswordChange(request, context))
 
@@ -42,6 +47,8 @@ class AuthenticationStateHolderTest {
         assertTrue(changing.passwordChanging)
         assertNull(changing.nextPasswordChangeRequest(context))
         assertTrue(changing.canApplyPasswordChange(request, context))
+        assertFalse(request.toString().contains(request.currentPassword))
+        assertFalse(request.toString().contains(request.newPassword))
         assertFalse(
             changing.canApplyPasswordChange(
                 request,

@@ -3,6 +3,7 @@ package app.sillage.features.auth
 import app.sillage.core.domain.auth.Account
 
 enum class InstanceAuthenticationOperation {
+    Restore,
     Initialize,
     SignIn,
     SignOut,
@@ -17,6 +18,7 @@ enum class InstanceAuthenticationFailure {
     SessionExpired,
     ServerRejected,
     InvalidResponse,
+    SecureStorageUnavailable,
     Connection,
 }
 
@@ -96,6 +98,25 @@ data class InstanceAuthenticationStateHolder(
         )
     }
 
+    fun nextRestoreRequest(
+        context: InstanceAuthenticationContext,
+    ): InstanceAuthenticationRequest? {
+        if (
+            loading ||
+            account != null ||
+            context.baseUrl.isBlank() ||
+            !context.initialized
+        ) {
+            return null
+        }
+        return InstanceAuthenticationRequest(
+            requestId = requestId + 1,
+            operation = InstanceAuthenticationOperation.Restore,
+            baseUrl = context.baseUrl,
+            clientContextGeneration = context.clientContextGeneration,
+        )
+    }
+
     fun nextSignOutRequest(
         context: InstanceAuthenticationContext,
     ): InstanceAuthenticationRequest? {
@@ -115,6 +136,7 @@ data class InstanceAuthenticationStateHolder(
         context: InstanceAuthenticationContext,
     ): InstanceAuthenticationStateHolder? {
         val expected = when (request.operation) {
+            InstanceAuthenticationOperation.Restore -> nextRestoreRequest(context)
             InstanceAuthenticationOperation.Initialize,
             InstanceAuthenticationOperation.SignIn,
             -> nextAuthenticationRequest(context)
@@ -125,6 +147,20 @@ data class InstanceAuthenticationStateHolder(
             loading = true,
             requestId = request.requestId,
             operation = request.operation,
+            failure = null,
+        )
+    }
+
+    fun completeRestoreWithoutSession(
+        request: InstanceAuthenticationRequest,
+        context: InstanceAuthenticationContext,
+    ): InstanceAuthenticationStateHolder? {
+        if (!owns(request, context) || request.operation != InstanceAuthenticationOperation.Restore) {
+            return null
+        }
+        return copy(
+            loading = false,
+            operation = null,
             failure = null,
         )
     }

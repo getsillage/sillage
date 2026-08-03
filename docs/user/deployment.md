@@ -137,11 +137,15 @@ only, and iOS App Transport Security may reject it.
 
 After the check succeeds, these engineering clients can initialize the single
 account or sign in and sign out. Their records still remain device-local and are
-not synchronized in this build. Authentication cookies and access tokens are
-kept only in memory, are not included in backups, and are discarded when the
-application closes, so sign in again after every launch. Persistent login will
-not be enabled until the platform Keychain or Credential Manager adapter is in
-place; there is no plaintext credential fallback.
+not synchronized in this build. Access tokens always remain in memory, and no
+authentication credential is included in record snapshots or portable backups.
+iOS stores only the refresh credential in its device-bound, non-synchronizing
+Keychain and can restore a valid session after public bootstrap on a later
+launch. Use in-app sign-out or revoke the server session when sign-out must be
+guaranteed; iOS may retain Keychain items across app reinstallation. Windows and
+macOS remain memory-only and require sign-in after every launch until their
+Credential Manager or Keychain adapter is implemented. No platform has a
+plaintext credential fallback.
 
 ## Probes and Upgrades
 

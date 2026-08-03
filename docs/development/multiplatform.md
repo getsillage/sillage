@@ -11,7 +11,7 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public bootstrap and memory-only authentication implemented; sync and Keychain persistence pending |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public bootstrap, authentication, and Keychain session restoration implemented; sync pending |
 | Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public bootstrap and memory-only authentication implemented; sync and Credential Manager persistence pending |
 | macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG, public bootstrap, and memory-only authentication implemented; sync and Keychain persistence pending |
 
@@ -79,8 +79,11 @@ small host HTTP port. It also owns base-URL-scoped initialization, sign-in,
 bearer retry after one refresh, password change, and context-bound sign-out.
 Desktop and Apple networking APIs remain platform adapters. The public request
 carries no records, credentials, cookies, or authorization headers. Native
-authentication keeps access tokens and refresh cookies in a generation-checked
-memory session; OS-backed persistence remains a separate security adapter.
+authentication keeps access tokens and the active refresh credential in a
+generation-checked memory session. `AuthenticationCredentialStore` is the only
+cross-launch persistence port and accepts only the refresh credential. iOS
+supplies a non-synchronizing, device-bound Keychain adapter; desktop Windows and
+macOS retain the memory-only default.
 
 Record create and update commands share the server's draft constraints in
 `application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
@@ -98,9 +101,10 @@ The buildable `shared-ui:application` composition root provides a responsive
 records list/detail/editor workflow, record search and lifecycle actions,
 appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
 iOS hosts supply only platform adapters and lifecycle entry points. This first
-host slice is intentionally device-local: online authentication, remote sync,
-Ask, attachments, and credential storage must arrive through existing shared
-application ports rather than host-only implementations.
+host slice keeps records device-local while public discovery and online
+authentication use existing shared application ports. Remote sync, Ask,
+attachments, and additional credential-vault adapters must continue to arrive
+through those ports rather than host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -110,10 +114,16 @@ Public capability discovery crosses `InstanceBootstrapRepository`.
 Initialization, sign-in, current-account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android retains REST,
 refresh coordination, and context-safe encrypted session persistence.
+Desktop and iOS use the shared remote repository; only iOS advertises
+cross-launch persistence and therefore performs bootstrap followed by refresh
+restoration during startup.
 Sign-out crosses a separate `SignOutRepository`: its prepared operation captures
-the current session before asynchronous work, and shared application policy owns
+the current session before asynchronous work, deletes that session's durable
+credential before remote revocation, and lets shared application policy own
 offline clearing, remote-failure fallback, cancellation, and stale-session
-rejection without exposing token-bearing platform snapshots.
+rejection without exposing token-bearing platform snapshots. A vault deletion
+failure leaves the captured session visible instead of reporting a false
+sign-out.
 
 Canonical theme, language, and app-mode tokens plus URL/mode normalization live in
 `kmp-core:application` (`ClientPreferenceValues`). Android `SessionStore` remains the
@@ -636,10 +646,10 @@ attachment staging and present the resulting status.
   source.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
   host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
-  migration, Foundation time/identity values, public bootstrap and memory-only
-  authentication `NSURLSession` transport, system JSON backup document pickers,
-  a branded AppIcon catalog, and Xcode integration. Keychain session
-  persistence, signing, and App Store packaging remain future host work.
+  migration, Foundation time/identity values, public bootstrap and authentication
+  `NSURLSession` transport, device-bound Security.framework refresh-credential
+  storage, system JSON backup document pickers, a branded AppIcon catalog, and
+  Xcode integration. Signing and App Store packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
   values, data-folder action, native backup save/open dialogs, public bootstrap

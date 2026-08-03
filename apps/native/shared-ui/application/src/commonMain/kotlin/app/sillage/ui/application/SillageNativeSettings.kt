@@ -247,10 +247,20 @@ internal fun SillageNativeSettings(
                                 label = strings.apiVersion,
                                 value = bootstrap.apiVersion.ifBlank { strings.unknownValue },
                                 showDivider = true,
+                        )
+                        val authentication = state.authentication
+                        val account = authentication.account
+                        authentication.failure?.let { failure ->
+                            SillageInlineError(
+                                message = strings.authenticationFailure(failure),
+                                icon = Icons.Outlined.ErrorOutline,
+                                modifier = Modifier.padding(
+                                    horizontal = 14.dp,
+                                    vertical = 4.dp,
+                                ),
                             )
-                            val authentication = state.authentication
-                            val account = authentication.account
-                            if (account == null) {
+                        }
+                        if (account == null) {
                                 SillageSettingsInfoRow(
                                     label = strings.accountSection,
                                     value = if (bootstrap.initialized) {
@@ -260,17 +270,7 @@ internal fun SillageNativeSettings(
                                     },
                                     showDivider = true,
                                 )
-                                authentication.failure?.let { failure ->
-                                    SillageInlineError(
-                                        message = strings.authenticationFailure(failure),
-                                        icon = Icons.Outlined.ErrorOutline,
-                                        modifier = Modifier.padding(
-                                            horizontal = 14.dp,
-                                            vertical = 4.dp,
-                                        ),
-                                    )
-                                }
-                                val passwordStrings = SillagePasswordFieldStrings(
+                            val passwordStrings = SillagePasswordFieldStrings(
                                     label = strings.password,
                                     showPassword = strings.showPassword,
                                     hidePassword = strings.hidePassword,
@@ -330,11 +330,15 @@ internal fun SillageNativeSettings(
                                     },
                                     showDivider = true,
                                 )
-                                SillageSettingsInfoRow(
-                                    label = strings.sessionPersistence,
-                                    value = strings.sessionMemoryOnly,
-                                    showDivider = true,
-                                )
+                            SillageSettingsInfoRow(
+                                label = strings.sessionPersistence,
+                                value = if (platform.authenticationPersistsAcrossLaunches) {
+                                    strings.sessionDeviceProtected
+                                } else {
+                                    strings.sessionMemoryOnly
+                                },
+                                showDivider = true,
+                            )
                                 SillageSettingsActionRow(
                                     icon = Icons.Outlined.Logout,
                                     title = if (
@@ -345,7 +349,11 @@ internal fun SillageNativeSettings(
                                     } else {
                                         strings.signOut
                                     },
-                                    supporting = strings.sessionMemoryOnly,
+                                supporting = if (platform.authenticationPersistsAcrossLaunches) {
+                                    strings.sessionDeviceProtected
+                                } else {
+                                    strings.sessionMemoryOnly
+                                },
                                     onClick = onSignOut,
                                     enabled = !authentication.loading,
                                     showDivider = true,
@@ -385,5 +393,6 @@ private fun SillageNativeStrings.authenticationFailure(
     InstanceAuthenticationFailure.SessionExpired -> authSessionExpired
     InstanceAuthenticationFailure.ServerRejected -> authServerRejected
     InstanceAuthenticationFailure.InvalidResponse -> authInvalidResponse
+    InstanceAuthenticationFailure.SecureStorageUnavailable -> authSecureStorageUnavailable
     InstanceAuthenticationFailure.Connection -> authConnectionFailed
 }

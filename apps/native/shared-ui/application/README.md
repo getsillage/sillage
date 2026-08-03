@@ -25,11 +25,15 @@ the native document picker and file I/O adapters.
 Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and
 bilingual errors. After a successful check it also owns initialization/sign-in
-form state, stable authentication error copy, in-memory account presentation,
-and sign-out orchestration. Hosts provide HTTP transport and repository
-composition only. Successful checks persist the normalized address without
-changing the device-local records mode.
+form state, startup restore request identity, stable authentication error copy,
+in-memory account presentation, and sign-out orchestration. Hosts provide HTTP
+transport, credential-vault capability, and repository composition only.
+Successful checks persist the normalized address without changing the
+device-local records mode. Automatic bootstrap and restore run only when the
+host advertises cross-launch authentication persistence.
 
-Remote record synchronization, Ask, attachments, and OS-backed credential
-adapters remain follow-up integration slices. The current host is a functional
-device-local records workspace rather than a simulated server.
+Remote record synchronization, Ask, attachments, and additional OS-backed
+credential adapters remain follow-up integration slices. iOS supplies a
+Keychain adapter; desktop Windows and macOS intentionally retain the memory-only
+default. The current host is a functional device-local records workspace rather
+than a simulated server.

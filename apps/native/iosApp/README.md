@@ -7,7 +7,10 @@ Application Support snapshot file, one-time `NSUserDefaults` migration,
 Foundation timestamps and UUIDs, public bootstrap and authentication requests
 through `NSURLSession`, plus system JSON document pickers for portable backup
 export and restore. Requests disable automatic cookie handling so refresh
-cookies remain inside the shared memory-session boundary.
+cookies remain inside the shared repository boundary. Access tokens stay only
+in memory; the host persists only the refresh credential as a
+Security.framework Generic Password item using
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 
 The Xcode target compiles the branded `Assets.xcassets/AppIcon.appiconset` and
 reports its `MARKETING_VERSION` through the shared Settings surface. The icon
@@ -31,8 +34,11 @@ the static framework matching Xcode's Apple architecture and build type.
 
 Records remain device-local in this slice. Settings can validate and remember a
 Sillage HTTPS server, initialize its single account, sign in, refresh an expired
-access token, and sign out. Session material is memory-only and closing the app
-requires signing in again. Synchronization, Ask, attachments, Keychain session
-persistence, accessibility/device journeys, signing, and App Store packaging
-remain outside the implemented host. The locally built app is an engineering
-artifact, not an official release asset.
+access token, and sign out. On launch, the host checks the remembered server
+publicly and then restores a session from the device-bound Keychain refresh
+credential when one exists; invalid or expired credentials return to sign-in.
+The credential does not synchronize to other devices and is excluded from the
+record snapshot and portable backup. Synchronization, Ask, attachments,
+accessibility/device journeys, signing, and App Store packaging remain outside
+the implemented host. The locally built app is an engineering artifact, not an
+official release asset.

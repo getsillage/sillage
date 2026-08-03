@@ -30,6 +30,9 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.kotlinx.coroutines.core)
         }
+        iosTest.dependencies {
+            implementation(kotlin("test"))
+        }
     }
 }
 

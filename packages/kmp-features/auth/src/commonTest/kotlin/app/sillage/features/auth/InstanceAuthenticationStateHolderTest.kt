@@ -31,6 +31,44 @@ class InstanceAuthenticationStateHolderTest {
     }
 
     @Test
+    fun restoreDoesNotRequireDraftAndUnlocksFormWhenCredentialIsMissing() {
+        val context = context(initialized = true)
+        val state = InstanceAuthenticationStateHolder()
+        val request = requireNotNull(state.nextRestoreRequest(context))
+        val started = requireNotNull(state.begin(request, context))
+
+        val missing = requireNotNull(started.completeRestoreWithoutSession(request, context))
+
+        assertEquals(InstanceAuthenticationOperation.Restore, request.operation)
+        assertFalse(missing.loading)
+        assertNull(missing.account)
+        assertTrue(missing.nextAuthenticationRequest(context) == null)
+        assertEquals(
+            InstanceAuthenticationFailure.RequiredFields,
+            missing.showValidationFailure(context).failure,
+        )
+    }
+
+    @Test
+    fun restorePublishesAccountOnlyForOwnedContext() {
+        val context = context(initialized = true)
+        val state = InstanceAuthenticationStateHolder()
+        val request = requireNotNull(state.nextRestoreRequest(context))
+        val started = requireNotNull(state.begin(request, context))
+
+        assertNull(
+            started.completeAuthentication(
+                request,
+                context.copy(clientContextGeneration = context.clientContextGeneration + 1),
+                account(),
+            ),
+        )
+        val completed = requireNotNull(started.completeAuthentication(request, context, account()))
+        assertEquals(account(), completed.account)
+        assertFalse(completed.loading)
+    }
+
+    @Test
     fun editingDuringRequestInvalidatesLateCompletionAndRetainsNewDraft() {
         val context = context(initialized = true)
         val draft = InstanceAuthenticationStateHolder()

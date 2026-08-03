@@ -36,6 +36,105 @@ class RemoteInstanceAuthenticationRepositoryTest {
     }
 
     @Test
+    fun persistsOnlyRefreshCredentialAndRotatesItAfterRefresh() = runTest {
+        val credentialStore = FakeCredentialStore()
+        val transport = QueueTransport(
+            authenticatedResponse("access-old", "refresh-old"),
+            SillageHttpResponse(statusCode = 401, body = ""),
+            authenticatedResponse("access-new", "refresh-new"),
+            SillageHttpResponse(
+                statusCode = 200,
+                body = """{"account":{"id":"account-1","username":"felix"}}""",
+            ),
+        )
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+
+        repository.signIn(SignInCommand("felix", "password"))
+        repository.currentAccount()
+
+        assertEquals(listOf("refresh-old", "refresh-new"), credentialStore.writes)
+        assertFalse(credentialStore.writes.any { it.contains("access-") })
+        assertEquals("sillage_refresh=refresh-old", transport.requests[2].headers["Cookie"])
+    }
+
+    @Test
+    fun restoresStoredRefreshCredentialAndPersistsItsRotation() = runTest {
+        val credentialStore = FakeCredentialStore(refreshCookie = "refresh-stored")
+        val transport = QueueTransport(authenticatedResponse("access-new", "refresh-new"))
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+
+        val restored = repository.restore()
+
+        assertEquals("access-new", restored?.accessToken)
+        assertEquals("sillage_refresh=refresh-stored", transport.requests.single().headers["Cookie"])
+        assertFalse(transport.requests.single().headers.containsKey("Authorization"))
+        assertEquals("refresh-new", credentialStore.refreshCookie)
+        assertEquals("AuthenticationCredentialReadResult.Available(refreshCookie=<redacted>)",
+            AuthenticationCredentialReadResult.Available("private-refresh").toString())
+    }
+
+    @Test
+    fun expiredStoredRefreshCredentialIsDeletedWithoutSurfacingServerBody() = runTest {
+        val credentialStore = FakeCredentialStore(refreshCookie = "refresh-expired")
+        val transport = QueueTransport(
+            SillageHttpResponse(statusCode = 401, body = "private server body"),
+        )
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+
+        val restored = repository.restore()
+
+        assertEquals(null, restored)
+        assertEquals(null, credentialStore.refreshCookie)
+        assertEquals(1, credentialStore.deletes)
+    }
+
+    @Test
+    fun malformedStoredRefreshCredentialIsDeletedBeforeTransport() = runTest {
+        val credentialStore = FakeCredentialStore(refreshCookie = "invalid cookie\nvalue")
+        val transport = QueueTransport()
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+
+        val restored = repository.restore()
+
+        assertEquals(null, restored)
+        assertEquals(null, credentialStore.refreshCookie)
+        assertTrue(transport.requests.isEmpty())
+    }
+
+    @Test
+    fun secureStoreWriteFailureRejectsSessionAndClearsMemoryCopy() = runTest {
+        val credentialStore = FakeCredentialStore(failWrites = true)
+        val transport = QueueTransport(authenticatedResponse("private-access", "private-refresh"))
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+
+        val storageError = assertFailsWith<AuthenticationFailureException> {
+            repository.signIn(SignInCommand("felix", "private-password"))
+        }
+        val sessionError = assertFailsWith<AuthenticationFailureException> {
+            repository.currentAccount()
+        }
+
+        assertEquals(AuthenticationFailureReason.SecureStorageUnavailable, storageError.reason)
+        assertEquals(AuthenticationFailureReason.SessionExpired, sessionError.reason)
+        assertFalse(storageError.message.orEmpty().contains("private"))
+    }
+
+    @Test
     fun initializesAccountAndMapsAuthenticationFailuresWithoutServerBody() = runTest {
         val transport = QueueTransport(
             authenticatedResponse("access-1", "refresh-1"),
@@ -132,11 +231,15 @@ class RemoteInstanceAuthenticationRepositoryTest {
 
     @Test
     fun signOutUsesCapturedRefreshCookieAndClearsOnlyOwnedSession() = runTest {
+        val credentialStore = FakeCredentialStore()
         val transport = QueueTransport(
             authenticatedResponse("access-1", "refresh-1"),
             SillageHttpResponse(statusCode = 204, body = ""),
         )
-        val repository = RemoteInstanceAuthenticationRepositoryFactory(transport)
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        )
             .create("https://example.test")
         repository.signIn(SignInCommand("felix", "password"))
 
@@ -148,6 +251,33 @@ class RemoteInstanceAuthenticationRepositoryTest {
             repository.currentAccount()
         }
         assertEquals(AuthenticationFailureReason.SessionExpired, error.reason)
+        assertEquals(2, transport.requests.size)
+        assertEquals(null, credentialStore.refreshCookie)
+        assertEquals(1, credentialStore.deletes)
+    }
+
+    @Test
+    fun secureStoreDeleteFailurePreventsRemoteSignOutAndKeepsOwnedSession() = runTest {
+        val credentialStore = FakeCredentialStore(failDeletes = true)
+        val transport = QueueTransport(
+            authenticatedResponse("access-1", "refresh-1"),
+            accountResponse(),
+        )
+        val repository = RemoteInstanceAuthenticationRepositoryFactory(
+            transport = transport,
+            credentialStore = credentialStore,
+        ).create("https://example.test")
+        repository.signIn(SignInCommand("felix", "password"))
+
+        val error = assertFailsWith<AuthenticationFailureException> {
+            SignOutUseCase(repository).prepare(SignOutMode.Online)()
+        }
+
+        assertEquals(AuthenticationFailureReason.SecureStorageUnavailable, error.reason)
+        assertEquals("refresh-1", credentialStore.refreshCookie)
+        assertEquals(2, credentialStore.deletes)
+        assertEquals(1, transport.requests.size)
+        assertEquals("account-1", repository.currentAccount().id)
         assertEquals(2, transport.requests.size)
     }
 
@@ -241,6 +371,33 @@ class RemoteInstanceAuthenticationRepositoryTest {
         }
     }
 
+    private class FakeCredentialStore(
+        var refreshCookie: String? = null,
+        private val failWrites: Boolean = false,
+        private val failDeletes: Boolean = false,
+    ) : AuthenticationCredentialStore {
+        override val persistsAcrossLaunches: Boolean = true
+        val writes = mutableListOf<String>()
+        var deletes: Int = 0
+
+        override fun read(baseUrl: String): AuthenticationCredentialReadResult {
+            return refreshCookie?.let(AuthenticationCredentialReadResult::Available)
+                ?: AuthenticationCredentialReadResult.Missing
+        }
+
+        override fun write(baseUrl: String, refreshCookie: String) {
+            if (failWrites) throw AuthenticationCredentialStoreException()
+            writes += refreshCookie
+            this.refreshCookie = refreshCookie
+        }
+
+        override fun delete(baseUrl: String) {
+            deletes += 1
+            if (failDeletes) throw AuthenticationCredentialStoreException()
+            refreshCookie = null
+        }
+    }
+
     private companion object {
         fun authenticatedResponse(accessToken: String, refreshToken: String): SillageHttpResponse {
             return SillageHttpResponse(
@@ -252,6 +409,13 @@ class RemoteInstanceAuthenticationRepositoryTest {
                         "sillage_refresh=$refreshToken; Path=/api/v1/auth; HttpOnly; SameSite=Lax",
                     ),
                 ),
+            )
+        }
+
+        fun accountResponse(): SillageHttpResponse {
+            return SillageHttpResponse(
+                statusCode = 200,
+                body = """{"account":{"id":"account-1","username":"felix","displayName":"Felix"}}""",
             )
         }
 

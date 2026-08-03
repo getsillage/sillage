@@ -106,6 +106,92 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun savedServerCheckRestoresDeviceCredentialWithoutFeedback() = runTest {
+        val local = FakeRecordsRepository().apply {
+            preferences = ClientPreferences(serverBaseUrl = "https://example.test")
+        }
+        val remote = FakeAuthenticationRepository().apply {
+            restoredSession = session
+        }
+        val bootstrap = FakeBootstrapRepository(
+            result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = bootstrap,
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+
+        controller.resumeSavedAuthentication()
+
+        assertEquals("https://example.test", bootstrap.requestedBaseUrl)
+        assertEquals(1, remote.restoreCalls)
+        assertEquals("account-1", controller.state.authentication.account?.id)
+        assertNull(controller.state.feedback)
+    }
+
+    @Test
+    fun secureRestoreFailureKeepsLoginAvailableWithStableReason() = runTest {
+        val local = FakeRecordsRepository().apply {
+            preferences = ClientPreferences(serverBaseUrl = "https://example.test")
+        }
+        val remote = FakeAuthenticationRepository().apply {
+            restoreError = AuthenticationFailureException(
+                AuthenticationFailureReason.SecureStorageUnavailable,
+            )
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = FakeBootstrapRepository(
+                result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+            ),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+
+        controller.resumeSavedAuthentication()
+
+        assertEquals(
+            InstanceAuthenticationFailure.SecureStorageUnavailable,
+            controller.state.authentication.failure,
+        )
+        assertFalse(controller.state.authentication.loading)
+        assertNull(controller.state.authentication.account)
+    }
+
+    @Test
+    fun cancelledRestoreCleanupFailureUnlocksLoginWithStableReason() = runTest {
+        val local = FakeRecordsRepository().apply {
+            preferences = ClientPreferences(serverBaseUrl = "https://example.test")
+        }
+        val cleanupError = AuthenticationFailureException(
+            AuthenticationFailureReason.SecureStorageUnavailable,
+        )
+        val remote = FakeAuthenticationRepository().apply {
+            restoreError = CancellationException("left settings")
+            localSessionClearError = cleanupError
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = FakeBootstrapRepository(
+                result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+            ),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+
+        val error = assertFailsWith<AuthenticationFailureException> {
+            controller.resumeSavedAuthentication()
+        }
+
+        assertTrue(error === cleanupError)
+        assertFalse(controller.state.authentication.loading)
+        assertEquals(
+            InstanceAuthenticationFailure.SecureStorageUnavailable,
+            controller.state.authentication.failure,
+        )
+        assertFalse(remote.localSessionCleared)
+    }
+
+    @Test
     fun initializesAccountAgainstCheckedServerAndKeepsSessionOnlyInController() = runTest {
         val local = FakeRecordsRepository()
         val remote = FakeAuthenticationRepository()
@@ -413,7 +499,7 @@ private class FakeAuthenticationRepositoryFactory(
 }
 
 private class FakeAuthenticationRepository(
-    private val session: AuthSession = AuthSession(
+    val session: AuthSession = AuthSession(
         account = Account("account-1", "felix", "Felix"),
         accessToken = "access-token",
         expiresAt = "2026-08-03T12:00:00Z",
@@ -424,6 +510,16 @@ private class FakeAuthenticationRepository(
     var localSessionCleared: Boolean = false
     var authenticationError: Throwable? = null
     var signOutError: Throwable? = null
+    var localSessionClearError: Throwable? = null
+    var restoredSession: AuthSession? = null
+    var restoreError: Throwable? = null
+    var restoreCalls: Int = 0
+
+    override suspend fun restore(): AuthSession? {
+        restoreCalls += 1
+        restoreError?.let { throw it }
+        return restoredSession
+    }
 
     override suspend fun initialize(command: InitializeAccountCommand): AuthSession {
         authenticationError?.let { throw it }
@@ -448,6 +544,7 @@ private class FakeAuthenticationRepository(
             }
 
             override fun clearLocalSession(): Boolean {
+                localSessionClearError?.let { throw it }
                 signedOut = true
                 localSessionCleared = true
                 return true

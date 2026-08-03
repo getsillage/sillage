@@ -58,8 +58,12 @@ backups deliberately do not export it.
 
 The public check sends no records, credentials, cookies, or authorization
 headers. After a successful check, the same Settings surface can initialize or
-sign in to the instance. Access tokens and refresh cookies stay only in memory,
-automatic platform cookie storage is disabled, and closing the application
-requires signing in again. Use operator-managed HTTPS except for explicit
-loopback or trusted-LAN engineering development. OS-backed session persistence
-and synchronized records remain follow-up slices.
+sign in to the instance. Automatic platform cookie storage is disabled and
+access tokens always stay in process memory. iOS stores only the refresh
+credential in a non-synchronizing, device-bound Keychain item and, on a later
+launch, performs public bootstrap before attempting refresh rotation. Desktop
+Windows and macOS remain memory-only and require signing in again after the
+application closes. No credential enters the client snapshot or portable
+backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
+engineering development. Desktop credential-vault adapters and synchronized
+records remain follow-up slices.

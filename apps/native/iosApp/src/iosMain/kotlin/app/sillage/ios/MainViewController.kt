@@ -27,8 +27,15 @@ fun MainViewController(): UIViewController {
         val bootstrapRepository = remember(httpTransport) {
             RemoteInstanceBootstrapRepository(httpTransport)
         }
-        val authenticationRepositoryFactory = remember(httpTransport) {
-            RemoteInstanceAuthenticationRepositoryFactory(httpTransport)
+        val authenticationCredentialStore = remember { IosAuthenticationCredentialStore() }
+        val authenticationRepositoryFactory = remember(
+            httpTransport,
+            authenticationCredentialStore,
+        ) {
+            RemoteInstanceAuthenticationRepositoryFactory(
+                transport = httpTransport,
+                credentialStore = authenticationCredentialStore,
+            )
         }
         val controller = remember(
             repository,
@@ -51,11 +58,13 @@ fun MainViewController(): UIViewController {
                 presenter = viewControllerReference::get,
             )
         }
-        val platform = remember(storage, backupTransfer) {
+        val platform = remember(storage, backupTransfer, authenticationCredentialStore) {
             SillageNativePlatform(
                 name = "iOS",
                 dataLocation = storage.location,
                 version = currentIosVersion(),
+                authenticationPersistsAcrossLaunches =
+                    authenticationCredentialStore.persistsAcrossLaunches,
                 exportBackup = backupTransfer::exportBackup,
                 restoreBackup = backupTransfer::restoreBackup,
             )

@@ -40,7 +40,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
-| `apps/native/iosApp/` | Static KMP framework, SwiftUI/UIKit lifecycle host, atomic Application Support snapshot adapter with one-time `NSUserDefaults` migration, native JSON backup document pickers, Xcode integration, and Apple packaging boundary |
+| `apps/native/iosApp/` | Static KMP framework, SwiftUI/UIKit lifecycle host, atomic Application Support snapshot adapter with one-time `NSUserDefaults` migration, native JSON backup document pickers, Security.framework refresh-credential storage, Xcode integration, and Apple packaging boundary |
 | `apps/native/desktopApp/` | Compose Desktop host, atomic local snapshot adapter, data-directory instance lock, native backup file dialogs, native menus and guarded window lifecycle, Windows/macOS integration, and host-native DMG/MSI verification |
 | `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `application` composes the device-local records workspace, `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus the common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, local data, sync, and security modules; `local-data` separates private snapshots from validated user backup envelopes, and `domain`, `application`, `local-data`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
@@ -131,9 +131,18 @@ Instance discovery crosses `InstanceBootstrapRepository`; initialization,
 sign-in, account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android's remote adapter
 retains REST, refresh coordination, and context-safe encrypted session storage.
+For desktop and iOS, `kmp-core:network` maps the same bootstrap and
+authentication contracts to host-neutral HTTP, owns the generation-checked
+memory session, and exposes `AuthenticationCredentialStore` as the only durable
+refresh-credential boundary. iOS supplies a non-synchronizing,
+`ThisDeviceOnly` Keychain adapter; desktop Windows and macOS use the memory-only
+default until their native vault adapters land. Access tokens never cross the
+memory boundary.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
-remote invalidation and conditional local clearing to one captured session, so a
-late failure cannot clear credentials established by a newer sign-in.
+durable-credential deletion, remote invalidation, and conditional local clearing
+to one captured session. Durable deletion happens before the remote request; if
+it fails, the current session remains authoritative and the request is not sent.
+A late failure cannot clear credentials established by a newer sign-in.
 
 Authentication presentation state lives in `packages/kmp-features/auth`.
 `AuthFeatureStateHolder` is the feature aggregate nested on Android root state;

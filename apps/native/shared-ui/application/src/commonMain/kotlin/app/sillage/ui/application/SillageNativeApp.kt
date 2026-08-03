@@ -51,6 +51,12 @@ fun SillageNativeApp(
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+    LaunchedEffect(controller, platform.authenticationPersistsAcrossLaunches) {
+        if (platform.authenticationPersistsAcrossLaunches) {
+            controller.resumeSavedAuthentication()
+        }
+    }
+
     LaunchedEffect(state.feedback, strings) {
         val feedback = state.feedback ?: return@LaunchedEffect
         snackbarHostState.currentSnackbarData?.dismiss()

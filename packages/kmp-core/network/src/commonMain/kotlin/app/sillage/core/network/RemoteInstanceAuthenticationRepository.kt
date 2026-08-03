@@ -20,6 +20,8 @@ import kotlinx.serialization.json.put
 
 class RemoteInstanceAuthenticationRepositoryFactory(
     private val transport: SillageHttpTransport,
+    private val credentialStore: AuthenticationCredentialStore =
+        MemoryOnlyAuthenticationCredentialStore,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : InstanceAuthenticationRepositoryFactory {
     private val sessions = InMemoryAuthenticationSessionStore()
@@ -29,17 +31,19 @@ class RemoteInstanceAuthenticationRepositoryFactory(
             baseUrl = normalizeAndValidateServerBaseUrl(baseUrl),
             transport = transport,
             sessions = sessions,
+            credentialStore = credentialStore,
             json = json,
         )
     }
 }
 
 private class RemoteInstanceAuthenticationRepository(
-    private val baseUrl: String,
-    private val transport: SillageHttpTransport,
-    private val sessions: InMemoryAuthenticationSessionStore,
-    private val json: Json,
-) : InstanceAuthenticationRepository {
+        private val baseUrl: String,
+        private val transport: SillageHttpTransport,
+        private val sessions: InMemoryAuthenticationSessionStore,
+        private val credentialStore: AuthenticationCredentialStore,
+        private val json: Json,
+    ) : InstanceAuthenticationRepository {
     override suspend fun initialize(command: InitializeAccountCommand): AuthSession {
         return authenticate(
             path = "/api/v1/auth/initialize",
@@ -52,18 +56,36 @@ private class RemoteInstanceAuthenticationRepository(
         )
     }
 
-    override suspend fun signIn(command: SignInCommand): AuthSession {
-        return authenticate(
-            path = "/api/v1/auth/signin",
-            operation = AuthenticationOperation.SignIn,
+        override suspend fun signIn(command: SignInCommand): AuthSession {
+            return authenticate(
+                path = "/api/v1/auth/signin",
+                operation = AuthenticationOperation.SignIn,
             payload = buildJsonObject {
                 put("username", command.username)
                 put("password", command.password)
-            },
-        )
-    }
+                },
+            )
+        }
 
-    override suspend fun currentAccount(): Account {
+        override suspend fun restore(): AuthSession? {
+            sessions.current(baseUrl)?.let { return it.authSession }
+            val refreshCookie = readStoredRefreshCookie() ?: return null
+            if (!isValidRefreshCookie(refreshCookie)) {
+                deleteStoredRefreshCookie()
+                return null
+            }
+
+            val response = executeRefresh(refreshCookie)
+            if (response.statusCode == 401) {
+                deleteStoredRefreshCookie()
+                return null
+            }
+            requireSuccess(response, AuthenticationOperation.Refresh)
+            val authenticated = parseAuthenticatedResponse(response)
+            return replaceSession(authenticated).authSession
+        }
+
+        override suspend fun currentAccount(): Account {
         val (response, _) = executeAuthenticated(
             SillageHttpRequest(
                 method = SillageHttpMethod.Get,
@@ -85,24 +107,30 @@ private class RemoteInstanceAuthenticationRepository(
                 put("newPassword", command.newPassword)
             }.toString(),
         )
-        val (response, expected) = executeAuthenticated(request)
-        requireSuccess(response, AuthenticationOperation.ChangePassword)
-        val authenticated = parseAuthenticatedResponse(response)
-        if (sessions.replace(expected, authenticated.session, authenticated.refreshCookie) == null) {
-            throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+            val (response, expected) = executeAuthenticated(request)
+            requireSuccess(response, AuthenticationOperation.ChangePassword)
+            val authenticated = parseAuthenticatedResponse(response)
+            return replaceSession(authenticated, expected).authSession
         }
-        return authenticated.session
-    }
 
     override fun captureSession(): CapturedSignOutSession {
         val captured = sessions.current(baseUrl)
         return object : CapturedSignOutSession {
+            private var storedCredentialDeleted = false
+
+            private fun deleteCapturedCredential() {
+                if (storedCredentialDeleted) return
+                deleteStoredRefreshCookie()
+                storedCredentialDeleted = true
+            }
+
             override suspend fun signOutRemote() {
                 val expected = captured
                     ?: throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
                 if (!sessions.owns(expected)) {
                     throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
                 }
+                deleteCapturedCredential()
                 val response = transport.execute(
                     SillageHttpRequest(
                         method = SillageHttpMethod.Post,
@@ -111,13 +139,19 @@ private class RemoteInstanceAuthenticationRepository(
                     ),
                 )
                 requireSuccess(response, AuthenticationOperation.SignOut)
+                if (!sessions.owns(expected)) {
+                    throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+                }
                 if (!sessions.clear(expected)) {
                     throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
                 }
             }
 
             override fun clearLocalSession(): Boolean {
-                return captured?.let(sessions::clear) ?: false
+                val expected = captured ?: return false
+                if (!sessions.owns(expected)) return false
+                deleteCapturedCredential()
+                return sessions.clear(expected)
             }
         }
     }
@@ -134,12 +168,11 @@ private class RemoteInstanceAuthenticationRepository(
                 headers = jsonHeaders,
                 body = payload.toString(),
             ),
-        )
-        requireSuccess(response, operation)
-        val authenticated = parseAuthenticatedResponse(response)
-        sessions.replace(baseUrl, authenticated.session, authenticated.refreshCookie)
-        return authenticated.session
-    }
+            )
+            requireSuccess(response, operation)
+            val authenticated = parseAuthenticatedResponse(response)
+            return replaceSession(authenticated).authSession
+        }
 
     private suspend fun executeAuthenticated(
         request: SillageHttpRequest,
@@ -154,30 +187,78 @@ private class RemoteInstanceAuthenticationRepository(
         return response to session
     }
 
-    private suspend fun refresh(
-        expected: AuthenticationSessionSnapshot,
-    ): AuthenticationSessionSnapshot {
-        if (!sessions.owns(expected)) {
-            throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+        private suspend fun refresh(
+            expected: AuthenticationSessionSnapshot,
+        ): AuthenticationSessionSnapshot {
+            if (!sessions.owns(expected)) {
+                throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+            }
+            val response = executeRefresh(expected.refreshCookie)
+            if (response.statusCode == 401) {
+                if (sessions.owns(expected)) {
+                    deleteStoredRefreshCookie()
+                    sessions.clear(expected)
+                }
+                throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+            }
+            requireSuccess(response, AuthenticationOperation.Refresh)
+            val authenticated = parseAuthenticatedResponse(response)
+            return replaceSession(authenticated, expected)
         }
-        val response = transport.execute(
-            SillageHttpRequest(
-                method = SillageHttpMethod.Post,
-                url = "$baseUrl/api/v1/auth/refresh",
-                headers = jsonHeaders + ("Cookie" to refreshCookieHeader(expected.refreshCookie)),
-            ),
-        )
-        if (response.statusCode == 401) {
-            sessions.clear(expected)
-            throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
-        }
-        requireSuccess(response, AuthenticationOperation.Refresh)
-        val authenticated = parseAuthenticatedResponse(response)
-        return sessions.replace(expected, authenticated.session, authenticated.refreshCookie)
-            ?: throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
-    }
 
-    private fun parseAuthenticatedResponse(response: SillageHttpResponse): AuthenticatedResponse {
+        private suspend fun executeRefresh(refreshCookie: String): SillageHttpResponse {
+            return transport.execute(
+                SillageHttpRequest(
+                    method = SillageHttpMethod.Post,
+                    url = "$baseUrl/api/v1/auth/refresh",
+                    headers = jsonHeaders + ("Cookie" to refreshCookieHeader(refreshCookie)),
+                ),
+            )
+        }
+
+        private fun replaceSession(
+            authenticated: AuthenticatedResponse,
+            expected: AuthenticationSessionSnapshot? = null,
+        ): AuthenticationSessionSnapshot {
+            val replacement = if (expected == null) {
+                sessions.replace(baseUrl, authenticated.session, authenticated.refreshCookie)
+            } else {
+                sessions.replace(expected, authenticated.session, authenticated.refreshCookie)
+                    ?: throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+            }
+            try {
+                withCredentialStore {
+                    credentialStore.write(baseUrl, authenticated.refreshCookie)
+                }
+            } catch (error: AuthenticationFailureException) {
+                sessions.clear(replacement)
+                throw error
+            }
+            return replacement
+        }
+
+        private fun readStoredRefreshCookie(): String? {
+            return when (val result = withCredentialStore { credentialStore.read(baseUrl) }) {
+                AuthenticationCredentialReadResult.Missing -> null
+                is AuthenticationCredentialReadResult.Available -> result.refreshCookie
+            }
+        }
+
+        private fun deleteStoredRefreshCookie() {
+            withCredentialStore { credentialStore.delete(baseUrl) }
+        }
+
+        private fun <T> withCredentialStore(operation: () -> T): T {
+            return try {
+                operation()
+            } catch (_: Exception) {
+                throw AuthenticationFailureException(
+                    AuthenticationFailureReason.SecureStorageUnavailable,
+                )
+            }
+        }
+
+        private fun parseAuthenticatedResponse(response: SillageHttpResponse): AuthenticatedResponse {
         val body = parseJsonObject(response)
         val account = body["account"]?.asObject()
             ?: throw AuthenticationFailureException(AuthenticationFailureReason.InvalidResponse)
@@ -350,6 +431,18 @@ private fun extractRefreshCookie(header: String): String? {
         ?.groupValues
         ?.getOrNull(1)
         ?.takeIf { it.isNotBlank() && it.length <= MaxRefreshCookieCharacters }
+}
+
+private fun isValidRefreshCookie(value: String): Boolean {
+    return value.isNotBlank() &&
+        value.length <= MaxRefreshCookieCharacters &&
+        value.all { character ->
+            character in 'a'..'z' ||
+                character in 'A'..'Z' ||
+                character in '0'..'9' ||
+                character == '-' ||
+                character == '_'
+        }
 }
 
 private fun refreshCookieHeader(value: String): String = "$RefreshCookieName=$value"

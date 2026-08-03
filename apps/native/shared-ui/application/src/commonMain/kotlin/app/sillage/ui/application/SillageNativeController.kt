@@ -30,6 +30,7 @@ import app.sillage.core.domain.records.Memo
 import app.sillage.features.auth.InstanceAuthenticationContext
 import app.sillage.features.auth.InstanceAuthenticationFailure
 import app.sillage.features.auth.InstanceAuthenticationOperation
+import app.sillage.features.auth.InstanceAuthenticationRequest
 import app.sillage.features.auth.InstanceAuthenticationStateHolder
 import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.auth.InstanceBootstrapStateHolder
@@ -64,6 +65,7 @@ data class SillageNativePlatform(
     val name: String,
     val dataLocation: String,
     val version: String,
+    val authenticationPersistsAcrossLaunches: Boolean = false,
     val openDataLocation: (() -> Boolean)? = null,
     val exportBackup: (suspend () -> Boolean)? = null,
     val restoreBackup: (suspend () -> Boolean)? = null,
@@ -328,6 +330,11 @@ class SillageNativeController(
         )
     }
 
+    suspend fun resumeSavedAuthentication() {
+        if (state.serverConnection.baseUrl.isBlank()) return
+        checkServerConnection()
+    }
+
     suspend fun checkServerConnection() {
         val context = bootstrapContext()
         val request = state.serverConnection.nextRequest(context) ?: return
@@ -362,6 +369,7 @@ class SillageNativeController(
         } catch (_: Exception) {
             markStorageUnavailable()
         }
+        restoreAuthentication()
     }
 
     fun updateAuthenticationUsername(value: String) {
@@ -374,6 +382,64 @@ class SillageNativeController(
 
     fun updateAuthenticationPassword(value: String) {
         state = state.copy(authentication = state.authentication.updatePassword(value))
+    }
+
+    private suspend fun restoreAuthentication() {
+        val context = authenticationContext() ?: return
+        val request = state.authentication.nextRestoreRequest(context) ?: return
+        val started = state.authentication.begin(request, context) ?: return
+        state = state.copy(authentication = started)
+        val repository = authenticationRepositoryFactory.create(request.baseUrl)
+
+        val session = try {
+            repository.restore()
+        } catch (error: CancellationException) {
+            clearCancelledAuthenticationSession(repository, request, context)
+            state.authentication.cancel(request, authenticationContextOr(context))?.let { cancelled ->
+                state = state.copy(authentication = cancelled)
+            }
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            state.authentication.fail(
+                request = request,
+                context = authenticationContextOr(context),
+                failure = error.reason.toNativeFailure(),
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            return
+        } catch (_: Exception) {
+            state.authentication.fail(
+                request,
+                authenticationContextOr(context),
+                InstanceAuthenticationFailure.Connection,
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            return
+        }
+
+        if (session == null) {
+            state.authentication.completeRestoreWithoutSession(
+                request,
+                authenticationContextOr(context),
+            )?.let { completed ->
+                state = state.copy(authentication = completed)
+            }
+            return
+        }
+
+        val completed = state.authentication.completeAuthentication(
+            request = request,
+            context = authenticationContextOr(context),
+            account = session.account,
+        )
+        if (completed == null) {
+            repository.captureSession().clearLocalSession()
+            return
+        }
+        activeAuthenticationRepository = repository
+        state = state.copy(authentication = completed)
     }
 
     suspend fun authenticate() {
@@ -403,10 +469,12 @@ class SillageNativeController(
                         password = request.password,
                     ),
                 )
-                InstanceAuthenticationOperation.SignOut -> return
+                InstanceAuthenticationOperation.Restore,
+                InstanceAuthenticationOperation.SignOut,
+                -> return
             }
         } catch (error: CancellationException) {
-            repository.captureSession().clearLocalSession()
+            clearCancelledAuthenticationSession(repository, request, context)
             state.authentication.cancel(request, authenticationContextOr(context))?.let { cancelled ->
                 state = state.copy(authentication = cancelled)
             }
@@ -489,6 +557,15 @@ class SillageNativeController(
                 activeAuthenticationRepository = null
             }
             throw error
+        } catch (error: AuthenticationFailureException) {
+            state.authentication.fail(
+                request = request,
+                context = authenticationContextOr(context),
+                failure = error.reason.toNativeFailure(),
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            return
         } ?: return
 
         val completed = state.authentication.completeSignOut(
@@ -676,6 +753,34 @@ class SillageNativeController(
     ): InstanceAuthenticationContext {
         return authenticationContext() ?: fallback
     }
+
+    private fun clearCancelledAuthenticationSession(
+        repository: InstanceAuthenticationRepository,
+        request: InstanceAuthenticationRequest,
+        context: InstanceAuthenticationContext,
+    ) {
+        try {
+            repository.captureSession().clearLocalSession()
+        } catch (error: AuthenticationFailureException) {
+            state.authentication.fail(
+                request = request,
+                context = authenticationContextOr(context),
+                failure = error.reason.toNativeFailure(),
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            throw error
+        } catch (error: Exception) {
+            state.authentication.fail(
+                request,
+                authenticationContextOr(context),
+                InstanceAuthenticationFailure.Connection,
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            throw error
+        }
+    }
 }
 
 private fun initialState(today: String): SillageNativeState {
@@ -713,6 +818,9 @@ private fun AuthenticationFailureReason.toNativeFailure(): InstanceAuthenticatio
         AuthenticationFailureReason.SessionExpired -> InstanceAuthenticationFailure.SessionExpired
         AuthenticationFailureReason.ServerRejected -> InstanceAuthenticationFailure.ServerRejected
         AuthenticationFailureReason.InvalidResponse -> InstanceAuthenticationFailure.InvalidResponse
+        AuthenticationFailureReason.SecureStorageUnavailable -> {
+            InstanceAuthenticationFailure.SecureStorageUnavailable
+        }
     }
 }
 

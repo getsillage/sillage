@@ -47,7 +47,9 @@ class PreparedSignOut internal constructor(
     /**
      * Returns null when the captured session has already been replaced.
      * Cancellation still clears that captured session when possible, then is
-     * rethrown so structured concurrency remains intact.
+     * rethrown so structured concurrency remains intact. A cleanup failure
+     * takes precedence because callers must not report sign-out while durable
+     * credentials may still remain.
      */
     suspend operator fun invoke(): SignOutResult? {
         if (mode == SignOutMode.Offline) {

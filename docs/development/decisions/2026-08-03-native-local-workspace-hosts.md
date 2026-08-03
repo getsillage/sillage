@@ -78,6 +78,8 @@ remain untouched so the user can recover or inspect them.
 
 The first hosts are intentionally incomplete compared with Android: they do
 not imply server compatibility, remote synchronization, Ask, attachment,
-secure-credential, or production-distribution readiness. Adding those
-capabilities requires adapters at the existing shared boundaries and the
-corresponding platform and release verification.
+secure-credential, or production-distribution readiness. The later
+[native secure session restoration](2026-08-03-native-secure-session-storage.md)
+decision adds the iOS Keychain credential boundary without changing the other
+limitations. Adding remaining capabilities requires adapters at the existing
+shared boundaries and the corresponding platform and release verification.

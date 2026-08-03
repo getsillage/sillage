@@ -18,6 +18,7 @@ Link any superseded ADR. Do not use ADRs for task plans, routine implementation 
 
 | Date | Decision |
 | --- | --- |
+| 2026-08-03 | [Native secure session restoration](2026-08-03-native-secure-session-storage.md) |
 | 2026-08-03 | [Shared device-local workspace and native hosts](2026-08-03-native-local-workspace-hosts.md) |
 | 2026-08-01 | [Native shared-module build conventions](2026-08-01-native-build-conventions.md) |
 | 2026-08-01 | [Product monorepo and client layout](2026-08-01-product-monorepo-layout.md) |

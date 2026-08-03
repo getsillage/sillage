@@ -99,17 +99,34 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   server URL before credentials are sent.
 - Native authentication disables automatic platform cookie handling. The
   shared repository extracts only `sillage_refresh`, sends it only to the
-  repository's validated base URL, keeps the access token and refresh cookie in
-  a generation-checked memory session, and retries one 401 after rotating the
-  refresh session. A replaced session cannot be cleared by an older request.
-- Closing the desktop or iOS client currently discards session material and
-  requires another sign-in. Tokens and cookies are not written to the client
-  snapshot or portable backup. Persistent login must wait for Apple Keychain
-  and Windows Credential Manager/macOS Keychain adapters; plaintext fallback is
-  forbidden.
-- Online sign-out attempts server revocation first. Failure or cancellation
-  still clears the captured local memory session when it remains authoritative;
-  it never clears a newer session created while the request was in flight.
+  repository's validated base URL, keeps the access token and active refresh
+  credential in a generation-checked memory session, and retries one 401 after
+  rotating the refresh session. A replaced session cannot be cleared by an
+  older request.
+- `AuthenticationCredentialStore` is the only shared cross-launch credential
+  boundary and accepts only the refresh credential. Access tokens, passwords,
+  and refresh credentials are never written to the client snapshot, ordinary
+  preferences, plaintext files, environment, command arguments, or portable
+  backup. There is no plaintext fallback.
+- iOS stores the refresh credential as a non-synchronizing Security.framework
+  Generic Password item whose account is the normalized server URL and whose
+  accessibility is `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. The app
+  performs public bootstrap before using it, persists every rotation before
+  accepting the new memory session, and deletes malformed or server-rejected
+  values. Keychain failures surface as `SecureStorageUnavailable` while manual
+  sign-in remains available. `ThisDeviceOnly` prevents device migration, but
+  iOS may retain Keychain items across app reinstallation; uninstalling is not
+  a guaranteed sign-out.
+- Windows and macOS desktop hosts remain memory-only and discard session
+  material when the application closes. Credential Manager and macOS Keychain
+  adapters must provide the same no-fallback behavior before advertising
+  cross-launch persistence.
+- Online sign-out deletes the captured durable refresh credential before
+  requesting server revocation. If deletion fails, the remote request is not
+  sent and the current session remains visible with a secure-storage error.
+  After deletion succeeds, remote failure or cancellation clears only the
+  captured memory session; it never clears a newer session created while the
+  request was in flight.
 
 ## Android
 

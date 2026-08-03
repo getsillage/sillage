@@ -64,11 +64,27 @@ class SignOutRepositoryTest {
         assertTrue(session.localClearCalled)
         assertTrue(failure is CancellationException)
     }
+
+    @Test
+    fun cancellationCleanupFailureTakesPrecedenceOverFalseSignOut() {
+        val cleanupFailure = IllegalStateException("secure storage unavailable")
+        val session = FakeCapturedSignOutSession(
+            remoteFailure = CancellationException("cancelled"),
+            localClearFailure = cleanupFailure,
+        )
+        val prepared = SignOutUseCase(SignOutRepository { session }).prepare(SignOutMode.Online)
+
+        val failure = runCatching { runSignOutSuspend { prepared() } }.exceptionOrNull()
+
+        assertTrue(session.localClearCalled)
+        assertTrue(failure === cleanupFailure)
+    }
 }
 
 private class FakeCapturedSignOutSession(
     private val remoteFailure: Throwable? = null,
     private val localClearAccepted: Boolean = true,
+    private val localClearFailure: Throwable? = null,
 ) : CapturedSignOutSession {
     var remoteCalled = false
     var localClearCalled = false
@@ -80,6 +96,7 @@ private class FakeCapturedSignOutSession(
 
     override fun clearLocalSession(): Boolean {
         localClearCalled = true
+        localClearFailure?.let { throw it }
         return localClearAccepted
     }
 }

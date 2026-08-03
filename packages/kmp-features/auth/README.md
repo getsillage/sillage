@@ -13,10 +13,12 @@ bootstrap request identity, late-result rejection, and success/failure state.
 Desktop and iOS consume it for connection diagnostics; Android retains its
 existing host orchestration until that online path is migrated.
 
-`InstanceAuthenticationStateHolder` owns desktop/iOS initialization, sign-in,
-and sign-out request identity, form retention on failure, password clearing on
-success, late-result rejection, and the secret-free authenticated account shown
-by Settings. It never owns access tokens or refresh cookies.
+`InstanceAuthenticationStateHolder` owns desktop/iOS restoration,
+initialization, sign-in, and sign-out request identity, form retention on
+failure, password clearing on success, late-result rejection, and the
+secret-free authenticated account shown by Settings. Missing stored credentials
+return to the sign-in form without an error, while secure-vault failures remain
+stable presentation state. It never owns access tokens or refresh cookies.
 
 The module does not own tokens, secure session persistence, HTTP mapping, or
 platform navigation. Those remain behind `kmp-core:application` repository ports

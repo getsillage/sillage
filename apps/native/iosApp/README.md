@@ -4,7 +4,8 @@ The iOS host embeds the static `SillageShared` Kotlin Multiplatform framework
 in a small SwiftUI application. The framework exposes the shared Compose
 device-local records workspace and supplies Apple adapters for an atomic
 Application Support snapshot file, one-time `NSUserDefaults` migration,
-Foundation timestamps, and UUIDs.
+Foundation timestamps and UUIDs, plus system JSON document pickers for portable
+backup export and restore.
 
 On first launch after this storage upgrade, the host copies the legacy defaults
 value into `Library/Application Support/Sillage/client-v1.json` and clears the
@@ -21,6 +22,6 @@ scheme invokes `:iosApp:prepareAppleFrameworkForXcode`, which selects and copies
 the static framework matching Xcode's Apple architecture and build type.
 
 This first slice is device-local. Server authentication, synchronization, Ask,
-attachments, Keychain credentials, sharing, accessibility/device journeys,
+attachments, Keychain credentials, accessibility/device journeys,
 signing, and App Store packaging remain outside the implemented host. The
 locally built app is an engineering artifact, not an official release asset.

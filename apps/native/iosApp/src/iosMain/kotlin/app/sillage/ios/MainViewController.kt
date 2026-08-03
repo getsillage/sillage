@@ -10,33 +10,46 @@ import platform.UIKit.UIViewController
 
 private const val IosVersion = "0.1.0"
 
-fun MainViewController(): UIViewController = ComposeUIViewController {
-    val storage = remember { IosClientSnapshotStorage() }
-    val repository = remember(storage) {
-        LocalClientRepository(
-            storage = storage,
-            runtimeValues = IosRuntimeValues(),
-        )
-    }
-    val controller = remember(repository) {
-        SillageNativeController(
-            recordsRepository = repository,
-            recordWriteRepository = repository,
-            recordLifecycleRepository = repository,
-            preferencesRepository = repository,
-            todayProvider = ::currentLocalDate,
-        )
-    }
-    val platform = remember(storage) {
-        SillageNativePlatform(
-            name = "iOS",
-            dataLocation = storage.location,
-            version = IosVersion,
-        )
-    }
+fun MainViewController(): UIViewController {
+    val viewControllerReference = IosViewControllerReference()
+    val viewController = ComposeUIViewController {
+        val storage = remember { IosClientSnapshotStorage() }
+        val repository = remember(storage) {
+            LocalClientRepository(
+                storage = storage,
+                runtimeValues = IosRuntimeValues(),
+            )
+        }
+        val controller = remember(repository) {
+            SillageNativeController(
+                recordsRepository = repository,
+                recordWriteRepository = repository,
+                recordLifecycleRepository = repository,
+                preferencesRepository = repository,
+                todayProvider = ::currentLocalDate,
+            )
+        }
+        val backupTransfer = remember(repository) {
+            IosClientBackupTransfer(
+                repository = repository,
+                presenter = viewControllerReference::get,
+            )
+        }
+        val platform = remember(storage, backupTransfer) {
+            SillageNativePlatform(
+                name = "iOS",
+                dataLocation = storage.location,
+                version = IosVersion,
+                exportBackup = backupTransfer::exportBackup,
+                restoreBackup = backupTransfer::restoreBackup,
+            )
+        }
 
-    SillageNativeApp(
-        controller = controller,
-        platform = platform,
-    )
+        SillageNativeApp(
+            controller = controller,
+            platform = platform,
+        )
+    }
+    viewControllerReference.attach(viewController)
+    return viewController
 }

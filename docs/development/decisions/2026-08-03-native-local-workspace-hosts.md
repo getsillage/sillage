@@ -30,7 +30,8 @@ native save/open dialogs and file I/O for this shared policy.
 `shared-ui:application` is the shared Compose composition root for the first
 native host slice. It owns the responsive records list, detail, editor,
 search, lifecycle actions, settings, localization, and unsaved-draft policy.
-Platform hosts provide only lifecycle and storage adapters. Features that
+Platform hosts provide only lifecycle, storage, and document interaction
+adapters. Features that
 require a server, including Ask and synchronization, remain unavailable until
 their existing shared application ports have host implementations.
 
@@ -38,9 +39,12 @@ their existing shared application ports have host implementations.
 host. It stores the same JSON snapshot as an atomic Application Support file and
 uses Foundation for timestamps and record identifiers. Existing installs migrate
 the legacy `NSUserDefaults` value only after the file adapter accepts the full
-snapshot, so a failed write leaves the recovery source intact. The Xcode project
-selects a device or simulator framework from Xcode's build environment rather
-than duplicating application behavior in Swift.
+snapshot, so a failed write leaves the recovery source intact. The host exports
+a temporary credential-free JSON backup through the system document picker and
+restores a selected JSON copy through the shared validate-before-replace
+repository boundary. The Xcode project selects the device or simulator
+framework from Xcode's build environment rather than duplicating application
+behavior in Swift.
 
 `desktopApp` is the Windows/macOS host and may generate local DMG or MSI
 packages. These packages are engineering verification artifacts, not official

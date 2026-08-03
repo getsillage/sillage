@@ -132,12 +132,13 @@ sign-in, account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android's remote adapter
 retains REST, refresh coordination, and context-safe encrypted session storage.
 For desktop and iOS, `kmp-core:network` maps the same bootstrap and
-authentication contracts to host-neutral HTTP, owns the generation-checked
-memory session, and exposes `AuthenticationCredentialStore` as the only durable
-refresh-credential boundary. iOS supplies a non-synchronizing,
-`ThisDeviceOnly` Keychain adapter; desktop Windows and macOS use the memory-only
-default until their native vault adapters land. Access tokens never cross the
-memory boundary.
+authentication contracts behind host-neutral HTTP, owns the generation-checked
+memory session, and exposes `AuthenticationCredentialStore` as the only
+durable refresh-credential boundary. iOS supplies a non-synchronizing,
+`ThisDeviceOnly` Keychain adapter. The macOS desktop host supplies a
+non-synchronizing Generic Password adapter through modern Security.framework
+`SecItem*` APIs. Windows uses the memory-only default until its Credential
+Manager adapter lands. Access tokens never cross the memory boundary.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
 durable-credential deletion, remote invalidation, and conditional local clearing
 to one captured session. Durable deletion happens before the remote request; if

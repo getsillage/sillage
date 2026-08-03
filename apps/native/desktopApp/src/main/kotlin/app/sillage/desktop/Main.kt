@@ -62,8 +62,17 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
             val bootstrapRepository = remember(httpTransport) {
                 RemoteInstanceBootstrapRepository(httpTransport)
             }
-            val authenticationRepositoryFactory = remember(httpTransport) {
-                RemoteInstanceAuthenticationRepositoryFactory(httpTransport)
+            val authenticationCredentialStore = remember {
+                desktopAuthenticationCredentialStore()
+            }
+            val authenticationRepositoryFactory = remember(
+                httpTransport,
+                authenticationCredentialStore,
+            ) {
+                RemoteInstanceAuthenticationRepositoryFactory(
+                    transport = httpTransport,
+                    credentialStore = authenticationCredentialStore,
+                )
             }
             val controller = remember(
                 repository,
@@ -103,11 +112,19 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
         title = "Sillage",
         state = rememberWindowState(width = 1180.dp, height = 760.dp),
     ) {
-        val platform = remember(snapshotPath, repository, hostStrings, window) {
+        val platform = remember(
+            snapshotPath,
+            repository,
+            hostStrings,
+            window,
+            authenticationCredentialStore,
+        ) {
             SillageNativePlatform(
                 name = desktopPlatformName(),
                 dataLocation = snapshotPath.toAbsolutePath().normalize().toString(),
                 version = DesktopVersion,
+                authenticationPersistsAcrossLaunches =
+                    authenticationCredentialStore.persistsAcrossLaunches,
                 openDataLocation = { openDataFolder(snapshotPath) },
                 exportBackup = {
                     exportDesktopBackup(

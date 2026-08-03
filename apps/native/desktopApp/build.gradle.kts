@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":kmp-core:network"))
     implementation(project(":shared-ui:application"))
     implementation(compose.desktop.currentOs)
+    implementation(libs.jna.platform)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
@@ -81,7 +82,7 @@ tasks.register("checkNativeDistribution") {
             throw GradleException("Native desktop packaging is supported only on macOS and Windows hosts.")
         }
     } else {
-        dependsOn(desktopPackageSpec.taskName)
+        dependsOn(desktopPackageSpec.taskName, "test")
         val artifact = layout.buildDirectory.file(desktopPackageSpec.relativePath)
         inputs.file(artifact)
 

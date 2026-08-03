@@ -57,8 +57,12 @@ The current product slice is a functional device-local records workspace. Its
 Settings screen can validate and remember a Sillage server through the public
 bootstrap endpoint, then initialize the single account or sign in and sign out.
 The JDK transport performs cancellable JSON requests and preserves only the
-explicit refresh cookie needed by the shared repository. Session material is
-memory-only and is discarded when Sillage closes; Credential Manager/Keychain
-persistence, synchronized records, attachments, and Ask remain follow-up work.
-Those integrations must reuse KMP application ports instead of introducing
+explicit refresh cookie needed by the shared repository. On macOS, the host
+stores that refresh credential in a non-synchronizing Keychain Generic
+Password item keyed by the normalized server URL and can restore the session
+after public bootstrap on a later launch. Access tokens and passwords remain
+memory-only. Windows retains the memory-only credential-store default and
+requires sign-in after each launch. Credential Manager persistence,
+synchronized records, attachments, and Ask remain follow-up work. Those
+integrations must reuse KMP application ports instead of introducing
 desktop-only business behavior.

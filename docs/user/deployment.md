@@ -139,13 +139,13 @@ After the check succeeds, these engineering clients can initialize the single
 account or sign in and sign out. Their records still remain device-local and are
 not synchronized in this build. Access tokens always remain in memory, and no
 authentication credential is included in record snapshots or portable backups.
-iOS stores only the refresh credential in its device-bound, non-synchronizing
-Keychain and can restore a valid session after public bootstrap on a later
-launch. Use in-app sign-out or revoke the server session when sign-out must be
-guaranteed; iOS may retain Keychain items across app reinstallation. Windows and
-macOS remain memory-only and require sign-in after every launch until their
-Credential Manager or Keychain adapter is implemented. No platform has a
-plaintext credential fallback.
+iOS and macOS store only the refresh credential in non-synchronizing Keychain
+Generic Password items and can restore a valid session after public bootstrap
+on a later launch. The iOS item is additionally device-bound. Use in-app
+sign-out or revoke the server session when sign-out must be guaranteed;
+Keychain items may survive application removal. Windows remains memory-only
+and requires sign-in after every launch until a Credential Manager adapter is
+implemented. No platform has a plaintext credential fallback.
 
 ## Probes and Upgrades
 

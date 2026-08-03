@@ -82,8 +82,9 @@ carries no records, credentials, cookies, or authorization headers. Native
 authentication keeps access tokens and the active refresh credential in a
 generation-checked memory session. `AuthenticationCredentialStore` is the only
 cross-launch persistence port and accepts only the refresh credential. iOS
-supplies a non-synchronizing, device-bound Keychain adapter; desktop Windows and
-macOS retain the memory-only default.
+supplies a non-synchronizing, device-bound Keychain adapter; the macOS desktop
+host supplies a non-synchronizing Generic Password adapter through
+Security.framework. Windows retains the memory-only default.
 
 Record create and update commands share the server's draft constraints in
 `application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
@@ -114,9 +115,9 @@ Public capability discovery crosses `InstanceBootstrapRepository`.
 Initialization, sign-in, current-account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android retains REST,
 refresh coordination, and context-safe encrypted session persistence.
-Desktop and iOS use the shared remote repository; only iOS advertises
-cross-launch persistence and therefore performs bootstrap followed by refresh
-restoration during startup.
+Desktop and iOS use the shared remote repository. iOS and macOS advertise
+cross-launch persistence and therefore perform bootstrap followed by refresh
+restoration during startup; Windows does not.
 Sign-out crosses a separate `SignOutRepository`: its prepared operation captures
 the current session before asynchronous work, deletes that session's durable
 credential before remote revocation, and lets shared application policy own
@@ -652,14 +653,13 @@ attachment staging and present the resulting status.
   Xcode integration. Signing and App Store packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
-  values, data-folder action, native backup save/open dialogs, public bootstrap
-  and memory-only authentication JDK HTTP transport, native menu and guarded
-  close integration, branded
-  ICNS/ICO assets, and Windows/macOS packaging. Shared local-data code
-  owns the distinct portable backup envelope, validation, and replace-after-
-  validation policy.
+  values, data-folder action, native backup save/open dialogs, authentication
+  JDK HTTP transport, macOS Keychain refresh-credential adapter, native menu and
+  guarded-close integration, branded ICNS/ICO assets, and Windows/macOS
+  packaging. Shared local-data code owns the distinct portable backup envelope,
+  validation, and replace-after-validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
-  Credential Manager/Keychain session persistence, the updater, and deeper OS
+  Credential Manager session persistence, the updater, and deeper OS
   integration remain future release work.
 
 Desktop and iOS packages produced by local build tasks are engineering

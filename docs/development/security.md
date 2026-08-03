@@ -116,11 +116,17 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   values. Keychain failures surface as `SecureStorageUnavailable` while manual
   sign-in remains available. `ThisDeviceOnly` prevents device migration, but
   iOS may retain Keychain items across app reinstallation; uninstalling is not
-  a guaranteed sign-out.
-- Windows and macOS desktop hosts remain memory-only and discard session
-  material when the application closes. Credential Manager and macOS Keychain
-  adapters must provide the same no-fallback behavior before advertising
-  cross-launch persistence.
+  guaranteed sign-out.
+- macOS stores the refresh credential as a Generic Password item under the
+  same service and normalized server account, with
+  `kSecAttrSynchronizable=false`. The JVM host calls modern
+  Security.framework `SecItem*` APIs through JNA and never passes token
+  material to the `security` CLI. Keychain failures use the same stable
+  `SecureStorageUnavailable` reason. A macOS Keychain item may outlive removal
+  of the application bundle, so uninstalling is not guaranteed sign-out.
+- Windows remains memory-only and discards session material when the
+  application closes. A future Credential Manager adapter must provide the
+  same no-fallback behavior before advertising cross-launch persistence.
 - Online sign-out deletes the captured durable refresh credential before
   requesting server revocation. If deletion fails, the remote request is not
   sent and the current session remains visible with a secure-storage error.

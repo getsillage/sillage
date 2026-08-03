@@ -33,7 +33,7 @@ device-local records mode. Automatic bootstrap and restore run only when the
 host advertises cross-launch authentication persistence.
 
 Remote record synchronization, Ask, attachments, and additional OS-backed
-credential adapters remain follow-up integration slices. iOS supplies a
-Keychain adapter; desktop Windows and macOS intentionally retain the memory-only
-default. The current host is a functional device-local records workspace rather
-than a simulated server.
+credential adapters remain follow-up integration slices. iOS and macOS supply
+Keychain adapters and advertise cross-launch authentication persistence;
+Windows intentionally retains the memory-only default. The current host is a
+functional device-local records workspace rather than a simulated server.

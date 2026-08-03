@@ -1,6 +1,11 @@
 # Sync API
 
-`GET /api/v1/sync` and `POST /api/v1/sync:push` support manual Android synchronization and convergence for offline clients. The contract source is `contracts/proto/api/v1/sync_service.proto`; the REST implementation is in `server/sync_routes.go`, and the shared business logic is in `server/api_service.go`.
+`GET /api/v1/sync` and `POST /api/v1/sync:push` support manual synchronization
+and convergence for offline clients. Android uses both directions; the shared
+iOS and desktop clients currently integrate authenticated memo push only. The
+contract source is `contracts/proto/api/v1/sync_service.proto`; the REST
+implementation is in `server/sync_routes.go`, and the shared business logic is in
+`server/api_service.go`.
 
 ## Constraints
 
@@ -73,7 +78,12 @@ the record body from delete/restore/purge changes, and validates the in-order
 applied/conflict/rejected result for every submitted mutation. It is created by
 the same `RemoteInstanceAuthenticationRepositoryFactory` as account operations,
 so a push uses the current base-URL-scoped session and the same single-refresh
-401 retry. iOS and desktop outbox and pull integration remain pending.
+401 retry. On iOS and desktop, the shared local-data workspace persists its
+normalized server binding, cloud versions, and pending mutation identifiers in
+the private client snapshot. Each local record write and its outbox change are
+one atomic snapshot replacement. A workspace bound to one server refuses to
+send its queue to another address. Push is manual, requires a checked and
+authenticated server, and does not pull server-only changes yet.
 
 ```json
 {
@@ -120,7 +130,19 @@ Committed mutation results are retained for 90 days. Clients must finish ordinar
 - `favorited` is the canonical favorite field. For compatibility with older clients, the server reads the deprecated `pinned` field; when both are present, `favorited` takes precedence.
 - An AI summary does not change the memo's `version` or `updatedAt`.
 
-On a `conflict`, the client should preserve the local mutation and show the server resource so the user can merge the changes, discard the local change, or resubmit it against the new version. It must not overwrite automatically or retry an old `baseVersion` indefinitely. Android opens a conflict dialog with the local pending content and `serverResource`, then lets the user keep the device version (new mutation against the server baseline), take the server version (drop the local pending change), or dismiss without overwriting.
+On a `conflict`, the client should preserve the local mutation and show the
+server resource so the user can merge the changes, discard the local change, or
+resubmit it against the new version. It must not overwrite automatically or
+retry an old `baseVersion` indefinitely. Android and the shared iOS/desktop
+application open the shared conflict dialog with the local pending content and
+`serverResource`, then let the user keep the device version (a new mutation
+against the server baseline), take the server version (drop the local pending
+change), or dismiss without overwriting either side. Shared native record writes
+and conflict actions are locked while a push is active. Applied results are
+merged atomically and refresh the visible canonical record. If a restore result
+arrives after the user made a newer local edit, the client retains that edit and
+schedules a follow-up update rather than replacing it with the older restored
+body.
 
 ## Attachment Boundaries
 

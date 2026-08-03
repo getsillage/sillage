@@ -70,8 +70,15 @@ cases and repository ports; platform adapters implement those ports.
 `local-data` owns the versioned JSON client-snapshot codec, optimistic record
 version checks, lifecycle rules, device-local preference persistence, and a
 separate validated backup-v1 envelope compatible with Android's record subset.
-Platform hosts supply atomic string storage, timestamps, record IDs, and native
-document pickers without forking codec, restore, or lifecycle behavior.
+Private snapshot schema 2 also stores a normalized memo-sync server binding,
+cloud versions, and pending mutation markers. Its shared workspace commits each
+record write and outbox update through one atomic snapshot replacement and
+rejects a queue opened for a different server; schema 1 remains readable.
+Portable backup restore validates before replacement, preserves device server
+preferences, and clears sync bindings, baselines, and pending mutations because
+they are not portable data. Platform hosts supply atomic string storage,
+timestamps, record and mutation IDs, and native document pickers without
+forking codec, restore, lifecycle, or memo-push state transitions.
 
 `network` owns public server bootstrap URL validation, response bounds, HTTP
 status handling, JSON mapping, and conversion into application values behind a
@@ -104,14 +111,14 @@ feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
 
-The buildable `shared-ui:application` composition root provides a responsive
+The buildable `shared-ui:application` composition root provides the responsive
 records list/detail/editor workflow, record search and lifecycle actions,
 appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
-iOS hosts supply only platform adapters and lifecycle entry points. This first
-host slice keeps records device-local while public discovery and online
-authentication use existing shared application ports. Remote sync, Ask,
-attachments, and additional credential-vault adapters must continue to arrive
-through those ports rather than host-only implementations.
+iOS hosts supply only platform adapters and lifecycle entry points. Their
+records workspace is local-first and now supports authenticated manual memo push
+plus explicit conflict resolution through the shared application, sync,
+network, and local-data ports. Automatic/full pull, Ask, and attachments
+continue to arrive through ports and host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -615,29 +622,28 @@ filter reset go through the aggregate; individual holders still own request
 identity. Android request helpers write through `withRecords` rather than assigning
 nested holder fields directly.
 
-The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
-conflict, and push-summary models. `kmp-core:network` now supplies the shared
-`RemoteMemoSyncGateway` REST/JSON mapping and the 200-change wire batching rule.
-Android retains its current REST adapter until host integration, plus
-transactional outbox persistence, attachment staging, and the transactional
-conflict-storage adapter until later sync ports and state-machine slices are
-extracted.
+`kmp-core:sync` owns pending mutation, durable mutation marker, applied result,
+conflict, push-summary, pending resolution, applied merge, and conflict
+resolution rules. `kmp-core:network` supplies the shared
+`RemoteMemoSyncGateway` REST/JSON mapping and 200-change wire batching rule.
+`kmp-core:local-data` supplies the server-bound transactional memo workspace used
+by iOS and desktop. Android retains its current REST, transactional outbox,
+attachment staging, and conflict-storage adapters as migration sources.
+
 `PushPendingMemosUseCase` already composes shared `MemoSyncOutbox` and
 `MemoSyncGateway` ports so empty-push handling and applied-result acknowledgement
 are platform-independent.
 `kmp-features:sync` owns pending conflict presentation through
-`SyncFeatureStateHolder` / `MemoSyncConflictStateHolder`; core
-`ResolveMemoSyncConflictUseCase` owns the explicit keep-local/take-server
-command workflow. Android stores one `sync` aggregate on root UI state.
-Resolution callbacks look up the current item through
-`SyncFeatureStateHolder.findConflict` rather than host-root compatibility getters.
-Push-result application, conflict dismissal, and conflict-list replacement pass
-through root `withSync` thin wrappers.
-The buildable `shared-ui:sync` module consumes the aggregate directly and owns
-first-conflict selection, preview fallback and limits, dialog layout, and
-resource-ID action routing. Platform hosts retain localized strings,
-asynchronous resolution, and the transactional repository port without
-duplicating conflict policy.
+`SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
+`ResolveMemoSyncConflictUseCase` owns the explicit keep-local/take-server command
+workflow. Android stores one `sync` aggregate on root UI state, and its callbacks
+look up current conflicts through `SyncFeatureStateHolder.findConflict` before
+writing results through `withSync`. The buildable `shared-ui:sync` module owns
+first-conflict selection, preview fallback limits, dialog layout, and resource-ID
+action routing. The shared native application controller performs authenticated
+manual push, refreshes canonical applied records, and prevents record writes
+while push or conflict resolution is active. Platform hosts retain localized
+strings and repository composition without duplicating conflict policy.
 
 Full pull uses a distinct shared `SyncSnapshot`; it is not a backup-file DTO.
 `PullSyncUseCase` composes transport and atomic-merge ports. Snapshot sections
@@ -655,18 +661,19 @@ attachment staging and present the resulting status.
   source.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
   host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
-  migration, Foundation time/identity values, public bootstrap and authentication
-  `NSURLSession` transport, device-bound Security.framework refresh-credential
-  storage, system JSON backup document pickers, a branded AppIcon catalog, and
-  Xcode integration. Signing and App Store packaging remain future host work.
+  migration, Foundation time/record/mutation identity values, public bootstrap
+  plus authentication/sync `NSURLSession` transport, device-bound
+  Security.framework refresh-credential storage, system JSON backup document
+  pickers, branded AppIcon catalog, and Xcode integration. Signing and App Store
+  packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
-  snapshot file adapter, data-directory instance lock, platform time and identity
-  values, data-folder action, native backup save/open dialogs, authentication
-  JDK HTTP transport, macOS Keychain and Windows Credential Manager
-  refresh-credential adapters, native menu and guarded-close integration,
-  branded ICNS/ICO assets, and Windows/macOS packaging. Shared local-data code
-  owns the distinct portable backup envelope, validation, and
-  replace-after-validation policy.
+  snapshot file adapter, data-directory instance lock, platform
+  time/record/mutation identity values, data-folder action, native backup
+  save/open dialogs, authentication/sync JDK HTTP transport, macOS Keychain and
+  Windows Credential Manager refresh-credential adapters, native menu and
+  guarded-close integration, branded ICNS/ICO assets, and Windows/macOS
+  packaging. Shared local-data code owns the distinct portable backup envelope,
+  validation, and replace-after-validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
   the updater, and deeper OS integration remain future release work.
 
@@ -683,8 +690,13 @@ another platform host.
 The native clients converge on one shared local-first model: local writes and
 outbox mutations commit atomically; pulled resources and cursor advancement
 commit atomically; conflicts are durable and explicitly resolved; attachment
-bytes use a staged upload path outside structured sync payloads; and data is
-partitioned by Sillage workspace or instance.
+bytes use a staged upload path outside structured sync payloads; data is
+partitioned by Sillage workspace or instance. The shared iOS/desktop workspace
+implements the write/outbox half today. It binds cloud baselines and mutations
+to one normalized server, performs manual authenticated push, and excludes that
+private synchronization state from portable backup. Full pull remains an
+Android-only integration until the shared snapshot ports are wired into those
+hosts.
 
 The current Android implementation remains the behavioral reference while it
 is extracted. Its application-wide ViewModel, handwritten transport client, and

@@ -67,6 +67,7 @@ internal fun SillageNativeSettings(
     onAuthenticationDisplayNameChange: (String) -> Unit,
     onAuthenticationPasswordChange: (String) -> Unit,
     onAuthenticate: () -> Unit,
+    onPushMemos: () -> Unit,
     onSignOut: () -> Unit,
     onExportBackup: (() -> Unit)?,
     onRestoreBackup: (() -> Unit)?,
@@ -319,8 +320,8 @@ internal fun SillageNativeSettings(
                                     )
                                 }
                             } else {
-                                SillageSettingsInfoRow(
-                                    label = strings.authenticatedAccount,
+                            SillageSettingsInfoRow(
+                                label = strings.authenticatedAccount,
                                     value = account.displayName
                                         .takeIf(String::isNotBlank)
                                         ?.let { "$it (@${account.username})" }
@@ -328,8 +329,21 @@ internal fun SillageNativeSettings(
                                     modifier = Modifier.semantics {
                                         liveRegion = LiveRegionMode.Polite
                                     },
+                                showDivider = true,
+                            )
+                            if (state.memoSyncSupported) {
+                                SillageSettingsActionRow(
+                                    icon = Icons.Outlined.CloudSync,
+                                    title = strings.syncMemos,
+                                    supporting = strings.syncMemosSupporting,
+                                    onClick = onPushMemos,
+                                    enabled = state.storageAvailable &&
+                                        !state.busy &&
+                                        connection.checkedBaseUrl != null &&
+                                        !authentication.loading,
                                     showDivider = true,
                                 )
+                            }
                             SillageSettingsInfoRow(
                                 label = strings.sessionPersistence,
                                 value = if (platform.authenticationPersistsAcrossLaunches) {

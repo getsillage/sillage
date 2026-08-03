@@ -87,7 +87,9 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
                     bootstrapRepository = bootstrapRepository,
                     authenticationRepositoryFactory = authenticationRepositoryFactory,
                     todayProvider = { LocalDate.now().toString() },
-        )
+                    memoSyncWorkspaceFactory = repository,
+                    memoSyncGatewayFactory = authenticationRepositoryFactory,
+                )
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }
     val hostStrings = sillageNativeHostStrings(controller.state.appearance.languageMode)

@@ -11,6 +11,7 @@ import app.sillage.core.application.auth.InstanceAuthenticationRepositoryFactory
 import app.sillage.core.application.auth.SignInCommand
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.sync.MemoSyncGateway
+import app.sillage.core.sync.MemoSyncGatewayFactory
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -24,14 +25,14 @@ class RemoteInstanceAuthenticationRepositoryFactory(
     private val credentialStore: AuthenticationCredentialStore =
         MemoryOnlyAuthenticationCredentialStore,
     private val json: Json = Json { ignoreUnknownKeys = true },
-) : InstanceAuthenticationRepositoryFactory {
+) : InstanceAuthenticationRepositoryFactory, MemoSyncGatewayFactory {
     private val sessions = InMemoryAuthenticationSessionStore()
 
     override fun create(baseUrl: String): InstanceAuthenticationRepository {
         return createRepository(normalizeAndValidateServerBaseUrl(baseUrl))
     }
 
-    fun createMemoSyncGateway(baseUrl: String): MemoSyncGateway {
+    override fun createMemoSyncGateway(baseUrl: String): MemoSyncGateway {
         val normalizedBaseUrl = normalizeAndValidateServerBaseUrl(baseUrl)
         val authenticationRepository = createRepository(normalizedBaseUrl)
         return RemoteMemoSyncGateway(

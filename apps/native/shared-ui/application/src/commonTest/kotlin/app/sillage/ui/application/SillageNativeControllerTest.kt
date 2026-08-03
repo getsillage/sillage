@@ -22,6 +22,14 @@ import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.auth.Account
+import app.sillage.core.sync.AppliedMemoSync
+import app.sillage.core.sync.ConflictMemoSync
+import app.sillage.core.sync.MemoSyncGateway
+import app.sillage.core.sync.MemoSyncGatewayFactory
+import app.sillage.core.sync.MemoSyncWorkspace
+import app.sillage.core.sync.MemoSyncWorkspaceFactory
+import app.sillage.core.sync.PendingMemoSync
+import app.sillage.core.sync.SyncPushSummary
 import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.auth.InstanceAuthenticationFailure
 import app.sillage.features.records.MemoListFilter
@@ -33,6 +41,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
 class SillageNativeControllerTest {
@@ -453,6 +463,190 @@ class SillageNativeControllerTest {
         assertFalse(controller.state.busy)
     }
 
+    @Test
+    fun manualPushRequiresAuthenticationAndPresentsConflicts() = runTest {
+        val localMemo = memo("memo-1", "local version").copy(version = 2)
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val pending = PendingMemoSync(
+            memo = localMemo,
+            baseVersion = 1,
+            mutationId = "mutation-1",
+            action = "update",
+        )
+        val serverMemo = localMemo.copy(
+            content = "server version",
+            version = 3,
+            updatedAt = "2026-08-03T12:00:00Z",
+        )
+        val conflict = ConflictMemoSync(
+            mutationId = pending.mutationId,
+            resourceId = localMemo.id,
+            clientVersion = localMemo.version,
+            serverVersion = serverMemo.version,
+            serverMemo = serverMemo,
+        )
+        val workspace = FakeMemoSyncWorkspace(local, listOf(pending))
+        val gateway = FakeMemoSyncGateway(
+            result = SyncPushSummary(
+                applied = 0,
+                conflict = 1,
+                rejected = 0,
+                conflictMemoSyncs = listOf(conflict),
+            ),
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+
+        controller.pushPendingMemos()
+        assertEquals(0, gateway.calls)
+
+        signIn(controller)
+        controller.pushPendingMemos()
+
+        assertEquals(1, gateway.calls)
+        assertEquals(listOf(pending), gateway.lastPending)
+        assertEquals(SillageNativeFeedback.MemoSyncNeedsReview, controller.state.feedback)
+        assertEquals(localMemo, controller.state.sync.items.single().localMemo)
+        assertEquals(conflict.resourceId, controller.state.sync.items.single().conflict.resourceId)
+        assertFalse(controller.state.busy)
+
+        controller.keepLocalSyncConflict(localMemo.id)
+        assertEquals(listOf(conflict), workspace.keptConflicts)
+        assertTrue(controller.state.sync.items.isEmpty())
+        assertEquals(SillageNativeFeedback.MemoSyncConflictResolved, controller.state.feedback)
+    }
+
+    @Test
+    fun manualPushLocksRecordWritesUntilCompletion() = runTest {
+        val localMemo = memo("memo-1", "pending")
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val pending = PendingMemoSync(localMemo, null, "create-1", "create")
+        val applied = AppliedMemoSync(pending.mutationId, localMemo)
+        val pushStarted = CompletableDeferred<Unit>()
+        val releasePush = CompletableDeferred<Unit>()
+        val workspace = FakeMemoSyncWorkspace(local, listOf(pending))
+        val gateway = FakeMemoSyncGateway(
+            result = SyncPushSummary(
+                applied = 1,
+                conflict = 0,
+                rejected = 0,
+                appliedMemoSyncs = listOf(applied),
+            ),
+            beforeResult = {
+                pushStarted.complete(Unit)
+                releasePush.await()
+            },
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+        signIn(controller)
+        controller.startNewRecord()
+        controller.updateEditorContent("new local record")
+
+        val push = launch { controller.pushPendingMemos() }
+        pushStarted.await()
+
+        assertTrue(controller.state.busy)
+        controller.saveEditor()
+        assertEquals(listOf(localMemo), local.records)
+
+        releasePush.complete(Unit)
+        push.join()
+        assertFalse(controller.state.busy)
+
+        controller.saveEditor()
+        assertEquals(listOf("pending", "new local record"), local.records.map(Memo::content))
+    }
+
+    @Test
+    fun appliedManualPushRefreshesCanonicalRecordPresentation() = runTest {
+        val localMemo = memo("memo-1", "local")
+        val canonical = localMemo.copy(
+            content = "canonical",
+            updatedAt = "2026-08-03T12:00:00Z",
+        )
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val pending = PendingMemoSync(localMemo, null, "create-1", "create")
+        val applied = AppliedMemoSync(pending.mutationId, canonical)
+        val workspace = FakeMemoSyncWorkspace(local, listOf(pending))
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(
+                FakeMemoSyncGateway(
+                    SyncPushSummary(
+                        applied = 1,
+                        conflict = 0,
+                        rejected = 0,
+                        appliedMemoSyncs = listOf(applied),
+                    ),
+                ),
+            ),
+        )
+        signIn(controller)
+
+        controller.pushPendingMemos()
+
+        assertEquals(listOf(applied), workspace.appliedMemos)
+        assertEquals(canonical, local.records.single())
+        assertEquals(canonical, controller.state.workspace.records.records.single())
+        assertEquals(SillageNativeFeedback.MemoSyncCompleted, controller.state.feedback)
+    }
+
+    @Test
+    fun expiredSyncSessionReturnsControllerToSignedOutState() = runTest {
+        val localMemo = memo("memo-1", "pending")
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val gateway = FakeMemoSyncGateway(
+            error = AuthenticationFailureException(AuthenticationFailureReason.SessionExpired),
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(
+                FakeMemoSyncWorkspace(
+                    local,
+                    listOf(PendingMemoSync(localMemo, null, "create-1", "create")),
+                ),
+            ),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+        signIn(controller)
+
+        controller.pushPendingMemos()
+
+        assertNull(controller.state.authentication.account)
+        assertEquals(SillageNativeFeedback.MemoSyncSessionExpired, controller.state.feedback)
+        assertTrue(controller.state.sync.items.isEmpty())
+        assertFalse(controller.state.busy)
+    }
+
+}
+
+private fun initializedBootstrapRepository() = FakeBootstrapRepository(
+    result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+)
+
+private suspend fun signIn(controller: SillageNativeController) {
+    controller.updateServerBaseUrl("example.test")
+    controller.checkServerConnection()
+    controller.updateAuthenticationUsername("felix")
+    controller.updateAuthenticationPassword("correct horse battery staple")
+    controller.authenticate()
+    controller.dismissFeedback()
 }
 
 private fun controller(
@@ -460,6 +654,8 @@ private fun controller(
     bootstrapRepository: InstanceBootstrapRepository = FakeBootstrapRepository(),
     authenticationRepositoryFactory: InstanceAuthenticationRepositoryFactory =
         FakeAuthenticationRepositoryFactory(),
+    memoSyncWorkspaceFactory: MemoSyncWorkspaceFactory? = null,
+    memoSyncGatewayFactory: MemoSyncGatewayFactory? = null,
 ) = SillageNativeController(
     recordsRepository = repository,
     recordWriteRepository = repository,
@@ -468,6 +664,8 @@ private fun controller(
     bootstrapRepository = bootstrapRepository,
     authenticationRepositoryFactory = authenticationRepositoryFactory,
     todayProvider = { "2026-08-03" },
+    memoSyncWorkspaceFactory = memoSyncWorkspaceFactory,
+    memoSyncGatewayFactory = memoSyncGatewayFactory,
 )
 
 private class FakeBootstrapRepository(
@@ -550,6 +748,77 @@ private class FakeAuthenticationRepository(
                 return true
             }
         }
+    }
+}
+
+private class FakeMemoSyncWorkspaceFactory(
+    private val workspace: FakeMemoSyncWorkspace,
+) : MemoSyncWorkspaceFactory {
+    override fun createMemoSyncWorkspace(baseUrl: String): MemoSyncWorkspace = workspace
+}
+
+private class FakeMemoSyncGatewayFactory(
+    private val gateway: FakeMemoSyncGateway,
+) : MemoSyncGatewayFactory {
+    override fun createMemoSyncGateway(baseUrl: String): MemoSyncGateway = gateway
+}
+
+private class FakeMemoSyncWorkspace(
+    private val recordsRepository: FakeRecordsRepository,
+    private val pending: List<PendingMemoSync>,
+) : MemoSyncWorkspace {
+    var appliedMemos: List<AppliedMemoSync> = emptyList()
+    val keptConflicts = mutableListOf<ConflictMemoSync>()
+    val takenConflicts = mutableListOf<ConflictMemoSync>()
+
+    override suspend fun pendingMemos(): List<PendingMemoSync> = pending
+
+    override suspend fun applySyncedMemos(applied: List<AppliedMemoSync>) {
+        appliedMemos = applied
+        applied.forEach { item ->
+            val index = recordsRepository.records.indexOfFirst { it.id == item.memo.id }
+            if (index >= 0) {
+                recordsRepository.records[index] = item.memo
+            } else {
+                recordsRepository.records += item.memo
+            }
+        }
+    }
+
+    override suspend fun keepLocal(conflict: ConflictMemoSync) {
+        keptConflicts += conflict
+    }
+
+    override suspend fun takeServer(conflict: ConflictMemoSync) {
+        takenConflicts += conflict
+        val serverMemo = conflict.serverMemo ?: return
+        val index = recordsRepository.records.indexOfFirst { it.id == serverMemo.id }
+        if (index >= 0) {
+            recordsRepository.records[index] = serverMemo
+        } else {
+            recordsRepository.records += serverMemo
+        }
+    }
+
+    override fun localMemo(resourceId: String): Memo? {
+        return recordsRepository.records.firstOrNull { it.id == resourceId }
+    }
+}
+
+private class FakeMemoSyncGateway(
+    private val result: SyncPushSummary = SyncPushSummary(0, 0, 0),
+    private val error: Throwable? = null,
+    private val beforeResult: suspend () -> Unit = {},
+) : MemoSyncGateway {
+    var calls: Int = 0
+    var lastPending: List<PendingMemoSync> = emptyList()
+
+    override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary {
+        calls += 1
+        lastPending = pending
+        beforeResult()
+        error?.let { throw it }
+        return result
     }
 }
 

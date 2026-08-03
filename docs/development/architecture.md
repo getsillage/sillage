@@ -577,12 +577,18 @@ through the aggregate without inventing an interactive filter change. Request
 identity and late-response checks stay on the individual holders. Android request
 helpers update that aggregate through `withRecords`.
 
-`packages/kmp-core/sync` owns the shared pending mutation, applied result,
-version-conflict, and push-summary models. `kmp-core:network` implements the
-shared memo-push REST/JSON gateway and wire batching, while Android retains its
-existing adapter until host integration. Transactional outbox persistence,
-attachment staging, and the transactional conflict-storage adapter remain
-platform-side migration sources for later sync ports and state-machine slices.
+`packages/kmp-core/sync` owns shared pending mutation, durable mutation marker,
+applied result, version-conflict, push-summary, applied-merge, and explicit
+keep-local/take-server transition rules. `kmp-core:network` implements the shared
+memo-push REST/JSON gateway and wire batching. `kmp-core:local-data` implements
+the iOS/desktop `MemoSyncWorkspaceFactory`: private snapshot schema 2 stores a
+normalized server binding, cloud versions, and pending mutation markers, while
+record writes and outbox changes commit in one atomic snapshot replacement.
+Schema 1 remains readable. A workspace cannot reuse one server's queue against
+another address, and portable backup restore clears the server binding, cloud
+baselines, and outbox rather than exporting them. Android retains its existing
+transactional adapter and attachment staging as migration sources.
+
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
 it skips empty pushes, sends one pending batch, and acknowledges only applied
 results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
@@ -594,8 +600,13 @@ root-state writes for push results, conflict dismissal, and conflict-list
 replacement pass through `withSync` thin wrappers. Platform
 `shared-ui:sync` consumes the aggregate directly and owns first-conflict
 selection, preview fallback and limits, dialog layout, and resource-ID action
-routing. Platform hosts retain localized strings, asynchronous resolution, and
-the transactional conflict repository adapter.
+routing.
+
+The shared native application controller wires the same state to authenticated
+manual push on iOS and desktop, refreshes applied canonical records, and locks
+record writes while a push or conflict resolution is active. Platform hosts
+retain localized strings and repository composition without duplicating
+conflict policy.
 
 Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
 `SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata
@@ -623,6 +634,10 @@ sequence while the host presents localized results.
 - Attachment downloads require authorization and filenames must be sanitized; attachment bytes do not enter sync payloads.
 - AI API keys are stored only in encrypted envelopes and must never be returned by APIs or sync.
 - Native offline state writes that span content and sync metadata are atomic, and unreadable encrypted state must never be replaced by an empty default. Android currently enforces this invariant; new native clients must inherit it through the shared persistence boundary.
+
+- A native memo outbox is bound to one normalized server address and must never
+  be silently retargeted. Portable record backups exclude server bindings,
+  cloud baselines, mutation identifiers, and credentials.
 
 See the [Sync API](api/sync.md) for detailed pagination, idempotency, and conflict rules. See [Product Guidance](product-guidance.md) for product scope and [Security Development Boundaries](security.md) for authentication, attachment, secret, and external-request constraints.
 

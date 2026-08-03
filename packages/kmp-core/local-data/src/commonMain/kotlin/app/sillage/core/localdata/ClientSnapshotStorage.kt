@@ -48,5 +48,7 @@ interface ClientBackupTransfer {
 interface ClientRuntimeValues {
     fun nextRecordId(): String
 
+    fun nextMutationId(): String
+
     fun currentTimestamp(): String
 }

@@ -50,6 +50,8 @@ fun MainViewController(): UIViewController {
                 bootstrapRepository = bootstrapRepository,
                 authenticationRepositoryFactory = authenticationRepositoryFactory,
                 todayProvider = ::currentLocalDate,
+                memoSyncWorkspaceFactory = repository,
+                memoSyncGatewayFactory = authenticationRepositoryFactory,
             )
         }
         val backupTransfer = remember(repository) {

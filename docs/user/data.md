@@ -86,6 +86,24 @@ unset NEW_PASSWORD
 
 If the instance uses a custom `SILLAGE_DSN`, pass the same value or `_FILE` setting to the command. Back up the instance before recovery when practical. After restart, sign in with the new password. Previously issued access tokens may continue working until their 15-minute lifetime ends; after that, confirm that old devices must authenticate again.
 
+## Native Client Portable Backups
+
+iOS, Windows, and macOS can export and restore a JSON record backup through the
+native file picker. The file contains the portable record and appearance subset
+and remains sensitive plaintext; store and transfer it through protected media.
+It does not contain the account, access or refresh credentials, checked server
+address, server binding, cloud versions, pending mutation identifiers, Ask data,
+or server attachment bytes.
+
+Restore validates the complete file before replacing readable local records. It
+preserves the device's current server address and any preference omitted by the
+backup, but deliberately clears the private sync binding, cloud baselines, and
+outbox. Consequently, restored records are local-only until a later manual push
+reconciles them; do not assume the JSON file is a continuation of an existing
+server queue. A failed or unsupported import leaves current local state intact.
+This portable file is not a substitute for the complete server data-directory
+backup below.
+
 ## Back Up
 
 The following script is intended for Compose. If you use `docker run`, systemd, or a local binary, replace the stop and start commands with the appropriate equivalents and confirm that no process continues to write to SQLite. If a preflight check fails, the service remains running. If a later step fails after `docker compose stop` succeeds, the script exits and leaves the service stopped.
@@ -162,7 +180,9 @@ To move an instance to another directory or host:
 
 `.thumbnail_cache/` is currently only a reserved directory; the server recreates it as an empty directory at startup. The database, attachments, and `runtime/` cannot be reset independently.
 
-Android JSON exports and manual synchronization do not include server attachment bytes, the account, sessions, or runtime secrets. They cannot replace a complete server data-directory backup.
+Android and shared native JSON exports and manual synchronization do not include
+server attachment bytes, the account, sessions, or runtime secrets. They cannot
+replace a complete server data-directory backup.
 
 ## Recovery Objectives and Drills
 

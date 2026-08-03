@@ -26,14 +26,16 @@ Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and
 bilingual errors. After a successful check it also owns initialization/sign-in
 form state, startup restore request identity, stable authentication error copy,
-in-memory account presentation, and sign-out orchestration. Hosts provide HTTP
-transport, credential-vault capability, and repository composition only.
-Successful checks persist the normalized address without changing the
-device-local records mode. Automatic bootstrap and restore run only when the
-host advertises cross-launch authentication persistence.
+in-memory account presentation, manual memo push, conflict presentation and
+resolution, and sign-out orchestration. Manual push is available only for the
+checked authenticated server, locks record writes while active, refreshes
+canonical applied records, and preserves rejected or conflicting mutations.
+Hosts provide HTTP transport, credential-vault capability, and repository
+composition only. Successful checks persist the normalized address without
+silently rebinding an existing outbox. Automatic bootstrap and restore run only
+when the host advertises cross-launch authentication persistence.
 
-Remote record synchronization, Ask, and attachments remain follow-up
+Automatic/two-way record synchronization, Ask, and attachments remain follow-up
 integration slices. iOS and macOS supply Keychain adapters, while Windows
 supplies a Credential Manager adapter. All three advertise cross-launch
-authentication persistence. The current host is a functional device-local
-records workspace rather than a simulated server.
+authentication persistence and share the same persistent manual memo-push path.

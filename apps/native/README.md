@@ -1,10 +1,11 @@
 # Native applications
 
 This directory is the Kotlin Multiplatform workspace for native Sillage clients.
-Android is the server-connected native application. Windows, macOS, and iOS
-share a functional device-local records workspace plus public Sillage server
-bootstrap, initialization, sign-in, refresh, and sign-out foundations while
-remote records integration continues.
+Android is the full server-connected native application. Windows, macOS, and iOS
+share a functional local-first records workspace plus public Sillage server
+bootstrap, initialization, sign-in, refresh, sign-out, persistent manual memo
+push, and conflict resolution. Pull synchronization and broader remote feature
+integration continue incrementally.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under
@@ -52,9 +53,11 @@ and that Android, iOS, and desktop show the same product version.
 `GET /api/v1/auth/bootstrap` response behind a host-neutral HTTP boundary.
 Desktop uses the JDK HTTP client and iOS uses Foundation `NSURLSession`; the
 shared application settings surface owns address draft, request identity,
-result, and failure presentation. A successful check remembers only the
-normalized server address in the private client snapshot. Portable JSON
-backups deliberately do not export it.
+result, and failure presentation. A successful check remembers the normalized
+server address in the private client snapshot. The same private schema stores a
+separately bound memo outbox, cloud versions, and mutation identifiers; a queue
+bound to one server is rejected for another address. Portable JSON backups
+deliberately export neither server address nor sync metadata.
 
 The public check sends no records, credentials, cookies, or authorization
 headers. After a successful check, the same Settings surface can initialize or
@@ -67,4 +70,7 @@ server URL; iOS additionally uses a device-bound accessibility class. On a
 later launch, every persistent host performs public bootstrap before attempting
 refresh rotation. No credential enters the client snapshot or a portable
 backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
-engineering development. Synchronized records remain a follow-up slice.
+engineering development. Authenticated users can manually push pending record
+creates, updates, deletions, restorations, and purges from Settings. Push is not
+automatic and does not pull server-only changes yet; conflicts require an
+explicit device/server choice.

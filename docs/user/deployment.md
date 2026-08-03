@@ -136,9 +136,15 @@ this check. Plain HTTP is for explicit loopback or trusted-LAN engineering use
 only, and iOS App Transport Security may reject it.
 
 After the check succeeds, these engineering clients can initialize the single
-account or sign in and sign out. Their records still remain device-local and are
-not synchronized in this build. Access tokens always remain in memory, and no
-authentication credential is included in record snapshots or portable backups.
+account or sign in and sign out. Their record workspace remains local-first, but
+an authenticated user can manually push pending creates, updates, deletions,
+restorations, and permanent deletions from Settings. This path does not pull
+server-only changes or run automatically. A local sync workspace is bound to the
+normalized server used for its cloud baselines and refuses to retarget that queue
+when the address changes. Access tokens always remain in memory, and no
+authentication credential, server binding, cloud baseline, or mutation ID is
+included in portable record backups.
+
 iOS and macOS store only the refresh credential in non-synchronizing Keychain
 Generic Password items. Windows stores only that credential as a non-roaming
 Generic Credential in the current user's Credential Manager. All three can

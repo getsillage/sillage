@@ -84,8 +84,10 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   mapped into application values; HTTP response bodies are never surfaced in
   user-facing errors.
 - A successful check stores the normalized address in the private native client
-  snapshot. Portable record backups preserve the current device address rather
-  than exporting or replacing it.
+  snapshot. The private memo outbox separately binds cloud versions and mutation
+  identifiers to one normalized address. Portable record backups export neither
+  address nor synchronization metadata and preserve the current device address
+  when restored.
 - Published clients must use operator-managed HTTPS. Plain HTTP is limited to
   explicit loopback or trusted-LAN engineering use; iOS additionally enforces
   App Transport Security. This unauthenticated diagnostic does not establish a
@@ -103,14 +105,17 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   credential in a generation-checked memory session, and retries one 401 after
   rotating the refresh session. A replaced session cannot be cleared by an
   older request.
-- Shared native memo push is created by that same authentication factory. It
+- Shared native memo push is created by the same authentication factory. It
   sends Bearer credentials only to the normalized server's fixed
   `/api/v1/sync:push` path, limits each request to 200 changes, retries at most
   once after refresh, and rejects missing, reordered, or mismatched results.
   Create and update send the record fields required by the write; delete,
   restore, and purge omit the record body. Request diagnostics still redact
   bodies and every header value; no access token or record body enters durable
-  session storage.
+  session storage. The local workspace refuses to open a queue bound to another
+  server, and the application permits push only for the currently checked,
+  authenticated address. Record writes are locked for the duration of a push so
+  the acknowledged mutation and local snapshot cannot race.
 - `AuthenticationCredentialStore` is the only shared cross-launch credential
   boundary and accepts only the refresh credential. Access tokens, passwords,
   and refresh credentials are never written to the client snapshot, ordinary

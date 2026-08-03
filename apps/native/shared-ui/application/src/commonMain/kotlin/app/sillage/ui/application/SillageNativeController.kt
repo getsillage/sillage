@@ -27,6 +27,12 @@ import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.sync.MemoSyncGatewayFactory
+import app.sillage.core.sync.MemoSyncServerMismatchException
+import app.sillage.core.sync.MemoSyncWorkspaceFactory
+import app.sillage.core.sync.PushPendingMemosUseCase
+import app.sillage.core.sync.ResolveMemoSyncConflictCommand
+import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
 import app.sillage.features.auth.InstanceAuthenticationContext
 import app.sillage.features.auth.InstanceAuthenticationFailure
 import app.sillage.features.auth.InstanceAuthenticationOperation
@@ -40,6 +46,8 @@ import app.sillage.features.records.RecordsEditorStateHolder
 import app.sillage.features.records.RecordsFeatureStateHolder
 import app.sillage.features.records.RecordsSearchContext
 import app.sillage.features.records.memosForFilter
+import app.sillage.features.sync.MemoSyncConflictItem
+import app.sillage.features.sync.SyncFeatureStateHolder
 import app.sillage.ui.appshell.AppAppearanceStateHolder
 import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
@@ -57,6 +65,14 @@ enum class SillageNativeFeedback {
     SignedIn,
     SignedOut,
     SignedOutLocally,
+    MemoSyncCompleted,
+    MemoSyncNoChanges,
+    MemoSyncNeedsReview,
+    MemoSyncRejected,
+    MemoSyncFailed,
+    MemoSyncServerMismatch,
+    MemoSyncSessionExpired,
+    MemoSyncConflictResolved,
     DataTransferFailed,
     StorageUnavailable,
 }
@@ -77,6 +93,8 @@ data class SillageNativeState(
     val workspace: AppWorkspaceStateHolder,
     val serverConnection: InstanceBootstrapStateHolder,
     val authentication: InstanceAuthenticationStateHolder,
+    val sync: SyncFeatureStateHolder = SyncFeatureStateHolder(),
+    val memoSyncSupported: Boolean = false,
     val busy: Boolean = false,
     val storageAvailable: Boolean = true,
     val feedback: SillageNativeFeedback? = null,
@@ -91,6 +109,8 @@ class SillageNativeController(
     private val bootstrapRepository: InstanceBootstrapRepository,
     private val authenticationRepositoryFactory: InstanceAuthenticationRepositoryFactory,
     private val todayProvider: () -> String,
+    private val memoSyncWorkspaceFactory: MemoSyncWorkspaceFactory? = null,
+    private val memoSyncGatewayFactory: MemoSyncGatewayFactory? = null,
 ) {
     private val saveRecord = SaveRecordUseCase(recordWriteRepository)
     private val mutateRecordLifecycle = MutateRecordLifecycleUseCase(recordLifecycleRepository)
@@ -98,7 +118,12 @@ class SillageNativeController(
     private var preferences = ClientPreferences()
     private var activeAuthenticationRepository: InstanceAuthenticationRepository? = null
 
-    var state by mutableStateOf(initialState(todayProvider()))
+    var state by mutableStateOf(
+        initialState(
+            today = todayProvider(),
+            memoSyncSupported = memoSyncWorkspaceFactory != null && memoSyncGatewayFactory != null,
+        ),
+    )
         private set
 
     val hasUnsavedEditorChanges: Boolean
@@ -327,6 +352,7 @@ class SillageNativeController(
         state = state.copy(
             serverConnection = state.serverConnection.updateBaseUrl(value),
             authentication = state.authentication.resetForServerChange(),
+            sync = SyncFeatureStateHolder(),
         )
     }
 
@@ -439,7 +465,10 @@ class SillageNativeController(
             return
         }
         activeAuthenticationRepository = repository
-        state = state.copy(authentication = completed)
+        state = state.copy(
+            authentication = completed,
+            sync = SyncFeatureStateHolder(),
+        )
     }
 
     suspend fun authenticate() {
@@ -525,6 +554,7 @@ class SillageNativeController(
         activeAuthenticationRepository = repository
         state = state.copy(
             authentication = completed,
+            sync = SyncFeatureStateHolder(),
             serverConnection = if (request.operation == InstanceAuthenticationOperation.Initialize) {
                 state.serverConnection.copy(
                     bootstrap = state.serverConnection.bootstrap?.copy(initialized = true),
@@ -575,6 +605,7 @@ class SillageNativeController(
         activeAuthenticationRepository = null
         state = state.copy(
             authentication = completed,
+            sync = SyncFeatureStateHolder(),
             feedback = when (result) {
                 SignOutResult.SignedOut,
                 SignOutResult.OfflineSessionCleared,
@@ -584,6 +615,58 @@ class SillageNativeController(
                 }
             },
         )
+    }
+
+    suspend fun pushPendingMemos() {
+        if (!canStartOperation()) return
+        val baseUrl = state.serverConnection.checkedBaseUrl ?: return
+        if (state.authentication.account == null || activeAuthenticationRepository == null) return
+        val workspaceFactory = memoSyncWorkspaceFactory ?: return
+        val gatewayFactory = memoSyncGatewayFactory ?: return
+
+        state = state.copy(busy = true, feedback = null)
+        try {
+            val workspace = workspaceFactory.createMemoSyncWorkspace(baseUrl)
+            val summary = PushPendingMemosUseCase(
+                outbox = workspace,
+                gateway = gatewayFactory.createMemoSyncGateway(baseUrl),
+            )()
+            allRecords = recordsRepository.listRecords()
+            val conflicts = summary.conflictMemoSyncs.map { conflict ->
+                MemoSyncConflictItem(
+                    conflict = conflict,
+                    localMemo = workspace.localMemo(conflict.resourceId),
+                )
+            }
+            state = state.copy(
+                workspace = state.workspace.copy(records = refreshedRecordState()),
+                sync = state.sync.applyPushConflicts(conflicts),
+                feedback = when {
+                    summary.conflict > 0 -> SillageNativeFeedback.MemoSyncNeedsReview
+                    summary.rejected > 0 -> SillageNativeFeedback.MemoSyncRejected
+                    summary.applied > 0 -> SillageNativeFeedback.MemoSyncCompleted
+                    else -> SillageNativeFeedback.MemoSyncNoChanges
+                },
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            handleMemoSyncFailure(error)
+        } finally {
+            state = state.copy(busy = false)
+        }
+    }
+
+    suspend fun keepLocalSyncConflict(resourceId: String) {
+        resolveMemoSyncConflict(resourceId, keepLocal = true)
+    }
+
+    suspend fun takeServerSyncConflict(resourceId: String) {
+        resolveMemoSyncConflict(resourceId, keepLocal = false)
+    }
+
+    fun dismissSyncConflict(resourceId: String) {
+        state = state.copy(sync = state.sync.removeConflict(resourceId))
     }
 
     fun dismissFeedback() {
@@ -635,6 +718,69 @@ class SillageNativeController(
                 workspace = state.workspace.copy(records = nextRecords),
                 feedback = feedback,
             )
+        }
+    }
+
+    private suspend fun resolveMemoSyncConflict(resourceId: String, keepLocal: Boolean) {
+        if (!canStartOperation()) return
+        val item = state.sync.findConflict(resourceId) ?: return
+        val baseUrl = state.serverConnection.checkedBaseUrl ?: return
+        if (state.authentication.account == null || activeAuthenticationRepository == null) return
+        val workspaceFactory = memoSyncWorkspaceFactory ?: return
+
+        state = state.copy(busy = true, feedback = null)
+        try {
+            val workspace = workspaceFactory.createMemoSyncWorkspace(baseUrl)
+            val resolve = ResolveMemoSyncConflictUseCase(workspace)
+            resolve(
+                if (keepLocal) {
+                    ResolveMemoSyncConflictCommand.KeepLocal(item.conflict)
+                } else {
+                    ResolveMemoSyncConflictCommand.TakeServer(item.conflict)
+                },
+            )
+            allRecords = recordsRepository.listRecords()
+            state = state.copy(
+                workspace = state.workspace.copy(records = refreshedRecordState()),
+                sync = state.sync.removeConflict(resourceId),
+                feedback = SillageNativeFeedback.MemoSyncConflictResolved,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            handleMemoSyncFailure(error)
+        } finally {
+            state = state.copy(busy = false)
+        }
+    }
+
+    private fun refreshedRecordState(): RecordsFeatureStateHolder {
+        var records = state.workspace.records.replaceVisibleRecords(
+            memosForFilter(allRecords, state.workspace.records.filter),
+        )
+        val selectedId = state.workspace.records.selection.selectedMemo?.id
+        val selected = selectedId?.let { id -> allRecords.firstOrNull { it.id == id } }
+        if (selected != null) {
+            records = records.applyCanonicalMemo(selected)
+        }
+        return records
+    }
+
+    private fun handleMemoSyncFailure(error: Exception) {
+        when {
+            error is MemoSyncServerMismatchException -> {
+                state = state.copy(feedback = SillageNativeFeedback.MemoSyncServerMismatch)
+            }
+            error is AuthenticationFailureException &&
+                error.reason == AuthenticationFailureReason.SessionExpired -> {
+                activeAuthenticationRepository = null
+                state = state.copy(
+                    authentication = state.authentication.resetForServerChange(),
+                    sync = SyncFeatureStateHolder(),
+                    feedback = SillageNativeFeedback.MemoSyncSessionExpired,
+                )
+            }
+            else -> state = state.copy(feedback = SillageNativeFeedback.MemoSyncFailed)
         }
     }
 
@@ -712,6 +858,7 @@ class SillageNativeController(
                     baseUrl = preferences.serverBaseUrl,
                 ),
                 authentication = InstanceAuthenticationStateHolder(),
+                sync = SyncFeatureStateHolder(),
             )
         } catch (_: Exception) {
             markStorageUnavailable()
@@ -719,7 +866,10 @@ class SillageNativeController(
     }
 
     private fun rehydrateAfterBackupRestore() {
-        state = initialState(todayProvider()).copy(busy = true)
+        state = initialState(
+            today = todayProvider(),
+            memoSyncSupported = memoSyncWorkspaceFactory != null && memoSyncGatewayFactory != null,
+        ).copy(busy = true)
         hydrate()
     }
 
@@ -783,7 +933,7 @@ class SillageNativeController(
     }
 }
 
-private fun initialState(today: String): SillageNativeState {
+private fun initialState(today: String, memoSyncSupported: Boolean): SillageNativeState {
     val year = today.take(4).toIntOrNull() ?: 1970
     val month = today.drop(5).take(2).toIntOrNull()?.takeIf { it in 1..12 } ?: 1
     val records = RecordsFeatureStateHolder(
@@ -802,6 +952,7 @@ private fun initialState(today: String): SillageNativeState {
         workspace = AppWorkspaceStateHolder(records = records),
         serverConnection = InstanceBootstrapStateHolder(),
         authentication = InstanceAuthenticationStateHolder(),
+        memoSyncSupported = memoSyncSupported,
     )
 }
 

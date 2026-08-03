@@ -36,6 +36,8 @@ import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.designsystem.SillageDesignTheme
 import app.sillage.ui.designsystem.SillageNavigationBar
 import app.sillage.ui.designsystem.SillageNavigationItem
+import app.sillage.ui.sync.SillageSyncConflictDialog
+import app.sillage.ui.sync.SillageSyncConflictStrings
 import kotlinx.coroutines.launch
 
 private val WideNavigationBreakpoint = 760.dp
@@ -49,6 +51,7 @@ fun SillageNativeApp(
     val state = controller.state
     val strings = sillageNativeStrings(state.appearance.languageMode)
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     LaunchedEffect(controller, platform.authenticationPersistsAcrossLaunches) {
@@ -87,6 +90,27 @@ fun SillageNativeApp(
     SillageDesignTheme(
         darkTheme = state.appearance.themeMode == ClientPreferenceValues.THEME_DARK,
     ) {
+        SillageSyncConflictDialog(
+            state = state.sync,
+            strings = SillageSyncConflictStrings(
+                title = strings.syncConflictTitle,
+                supporting = strings.syncConflictSupporting,
+                localLabel = strings.syncConflictLocalLabel,
+                serverLabel = strings.syncConflictServerLabel,
+                emptyLocal = strings.syncConflictEmptyLocal,
+                emptyServer = strings.syncConflictEmptyServer,
+                keepLocal = strings.syncConflictKeepLocal,
+                takeServer = strings.syncConflictTakeServer,
+                dismiss = strings.syncConflictDismiss,
+            ),
+            onKeepLocal = { resourceId ->
+                scope.launch { controller.keepLocalSyncConflict(resourceId) }
+            },
+            onTakeServer = { resourceId ->
+                scope.launch { controller.takeServerSyncConflict(resourceId) }
+            },
+            onDismiss = controller::dismissSyncConflict,
+        )
         Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val wide = maxWidth >= WideNavigationBreakpoint
@@ -173,6 +197,7 @@ private fun SillageNativeContent(
             onAuthenticationDisplayNameChange = controller::updateAuthenticationDisplayName,
             onAuthenticationPasswordChange = controller::updateAuthenticationPassword,
             onAuthenticate = { scope.launch { controller.authenticate() } },
+            onPushMemos = { scope.launch { controller.pushPendingMemos() } },
             onSignOut = { scope.launch { controller.signOut() } },
             onExportBackup = platform.exportBackup?.let { operation ->
                 { scope.launch { controller.exportBackup(operation) } }
@@ -302,6 +327,14 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.SignedIn -> signedIn
     SillageNativeFeedback.SignedOut -> signedOut
     SillageNativeFeedback.SignedOutLocally -> signedOutLocally
+    SillageNativeFeedback.MemoSyncCompleted -> memoSyncCompleted
+    SillageNativeFeedback.MemoSyncNoChanges -> memoSyncNoChanges
+    SillageNativeFeedback.MemoSyncNeedsReview -> memoSyncNeedsReview
+    SillageNativeFeedback.MemoSyncRejected -> memoSyncRejected
+    SillageNativeFeedback.MemoSyncFailed -> memoSyncFailed
+    SillageNativeFeedback.MemoSyncServerMismatch -> memoSyncServerMismatch
+    SillageNativeFeedback.MemoSyncSessionExpired -> memoSyncSessionExpired
+    SillageNativeFeedback.MemoSyncConflictResolved -> memoSyncConflictResolved
     SillageNativeFeedback.DataTransferFailed -> dataTransferFailed
     SillageNativeFeedback.StorageUnavailable -> storageUnavailable
 }

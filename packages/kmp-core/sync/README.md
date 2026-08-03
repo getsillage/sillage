@@ -1,24 +1,30 @@
 # Synchronization
 
-Platform-independent synchronization contracts and, incrementally, the native
-sync state machine. The first buildable slice owns `PendingMemoSync`,
-`AppliedMemoSync`, `ConflictMemoSync`, and `SyncPushSummary` in `commonMain`.
+Platform-independent synchronization contracts and native memo-push state
+transitions. The module owns `PendingMemoSync`, `AppliedMemoSync`,
+`ConflictMemoSync`, `SyncPushSummary`, durable `PendingMemoMutation`, pending
+resolution rules, applied-result merging, and keep-local/take-server conflict
+transitions in `commonMain`.
 
-`kmp-core:network` now provides the shared JSON/REST mapping for memo push.
-Android retains its current adapter until host integration, plus transactional
-outbox persistence, attachment staging, and the transactional conflict-resolution
-adapter. Those are migration sources for later ports and state-machine slices;
-transport, SQLite, and platform types must not enter this module.
+`kmp-core:network` provides the shared JSON/REST mapping for memo push. Android
+retains its current transactional adapter as a migration source; iOS, Windows,
+and macOS now use the shared workspace through `kmp-core:local-data`. Transport,
+SQLite, and platform types must not enter this module.
 
 `MemoSyncOutbox` and `MemoSyncGateway` isolate local and remote adapters.
-`PushPendingMemosUseCase` reads pending mutations, skips an empty push, hands the
-pending set to the gateway, and acknowledges only applied results through the
-transactional outbox. Remote adapters split it by the wire batch limit.
+`MemoSyncWorkspaceFactory` binds an outbox and conflict repository to one
+normalized server address; `MemoSyncGatewayFactory` creates the matching
+authenticated remote gateway. `PushPendingMemosUseCase` reads pending mutations,
+skips an empty push, hands the pending set to the gateway, and acknowledges only
+applied results through the transactional outbox. Remote adapters split it by the
+wire batch limit.
 
 `ResolveMemoSyncConflictUseCase` dispatches explicit keep-local and take-server
 commands through `MemoSyncConflictRepository`; platform hosts provide a
-transactional local-storage adapter. Pending conflict presentation state belongs
-to `kmp-features:sync`.
+transactional local-storage adapter. Applied restore results preserve newer local
+fields and schedule a follow-up update rather than overwriting an edit made after
+local restoration. Pending conflict presentation state belongs to
+`kmp-features:sync`.
 
 `SyncSnapshot` is the platform-neutral full-pull value. It contains only
 syncable domain data and an explicit available/unavailable AI-settings section;

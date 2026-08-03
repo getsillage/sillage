@@ -85,6 +85,8 @@ internal fun defaultIosSnapshotPath(homeDirectory: String = NSHomeDirectory()): 
 internal class IosRuntimeValues : ClientRuntimeValues {
     override fun nextRecordId(): String = NSUUID().UUIDString()
 
+    override fun nextMutationId(): String = NSUUID().UUIDString()
+
     override fun currentTimestamp(): String =
         NSISO8601DateFormatter().stringFromDate(NSDate())
 }

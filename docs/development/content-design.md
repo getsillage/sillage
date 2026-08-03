@@ -201,9 +201,9 @@ Use `this device` only for Android offline data, cached attachments, and other
 state that is actually stored on that Android device. Use `Sillage server` for
 sync destinations. Native account initialization and sign-in supporting copy
 must say that authentication pushes local changes before pulling current server
-records, because the initial synchronization starts without a separate Sync
-action. Use `localhost` only when describing the default network binding, not as
-a synonym for the deployment host.
+records, because automatic foreground synchronization starts without a separate
+Sync action. Use `localhost` only when describing the default network binding,
+not as a synonym for the deployment host.
 
 ## English Style
 

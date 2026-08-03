@@ -5,6 +5,7 @@ kotlin = "2.2.21"
 kotlinx-coroutines = "1.8.0"
 kotlinx-serialization = "1.9.0"
 jna = "5.19.1"
+jetbrains-lifecycle = "2.8.4"
 
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -20,6 +21,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+jetbrains-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "jetbrains-lifecycle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

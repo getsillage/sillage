@@ -48,11 +48,12 @@ composition only. Successful checks persist the normalized address without
 silently rebinding an existing outbox. Automatic bootstrap and restore run only
 when the host advertises cross-launch authentication persistence.
 
-When an account becomes authenticated, the application root runs one automatic
-push-then-pull memo synchronization through the same single-flight controller
-path. Routine success and no-change results do not replace authentication
-feedback; conflicts, rejections, session expiry, and failures remain visible.
-Recurring lifecycle or connectivity synchronization, Ask, and attachments remain
-follow-up integration slices. iOS and macOS supply Keychain adapters, while
-Windows supplies a Credential Manager adapter. All three advertise cross-launch
-authentication persistence and share the same manual and initial sync paths.
+When an account becomes authenticated, and whenever the authenticated app later
+enters the foreground, the application root runs automatic push-then-pull memo
+synchronization through the same single-flight controller path. Routine success
+and no-change results do not replace authentication feedback; conflicts,
+rejections, session expiry, and failures remain visible. Connectivity-triggered
+synchronization, Ask, and attachments remain follow-up integration slices. iOS
+and macOS supply Keychain adapters, while Windows supplies a Credential Manager
+adapter. All three advertise cross-launch authentication persistence and share
+the same manual and automatic foreground sync paths.

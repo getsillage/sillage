@@ -69,11 +69,11 @@ stores the refresh credential in a non-synchronizing Keychain Generic Password
 item. On Windows, it stores the same value as a non-roaming Generic Credential
 in the current user's Credential Manager. Both are keyed by normalized server
 URL and can restore the session after public bootstrap on a later launch. Access
-tokens and passwords remain memory-only. Successful sign-in or restored
-authentication triggers one foreground push-then-pull sync; routine completion
-stays silent, while conflicts and failures remain visible. Recurring lifecycle or
-connectivity sync, attachments, and Ask remain follow-up work. Those integrations
-must reuse KMP application ports instead of introducing desktop-only business
-behavior.
+tokens and passwords remain memory-only. Successful sign-in, restored
+authentication, and every later foreground entry trigger a push-then-pull sync;
+routine completion stays silent, while conflicts and failures remain visible.
+Connectivity-triggered sync, attachments, and Ask remain follow-up work. Those
+integrations must reuse KMP application ports instead of introducing desktop-only
+business behavior.
 Until Ask is wired end to end, it is omitted from primary navigation rather than
 shown as an unavailable destination.

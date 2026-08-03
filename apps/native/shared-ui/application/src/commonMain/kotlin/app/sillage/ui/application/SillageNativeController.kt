@@ -713,7 +713,7 @@ class SillageNativeController(
         syncMemos(reportSuccessfulCompletion = true)
     }
 
-    internal suspend fun syncMemosAfterAuthentication() {
+    internal suspend fun syncMemosAutomatically() {
         syncMemos(reportSuccessfulCompletion = false)
     }
 

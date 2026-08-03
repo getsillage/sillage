@@ -22,6 +22,7 @@ kotlin {
             implementation(libs.compose.material.icons.extended)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {

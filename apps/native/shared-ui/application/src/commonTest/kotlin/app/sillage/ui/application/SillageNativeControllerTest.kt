@@ -141,7 +141,7 @@ class SillageNativeControllerTest {
     }
 
     @Test
-    fun authenticatedAutomaticSyncPullsRecordsWithoutReplacingAuthenticationFeedback() = runTest {
+    fun automaticSyncPullsRecordsWithoutReplacingAuthenticationFeedback() = runTest {
         val local = FakeRecordsRepository()
         val serverMemo = memo("server-record", "from server")
         val workspace = FakeMemoSyncWorkspace(local, pending = emptyList())
@@ -157,7 +157,7 @@ class SillageNativeControllerTest {
         signIn(controller, dismissFeedback = false)
         assertEquals(SillageNativeFeedback.SignedIn, controller.state.feedback)
 
-        controller.syncMemosAfterAuthentication()
+        controller.syncMemosAutomatically()
 
         assertEquals(1, gateway.pullCalls)
         assertEquals(listOf(serverMemo), local.records)
@@ -167,7 +167,7 @@ class SillageNativeControllerTest {
     }
 
     @Test
-    fun authenticatedAutomaticSyncStillSurfacesFailures() = runTest {
+    fun automaticSyncStillSurfacesFailures() = runTest {
         val local = FakeRecordsRepository()
         val controller = controller(
             repository = local,
@@ -182,14 +182,14 @@ class SillageNativeControllerTest {
         )
 
         signIn(controller)
-        controller.syncMemosAfterAuthentication()
+        controller.syncMemosAutomatically()
 
         assertEquals(SillageNativeFeedback.MemoSyncFailed, controller.state.feedback)
         assertFalse(controller.state.busy)
     }
 
     @Test
-    fun authenticatedAutomaticSyncDoesNotRepublishConsumedFeedback() = runTest {
+    fun automaticSyncDoesNotRepublishConsumedFeedback() = runTest {
         val localMemo = memo("memo-1", "local")
         val local = FakeRecordsRepository(mutableListOf(localMemo))
         val pushStarted = CompletableDeferred<Unit>()
@@ -214,7 +214,7 @@ class SillageNativeControllerTest {
         )
 
         signIn(controller, dismissFeedback = false)
-        val sync = launch { controller.syncMemosAfterAuthentication() }
+        val sync = launch { controller.syncMemosAutomatically() }
         pushStarted.await()
 
         controller.dismissFeedback()

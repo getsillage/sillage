@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.designsystem.SillageDesignTheme
@@ -60,9 +61,12 @@ fun SillageNativeApp(
     }
 
     val authenticatedAccountId = state.authentication.account?.id
-    LaunchedEffect(controller, authenticatedAccountId) {
-        if (authenticatedAccountId != null) {
-            controller.syncMemosAfterAuthentication()
+    LifecycleStartEffect(controller to authenticatedAccountId) {
+        val automaticSync = authenticatedAccountId?.let {
+            scope.launch { controller.syncMemosAutomatically() }
+        }
+        onStopOrDispose {
+            automaticSync?.cancel()
         }
     }
 

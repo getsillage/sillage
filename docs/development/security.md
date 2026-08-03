@@ -72,7 +72,7 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   rule; compatibility reads must not silently rewrite or discard that content.
 - The HTTP server enforces header, header-read, body-read, write, and idle timeouts. Streaming Ask responses use the longer write timeout but remain cancellable through the request context.
 
-## Native Public Server Discovery
+## Native Public Server Discovery and Authentication
 
 - The iOS, Windows, and macOS engineering clients may call only the public
   `GET /api/v1/auth/bootstrap` endpoint before authentication. The request sends
@@ -90,6 +90,26 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   explicit loopback or trusted-LAN engineering use; iOS additionally enforces
   App Transport Security. This unauthenticated diagnostic does not establish a
   session or authorize later requests.
+- After a successful public check, desktop and iOS may send initialization or
+  sign-in credentials only to that normalized server address. Generic HTTP
+  request/response diagnostics expose method, URL, header names, status, and
+  sizes, but redact bodies and every header value so passwords, bearer tokens,
+  cookies, and server error bodies are not rendered by `toString()`. Native
+  transports do not follow redirects; operators must configure the final
+  server URL before credentials are sent.
+- Native authentication disables automatic platform cookie handling. The
+  shared repository extracts only `sillage_refresh`, sends it only to the
+  repository's validated base URL, keeps the access token and refresh cookie in
+  a generation-checked memory session, and retries one 401 after rotating the
+  refresh session. A replaced session cannot be cleared by an older request.
+- Closing the desktop or iOS client currently discards session material and
+  requires another sign-in. Tokens and cookies are not written to the client
+  snapshot or portable backup. Persistent login must wait for Apple Keychain
+  and Windows Credential Manager/macOS Keychain adapters; plaintext fallback is
+  forbidden.
+- Online sign-out attempts server revocation first. Failure or cancellation
+  still clears the captured local memory session when it remains authoritative;
+  it never clears a newer session created while the request was in flight.
 
 ## Android
 

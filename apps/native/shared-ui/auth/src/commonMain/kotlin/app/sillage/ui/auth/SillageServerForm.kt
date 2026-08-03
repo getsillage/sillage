@@ -34,6 +34,7 @@ data class SillageServerFormStrings(
 fun SillageServerForm(
     baseUrl: String,
     loading: Boolean,
+    enabled: Boolean = true,
     strings: SillageServerFormStrings,
     connectIcon: ImageVector,
     offlineIcon: ImageVector? = null,
@@ -45,6 +46,7 @@ fun SillageServerForm(
     val presentation = sillageServerFormPresentation(
         baseUrl = baseUrl,
         loading = loading,
+        enabled = enabled,
         strings = strings,
     )
 
@@ -109,10 +111,11 @@ internal data class SillageServerFormPresentation(
 internal fun sillageServerFormPresentation(
     baseUrl: String,
     loading: Boolean,
+    enabled: Boolean = true,
     strings: SillageServerFormStrings,
 ) = SillageServerFormPresentation(
     baseUrl = baseUrl,
-    controlsEnabled = !loading,
-    submitEnabled = !loading && baseUrl.isNotBlank(),
+    controlsEnabled = enabled && !loading,
+    submitEnabled = enabled && !loading && baseUrl.isNotBlank(),
     actionText = if (loading) strings.submitting else strings.submit,
 )

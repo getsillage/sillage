@@ -13,6 +13,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.sillage.core.localdata.LocalClientRepository
+import app.sillage.core.network.RemoteInstanceAuthenticationRepositoryFactory
 import app.sillage.core.network.RemoteInstanceBootstrapRepository
 import app.sillage.ui.application.SillageNativeApp
 import app.sillage.ui.application.SillageNativeController
@@ -57,17 +58,26 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
     val repository = remember(storage) {
         LocalClientRepository(storage, DesktopRuntimeValues())
     }
-    val bootstrapRepository = remember {
-        RemoteInstanceBootstrapRepository(DesktopSillageHttpTransport())
-    }
-    val controller = remember(repository, bootstrapRepository) {
-        SillageNativeController(
+            val httpTransport = remember { DesktopSillageHttpTransport() }
+            val bootstrapRepository = remember(httpTransport) {
+                RemoteInstanceBootstrapRepository(httpTransport)
+            }
+            val authenticationRepositoryFactory = remember(httpTransport) {
+                RemoteInstanceAuthenticationRepositoryFactory(httpTransport)
+            }
+            val controller = remember(
+                repository,
+                bootstrapRepository,
+                authenticationRepositoryFactory,
+            ) {
+                SillageNativeController(
             recordsRepository = repository,
             recordWriteRepository = repository,
             recordLifecycleRepository = repository,
-            preferencesRepository = repository,
-            bootstrapRepository = bootstrapRepository,
-            todayProvider = { LocalDate.now().toString() },
+                    preferencesRepository = repository,
+                    bootstrapRepository = bootstrapRepository,
+                    authenticationRepositoryFactory = authenticationRepositoryFactory,
+                    todayProvider = { LocalDate.now().toString() },
         )
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }

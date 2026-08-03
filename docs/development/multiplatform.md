@@ -11,9 +11,9 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public server bootstrap diagnostics implemented; authentication and sync pending |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public server bootstrap diagnostics implemented; authentication and sync pending |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG builds and public server bootstrap diagnostics implemented; authentication and sync pending |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Device-local records prototype; public bootstrap and memory-only authentication implemented; sync and Keychain persistence pending |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; public bootstrap and memory-only authentication implemented; sync and Credential Manager persistence pending |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Device-local records prototype; DMG, public bootstrap, and memory-only authentication implemented; sync and Keychain persistence pending |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -75,10 +75,12 @@ document pickers without forking codec, restore, or lifecycle behavior.
 
 `network` owns public server bootstrap URL validation, response bounds, HTTP
 status handling, JSON mapping, and conversion into application values behind a
-small host HTTP port. Desktop and Apple networking APIs remain platform
-adapters. This public request carries no records, credentials, cookies, or
-authorization headers; authenticated transport and refresh coordination remain
-later slices.
+small host HTTP port. It also owns base-URL-scoped initialization, sign-in,
+bearer retry after one refresh, password change, and context-bound sign-out.
+Desktop and Apple networking APIs remain platform adapters. The public request
+carries no records, credentials, cookies, or authorization headers. Native
+authentication keeps access tokens and refresh cookies in a generation-checked
+memory session; OS-backed persistence remains a separate security adapter.
 
 Record create and update commands share the server's draft constraints in
 `application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
@@ -634,21 +636,21 @@ attachment staging and present the resulting status.
   source.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
   host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
-  migration, Foundation time/identity values, public bootstrap `NSURLSession`
-  transport, system JSON backup document pickers, a branded AppIcon catalog,
-  and Xcode integration. Keychain
-  credentials, signing, and App Store
-  packaging remain future host work.
+  migration, Foundation time/identity values, public bootstrap and memory-only
+  authentication `NSURLSession` transport, system JSON backup document pickers,
+  a branded AppIcon catalog, and Xcode integration. Keychain session
+  persistence, signing, and App Store packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
   values, data-folder action, native backup save/open dialogs, public bootstrap
-  JDK HTTP transport, native menu and guarded close integration, branded
+  and memory-only authentication JDK HTTP transport, native menu and guarded
+  close integration, branded
   ICNS/ICO assets, and Windows/macOS packaging. Shared local-data code
   owns the distinct portable backup envelope, validation, and replace-after-
   validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
-  credential storage, the updater, and deeper OS integration remain future
-  release work.
+  Credential Manager/Keychain session persistence, the updater, and deeper OS
+  integration remain future release work.
 
 Desktop and iOS packages produced by local build tasks are engineering
 verification artifacts. They are not attached by the official release workflow

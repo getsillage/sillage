@@ -7,9 +7,13 @@ application values. Secret-free account identity lives in `kmp-core:domain`;
 platform adapters retain HTTP and secure session persistence.
 `InstanceBootstrapRepository` owns public instance capability discovery.
 `AuthenticationRepository` and focused initialize, sign-in, current-account, and
-password-change use cases own authentication intent. Android's remote adapter
-maps those contracts to REST while `SillageApi` retains session refresh and
-context-safe encrypted persistence.
+password-change use cases own authentication intent.
+`InstanceAuthenticationRepositoryFactory` creates a repository scoped to one
+validated server address, while stable `AuthenticationFailureReason` values let
+shared UI map failures without exposing server response bodies. Android's remote
+adapter maps those contracts to REST while `SillageApi` retains session refresh
+and context-safe encrypted persistence; desktop and iOS currently use a
+memory-only remote repository until OS credential-vault adapters land.
 `SignOutRepository` captures a session-bound capability before asynchronous
 execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
 cancellation semantics without exposing tokens or platform session snapshots;

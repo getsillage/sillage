@@ -32,6 +32,26 @@ interface AuthenticationRepository {
     suspend fun changePassword(command: ChangePasswordCommand): AuthSession
 }
 
+enum class AuthenticationFailureReason {
+    InvalidRequest,
+    InvalidCredentials,
+    AlreadyInitialized,
+    RateLimited,
+    SessionExpired,
+    ServerRejected,
+    InvalidResponse,
+}
+
+class AuthenticationFailureException(
+    val reason: AuthenticationFailureReason,
+) : IllegalStateException("The Sillage authentication request failed: ${reason.name}.")
+
+interface InstanceAuthenticationRepository : AuthenticationRepository, SignOutRepository
+
+fun interface InstanceAuthenticationRepositoryFactory {
+    fun create(baseUrl: String): InstanceAuthenticationRepository
+}
+
 class LoadInstanceBootstrapUseCase(
     private val repository: InstanceBootstrapRepository,
 ) {

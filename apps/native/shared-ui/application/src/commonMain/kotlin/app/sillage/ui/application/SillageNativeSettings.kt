@@ -14,8 +14,11 @@ import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.NightsStay
 import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -35,6 +38,13 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.sillage.core.application.preferences.ClientPreferenceValues
+import app.sillage.features.auth.InstanceAuthenticationFailure
+import app.sillage.features.auth.InstanceAuthenticationOperation
+import app.sillage.ui.auth.SillageInitializeForm
+import app.sillage.ui.auth.SillageInitializeFormStrings
+import app.sillage.ui.auth.SillageLoginForm
+import app.sillage.ui.auth.SillageLoginFormStrings
+import app.sillage.ui.auth.SillagePasswordFieldStrings
 import app.sillage.ui.auth.SillageServerForm
 import app.sillage.ui.auth.SillageServerFormStrings
 import app.sillage.ui.designsystem.SillageInlineError
@@ -53,6 +63,11 @@ internal fun SillageNativeSettings(
     onLanguageChange: (String) -> Unit,
     onServerBaseUrlChange: (String) -> Unit,
     onCheckServer: () -> Unit,
+    onAuthenticationUsernameChange: (String) -> Unit,
+    onAuthenticationDisplayNameChange: (String) -> Unit,
+    onAuthenticationPasswordChange: (String) -> Unit,
+    onAuthenticate: () -> Unit,
+    onSignOut: () -> Unit,
     onExportBackup: (() -> Unit)?,
     onRestoreBackup: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -181,9 +196,11 @@ internal fun SillageNativeSettings(
             item {
                 SillageSettingsSectionCard(strings.service) {
                     val connection = state.serverConnection
-                    SillageServerForm(
-                        baseUrl = connection.baseUrl,
-                        loading = connection.checking,
+                        SillageServerForm(
+                            baseUrl = connection.baseUrl,
+                            loading = connection.checking,
+                            enabled = state.authentication.account == null &&
+                                !state.authentication.loading,
                         strings = SillageServerFormStrings(
                             addressLabel = strings.serverAddress,
                             addressPlaceholder = strings.serverAddressPlaceholder,
@@ -226,12 +243,115 @@ internal fun SillageNativeSettings(
                             value = bootstrap.serverVersion.ifBlank { strings.unknownValue },
                             showDivider = true,
                         )
-                        SillageSettingsInfoRow(
-                            label = strings.apiVersion,
-                            value = bootstrap.apiVersion.ifBlank { strings.unknownValue },
-                            showDivider = true,
-                        )
-                    }
+                            SillageSettingsInfoRow(
+                                label = strings.apiVersion,
+                                value = bootstrap.apiVersion.ifBlank { strings.unknownValue },
+                                showDivider = true,
+                            )
+                            val authentication = state.authentication
+                            val account = authentication.account
+                            if (account == null) {
+                                SillageSettingsInfoRow(
+                                    label = strings.accountSection,
+                                    value = if (bootstrap.initialized) {
+                                        strings.signInSupporting
+                                    } else {
+                                        strings.initializeAccountSupporting
+                                    },
+                                    showDivider = true,
+                                )
+                                authentication.failure?.let { failure ->
+                                    SillageInlineError(
+                                        message = strings.authenticationFailure(failure),
+                                        icon = Icons.Outlined.ErrorOutline,
+                                        modifier = Modifier.padding(
+                                            horizontal = 14.dp,
+                                            vertical = 4.dp,
+                                        ),
+                                    )
+                                }
+                                val passwordStrings = SillagePasswordFieldStrings(
+                                    label = strings.password,
+                                    showPassword = strings.showPassword,
+                                    hidePassword = strings.hidePassword,
+                                )
+                                if (bootstrap.initialized) {
+                                    SillageLoginForm(
+                                        state = authentication.form,
+                                        loading = authentication.loading,
+                                        strings = SillageLoginFormStrings(
+                                            usernameLabel = strings.username,
+                                            password = passwordStrings,
+                                            submit = strings.signIn,
+                                            submitting = strings.signingIn,
+                                        ),
+                                        showPasswordIcon = Icons.Outlined.Visibility,
+                                        hidePasswordIcon = Icons.Outlined.VisibilityOff,
+                                        onUsernameChange = onAuthenticationUsernameChange,
+                                        onPasswordChange = onAuthenticationPasswordChange,
+                                        onSubmit = onAuthenticate,
+                                        modifier = Modifier.padding(
+                                            horizontal = 14.dp,
+                                            vertical = 12.dp,
+                                        ),
+                                    )
+                                } else {
+                                    SillageInitializeForm(
+                                        state = authentication.form,
+                                        loading = authentication.loading,
+                                        strings = SillageInitializeFormStrings(
+                                            usernameLabel = strings.username,
+                                            displayNameLabel = strings.displayName,
+                                            password = passwordStrings,
+                                            submit = strings.initializeAccount,
+                                            submitting = strings.initializingAccount,
+                                        ),
+                                        showPasswordIcon = Icons.Outlined.Visibility,
+                                        hidePasswordIcon = Icons.Outlined.VisibilityOff,
+                                        onUsernameChange = onAuthenticationUsernameChange,
+                                        onDisplayNameChange = onAuthenticationDisplayNameChange,
+                                        onPasswordChange = onAuthenticationPasswordChange,
+                                        onSubmit = onAuthenticate,
+                                        modifier = Modifier.padding(
+                                            horizontal = 14.dp,
+                                            vertical = 12.dp,
+                                        ),
+                                    )
+                                }
+                            } else {
+                                SillageSettingsInfoRow(
+                                    label = strings.authenticatedAccount,
+                                    value = account.displayName
+                                        .takeIf(String::isNotBlank)
+                                        ?.let { "$it (@${account.username})" }
+                                        ?: account.username,
+                                    modifier = Modifier.semantics {
+                                        liveRegion = LiveRegionMode.Polite
+                                    },
+                                    showDivider = true,
+                                )
+                                SillageSettingsInfoRow(
+                                    label = strings.sessionPersistence,
+                                    value = strings.sessionMemoryOnly,
+                                    showDivider = true,
+                                )
+                                SillageSettingsActionRow(
+                                    icon = Icons.Outlined.Logout,
+                                    title = if (
+                                        authentication.operation ==
+                                        InstanceAuthenticationOperation.SignOut
+                                    ) {
+                                        strings.signingOut
+                                    } else {
+                                        strings.signOut
+                                    },
+                                    supporting = strings.sessionMemoryOnly,
+                                    onClick = onSignOut,
+                                    enabled = !authentication.loading,
+                                    showDivider = true,
+                                )
+                            }
+                        }
                     SillageSettingsInfoRow(
                         label = strings.mode,
                         value = strings.offlineModeValue,
@@ -252,4 +372,18 @@ internal fun SillageNativeSettings(
             }
         }
     }
+}
+
+private fun SillageNativeStrings.authenticationFailure(
+    failure: InstanceAuthenticationFailure,
+): String = when (failure) {
+    InstanceAuthenticationFailure.RequiredFields -> authRequiredFields
+    InstanceAuthenticationFailure.InvalidRequest -> authInvalidRequest
+    InstanceAuthenticationFailure.InvalidCredentials -> authInvalidCredentials
+    InstanceAuthenticationFailure.AlreadyInitialized -> authAlreadyInitialized
+    InstanceAuthenticationFailure.RateLimited -> authRateLimited
+    InstanceAuthenticationFailure.SessionExpired -> authSessionExpired
+    InstanceAuthenticationFailure.ServerRejected -> authServerRejected
+    InstanceAuthenticationFailure.InvalidResponse -> authInvalidResponse
+    InstanceAuthenticationFailure.Connection -> authConnectionFailed
 }

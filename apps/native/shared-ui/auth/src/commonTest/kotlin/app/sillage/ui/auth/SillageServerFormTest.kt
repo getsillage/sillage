@@ -52,4 +52,17 @@ class SillageServerFormTest {
         assertTrue(presentation.controlsEnabled)
         assertFalse(presentation.submitEnabled)
     }
+
+    @Test
+    fun externalSessionLockDisablesAddressAndSubmit() {
+        val presentation = sillageServerFormPresentation(
+            baseUrl = "https://example.test",
+            loading = false,
+            enabled = false,
+            strings = strings,
+        )
+
+        assertFalse(presentation.controlsEnabled)
+        assertFalse(presentation.submitEnabled)
+    }
 }

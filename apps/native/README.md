@@ -3,7 +3,8 @@
 This directory is the Kotlin Multiplatform workspace for native Sillage clients.
 Android is the server-connected native application. Windows, macOS, and iOS
 share a functional device-local records workspace plus public Sillage server
-bootstrap diagnostics while authenticated online integration continues.
+bootstrap, initialization, sign-in, refresh, and sign-out foundations while
+remote records integration continues.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under
@@ -55,7 +56,10 @@ result, and failure presentation. A successful check remembers only the
 normalized server address in the private client snapshot. Portable JSON
 backups deliberately do not export it.
 
-The check sends no records, credentials, cookies, or authorization headers.
-Use operator-managed HTTPS except explicit loopback or trusted-LAN engineering
-development. Authentication, secure session storage, and synchronization are
-separate follow-up slices.
+The public check sends no records, credentials, cookies, or authorization
+headers. After a successful check, the same Settings surface can initialize or
+sign in to the instance. Access tokens and refresh cookies stay only in memory,
+automatic platform cookie storage is disabled, and closing the application
+requires signing in again. Use operator-managed HTTPS except for explicit
+loopback or trusted-LAN engineering development. OS-backed session persistence
+and synchronized records remain follow-up slices.

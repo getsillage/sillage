@@ -3,6 +3,7 @@ package app.sillage.ios
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import app.sillage.core.localdata.LocalClientRepository
+import app.sillage.core.network.RemoteInstanceAuthenticationRepositoryFactory
 import app.sillage.core.network.RemoteInstanceBootstrapRepository
 import app.sillage.ui.application.SillageNativeApp
 import app.sillage.ui.application.SillageNativeController
@@ -22,16 +23,25 @@ fun MainViewController(): UIViewController {
                 runtimeValues = IosRuntimeValues(),
             )
         }
-        val bootstrapRepository = remember {
-            RemoteInstanceBootstrapRepository(IosSillageHttpTransport())
+        val httpTransport = remember { IosSillageHttpTransport() }
+        val bootstrapRepository = remember(httpTransport) {
+            RemoteInstanceBootstrapRepository(httpTransport)
         }
-        val controller = remember(repository, bootstrapRepository) {
+        val authenticationRepositoryFactory = remember(httpTransport) {
+            RemoteInstanceAuthenticationRepositoryFactory(httpTransport)
+        }
+        val controller = remember(
+            repository,
+            bootstrapRepository,
+            authenticationRepositoryFactory,
+        ) {
             SillageNativeController(
                 recordsRepository = repository,
                 recordWriteRepository = repository,
                 recordLifecycleRepository = repository,
                 preferencesRepository = repository,
                 bootstrapRepository = bootstrapRepository,
+                authenticationRepositoryFactory = authenticationRepositoryFactory,
                 todayProvider = ::currentLocalDate,
             )
         }

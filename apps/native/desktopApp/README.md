@@ -4,8 +4,8 @@ The Compose Desktop host runs on Windows and macOS. It supplies atomic
 filesystem storage, a data-directory instance lock, platform time and record
 identifiers, data-folder integration, native JSON backup export and validated
 restore, window lifecycle, native menus and shortcuts, guarded window exit,
-public server bootstrap HTTP transport, and native installer configuration to
-the shared native application.
+public bootstrap and authentication HTTP transport, and native installer
+configuration to the shared native application.
 
 Native distributions use the committed branded `Sillage.icns` on macOS and
 `Sillage.ico` on Windows. The UI reports product version `0.3.1`, matching the
@@ -55,7 +55,10 @@ release assets.
 
 The current product slice is a functional device-local records workspace. Its
 Settings screen can validate and remember a Sillage server through the public
-bootstrap endpoint without sending records or credentials. It does not yet
-authenticate, synchronize, store credentials, open attachments, or run Ask.
+bootstrap endpoint, then initialize the single account or sign in and sign out.
+The JDK transport performs cancellable JSON requests and preserves only the
+explicit refresh cookie needed by the shared repository. Session material is
+memory-only and is discarded when Sillage closes; Credential Manager/Keychain
+persistence, synchronized records, attachments, and Ask remain follow-up work.
 Those integrations must reuse KMP application ports instead of introducing
 desktop-only business behavior.

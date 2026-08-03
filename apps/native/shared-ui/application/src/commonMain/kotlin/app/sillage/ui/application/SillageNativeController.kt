@@ -3,7 +3,16 @@ package app.sillage.ui.application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import app.sillage.core.application.auth.AuthenticationFailureException
+import app.sillage.core.application.auth.AuthenticationFailureReason
+import app.sillage.core.application.auth.InitializeAccountCommand
+import app.sillage.core.application.auth.InstanceAuthenticationRepository
+import app.sillage.core.application.auth.InstanceAuthenticationRepositoryFactory
 import app.sillage.core.application.auth.InstanceBootstrapRepository
+import app.sillage.core.application.auth.SignInCommand
+import app.sillage.core.application.auth.SignOutMode
+import app.sillage.core.application.auth.SignOutResult
+import app.sillage.core.application.auth.SignOutUseCase
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
@@ -18,6 +27,10 @@ import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.domain.records.Memo
+import app.sillage.features.auth.InstanceAuthenticationContext
+import app.sillage.features.auth.InstanceAuthenticationFailure
+import app.sillage.features.auth.InstanceAuthenticationOperation
+import app.sillage.features.auth.InstanceAuthenticationStateHolder
 import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.auth.InstanceBootstrapStateHolder
 import app.sillage.features.records.MemoListFilter
@@ -39,6 +52,10 @@ enum class SillageNativeFeedback {
     RecordPurged,
     BackupExported,
     BackupRestored,
+    AccountInitialized,
+    SignedIn,
+    SignedOut,
+    SignedOutLocally,
     DataTransferFailed,
     StorageUnavailable,
 }
@@ -57,6 +74,7 @@ data class SillageNativeState(
     val appearance: AppAppearanceStateHolder,
     val workspace: AppWorkspaceStateHolder,
     val serverConnection: InstanceBootstrapStateHolder,
+    val authentication: InstanceAuthenticationStateHolder,
     val busy: Boolean = false,
     val storageAvailable: Boolean = true,
     val feedback: SillageNativeFeedback? = null,
@@ -69,12 +87,14 @@ class SillageNativeController(
     recordLifecycleRepository: RecordLifecycleRepository,
     private val preferencesRepository: ClientPreferencesRepository,
     private val bootstrapRepository: InstanceBootstrapRepository,
+    private val authenticationRepositoryFactory: InstanceAuthenticationRepositoryFactory,
     private val todayProvider: () -> String,
 ) {
     private val saveRecord = SaveRecordUseCase(recordWriteRepository)
     private val mutateRecordLifecycle = MutateRecordLifecycleUseCase(recordLifecycleRepository)
     private var allRecords: List<Memo> = emptyList()
     private var preferences = ClientPreferences()
+    private var activeAuthenticationRepository: InstanceAuthenticationRepository? = null
 
     var state by mutableStateOf(initialState(todayProvider()))
         private set
@@ -299,7 +319,13 @@ class SillageNativeController(
     }
 
     fun updateServerBaseUrl(value: String) {
-        state = state.copy(serverConnection = state.serverConnection.updateBaseUrl(value))
+        if (state.authentication.account != null || state.authentication.loading) return
+        activeAuthenticationRepository?.captureSession()?.clearLocalSession()
+        activeAuthenticationRepository = null
+        state = state.copy(
+            serverConnection = state.serverConnection.updateBaseUrl(value),
+            authentication = state.authentication.resetForServerChange(),
+        )
     }
 
     suspend fun checkServerConnection() {
@@ -336,6 +362,151 @@ class SillageNativeController(
         } catch (_: Exception) {
             markStorageUnavailable()
         }
+    }
+
+    fun updateAuthenticationUsername(value: String) {
+        state = state.copy(authentication = state.authentication.updateUsername(value))
+    }
+
+    fun updateAuthenticationDisplayName(value: String) {
+        state = state.copy(authentication = state.authentication.updateDisplayName(value))
+    }
+
+    fun updateAuthenticationPassword(value: String) {
+        state = state.copy(authentication = state.authentication.updatePassword(value))
+    }
+
+    suspend fun authenticate() {
+        val context = authenticationContext() ?: return
+        val request = state.authentication.nextAuthenticationRequest(context)
+        if (request == null) {
+            state = state.copy(
+                authentication = state.authentication.showValidationFailure(context),
+            )
+            return
+        }
+        val started = state.authentication.begin(request, context) ?: return
+        state = state.copy(authentication = started)
+        val repository = authenticationRepositoryFactory.create(request.baseUrl)
+        val session = try {
+            when (request.operation) {
+                InstanceAuthenticationOperation.Initialize -> repository.initialize(
+                    InitializeAccountCommand(
+                        username = request.username,
+                        displayName = request.displayName,
+                        password = request.password,
+                    ),
+                )
+                InstanceAuthenticationOperation.SignIn -> repository.signIn(
+                    SignInCommand(
+                        username = request.username,
+                        password = request.password,
+                    ),
+                )
+                InstanceAuthenticationOperation.SignOut -> return
+            }
+        } catch (error: CancellationException) {
+            repository.captureSession().clearLocalSession()
+            state.authentication.cancel(request, authenticationContextOr(context))?.let { cancelled ->
+                state = state.copy(authentication = cancelled)
+            }
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            val currentContext = authenticationContextOr(context)
+            val failed = state.authentication.fail(
+                request = request,
+                context = currentContext,
+                failure = error.reason.toNativeFailure(),
+            )
+            if (failed != null) {
+                state = state.copy(
+                    authentication = failed,
+                    serverConnection = if (
+                        request.operation == InstanceAuthenticationOperation.Initialize &&
+                        error.reason == AuthenticationFailureReason.AlreadyInitialized
+                    ) {
+                        state.serverConnection.copy(
+                            bootstrap = state.serverConnection.bootstrap?.copy(initialized = true),
+                        )
+                    } else {
+                        state.serverConnection
+                    },
+                )
+            }
+            return
+        } catch (_: Exception) {
+            state.authentication.fail(
+                request,
+                authenticationContextOr(context),
+                InstanceAuthenticationFailure.Connection,
+            )?.let { failed ->
+                state = state.copy(authentication = failed)
+            }
+            return
+        }
+
+        val completed = state.authentication.completeAuthentication(
+            request = request,
+            context = authenticationContextOr(context),
+            account = session.account,
+        )
+        if (completed == null) {
+            repository.captureSession().clearLocalSession()
+            return
+        }
+        activeAuthenticationRepository = repository
+        state = state.copy(
+            authentication = completed,
+            serverConnection = if (request.operation == InstanceAuthenticationOperation.Initialize) {
+                state.serverConnection.copy(
+                    bootstrap = state.serverConnection.bootstrap?.copy(initialized = true),
+                )
+            } else {
+                state.serverConnection
+            },
+            feedback = if (request.operation == InstanceAuthenticationOperation.Initialize) {
+                SillageNativeFeedback.AccountInitialized
+            } else {
+                SillageNativeFeedback.SignedIn
+            },
+        )
+    }
+
+    suspend fun signOut() {
+        val context = authenticationContext() ?: return
+        val repository = activeAuthenticationRepository ?: return
+        val request = state.authentication.nextSignOutRequest(context) ?: return
+        val started = state.authentication.begin(request, context) ?: return
+        state = state.copy(authentication = started)
+        val result = try {
+            SignOutUseCase(repository).prepare(SignOutMode.Online)()
+        } catch (error: CancellationException) {
+            state.authentication.completeSignOut(
+                request,
+                authenticationContextOr(context),
+            )?.let { completed ->
+                state = state.copy(authentication = completed)
+                activeAuthenticationRepository = null
+            }
+            throw error
+        } ?: return
+
+        val completed = state.authentication.completeSignOut(
+            request,
+            authenticationContextOr(context),
+        ) ?: return
+        activeAuthenticationRepository = null
+        state = state.copy(
+            authentication = completed,
+            feedback = when (result) {
+                SignOutResult.SignedOut,
+                SignOutResult.OfflineSessionCleared,
+                -> SillageNativeFeedback.SignedOut
+                SignOutResult.RemoteFailedLocalSessionCleared -> {
+                    SillageNativeFeedback.SignedOutLocally
+                }
+            },
+        )
     }
 
     fun dismissFeedback() {
@@ -446,6 +617,8 @@ class SillageNativeController(
     }
 
     private fun hydrate() {
+        activeAuthenticationRepository?.captureSession()?.clearLocalSession()
+        activeAuthenticationRepository = null
         try {
             preferences = preferencesRepository.loadPreferences()
             allRecords = recordsRepository.listRecords()
@@ -461,6 +634,7 @@ class SillageNativeController(
                 serverConnection = InstanceBootstrapStateHolder(
                     baseUrl = preferences.serverBaseUrl,
                 ),
+                authentication = InstanceAuthenticationStateHolder(),
             )
         } catch (_: Exception) {
             markStorageUnavailable()
@@ -486,6 +660,22 @@ class SillageNativeController(
             clientContextGeneration = state.clientContext.generation,
         )
     }
+
+    private fun authenticationContext(): InstanceAuthenticationContext? {
+        val baseUrl = state.serverConnection.checkedBaseUrl ?: return null
+        val bootstrap = state.serverConnection.bootstrap ?: return null
+        return InstanceAuthenticationContext(
+            baseUrl = baseUrl,
+            initialized = bootstrap.initialized,
+            clientContextGeneration = state.clientContext.generation,
+        )
+    }
+
+    private fun authenticationContextOr(
+        fallback: InstanceAuthenticationContext,
+    ): InstanceAuthenticationContext {
+        return authenticationContext() ?: fallback
+    }
 }
 
 private fun initialState(today: String): SillageNativeState {
@@ -506,7 +696,24 @@ private fun initialState(today: String): SillageNativeState {
         appearance = AppAppearanceStateHolder(),
         workspace = AppWorkspaceStateHolder(records = records),
         serverConnection = InstanceBootstrapStateHolder(),
+        authentication = InstanceAuthenticationStateHolder(),
     )
+}
+
+private fun AuthenticationFailureReason.toNativeFailure(): InstanceAuthenticationFailure {
+    return when (this) {
+        AuthenticationFailureReason.InvalidRequest -> InstanceAuthenticationFailure.InvalidRequest
+        AuthenticationFailureReason.InvalidCredentials -> {
+            InstanceAuthenticationFailure.InvalidCredentials
+        }
+        AuthenticationFailureReason.AlreadyInitialized -> {
+            InstanceAuthenticationFailure.AlreadyInitialized
+        }
+        AuthenticationFailureReason.RateLimited -> InstanceAuthenticationFailure.RateLimited
+        AuthenticationFailureReason.SessionExpired -> InstanceAuthenticationFailure.SessionExpired
+        AuthenticationFailureReason.ServerRejected -> InstanceAuthenticationFailure.ServerRejected
+        AuthenticationFailureReason.InvalidResponse -> InstanceAuthenticationFailure.InvalidResponse
+    }
 }
 
 private fun RecordsFeatureStateHolder.searchContext(generation: Long) = RecordsSearchContext(

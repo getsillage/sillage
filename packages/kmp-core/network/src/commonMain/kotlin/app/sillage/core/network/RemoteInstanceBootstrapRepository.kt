@@ -37,8 +37,17 @@ class RemoteInstanceBootstrapRepository(
     }
 
     override suspend fun load(baseUrl: String): BootstrapInfo {
-        val normalized = validatedBaseUrl(baseUrl)
-        val response = transport.get("$normalized/api/v1/auth/bootstrap")
+        val normalized = normalizeAndValidateServerBaseUrl(baseUrl)
+        val response = transport.execute(
+            SillageHttpRequest(
+                method = SillageHttpMethod.Get,
+                url = "$normalized/api/v1/auth/bootstrap",
+                headers = mapOf(
+                    "Accept" to "application/json",
+                    "Cache-Control" to "no-cache",
+                ),
+            ),
+        )
         if (response.statusCode !in 200..299) {
             throw SillageHttpStatusException(response.statusCode)
         }
@@ -79,7 +88,7 @@ class RemoteInstanceBootstrapRepository(
     }
 }
 
-private fun validatedBaseUrl(value: String): String {
+internal fun normalizeAndValidateServerBaseUrl(value: String): String {
     val normalized = normalizeBaseUrl(value)
     val authority = when {
         normalized.startsWith("https://") -> normalized.removePrefix("https://")

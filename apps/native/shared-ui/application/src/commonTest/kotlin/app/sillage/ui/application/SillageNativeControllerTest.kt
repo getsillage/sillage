@@ -1,7 +1,16 @@
 package app.sillage.ui.application
 
 import app.sillage.core.application.auth.BootstrapInfo
+import app.sillage.core.application.auth.AuthSession
+import app.sillage.core.application.auth.AuthenticationFailureException
+import app.sillage.core.application.auth.AuthenticationFailureReason
+import app.sillage.core.application.auth.CapturedSignOutSession
+import app.sillage.core.application.auth.ChangePasswordCommand
+import app.sillage.core.application.auth.InitializeAccountCommand
+import app.sillage.core.application.auth.InstanceAuthenticationRepository
+import app.sillage.core.application.auth.InstanceAuthenticationRepositoryFactory
 import app.sillage.core.application.auth.InstanceBootstrapRepository
+import app.sillage.core.application.auth.SignInCommand
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
@@ -12,13 +21,16 @@ import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
 import app.sillage.core.domain.records.Memo
+import app.sillage.core.domain.auth.Account
 import app.sillage.features.auth.InstanceBootstrapContext
+import app.sillage.features.auth.InstanceAuthenticationFailure
 import app.sillage.features.records.MemoListFilter
 import app.sillage.ui.appshell.AppDestination
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -91,6 +103,88 @@ class SillageNativeControllerTest {
                 InstanceBootstrapContext(controller.state.clientContext.generation),
             ) != null,
         )
+    }
+
+    @Test
+    fun initializesAccountAgainstCheckedServerAndKeepsSessionOnlyInController() = runTest {
+        val local = FakeRecordsRepository()
+        val remote = FakeAuthenticationRepository()
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = FakeBootstrapRepository(
+                result = BootstrapInfo(false, "0.3.1", "abc", "v1", 1),
+            ),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        controller.updateServerBaseUrl("example.test")
+        controller.checkServerConnection()
+        controller.updateAuthenticationUsername("felix")
+        controller.updateAuthenticationDisplayName("Felix")
+        controller.updateAuthenticationPassword("correct horse battery staple")
+
+        controller.authenticate()
+
+        assertEquals("https://example.test", remote.baseUrl)
+        assertEquals("account-1", controller.state.authentication.account?.id)
+        assertEquals("", controller.state.authentication.form.password)
+        assertEquals(true, controller.state.serverConnection.bootstrap?.initialized)
+        assertEquals(SillageNativeFeedback.AccountInitialized, controller.state.feedback)
+        assertEquals("https://example.test", local.preferences.serverBaseUrl)
+    }
+
+    @Test
+    fun authenticationFailureKeepsCredentialsAndMapsStableReason() = runTest {
+        val remote = FakeAuthenticationRepository().apply {
+            authenticationError = AuthenticationFailureException(
+                AuthenticationFailureReason.InvalidCredentials,
+            )
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = FakeBootstrapRepository(
+                result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+            ),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        controller.updateServerBaseUrl("https://example.test")
+        controller.checkServerConnection()
+        controller.updateAuthenticationUsername("felix")
+        controller.updateAuthenticationPassword("wrong password")
+
+        controller.authenticate()
+
+        assertEquals(
+            InstanceAuthenticationFailure.InvalidCredentials,
+            controller.state.authentication.failure,
+        )
+        assertEquals("felix", controller.state.authentication.form.username)
+        assertEquals("wrong password", controller.state.authentication.form.password)
+        assertFalse(controller.state.authentication.loading)
+        assertNull(controller.state.authentication.account)
+    }
+
+    @Test
+    fun failedRemoteSignOutStillClearsMemorySession() = runTest {
+        val remote = FakeAuthenticationRepository()
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = FakeBootstrapRepository(
+                result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
+            ),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(remote),
+        )
+        controller.updateServerBaseUrl("https://example.test")
+        controller.checkServerConnection()
+        controller.updateAuthenticationUsername("felix")
+        controller.updateAuthenticationPassword("password")
+        controller.authenticate()
+        remote.signOutError = IllegalStateException("server unavailable")
+
+        controller.signOut()
+
+        assertTrue(remote.localSessionCleared)
+        assertNull(controller.state.authentication.account)
+        assertEquals(SillageNativeFeedback.SignedOutLocally, controller.state.feedback)
     }
 
     @Test
@@ -278,12 +372,15 @@ class SillageNativeControllerTest {
 private fun controller(
     repository: FakeRecordsRepository,
     bootstrapRepository: InstanceBootstrapRepository = FakeBootstrapRepository(),
+    authenticationRepositoryFactory: InstanceAuthenticationRepositoryFactory =
+        FakeAuthenticationRepositoryFactory(),
 ) = SillageNativeController(
     recordsRepository = repository,
     recordWriteRepository = repository,
     recordLifecycleRepository = repository,
     preferencesRepository = repository,
     bootstrapRepository = bootstrapRepository,
+    authenticationRepositoryFactory = authenticationRepositoryFactory,
     todayProvider = { "2026-08-03" },
 )
 
@@ -303,6 +400,59 @@ private class FakeBootstrapRepository(
         requestedBaseUrl = baseUrl
         error?.let { throw it }
         return result
+    }
+}
+
+private class FakeAuthenticationRepositoryFactory(
+    private val repository: FakeAuthenticationRepository = FakeAuthenticationRepository(),
+) : InstanceAuthenticationRepositoryFactory {
+    override fun create(baseUrl: String): InstanceAuthenticationRepository {
+        repository.baseUrl = baseUrl
+        return repository
+    }
+}
+
+private class FakeAuthenticationRepository(
+    private val session: AuthSession = AuthSession(
+        account = Account("account-1", "felix", "Felix"),
+        accessToken = "access-token",
+        expiresAt = "2026-08-03T12:00:00Z",
+    ),
+) : InstanceAuthenticationRepository {
+    var baseUrl: String = ""
+    var signedOut: Boolean = false
+    var localSessionCleared: Boolean = false
+    var authenticationError: Throwable? = null
+    var signOutError: Throwable? = null
+
+    override suspend fun initialize(command: InitializeAccountCommand): AuthSession {
+        authenticationError?.let { throw it }
+        return session
+    }
+
+    override suspend fun signIn(command: SignInCommand): AuthSession {
+        authenticationError?.let { throw it }
+        return session
+    }
+
+    override suspend fun currentAccount(): Account = session.account
+
+    override suspend fun changePassword(command: ChangePasswordCommand): AuthSession = session
+
+    override fun captureSession(): CapturedSignOutSession {
+        return object : CapturedSignOutSession {
+            override suspend fun signOutRemote() {
+                signOutError?.let { throw it }
+                signedOut = true
+                localSessionCleared = true
+            }
+
+            override fun clearLocalSession(): Boolean {
+                signedOut = true
+                localSessionCleared = true
+                return true
+            }
+        }
     }
 }
 

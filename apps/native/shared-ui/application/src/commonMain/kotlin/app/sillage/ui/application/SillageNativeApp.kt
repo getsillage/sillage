@@ -163,6 +163,11 @@ private fun SillageNativeContent(
             onLanguageChange = controller::setLanguage,
             onServerBaseUrlChange = controller::updateServerBaseUrl,
             onCheckServer = { scope.launch { controller.checkServerConnection() } },
+            onAuthenticationUsernameChange = controller::updateAuthenticationUsername,
+            onAuthenticationDisplayNameChange = controller::updateAuthenticationDisplayName,
+            onAuthenticationPasswordChange = controller::updateAuthenticationPassword,
+            onAuthenticate = { scope.launch { controller.authenticate() } },
+            onSignOut = { scope.launch { controller.signOut() } },
             onExportBackup = platform.exportBackup?.let { operation ->
                 { scope.launch { controller.exportBackup(operation) } }
             },
@@ -287,6 +292,10 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.RecordPurged -> purged
     SillageNativeFeedback.BackupExported -> backupExported
     SillageNativeFeedback.BackupRestored -> backupRestored
+    SillageNativeFeedback.AccountInitialized -> accountInitialized
+    SillageNativeFeedback.SignedIn -> signedIn
+    SillageNativeFeedback.SignedOut -> signedOut
+    SillageNativeFeedback.SignedOutLocally -> signedOutLocally
     SillageNativeFeedback.DataTransferFailed -> dataTransferFailed
     SillageNativeFeedback.StorageUnavailable -> storageUnavailable
 }

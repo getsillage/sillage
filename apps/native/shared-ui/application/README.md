@@ -24,9 +24,12 @@ the native document picker and file I/O adapters.
 
 Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and
-bilingual errors. Hosts provide HTTP transport only. Successful checks persist
-the normalized address without changing the device-local records mode.
+bilingual errors. After a successful check it also owns initialization/sign-in
+form state, stable authentication error copy, in-memory account presentation,
+and sign-out orchestration. Hosts provide HTTP transport and repository
+composition only. Successful checks persist the normalized address without
+changing the device-local records mode.
 
-Online authentication, remote synchronization, Ask, attachments, and secure
-credential adapters remain follow-up integration slices. The current host is a
-functional device-local records workspace rather than a simulated server.
+Remote record synchronization, Ask, attachments, and OS-backed credential
+adapters remain follow-up integration slices. The current host is a functional
+device-local records workspace rather than a simulated server.

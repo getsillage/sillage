@@ -2,6 +2,8 @@ package app.sillage.desktop
 
 import app.sillage.core.network.SillageHttpResponse
 import app.sillage.core.network.SillageHttpTransport
+import app.sillage.core.network.SillageHttpMethod
+import app.sillage.core.network.SillageHttpRequest
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -15,18 +17,23 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 internal class DesktopSillageHttpTransport(
     private val client: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
-        .followRedirects(HttpClient.Redirect.NORMAL)
+        .followRedirects(HttpClient.Redirect.NEVER)
         .build(),
 ) : SillageHttpTransport {
-    override suspend fun get(url: String): SillageHttpResponse {
-        val request = HttpRequest.newBuilder(URI.create(url))
+    override suspend fun execute(request: SillageHttpRequest): SillageHttpResponse {
+        val builder = HttpRequest.newBuilder(URI.create(request.url))
             .timeout(Duration.ofSeconds(30))
-            .header("Accept", "application/json")
             .header("User-Agent", "Sillage-Desktop/$DesktopVersion")
-            .GET()
-            .build()
+        request.headers.forEach { (name, value) -> builder.header(name, value) }
+        val nativeRequest = when (request.method) {
+            SillageHttpMethod.Get -> builder.GET()
+            SillageHttpMethod.Post -> builder.POST(
+                request.body?.let(HttpRequest.BodyPublishers::ofString)
+                    ?: HttpRequest.BodyPublishers.noBody(),
+            )
+        }.build()
         val future = client.sendAsync(
-            request,
+            nativeRequest,
             HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8),
         )
         return suspendCancellableCoroutine { continuation ->
@@ -39,6 +46,7 @@ internal class DesktopSillageHttpTransport(
                     continuation.resume(
                         SillageHttpResponse(
                             statusCode = response.statusCode(),
+                            headers = response.headers().map(),
                             body = response.body(),
                         ),
                     )

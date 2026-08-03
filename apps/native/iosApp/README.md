@@ -4,9 +4,10 @@ The iOS host embeds the static `SillageShared` Kotlin Multiplatform framework
 in a small SwiftUI application. The framework exposes the shared Compose
 device-local records workspace and supplies Apple adapters for an atomic
 Application Support snapshot file, one-time `NSUserDefaults` migration,
-Foundation timestamps and UUIDs, public server bootstrap requests through
-`NSURLSession`, plus system JSON document pickers for portable backup export
-and restore.
+Foundation timestamps and UUIDs, public bootstrap and authentication requests
+through `NSURLSession`, plus system JSON document pickers for portable backup
+export and restore. Requests disable automatic cookie handling so refresh
+cookies remain inside the shared memory-session boundary.
 
 The Xcode target compiles the branded `Assets.xcassets/AppIcon.appiconset` and
 reports its `MARKETING_VERSION` through the shared Settings surface. The icon
@@ -28,9 +29,10 @@ Open `Sillage.xcodeproj` for interactive development. Its shared `Sillage`
 scheme invokes `:iosApp:prepareAppleFrameworkForXcode`, which selects and copies
 the static framework matching Xcode's Apple architecture and build type.
 
-This first slice remains device-local for records. Settings can validate and
-remember a Sillage HTTPS server through its public bootstrap endpoint without
-sending records or credentials. Server authentication, synchronization, Ask,
-attachments, Keychain credentials, accessibility/device journeys, signing,
-and App Store packaging remain outside the implemented host. The locally built
-app is an engineering artifact, not an official release asset.
+Records remain device-local in this slice. Settings can validate and remember a
+Sillage HTTPS server, initialize its single account, sign in, refresh an expired
+access token, and sign out. Session material is memory-only and closing the app
+requires signing in again. Synchronization, Ask, attachments, Keychain session
+persistence, accessibility/device journeys, signing, and App Store packaging
+remain outside the implemented host. The locally built app is an engineering
+artifact, not an official release asset.

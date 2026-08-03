@@ -29,6 +29,10 @@ class RemoteInstanceBootstrapRepositoryTest {
         val bootstrap = RemoteInstanceBootstrapRepository(transport).load("sillage.example/")
 
         assertEquals("https://sillage.example/api/v1/auth/bootstrap", transport.requestedUrl)
+        assertEquals(SillageHttpMethod.Get, transport.requestedRequest?.method)
+        assertEquals("application/json", transport.requestedRequest?.headers?.get("Accept"))
+        assertFalse(transport.requestedRequest?.headers.orEmpty().containsKey("Authorization"))
+        assertFalse(transport.requestedRequest?.headers.orEmpty().containsKey("Cookie"))
         assertTrue(bootstrap.initialized)
         assertEquals("0.3.1", bootstrap.serverVersion)
         assertEquals("abc123", bootstrap.serverRevision)
@@ -106,10 +110,12 @@ class RemoteInstanceBootstrapRepositoryTest {
     private class CapturingTransport(
         private val response: SillageHttpResponse,
     ) : SillageHttpTransport {
-        var requestedUrl: String? = null
+        var requestedRequest: SillageHttpRequest? = null
+        val requestedUrl: String?
+            get() = requestedRequest?.url
 
-        override suspend fun get(url: String): SillageHttpResponse {
-            requestedUrl = url
+        override suspend fun execute(request: SillageHttpRequest): SillageHttpResponse {
+            requestedRequest = request
             return response
         }
     }

@@ -23,13 +23,24 @@ It owns the Android, desktop JVM, and Apple target matrix, SDK levels, JVM
 target, namespace derivation, and common-test dependency. Module build files
 declare only module-specific dependencies and plugins.
 
-The root `checkShared` task runs every shared module's desktop host tests and
-checks dependency direction. `checkDesktop` adds Compose Desktop host tests
-and production compilation. `checkDesktopPackage` builds and verifies a DMG
-or MSI on its matching host OS. `checkIos` links static device and simulator
-frameworks; the repository `make check-ios` target additionally typechecks the
-Swift bridge and builds the unsigned Xcode simulator host.
+The root `checkShared` task runs every shared module's desktop host tests,
+checks dependency direction, and validates native application identity assets
+and visible product-version consistency. `checkDesktop` adds Compose Desktop
+host tests and production compilation. `checkDesktopPackage` builds and
+verifies a DMG or MSI on its matching host OS. `checkIos` links static device
+and simulator frameworks; the repository `make check-ios` target additionally
+typechecks the Swift bridge and builds the unsigned Xcode simulator host.
 
 Core modules may depend only on other core modules; feature modules may depend
 only on core modules; shared UI may compose core, features, and other shared UI
 modules. Application hosts remain composition roots.
+
+## Application identity
+
+`branding/` contains deterministic iOS and desktop app-icon SVG compositions
+derived from the existing Sillage product mark. On macOS,
+`branding/generate-icons.sh` regenerates the committed iOS PNG catalog, macOS
+ICNS, and Windows ICO using `sips` and `iconutil`. Other hosts consume the
+committed outputs and do not need Apple tooling. `checkNativeIdentity` verifies
+catalog dimensions and alpha rules, ICNS/ICO container headers, host wiring,
+and that Android, iOS, and desktop show the same product version.

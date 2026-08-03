@@ -38,8 +38,10 @@ compose.desktop {
 
             macOS {
                 bundleID = "app.sillage.desktop"
+                iconFile.set(project.file("src/main/resources/Sillage.icns"))
             }
             windows {
+                iconFile.set(project.file("src/main/resources/Sillage.ico"))
                 menuGroup = "Sillage"
                 shortcut = true
                 upgradeUuid = "976ca25d-f1a3-4b9f-b20f-3ac8ee5a71b6"

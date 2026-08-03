@@ -6,9 +6,10 @@ import app.sillage.core.localdata.LocalClientRepository
 import app.sillage.ui.application.SillageNativeApp
 import app.sillage.ui.application.SillageNativeController
 import app.sillage.ui.application.SillageNativePlatform
+import platform.Foundation.NSBundle
 import platform.UIKit.UIViewController
 
-private const val IosVersion = "0.1.0"
+private const val FallbackIosVersion = "0.3.1"
 
 fun MainViewController(): UIViewController {
     val viewControllerReference = IosViewControllerReference()
@@ -39,7 +40,7 @@ fun MainViewController(): UIViewController {
             SillageNativePlatform(
                 name = "iOS",
                 dataLocation = storage.location,
-                version = IosVersion,
+                version = currentIosVersion(),
                 exportBackup = backupTransfer::exportBackup,
                 restoreBackup = backupTransfer::restoreBackup,
             )
@@ -52,4 +53,10 @@ fun MainViewController(): UIViewController {
     }
     viewControllerReference.attach(viewController)
     return viewController
+}
+
+private fun currentIosVersion(): String {
+    val version = NSBundle.mainBundle
+        .objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
+    return version?.takeIf { it.isNotBlank() } ?: FallbackIosVersion
 }

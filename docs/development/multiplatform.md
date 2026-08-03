@@ -628,12 +628,14 @@ attachment staging and present the resulting status.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
   host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
   migration, Foundation time/identity values, system JSON backup document
-  pickers, and Xcode integration. Keychain credentials, signing, and App Store
+  pickers, a branded AppIcon catalog, and Xcode integration. Keychain
+  credentials, signing, and App Store
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, data-directory instance lock, platform time and identity
   values, data-folder action, native backup save/open dialogs, native menu and
-  guarded close integration, and Windows/macOS packaging. Shared local-data code
+  guarded close integration, branded ICNS/ICO assets, and Windows/macOS
+  packaging. Shared local-data code
   owns the distinct portable backup envelope, validation, and replace-after-
   validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,

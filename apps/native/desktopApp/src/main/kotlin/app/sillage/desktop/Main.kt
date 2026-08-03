@@ -31,7 +31,7 @@ import java.time.LocalDate
 import java.util.Locale
 import javax.swing.JOptionPane
 
-private const val DesktopVersion = "0.1.0"
+private const val DesktopVersion = "0.3.1"
 
 fun main() {
     val snapshotPath = DesktopDataPaths.defaultSnapshotPath()

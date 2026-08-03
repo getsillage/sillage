@@ -6,6 +6,12 @@ identifiers, data-folder integration, native JSON backup export and validated
 restore, window lifecycle, native menus and shortcuts, guarded window exit, and
 native installer configuration to the shared native application.
 
+Native distributions use the committed branded `Sillage.icns` on macOS and
+`Sillage.ico` on Windows. The UI reports product version `0.3.1`, matching the
+Android and iOS clients. The engineering installer filename retains jpackage's
+independent `1.0.0` package version because that tool requires a positive major
+version; it is not a claim that the desktop client is a stable 1.0 release.
+
 Before opening the repository, the host locks `client-v1.json.lock`. A concurrent
 second instance shows a startup error and exits instead of becoming another
 writer. The empty marker file is intentionally retained; the operating-system

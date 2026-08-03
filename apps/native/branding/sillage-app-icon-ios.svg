@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="96" x2="928" y1="64" y2="960" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8F5ED"/>
+      <stop offset="1" stop-color="#E5EEE9"/>
+    </linearGradient>
+    <linearGradient id="trail" x1="130" x2="382" y1="92" y2="418" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.54" stop-color="#244E47"/>
+      <stop offset="1" stop-color="#7A6A44"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#background)"/>
+  <g transform="translate(51.2 51.2) scale(1.8)">
+    <path
+      d="M369 93C305 59 195 78 158 147C127 204 164 244 233 263C304 283 350 320 321 377C287 444 174 436 109 379"
+      fill="none"
+      stroke="url(#trail)"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="58"
+    />
+    <path
+      d="M338 184C297 166 240 170 214 201C194 225 215 250 263 263"
+      fill="none"
+      stroke="#5D766C"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-opacity="0.42"
+      stroke-width="21"
+    />
+    <path
+      d="M381 104L397 136L429 152L397 168L381 200L365 168L333 152L365 136L381 104Z"
+      fill="#F59E0B"
+    />
+  </g>
+</svg>

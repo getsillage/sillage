@@ -7,6 +7,12 @@ Application Support snapshot file, one-time `NSUserDefaults` migration,
 Foundation timestamps and UUIDs, plus system JSON document pickers for portable
 backup export and restore.
 
+The Xcode target compiles the branded `Assets.xcassets/AppIcon.appiconset` and
+reports its `MARKETING_VERSION` through the shared Settings surface. The icon
+catalog is generated from `../branding/sillage-app-icon-ios.svg`; its App Store
+image is an opaque 1024 px PNG and all phone/tablet renditions are committed for
+deterministic builds.
+
 On first launch after this storage upgrade, the host copies the legacy defaults
 value into `Library/Application Support/Sillage/client-v1.json` and clears the
 legacy key only after the atomic file write succeeds.

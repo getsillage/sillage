@@ -4,7 +4,7 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on device. Android is the implemented server-connected client; Windows, macOS, and iOS have a device-local records prototype. All native hosts share a Kotlin Multiplatform core.
+Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated manual two-way memo synchronization while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
@@ -142,11 +142,12 @@ Credential adapter through `CredReadW`, `CredWriteW`, `CredDeleteW`, and
 `CredFree`. Unsupported desktop hosts use the memory-only default. Access
 tokens never cross the memory boundary.
 The same `RemoteInstanceAuthenticationRepositoryFactory` creates
-`RemoteMemoSyncGateway`, so memo push uses that exact base-URL-scoped session,
-one-time 401 refresh, and credential rotation. The adapter owns canonical
-create/update/delete/restore/purge JSON mapping, 200-change batching, bounded
-response parsing, and ordered result validation; local outbox transactions
-remain outside the network module.
+`RemoteMemoSyncGateway`, so memo push and pull use that exact base-URL-scoped
+session, one-time 401 refresh, and credential rotation. The adapter owns
+canonical create/update/delete/restore/purge JSON mapping, 200-change push
+batching, complete memo-pull pagination with opaque cursor encoding, bounded
+response parsing, and ordered push-result validation; local snapshot
+transactions remain outside the network module.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
 durable-credential deletion, remote invalidation, and conditional local clearing
 to one captured session. Durable deletion happens before the remote request; if
@@ -577,49 +578,57 @@ through the aggregate without inventing an interactive filter change. Request
 identity and late-response checks stay on the individual holders. Android request
 helpers update that aggregate through `withRecords`.
 
-`packages/kmp-core/sync` owns shared pending mutation, durable mutation marker,
-applied result, version-conflict, push-summary, applied-merge, and explicit
-keep-local/take-server transition rules. `kmp-core:network` implements the shared
-memo-push REST/JSON gateway and wire batching. `kmp-core:local-data` implements
-the iOS/desktop `MemoSyncWorkspaceFactory`: private snapshot schema 2 stores a
-normalized server binding, cloud versions, and pending mutation markers, while
-record writes and outbox changes commit in one atomic snapshot replacement.
-Schema 1 remains readable. A workspace cannot reuse one server's queue against
-another address, and portable backup restore clears the server binding, cloud
-baselines, and outbox rather than exporting them. Android retains its existing
-transactional adapter and attachment staging as migration sources.
+`packages/kmp-core/sync` owns shared pending mutations, durable mutation markers,
+applied results, version conflicts, push summaries, applied-result merging,
+pulled-record merging, and explicit keep-local/take-server transition rules.
+`kmp-core:network` implements the shared memo push/pull REST/JSON gateway, push
+batching, and pull pagination. `kmp-core:local-data` implements the iOS/desktop
+`MemoSyncWorkspaceFactory`: private snapshot schema 2 stores a normalized server
+binding, cloud versions, and pending mutation markers. Record writes and outbox
+changes commit in one atomic snapshot replacement; pulled records and their cloud
+baselines use the same replacement. A pulled server value replaces only clean
+local state, so rejected or conflicting mutations keep both their device value
+and prior baseline until explicit convergence.
+
+Schema 1 remains readable. A workspace cannot reuse one server's synchronization
+state against another address, and portable backup restore clears the server
+binding, cloud baselines, and outbox rather than exporting them. Android retains
+its existing transactional adapter and attachment staging as migration sources.
 
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
-it skips empty pushes, sends one pending batch, and acknowledges only applied
-results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
+it skips empty pushes, sends pending batches, and acknowledges only applied
+results through the transactional outbox. `RunMemoTwoWaySyncUseCase` then pulls
+every memo page and atomically merges it, preserving push-before-pull ordering.
+`kmp-features:sync` owns pending conflict presentation through
 `SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
 stores one `sync` aggregate, and resolution callbacks look up the current item
-through `SyncFeatureStateHolder.findConflict`. Platform
-root-state writes for push results, conflict dismissal, and conflict-list
-replacement pass through `withSync` thin wrappers. Platform
-`shared-ui:sync` consumes the aggregate directly and owns first-conflict
-selection, preview fallback and limits, dialog layout, and resource-ID action
-routing.
+through `SyncFeatureStateHolder.findConflict`. Platform root-state writes for
+push results, conflict dismissal, and conflict-list replacement pass through
+`withSync` thin wrappers. `shared-ui:sync` consumes the aggregate directly and
+owns first-conflict selection, preview fallback and limits, dialog layout, and
+resource-ID action routing.
 
 The shared native application controller wires the same state to authenticated
-manual push on iOS and desktop, refreshes applied canonical records, and locks
-record writes while a push or conflict resolution is active. Platform hosts
-retain localized strings and repository composition without duplicating
-conflict policy.
+manual two-way synchronization on iOS and desktop, refreshes canonical server
+records, and locks record writes while sync or conflict resolution is active.
+Platform hosts retain localized strings and repository composition without
+duplicating conflict or merge policy.
 
-Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
-`SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata
-and client presentation preferences. `PullSyncUseCase` fetches one completed
-snapshot and hands it to an atomic merge adapter; an unavailable AI-settings
-section preserves existing local settings.
+Android full synchronization uses shared `SyncSnapshot`, `SyncSnapshotGateway`,
+and `SyncSnapshotRepository` contracts. The snapshot excludes backup format
+metadata and client presentation preferences. `PullSyncUseCase` fetches one
+completed snapshot and hands it to an atomic merge adapter; an unavailable
+AI-settings section preserves existing local settings. Shared iOS/desktop hosts
+use the memo-only pull on `RemoteMemoSyncGateway` until the remaining remote
+feature streams are integrated.
 
-Android `RemoteSyncSnapshotGateway` maps REST pagination into that snapshot and
-`LocalSyncSnapshotRepository` delegates one transactional merge. The Android
-`SillageExportData` v1 codec remains a separate backup/local-storage DTO; adapter
+Android `RemoteSyncSnapshotGateway` maps REST pagination into a snapshot and
+`LocalSyncSnapshotRepository` delegates one transactional merge. Android
+`SillageExportData` v1 remains a separate backup/local-storage DTO; adapter
 mapping preserves client theme/view preferences and device-held AI secrets.
 `RunSyncPushUseCase` executes the platform attachment-preparation port before
-reading the outbox. `RunTwoWaySyncUseCase` then owns the required push-before-pull
+reading the outbox. `RunTwoWaySyncUseCase` owns Android's push-before-pull
 sequence while the host presents localized results.
 
 ## Core Invariants

@@ -6,6 +6,7 @@ import app.sillage.core.application.records.InvalidRecordDraftException
 import app.sillage.core.application.records.MAX_RECORD_CONTENT_UTF8_BYTES
 import app.sillage.core.application.records.RecordDraft
 import app.sillage.core.application.records.RecordDraftValidationError
+import app.sillage.core.domain.records.Memo
 import app.sillage.core.sync.AppliedMemoSync
 import app.sillage.core.sync.ConflictMemoSync
 import app.sillage.core.sync.MEMO_SYNC_ACTION_CREATE
@@ -463,6 +464,44 @@ class LocalClientRepositoryTest {
         val pending = workspace.pendingMemos().single()
         assertEquals(MEMO_SYNC_ACTION_CREATE, pending.action)
         assertNull(pending.baseVersion)
+    }
+
+    @Test
+    fun pulledServerRecordAndCloudBaselinePersistAtomically() = runTest {
+        val storage = MemoryStorage()
+        val runtime = QueueRuntime()
+        val repository = LocalClientRepository(storage, runtime)
+        val workspace = repository.createMemoSyncWorkspace("https://sillage.example")
+        val serverMemo = Memo(
+            id = "server-record",
+            content = "from server",
+            entryDate = "2026-08-03",
+            version = 7,
+            createdAt = "2026-08-03T08:00:00Z",
+            updatedAt = "2026-08-03T09:00:00Z",
+            favoritedAt = null,
+            archivedAt = null,
+            deletedAt = null,
+            purgedAt = null,
+        )
+
+        assertEquals(1, workspace.mergePulledMemos(listOf(serverMemo)))
+        assertEquals(listOf(serverMemo), repository.listRecords())
+
+        val reloaded = LocalClientRepository(storage, runtime)
+        val updated = reloaded.updateRecord(
+            reloaded.listRecords().single(),
+            RecordDraft("device update", "2026-08-04"),
+        )
+        val pending = reloaded.createMemoSyncWorkspace("https://sillage.example/")
+            .pendingMemos()
+            .single()
+        assertEquals(updated, pending.memo)
+        assertEquals(7L, pending.baseVersion)
+        assertEquals(MEMO_SYNC_ACTION_UPDATE, pending.action)
+        assertFailsWith<MemoSyncServerMismatchException> {
+            reloaded.createMemoSyncWorkspace("https://other.example").pendingMemos()
+        }
     }
 }
 

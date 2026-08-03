@@ -67,7 +67,7 @@ internal fun SillageNativeSettings(
     onAuthenticationDisplayNameChange: (String) -> Unit,
     onAuthenticationPasswordChange: (String) -> Unit,
     onAuthenticate: () -> Unit,
-    onPushMemos: () -> Unit,
+    onSyncMemos: () -> Unit,
     onSignOut: () -> Unit,
     onExportBackup: (() -> Unit)?,
     onRestoreBackup: (() -> Unit)?,
@@ -336,7 +336,7 @@ internal fun SillageNativeSettings(
                                     icon = Icons.Outlined.CloudSync,
                                     title = strings.syncMemos,
                                     supporting = strings.syncMemosSupporting,
-                                    onClick = onPushMemos,
+                    onClick = onSyncMemos,
                                     enabled = state.storageAvailable &&
                                         !state.busy &&
                                         connection.checkedBaseUrl != null &&

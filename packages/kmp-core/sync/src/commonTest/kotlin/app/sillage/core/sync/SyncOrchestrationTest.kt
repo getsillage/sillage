@@ -63,8 +63,10 @@ class SyncOrchestrationTest {
         override suspend fun applySyncedMemos(applied: List<AppliedMemoSync>) = Unit
     }
 
-    private object EmptyGateway : MemoSyncGateway {
-        override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary = SyncPushSummary(
+private object EmptyGateway : MemoSyncGateway {
+    override suspend fun pullMemos() = emptyList<app.sillage.core.domain.records.Memo>()
+
+    override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary = SyncPushSummary(
             applied = 0,
             conflict = 0,
             rejected = 0,

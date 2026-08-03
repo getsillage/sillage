@@ -32,13 +32,16 @@ Open `Sillage.xcodeproj` for interactive development. Its shared `Sillage`
 scheme invokes `:iosApp:prepareAppleFrameworkForXcode`, which selects and copies
 the static framework matching Xcode's Apple architecture and build type.
 
-Records remain device-local in this slice. Settings can validate and remember a
-Sillage HTTPS server, initialize its single account, sign in, refresh an expired
-access token, and sign out. On launch, the host checks the remembered server
-publicly and then restores a session from the device-bound Keychain refresh
+Records remain local-first in this slice. Settings can validate and remember a
+Sillage HTTPS server, initialize the single account, sign in, refresh an expired
+access token, and sign out. An authenticated manual sync pushes pending record
+changes before pulling all current server records and presents explicit
+device/server conflict resolution. On launch, the host checks the remembered
+server publicly and restores a session from a device-bound Keychain refresh
 credential when one exists; invalid or expired credentials return to sign-in.
 The credential does not synchronize to other devices and is excluded from the
-record snapshot and portable backup. Synchronization, Ask, attachments,
+record snapshot and portable backup. Automatic sync, Ask, attachments,
 accessibility/device journeys, signing, and App Store packaging remain outside
-the implemented host. The locally built app is an engineering artifact, not an
+the implemented host. A locally built app is an engineering artifact, not an
+official release asset.
 official release asset.

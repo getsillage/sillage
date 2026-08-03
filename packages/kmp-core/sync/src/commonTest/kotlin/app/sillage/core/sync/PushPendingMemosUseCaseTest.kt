@@ -58,6 +58,8 @@ class PushPendingMemosUseCaseTest {
     ) : MemoSyncGateway {
         var called = false
 
+        override suspend fun pullMemos(): List<Memo> = emptyList()
+
         override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary {
             called = true
             return result

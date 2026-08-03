@@ -197,7 +197,7 @@ private fun SillageNativeContent(
             onAuthenticationDisplayNameChange = controller::updateAuthenticationDisplayName,
             onAuthenticationPasswordChange = controller::updateAuthenticationPassword,
             onAuthenticate = { scope.launch { controller.authenticate() } },
-            onPushMemos = { scope.launch { controller.pushPendingMemos() } },
+            onSyncMemos = { scope.launch { controller.syncMemos() } },
             onSignOut = { scope.launch { controller.signOut() } },
             onExportBackup = platform.exportBackup?.let { operation ->
                 { scope.launch { controller.exportBackup(operation) } }

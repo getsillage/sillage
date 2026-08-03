@@ -8,6 +8,8 @@ import app.sillage.core.sync.SyncPushSummary
 class RemoteMemoSyncGateway(
     private val api: SillageApi,
 ) : MemoSyncGateway {
+    override suspend fun pullMemos() = api.pullFullSync().memos
+
     override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary {
         return api.pushMemos(pending)
     }

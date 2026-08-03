@@ -13,6 +13,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -22,6 +23,70 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 class RemoteMemoSyncGatewayTest {
+    @Test
+    fun pullsEveryMemoPageAndEncodesOpaqueCursor() = runTest {
+        val cursor = "cursor +/="
+        val transport = SyncQueueTransport(
+            authenticatedResponse("access-1", "refresh-1"),
+            SillageHttpResponse(
+                statusCode = 200,
+                body = pullPage(
+                    memos = listOf(memoResource("memo-1", "first", 1)),
+                    nextCursor = cursor,
+                    hasMore = true,
+                ),
+            ),
+            SillageHttpResponse(
+                statusCode = 200,
+                body = pullPage(
+                    memos = listOf(
+                        memoResource("memo-1", "first updated concurrently", 2),
+                        memoResource("memo-2", "second", 2),
+                    ),
+                    nextCursor = "",
+                    hasMore = false,
+                ),
+            ),
+        )
+        val factory = RemoteInstanceAuthenticationRepositoryFactory(transport)
+        factory.create("https://example.test")
+            .signIn(SignInCommand("felix", "password"))
+
+        val memos = factory.createMemoSyncGateway("https://example.test/").pullMemos()
+
+        assertEquals(listOf("memo-1", "memo-2"), memos.map(Memo::id))
+        assertEquals("first updated concurrently", memos.first().content)
+        assertEquals(SillageHttpMethod.Get, transport.requests[1].method)
+        assertEquals(
+            "https://example.test/api/v1/sync?limit=200",
+            transport.requests[1].url,
+        )
+        assertEquals(
+            "https://example.test/api/v1/sync?limit=200&cursor=cursor%20%2B%2F%3D",
+            transport.requests[2].url,
+        )
+        assertEquals("Bearer access-1", transport.requests[2].headers["Authorization"])
+        assertEquals(null, transport.requests[1].body)
+    }
+
+    @Test
+    fun rejectsPullPageThatCannotAdvanceItsCursor() = runTest {
+        val transport = SyncQueueTransport(
+            authenticatedResponse("access-1", "refresh-1"),
+            SillageHttpResponse(
+                statusCode = 200,
+                body = pullPage(emptyList(), nextCursor = "", hasMore = true),
+            ),
+        )
+        val factory = RemoteInstanceAuthenticationRepositoryFactory(transport)
+        factory.create("https://example.test")
+            .signIn(SignInCommand("felix", "password"))
+
+        assertFailsWith<InvalidServerResponseException> {
+            factory.createMemoSyncGateway("https://example.test").pullMemos()
+        }
+    }
+
     @Test
     fun sharesAuthenticationSessionRefreshesOnceAndMapsEveryResultKind() = runTest {
         val credentialStore = RecordingCredentialStore()
@@ -233,6 +298,16 @@ class RemoteMemoSyncGatewayTest {
         assertEquals(503, statusError.statusCode)
         assertFalse(statusError.message.orEmpty().contains("private server detail"))
     }
+
+    private fun pullPage(
+        memos: List<JsonObject>,
+        nextCursor: String,
+        hasMore: Boolean,
+    ): String = buildJsonObject {
+        put("memos", buildJsonArray { memos.forEach(::add) })
+        put("nextCursor", nextCursor)
+        put("hasMore", hasMore)
+    }.toString()
 
     private fun changes(request: SillageHttpRequest) = Json.parseToJsonElement(
         request.body ?: error("missing sync request body"),

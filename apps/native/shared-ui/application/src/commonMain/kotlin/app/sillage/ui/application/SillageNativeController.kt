@@ -28,11 +28,14 @@ import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.sync.MemoSyncGatewayFactory
+import app.sillage.core.sync.MemoSyncPullFailedException
 import app.sillage.core.sync.MemoSyncServerMismatchException
+import app.sillage.core.sync.MemoSyncWorkspace
 import app.sillage.core.sync.MemoSyncWorkspaceFactory
-import app.sillage.core.sync.PushPendingMemosUseCase
 import app.sillage.core.sync.ResolveMemoSyncConflictCommand
 import app.sillage.core.sync.ResolveMemoSyncConflictUseCase
+import app.sillage.core.sync.RunMemoTwoWaySyncUseCase
+import app.sillage.core.sync.SyncPushSummary
 import app.sillage.features.auth.InstanceAuthenticationContext
 import app.sillage.features.auth.InstanceAuthenticationFailure
 import app.sillage.features.auth.InstanceAuthenticationOperation
@@ -617,7 +620,7 @@ class SillageNativeController(
         )
     }
 
-    suspend fun pushPendingMemos() {
+    suspend fun syncMemos() {
         if (!canStartOperation()) return
         val baseUrl = state.serverConnection.checkedBaseUrl ?: return
         if (state.authentication.account == null || activeAuthenticationRepository == null) return
@@ -627,27 +630,16 @@ class SillageNativeController(
         state = state.copy(busy = true, feedback = null)
         try {
             val workspace = workspaceFactory.createMemoSyncWorkspace(baseUrl)
-            val summary = PushPendingMemosUseCase(
-                outbox = workspace,
-                gateway = gatewayFactory.createMemoSyncGateway(baseUrl),
-            )()
-            allRecords = recordsRepository.listRecords()
-            val conflicts = summary.conflictMemoSyncs.map { conflict ->
-                MemoSyncConflictItem(
-                    conflict = conflict,
-                    localMemo = workspace.localMemo(conflict.resourceId),
-                )
+            try {
+                val result = RunMemoTwoWaySyncUseCase(
+                    workspace = workspace,
+                    gateway = gatewayFactory.createMemoSyncGateway(baseUrl),
+                )()
+                presentMemoSyncResult(workspace, result.push, result.pulledMemos)
+            } catch (error: MemoSyncPullFailedException) {
+                presentMemoSyncResult(workspace, error.push, pulledMemos = 0)
+                handleMemoSyncFailure(error.pullFailure)
             }
-            state = state.copy(
-                workspace = state.workspace.copy(records = refreshedRecordState()),
-                sync = state.sync.applyPushConflicts(conflicts),
-                feedback = when {
-                    summary.conflict > 0 -> SillageNativeFeedback.MemoSyncNeedsReview
-                    summary.rejected > 0 -> SillageNativeFeedback.MemoSyncRejected
-                    summary.applied > 0 -> SillageNativeFeedback.MemoSyncCompleted
-                    else -> SillageNativeFeedback.MemoSyncNoChanges
-                },
-            )
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -655,6 +647,30 @@ class SillageNativeController(
         } finally {
             state = state.copy(busy = false)
         }
+    }
+
+    private fun presentMemoSyncResult(
+        workspace: MemoSyncWorkspace,
+        summary: SyncPushSummary,
+        pulledMemos: Int,
+    ) {
+        allRecords = recordsRepository.listRecords()
+        val conflicts = summary.conflictMemoSyncs.map { conflict ->
+            MemoSyncConflictItem(
+                conflict = conflict,
+                localMemo = workspace.localMemo(conflict.resourceId),
+            )
+        }
+        state = state.copy(
+            workspace = state.workspace.copy(records = refreshedRecordState()),
+            sync = state.sync.applyPushConflicts(conflicts),
+            feedback = when {
+                summary.conflict > 0 -> SillageNativeFeedback.MemoSyncNeedsReview
+                summary.rejected > 0 -> SillageNativeFeedback.MemoSyncRejected
+                summary.applied > 0 || pulledMemos > 0 -> SillageNativeFeedback.MemoSyncCompleted
+                else -> SillageNativeFeedback.MemoSyncNoChanges
+            },
+        )
     }
 
     suspend fun keepLocalSyncConflict(resourceId: String) {

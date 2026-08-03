@@ -11,8 +11,11 @@ The same factory creates `MemoSyncGateway` adapters backed by the same
 generation-checked authentication session. `RemoteMemoSyncGateway` maps
 `create`, `update`, `delete`, `restore`, and `purge`, splits pending mutations
 into requests of at most 200 changes, bounds and validates ordered server
-results, and returns shared applied/conflict/rejected values. Transactional
-outbox persistence and conflict storage remain platform adapters.
+results, and returns shared applied/conflict/rejected values. It also follows
+authenticated full-pull pages from an empty cursor, percent-encodes opaque
+continuation cursors, and maps the memo stream while ignoring remote features
+not yet integrated by shared hosts. Transactional outbox persistence,
+pulled-state merging, and conflict storage remain platform adapters.
 
 Platform hosts provide a small `SillageHttpTransport` implementation so
 Foundation and JVM networking APIs stay outside shared application and feature

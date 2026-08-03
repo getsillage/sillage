@@ -53,16 +53,17 @@ artifacts. CI runs it on both host operating systems and retains the unsigned
 packages temporarily for engineering inspection. They are not official
 release assets.
 
-The current product slice is a functional device-local records workspace. Its
-Settings screen can validate and remember a Sillage server through the public
-bootstrap endpoint, then initialize the single account or sign in and sign out.
+The current product slice is a functional local-first records workspace. The
+Settings screen can validate and remember a Sillage server through its public
+bootstrap endpoint, initialize the single account, sign in, and sign out. An
+authenticated manual sync pushes pending record changes before pulling all
+current server records and presents explicit device/server conflict resolution.
 The JDK transport performs cancellable JSON requests and preserves only the
 explicit refresh cookie needed by the shared repository. On macOS, the host
-stores that refresh credential in a non-synchronizing Keychain Generic
-Password item. On Windows, it stores the same value as a non-roaming Generic
-Credential in the current user's Credential Manager. Both are keyed by the
-normalized server URL and can restore the session after public bootstrap on a
-later launch. Access tokens and passwords remain memory-only. Synchronized
-records, attachments, and Ask remain follow-up work. Those integrations must
-reuse KMP application ports instead of introducing desktop-only business
-behavior.
+stores the refresh credential in a non-synchronizing Keychain Generic Password
+item. On Windows, it stores the same value as a non-roaming Generic Credential
+in the current user's Credential Manager. Both are keyed by normalized server
+URL and can restore the session after public bootstrap on a later launch. Access
+tokens and passwords remain memory-only. Automatic sync, attachments, and Ask
+remain follow-up work. Those integrations must reuse KMP application ports
+instead of introducing desktop-only business behavior.

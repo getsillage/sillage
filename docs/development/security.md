@@ -105,17 +105,19 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   credential in a generation-checked memory session, and retries one 401 after
   rotating the refresh session. A replaced session cannot be cleared by an
   older request.
-- Shared native memo push is created by the same authentication factory. It
-  sends Bearer credentials only to the normalized server's fixed
-  `/api/v1/sync:push` path, limits each request to 200 changes, retries at most
-  once after refresh, and rejects missing, reordered, or mismatched results.
-  Create and update send the record fields required by the write; delete,
-  restore, and purge omit the record body. Request diagnostics still redact
-  bodies and every header value; no access token or record body enters durable
-  session storage. The local workspace refuses to open a queue bound to another
-  server, and the application permits push only for the currently checked,
-  authenticated address. Record writes are locked for the duration of a push so
-  the acknowledged mutation and local snapshot cannot race.
+- Shared native memo synchronization is created by the same authentication
+  factory. It sends Bearer credentials only to the normalized server's fixed
+  `GET /api/v1/sync` and `POST /api/v1/sync:push` paths. Pull requests use the
+  server limit of 200, percent-encode opaque cursors, and stop only after a
+  terminal page; push requests contain at most 200 changes, retry at most once
+  after refresh, and reject missing, reordered, or mismatched results. Create
+  and update send the record fields required by the write; delete, restore, and
+  purge omit the record body. Request diagnostics still redact bodies and every
+  header value; no access token or record body enters durable session storage.
+  The local workspace refuses to open synchronization state bound to another
+  server, and the application permits sync only for the currently checked,
+  authenticated address. Record writes are locked for the duration of sync so
+  pushed acknowledgements and pulled records cannot race a local snapshot write.
 - `AuthenticationCredentialStore` is the only shared cross-launch credential
   boundary and accepts only the refresh credential. Access tokens, passwords,
   and refresh credentials are never written to the client snapshot, ordinary

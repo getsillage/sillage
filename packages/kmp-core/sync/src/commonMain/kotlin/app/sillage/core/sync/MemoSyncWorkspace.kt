@@ -24,7 +24,9 @@ interface MemoSyncWorkspaceFactory {
     fun createMemoSyncWorkspace(baseUrl: String): MemoSyncWorkspace
 }
 
-interface MemoSyncWorkspace : MemoSyncOutbox, MemoSyncConflictRepository
+interface MemoSyncWorkspace : MemoSyncOutbox, MemoSyncConflictRepository {
+    suspend fun mergePulledMemos(memos: List<Memo>): Int
+}
 
 class MemoSyncServerMismatchException(
     val boundBaseUrl: String,
@@ -95,6 +97,45 @@ data class MemoSyncStateUpdate(
     val cloudVersions: Map<String, Long>,
     val pendingMutations: Map<String, PendingMemoMutation>,
 )
+
+data class PulledMemoSyncMerge(
+    val state: MemoSyncStateUpdate,
+    val changedMemos: Int,
+)
+
+fun mergePulledMemoSyncs(
+    localMemos: List<Memo>,
+    cloudVersions: Map<String, Long>,
+    pendingMutations: Map<String, PendingMemoMutation>,
+    serverMemos: List<Memo>,
+): PulledMemoSyncMerge {
+    val mergedMemos = linkedMapOf<String, Memo>()
+    localMemos.forEach { memo -> mergedMemos[memo.id] = memo }
+    val mergedVersions = cloudVersions.toMutableMap()
+    var changedMemos = 0
+
+    serverMemos.forEach { serverMemo ->
+        if (pendingMutations.containsKey(serverMemo.id)) return@forEach
+
+        val cloudVersion = mergedVersions[serverMemo.id]
+        if (cloudVersion != null && serverMemo.version < cloudVersion) return@forEach
+
+        if (mergedMemos[serverMemo.id] != serverMemo) {
+            mergedMemos[serverMemo.id] = serverMemo
+            changedMemos += 1
+        }
+        mergedVersions[serverMemo.id] = maxOf(cloudVersion ?: 0L, serverMemo.version)
+    }
+
+    return PulledMemoSyncMerge(
+        state = MemoSyncStateUpdate(
+            memos = mergedMemos.values.toList(),
+            cloudVersions = mergedVersions,
+            pendingMutations = pendingMutations,
+        ),
+        changedMemos = changedMemos,
+    )
+}
 
 fun mergeAppliedMemoSyncs(
     localMemos: List<Memo>,

@@ -1,12 +1,14 @@
 # Kotlin Multiplatform local data
 
 `local-data` owns the portable native-client snapshot codec, local record
-repository, credential-free backup envelope, and the server-bound memo push
+repository, credential-free backup envelope, and the server-bound memo sync
 workspace used by iOS, Windows, and macOS. Platform hosts provide atomic string
 storage plus time, record identity, and mutation identity values; this module owns
 schema validation, domain mapping, optimistic version checks, record lifecycle
 rules, client preference persistence, validate-before-replace backup restoration,
-and atomic record-plus-outbox writes.
+and atomic record-plus-outbox writes. Pull merges records and cloud baselines
+through the same atomic snapshot replacement while preserving every record with
+a pending mutation.
 
 Private snapshot schema 2 persists preferences, records, a normalized sync-server
 binding, cloud versions, and pending mutation markers. Schema 1 remains readable

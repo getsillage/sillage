@@ -502,11 +502,11 @@ class SillageNativeControllerTest {
             memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
         )
 
-        controller.pushPendingMemos()
+        controller.syncMemos()
         assertEquals(0, gateway.calls)
 
         signIn(controller)
-        controller.pushPendingMemos()
+        controller.syncMemos()
 
         assertEquals(1, gateway.calls)
         assertEquals(listOf(pending), gateway.lastPending)
@@ -553,7 +553,7 @@ class SillageNativeControllerTest {
         controller.startNewRecord()
         controller.updateEditorContent("new local record")
 
-        val push = launch { controller.pushPendingMemos() }
+        val push = launch { controller.syncMemos() }
         pushStarted.await()
 
         assertTrue(controller.state.busy)
@@ -597,11 +597,73 @@ class SillageNativeControllerTest {
         )
         signIn(controller)
 
-        controller.pushPendingMemos()
+        controller.syncMemos()
 
         assertEquals(listOf(applied), workspace.appliedMemos)
         assertEquals(canonical, local.records.single())
         assertEquals(canonical, controller.state.workspace.records.records.single())
+        assertEquals(SillageNativeFeedback.MemoSyncCompleted, controller.state.feedback)
+    }
+
+    @Test
+    fun failedPullStillPresentsTheCompletedPushPhase() = runTest {
+        val localMemo = memo("memo-1", "local")
+        val canonical = localMemo.copy(
+            content = "canonical",
+            updatedAt = "2026-08-03T12:00:00Z",
+        )
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val pending = PendingMemoSync(localMemo, null, "create-1", "create")
+        val applied = AppliedMemoSync(pending.mutationId, canonical)
+        val workspace = FakeMemoSyncWorkspace(local, listOf(pending))
+        val gateway = FakeMemoSyncGateway(
+            result = SyncPushSummary(
+                applied = 1,
+                conflict = 0,
+                rejected = 0,
+                appliedMemoSyncs = listOf(applied),
+            ),
+            pullError = IllegalStateException("pull unavailable"),
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+        signIn(controller)
+
+        controller.syncMemos()
+
+        assertEquals(listOf(applied), workspace.appliedMemos)
+        assertEquals(canonical, local.records.single())
+        assertEquals(canonical, controller.state.workspace.records.records.single())
+        assertEquals(SillageNativeFeedback.MemoSyncFailed, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun manualSyncPullsServerOnlyRecordsWhenOutboxIsEmpty() = runTest {
+        val pulled = memo("server-record", "from server")
+        val local = FakeRecordsRepository()
+        val workspace = FakeMemoSyncWorkspace(local, emptyList())
+        val gateway = FakeMemoSyncGateway(pulledMemos = listOf(pulled))
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+        signIn(controller)
+
+        controller.syncMemos()
+
+        assertEquals(0, gateway.calls)
+        assertEquals(1, gateway.pullCalls)
+        assertEquals(listOf(pulled), local.records)
+        assertEquals(listOf(pulled), controller.state.workspace.records.records)
         assertEquals(SillageNativeFeedback.MemoSyncCompleted, controller.state.feedback)
     }
 
@@ -626,7 +688,7 @@ class SillageNativeControllerTest {
         )
         signIn(controller)
 
-        controller.pushPendingMemos()
+        controller.syncMemos()
 
         assertNull(controller.state.authentication.account)
         assertEquals(SillageNativeFeedback.MemoSyncSessionExpired, controller.state.feedback)
@@ -773,17 +835,32 @@ private class FakeMemoSyncWorkspace(
 
     override suspend fun pendingMemos(): List<PendingMemoSync> = pending
 
-    override suspend fun applySyncedMemos(applied: List<AppliedMemoSync>) {
-        appliedMemos = applied
-        applied.forEach { item ->
+        override suspend fun applySyncedMemos(applied: List<AppliedMemoSync>) {
+            appliedMemos = applied
+            applied.forEach { item ->
             val index = recordsRepository.records.indexOfFirst { it.id == item.memo.id }
             if (index >= 0) {
                 recordsRepository.records[index] = item.memo
             } else {
                 recordsRepository.records += item.memo
+                }
             }
         }
-    }
+
+        override suspend fun mergePulledMemos(memos: List<Memo>): Int {
+            var changed = 0
+            memos.forEach { memo ->
+                val index = recordsRepository.records.indexOfFirst { it.id == memo.id }
+                if (index < 0) {
+                    recordsRepository.records += memo
+                    changed += 1
+                } else if (recordsRepository.records[index] != memo) {
+                    recordsRepository.records[index] = memo
+                    changed += 1
+                }
+            }
+            return changed
+        }
 
     override suspend fun keepLocal(conflict: ConflictMemoSync) {
         keptConflicts += conflict
@@ -805,22 +882,32 @@ private class FakeMemoSyncWorkspace(
     }
 }
 
-private class FakeMemoSyncGateway(
-    private val result: SyncPushSummary = SyncPushSummary(0, 0, 0),
-    private val error: Throwable? = null,
-    private val beforeResult: suspend () -> Unit = {},
-) : MemoSyncGateway {
-    var calls: Int = 0
-    var lastPending: List<PendingMemoSync> = emptyList()
+    private class FakeMemoSyncGateway(
+        private val result: SyncPushSummary = SyncPushSummary(0, 0, 0),
+        private val error: Throwable? = null,
+        private val beforeResult: suspend () -> Unit = {},
+        private val pulledMemos: List<Memo> = emptyList(),
+        private val pullError: Throwable? = null,
+    ) : MemoSyncGateway {
+        var calls: Int = 0
+        var pullCalls: Int = 0
+        var lastPending: List<PendingMemoSync> = emptyList()
 
     override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary {
         calls += 1
         lastPending = pending
         beforeResult()
-        error?.let { throw it }
-        return result
+            error?.let { throw it }
+            return result
+        }
+
+        override suspend fun pullMemos(): List<Memo> {
+            pullCalls += 1
+            pullError?.let { throw it }
+            error?.let { throw it }
+            return pulledMemos
+        }
     }
-}
 
 private class FakeRecordsRepository(
     val records: MutableList<Memo> = mutableListOf(),

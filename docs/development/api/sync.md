@@ -1,8 +1,8 @@
 # Sync API
 
 `GET /api/v1/sync` and `POST /api/v1/sync:push` support manual synchronization
-and convergence for offline clients. Android uses both directions; the shared
-iOS and desktop clients currently integrate authenticated memo push only. The
+and convergence for offline clients. Android uses all pull streams and memo
+push; shared iOS and desktop clients use authenticated memo push and pull. The
 contract source is `contracts/proto/api/v1/sync_service.proto`; the REST
 implementation is in `server/sync_routes.go`, and the shared business logic is in
 `server/api_service.go`.
@@ -59,7 +59,7 @@ Each stream uses an independent `(updated_at, id)` position and `limit + 1` look
 }
 ```
 
-An incremental client should atomically merge a page's resources and tombstones into local storage before persisting `nextCursor`. It must not advance the cursor independently after a resource write fails. To reduce the complexity of local cursor migration, Android currently performs a complete pull from an empty cursor each time and then merges the results. It is not an example implementation of an incremental client.
+An incremental client should atomically merge a page's resources and tombstones into local storage before persisting `nextCursor`. It must not advance the cursor independently after a resource write fails. To reduce the complexity of local cursor migration, Android currently performs a complete pull from an empty cursor each time and then merges all streams. Shared iOS and desktop clients also start from an empty cursor each run, but merge only the memo stream while broader remote features remain unintegrated. Neither path is an example implementation of an incremental client.
 
 Each `askMessages` item includes the camelCase `promptVersion` field. Newly generated assistant answers use `ask-answer-v2`; user messages and historical rows that were not backfilled may contain an empty string. This is generation metadata and does not change pull ordering. `sourceRefs` is empty for general answers and contains only record citations retained from a source-grounded answer.
 
@@ -82,8 +82,10 @@ so a push uses the current base-URL-scoped session and the same single-refresh
 normalized server binding, cloud versions, and pending mutation identifiers in
 the private client snapshot. Each local record write and its outbox change are
 one atomic snapshot replacement. A workspace bound to one server refuses to
-send its queue to another address. Push is manual, requires a checked and
-authenticated server, and does not pull server-only changes yet.
+send its queue to another address. Manual sync requires a checked and
+authenticated server, pushes before pulling, follows every page, and atomically
+merges records and cloud baselines. A pull never overwrites a record that still
+has a pending local mutation.
 
 ```json
 {
@@ -138,7 +140,7 @@ application open the shared conflict dialog with the local pending content and
 `serverResource`, then let the user keep the device version (a new mutation
 against the server baseline), take the server version (drop the local pending
 change), or dismiss without overwriting either side. Shared native record writes
-and conflict actions are locked while a push is active. Applied results are
+and conflict actions are locked while synchronization is active. Applied results are
 merged atomically and refresh the visible canonical record. If a restore result
 arrives after the user made a newer local edit, the client retains that edit and
 schedules a follow-up update rather than replacing it with the older restored

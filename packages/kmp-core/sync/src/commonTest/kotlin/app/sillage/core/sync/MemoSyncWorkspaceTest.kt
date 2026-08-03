@@ -113,6 +113,43 @@ class MemoSyncWorkspaceTest {
         assertNull(pending.baseVersion)
     }
 
+    @Test
+    fun pullMergePreservesPendingLocalStateAndAdoptsOnlyCurrentServerState() {
+        val pendingLocal = memo(id = "pending", content = "device edit", version = 2)
+        val cleanLocal = memo(id = "clean", content = "old server", version = 2)
+        val newerLocal = memo(id = "newer", content = "already current", version = 4)
+        val pendingMutation = PendingMemoMutation(
+            mutationId = "update-pending",
+            memoVersion = pendingLocal.version,
+            memoUpdatedAt = pendingLocal.updatedAt,
+            action = MEMO_SYNC_ACTION_UPDATE,
+        )
+
+        val merged = mergePulledMemoSyncs(
+            localMemos = listOf(pendingLocal, cleanLocal, newerLocal),
+            cloudVersions = mapOf("pending" to 1L, "clean" to 2L, "newer" to 4L),
+            pendingMutations = mapOf("pending" to pendingMutation),
+            serverMemos = listOf(
+                pendingLocal.copy(content = "server conflict", version = 3),
+                cleanLocal.copy(content = "new server", version = 3),
+                newerLocal.copy(content = "stale server", version = 3),
+                memo(id = "server-only", content = "from server", version = 1),
+            ),
+        )
+
+        val byId = merged.state.memos.associateBy(Memo::id)
+        assertEquals(pendingLocal, byId.getValue("pending"))
+        assertEquals("new server", byId.getValue("clean").content)
+        assertEquals(newerLocal, byId.getValue("newer"))
+        assertEquals("from server", byId.getValue("server-only").content)
+        assertEquals(1L, merged.state.cloudVersions.getValue("pending"))
+        assertEquals(3L, merged.state.cloudVersions.getValue("clean"))
+        assertEquals(4L, merged.state.cloudVersions.getValue("newer"))
+        assertEquals(1L, merged.state.cloudVersions.getValue("server-only"))
+        assertEquals(mapOf("pending" to pendingMutation), merged.state.pendingMutations)
+        assertEquals(2, merged.changedMemos)
+    }
+
     private fun memo(
         id: String,
         content: String = "content",

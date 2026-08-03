@@ -3,9 +3,9 @@
 This directory is the Kotlin Multiplatform workspace for native Sillage clients.
 Android is the full server-connected native application. Windows, macOS, and iOS
 share a functional local-first records workspace plus public Sillage server
-bootstrap, initialization, sign-in, refresh, sign-out, persistent manual memo
-push, and conflict resolution. Pull synchronization and broader remote feature
-integration continue incrementally.
+bootstrap, initialization, sign-in, refresh, sign-out, persistent manual
+two-way memo synchronization, and conflict resolution. Broader remote feature
+integration continues incrementally.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under
@@ -70,7 +70,8 @@ server URL; iOS additionally uses a device-bound accessibility class. On a
 later launch, every persistent host performs public bootstrap before attempting
 refresh rotation. No credential enters the client snapshot or a portable
 backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
-engineering development. Authenticated users can manually push pending record
-creates, updates, deletions, restorations, and purges from Settings. Push is not
-automatic and does not pull server-only changes yet; conflicts require an
-explicit device/server choice.
+engineering development. Authenticated users can manually synchronize records
+from Settings. Each run pushes pending creates, updates, deletions, restorations,
+and purges before it pulls all current server records. Synchronization is not
+automatic; conflicts require an explicit device/server choice, and unresolved
+local mutations are never overwritten by pull results.

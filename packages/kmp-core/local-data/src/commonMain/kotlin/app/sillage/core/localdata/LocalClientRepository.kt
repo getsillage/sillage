@@ -21,6 +21,7 @@ import app.sillage.core.sync.MemoSyncWorkspace
 import app.sillage.core.sync.MemoSyncWorkspaceFactory
 import app.sillage.core.sync.PendingMemoMutation
 import app.sillage.core.sync.mergeAppliedMemoSyncs
+import app.sillage.core.sync.mergePulledMemoSyncs
 import app.sillage.core.sync.resolveMemoSyncConflictKeepLocal
 import app.sillage.core.sync.resolveMemoSyncConflictTakeServer
 import app.sillage.core.sync.resolvePendingMemoSyncs
@@ -297,6 +298,37 @@ class LocalClientRepository(
                     ),
                 )
             }
+        }
+
+        override suspend fun mergePulledMemos(memos: List<Memo>): Int {
+            var changedMemos = 0
+            update { snapshot ->
+                val memoSync = snapshot.memoSync.requireCompatibleWith(baseUrl)
+                val merged = mergePulledMemoSyncs(
+                    localMemos = snapshot.records,
+                    cloudVersions = memoSync.cloudVersions,
+                    pendingMutations = memoSync.pendingMutations,
+                    serverMemos = memos,
+                )
+                changedMemos = merged.changedMemos
+                val boundBaseUrl = if (
+                    merged.state.cloudVersions.isEmpty() &&
+                    merged.state.pendingMutations.isEmpty()
+                ) {
+                    memoSync.serverBaseUrl
+                } else {
+                    memoSync.serverBaseUrl.ifBlank { baseUrl }
+                }
+                snapshot.copy(
+                    records = merged.state.memos,
+                    memoSync = memoSync.copy(
+                        serverBaseUrl = boundBaseUrl,
+                        cloudVersions = merged.state.cloudVersions,
+                        pendingMutations = merged.state.pendingMutations,
+                    ),
+                )
+            }
+            return changedMemos
         }
 
         override suspend fun keepLocal(conflict: ConflictMemoSync) {

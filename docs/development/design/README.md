@@ -60,17 +60,20 @@ Page headings and control labels must match the scale of their containers. Narro
 
 ### Shared Native Synchronization
 
-- Manual record push belongs in the Service section of Settings and is available
-  only after the server address has been checked and an account is signed in.
-- While push or conflict resolution is active, record writes and competing sync
-  actions are disabled through the application-wide in-progress state. Drafts
-  remain intact and become writable again after completion or failure.
+- Manual record synchronization belongs in the Service section of Settings and
+  is available only after the server address has been checked and an account is
+  signed in. One action pushes pending device changes before pulling current
+  server records.
+- While synchronization or conflict resolution is active, record writes and
+  competing sync actions are disabled through the application-wide in-progress
+  state. Drafts remain intact and become writable again after completion or
+  failure.
 - A conflict dialog must show distinguishable device and server content and offer
   explicit keep-device, use-server, and dismiss actions. Dismissal preserves the
   unresolved mutation; no action silently overwrites either side.
-- Completion, no-change, rejected, expired-session, and generic failure outcomes
-  use localized transient feedback. A conflict remains contextual until the user
-  resolves or dismisses it.
+- Completion, already-current, rejected, expired-session, and generic failure
+  outcomes use localized transient feedback. A conflict remains contextual until
+  the user resolves or dismisses it.
 
 ## Accessibility and Responsive Behavior
 

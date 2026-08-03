@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
@@ -26,6 +27,49 @@ internal class RemoteMemoSyncGateway(
     private val executeAuthenticated: suspend (SillageHttpRequest) -> SillageHttpResponse,
     private val json: Json,
 ) : MemoSyncGateway {
+    override suspend fun pullMemos(): List<Memo> {
+        val memos = linkedMapOf<String, Memo>()
+        val seenCursors = mutableSetOf<String>()
+        var cursor: String? = null
+
+        while (true) {
+            val cursorQuery = cursor?.let { "&cursor=${encodeQueryComponent(it)}" }.orEmpty()
+            val response = executeAuthenticated(
+                SillageHttpRequest(
+                    method = SillageHttpMethod.Get,
+                    url = "$baseUrl/api/v1/sync?limit=$MaxSyncChangesPerRequest$cursorQuery",
+                    headers = syncPullHeaders,
+                ),
+            )
+            requireSyncSuccess(response)
+            if (response.body.length > MaxSyncPullResponseCharacters) invalidSyncResponse()
+
+            val body = try {
+                json.parseToJsonElement(response.body).jsonObject
+            } catch (_: SerializationException) {
+                invalidSyncResponse()
+            } catch (_: IllegalArgumentException) {
+                invalidSyncResponse()
+            }
+            val pageMemos = body["memos"] as? JsonArray ?: invalidSyncResponse()
+            if (pageMemos.size > MaxSyncChangesPerRequest) invalidSyncResponse()
+            pageMemos.forEach { item ->
+                val memo = (item as? JsonObject)?.toMemo() ?: invalidSyncResponse()
+                val existing = memos[memo.id]
+                if (existing == null || memo.version >= existing.version) {
+                    memos[memo.id] = memo
+                }
+            }
+
+            if (!body.requiredBoolean("hasMore")) break
+            val nextCursor = body.requiredNonBlankString("nextCursor")
+            if (!seenCursors.add(nextCursor)) invalidSyncResponse()
+            cursor = nextCursor
+        }
+
+        return memos.values.toList()
+    }
+
     override suspend fun pushMemos(pending: List<PendingMemoSync>): SyncPushSummary {
         if (pending.isEmpty()) {
             return SyncPushSummary(applied = 0, conflict = 0, rejected = 0)
@@ -251,6 +295,12 @@ private fun JsonObject.requiredLong(key: String): Long {
     return value.longOrNull ?: invalidSyncResponse()
 }
 
+private fun JsonObject.requiredBoolean(key: String): Boolean {
+    val value = this[key] as? JsonPrimitive ?: invalidSyncResponse()
+    if (value.isString) invalidSyncResponse()
+    return value.booleanOrNull ?: invalidSyncResponse()
+}
+
 private fun JsonObject.optionalLong(key: String): Long? {
     return when (val value = this[key]) {
         null, JsonNull -> null
@@ -271,7 +321,31 @@ private val syncJsonHeaders = mapOf(
     "Content-Type" to "application/json; charset=utf-8",
     "Cache-Control" to "no-cache",
 )
+private val syncPullHeaders = mapOf(
+    "Accept" to "application/json",
+    "Cache-Control" to "no-cache",
+)
+
+private fun encodeQueryComponent(value: String): String = buildString {
+    val hex = "0123456789ABCDEF"
+    value.encodeToByteArray().forEach { byte ->
+        val code = byte.toInt() and 0xff
+        if (
+            code in 'a'.code..'z'.code ||
+            code in 'A'.code..'Z'.code ||
+            code in '0'.code..'9'.code ||
+            code == '-'.code || code == '.'.code || code == '_'.code || code == '~'.code
+        ) {
+            append(code.toChar())
+        } else {
+            append('%')
+            append(hex[code shr 4])
+            append(hex[code and 0x0f])
+        }
+    }
+}
 private val SupportedMemoActions = setOf("create", "update", "delete", "restore", "purge")
 private const val MemoResourceType = "memo"
 private const val MaxSyncChangesPerRequest = 200
+private const val MaxSyncPullResponseCharacters = 256 * 1024 * 1024
 private const val MaxSyncPushResponseCharacters = 8 * 1024 * 1024

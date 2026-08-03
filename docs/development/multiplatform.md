@@ -623,10 +623,11 @@ attachment staging and present the resulting status.
   pickers, and Xcode integration. Keychain credentials, signing, and App Store
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
-  snapshot file adapter, platform time and identity values, data-folder action,
-  native backup save/open dialogs, native menu and guarded close integration,
-  and Windows/macOS packaging. Shared local-data code owns the distinct portable
-  backup envelope, validation, and replace-after-validation policy.
+  snapshot file adapter, data-directory instance lock, platform time and identity
+  values, data-folder action, native backup save/open dialogs, native menu and
+  guarded close integration, and Windows/macOS packaging. Shared local-data code
+  owns the distinct portable backup envelope, validation, and replace-after-
+  validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
   credential storage, the updater, and deeper OS integration remain future
   release work.

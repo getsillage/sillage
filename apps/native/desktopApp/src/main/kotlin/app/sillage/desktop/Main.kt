@@ -22,16 +22,36 @@ import java.awt.Desktop
 import java.awt.Dimension
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.GraphicsEnvironment
 import java.io.FilenameFilter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
+import java.util.Locale
+import javax.swing.JOptionPane
 
 private const val DesktopVersion = "0.1.0"
 
-fun main() = application {
-    val snapshotPath = remember { DesktopDataPaths.defaultSnapshotPath() }
+fun main() {
+    val snapshotPath = DesktopDataPaths.defaultSnapshotPath()
+    val instanceLock = try {
+        DesktopClientInstanceLock.tryAcquire(snapshotPath)
+    } catch (error: Exception) {
+        showDesktopStartupError(error)
+        return
+    }
+    if (instanceLock == null) {
+        showDesktopStartupError(null)
+        return
+    }
+
+    instanceLock.use {
+        runDesktopApplication(snapshotPath)
+    }
+}
+
+private fun runDesktopApplication(snapshotPath: Path) = application {
     val storage = remember(snapshotPath) { DesktopClientSnapshotStorage(snapshotPath) }
     val repository = remember(storage) {
         LocalClientRepository(storage, DesktopRuntimeValues())
@@ -106,8 +126,7 @@ fun main() = application {
                 Item(
                     text = hostStrings.openDataLocation,
                     onClick = { platform.openDataLocation?.invoke() },
-                    enabled = controller.state.storageAvailable &&
-                        platform.openDataLocation != null,
+                    enabled = !controller.state.busy && platform.openDataLocation != null,
                 )
                 Separator()
                 Item(
@@ -141,6 +160,26 @@ fun main() = application {
         }
 
         SillageNativeApp(controller = controller, platform = platform)
+    }
+}
+
+private fun showDesktopStartupError(error: Throwable?) {
+    val chinese = Locale.getDefault().language.equals("zh", ignoreCase = true)
+    val message = when {
+        error == null && chinese -> "Sillage 已在运行。请先关闭另一个窗口后再试。"
+        error == null -> "Sillage is already running. Close the other window and try again."
+        chinese -> "Sillage 无法锁定本地数据目录，因此未启动。请检查目录权限后再试。"
+        else -> "Sillage could not lock its local data folder, so it did not start. Check folder permissions and try again."
+    }
+    if (GraphicsEnvironment.isHeadless()) {
+        System.err.println(message)
+    } else {
+        JOptionPane.showMessageDialog(
+            null,
+            message,
+            "Sillage",
+            JOptionPane.ERROR_MESSAGE,
+        )
     }
 }
 

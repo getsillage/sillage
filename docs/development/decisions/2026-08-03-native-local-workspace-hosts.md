@@ -54,8 +54,13 @@ release assets. Matching CI hosts verify package generation, while the release
 workflow remains unchanged until code signing, macOS notarization, updates, and
 release-candidate coverage are defined and verified.
 
-Desktop native menus and operating-system close requests reuse the shared dirty
-editor policy and localized discard confirmation rather than bypassing it.
+Desktop acquires an operating-system file lock at `client-v1.json.lock` before
+constructing the local repository. A concurrent second process reports a startup
+error and exits, preventing silent last-writer-wins snapshot loss. The empty lock
+marker remains in the data directory, while the lock itself is released on normal
+close or process termination. Desktop native menus and operating-system close
+requests reuse the shared dirty editor policy and localized discard confirmation
+instead of bypassing it.
 
 ## Consequences
 

@@ -1,10 +1,15 @@
 # Desktop application
 
-Compose Desktop host for Windows and macOS. It supplies atomic filesystem
-storage, platform time and record identifiers, data-folder integration, native
-JSON backup export and validated restore, window lifecycle, native menus and
-shortcuts, guarded window exit, and native installer configuration to the shared
-native application.
+The Compose Desktop host runs on Windows and macOS. It supplies atomic
+filesystem storage, a data-directory instance lock, platform time and record
+identifiers, data-folder integration, native JSON backup export and validated
+restore, window lifecycle, native menus and shortcuts, guarded window exit, and
+native installer configuration to the shared native application.
+
+Before opening the repository, the host locks `client-v1.json.lock`. A concurrent
+second instance shows a startup error and exits instead of becoming another
+writer. The empty marker file is intentionally retained; the operating-system
+lock is released when the application closes or its process terminates.
 
 The Data settings section uses operating-system save/open dialogs. Restore asks
 for confirmation before replacing records and appearance, and invalid backups

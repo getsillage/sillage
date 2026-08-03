@@ -1,6 +1,7 @@
 package app.sillage.desktop
 
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,5 +45,12 @@ class DesktopClientSnapshotStorageTest {
                 environment = mapOf("APPDATA" to "C:\\Users\\example\\AppData\\Roaming"),
             ).toString(),
         )
+    }
+
+    @Test
+    fun preservesOrAddsJsonBackupExtension() {
+        assertEquals(Path.of("backup.json"), Path.of("backup.json").ensureJsonExtension())
+        assertEquals(Path.of("backup.JSON"), Path.of("backup.JSON").ensureJsonExtension())
+        assertEquals(Path.of("backup.json"), Path.of("backup").ensureJsonExtension())
     }
 }

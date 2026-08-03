@@ -6,6 +6,7 @@ import app.sillage.core.application.records.RecordDraft
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -74,6 +75,87 @@ class LocalClientRepositoryTest {
             repository.createRecord(RecordDraft("body", "2026-08-03"))
         }
         assertEquals("{not-json", storage.value)
+    }
+
+    @Test
+    fun exportsAndRestoresValidatedPortableBackup() = runTest {
+        val source = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        source.savePreferences(
+            ClientPreferences(
+                themeMode = ClientPreferenceValues.THEME_DARK,
+                languageMode = ClientPreferenceValues.LANGUAGE_EN,
+            ),
+        )
+        val created = source.createRecord(RecordDraft("portable", "2026-08-03"))
+        val targetStorage = MemoryStorage()
+        val target = LocalClientRepository(targetStorage, QueueRuntime())
+        val backup = source.exportBackup()
+
+        target.restoreBackup(backup)
+
+        assertEquals(source.loadPreferences(), target.loadPreferences())
+        assertEquals(listOf(created), target.listRecords())
+        assertTrue(backup.contains("\"formatVersion\": 1"))
+        assertTrue(backup.contains("\"memos\""))
+        assertTrue(backup.contains("\"exportedAt\""))
+        assertFalse(backup.contains("\"schemaVersion\""))
+        assertTrue(targetStorage.value.orEmpty().contains("\"schemaVersion\": 1"))
+        assertFalse(targetStorage.value.orEmpty().contains("\"formatVersion\""))
+    }
+
+    @Test
+    fun restoresRecordSubsetFromAndroidV1BackupAndPreservesMissingPreference() {
+        val repository = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        repository.savePreferences(
+            ClientPreferences(
+                themeMode = ClientPreferenceValues.THEME_LIGHT,
+                languageMode = ClientPreferenceValues.LANGUAGE_EN,
+            ),
+        )
+        val androidBackup = """
+            {
+              "formatVersion": 1,
+              "exportedAt": "2026-08-03T10:00:00Z",
+              "themeMode": "dark",
+              "memoViewMode": "LIST",
+              "autoSummary": false,
+              "memos": [
+                {
+                  "id": "android-record",
+                  "content": "from Android",
+                  "entryDate": "2026-08-03",
+                  "version": 1,
+                  "createdAt": "2026-08-03T10:00:00Z",
+                  "updatedAt": "2026-08-03T10:00:00Z"
+                }
+              ],
+              "memoAI": [],
+              "aiProfiles": [],
+              "askConversations": [],
+              "askMessages": []
+            }
+        """.trimIndent()
+
+        repository.restoreBackup(androidBackup)
+
+        assertEquals("from Android", repository.listRecords().single().content)
+        assertEquals(ClientPreferenceValues.THEME_DARK, repository.loadPreferences().themeMode)
+        assertEquals(ClientPreferenceValues.LANGUAGE_EN, repository.loadPreferences().languageMode)
+    }
+
+    @Test
+    fun rejectsInvalidBackupWithoutChangingExistingSnapshot() = runTest {
+        val storage = MemoryStorage()
+        val repository = LocalClientRepository(storage, QueueRuntime())
+        repository.createRecord(RecordDraft("keep", "2026-08-03"))
+        val before = storage.value
+
+        assertFailsWith<InvalidClientSnapshotException> {
+            repository.restoreBackup("{not-json")
+        }
+
+        assertEquals(before, storage.value)
+        assertEquals("keep", repository.listRecords().single().content)
     }
 }
 

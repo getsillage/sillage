@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.designsystem.SillageDesignTheme
 import app.sillage.ui.designsystem.SillageNavigationBar
 import app.sillage.ui.designsystem.SillageNavigationItem
+import kotlinx.coroutines.launch
 
 private val WideNavigationBreakpoint = 760.dp
 
@@ -150,6 +152,8 @@ private fun SillageNativeContent(
     onGuardedAction: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
+
     when (controller.state.clientContext.screen) {
         AppDestination.AISettings -> SillageNativeSettings(
             state = controller.state,
@@ -157,6 +161,12 @@ private fun SillageNativeContent(
             strings = strings,
             onDarkThemeChange = controller::setDarkTheme,
             onLanguageChange = controller::setLanguage,
+            onExportBackup = platform.exportBackup?.let { operation ->
+                { scope.launch { controller.exportBackup(operation) } }
+            },
+            onRestoreBackup = platform.restoreBackup?.let { operation ->
+                { scope.launch { controller.restoreBackup(operation) } }
+            },
             modifier = modifier,
         )
         else -> SillageRecordsWorkspace(
@@ -273,5 +283,8 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.RecordDeleted -> deleted
     SillageNativeFeedback.RecordRestored -> restored
     SillageNativeFeedback.RecordPurged -> purged
+    SillageNativeFeedback.BackupExported -> backupExported
+    SillageNativeFeedback.BackupRestored -> backupRestored
+    SillageNativeFeedback.DataTransferFailed -> dataTransferFailed
     SillageNativeFeedback.StorageUnavailable -> storageUnavailable
 }

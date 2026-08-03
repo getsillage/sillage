@@ -1,5 +1,6 @@
 package app.sillage.ui.application
 
+import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
 import app.sillage.core.application.records.RecordDraft
@@ -100,6 +101,42 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun reportsBackupTransferResultsAndReloadsRestoredData() = runTest {
+        val repository = FakeRecordsRepository(mutableListOf(memo("before", "before")))
+        val controller = controller(repository)
+
+        controller.exportBackup { true }
+        assertEquals(SillageNativeFeedback.BackupExported, controller.state.feedback)
+
+        repository.records.clear()
+        repository.records += memo("restored", "from backup")
+        repository.preferences = ClientPreferences(
+            themeMode = ClientPreferenceValues.THEME_DARK,
+            languageMode = ClientPreferenceValues.LANGUAGE_EN,
+        )
+        controller.navigateToSettings()
+        controller.restoreBackup { true }
+
+        assertEquals(AppDestination.Memos, controller.state.clientContext.screen)
+        assertEquals(listOf("restored"), controller.state.workspace.records.records.map(Memo::id))
+        assertEquals(ClientPreferenceValues.THEME_DARK, controller.state.appearance.themeMode)
+        assertEquals(ClientPreferenceValues.LANGUAGE_EN, controller.state.appearance.languageMode)
+        assertEquals(SillageNativeFeedback.BackupRestored, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun backupFailureDoesNotDisableReadableLocalStorage() = runTest {
+        val controller = controller(FakeRecordsRepository())
+
+        controller.exportBackup { error("destination unavailable") }
+
+        assertEquals(SillageNativeFeedback.DataTransferFailed, controller.state.feedback)
+        assertTrue(controller.state.storageAvailable)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
     fun isoDateValidationHandlesLeapYears() {
         assertTrue(isValidIsoDate("2024-02-29"))
         assertFalse(isValidIsoDate("2100-02-29"))
@@ -123,7 +160,7 @@ private class FakeRecordsRepository(
     RecordWriteRepository,
     RecordLifecycleRepository,
     ClientPreferencesRepository {
-    private var preferences = ClientPreferences()
+    var preferences = ClientPreferences()
     private var nextId = records.size
 
     override fun listRecords(): List<Memo> {

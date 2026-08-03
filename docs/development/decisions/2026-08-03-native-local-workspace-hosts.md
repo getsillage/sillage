@@ -21,6 +21,12 @@ preferences. It exposes platform-neutral ports for atomic string storage,
 timestamps, and identifiers. The snapshot is private client persistence, not
 the sync protocol or a user backup format.
 
+User-initiated data transfer uses a separate versioned, credential-free backup
+envelope. Restoration fully decodes and validates the envelope before replacing
+the private snapshot, then rehydrates shared application state. Unsupported or
+invalid backups leave current local data untouched. Desktop supplies only the
+native save/open dialogs and file I/O for this shared policy.
+
 `shared-ui:application` is the shared Compose composition root for the first
 native host slice. It owns the responsive records list, detail, editor,
 search, lifecycle actions, settings, localization, and unsaved-draft policy.

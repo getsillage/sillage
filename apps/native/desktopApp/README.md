@@ -1,9 +1,14 @@
 # Desktop application
 
 Compose Desktop host for Windows and macOS. It supplies atomic filesystem
-storage, platform time and record identifiers, data-folder integration, window
-lifecycle, native menus and shortcuts, guarded window exit, and native installer
-configuration to the shared native application.
+storage, platform time and record identifiers, data-folder integration, native
+JSON backup export and validated restore, window lifecycle, native menus and
+shortcuts, guarded window exit, and native installer configuration to the shared
+native application.
+
+The Data settings section uses operating-system save/open dialogs. Restore asks
+for confirmation before replacing records and appearance, and invalid backups
+leave the current local snapshot untouched.
 
 Run the development application:
 

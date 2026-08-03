@@ -31,6 +31,9 @@ enum class SillageNativeFeedback {
     RecordDeleted,
     RecordRestored,
     RecordPurged,
+    BackupExported,
+    BackupRestored,
+    DataTransferFailed,
     StorageUnavailable,
 }
 
@@ -43,6 +46,8 @@ data class SillageNativePlatform(
     val dataLocation: String,
     val version: String,
     val openDataLocation: (() -> Boolean)? = null,
+    val exportBackup: (suspend () -> Boolean)? = null,
+    val restoreBackup: (suspend () -> Boolean)? = null,
 )
 
 data class SillageNativeState(
@@ -294,6 +299,21 @@ class SillageNativeController(
         state = state.copy(feedback = null)
     }
 
+    suspend fun exportBackup(operation: suspend () -> Boolean) {
+        runDataTransfer(
+            operation = operation,
+            successFeedback = SillageNativeFeedback.BackupExported,
+        )
+    }
+
+    suspend fun restoreBackup(operation: suspend () -> Boolean) {
+        runDataTransfer(
+            operation = operation,
+            successFeedback = SillageNativeFeedback.BackupRestored,
+            onSuccess = ::rehydrateAfterBackupRestore,
+        )
+    }
+
     private suspend fun mutateSelected(
         command: RecordLifecycleCommand,
         feedback: SillageNativeFeedback? = null,
@@ -352,6 +372,27 @@ class SillageNativeController(
         }
     }
 
+    private suspend fun runDataTransfer(
+        operation: suspend () -> Boolean,
+        successFeedback: SillageNativeFeedback,
+        onSuccess: () -> Unit = {},
+    ) {
+        if (!canStartOperation()) return
+        state = state.copy(busy = true, feedback = null)
+        try {
+            if (operation()) {
+                onSuccess()
+                if (state.storageAvailable) {
+                    state = state.copy(feedback = successFeedback)
+                }
+            }
+        } catch (_: Exception) {
+            state = state.copy(feedback = SillageNativeFeedback.DataTransferFailed)
+        } finally {
+            state = state.copy(busy = false)
+        }
+    }
+
     private fun hydrate() {
         try {
             val preferences = preferencesRepository.loadPreferences()
@@ -369,6 +410,11 @@ class SillageNativeController(
         } catch (_: Exception) {
             markStorageUnavailable()
         }
+    }
+
+    private fun rehydrateAfterBackupRestore() {
+        state = initialState(todayProvider()).copy(busy = true)
+        hydrate()
     }
 
     private fun markStorageUnavailable() {

@@ -68,9 +68,11 @@ synchronization, and security foundations. Its buildable `domain`,
 and Apple targets from common source. `application` declares inward-facing use
 cases and repository ports; platform adapters implement those ports.
 `local-data` owns the versioned JSON client-snapshot codec, optimistic record
-version checks, lifecycle rules, and device-local preference persistence.
-Platform hosts supply atomic string storage, timestamps, and record IDs without
-forking the codec or lifecycle behavior. `packages/kmp-features/` owns
+version checks, lifecycle rules, device-local preference persistence, and a
+separate validated backup-v1 envelope compatible with Android's record subset.
+Platform hosts supply atomic string storage, timestamps, record IDs, and native
+document pickers without forking codec, restore, or lifecycle behavior.
+`packages/kmp-features/` owns
 feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
@@ -621,7 +623,9 @@ attachment staging and present the resulting status.
   packaging remain future host work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, platform time and identity values, data-folder action,
-  native menu and guarded close integration, and Windows/macOS packaging.
+  native backup save/open dialogs, native menu and guarded close integration,
+  and Windows/macOS packaging. Shared local-data code owns the distinct portable
+  backup envelope, validation, and replace-after-validation policy.
   Matching CI hosts build and verify the DMG and MSI. Signing, notarization,
   credential storage, the updater, and deeper OS integration remain future
   release work.

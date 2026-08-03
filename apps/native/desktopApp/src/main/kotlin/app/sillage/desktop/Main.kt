@@ -20,6 +20,11 @@ import app.sillage.ui.application.SillageNativePlatform
 import app.sillage.ui.application.sillageNativeHostStrings
 import java.awt.Desktop
 import java.awt.Dimension
+import java.awt.FileDialog
+import java.awt.Frame
+import java.io.FilenameFilter
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
 
@@ -38,14 +43,6 @@ fun main() = application {
             recordLifecycleRepository = repository,
             preferencesRepository = repository,
             todayProvider = { LocalDate.now().toString() },
-        )
-    }
-    val platform = remember(snapshotPath) {
-        SillageNativePlatform(
-            name = desktopPlatformName(),
-            dataLocation = snapshotPath.toAbsolutePath().normalize().toString(),
-            version = DesktopVersion,
-            openDataLocation = { openDataFolder(snapshotPath) },
         )
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }
@@ -71,6 +68,29 @@ fun main() = application {
         title = "Sillage",
         state = rememberWindowState(width = 1180.dp, height = 760.dp),
     ) {
+        val platform = remember(snapshotPath, repository, hostStrings, window) {
+            SillageNativePlatform(
+                name = desktopPlatformName(),
+                dataLocation = snapshotPath.toAbsolutePath().normalize().toString(),
+                version = DesktopVersion,
+                openDataLocation = { openDataFolder(snapshotPath) },
+                exportBackup = {
+                    exportDesktopBackup(
+                        owner = window,
+                        repository = repository,
+                        title = hostStrings.exportBackupDialogTitle,
+                    )
+                },
+                restoreBackup = {
+                    restoreDesktopBackup(
+                        owner = window,
+                        repository = repository,
+                        title = hostStrings.restoreBackupDialogTitle,
+                    )
+                },
+            )
+        }
+
         LaunchedEffect(Unit) {
             window.minimumSize = Dimension(820, 600)
         }
@@ -147,3 +167,56 @@ private fun openDataFolder(snapshotPath: Path): Boolean {
         false
     }
 }
+
+private fun exportDesktopBackup(
+    owner: Frame,
+    repository: LocalClientRepository,
+    title: String,
+): Boolean {
+    val selected = selectBackupPath(
+        owner = owner,
+        title = title,
+        mode = FileDialog.SAVE,
+        defaultFile = "sillage-backup-${LocalDate.now()}.json",
+    ) ?: return false
+    val destination = selected.ensureJsonExtension()
+    DesktopClientSnapshotStorage(destination).write(repository.exportBackup())
+    return true
+}
+
+private fun restoreDesktopBackup(
+    owner: Frame,
+    repository: LocalClientRepository,
+    title: String,
+): Boolean {
+    val source = selectBackupPath(
+        owner = owner,
+        title = title,
+        mode = FileDialog.LOAD,
+    ) ?: return false
+    repository.restoreBackup(Files.readString(source, StandardCharsets.UTF_8))
+    return true
+}
+
+private fun selectBackupPath(
+    owner: Frame,
+    title: String,
+    mode: Int,
+    defaultFile: String? = null,
+): Path? {
+    val dialog = FileDialog(owner, title, mode).apply {
+        file = defaultFile
+        filenameFilter = FilenameFilter { _, name -> name.endsWith(".json", ignoreCase = true) }
+        isVisible = true
+    }
+    val directory = dialog.directory ?: return null
+    val file = dialog.file ?: return null
+    return Path.of(directory, file)
+}
+
+internal fun Path.ensureJsonExtension(): Path =
+    if (fileName.toString().endsWith(".json", ignoreCase = true)) {
+        this
+    } else {
+        resolveSibling("${fileName}.json")
+    }

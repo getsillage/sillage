@@ -12,9 +12,11 @@ class SillageNativeHostTest {
 
         assertEquals("File", english.fileMenu)
         assertEquals("New record", english.newRecord)
+        assertEquals("Export Sillage backup", english.exportBackupDialogTitle)
         assertEquals("Quit", english.quit)
         assertEquals("文件", chinese.fileMenu)
         assertEquals("新建记录", chinese.newRecord)
+        assertEquals("恢复 Sillage 备份", chinese.restoreBackupDialogTitle)
         assertEquals("退出", chinese.quit)
     }
 }

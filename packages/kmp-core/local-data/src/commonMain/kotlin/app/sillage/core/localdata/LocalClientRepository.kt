@@ -23,13 +23,28 @@ class LocalClientRepository(
 ) : RecordsRepository,
     RecordWriteRepository,
     RecordLifecycleRepository,
-    ClientPreferencesRepository {
+    ClientPreferencesRepository,
+    ClientBackupTransfer {
     override fun listRecords(): List<Memo> = load().records
 
     override fun loadPreferences(): ClientPreferences = load().preferences
 
     override fun savePreferences(preferences: ClientPreferences) {
         update { it.copy(preferences = preferences) }
+    }
+
+    override fun exportBackup(): String = LocalClientBackupCodec.encode(
+        snapshot = load(),
+        exportedAt = runtimeValues.currentTimestamp(),
+    )
+
+    override fun restoreBackup(value: String) {
+        val current = load()
+        val imported = LocalClientBackupCodec.decode(
+            value = value,
+            fallbackPreferences = current.preferences,
+        )
+        storage.write(LocalClientSnapshotCodec.encode(imported))
     }
 
     override suspend fun createRecord(draft: RecordDraft): Memo {

@@ -22,7 +22,7 @@ internal data class LocalClientSnapshot(
 internal object LocalClientSnapshotCodec {
     private const val CurrentSchemaVersion = 1
 
-    private val json = Json {
+    internal val json = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true
         prettyPrint = true
@@ -45,16 +45,7 @@ internal object LocalClientSnapshotCodec {
             )
         }
 
-        val records = persisted.records.map(PersistedMemo::toDomain)
-        if (records.any { it.id.isBlank() }) {
-            throw InvalidClientSnapshotException("Local records must have non-empty identifiers.")
-        }
-        if (records.any { it.version < 1L }) {
-            throw InvalidClientSnapshotException("Local record versions must be positive.")
-        }
-        if (records.map(Memo::id).distinct().size != records.size) {
-            throw InvalidClientSnapshotException("Local record identifiers must be unique.")
-        }
+        val records = validateLocalRecords(persisted.records.map(PersistedMemo::toDomain))
 
         return LocalClientSnapshot(
             preferences = ClientPreferences(
@@ -76,6 +67,19 @@ internal object LocalClientSnapshotCodec {
     }
 }
 
+internal fun validateLocalRecords(records: List<Memo>): List<Memo> {
+    if (records.any { it.id.isBlank() }) {
+        throw InvalidClientSnapshotException("Local records must have non-empty identifiers.")
+    }
+    if (records.any { it.version < 1L }) {
+        throw InvalidClientSnapshotException("Local record versions must be positive.")
+    }
+    if (records.map(Memo::id).distinct().size != records.size) {
+        throw InvalidClientSnapshotException("Local record identifiers must be unique.")
+    }
+    return records
+}
+
 @Serializable
 private data class PersistedClientSnapshot(
     val schemaVersion: Int = 1,
@@ -85,7 +89,7 @@ private data class PersistedClientSnapshot(
 )
 
 @Serializable
-private data class PersistedMemo(
+internal data class PersistedMemo(
     val id: String,
     val content: String,
     val entryDate: String,

@@ -99,8 +99,9 @@ Restore validates the complete file before replacing readable local records. It
 preserves the device's current server address and any preference omitted by the
 backup, but deliberately clears the private sync binding, cloud baselines, and
 outbox. Consequently, restored records remain local changes until a later
-manual synchronization pushes them before pulling current server records; do
-not assume the JSON file is a continuation of an existing server queue. A failed
+authenticated synchronization pushes them before pulling current server records.
+That may be the initial foreground sync after the next sign-in or a manual sync;
+do not assume the JSON file is a continuation of an existing server queue. A failed
 or unsupported import leaves current local state intact.
 This portable file is not a substitute for the complete server data-directory
 backup below.

@@ -710,13 +710,24 @@ class SillageNativeController(
     }
 
     suspend fun syncMemos() {
+        syncMemos(reportSuccessfulCompletion = true)
+    }
+
+    internal suspend fun syncMemosAfterAuthentication() {
+        syncMemos(reportSuccessfulCompletion = false)
+    }
+
+    private suspend fun syncMemos(reportSuccessfulCompletion: Boolean) {
         if (!canStartOperation()) return
         val baseUrl = state.serverConnection.checkedBaseUrl ?: return
         if (state.authentication.account == null || activeAuthenticationRepository == null) return
         val workspaceFactory = memoSyncWorkspaceFactory ?: return
         val gatewayFactory = memoSyncGatewayFactory ?: return
 
-        state = state.copy(busy = true, feedback = null)
+        state = state.copy(
+            busy = true,
+            feedback = if (reportSuccessfulCompletion) null else state.feedback,
+        )
         try {
             val workspace = workspaceFactory.createMemoSyncWorkspace(baseUrl)
             try {
@@ -724,9 +735,19 @@ class SillageNativeController(
                     workspace = workspace,
                     gateway = gatewayFactory.createMemoSyncGateway(baseUrl),
                 )()
-                presentMemoSyncResult(workspace, result.push, result.pulledMemos)
+                presentMemoSyncResult(
+                    workspace = workspace,
+                    summary = result.push,
+                    pulledMemos = result.pulledMemos,
+                    reportSuccessfulCompletion = reportSuccessfulCompletion,
+                )
             } catch (error: MemoSyncPullFailedException) {
-                presentMemoSyncResult(workspace, error.push, pulledMemos = 0)
+                presentMemoSyncResult(
+                    workspace = workspace,
+                    summary = error.push,
+                    pulledMemos = 0,
+                    reportSuccessfulCompletion = reportSuccessfulCompletion,
+                )
                 handleMemoSyncFailure(error.pullFailure)
             }
         } catch (error: CancellationException) {
@@ -742,6 +763,7 @@ class SillageNativeController(
         workspace: MemoSyncWorkspace,
         summary: SyncPushSummary,
         pulledMemos: Int,
+        reportSuccessfulCompletion: Boolean,
     ) {
         allRecords = recordsRepository.listRecords()
         val conflicts = summary.conflictMemoSyncs.map { conflict ->
@@ -756,6 +778,7 @@ class SillageNativeController(
             feedback = when {
                 summary.conflict > 0 -> SillageNativeFeedback.MemoSyncNeedsReview
                 summary.rejected > 0 -> SillageNativeFeedback.MemoSyncRejected
+                !reportSuccessfulCompletion -> state.feedback
                 summary.applied > 0 || pulledMemos > 0 -> SillageNativeFeedback.MemoSyncCompleted
                 else -> SillageNativeFeedback.MemoSyncNoChanges
             },

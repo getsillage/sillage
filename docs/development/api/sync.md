@@ -1,8 +1,9 @@
 # Sync API
 
-`GET /api/v1/sync` and `POST /api/v1/sync:push` support manual synchronization
-and convergence for offline clients. Android uses all pull streams and memo
-push; shared iOS and desktop clients use authenticated memo push and pull. The
+`GET /api/v1/sync` and `POST /api/v1/sync:push` support client-triggered
+synchronization and convergence for offline clients. Android uses all pull
+streams and memo push; shared iOS and desktop clients use authenticated memo push
+and pull for manual requests and once after an account becomes authenticated. The
 contract source is `contracts/proto/api/v1/sync_service.proto`; the REST
 implementation is in `server/sync_routes.go`, and the shared business logic is in
 `server/api_service.go`.

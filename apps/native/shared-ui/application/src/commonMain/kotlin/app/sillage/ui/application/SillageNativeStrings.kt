@@ -241,8 +241,10 @@ private val englishStrings = SillageNativeStrings(
     newPassword = "New password",
     confirmPassword = "Confirm new password",
     savePassword = "Save password",
-    initializeAccountSupporting = "Create the only account for this Sillage instance.",
-        signInSupporting = "Sign in to synchronize records manually with this server.",
+        initializeAccountSupporting =
+            "Create the only account. Local changes are then pushed to this server before its current records are pulled.",
+        signInSupporting =
+            "Signing in pushes local changes to this server before pulling its current records.",
     username = "Username",
     displayName = "Display name",
     password = "Password",
@@ -285,7 +287,7 @@ private val englishStrings = SillageNativeStrings(
         "Secure session storage is unavailable. Unlock the device and try again.",
     authConnectionFailed = "Authentication could not reach the Sillage server.",
     mode = "Mode",
-    offlineModeValue = "Local-first · manual sync",
+        offlineModeValue = "Local-first · sign-in + manual sync",
     saved = "Record saved",
     deleted = "Record moved to Recently Deleted",
     restored = "Record restored",
@@ -428,8 +430,10 @@ private val chineseStrings = SillageNativeStrings(
     newPassword = "新密码",
     confirmPassword = "确认新密码",
     savePassword = "保存密码",
-    initializeAccountSupporting = "为这个 Sillage 实例创建唯一账号。",
-        signInSupporting = "登录后可与这台服务器手动同步记录。",
+        initializeAccountSupporting =
+            "创建此实例的唯一账号。随后会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
+        signInSupporting =
+            "登录会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
     username = "账号",
     displayName = "显示名",
     password = "密码",
@@ -471,7 +475,7 @@ private val chineseStrings = SillageNativeStrings(
     authSecureStorageUnavailable = "无法使用安全会话存储，请解锁设备后重试。",
     authConnectionFailed = "认证请求无法连接 Sillage 服务器。",
     mode = "模式",
-    offlineModeValue = "本地优先 · 手动同步",
+        offlineModeValue = "本地优先 · 登录同步 + 手动同步",
     saved = "记录已保存",
     deleted = "记录已移至最近删除",
     restored = "记录已恢复",

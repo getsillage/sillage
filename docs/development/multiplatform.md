@@ -11,9 +11,9 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, public bootstrap, authentication, and Keychain session restoration implemented |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, public bootstrap, authentication, and Credential Manager session restoration implemented |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Local-first records, manual two-way memo sync, password change, DMG, public bootstrap, authentication, and Keychain session restoration implemented |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Local-first records, initial and manual two-way memo sync, password change, public bootstrap, authentication, and Keychain session restoration implemented |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Local-first records, initial and manual two-way memo sync, password change, public bootstrap, authentication, and Credential Manager session restoration implemented |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Local-first records, initial and manual two-way memo sync, password change, DMG, public bootstrap, authentication, and Keychain session restoration implemented |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -117,13 +117,16 @@ The buildable `shared-ui:application` composition root provides the responsive
 records list/detail/editor workflow, record search and lifecycle actions,
 appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
 iOS hosts supply only platform adapters and lifecycle entry points. Their records
-workspace is local-first and supports authenticated manual memo push-then-pull
-plus explicit conflict resolution through shared application, sync, network, and
-local-data ports. Its account settings also run authenticated password change
+workspace is local-first and supports authenticated initial and manual memo
+push-then-pull plus explicit conflict resolution through shared application,
+sync, network, and local-data ports. The application root starts one initial sync
+when an account becomes authenticated, suppresses routine completion feedback,
+and still surfaces conflicts, rejection, expiry, or failure. Its account settings
+also run authenticated password change
 through the shared feature lifecycle and base-URL-scoped repository, blocking
 other writes until the caller's rotated session is safely accepted. Automatic
-synchronization, broader pull streams, Ask, and
-attachments continue to arrive through ports and host-only implementations.
+recurring synchronization, broader pull streams, Ask, and attachments continue
+to arrive through ports and host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -651,9 +654,11 @@ aggregate on root UI state, and its callbacks look up current conflicts through
 `SyncFeatureStateHolder.findConflict` before writing results through `withSync`.
 The buildable `shared-ui:sync` module owns first-conflict selection, preview
 fallback limits, dialog layout, and resource-ID action routing. The shared
-native application controller performs authenticated manual two-way sync,
-refreshes canonical server records, and prevents record writes while sync or
-conflict resolution is active. Platform hosts retain localized strings and
+native application controller performs authenticated two-way sync, refreshes
+canonical server records, and prevents record writes while sync or conflict
+resolution is active. The application root invokes that same path once after
+authentication and keeps routine automatic completion silent; manual sync
+continues to report completion. Platform hosts retain localized strings and
 repository composition without duplicating merge or conflict policy.
 
 Android's full pull uses the distinct shared `SyncSnapshot`; it is not a backup

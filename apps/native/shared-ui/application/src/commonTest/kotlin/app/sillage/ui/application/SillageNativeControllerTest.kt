@@ -141,6 +141,91 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun authenticatedAutomaticSyncPullsRecordsWithoutReplacingAuthenticationFeedback() = runTest {
+        val local = FakeRecordsRepository()
+        val serverMemo = memo("server-record", "from server")
+        val workspace = FakeMemoSyncWorkspace(local, pending = emptyList())
+        val gateway = FakeMemoSyncGateway(pulledMemos = listOf(serverMemo))
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(workspace),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+
+        signIn(controller, dismissFeedback = false)
+        assertEquals(SillageNativeFeedback.SignedIn, controller.state.feedback)
+
+        controller.syncMemosAfterAuthentication()
+
+        assertEquals(1, gateway.pullCalls)
+        assertEquals(listOf(serverMemo), local.records)
+        assertEquals(listOf(serverMemo), controller.state.workspace.records.records)
+        assertEquals(SillageNativeFeedback.SignedIn, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun authenticatedAutomaticSyncStillSurfacesFailures() = runTest {
+        val local = FakeRecordsRepository()
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(
+                FakeMemoSyncWorkspace(local, pending = emptyList()),
+            ),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(
+                FakeMemoSyncGateway(pullError = IllegalStateException("offline")),
+            ),
+        )
+
+        signIn(controller)
+        controller.syncMemosAfterAuthentication()
+
+        assertEquals(SillageNativeFeedback.MemoSyncFailed, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun authenticatedAutomaticSyncDoesNotRepublishConsumedFeedback() = runTest {
+        val localMemo = memo("memo-1", "local")
+        val local = FakeRecordsRepository(mutableListOf(localMemo))
+        val pushStarted = CompletableDeferred<Unit>()
+        val releasePush = CompletableDeferred<Unit>()
+        val gateway = FakeMemoSyncGateway(
+            beforeResult = {
+                pushStarted.complete(Unit)
+                releasePush.await()
+            },
+        )
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            memoSyncWorkspaceFactory = FakeMemoSyncWorkspaceFactory(
+                FakeMemoSyncWorkspace(
+                    local,
+                    pending = listOf(PendingMemoSync(localMemo, null, "create-1", "create")),
+                ),
+            ),
+            memoSyncGatewayFactory = FakeMemoSyncGatewayFactory(gateway),
+        )
+
+        signIn(controller, dismissFeedback = false)
+        val sync = launch { controller.syncMemosAfterAuthentication() }
+        pushStarted.await()
+
+        controller.dismissFeedback()
+        releasePush.complete(Unit)
+        sync.join()
+
+        assertNull(controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
     fun secureRestoreFailureKeepsLoginAvailableWithStableReason() = runTest {
         val local = FakeRecordsRepository().apply {
             preferences = ClientPreferences(serverBaseUrl = "https://example.test")
@@ -860,13 +945,18 @@ private fun initializedBootstrapRepository() = FakeBootstrapRepository(
     result = BootstrapInfo(true, "0.3.1", "abc", "v1", 1),
 )
 
-private suspend fun signIn(controller: SillageNativeController) {
+private suspend fun signIn(
+    controller: SillageNativeController,
+    dismissFeedback: Boolean = true,
+) {
     controller.updateServerBaseUrl("example.test")
     controller.checkServerConnection()
     controller.updateAuthenticationUsername("felix")
     controller.updateAuthenticationPassword("correct horse battery staple")
     controller.authenticate()
-    controller.dismissFeedback()
+    if (dismissFeedback) {
+        controller.dismissFeedback()
+    }
 }
 
 private fun controller(

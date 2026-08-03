@@ -126,8 +126,11 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   header value; no access token or record body enters durable session storage.
   The local workspace refuses to open synchronization state bound to another
   server, and the application permits sync only for the currently checked,
-  authenticated address. Record writes are locked for the duration of sync so
-  pushed acknowledgements and pulled records cannot race a local snapshot write.
+  authenticated address. The application root may invoke one foreground sync
+  immediately after an account becomes authenticated; it uses the same checked
+  address and session-expiry path as a manual request. Record writes are locked
+  for the duration of sync so pushed acknowledgements and pulled records cannot
+  race a local snapshot write.
 - `AuthenticationCredentialStore` is the only shared cross-launch credential
   boundary and accepts only the refresh credential. Access tokens, passwords,
   and refresh credentials are never written to the client snapshot, ordinary

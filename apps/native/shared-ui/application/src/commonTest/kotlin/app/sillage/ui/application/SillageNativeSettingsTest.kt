@@ -57,4 +57,29 @@ class SillageNativeSettingsTest {
             presentation.aboutStrings.licensesSupporting,
         )
     }
+
+    @Test
+    fun authenticationCopyDisclosesInitialPushThenPull() {
+        val english = sillageNativeStrings(ClientPreferenceValues.LANGUAGE_EN)
+        val chinese = sillageNativeStrings(ClientPreferenceValues.LANGUAGE_ZH_CN)
+
+        assertEquals(
+            "Create the only account. Local changes are then pushed to this server before its current records are pulled.",
+            english.initializeAccountSupporting,
+        )
+        assertEquals(
+            "Signing in pushes local changes to this server before pulling its current records.",
+            english.signInSupporting,
+        )
+        assertEquals("Local-first · sign-in + manual sync", english.offlineModeValue)
+        assertEquals(
+            "创建此实例的唯一账号。随后会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
+            chinese.initializeAccountSupporting,
+        )
+        assertEquals(
+            "登录会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
+            chinese.signInSupporting,
+        )
+        assertEquals("本地优先 · 登录同步 + 手动同步", chinese.offlineModeValue)
+    }
 }

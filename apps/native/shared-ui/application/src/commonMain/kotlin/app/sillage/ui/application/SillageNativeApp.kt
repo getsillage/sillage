@@ -59,6 +59,13 @@ fun SillageNativeApp(
         }
     }
 
+    val authenticatedAccountId = state.authentication.account?.id
+    LaunchedEffect(controller, authenticatedAccountId) {
+        if (authenticatedAccountId != null) {
+            controller.syncMemosAfterAuthentication()
+        }
+    }
+
     LaunchedEffect(state.feedback, strings) {
         val feedback = state.feedback ?: return@LaunchedEffect
         snackbarHostState.currentSnackbarData?.dismiss()

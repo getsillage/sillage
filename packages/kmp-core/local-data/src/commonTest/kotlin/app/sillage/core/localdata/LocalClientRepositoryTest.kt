@@ -130,7 +130,7 @@ class LocalClientRepositoryTest {
             {
               "formatVersion": 1,
               "exportedAt": "2026-08-03T10:00:00Z",
-              "themeMode": "DARK",
+              "themeMode": "dark",
               "memos": []
             }
             """.trimIndent()

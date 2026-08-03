@@ -170,22 +170,30 @@ internal class IosAuthenticationCredentialStore : AuthenticationCredentialStore 
 
     private fun createUtf8Data(value: String): CFDataRef {
         val bytes = value.encodeToByteArray()
-        if (bytes.isEmpty()) unavailable()
-        return bytes.usePinned { pinned ->
-            CFDataCreate(
-                allocator = kCFAllocatorDefault,
-                bytes = pinned.addressOf(0).reinterpret<UByteVar>(),
-                length = bytes.size.toLong(),
-            )
-        } ?: unavailable()
+        try {
+            if (bytes.isEmpty() || bytes.size.toLong() > MaxStoredCredentialBytes) unavailable()
+            return bytes.usePinned { pinned ->
+                CFDataCreate(
+                    allocator = kCFAllocatorDefault,
+                    bytes = pinned.addressOf(0).reinterpret<UByteVar>(),
+                    length = bytes.size.toLong(),
+                )
+            } ?: unavailable()
+        } finally {
+            bytes.fill(0)
+        }
     }
 
     private fun readUtf8(data: CFDataRef): String {
         val length = CFDataGetLength(data)
         if (length <= 0 || length > MaxStoredCredentialBytes) unavailable()
         val bytes = CFDataGetBytePtr(data) ?: unavailable()
-        return ByteArray(length.toInt()) { index -> bytes[index].toByte() }
-            .decodeToString(throwOnInvalidSequence = true)
+        val copy = ByteArray(length.toInt()) { index -> bytes[index].toByte() }
+        return try {
+            copy.decodeToString(throwOnInvalidSequence = true)
+        } finally {
+            copy.fill(0)
+        }
     }
 
     private inline fun <T> withString(value: String, operation: (CFStringRef) -> T): T {

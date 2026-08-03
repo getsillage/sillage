@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -245,28 +244,25 @@ private fun SillageNativeRail(
             }
         },
     ) {
-        val recordsSelected = state.clientContext.screen != AppDestination.AISettings
-        SillageRailItem(
-            selected = recordsSelected,
-            enabled = true,
-            icon = Icons.Outlined.Description,
-            label = strings.records,
-            onClick = onRecords,
-        )
-        SillageRailItem(
-            selected = false,
-            enabled = false,
-            icon = Icons.Outlined.AutoAwesome,
-            label = strings.ask,
-            onClick = {},
-        )
-        SillageRailItem(
-            selected = !recordsSelected,
-            enabled = true,
-            icon = Icons.Outlined.Settings,
-            label = strings.settings,
-            onClick = onSettings,
-        )
+        sillageNativePrimaryNavigationItems(state.clientContext.screen).forEach { item ->
+            when (item.destination) {
+                SillageNativePrimaryDestination.Records -> SillageRailItem(
+                    selected = item.selected,
+                    enabled = true,
+                    icon = Icons.Outlined.Description,
+                    label = strings.records,
+                    onClick = onRecords,
+                )
+
+                SillageNativePrimaryDestination.Settings -> SillageRailItem(
+                    selected = item.selected,
+                    enabled = true,
+                    icon = Icons.Outlined.Settings,
+                    label = strings.settings,
+                    onClick = onSettings,
+                )
+            }
+        }
     }
 }
 
@@ -294,31 +290,51 @@ private fun SillageNativeBottomNavigation(
     onRecords: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    val recordsSelected = state.clientContext.screen != AppDestination.AISettings
     SillageNavigationBar {
-        SillageNavigationItem(
-            selected = recordsSelected,
-            onClick = onRecords,
-            enabled = true,
-            icon = Icons.Outlined.Description,
-            label = strings.records,
-        )
-        SillageNavigationItem(
-            selected = false,
-            onClick = {},
-            enabled = false,
-            icon = Icons.Outlined.AutoAwesome,
-            label = strings.ask,
-        )
-        SillageNavigationItem(
-            selected = !recordsSelected,
-            onClick = onSettings,
-            enabled = true,
-            icon = Icons.Outlined.Settings,
-            label = strings.settings,
-        )
+        sillageNativePrimaryNavigationItems(state.clientContext.screen).forEach { item ->
+            when (item.destination) {
+                SillageNativePrimaryDestination.Records -> SillageNavigationItem(
+                    selected = item.selected,
+                    onClick = onRecords,
+                    enabled = true,
+                    icon = Icons.Outlined.Description,
+                    label = strings.records,
+                )
+
+                SillageNativePrimaryDestination.Settings -> SillageNavigationItem(
+                    selected = item.selected,
+                    onClick = onSettings,
+                    enabled = true,
+                    icon = Icons.Outlined.Settings,
+                    label = strings.settings,
+                )
+            }
+        }
     }
 }
+
+internal enum class SillageNativePrimaryDestination {
+    Records,
+    Settings,
+}
+
+internal data class SillageNativePrimaryNavigationItem(
+    val destination: SillageNativePrimaryDestination,
+    val selected: Boolean,
+)
+
+internal fun sillageNativePrimaryNavigationItems(
+    screen: AppDestination,
+): List<SillageNativePrimaryNavigationItem> = listOf(
+    SillageNativePrimaryNavigationItem(
+        destination = SillageNativePrimaryDestination.Records,
+        selected = screen != AppDestination.AISettings,
+    ),
+    SillageNativePrimaryNavigationItem(
+        destination = SillageNativePrimaryDestination.Settings,
+        selected = screen == AppDestination.AISettings,
+    ),
+)
 
 private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): String = when (feedback) {
     SillageNativeFeedback.RecordSaved -> saved

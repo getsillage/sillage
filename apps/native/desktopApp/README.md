@@ -67,3 +67,5 @@ URL and can restore the session after public bootstrap on a later launch. Access
 tokens and passwords remain memory-only. Automatic sync, attachments, and Ask
 remain follow-up work. Those integrations must reuse KMP application ports
 instead of introducing desktop-only business behavior.
+Until Ask is wired end to end, it is omitted from primary navigation rather than
+shown as an unavailable destination.

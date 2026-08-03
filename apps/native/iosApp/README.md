@@ -44,4 +44,6 @@ record snapshot and portable backup. Automatic sync, Ask, attachments,
 accessibility/device journeys, signing, and App Store packaging remain outside
 the implemented host. A locally built app is an engineering artifact, not an
 official release asset.
+Until Ask is wired end to end, it is omitted from primary navigation rather than
+shown as an unavailable destination.
 official release asset.

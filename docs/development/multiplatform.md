@@ -666,6 +666,10 @@ Shared `RunSyncPushUseCase` and `RunTwoWaySyncUseCase` enforce attachment
 preparation before push and push-before-pull ordering. Platform hosts implement
 attachment staging and present the resulting status.
 
+The shared desktop/iOS shell renders only implemented Records and Settings
+destinations; it does not expose a disabled Ask destination before the Ask
+application port and screen exist end to end.
+
 ## Platform Hosts
 
 - `apps/native/androidApp/` is the Android application and current migration

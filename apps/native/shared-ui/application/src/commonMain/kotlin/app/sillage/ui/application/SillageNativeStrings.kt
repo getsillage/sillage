@@ -11,7 +11,6 @@ import app.sillage.ui.records.SillageRecordSearchStrings
 internal data class SillageNativeStrings(
     val appName: String,
     val records: String,
-    val ask: String,
     val settings: String,
     val localMode: String,
     val newRecord: String,
@@ -162,7 +161,6 @@ internal fun sillageNativeStrings(language: String): SillageNativeStrings {
 private val englishStrings = SillageNativeStrings(
     appName = "Sillage",
     records = "Records",
-    ask = "Ask",
     settings = "Settings",
     localMode = "Local",
     newRecord = "New record",
@@ -348,7 +346,6 @@ private val englishStrings = SillageNativeStrings(
 private val chineseStrings = SillageNativeStrings(
     appName = "Sillage",
     records = "记录",
-    ask = "问答",
     settings = "设置",
     localMode = "本地",
     newRecord = "新建记录",

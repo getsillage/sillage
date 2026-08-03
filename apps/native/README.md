@@ -6,6 +6,9 @@ share a functional local-first records workspace plus public Sillage server
 bootstrap, initialization, sign-in, refresh, sign-out, persistent manual
 two-way memo synchronization, and conflict resolution. Broader remote feature
 integration continues incrementally.
+The shared desktop/iOS shell exposes only implemented Records and Settings
+destinations; Ask is added to that navigation only after its state, protocol,
+and screen are wired end to end.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under

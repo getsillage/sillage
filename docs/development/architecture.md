@@ -643,6 +643,11 @@ mapping preserves client theme/view preferences and device-held AI secrets.
 reading the outbox. `RunTwoWaySyncUseCase` owns Android's push-before-pull
 sequence while the host presents localized results.
 
+The shared desktop/iOS application shell exposes only implemented Records and
+Settings destinations. `AppDestination.Ask` remains available to Android and
+future hosts, but the shared native primary navigation does not render it until
+an Ask application port and screen exist end to end.
+
 ## Core Invariants
 
 - An instance has exactly one account; initialization rejects creation of a second account.

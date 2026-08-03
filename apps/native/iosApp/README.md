@@ -2,8 +2,13 @@
 
 The iOS host embeds the static `SillageShared` Kotlin Multiplatform framework
 in a small SwiftUI application. The framework exposes the shared Compose
-device-local records workspace and supplies Apple adapters for `NSUserDefaults`,
+device-local records workspace and supplies Apple adapters for an atomic
+Application Support snapshot file, one-time `NSUserDefaults` migration,
 Foundation timestamps, and UUIDs.
+
+On first launch after this storage upgrade, the host copies the legacy defaults
+value into `Library/Application Support/Sillage/client-v1.json` and clears the
+legacy key only after the atomic file write succeeds.
 
 Build the framework and unsigned simulator host from the repository root:
 

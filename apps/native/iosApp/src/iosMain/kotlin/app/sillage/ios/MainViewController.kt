@@ -11,9 +11,10 @@ import platform.UIKit.UIViewController
 private const val IosVersion = "0.1.0"
 
 fun MainViewController(): UIViewController = ComposeUIViewController {
-    val repository = remember {
+    val storage = remember { IosClientSnapshotStorage() }
+    val repository = remember(storage) {
         LocalClientRepository(
-            storage = IosClientSnapshotStorage(),
+            storage = storage,
             runtimeValues = IosRuntimeValues(),
         )
     }
@@ -26,10 +27,10 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
             todayProvider = ::currentLocalDate,
         )
     }
-    val platform = remember {
+    val platform = remember(storage) {
         SillageNativePlatform(
             name = "iOS",
-            dataLocation = "NSUserDefaults",
+            dataLocation = storage.location,
             version = IosVersion,
         )
     }

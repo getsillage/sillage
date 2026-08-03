@@ -40,7 +40,7 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
-| `apps/native/iosApp/` | Static KMP framework, SwiftUI/UIKit lifecycle host, `NSUserDefaults` adapter, Xcode integration, and Apple packaging boundary |
+| `apps/native/iosApp/` | Static KMP framework, SwiftUI/UIKit lifecycle host, atomic Application Support snapshot adapter with one-time `NSUserDefaults` migration, Xcode integration, and Apple packaging boundary |
 | `apps/native/desktopApp/` | Compose Desktop host, atomic local snapshot adapter, native backup file dialogs, native menus and guarded window lifecycle, Windows/macOS integration, and host-native DMG/MSI verification |
 | `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `application` composes the device-local records workspace, `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus the common `MaterialTheme` |
 | `packages/kmp-core/` | Shared native domain, application, local data, sync, and security modules; `local-data` separates private snapshots from validated user backup envelopes, and `domain`, `application`, `local-data`, and `sync` are buildable for Android, desktop JVM, and Apple targets |

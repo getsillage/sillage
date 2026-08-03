@@ -618,9 +618,10 @@ attachment staging and present the resulting status.
 - `apps/native/androidApp/` is the Android application and current migration
   source.
 - `apps/native/iosApp/` owns the static KMP framework, SwiftUI/UIKit lifecycle
-  host, `NSUserDefaults` snapshot adapter, Foundation time/identity values, and
-  Xcode integration. Keychain credentials, file sharing, signing, and App Store
-  packaging remain future host work.
+  host, atomic Application Support snapshot adapter, one-time `NSUserDefaults`
+  migration, Foundation time/identity values, and Xcode integration. Keychain
+  credentials, file sharing, signing, and App Store packaging remain future host
+  work.
 - `apps/native/desktopApp/` owns the shared desktop executable, atomic local
   snapshot file adapter, platform time and identity values, data-folder action,
   native backup save/open dialogs, native menu and guarded close integration,

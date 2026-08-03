@@ -35,10 +35,12 @@ require a server, including Ask and synchronization, remain unavailable until
 their existing shared application ports have host implementations.
 
 `iosApp` exports a static KMP framework consumed by a SwiftUI/UIKit lifecycle
-host. It stores the same JSON snapshot as one `NSUserDefaults` value and uses
-Foundation for timestamps and record identifiers. The Xcode project selects a
-device or simulator framework from Xcode's build environment rather than
-duplicating application behavior in Swift.
+host. It stores the same JSON snapshot as an atomic Application Support file and
+uses Foundation for timestamps and record identifiers. Existing installs migrate
+the legacy `NSUserDefaults` value only after the file adapter accepts the full
+snapshot, so a failed write leaves the recovery source intact. The Xcode project
+selects a device or simulator framework from Xcode's build environment rather
+than duplicating application behavior in Swift.
 
 `desktopApp` is the Windows/macOS host and may generate local DMG or MSI
 packages. These packages are engineering verification artifacts, not official

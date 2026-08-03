@@ -14,5 +14,9 @@ Backup v1 reuses Android's `formatVersion`, `exportedAt`, `themeMode`, and `memo
 vocabulary. Native hosts restore the records/appearance subset, ignore unrelated
 Android-only sections, and preserve a current preference when the backup omits it.
 
+`MigratingClientSnapshotStorage` lets a host move legacy persistence without
+weakening recovery: the migration source is cleared only after the primary
+adapter has accepted the complete value.
+
 It intentionally does not own a filesystem path, `NSUserDefaults`, Keychain,
 Windows Credential Manager, or Android storage APIs.

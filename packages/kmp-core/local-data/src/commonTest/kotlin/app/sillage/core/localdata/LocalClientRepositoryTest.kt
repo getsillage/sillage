@@ -2,7 +2,10 @@ package app.sillage.core.localdata
 
 import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
+import app.sillage.core.application.records.InvalidRecordDraftException
+import app.sillage.core.application.records.MAX_RECORD_CONTENT_UTF8_BYTES
 import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.RecordDraftValidationError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -75,6 +78,61 @@ class LocalClientRepositoryTest {
             repository.createRecord(RecordDraft("body", "2026-08-03"))
         }
         assertEquals("{not-json", storage.value)
+    }
+
+    @Test
+    fun existingRecordsRemainReadableAfterDraftRulesTighten() = runTest {
+        val oversizedContent = "a".repeat(MAX_RECORD_CONTENT_UTF8_BYTES + 1)
+        val storage = MemoryStorage(
+            """
+            {
+              "schemaVersion": 1,
+              "records": [
+                {
+                  "id": "legacy-empty",
+                  "content": "",
+                  "entryDate": "not-a-date",
+                  "version": 1,
+                  "createdAt": "2026-08-03T10:00:00Z",
+                  "updatedAt": "2026-08-03T10:00:00Z"
+                },
+                {
+                  "id": "legacy-oversized",
+                  "content": "$oversizedContent",
+                  "entryDate": "2026-08-03",
+                  "version": 1,
+                  "createdAt": "2026-08-03T10:00:01Z",
+                  "updatedAt": "2026-08-03T10:00:01Z"
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        val repository = LocalClientRepository(storage, QueueRuntime())
+        val existingRecords = repository.listRecords()
+        val records = existingRecords.associateBy { it.id }
+
+        assertEquals("", records.getValue("legacy-empty").content)
+        assertEquals("not-a-date", records.getValue("legacy-empty").entryDate)
+        assertEquals(oversizedContent, records.getValue("legacy-oversized").content)
+
+        val restored = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        restored.restoreBackup(repository.exportBackup())
+        assertEquals(existingRecords, restored.listRecords())
+    }
+
+    @Test
+    fun invalidDraftNeverCreatesPrivateSnapshot() = runTest {
+        val storage = MemoryStorage()
+        val repository = LocalClientRepository(storage, QueueRuntime())
+
+        val error = assertFailsWith<InvalidRecordDraftException> {
+            repository.createRecord(RecordDraft("", "2026-08-03"))
+        }
+
+        assertEquals(RecordDraftValidationError.EmptyContent, error.validationError)
+        assertEquals(null, storage.value)
     }
 
     @Test

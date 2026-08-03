@@ -72,6 +72,14 @@ version checks, lifecycle rules, device-local preference persistence, and a
 separate validated backup-v1 envelope compatible with Android's record subset.
 Platform hosts supply atomic string storage, timestamps, record IDs, and native
 document pickers without forking codec, restore, or lifecycle behavior.
+
+Record create and update commands share the server's draft constraints in
+`application`: non-empty content, at most 1 MiB after UTF-8 encoding, and a
+valid `YYYY-MM-DD` entry date. `local-data` repeats the check at its direct write
+boundary so future adapters cannot bypass it. Snapshot and backup decoding keep
+structurally valid historical records readable instead of treating newer draft
+rules as a destructive migration.
+
 `packages/kmp-features/` owns
 feature-scoped state for authentication, records, Ask, settings, and manual
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and

@@ -21,6 +21,13 @@ preferences. It exposes platform-neutral ports for atomic string storage,
 timestamps, and identifiers. The snapshot is private client persistence, not
 the sync protocol or a user backup format.
 
+New record creates and updates pass the shared application validator and the
+local repository write boundary. Content must be non-empty, at most 1 MiB when
+UTF-8 encoded, and paired with a valid `YYYY-MM-DD` entry date, matching the
+server service. These constraints are not retroactive snapshot validation:
+structurally valid historical records remain readable even if a newer write
+would reject their content or date.
+
 User-initiated data transfer uses a separate versioned, credential-free backup
 envelope. Restoration fully decodes and validates the envelope before replacing
 the private snapshot and rehydrating shared application state. Unsupported or

@@ -4,6 +4,8 @@ import app.sillage.core.application.preferences.ClientPreferenceValues
 import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
 import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.MAX_RECORD_CONTENT_UTF8_BYTES
+import app.sillage.core.application.records.RecordDraftValidationError
 import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
@@ -61,11 +63,38 @@ class SillageNativeControllerTest {
         val repository = FakeRecordsRepository()
         val controller = controller(repository)
         controller.startNewRecord()
+        controller.updateEditorContent("body")
         controller.updateEditorEntryDate("2026-02-30")
 
         controller.saveEditor()
 
-        assertEquals(SillageEditorValidationError.InvalidEntryDate, controller.state.editorValidationError)
+        assertEquals(
+            RecordDraftValidationError.InvalidEntryDate,
+            controller.state.editorValidationError,
+        )
+        assertTrue(repository.records.isEmpty())
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
+    fun rejectsEmptyAndOversizedContentBeforeStorageMutation() = runTest {
+        val repository = FakeRecordsRepository()
+        val controller = controller(repository)
+        controller.startNewRecord()
+
+        controller.saveEditor()
+        assertEquals(
+            RecordDraftValidationError.EmptyContent,
+            controller.state.editorValidationError,
+        )
+
+        controller.updateEditorContent("a".repeat(MAX_RECORD_CONTENT_UTF8_BYTES + 1))
+        assertEquals(null, controller.state.editorValidationError)
+        controller.saveEditor()
+        assertEquals(
+            RecordDraftValidationError.ContentTooLarge,
+            controller.state.editorValidationError,
+        )
         assertTrue(repository.records.isEmpty())
         assertFalse(controller.state.busy)
     }
@@ -170,13 +199,6 @@ class SillageNativeControllerTest {
         assertFalse(controller.state.busy)
     }
 
-    @Test
-    fun isoDateValidationHandlesLeapYears() {
-        assertTrue(isValidIsoDate("2024-02-29"))
-        assertFalse(isValidIsoDate("2100-02-29"))
-        assertTrue(isValidIsoDate("2000-02-29"))
-        assertFalse(isValidIsoDate("2026-13-01"))
-    }
 }
 
 private fun controller(repository: FakeRecordsRepository) = SillageNativeController(

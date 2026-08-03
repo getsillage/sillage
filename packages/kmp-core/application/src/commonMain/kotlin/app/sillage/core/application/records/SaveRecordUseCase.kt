@@ -6,6 +6,7 @@ class SaveRecordUseCase(
     private val repository: RecordWriteRepository,
 ) {
     suspend operator fun invoke(command: SaveRecordCommand): Memo {
+        requireValidRecordDraft(command.draft)
         return when (command) {
             is SaveRecordCommand.Create -> repository.createRecord(command.draft)
             is SaveRecordCommand.Update -> repository.updateRecord(command.memo, command.draft)

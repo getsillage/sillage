@@ -350,6 +350,7 @@
     <string name="notice_synced_local">已同步到本地。</string>
     <string name="notice_sync_both">双向同步完成。%1$s</string>
     <string name="error_record_empty">记录内容不能为空。</string>
+    <string name="error_record_too_large">记录内容不能超过 1 MiB。</string>
     <string name="error_entry_date_invalid">请输入有效的记录日期（YYYY-MM-DD）。</string>
     <string name="error_network">网络连接失败，请检查网络后重试。</string>
     <string name="error_local_data_corrupt">本地数据无法读取，原始数据已备份；为保护数据已停用保存。</string>

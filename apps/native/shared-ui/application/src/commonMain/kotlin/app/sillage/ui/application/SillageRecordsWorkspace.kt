@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.sillage.core.application.records.RecordDraftValidationError
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsEditorActionContext
@@ -454,11 +455,16 @@ private fun SillageRecordEditorPane(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !state.busy && state.storageAvailable,
                         singleLine = true,
-                        isError = state.editorValidationError != null,
+                        isError = state.editorValidationError ==
+                            RecordDraftValidationError.InvalidEntryDate,
                         label = { Text(strings.entryDate) },
                         placeholder = { Text(strings.entryDatePlaceholder) },
-                        supportingText = state.editorValidationError?.let {
+                        supportingText = if (
+                            state.editorValidationError == RecordDraftValidationError.InvalidEntryDate
+                        ) {
                             { Text(strings.invalidEntryDate) }
+                        } else {
+                            null
                         },
                     )
                 }
@@ -470,8 +476,20 @@ private fun SillageRecordEditorPane(
                             .fillMaxWidth()
                             .heightIn(min = 320.dp),
                         enabled = !state.busy && state.storageAvailable,
+                        isError = state.editorValidationError ==
+                            RecordDraftValidationError.EmptyContent ||
+                            state.editorValidationError == RecordDraftValidationError.ContentTooLarge,
                         label = { Text(strings.content) },
                         placeholder = { Text(strings.contentPlaceholder) },
+                        supportingText = when (state.editorValidationError) {
+                            RecordDraftValidationError.EmptyContent -> {
+                                { Text(strings.emptyRecordContent) }
+                            }
+                            RecordDraftValidationError.ContentTooLarge -> {
+                                { Text(strings.recordContentTooLarge) }
+                            }
+                            else -> null
+                        },
                         minLines = 12,
                     )
                 }

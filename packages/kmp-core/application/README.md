@@ -38,6 +38,14 @@ The records slice currently exposes nine distinct boundaries:
   authenticated content into a host-provided destination while common code owns
   only the request path and response metadata.
 
+`SaveRecordUseCase` validates every new record draft before it crosses a write
+port: content must be non-empty, no larger than 1 MiB after UTF-8 encoding, and
+the entry date must be a valid `YYYY-MM-DD` date. These rules match the server
+service and apply to creates and updates, including saves initiated by Ask.
+They are new-write constraints, not snapshot migration rules: structurally
+valid historical records remain readable even when their stored content or
+date would fail current draft validation.
+
 The Ask slice exposes `AskRepository` with focused use cases for listing
 conversations, listing messages, creating a conversation, and selecting its
 branch head. Android provides local and remote adapters. Streaming answer

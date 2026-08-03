@@ -6,6 +6,7 @@ import app.sillage.core.application.records.RecordDraft
 import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
+import app.sillage.core.application.records.requireValidRecordDraft
 import app.sillage.core.domain.records.Memo
 
 class StaleLocalRecordException(recordId: String) :
@@ -53,6 +54,7 @@ class LocalClientRepository(
     }
 
     override suspend fun createRecord(draft: RecordDraft): Memo {
+        requireValidRecordDraft(draft)
         val timestamp = runtimeValues.currentTimestamp()
         val created = Memo(
             id = runtimeValues.nextRecordId(),
@@ -75,6 +77,7 @@ class LocalClientRepository(
     }
 
     override suspend fun updateRecord(memo: Memo, draft: RecordDraft): Memo {
+        requireValidRecordDraft(draft)
         return mutateRecord(memo) { current, timestamp ->
             current.copy(
                 content = draft.content,

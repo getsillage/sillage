@@ -11,6 +11,11 @@ signal, and the themed discard confirmation used by page navigation and desktop
 window lifecycle actions. Hosts can integrate native menus and close requests
 without duplicating draft-loss policy.
 
+The records editor consumes the shared record-draft validator and maps its
+empty-content, UTF-8 1 MiB, and invalid-date results to localized field-level
+feedback. The controller applies these checks only when saving; records already
+loaded from an older snapshot remain visible and editable.
+
 Its Data settings surface also owns portable-backup actions, destructive restore
 confirmation, busy-state gating, and localized success/failure feedback. Restore
 remains available after snapshot hydration fails, while export and record

@@ -63,7 +63,13 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 ## Request and Response Limits
 
 - Non-multipart requests are limited to 8 MiB at the HTTP middleware boundary. Attachment uploads use the configured `SILLAGE_MAX_UPLOAD_MB` limit and are independently bounded while copying bytes to disk.
-- A record body is limited to 1 MiB, search strings to 512 bytes, Ask questions to 64 KiB, and AI configuration fields to bounded sizes documented by validation errors. AI provider responses are capped before decoding, and generated text is capped before persistence.
+- A record body is limited to 1 MiB of UTF-8 at both the server service and
+  shared native new-write boundaries. Search strings are limited to 512 bytes,
+  Ask questions to 64 KiB, and AI configuration fields to bounded sizes with
+  documented validation errors. AI provider responses are capped before
+  decoding, and generated text is capped before persistence. Existing native
+  snapshots remain readable when a historical record violates a newer draft
+  rule; compatibility reads must not silently rewrite or discard that content.
 - The HTTP server enforces header, header-read, body-read, write, and idle timeouts. Streaming Ask responses use the longer write timeout but remain cancellable through the request context.
 
 ## Android

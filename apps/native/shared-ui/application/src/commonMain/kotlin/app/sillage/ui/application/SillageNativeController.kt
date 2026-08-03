@@ -8,12 +8,14 @@ import app.sillage.core.application.preferences.ClientPreferences
 import app.sillage.core.application.preferences.ClientPreferencesRepository
 import app.sillage.core.application.records.MutateRecordLifecycleUseCase
 import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.RecordDraftValidationError
 import app.sillage.core.application.records.RecordLifecycleCommand
 import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
 import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
+import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.domain.records.Memo
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsBrowseStateHolder
@@ -37,10 +39,6 @@ enum class SillageNativeFeedback {
     StorageUnavailable,
 }
 
-enum class SillageEditorValidationError {
-    InvalidEntryDate,
-}
-
 data class SillageNativePlatform(
     val name: String,
     val dataLocation: String,
@@ -57,7 +55,7 @@ data class SillageNativeState(
     val busy: Boolean = false,
     val storageAvailable: Boolean = true,
     val feedback: SillageNativeFeedback? = null,
-    val editorValidationError: SillageEditorValidationError? = null,
+    val editorValidationError: RecordDraftValidationError? = null,
 )
 
 class SillageNativeController(
@@ -152,6 +150,7 @@ class SillageNativeController(
     fun updateEditorContent(value: String) {
         state = state.copy(
             workspace = state.workspace.updateRecords { it.updateEditorContent(value) },
+            editorValidationError = null,
         )
     }
 
@@ -204,23 +203,20 @@ class SillageNativeController(
     suspend fun saveEditor() {
         if (!canStartOperation()) return
         val records = state.workspace.records
-        if (!isValidIsoDate(records.editor.draftEntryDate)) {
+        val draft = RecordDraft(records.editor.draftContent, records.editor.draftEntryDate)
+        val validationError = validateRecordDraft(draft)
+        if (validationError != null) {
             state = state.copy(
-                editorValidationError = SillageEditorValidationError.InvalidEntryDate,
+                editorValidationError = validationError,
             )
             return
         }
 
         val selected = records.selection.selectedMemo
         val command = if (selected == null) {
-            SaveRecordCommand.Create(
-                RecordDraft(records.editor.draftContent, records.editor.draftEntryDate),
-            )
+            SaveRecordCommand.Create(draft)
         } else {
-            SaveRecordCommand.Update(
-                selected,
-                RecordDraft(records.editor.draftContent, records.editor.draftEntryDate),
-            )
+            SaveRecordCommand.Update(selected, draft)
         }
 
         runStorageOperation {
@@ -462,18 +458,3 @@ private fun RecordsFeatureStateHolder.searchContext(generation: Long) = RecordsS
     filter = filter,
     cacheGeneration = cacheGeneration,
 )
-
-internal fun isValidIsoDate(value: String): Boolean {
-    if (value.length != 10 || value[4] != '-' || value[7] != '-') return false
-    val year = value.take(4).toIntOrNull() ?: return false
-    val month = value.substring(5, 7).toIntOrNull() ?: return false
-    val day = value.takeLast(2).toIntOrNull() ?: return false
-    if (year < 1 || month !in 1..12) return false
-    val leap = year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)
-    val days = when (month) {
-        2 -> if (leap) 29 else 28
-        4, 6, 9, 11 -> 30
-        else -> 31
-    }
-    return day in 1..days
-}

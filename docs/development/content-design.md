@@ -127,6 +127,9 @@ when it may simply be outside the selected filter.
   credentials.
 - Distinguish authentication, connection, validation, conflict, unsupported
   version, and external-provider failures when the recovery differs.
+- Record editors show shared draft-validation failures beside the affected
+  field: empty content, content over 1 MiB after UTF-8 encoding, or an invalid
+  `YYYY-MM-DD` date. Preserve the draft so the user can correct it.
 
 ### Confirmations and destructive actions
 

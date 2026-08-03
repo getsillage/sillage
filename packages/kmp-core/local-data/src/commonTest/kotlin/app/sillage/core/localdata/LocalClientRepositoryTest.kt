@@ -104,6 +104,44 @@ class LocalClientRepositoryTest {
     }
 
     @Test
+    fun validatedBackupCanReplaceUnreadablePrivateSnapshot() = runTest {
+        val source = LocalClientRepository(MemoryStorage(), QueueRuntime())
+        source.savePreferences(
+            ClientPreferences(
+                themeMode = ClientPreferenceValues.THEME_DARK,
+                languageMode = ClientPreferenceValues.LANGUAGE_EN,
+            ),
+        )
+        val created = source.createRecord(RecordDraft("recovered", "2026-08-03"))
+        val targetStorage = MemoryStorage("{not-json")
+        val target = LocalClientRepository(targetStorage, QueueRuntime())
+
+        target.restoreBackup(source.exportBackup())
+
+        assertEquals(listOf(created), target.listRecords())
+        assertEquals(source.loadPreferences(), target.loadPreferences())
+    }
+
+    @Test
+    fun missingBackupPreferenceUsesDefaultWhenPrivateSnapshotIsUnreadable() {
+        val repository = LocalClientRepository(MemoryStorage("{not-json"), QueueRuntime())
+        val backup =
+            """
+            {
+              "formatVersion": 1,
+              "exportedAt": "2026-08-03T10:00:00Z",
+              "themeMode": "DARK",
+              "memos": []
+            }
+            """.trimIndent()
+
+        repository.restoreBackup(backup)
+
+        assertEquals(ClientPreferenceValues.THEME_DARK, repository.loadPreferences().themeMode)
+        assertEquals(ClientPreferences().languageMode, repository.loadPreferences().languageMode)
+    }
+
+    @Test
     fun restoresRecordSubsetFromAndroidV1BackupAndPreservesMissingPreference() {
         val repository = LocalClientRepository(MemoryStorage(), QueueRuntime())
         repository.savePreferences(
@@ -156,6 +194,17 @@ class LocalClientRepositoryTest {
 
         assertEquals(before, storage.value)
         assertEquals("keep", repository.listRecords().single().content)
+    }
+
+    @Test
+    fun invalidBackupDoesNotReplaceUnreadablePrivateSnapshot() {
+        val storage = MemoryStorage("{not-json")
+        val repository = LocalClientRepository(storage, QueueRuntime())
+
+        assertFailsWith<InvalidClientSnapshotException> {
+            repository.restoreBackup("{also-not-json")
+        }
+        assertEquals("{not-json", storage.value)
     }
 }
 

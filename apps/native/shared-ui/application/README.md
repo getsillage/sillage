@@ -12,8 +12,10 @@ window lifecycle actions. Hosts can integrate native menus and close requests
 without duplicating draft-loss policy.
 
 Its Data settings surface also owns portable-backup actions, destructive restore
-confirmation, busy-state gating, and localized success/failure feedback. Hosts
-retain only the native document picker and file I/O adapters.
+confirmation, busy-state gating, and localized success/failure feedback. Restore
+remains available after snapshot hydration fails, while export and record
+mutations stay disabled until valid data has been restored. Hosts retain only
+the native document picker and file I/O adapters.
 
 Online authentication, remote synchronization, Ask, attachments, and secure
 credential adapters remain follow-up integration slices. The current host is a

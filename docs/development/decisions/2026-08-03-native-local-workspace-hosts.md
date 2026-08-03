@@ -23,9 +23,11 @@ the sync protocol or a user backup format.
 
 User-initiated data transfer uses a separate versioned, credential-free backup
 envelope. Restoration fully decodes and validates the envelope before replacing
-the private snapshot, then rehydrates shared application state. Unsupported or
-invalid backups leave current local data untouched. Desktop supplies only the
-native save/open dialogs and file I/O for this shared policy.
+the private snapshot and rehydrating shared application state. Unsupported or
+invalid backups leave current local data untouched. A fully validated backup may
+replace an unreadable current snapshot; missing preference values fall back to
+readable current preferences or native defaults. Desktop and iOS supply only the
+native save/open document interactions and file I/O for this shared policy.
 
 `shared-ui:application` is the shared Compose composition root for the first
 native host slice. It owns the responsive records list, detail, editor,

@@ -143,7 +143,7 @@ internal fun SillageNativeSettings(
                                 title = strings.openDataLocation,
                                 supporting = platform.dataLocation,
                                 onClick = { openDataLocation() },
-                                enabled = state.storageAvailable,
+                                enabled = !state.busy,
                             )
                         }
                         onExportBackup?.let { exportBackup ->
@@ -162,7 +162,7 @@ internal fun SillageNativeSettings(
                                 title = strings.restoreBackup,
                                 supporting = strings.restoreBackupSupporting,
                                 onClick = { restoreConfirmationVisible = true },
-                                enabled = state.storageAvailable && !state.busy,
+                                enabled = !state.busy,
                                 showDivider = true,
                             )
                         }

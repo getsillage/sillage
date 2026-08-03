@@ -7,8 +7,10 @@ domain mapping, optimistic version checks, record lifecycle rules, client
 preference persistence, and validate-before-replace backup restoration.
 
 The private `schemaVersion` snapshot and user-facing `formatVersion` backup are
-separate contracts. A failed or unsupported backup never replaces the readable
-local snapshot.
+separate contracts. A failed or unsupported backup never replaces local state.
+A fully validated backup may replace an unreadable private snapshot; when an
+import omits a preference and current state cannot be decoded, default native
+preference values are used.
 
 Backup v1 reuses Android's `formatVersion`, `exportedAt`, `themeMode`, and `memos`
 vocabulary. Native hosts restore the records/appearance subset, ignore unrelated

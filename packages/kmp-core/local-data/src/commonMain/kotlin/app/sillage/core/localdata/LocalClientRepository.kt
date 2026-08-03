@@ -14,8 +14,9 @@ class StaleLocalRecordException(recordId: String) :
 /**
  * Portable local repository for desktop and Apple hosts.
  *
- * Hosts serialize calls from their application controller. Every mutation first
- * loads the current snapshot and never replaces unreadable or unsupported data.
+ * Hosts serialize calls through the application controller. Every mutation and
+ * export first loads the current snapshot. Restore validates its independent
+ * backup envelope before replacing even an unreadable private snapshot.
  */
 class LocalClientRepository(
     private val storage: ClientSnapshotStorage,
@@ -39,10 +40,14 @@ class LocalClientRepository(
     )
 
     override fun restoreBackup(value: String) {
-        val current = load()
+        val fallbackPreferences = try {
+            load().preferences
+        } catch (_: Exception) {
+            ClientPreferences()
+        }
         val imported = LocalClientBackupCodec.decode(
             value = value,
-            fallbackPreferences = current.preferences,
+            fallbackPreferences = fallbackPreferences,
         )
         storage.write(LocalClientSnapshotCodec.encode(imported))
     }

@@ -310,6 +310,7 @@ class SillageNativeController(
         runDataTransfer(
             operation = operation,
             successFeedback = SillageNativeFeedback.BackupRestored,
+            requiresReadableStorage = false,
             onSuccess = ::rehydrateAfterBackupRestore,
         )
     }
@@ -375,10 +376,18 @@ class SillageNativeController(
     private suspend fun runDataTransfer(
         operation: suspend () -> Boolean,
         successFeedback: SillageNativeFeedback,
+        requiresReadableStorage: Boolean = true,
         onSuccess: () -> Unit = {},
     ) {
-        if (!canStartOperation()) return
-        state = state.copy(busy = true, feedback = null)
+        if (state.busy || (requiresReadableStorage && !state.storageAvailable)) return
+        state = state.copy(
+            busy = true,
+            feedback = if (state.storageAvailable) {
+                null
+            } else {
+                SillageNativeFeedback.StorageUnavailable
+            },
+        )
         try {
             if (operation()) {
                 onSuccess()

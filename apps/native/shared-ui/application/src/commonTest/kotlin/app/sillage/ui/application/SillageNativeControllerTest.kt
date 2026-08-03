@@ -101,6 +101,40 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun restoreCanRecoverStorageThatFailedInitialHydration() = runTest {
+        val repository = FakeRecordsRepository(failReads = true)
+        val controller = controller(repository)
+        var exportInvoked = false
+
+        controller.exportBackup {
+            exportInvoked = true
+            true
+        }
+        assertFalse(exportInvoked)
+
+        controller.restoreBackup { false }
+        assertFalse(controller.state.storageAvailable)
+        assertEquals(SillageNativeFeedback.StorageUnavailable, controller.state.feedback)
+
+        repository.records += memo("recovered", "from backup")
+        repository.preferences = ClientPreferences(
+            themeMode = ClientPreferenceValues.THEME_DARK,
+            languageMode = ClientPreferenceValues.LANGUAGE_EN,
+        )
+        controller.restoreBackup {
+            repository.failReads = false
+            true
+        }
+
+        assertTrue(controller.state.storageAvailable)
+        assertEquals(listOf("recovered"), controller.state.workspace.records.records.map(Memo::id))
+        assertEquals(ClientPreferenceValues.THEME_DARK, controller.state.appearance.themeMode)
+        assertEquals(ClientPreferenceValues.LANGUAGE_EN, controller.state.appearance.languageMode)
+        assertEquals(SillageNativeFeedback.BackupRestored, controller.state.feedback)
+        assertFalse(controller.state.busy)
+    }
+
+    @Test
     fun reportsBackupTransferResultsAndReloadsRestoredData() = runTest {
         val repository = FakeRecordsRepository(mutableListOf(memo("before", "before")))
         val controller = controller(repository)
@@ -155,7 +189,7 @@ private fun controller(repository: FakeRecordsRepository) = SillageNativeControl
 
 private class FakeRecordsRepository(
     val records: MutableList<Memo> = mutableListOf(),
-    private val failReads: Boolean = false,
+    var failReads: Boolean = false,
 ) : RecordsRepository,
     RecordWriteRepository,
     RecordLifecycleRepository,

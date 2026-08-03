@@ -141,6 +141,12 @@ non-synchronizing Generic Password adapter through modern Security.framework
 Credential adapter through `CredReadW`, `CredWriteW`, `CredDeleteW`, and
 `CredFree`. Unsupported desktop hosts use the memory-only default. Access
 tokens never cross the memory boundary.
+The same `RemoteInstanceAuthenticationRepositoryFactory` creates
+`RemoteMemoSyncGateway`, so memo push uses that exact base-URL-scoped session,
+one-time 401 refresh, and credential rotation. The adapter owns canonical
+create/update/delete/restore/purge JSON mapping, 200-change batching, bounded
+response parsing, and ordered result validation; local outbox transactions
+remain outside the network module.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
 durable-credential deletion, remote invalidation, and conditional local clearing
 to one captured session. Durable deletion happens before the remote request; if
@@ -572,10 +578,11 @@ identity and late-response checks stay on the individual holders. Android reques
 helpers update that aggregate through `withRecords`.
 
 `packages/kmp-core/sync` owns the shared pending mutation, applied result,
-version-conflict, and push-summary models. Android REST/JSON mapping,
-transactional outbox persistence, attachment staging, and the transactional
-conflict-storage adapter remain platform-side migration sources for later sync
-ports and state-machine slices.
+version-conflict, and push-summary models. `kmp-core:network` implements the
+shared memo-push REST/JSON gateway and wire batching, while Android retains its
+existing adapter until host integration. Transactional outbox persistence,
+attachment staging, and the transactional conflict-storage adapter remain
+platform-side migration sources for later sync ports and state-machine slices.
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
 it skips empty pushes, sends one pending batch, and acknowledges only applied
 results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through

@@ -77,6 +77,10 @@ document pickers without forking codec, restore, or lifecycle behavior.
 status handling, JSON mapping, and conversion into application values behind a
 small host HTTP port. It also owns base-URL-scoped initialization, sign-in,
 bearer retry after one refresh, password change, and context-bound sign-out.
+`RemoteMemoSyncGateway` adds the shared memo-push REST/JSON adapter: it maps the
+five lifecycle actions, sends at most 200 changes per request, validates ordered
+applied/conflict/rejected results, and uses the same factory-owned authentication
+session and refresh generation as account operations.
 Desktop and Apple networking APIs remain platform adapters. The public request
 carries no records, credentials, cookies, or authorization headers. Native
 authentication keeps access tokens and the active refresh credential in a
@@ -612,7 +616,9 @@ identity. Android request helpers write through `withRecords` rather than assign
 nested holder fields directly.
 
 The first buildable `kmp-core:sync` slice owns pending mutation, applied result,
-conflict, and push-summary models. Android retains current REST/JSON mapping,
+conflict, and push-summary models. `kmp-core:network` now supplies the shared
+`RemoteMemoSyncGateway` REST/JSON mapping and the 200-change wire batching rule.
+Android retains its current REST adapter until host integration, plus
 transactional outbox persistence, attachment staging, and the transactional
 conflict-storage adapter until later sync ports and state-machine slices are
 extracted.

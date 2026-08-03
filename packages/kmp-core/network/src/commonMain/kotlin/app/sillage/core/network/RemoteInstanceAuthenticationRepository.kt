@@ -10,6 +10,7 @@ import app.sillage.core.application.auth.InstanceAuthenticationRepository
 import app.sillage.core.application.auth.InstanceAuthenticationRepositoryFactory
 import app.sillage.core.application.auth.SignInCommand
 import app.sillage.core.domain.auth.Account
+import app.sillage.core.sync.MemoSyncGateway
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -27,8 +28,22 @@ class RemoteInstanceAuthenticationRepositoryFactory(
     private val sessions = InMemoryAuthenticationSessionStore()
 
     override fun create(baseUrl: String): InstanceAuthenticationRepository {
+        return createRepository(normalizeAndValidateServerBaseUrl(baseUrl))
+    }
+
+    fun createMemoSyncGateway(baseUrl: String): MemoSyncGateway {
+        val normalizedBaseUrl = normalizeAndValidateServerBaseUrl(baseUrl)
+        val authenticationRepository = createRepository(normalizedBaseUrl)
+        return RemoteMemoSyncGateway(
+            baseUrl = normalizedBaseUrl,
+            executeAuthenticated = authenticationRepository::executeAuthenticatedRequest,
+            json = json,
+        )
+    }
+
+    private fun createRepository(baseUrl: String): RemoteInstanceAuthenticationRepository {
         return RemoteInstanceAuthenticationRepository(
-            baseUrl = normalizeAndValidateServerBaseUrl(baseUrl),
+            baseUrl = baseUrl,
             transport = transport,
             sessions = sessions,
             credentialStore = credentialStore,
@@ -177,6 +192,9 @@ private class RemoteInstanceAuthenticationRepository(
     private suspend fun executeAuthenticated(
         request: SillageHttpRequest,
     ): Pair<SillageHttpResponse, AuthenticationSessionSnapshot> {
+        if (!request.url.startsWith("$baseUrl/")) {
+            throw IllegalArgumentException("Authenticated requests must use the configured server.")
+        }
         var session = sessions.current(baseUrl)
             ?: throw AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
         var response = transport.execute(request.withAccessToken(session.authSession.accessToken))
@@ -185,6 +203,10 @@ private class RemoteInstanceAuthenticationRepository(
             response = transport.execute(request.withAccessToken(session.authSession.accessToken))
         }
         return response to session
+    }
+
+    suspend fun executeAuthenticatedRequest(request: SillageHttpRequest): SillageHttpResponse {
+        return executeAuthenticated(request).first
     }
 
         private suspend fun refresh(

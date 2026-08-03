@@ -6,6 +6,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":kmp-core:application"))
+            api(project(":kmp-core:sync"))
             implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {

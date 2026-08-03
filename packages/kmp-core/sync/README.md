@@ -4,14 +4,16 @@ Platform-independent synchronization contracts and, incrementally, the native
 sync state machine. The first buildable slice owns `PendingMemoSync`,
 `AppliedMemoSync`, `ConflictMemoSync`, and `SyncPushSummary` in `commonMain`.
 
-Android currently provides JSON/REST mapping, transactional outbox persistence,
-attachment staging, and the transactional conflict-resolution adapter. Those are
-migration sources for later ports and state-machine slices; transport, SQLite,
-and platform types must not enter this module.
+`kmp-core:network` now provides the shared JSON/REST mapping for memo push.
+Android retains its current adapter until host integration, plus transactional
+outbox persistence, attachment staging, and the transactional conflict-resolution
+adapter. Those are migration sources for later ports and state-machine slices;
+transport, SQLite, and platform types must not enter this module.
 
 `MemoSyncOutbox` and `MemoSyncGateway` isolate local and remote adapters.
-`PushPendingMemosUseCase` reads pending mutations, skips an empty push, sends one
-batch, and acknowledges only applied results through the transactional outbox.
+`PushPendingMemosUseCase` reads pending mutations, skips an empty push, hands the
+pending set to the gateway, and acknowledges only applied results through the
+transactional outbox. Remote adapters split it by the wire batch limit.
 
 `ResolveMemoSyncConflictUseCase` dispatches explicit keep-local and take-server
 commands through `MemoSyncConflictRepository`; platform hosts provide a

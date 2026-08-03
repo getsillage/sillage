@@ -103,6 +103,14 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
   credential in a generation-checked memory session, and retries one 401 after
   rotating the refresh session. A replaced session cannot be cleared by an
   older request.
+- Shared native memo push is created by that same authentication factory. It
+  sends Bearer credentials only to the normalized server's fixed
+  `/api/v1/sync:push` path, limits each request to 200 changes, retries at most
+  once after refresh, and rejects missing, reordered, or mismatched results.
+  Create and update send the record fields required by the write; delete,
+  restore, and purge omit the record body. Request diagnostics still redact
+  bodies and every header value; no access token or record body enters durable
+  session storage.
 - `AuthenticationCredentialStore` is the only shared cross-launch credential
   boundary and accepts only the refresh credential. Access tokens, passwords,
   and refresh credentials are never written to the client snapshot, ordinary

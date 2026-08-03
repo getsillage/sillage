@@ -67,6 +67,14 @@ Content-Type: application/json
 
 A request may submit at most 200 changes. The currently supported values are `resourceType=memo` and the actions `create`, `update`, `delete`, `restore`, and `purge`:
 
+The shared native `RemoteMemoSyncGateway` splits a pending set into batches of
+at most 200, sends canonical `favorited` state for creates and updates, omits
+the record body from delete/restore/purge changes, and validates the in-order
+applied/conflict/rejected result for every submitted mutation. It is created by
+the same `RemoteInstanceAuthenticationRepositoryFactory` as account operations,
+so a push uses the current base-URL-scoped session and the same single-refresh
+401 retry. iOS and desktop outbox and pull integration remain pending.
+
 ```json
 {
   "changes": [

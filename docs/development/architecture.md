@@ -4,7 +4,7 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated foreground and manual two-way memo synchronization and authenticated password change while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
+Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated automatic and manual two-way memo synchronization and authenticated password change while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
@@ -624,11 +624,11 @@ resource-ID action routing.
 The shared native application controller wires the same state to authenticated
 two-way synchronization on iOS and desktop, refreshes canonical server records,
 and locks record writes while sync or conflict resolution is active. The shared
-application root invokes that path after authentication and on every later
-foreground entry, keeping routine completion silent while still surfacing
-conflicts and failures; manual sync reports completion. Platform hosts retain
-localized strings and repository composition without duplicating conflict or
-merge policy.
+application root invokes that path after authentication, on every later
+foreground entry, and after confirmed network recovery while foregrounded. It
+keeps routine completion silent while still surfacing conflicts and failures;
+manual sync reports completion. Platform hosts retain localized strings and
+repository composition without duplicating conflict or merge policy.
 
 Android full synchronization uses shared `SyncSnapshot`, `SyncSnapshotGateway`,
 and `SyncSnapshotRepository` contracts. The snapshot excludes backup format

@@ -3,7 +3,7 @@
 This directory is the Kotlin Multiplatform workspace for native Sillage clients.
 Android is the full server-connected native application. Windows, macOS, and iOS
 share a functional local-first records workspace plus public Sillage server
-bootstrap, initialization, sign-in, refresh, sign-out, authenticated foreground
+bootstrap, initialization, sign-in, refresh, sign-out, authenticated automatic
 and manual two-way memo synchronization, and conflict resolution. Broader remote
 feature
 integration continues incrementally.
@@ -82,9 +82,10 @@ later launch, every persistent host performs public bootstrap before attempting
 refresh rotation. No credential enters the client snapshot or a portable
 backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
 engineering development. Android synchronization remains user-triggered. On iOS
-and desktop, authentication and later foreground entries synchronize records
-automatically, and authenticated users can also start synchronization from
-Settings. Every run pushes pending creates, updates, deletions, restorations, and
-purges before it pulls all current server records. Routine automatic completion
-stays silent; conflicts require an explicit device/server choice, and unresolved
-local mutations are never overwritten by pull results.
+and desktop, authentication, later foreground entries, and confirmed network
+recovery synchronize records automatically; authenticated users can also start
+synchronization from Settings. Every run pushes pending creates, updates,
+deletions, restorations, and purges before it pulls all current server records.
+Routine automatic completion stays silent; conflicts require an explicit
+device/server choice, and unresolved local mutations are never overwritten by
+pull results.

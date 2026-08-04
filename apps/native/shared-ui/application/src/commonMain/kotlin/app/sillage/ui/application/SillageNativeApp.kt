@@ -61,12 +61,23 @@ fun SillageNativeApp(
     }
 
     val authenticatedAccountId = state.authentication.account?.id
-    LifecycleStartEffect(controller to authenticatedAccountId) {
+    val networkStatus = platform.networkStatus
+    LifecycleStartEffect(Triple(controller, authenticatedAccountId, networkStatus)) {
         val automaticSync = authenticatedAccountId?.let {
             scope.launch { controller.syncMemosAutomatically() }
         }
+        val recoverySync = authenticatedAccountId?.let {
+            networkStatus?.let { statuses ->
+                scope.launch {
+                    statuses.networkRecoveryEvents().collect {
+                        controller.syncMemosAutomatically()
+                    }
+                }
+            }
+        }
         onStopOrDispose {
             automaticSync?.cancel()
+            recoverySync?.cancel()
         }
     }
 

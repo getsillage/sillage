@@ -71,7 +71,7 @@ class SillageNativeSettingsTest {
             "Signing in pushes local changes to this server before pulling its current records.",
             english.signInSupporting,
         )
-        assertEquals("Local-first · foreground + manual sync", english.offlineModeValue)
+        assertEquals("Local-first · automatic + manual sync", english.offlineModeValue)
         assertEquals(
             "创建此实例的唯一账号。随后会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
             chinese.initializeAccountSupporting,
@@ -80,6 +80,6 @@ class SillageNativeSettingsTest {
             "登录会先将本机更改推送到这台服务器，再拉取服务器上的当前记录。",
             chinese.signInSupporting,
         )
-        assertEquals("本地优先 · 前台 + 手动同步", chinese.offlineModeValue)
+        assertEquals("本地优先 · 自动 + 手动同步", chinese.offlineModeValue)
     }
 }

@@ -46,11 +46,13 @@ server publicly and restores a session from a device-bound Keychain refresh
 credential when one exists; invalid or expired credentials return to sign-in.
 The credential does not synchronize to other devices and is excluded from the
 record snapshot and portable backup. Successful sign-in, restored authentication,
-and every later foreground entry trigger a push-then-pull sync; routine completion
-stays silent, while conflicts and failures remain visible. Connectivity-triggered
-sync, Ask, attachments, accessibility/device journeys, signing, and App Store
-packaging remain outside the implemented host. A locally built app is an
-engineering artifact, not an official release asset.
+every later foreground entry, and a confirmed unavailable-to-available
+`NWPathMonitor` transition trigger a push-then-pull sync. The monitor observes
+system network status and does not probe the configured server. Routine
+completion stays silent, while conflicts and failures remain visible. Ask,
+attachments, accessibility/device journeys, signing, and App Store packaging
+remain outside the implemented host. A locally built app is an engineering
+artifact, not an official release asset.
 Until Ask is wired end to end, it is omitted from primary navigation rather than
 shown as an unavailable destination.
 official release asset.

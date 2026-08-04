@@ -59,6 +59,7 @@ import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.StateFlow
 
 enum class SillageNativeFeedback {
     RecordSaved,
@@ -90,6 +91,7 @@ data class SillageNativePlatform(
     val version: String,
     val thirdPartyNotices: String? = null,
     val authenticationPersistsAcrossLaunches: Boolean = false,
+    val networkStatus: StateFlow<SillageNativeNetworkStatus>? = null,
     val openDataLocation: (() -> Boolean)? = null,
     val exportBackup: (suspend () -> Boolean)? = null,
     val restoreBackup: (suspend () -> Boolean)? = null,

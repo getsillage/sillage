@@ -1,5 +1,6 @@
 package app.sillage.desktop
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,9 +93,13 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
                 )
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }
-    val hostStrings = sillageNativeHostStrings(controller.state.appearance.languageMode)
-    val thirdPartyNotices = remember { loadDesktopThirdPartyNotices() }
-    var pendingHostAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+        val hostStrings = sillageNativeHostStrings(controller.state.appearance.languageMode)
+        val thirdPartyNotices = remember { loadDesktopThirdPartyNotices() }
+        val networkMonitor = remember { DesktopNetworkMonitor() }
+        DisposableEffect(networkMonitor) {
+            onDispose(networkMonitor::close)
+        }
+        var pendingHostAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     fun runGuarded(action: () -> Unit) {
         if (controller.hasUnsavedEditorChanges) {
@@ -119,18 +124,20 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
             snapshotPath,
             repository,
             hostStrings,
-            thirdPartyNotices,
-            window,
-            authenticationCredentialStore,
-        ) {
+                thirdPartyNotices,
+                window,
+                authenticationCredentialStore,
+                networkMonitor,
+            ) {
             SillageNativePlatform(
                 name = desktopPlatformName(),
                 dataLocation = snapshotPath.toAbsolutePath().normalize().toString(),
                 version = DesktopVersion,
                 thirdPartyNotices = thirdPartyNotices,
-                authenticationPersistsAcrossLaunches =
-                    authenticationCredentialStore.persistsAcrossLaunches,
-                openDataLocation = { openDataFolder(snapshotPath) },
+                    authenticationPersistsAcrossLaunches =
+                        authenticationCredentialStore.persistsAcrossLaunches,
+                    networkStatus = networkMonitor.status,
+                    openDataLocation = { openDataFolder(snapshotPath) },
                 exportBackup = {
                     exportDesktopBackup(
                         owner = window,

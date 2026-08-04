@@ -11,9 +11,9 @@ for Web, Android, iOS, Windows, and macOS. Product behavior remains governed by
 | --- | --- | --- | --- |
 | Web | React and TypeScript | Web feature and infrastructure modules | Implemented |
 | Android | Compose Multiplatform | Kotlin Multiplatform | Implemented; shared-module extraction active |
-| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Local-first records, foreground and manual two-way memo sync, password change, public bootstrap, authentication, and Keychain session restoration implemented |
-| Windows | Compose Multiplatform | Kotlin Multiplatform | Local-first records, foreground and manual two-way memo sync, password change, public bootstrap, authentication, and Credential Manager session restoration implemented |
-| macOS | Compose Multiplatform | Kotlin Multiplatform | Local-first records, foreground and manual two-way memo sync, password change, DMG, public bootstrap, authentication, and Keychain session restoration implemented |
+| iOS | Compose Multiplatform in a SwiftUI/UIKit host | Kotlin Multiplatform | Local-first records, automatic and manual two-way memo sync, password change, public bootstrap, authentication, and Keychain session restoration implemented |
+| Windows | Compose Multiplatform | Kotlin Multiplatform | Local-first records, automatic and manual two-way memo sync, password change, public bootstrap, authentication, and Credential Manager session restoration implemented |
+| macOS | Compose Multiplatform | Kotlin Multiplatform | Local-first records, automatic and manual two-way memo sync, password change, DMG, public bootstrap, authentication, and Keychain session restoration implemented |
 
 React components are not shared with Compose. The clients share public wire
 contracts, language-neutral conformance fixtures, terminology, behavior rules,
@@ -109,7 +109,7 @@ structurally valid historical records readable instead of treating newer draft
 rules as a destructive migration.
 
 `packages/kmp-features/` owns
-feature-scoped state for authentication, records, Ask, settings, and manual
+feature-scoped state for authentication, records, Ask, settings, and
 synchronization. `apps/native/shared-ui/` owns reusable Compose presentation and
 the shared application shell.
 
@@ -117,16 +117,17 @@ The buildable `shared-ui:application` composition root provides the responsive
 records list/detail/editor workflow, record search and lifecycle actions,
 appearance settings, bilingual copy, and unsaved-draft protection. Desktop and
 iOS hosts supply only platform adapters and lifecycle entry points. Their records
-workspace is local-first and supports authenticated foreground and manual memo
+workspace is local-first and supports authenticated automatic and manual memo
 push-then-pull plus explicit conflict resolution through shared application,
 sync, network, and local-data ports. The application root starts synchronization
-when an account becomes authenticated and on every later foreground entry,
-suppresses routine completion feedback, and still surfaces conflicts, rejection,
-expiry, or failure. Its account settings also run authenticated password change
+when an account becomes authenticated, on every later foreground entry, and after
+confirmed network recovery while foregrounded. It suppresses routine completion
+feedback and still surfaces conflicts, rejection, expiry, or failure. Its account
+settings also run authenticated password change
 through the shared feature lifecycle and base-URL-scoped repository, blocking
-other writes until the caller's rotated session is safely accepted. Automatic
-connectivity-triggered synchronization, broader pull streams, Ask, and
-attachments continue to arrive through ports and host-only implementations.
+other writes until the caller's rotated session is safely accepted. Broader pull
+streams, Ask, and attachments continue to arrive through ports and host-only
+implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -657,10 +658,10 @@ fallback limits, dialog layout, and resource-ID action routing. The shared
 native application controller performs authenticated two-way sync, refreshes
 canonical server records, and prevents record writes while sync or conflict
 resolution is active. The application root invokes that same path after
-authentication and on every later foreground entry, and keeps routine automatic
-completion silent; manual sync continues to report completion. Platform hosts
-retain localized strings and repository composition without duplicating merge or
-conflict policy.
+authentication, on every later foreground entry, and after confirmed network
+recovery while foregrounded. It keeps routine automatic completion silent;
+manual sync continues to report completion. Platform hosts retain localized
+strings and repository composition without duplicating merge or conflict policy.
 
 Android's full pull uses the distinct shared `SyncSnapshot`; it is not a backup
 file DTO. `PullSyncUseCase` composes transport and atomic-merge ports. Snapshot

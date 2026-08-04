@@ -1,5 +1,6 @@
 package app.sillage.ios
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import app.sillage.core.localdata.LocalClientRepository
@@ -24,6 +25,10 @@ fun MainViewController(): UIViewController {
             )
         }
         val httpTransport = remember { IosSillageHttpTransport() }
+        val networkMonitor = remember { IosNetworkMonitor() }
+        DisposableEffect(networkMonitor) {
+            onDispose(networkMonitor::close)
+        }
         val bootstrapRepository = remember(httpTransport) {
             RemoteInstanceBootstrapRepository(httpTransport)
         }
@@ -66,6 +71,7 @@ fun MainViewController(): UIViewController {
             backupTransfer,
             authenticationCredentialStore,
             thirdPartyNotices,
+            networkMonitor,
         ) {
             SillageNativePlatform(
                 name = "iOS",
@@ -74,6 +80,7 @@ fun MainViewController(): UIViewController {
                 thirdPartyNotices = thirdPartyNotices,
                 authenticationPersistsAcrossLaunches =
                     authenticationCredentialStore.persistsAcrossLaunches,
+                networkStatus = networkMonitor.status,
                 exportBackup = backupTransfer::exportBackup,
                 restoreBackup = backupTransfer::restoreBackup,
             )

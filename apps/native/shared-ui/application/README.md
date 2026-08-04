@@ -33,7 +33,7 @@ Its Service settings surface owns public server-address editing, bounded
 bootstrap request identity, late-result rejection, connection status, and
 bilingual errors. After a successful check it also owns initialization/sign-in
 form state, startup restore request identity, stable authentication error copy,
-in-memory account presentation, manual memo two-way synchronization, conflict
+in-memory account presentation, automatic and manual memo two-way synchronization, conflict
 presentation and resolution, authenticated password change, and sign-out
 orchestration. Password change reuses the shared single-flight auth lifecycle,
 blocks record writes and sync while active, clears password drafts on success,
@@ -48,12 +48,13 @@ composition only. Successful checks persist the normalized address without
 silently rebinding an existing outbox. Automatic bootstrap and restore run only
 when the host advertises cross-launch authentication persistence.
 
-When an account becomes authenticated, and whenever the authenticated app later
-enters the foreground, the application root runs automatic push-then-pull memo
-synchronization through the same single-flight controller path. Routine success
-and no-change results do not replace authentication feedback; conflicts,
-rejections, session expiry, and failures remain visible. Connectivity-triggered
-synchronization, Ask, and attachments remain follow-up integration slices. iOS
-and macOS supply Keychain adapters, while Windows supplies a Credential Manager
-adapter. All three advertise cross-launch authentication persistence and share
-the same manual and automatic foreground sync paths.
+When an account becomes authenticated, whenever the authenticated app later
+enters the foreground, or when its network status recovers from unavailable to
+available while foregrounded, the application root runs automatic push-then-pull
+memo synchronization through the same single-flight controller path. Routine
+success and no-change results do not replace authentication feedback; conflicts,
+rejections, session expiry, and failures remain visible. Ask and attachments
+remain follow-up integration slices. iOS and macOS supply Keychain adapters,
+while Windows supplies a Credential Manager adapter. All three advertise
+cross-launch authentication persistence and share the same automatic and manual
+sync paths.

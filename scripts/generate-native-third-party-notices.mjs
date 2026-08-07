@@ -123,7 +123,7 @@ export function generateNativeNotices({ write = false } = {}) {
       writeFileSync(target.output, generated);
     } else if (!existsSync(target.output)) {
       throw new Error(`Missing generated ${target.name} notices: ${target.output}`);
-    } else if (readFileSync(target.output, "utf8") !== generated) {
+      } else if (readFileSync(target.output, "utf8").replaceAll("\r\n", "\n") !== generated) {
       throw new Error(
         `${target.name} third-party notices are stale; run with --write and review the result`,
       );

@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -62,7 +62,7 @@ export function assertSupportedNativeCoordinates(coordinates) {
 }
 
 export function renderNativeNotices({ name, lockfilePath, scope, coordinates, licenseText }) {
-    const relativeLockfile = lockfilePath.replace(`${repoRoot}/`, "");
+    const relativeLockfile = relative(repoRoot, lockfilePath).split("\\").join("/");
     const scopeLabel = scope.startsWith("iOS") ? scope : `${scope[0].toUpperCase()}${scope.slice(1)}`;
   const lines = [
     `Sillage ${name} - Open-source software notices`,

@@ -30,7 +30,7 @@ class DesktopClientSnapshotStorageTest {
     @Test
     fun resolvesPlatformSpecificDataDirectories() {
         assertEquals(
-            "/Users/example/Library/Application Support/Sillage/client-v1.json",
+        Path.of("/Users/example", "Library", "Application Support", "Sillage", "client-v1.json").toString(),
             DesktopDataPaths.defaultSnapshotPath(
                 osName = "Mac OS X",
                 userHome = "/Users/example",

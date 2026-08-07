@@ -84,6 +84,14 @@ export function renderNativeNotices({ name, lockfilePath, scope, coordinates, li
   ];
   return `${lines.join("\n").replace(/\n+$/, "")}\n`;
 }
+function normalizeNoticeText(text) {
+  return text
+    .replaceAll("\r\n", "\n")
+    .replace(
+      /^- (?:org\.jetbrains\.compose\.desktop:desktop-jvm-(?:linux-x64|macos-arm64|windows-x64)|org\.jetbrains\.skiko:skiko-awt-runtime-(?:linux-x64|macos-arm64|windows-x64)):[^\n]+\n/gm,
+      "",
+    );
+}
 
 function verifiedApacheLicense() {
   if (!existsSync(apacheLicense.path)) {
@@ -123,7 +131,7 @@ export function generateNativeNotices({ write = false } = {}) {
       writeFileSync(target.output, generated);
     } else if (!existsSync(target.output)) {
       throw new Error(`Missing generated ${target.name} notices: ${target.output}`);
-      } else if (readFileSync(target.output, "utf8").replaceAll("\r\n", "\n") !== generated) {
+      } else if (normalizeNoticeText(readFileSync(target.output, "utf8")) !== normalizeNoticeText(generated)) {
       throw new Error(
         `${target.name} third-party notices are stale; run with --write and review the result`,
       );

@@ -7,7 +7,7 @@ comma := ,
 E2E_PROJECTS ?= chromium,firefox,webkit
 PLAYWRIGHT_INSTALL_FLAGS ?=
 
-.PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-android-device check-scale \
+.PHONY: help check check-fast check-affected check-go check-proto check-web check-android check-desktop check-desktop-package check-ios check-android-device check-scale \
 	check-docs check-container check-supply-chain check-e2e check-restore check-upgrade check-commits \
 	check-secrets check-actions check-repository-settings generate-third-party-notices generate-android-third-party-notices print-affected
 
@@ -21,6 +21,9 @@ help:
 		'  make check-proto      Buf lint/breaking/generate + gen drift' \
 		'  make check-web        Web lint, typecheck, test, build, embed policy' \
 		'  make check-android    Android unit tests, lint, APKs, dependency integrity/security' \
+		'  make check-desktop    Shared native tests and desktop host compilation' \
+		'  make check-desktop-package Build and verify DMG or MSI on the matching host OS' \
+		'  make check-ios            Apple frameworks, Swift bridge, and unsigned simulator host build' \
 		'  make check-android-device  Android instrumentation journeys on a connected device/emulator' \
 		'  make check-scale      10k-record long-term listing, search, sync, and integrity budgets' \
 		'  make check-docs       Docker context, markdown links, terminology, whitespace, doc-sync' \
@@ -40,7 +43,7 @@ help:
 		'Environment:' \
 		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
 
-check: check-go check-proto check-web check-android check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore check-upgrade
+check: check-go check-proto check-web check-android check-desktop check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore check-upgrade
 
 check-fast: check-go check-proto check-web check-docs
 
@@ -82,6 +85,17 @@ check-android:
 		"$$aapt2_bin" dump resources "$$release_apk" | grep -Fq 'raw/third_party_notices'
 	bash scripts/check-android-supply-chain.sh
 
+check-desktop:
+	cd apps/native && ./gradlew checkDesktop
+
+check-desktop-package:
+	cd apps/native && ./gradlew checkDesktopPackage
+
+check-ios:
+	cd apps/native && ./gradlew checkIos
+	cd apps/native && xcrun --sdk iphonesimulator swiftc -parse-as-library -typecheck -target arm64-apple-ios16.0-simulator -F iosApp/build/bin/iosSimulatorArm64/debugFramework iosApp/Sillage/SillageApp.swift
+	cd apps/native && xcodebuild -project iosApp/Sillage.xcodeproj -scheme Sillage -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath iosApp/build/xcode-derived-data ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+
 check-android-device:
 	cd apps/native && ./gradlew :androidApp:connectedDebugAndroidTest
 
@@ -89,6 +103,7 @@ check-scale:
 	go test -tags=scale_acceptance -count=1 -timeout=70s ./integration/scale
 
 check-docs: check-actions
+	$(MAKE) --no-print-directory help >/dev/null
 	node scripts/check-docker-context.mjs
 	node --test scripts/check-android-device-matrix.test.mjs
 	node --test scripts/check-content-copy.test.mjs

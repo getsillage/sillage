@@ -12,6 +12,13 @@ Sillage's official distribution channels are:
 
 Sillage does not currently publish through Google Play, an Apple app store, or an official hosted service. Store listing policy, hosted-service SLA, billing, central telemetry, and platform-operated data processing are therefore outside the current release scope. Adding one of those channels changes the product's operational and legal responsibilities and requires a separate decision and acceptance contract before implementation.
 
+The repository can build branded iOS, macOS, and Windows engineering artifacts,
+but those clients are not official release surfaces yet. App icons and package
+metadata prove application identity only; signing, notarization, secure online
+credentials, updater behavior, platform device journeys, and release-candidate
+coverage remain required before the supported-environment table can add those
+platforms.
+
 ## Supported Environments
 
 | Surface | Supported environment | Required release evidence |

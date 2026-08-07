@@ -20,31 +20,45 @@ fun SillageSettingsDataSection(
     exportIcon: ImageVector,
     importIcon: ImageVector,
     enabled: Boolean,
-    onExport: () -> Unit,
-    onImport: () -> Unit,
+    onExport: (() -> Unit)?,
+    onImport: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    leadingContent: (@Composable () -> Unit)? = null,
+    exportEnabled: Boolean = enabled,
+    importEnabled: Boolean = enabled,
 ) {
-    val presentation = sillageSettingsDataPresentation(strings = strings, enabled = enabled)
+    val presentation = sillageSettingsDataPresentation(
+        strings = strings,
+        enabled = enabled,
+        exportEnabled = exportEnabled,
+        importEnabled = importEnabled,
+    )
 
     SillageSettingsSectionCard(
         title = presentation.sectionTitle,
         modifier = modifier,
     ) {
-        SillageSettingsActionRow(
-            icon = exportIcon,
-            title = presentation.exportTitle,
-            supporting = presentation.exportSupporting,
-            onClick = onExport,
-            enabled = presentation.enabled,
-        )
-        SillageSettingsActionRow(
-            icon = importIcon,
-            title = presentation.importTitle,
-            supporting = presentation.importSupporting,
-            onClick = onImport,
-            enabled = presentation.enabled,
-            showDivider = true,
-        )
+        leadingContent?.invoke()
+        onExport?.let { export ->
+            SillageSettingsActionRow(
+                icon = exportIcon,
+                title = presentation.exportTitle,
+                supporting = presentation.exportSupporting,
+                onClick = export,
+                enabled = presentation.exportEnabled,
+                showDivider = leadingContent != null,
+            )
+        }
+        onImport?.let { import ->
+            SillageSettingsActionRow(
+                icon = importIcon,
+                title = presentation.importTitle,
+                supporting = presentation.importSupporting,
+                onClick = import,
+                enabled = presentation.importEnabled,
+                showDivider = leadingContent != null || onExport != null,
+            )
+        }
     }
 }
 
@@ -54,17 +68,21 @@ internal data class SillageSettingsDataPresentation(
     val exportSupporting: String,
     val importTitle: String,
     val importSupporting: String,
-    val enabled: Boolean,
+    val exportEnabled: Boolean,
+    val importEnabled: Boolean,
 )
 
 internal fun sillageSettingsDataPresentation(
     strings: SillageSettingsDataStrings,
     enabled: Boolean,
+    exportEnabled: Boolean = enabled,
+    importEnabled: Boolean = enabled,
 ) = SillageSettingsDataPresentation(
     sectionTitle = strings.sectionTitle,
     exportTitle = strings.exportTitle,
     exportSupporting = strings.exportSupporting,
     importTitle = strings.importTitle,
     importSupporting = strings.importSupporting,
-    enabled = enabled,
+    exportEnabled = enabled && exportEnabled,
+    importEnabled = enabled && importEnabled,
 )

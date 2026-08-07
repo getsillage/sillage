@@ -10,6 +10,7 @@ class ClientPreferenceValuesTest {
         assertEquals("https://example.com", normalizeBaseUrl("example.com/"))
         assertEquals("http://localhost:8080", normalizeBaseUrl("http://localhost:8080/"))
         assertEquals("https://a.example", normalizeBaseUrl(" https://a.example/ "))
+        assertEquals("ftp://example.com", normalizeBaseUrl("ftp://example.com/"))
     }
 
     @Test

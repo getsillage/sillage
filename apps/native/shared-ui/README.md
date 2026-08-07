@@ -2,12 +2,14 @@
 
 Owns Compose Multiplatform design primitives, application shell, and UI shared
 by Android, iOS, Windows, and macOS. The buildable `app-shell` module owns
-application-wide presentation state and policy. The buildable `auth` module owns
-authentication feature UI that consumes `kmp-features:auth` state directly. The
-buildable `ask` module owns Ask feature UI and consumes `kmp-features:ask` state
-directly. The buildable `settings` module owns settings feature UI and consumes
-`kmp-features:settings` state directly. The buildable `design-system` module owns
-semantic theme tokens, the common `MaterialTheme`, and reusable navigation,
+application-wide presentation state and policy. The buildable `application`
+module composes the responsive device-local records workspace used by desktop
+and iOS hosts. The buildable `auth` module owns authentication feature UI and
+consumes `kmp-features:auth` state directly. The buildable `ask` module owns Ask
+feature UI and consumes `kmp-features:ask` state directly. The buildable
+`settings` module owns settings feature UI and consumes
+`kmp-features:settings` state directly. The buildable `design-system` module
+owns semantic theme tokens, the common `MaterialTheme`, reusable navigation,
 settings, and error-state components; Android consumes them through thin host
 adapters. The buildable `sync` module owns synchronization conflict UI and
 consumes `kmp-features:sync` state directly.

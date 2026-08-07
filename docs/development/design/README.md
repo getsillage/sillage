@@ -1,6 +1,11 @@
-# Web Design Guidelines
+# Client Design Guidelines
 
-This document covers the stable visual and interaction constraints for the Web client. See [Product Guidance](../product-guidance.md) for product semantics. The code sources of truth for themes and components are `apps/web/src/styles/app.css` and `apps/web/src/components/ui.ts`.
+This document covers stable visual and interaction constraints for the Web
+client and cross-client synchronization surfaces. See
+[Product Guidance](../product-guidance.md) for product semantics. The Web code
+sources of truth for themes and components are `apps/web/src/styles/app.css` and
+`apps/web/src/components/ui.ts`; shared native sync presentation lives under
+`apps/native/shared-ui/`.
 
 ## Direction
 
@@ -53,6 +58,23 @@ Page headings and control labels must match the scale of their containers. Narro
   conflicts, unsaved-change protection, and destructive confirmation remain in
   context; they must not rely on an auto-closing Toast alone.
 
+### Shared Native Synchronization
+
+- Manual record synchronization belongs in the Service section of Settings and
+  is available only after the server address has been checked and an account is
+  signed in. One action pushes pending device changes before pulling current
+  server records.
+- While synchronization or conflict resolution is active, record writes and
+  competing sync actions are disabled through the application-wide in-progress
+  state. Drafts remain intact and become writable again after completion or
+  failure.
+- A conflict dialog must show distinguishable device and server content and offer
+  explicit keep-device, use-server, and dismiss actions. Dismissal preserves the
+  unresolved mutation; no action silently overwrites either side.
+- Completion, already-current, rejected, expired-session, and generic failure
+  outcomes use localized transient feedback. A conflict remains contextual until
+  the user resolves or dismisses it.
+
 ## Accessibility and Responsive Behavior
 
 - Each page has one main content region, and keyboard focus order matches visual order.
@@ -73,5 +95,8 @@ See the [Contributing Guide](../../../CONTRIBUTING.md) for automated quality gat
 - narrow-screen overflow, keyboard navigation, focus restoration, layered Escape behavior, and dialog semantics;
 - loading, empty, failure, retry, unsaved, version-conflict, and in-progress states;
 - browser console and page errors, plus accessible names for buttons and icons.
+
+- the shared native Settings sync action and conflict dialog in English and
+  Simplified Chinese, including disabled, busy, expired-session, and retry paths;
 
 Temporary screenshots and Playwright debugging cases are not committed. Changes to navigation, naming, or product shape must also update [Product Guidance](../product-guidance.md).

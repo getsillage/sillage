@@ -59,6 +59,7 @@ import app.sillage.core.application.auth.SignInUseCase
 import app.sillage.core.application.auth.SignOutMode
 import app.sillage.core.application.auth.SignOutResult
 import app.sillage.core.application.auth.SignOutUseCase
+import app.sillage.core.application.records.InvalidRecordDraftException
 import app.sillage.core.application.records.GenerateRecordSummaryUseCase
 import app.sillage.core.application.records.SaveRecordSummaryUseCase
 import app.sillage.core.application.records.ActiveRecordSummaryProfileRequiredException
@@ -70,11 +71,13 @@ import app.sillage.core.application.records.RecordsPageQuery
 import app.sillage.core.application.records.RecordsQueryScope
 import app.sillage.core.application.records.RecordsSearchQuery
 import app.sillage.core.application.records.RecordDraft
+import app.sillage.core.application.records.RecordDraftValidationError
 import app.sillage.core.application.records.RecordLifecycleCommand
 import app.sillage.core.application.records.MutateRecordLifecycleUseCase
 import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.SearchRecordsUseCase
+import app.sillage.core.application.records.validateRecordDraft
 import app.sillage.core.application.ask.CreateAskConversationUseCase
 import app.sillage.core.application.ask.AppendAskTurnCommand
 import app.sillage.core.application.ask.AppendAskTurnUseCase
@@ -1428,15 +1431,19 @@ class SillageViewModel(
         if (!current.canRunMemoEditorAction()) {
             return
         }
-        if (current.workspace.records.editor.draftContent.isBlank()) {
-            updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_record_empty))
+        val draft = RecordDraft(
+            content = current.workspace.records.editor.draftContent.trim(),
+            entryDate = current.workspace.records.editor.draftEntryDate.trim(),
+        )
+        val validationError = validateRecordDraft(draft)
+        if (validationError != null) {
+            val message = when (validationError) {
+                RecordDraftValidationError.EmptyContent -> R.string.error_record_empty
+                RecordDraftValidationError.ContentTooLarge -> R.string.error_record_too_large
+                RecordDraftValidationError.InvalidEntryDate -> R.string.error_entry_date_invalid
             }
-            return
-        }
-        if (runCatching { LocalDate.parse(current.workspace.records.editor.draftEntryDate.trim()) }.isFailure) {
             updateState(forceFeedback = true) {
-                it.copy(error = uiString(R.string.error_entry_date_invalid))
+                it.copy(error = uiString(message))
             }
             return
         }
@@ -1454,10 +1461,6 @@ class SillageViewModel(
             memoId = selectedMemo?.id,
             useGlobalBusy = selectedMemo == null,
         ) {
-            val draft = RecordDraft(
-                content = current.workspace.records.editor.draftContent.trim(),
-                entryDate = current.workspace.records.editor.draftEntryDate.trim(),
-            )
             val command = if (selectedMemo == null) {
                 SaveRecordCommand.Create(draft)
             } else {
@@ -4031,6 +4034,15 @@ class SillageViewModel(
     }
 
     private fun Throwable.readableMessage(): String {
+        if (this is InvalidRecordDraftException) {
+            return uiString(
+                when (validationError) {
+                    RecordDraftValidationError.EmptyContent -> R.string.error_record_empty
+                    RecordDraftValidationError.ContentTooLarge -> R.string.error_record_too_large
+                    RecordDraftValidationError.InvalidEntryDate -> R.string.error_entry_date_invalid
+                },
+            )
+        }
         if (this is IOException) {
             // Raw socket-level messages are English and unhelpful; log them and
             // show a localized transport error instead.

@@ -1,20 +1,30 @@
 # Native applications
 
-This directory is the Kotlin Multiplatform workspace for native Sillage
-clients. Android is the first implemented application. The other application
-directories deliberately contain only boundary documentation until their
-implementation phases begin.
+This directory is the Kotlin Multiplatform workspace for native Sillage clients.
+Android is the full server-connected native application. Windows, macOS, and iOS
+share a functional local-first records workspace plus public Sillage server
+bootstrap, initialization, sign-in, refresh, sign-out, authenticated automatic
+and manual two-way memo synchronization, and conflict resolution. Broader remote
+feature
+integration continues incrementally.
+The shared desktop/iOS shell exposes only implemented Records and Settings
+destinations; Ask is added to that navigation only after its state, protocol,
+and screen are wired end to end.
 
 Shared domain, persistence, synchronization, and security code belongs under
 `packages/kmp-core/`. Shared feature logic belongs under
-`packages/kmp-features/`. Platform applications should contain composition,
-platform adapters, packaging, and release configuration only.
+`packages/kmp-features/`. Platform applications contain composition, platform
+adapters, packaging, and release configuration only.
 
 Compose Multiplatform is the default UI technology for Android, iOS, Windows,
 and macOS. Platform-native UI remains allowed when it provides materially
 better system integration, accessibility, performance, or platform-standard
 interaction. Native UI must consume shared feature state and use cases instead
 of duplicating domain, persistence, synchronization, or protocol behavior.
+
+Desktop and iOS packages include lockfile-derived third-party notices. Their
+About screens load the packaged host-specific inventory through the shared
+settings dialog; `checkDesktop` and `checkIos` reject missing or stale notices.
 
 ## Build conventions
 
@@ -23,8 +33,59 @@ It owns the Android, desktop JVM, and Apple target matrix, SDK levels, JVM
 target, namespace derivation, and common-test dependency. Module build files
 declare only module-specific dependencies and plugins.
 
-The root `checkShared` task runs every shared module's desktop host tests and
-checks dependency direction. Core modules may depend only on other core
-modules; feature modules may depend only on core modules; shared UI may compose
-core, features, and other shared UI modules. Application hosts remain the
-composition roots.
+The root `checkShared` task runs every shared module's desktop host tests,
+checks dependency direction, and validates native application identity assets
+and visible product-version consistency. `checkDesktop` adds Compose Desktop
+host tests and production compilation. `checkDesktopPackage` builds and
+verifies a DMG or MSI on its matching host OS. `checkIos` links static device
+and simulator frameworks; the repository `make check-ios` target additionally
+typechecks the Swift bridge and builds the unsigned Xcode simulator host.
+
+Core modules may depend only on other core modules; feature modules may depend
+only on core modules; shared UI may compose core, features, and other shared UI
+modules. Application hosts remain composition roots.
+
+## Application identity
+
+`branding/` contains deterministic iOS and desktop app-icon SVG compositions
+derived from the existing Sillage product mark. On macOS,
+`branding/generate-icons.sh` regenerates the committed iOS PNG catalog, macOS
+ICNS, and Windows ICO using `sips` and `iconutil`. Other hosts consume the
+committed outputs and do not need Apple tooling. `checkNativeIdentity` verifies
+catalog dimensions and alpha rules, ICNS/ICO container headers, host wiring,
+and that Android, iOS, and desktop show the same product version.
+
+## Public server discovery
+
+`packages/kmp-core/network` maps the unauthenticated
+`GET /api/v1/auth/bootstrap` response behind a host-neutral HTTP boundary.
+Desktop uses the JDK HTTP client and iOS uses Foundation `NSURLSession`; the
+shared application settings surface owns address draft, request identity,
+result, and failure presentation. A successful check remembers the normalized
+server address in the private client snapshot. The same private schema stores a
+separately bound memo outbox, cloud versions, and mutation identifiers; a queue
+bound to one server is rejected for another address. Portable JSON backups
+deliberately export neither server address nor sync metadata.
+
+The public check sends no records, credentials, cookies, or authorization
+headers. After a successful check, the same Settings surface can initialize or
+sign in to the instance. An authenticated account can also change its password
+from Settings; the current and new passwords remain only in transient form and
+request state. Success rotates the caller's refresh credential and signs out
+every other session. Automatic platform cookie storage is disabled and
+access tokens always stay in process memory. iOS and macOS store only the
+refresh credential in non-synchronizing Keychain Generic Password items.
+Windows stores only the refresh credential as a non-roaming Generic Credential
+in the current user's Credential Manager. Each item is keyed by the normalized
+server URL; iOS additionally uses a device-bound accessibility class. On a
+later launch, every persistent host performs public bootstrap before attempting
+refresh rotation. No credential enters the client snapshot or a portable
+backup. Use operator-managed HTTPS except for explicit loopback or trusted-LAN
+engineering development. Android synchronization remains user-triggered. On iOS
+and desktop, authentication, later foreground entries, and confirmed network
+recovery synchronize records automatically; authenticated users can also start
+synchronization from Settings. Every run pushes pending creates, updates,
+deletions, restorations, and purges before it pulls all current server records.
+Routine automatic completion stays silent; conflicts require an explicit
+device/server choice, and unresolved local mutations are never overwritten by
+pull results.

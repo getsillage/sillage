@@ -1,13 +1,14 @@
 # Kotlin Multiplatform core
 
-Platform-independent native-client foundations. `domain`, `application`, and
-`sync` are buildable Kotlin Multiplatform modules; the remaining directories are
-reserved module boundaries:
+Platform-independent native-client foundations. `domain`, `application`,
+`local-data`, `network`, and `sync` are buildable Kotlin Multiplatform modules; remaining
+directories are reserved module boundaries:
 
 - domain models and policies;
 - application use cases and repository ports;
-- remote transport adapters;
-- local database and migrations;
+- portable client snapshot codec and local record repository;
+- public server transport mapping behind host HTTP adapters;
+- local database migrations;
 - synchronization state machine and conflict persistence;
 - cryptography and secure-storage abstractions.
 

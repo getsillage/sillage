@@ -1,0 +1,61 @@
+package app.sillage.core.network
+
+enum class SillageHttpMethod {
+    Get,
+    Post,
+}
+
+data class SillageHttpRequest(
+    val method: SillageHttpMethod,
+    val url: String,
+    val headers: Map<String, String> = emptyMap(),
+    val body: String? = null,
+) {
+    override fun toString(): String {
+        return "SillageHttpRequest(" +
+            "method=$method, url=$url, headerNames=${headers.keys.sorted()}, " +
+            "bodyCharacters=${body?.length ?: 0})"
+    }
+}
+
+/** Host HTTP boundary used by public bootstrap and native authentication. */
+fun interface SillageHttpTransport {
+    suspend fun execute(request: SillageHttpRequest): SillageHttpResponse
+
+    /**
+     * Executes a response whose successful body may arrive incrementally.
+     *
+     * Hosts override this for real streaming. The default keeps test and simple
+     * transports source-compatible while preserving the same response contract.
+     * Chunks are emitted only for successful responses so authentication and
+     * error bodies never enter feature event parsers.
+     */
+    suspend fun executeStreaming(
+        request: SillageHttpRequest,
+        onChunk: suspend (String) -> Unit,
+    ): SillageHttpResponse {
+        val response = execute(request)
+        if (response.statusCode in 200..299 && response.body.isNotEmpty()) {
+            onChunk(response.body)
+        }
+        return response
+    }
+}
+
+data class SillageHttpResponse(
+    val statusCode: Int,
+    val body: String,
+    val headers: Map<String, List<String>> = emptyMap(),
+) {
+    fun headerValues(name: String): List<String> {
+        return headers.entries
+            .filter { (key, _) -> key.equals(name, ignoreCase = true) }
+            .flatMap(Map.Entry<String, List<String>>::value)
+    }
+
+    override fun toString(): String {
+        return "SillageHttpResponse(" +
+            "statusCode=$statusCode, headerNames=${headers.keys.sorted()}, " +
+            "bodyCharacters=${body.length})"
+    }
+}

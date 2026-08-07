@@ -29,6 +29,18 @@ class AuthenticationRepositoryTest {
     }
 
     @Test
+    fun authenticationCommandsRedactPasswordsFromDiagnostics() {
+        val initialize = InitializeAccountCommand("owner", "Owner", "private-initialize")
+        val signIn = SignInCommand("owner", "private-sign-in")
+        val changePassword = ChangePasswordCommand("private-current", "private-next")
+
+        assertEquals(false, initialize.toString().contains("private-initialize"))
+        assertEquals(false, signIn.toString().contains("private-sign-in"))
+        assertEquals(false, changePassword.toString().contains("private-current"))
+        assertEquals(false, changePassword.toString().contains("private-next"))
+    }
+
+    @Test
     fun bootstrapRejectsBlankUrlBeforeAdapterCall() {
         var called = false
         val repository = InstanceBootstrapRepository {

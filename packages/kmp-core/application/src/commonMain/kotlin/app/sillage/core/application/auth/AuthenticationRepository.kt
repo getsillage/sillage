@@ -6,17 +6,30 @@ data class InitializeAccountCommand(
     val username: String,
     val displayName: String,
     val password: String,
-)
+) {
+    override fun toString(): String {
+        return "InitializeAccountCommand(" +
+            "username=$username, displayName=$displayName, password=<redacted>)"
+    }
+}
 
 data class SignInCommand(
     val username: String,
     val password: String,
-)
+) {
+    override fun toString(): String {
+        return "SignInCommand(username=$username, password=<redacted>)"
+    }
+}
 
 data class ChangePasswordCommand(
     val currentPassword: String,
     val newPassword: String,
-)
+) {
+    override fun toString(): String {
+        return "ChangePasswordCommand(currentPassword=<redacted>, newPassword=<redacted>)"
+    }
+}
 
 fun interface InstanceBootstrapRepository {
     suspend fun load(baseUrl: String): BootstrapInfo
@@ -30,6 +43,29 @@ interface AuthenticationRepository {
     suspend fun currentAccount(): Account
 
     suspend fun changePassword(command: ChangePasswordCommand): AuthSession
+}
+
+enum class AuthenticationFailureReason {
+    InvalidRequest,
+    InvalidCredentials,
+    AlreadyInitialized,
+    RateLimited,
+    SessionExpired,
+    ServerRejected,
+    InvalidResponse,
+    SecureStorageUnavailable,
+}
+
+class AuthenticationFailureException(
+    val reason: AuthenticationFailureReason,
+) : IllegalStateException("The Sillage authentication request failed: ${reason.name}.")
+
+interface InstanceAuthenticationRepository : AuthenticationRepository, SignOutRepository {
+    suspend fun restore(): AuthSession? = null
+}
+
+fun interface InstanceAuthenticationRepositoryFactory {
+    fun create(baseUrl: String): InstanceAuthenticationRepository
 }
 
 class LoadInstanceBootstrapUseCase(

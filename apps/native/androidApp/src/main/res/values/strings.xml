@@ -384,6 +384,7 @@
     <string name="notice_synced_local">Synced to this device.</string>
     <string name="notice_sync_both">Two-way sync complete. %1$s</string>
     <string name="error_record_empty">Record content cannot be empty.</string>
+    <string name="error_record_too_large">Record content cannot exceed 1 MiB.</string>
     <string name="error_entry_date_invalid">Enter a valid record date in YYYY-MM-DD format.</string>
     <string name="error_network">Network error. Check your connection and try again.</string>
     <string name="error_local_data_corrupt">Local data could not be read. A backup of the raw data has been kept; saving is disabled to protect it.</string>

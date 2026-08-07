@@ -4,7 +4,7 @@ This document describes Sillage's stable engineering boundaries. The code source
 
 ## System Boundaries
 
-Sillage is a single-user, self-hosted monolith. One Go process serves REST, Connect, attachment downloads, and the embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is currently implemented; iOS, Windows, and macOS have reserved application boundaries and will share a Kotlin Multiplatform core.
+Sillage is a single-user, self-hosted monolith. One Go process serves the REST API, Connect API, attachment downloads, and embedded React Web client. Business data is stored in SQLite, while attachment bytes are stored on the local filesystem. Native clients access the same instance through HTTP and maintain local-first state on the device. Android is the full server-connected client; Windows, macOS, and iOS provide local-first records with authenticated automatic and manual two-way memo synchronization and authenticated password change while broader remote features continue incrementally. All native hosts share the Kotlin Multiplatform core.
 
 Public ingress, TLS termination, DNS, tunneling, CDNs, and other edge-network services sit outside the Sillage system boundary and repository. The application exposes generic HTTP and forwarded-header behavior, but it does not ship third-party network connectors, credentials, or vendor-specific deployment configuration.
 
@@ -40,10 +40,10 @@ The REST and Connect adapters reuse the same domain constraints. Record validati
 | `apps/web/` | React Web source, tests, and build configuration |
 | `apps/native/androidApp/` | Kotlin/Compose Android client and local offline data |
 | `apps/native/build-logic/` | Native version catalog, shared KMP build conventions, and dependency-boundary checks |
-| `apps/native/iosApp/` | Reserved iOS host, Apple adapters, native UI, and packaging boundary |
-| `apps/native/desktopApp/` | Reserved Windows/macOS host, native integration, and packaging boundary |
-| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus common `MaterialTheme` |
-| `packages/kmp-core/` | Shared native domain, application, data, sync, and security modules; `domain`, `application`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
+| `apps/native/iosApp/` | Static KMP framework, SwiftUI/UIKit lifecycle host, atomic Application Support snapshot adapter with one-time `NSUserDefaults` migration, native JSON backup document pickers, Security.framework refresh-credential storage, Xcode integration, and Apple packaging boundary |
+| `apps/native/desktopApp/` | Compose Desktop host, atomic local snapshot adapter, data-directory instance lock, native backup file dialogs, native menus and guarded window lifecycle, Windows/macOS integration, and host-native DMG/MSI verification |
+| `apps/native/shared-ui/` | Shared Compose Multiplatform UI; `application` composes the device-local records workspace, `app-shell` owns presentation, client-context, and interactive-workspace lifecycle policy, `ask` owns Ask feature UI, `auth` owns authentication feature UI, `records` owns records feature UI, `settings` owns settings feature UI, `sync` owns synchronization conflict UI, and `design-system` owns semantic theme tokens plus the common `MaterialTheme` |
+| `packages/kmp-core/` | Shared native domain, application, local data, sync, and security modules; `local-data` separates private snapshots from validated user backup envelopes, and `domain`, `application`, `local-data`, and `sync` are buildable for Android, desktop JVM, and Apple targets |
 | `packages/kmp-features/` | Feature-scoped native state and presentation modules; `records` owns shared record query policy |
 | `contracts/` | Wire definitions, projections, fixtures, and compatibility policy |
 | `tests/` | Cross-application contract, conformance, integration, and E2E boundaries |
@@ -131,9 +131,37 @@ Instance discovery crosses `InstanceBootstrapRepository`; initialization,
 sign-in, account verification, and password change cross
 `AuthenticationRepository` through focused use cases. Android's remote adapter
 retains REST, refresh coordination, and context-safe encrypted session storage.
+For desktop and iOS, `kmp-core:network` maps the same bootstrap and
+authentication contracts behind host-neutral HTTP, owns the generation-checked
+memory session, and exposes `AuthenticationCredentialStore` as the only
+durable refresh-credential boundary. iOS supplies a non-synchronizing,
+`ThisDeviceOnly` Keychain adapter. The macOS desktop host supplies a
+non-synchronizing Generic Password adapter through modern Security.framework
+`SecItem*` APIs. The Windows desktop host supplies a non-roaming Generic
+Credential adapter through `CredReadW`, `CredWriteW`, `CredDeleteW`, and
+`CredFree`. Unsupported desktop hosts use the memory-only default. Access
+tokens never cross the memory boundary.
+
+The shared iOS/desktop application controller drives password change through
+the same base-URL-scoped repository. Its feature-owned request identity rejects
+responses after the application mode or client generation changes. While the
+request is active, record writes, synchronization, and sign-out are blocked.
+Success accepts the rotated caller session and clears all password drafts;
+ordinary failures preserve drafts for retry. Session expiry or failure to store
+the rotated refresh credential clears the displayed authenticated account so a
+stale session is never presented as usable.
+The same `RemoteInstanceAuthenticationRepositoryFactory` creates
+`RemoteMemoSyncGateway`, so memo push and pull use that exact base-URL-scoped
+session, one-time 401 refresh, and credential rotation. The adapter owns
+canonical create/update/delete/restore/purge JSON mapping, 200-change push
+batching, complete memo-pull pagination with opaque cursor encoding, bounded
+response parsing, and ordered push-result validation; local snapshot
+transactions remain outside the network module.
 Sign-out uses `SignOutRepository` and `SignOutUseCase`; a prepared operation binds
-remote invalidation and conditional local clearing to one captured session, so a
-late failure cannot clear credentials established by a newer sign-in.
+durable-credential deletion, remote invalidation, and conditional local clearing
+to one captured session. Durable deletion happens before the remote request; if
+it fails, the current session remains authoritative and the request is not sent.
+A late failure cannot clear credentials established by a newer sign-in.
 
 Authentication presentation state lives in `packages/kmp-features/auth`.
 `AuthFeatureStateHolder` is the feature aggregate nested on Android root state;
@@ -171,10 +199,13 @@ The shared appearance section composes theme selection and the language row whil
 Android maps stored preference values and callbacks.
 The service/sync section owns online/offline and conditional sync-action layout;
 Android retains client-context mutation, navigation, and protocol execution.
-The data section owns import/export action presentation; Android retains document
-launchers, serialization, and storage adapters.
-The about section owns metadata-row and license-entry presentation; Android maps
-build/server protocol values and loads packaged notice resources.
+The data section owns optional host-leading content, optional import/export
+action presentation, and shared plus per-action gates; hosts retain document
+launchers, serialization, and storage adapters. The about section owns ordered
+metadata rows and an optional license entry; hosts map platform/build/protocol
+values and load any native notice resources. Android and the shared native
+application both consume the appearance, data, and about sections; the shared
+native application supplies its data-location row and platform metadata.
 The shared settings list owns loading, retry error, list spacing/padding, and test
 semantics while Android supplies localized values and shared section items.
 `SillageSettingsContent` owns section ordering, optional account placement, and
@@ -559,38 +590,72 @@ through the aggregate without inventing an interactive filter change. Request
 identity and late-response checks stay on the individual holders. Android request
 helpers update that aggregate through `withRecords`.
 
-`packages/kmp-core/sync` owns the shared pending mutation, applied result,
-version-conflict, and push-summary models. Android REST/JSON mapping,
-transactional outbox persistence, attachment staging, and the transactional
-conflict-storage adapter remain platform-side migration sources for later sync
-ports and state-machine slices.
+`packages/kmp-core/sync` owns shared pending mutations, durable mutation markers,
+applied results, version conflicts, push summaries, applied-result merging,
+pulled-record merging, and explicit keep-local/take-server transition rules.
+`kmp-core:network` implements the shared memo push/pull REST/JSON gateway, push
+batching, and pull pagination. `kmp-core:local-data` implements the iOS/desktop
+`MemoSyncWorkspaceFactory`: private snapshot schema 2 stores a normalized server
+binding, cloud versions, and pending mutation markers. Record writes and outbox
+changes commit in one atomic snapshot replacement; pulled records and their cloud
+baselines use the same replacement. A pulled server value replaces only clean
+local state, so rejected or conflicting mutations keep both their device value
+and prior baseline until explicit convergence.
+
+Schema 1 remains readable. A workspace cannot reuse one server's synchronization
+state against another address, and portable backup restore clears the server
+binding, cloud baselines, and outbox rather than exporting them. Android retains
+its existing transactional adapter and attachment staging as migration sources.
+
 `PushPendingMemosUseCase` composes `MemoSyncOutbox` and `MemoSyncGateway` ports:
-it skips empty pushes, sends one pending batch, and acknowledges only applied
-results through the transactional outbox. `kmp-features:sync` owns pending conflict presentation through
+it skips empty pushes, sends pending batches, and acknowledges only applied
+results through the transactional outbox. `RunMemoTwoWaySyncUseCase` then pulls
+every memo page and atomically merges it, preserving push-before-pull ordering.
+`kmp-features:sync` owns pending conflict presentation through
 `SyncFeatureStateHolder` and `MemoSyncConflictStateHolder`; core
 `ResolveMemoSyncConflictUseCase` owns explicit resolution commands. Android
 stores one `sync` aggregate, and resolution callbacks look up the current item
-through `SyncFeatureStateHolder.findConflict`. Platform
-root-state writes for push results, conflict dismissal, and conflict-list
-replacement pass through `withSync` thin wrappers. Platform
-`shared-ui:sync` consumes the aggregate directly and owns first-conflict
-selection, preview fallback and limits, dialog layout, and resource-ID action
-routing. Platform hosts retain localized strings, asynchronous resolution, and
-the transactional conflict repository adapter.
+through `SyncFeatureStateHolder.findConflict`. Platform root-state writes for
+push results, conflict dismissal, and conflict-list replacement pass through
+`withSync` thin wrappers. `shared-ui:sync` consumes the aggregate directly and
+owns first-conflict selection, preview fallback and limits, dialog layout, and
+resource-ID action routing.
 
-Full synchronization pull uses shared `SyncSnapshot`, `SyncSnapshotGateway`, and
-`SyncSnapshotRepository` contracts. The snapshot excludes backup format metadata
-and client presentation preferences. `PullSyncUseCase` fetches one completed
-snapshot and hands it to an atomic merge adapter; an unavailable AI-settings
-section preserves existing local settings.
+The shared native application controller wires the same state to authenticated
+two-way synchronization on iOS and desktop, refreshes canonical server records,
+and locks record writes while sync or conflict resolution is active. The shared
+application root invokes that path after authentication, on every later
+foreground entry, and after confirmed network recovery while foregrounded. It
+keeps routine completion silent while still surfacing conflicts and failures;
+manual sync reports completion. Platform hosts retain localized strings and
+repository composition without duplicating conflict or merge policy.
 
-Android `RemoteSyncSnapshotGateway` maps REST pagination into that snapshot and
-`LocalSyncSnapshotRepository` delegates one transactional merge. The Android
-`SillageExportData` v1 codec remains a separate backup/local-storage DTO; adapter
+Android full synchronization uses shared `SyncSnapshot`, `SyncSnapshotGateway`,
+and `SyncSnapshotRepository` contracts. The snapshot excludes backup format
+metadata and client presentation preferences. `PullSyncUseCase` fetches one
+completed snapshot and hands it to an atomic merge adapter; an unavailable
+AI-settings section preserves existing local settings. Shared iOS/desktop hosts
+use the memo-only pull on `RemoteMemoSyncGateway` until the remaining remote
+feature streams are integrated.
+
+Android `RemoteSyncSnapshotGateway` maps REST pagination into a snapshot and
+`LocalSyncSnapshotRepository` delegates one transactional merge. Android
+`SillageExportData` v1 remains a separate backup/local-storage DTO; adapter
 mapping preserves client theme/view preferences and device-held AI secrets.
 `RunSyncPushUseCase` executes the platform attachment-preparation port before
-reading the outbox. `RunTwoWaySyncUseCase` then owns the required push-before-pull
+reading the outbox. `RunTwoWaySyncUseCase` owns Android's push-before-pull
 sequence while the host presents localized results.
+
+The shared desktop/iOS application shell exposes only implemented Records and
+Settings destinations. `AppDestination.Ask` remains available to Android and
+future hosts, but the shared native primary navigation does not render it until
+an Ask application port and screen exist end to end.
+
+Desktop and iOS hosts load separate lockfile-derived third-party notice resources
+and pass them through `SillageNativePlatform`; `shared-ui:application` maps their
+availability into the shared About action and licenses dialog. The host gates
+reject unknown license families, stale generated files, and missing iOS resource
+wiring.
 
 ## Core Invariants
 
@@ -604,6 +669,10 @@ sequence while the host presents localized results.
 - Attachment downloads require authorization and filenames must be sanitized; attachment bytes do not enter sync payloads.
 - AI API keys are stored only in encrypted envelopes and must never be returned by APIs or sync.
 - Native offline state writes that span content and sync metadata are atomic, and unreadable encrypted state must never be replaced by an empty default. Android currently enforces this invariant; new native clients must inherit it through the shared persistence boundary.
+
+- A native memo outbox is bound to one normalized server address and must never
+  be silently retargeted. Portable record backups exclude server bindings,
+  cloud baselines, mutation identifiers, and credentials.
 
 See the [Sync API](api/sync.md) for detailed pagination, idempotency, and conflict rules. See [Product Guidance](product-guidance.md) for product scope and [Security Development Boundaries](security.md) for authentication, attachment, secret, and external-request constraints.
 

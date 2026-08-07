@@ -63,8 +63,113 @@ Sillage itself serves HTTP only. A separately operated HTTPS entry point is resp
 ## Request and Response Limits
 
 - Non-multipart requests are limited to 8 MiB at the HTTP middleware boundary. Attachment uploads use the configured `SILLAGE_MAX_UPLOAD_MB` limit and are independently bounded while copying bytes to disk.
-- A record body is limited to 1 MiB, search strings to 512 bytes, Ask questions to 64 KiB, and AI configuration fields to bounded sizes documented by validation errors. AI provider responses are capped before decoding, and generated text is capped before persistence.
+- A record body is limited to 1 MiB of UTF-8 at both the server service and
+  shared native new-write boundaries. Search strings are limited to 512 bytes,
+  Ask questions to 64 KiB, and AI configuration fields to bounded sizes with
+  documented validation errors. AI provider responses are capped before
+  decoding, and generated text is capped before persistence. Existing native
+  snapshots remain readable when a historical record violates a newer draft
+  rule; compatibility reads must not silently rewrite or discard that content.
 - The HTTP server enforces header, header-read, body-read, write, and idle timeouts. Streaming Ask responses use the longer write timeout but remain cancellable through the request context.
+
+## Native Public Server Discovery and Authentication
+
+- The iOS, Windows, and macOS engineering clients may call only the public
+  `GET /api/v1/auth/bootstrap` endpoint before authentication. The request sends
+  a versioned user agent and JSON accept header, but no record content,
+  credentials, cookies, authorization header, or request body.
+- Server addresses are user-controlled trusted configuration. Embedded URL
+  credentials, query strings, fragments, unsupported schemes, whitespace, and
+  empty authorities fail before transport. Bootstrap bodies are bounded and
+  mapped into application values; HTTP response bodies are never surfaced in
+  user-facing errors.
+- A successful check stores the normalized address in the private native client
+  snapshot. The private memo outbox separately binds cloud versions and mutation
+  identifiers to one normalized address. Portable record backups export neither
+  address nor synchronization metadata and preserve the current device address
+  when restored.
+- Published clients must use operator-managed HTTPS. Plain HTTP is limited to
+  explicit loopback or trusted-LAN engineering use; iOS additionally enforces
+  App Transport Security. This unauthenticated diagnostic does not establish a
+  session or authorize later requests.
+- After a successful public check, desktop and iOS may send initialization or
+  sign-in credentials only to that normalized server address. Generic HTTP
+  request/response diagnostics expose method, URL, header names, status, and
+  sizes, but redact bodies and every header value so passwords, bearer tokens,
+  cookies, and server error bodies are not rendered by `toString()`. Native
+  transports do not follow redirects; operators must configure the final
+  server URL before credentials are sent.
+- Native authentication disables automatic platform cookie handling. The
+  shared repository extracts only `sillage_refresh`, sends it only to the
+  repository's validated base URL, keeps the access token and active refresh
+  credential in a generation-checked memory session, and retries one 401 after
+  rotating the refresh session. A replaced session cannot be cleared by an
+  older request.
+- Authenticated iOS, Windows, and macOS clients send password changes only to
+  the normalized server's fixed `POST /api/v1/auth/change-password` path.
+  Current, new, and confirmation values stay in transient UI/request state and
+  never enter snapshots, backups, logs, or credential stores. The operation is
+  single-flight and context-bound, and blocks record writes, synchronization,
+  and sign-out until it completes. Success stores the rotated refresh
+  credential before accepting the new memory session, clears all password
+  drafts, and informs the user that every other session was revoked. Ordinary
+  failures retain the drafts for retry; session expiry or secure-storage
+  failure clears the displayed authenticated account and requires sign-in.
+- Shared native memo synchronization is created by the same authentication
+  factory. It sends Bearer credentials only to the normalized server's fixed
+  `GET /api/v1/sync` and `POST /api/v1/sync:push` paths. Pull requests use the
+  server limit of 200, percent-encode opaque cursors, and stop only after a
+  terminal page; push requests contain at most 200 changes, retry at most once
+  after refresh, and reject missing, reordered, or mismatched results. Create
+  and update send the record fields required by the write; delete, restore, and
+  purge omit the record body. Request diagnostics still redact bodies and every
+  header value; no access token or record body enters durable session storage.
+  The local workspace refuses to open synchronization state bound to another
+  server, and the application permits sync only for the currently checked,
+  authenticated address. The application root may invoke automatic sync
+  immediately after an account becomes authenticated, whenever the authenticated
+  app later enters the foreground, and after confirmed network recovery while
+  foregrounded. Desktop observes local non-loopback interface state and iOS uses
+  `NWPathMonitor`; neither adapter probes the configured server. Automatic sync
+  uses the same checked address and session-expiry path as a manual request.
+  Record writes are locked for the duration of sync so pushed acknowledgements
+  and pulled records cannot race a local snapshot write.
+- `AuthenticationCredentialStore` is the only shared cross-launch credential
+  boundary and accepts only the refresh credential. Access tokens, passwords,
+  and refresh credentials are never written to the client snapshot, ordinary
+  preferences, plaintext files, environment, command arguments, or portable
+  backup. There is no plaintext fallback.
+- iOS stores the refresh credential as a non-synchronizing Security.framework
+  Generic Password item whose account is the normalized server URL and whose
+  accessibility is `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. The app
+  performs public bootstrap before using it, persists every rotation before
+  accepting the new memory session, and deletes malformed or server-rejected
+  values. Keychain failures surface as `SecureStorageUnavailable` while manual
+  sign-in remains available. `ThisDeviceOnly` prevents device migration, but
+  iOS may retain Keychain items across app reinstallation; uninstalling is not
+  guaranteed sign-out.
+- macOS stores the refresh credential as a Generic Password item under the
+  same service and normalized server account, with
+  `kSecAttrSynchronizable=false`. The JVM host calls modern
+  Security.framework `SecItem*` APIs through JNA and never passes token
+  material to the `security` CLI. Keychain failures use the same stable
+  `SecureStorageUnavailable` reason. A macOS Keychain item may outlive removal
+  of the application bundle, so uninstalling is not guaranteed sign-out.
+- Windows stores the refresh credential as a `CRED_TYPE_GENERIC`,
+  `CRED_PERSIST_LOCAL_MACHINE` item in the current user's Credential Manager.
+  Its target is the application service prefix plus the normalized server URL.
+  The JVM host calls `CredReadW`, `CredWriteW`, `CredDeleteW`, and
+  `CredFree` through JNA and never passes token material to `cmdkey`,
+  PowerShell, or process arguments. The local-machine persistence mode is
+  non-roaming, and vault failures surface as `SecureStorageUnavailable`.
+  Credential Manager items may outlive application removal, so uninstalling is
+  not guaranteed sign-out.
+- Online sign-out deletes the captured durable refresh credential before
+  requesting server revocation. If deletion fails, the remote request is not
+  sent and the current session remains visible with a secure-storage error.
+  After deletion succeeds, remote failure or cancellation clears only the
+  captured memory session; it never clears a newer session created while the
+  request was in flight.
 
 ## Android
 

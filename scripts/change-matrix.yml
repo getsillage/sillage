@@ -1,6 +1,6 @@
 # Path → required verification gates and documentation surfaces.
 # Consumed by scripts/affected.mjs and scripts/check-doc-sync.mjs.
-# Gates: go | proto | web | android | scale | docs | container | supply-chain | e2e | restore | upgrade
+# Gates: go | proto | web | android | desktop | ios | scale | docs | container | supply-chain | e2e | restore | upgrade
 
 version: 1
 
@@ -16,6 +16,9 @@ gates:
   e2e: "Fresh-instance Playwright release journeys in Chromium, Firefox, and WebKit"
   restore: "Isolated backup/restore recovery drill"
   upgrade: "Latest-stable data upgrade and backup-backed rollback drill"
+
+  desktop: "Shared native common tests, desktop host tests, desktop JVM production compilation, and host-native DMG/MSI packaging"
+  ios: "Shared native common tests, Apple framework links, Swift bridge typecheck, and unsigned simulator host build"
 
 rules:
   - id: proto-contract
@@ -95,6 +98,12 @@ rules:
   - id: android-client
     paths:
       - "apps/native/androidApp/**"
+    gates: [android]
+    docs:
+      - "apps/native/androidApp/README.md"
+
+  - id: native-build-system
+    paths:
       - "apps/native/build-logic/**"
       - "apps/native/build.gradle.kts"
       - "apps/native/settings.gradle.kts"
@@ -102,9 +111,9 @@ rules:
       - "apps/native/gradle/**"
       - "apps/native/gradlew"
       - "apps/native/gradlew.bat"
-    gates: [android]
+    gates: [android, desktop, ios]
     docs:
-      - "apps/native/androidApp/README.md"
+      - "docs/development/multiplatform.md"
 
   - id: android-artifact-policy
     paths:
@@ -121,16 +130,23 @@ rules:
       - "packages/kmp-core/**"
       - "packages/kmp-features/**"
       - "apps/native/shared-ui/**"
-    gates: [android, docs]
+    gates: [android, desktop, ios, docs]
     docs:
       - "docs/development/multiplatform.md"
       - "docs/development/architecture.md"
 
-  - id: reserved-native-hosts
+  - id: ios-host
     paths:
       - "apps/native/iosApp/**"
+    gates: [ios, docs]
+    docs:
+      - "docs/development/multiplatform.md"
+      - "docs/development/architecture.md"
+
+  - id: desktop-client
+    paths:
       - "apps/native/desktopApp/**"
-    gates: [docs]
+    gates: [desktop, docs]
     docs:
       - "docs/development/multiplatform.md"
       - "docs/development/architecture.md"
@@ -243,7 +259,7 @@ rules:
       - ".github/workflows/ci.yml"
       - "scripts/affected.mjs"
       - "scripts/change-matrix.yml"
-    gates: [go, proto, web, android, scale, docs, container, supply-chain, e2e, restore, upgrade]
+    gates: [go, proto, web, android, desktop, ios, scale, docs, container, supply-chain, e2e, restore, upgrade]
     docs:
       - "docs/development/governance.md"
       - "CONTRIBUTING.md"

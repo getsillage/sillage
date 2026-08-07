@@ -24,6 +24,7 @@ class SillageServerFormTest {
 
         assertEquals("https://example.test", presentation.baseUrl)
         assertTrue(presentation.controlsEnabled)
+        assertTrue(presentation.submitEnabled)
         assertEquals("Save and connect", presentation.actionText)
     }
 
@@ -36,6 +37,32 @@ class SillageServerFormTest {
         )
 
         assertFalse(presentation.controlsEnabled)
+        assertFalse(presentation.submitEnabled)
         assertEquals("Connecting", presentation.actionText)
+    }
+
+    @Test
+    fun blankAddressDisablesSubmitWithoutLockingDraftControl() {
+        val presentation = sillageServerFormPresentation(
+            baseUrl = "   ",
+            loading = false,
+            strings = strings,
+        )
+
+        assertTrue(presentation.controlsEnabled)
+        assertFalse(presentation.submitEnabled)
+    }
+
+    @Test
+    fun externalSessionLockDisablesAddressAndSubmit() {
+        val presentation = sillageServerFormPresentation(
+            baseUrl = "https://example.test",
+            loading = false,
+            enabled = false,
+            strings = strings,
+        )
+
+        assertFalse(presentation.controlsEnabled)
+        assertFalse(presentation.submitEnabled)
     }
 }

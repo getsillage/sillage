@@ -38,7 +38,7 @@ Other ephemeral data is also cleaned automatically at startup and every six hour
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
-After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the browser that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password endpoint. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account; use the offline procedure below.
+After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the client that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password endpoint. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account; use the offline procedure below.
 
 ## Offline Password Recovery
 
@@ -85,6 +85,27 @@ unset NEW_PASSWORD
 ```
 
 If the instance uses a custom `SILLAGE_DSN`, pass the same value or `_FILE` setting to the command. Back up the instance before recovery when practical. After restart, sign in with the new password. Previously issued access tokens may continue working until their 15-minute lifetime ends; after that, confirm that old devices must authenticate again.
+
+## Native Client Portable Backups
+
+iOS, Windows, and macOS can export and restore a JSON record backup through the
+native file picker. The file contains the portable record and appearance subset
+and remains sensitive plaintext; store and transfer it through protected media.
+It does not contain the account, access or refresh credentials, checked server
+address, server binding, cloud versions, pending mutation identifiers, Ask data,
+or server attachment bytes.
+
+Restore validates the complete file before replacing readable local records. It
+preserves the device's current server address and any preference omitted by the
+backup, but deliberately clears the private sync binding, cloud baselines, and
+outbox. Consequently, restored records remain local changes until a later
+authenticated synchronization pushes them before pulling current server records.
+That may be automatic sync after the next sign-in, a later foreground entry, or
+confirmed network recovery, or it may be a manual sync; do not assume the JSON
+file is a continuation of an existing server queue. A failed
+or unsupported import leaves current local state intact.
+This portable file is not a substitute for the complete server data-directory
+backup below.
 
 ## Back Up
 
@@ -162,7 +183,9 @@ To move an instance to another directory or host:
 
 `.thumbnail_cache/` is currently only a reserved directory; the server recreates it as an empty directory at startup. The database, attachments, and `runtime/` cannot be reset independently.
 
-Android JSON exports and manual synchronization do not include server attachment bytes, the account, sessions, or runtime secrets. They cannot replace a complete server data-directory backup.
+Android and shared native JSON exports and manual synchronization do not include
+server attachment bytes, the account, sessions, or runtime secrets. They cannot
+replace a complete server data-directory backup.
 
 ## Recovery Objectives and Drills
 

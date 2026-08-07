@@ -22,6 +22,13 @@ core modules depend only on core, feature modules depend only on core, and
 shared UI depends only on core, features, or shared UI. Platform applications
 remain unrestricted composition roots.
 
+The same root gate runs `checkNativeIdentity`. Native app icons originate from
+the existing product mark under `apps/native/branding/`; generated iOS PNG,
+macOS ICNS, and Windows ICO artifacts are committed because Windows and Linux
+verification hosts cannot run Apple's conversion tools. The gate validates the
+asset containers, iOS dimensions and alpha policy, platform wiring, and the
+visible product version shared by Android, iOS, and desktop.
+
 ## Consequences
 
 Shared module build files remain small and cannot silently select different SDK

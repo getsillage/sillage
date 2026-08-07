@@ -7,13 +7,26 @@ application values. Secret-free account identity lives in `kmp-core:domain`;
 platform adapters retain HTTP and secure session persistence.
 `InstanceBootstrapRepository` owns public instance capability discovery.
 `AuthenticationRepository` and focused initialize, sign-in, current-account, and
-password-change use cases own authentication intent. Android's remote adapter
-maps those contracts to REST while `SillageApi` retains session refresh and
-context-safe encrypted persistence.
+password-change use cases own authentication intent.
+`InstanceAuthenticationRepositoryFactory` creates a repository scoped to one
+validated server address, while stable `AuthenticationFailureReason` values let
+shared UI map failures without exposing server response bodies. Android's remote
+adapter maps those contracts to REST while `SillageApi` retains session refresh
+context-safe encrypted persistence. Desktop and iOS use the shared remote
+repository and its optional refresh-credential store; iOS and macOS inject
+Security.framework Keychain adapters, while Windows injects a Credential
+Manager adapter. `InstanceAuthenticationRepository.restore` exchanges the
+stored refresh credential for a newly rotated session without exposing it to
+feature state. The shared iOS/desktop controller invokes the same
+password-change use case and applies the returned account only after the
+feature-owned request context is still current.
 `SignOutRepository` captures a session-bound capability before asynchronous
 execution. `SignOutUseCase` owns offline clearing, remote-failure fallback, and
-cancellation semantics without exposing tokens or platform session snapshots;
-a rejected conditional clear means a newer session remains authoritative.
+cancellation semantics without exposing tokens or platform session snapshots.
+Persistent adapters delete the captured durable credential before remote
+revocation; a deletion failure must remain visible instead of reporting a false
+sign-out, and a rejected conditional clear means a newer session remains
+authoritative.
 
 The records slice currently exposes nine distinct boundaries:
 
@@ -37,6 +50,14 @@ The records slice currently exposes nine distinct boundaries:
 - Generic `AttachmentDownloadRepository` and `DownloadAttachmentUseCase` stream
   authenticated content into a host-provided destination while common code owns
   only the request path and response metadata.
+
+`SaveRecordUseCase` validates every new record draft before it crosses a write
+port: content must be non-empty, no larger than 1 MiB after UTF-8 encoding, and
+the entry date must be a valid `YYYY-MM-DD` date. These rules match the server
+service and apply to creates and updates, including saves initiated by Ask.
+They are new-write constraints, not snapshot migration rules: structurally
+valid historical records remain readable even when their stored content or
+date would fail current draft validation.
 
 The Ask slice exposes `AskRepository` with focused use cases for listing
 conversations, listing messages, creating a conversation, and selecting its

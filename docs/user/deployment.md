@@ -128,6 +128,34 @@ X-Forwarded-For
 
 Do not simply append untrusted forwarding headers. Sillage ignores them when the direct peer is outside the configured CIDRs; for a trusted peer it uses `X-Forwarded-Proto` to mark Cookies as Secure and `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
 
+The iOS, Windows, and macOS engineering clients can check this address from
+Settings before sending credentials. The check calls only
+`GET /api/v1/auth/bootstrap`; it sends no records or credentials and remembers
+the normalized address only on that device. Use the external HTTPS address for
+this check. Plain HTTP is for explicit loopback or trusted-LAN engineering use
+only, and iOS App Transport Security may reject it.
+
+After the check succeeds, these engineering clients can initialize the single
+account or sign in and sign out. An authenticated user can also change the
+password under Account in Settings; success keeps the current client signed in
+with a rotated device credential and ends every other refresh session. Their
+record workspace remains local-first, but
+an authenticated user can manually synchronize records from Settings. Each run
+pushes pending creates, updates, deletions, restorations, and permanent deletions
+before pulling every page of current server records. It does not run
+automatically. A local sync workspace is bound to the normalized server used for
+its cloud baselines and refuses to retarget that state when the address changes.
+Access tokens always remain in memory, and no authentication credential, server
+binding, cloud baseline, or mutation ID is included in portable record backups.
+
+iOS and macOS store only the refresh credential in non-synchronizing Keychain
+Generic Password items. Windows stores only that credential as a non-roaming
+Generic Credential in the current user's Credential Manager. All three can
+restore a valid session after public bootstrap on a later launch; the iOS item
+is additionally device-bound. Use in-app sign-out or revoke the server session
+when sign-out must be guaranteed because operating-system vault items may
+survive application removal. No platform has a plaintext credential fallback.
+
 ## Probes and Upgrades
 
 ```bash

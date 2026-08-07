@@ -18,6 +18,7 @@ fun normalizeBaseUrl(value: String): String {
     return when {
         trimmed.isBlank() -> ""
         trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
+        "://" in trimmed -> trimmed
         else -> "https://$trimmed"
     }
 }

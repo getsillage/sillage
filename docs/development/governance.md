@@ -144,6 +144,12 @@ Files under `third_party/licenses/` are copied byte-for-byte from upstream packa
 
 The release workflow adds signed GitHub provenance and SPDX attestations to the published image digest, and uploads the SBOMs, scanner report, and SHA-256 manifest as release assets. BuildKit's OCI provenance and SBOM attestations remain enabled as an additional registry-native record.
 
+Desktop and iOS third-party notices are generated separately from their host
+Gradle lockfiles because their packaged graphs differ from Android. The native
+generator selects desktop runtime and iOS device-compile configurations, rejects
+unreviewed coordinate families, and byte-checks both packaged notice resources.
+The shared Apache-2.0 source also covers JNA under its Apache license option.
+
 ## Secrets scanning
 
 CI installs the official [gitleaks](https://github.com/gitleaks/gitleaks) CLI, verifies the pinned release archive against a repository-controlled SHA-256 digest, and scans the checkout with [`.gitleaks.toml`](../../.gitleaks.toml). The marketplace `gitleaks-action` is not used because organization repositories require a paid `GITLEAKS_LICENSE`. Local optional run (if installed):

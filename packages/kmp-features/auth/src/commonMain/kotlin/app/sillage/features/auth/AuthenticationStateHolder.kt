@@ -19,7 +19,13 @@ data class PasswordChangeRequest(
     val newPassword: String,
     val appMode: String,
     val clientContextGeneration: Long,
-)
+) {
+    override fun toString(): String {
+        return "PasswordChangeRequest(" +
+            "requestId=$requestId, currentPassword=<redacted>, newPassword=<redacted>, " +
+            "appMode=$appMode, clientContextGeneration=$clientContextGeneration)"
+    }
+}
 
 /** Owns authentication forms and password-change request lifecycle. */
 data class AuthenticationStateHolder(

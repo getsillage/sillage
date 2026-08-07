@@ -6,6 +6,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class SaveRecordUseCaseTest {
     @Test
@@ -36,6 +37,23 @@ class SaveRecordUseCaseTest {
         assertEquals(draft, repository.updatedDraft)
         assertEquals(null, repository.createdDraft)
         assertEquals("updated", result.id)
+    }
+
+    @Test
+    fun invalidDraftNeverReachesWriteBoundary() {
+        val repository = CapturingRepository()
+
+        val error = assertFailsWith<InvalidRecordDraftException> {
+            runImmediate {
+                SaveRecordUseCase(repository)(
+                    SaveRecordCommand.Create(RecordDraft("", "2026-08-01")),
+                )
+            }
+        }
+
+        assertEquals(RecordDraftValidationError.EmptyContent, error.validationError)
+        assertEquals(null, repository.createdDraft)
+        assertEquals(null, repository.updatedDraft)
     }
 
     private inner class CapturingRepository : RecordWriteRepository {

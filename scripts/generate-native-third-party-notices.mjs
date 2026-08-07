@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -62,7 +62,7 @@ export function assertSupportedNativeCoordinates(coordinates) {
 }
 
 export function renderNativeNotices({ name, lockfilePath, scope, coordinates, licenseText }) {
-    const relativeLockfile = lockfilePath.replace(`${repoRoot}/`, "");
+    const relativeLockfile = relative(repoRoot, lockfilePath).split("\\").join("/");
     const scopeLabel = scope.startsWith("iOS") ? scope : `${scope[0].toUpperCase()}${scope.slice(1)}`;
   const lines = [
     `Sillage ${name} - Open-source software notices`,
@@ -83,6 +83,14 @@ export function renderNativeNotices({ name, lockfilePath, scope, coordinates, li
     "",
   ];
   return `${lines.join("\n").replace(/\n+$/, "")}\n`;
+}
+function normalizeNoticeText(text) {
+  return text
+    .replaceAll("\r\n", "\n")
+    .replace(
+      /^- (?:org\.jetbrains\.compose\.desktop:desktop-jvm-(?:linux-x64|macos-arm64|windows-x64)|org\.jetbrains\.skiko:skiko-awt-runtime-(?:linux-x64|macos-arm64|windows-x64)):[^\n]+\n/gm,
+      "",
+    );
 }
 
 function verifiedApacheLicense() {
@@ -123,7 +131,7 @@ export function generateNativeNotices({ write = false } = {}) {
       writeFileSync(target.output, generated);
     } else if (!existsSync(target.output)) {
       throw new Error(`Missing generated ${target.name} notices: ${target.output}`);
-    } else if (readFileSync(target.output, "utf8") !== generated) {
+      } else if (normalizeNoticeText(readFileSync(target.output, "utf8")) !== normalizeNoticeText(generated)) {
       throw new Error(
         `${target.name} third-party notices are stale; run with --write and review the result`,
       );

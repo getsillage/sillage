@@ -4,7 +4,7 @@ This file is generated from apps/native/desktopApp/gradle.lockfile and is shippe
 so users can inspect the licenses of desktop runtime dependencies. Do not edit it manually;
 run `node scripts/generate-native-third-party-notices.mjs --write`.
 
-Desktop runtime dependency count: 79
+Desktop runtime dependency count: 81
 
 ===== Apache License 2.0 =====
 Source: https://www.apache.org/licenses/LICENSE-2.0.txt
@@ -34,7 +34,9 @@ Packages:
 - org.jetbrains.compose.animation:animation:1.7.3
 - org.jetbrains.compose.annotation-internal:annotation:1.7.3
 - org.jetbrains.compose.collection-internal:collection:1.7.3
+- org.jetbrains.compose.desktop:desktop-jvm-linux-x64:1.7.3
 - org.jetbrains.compose.desktop:desktop-jvm-macos-arm64:1.7.3
+- org.jetbrains.compose.desktop:desktop-jvm-windows-x64:1.7.3
 - org.jetbrains.compose.desktop:desktop-jvm:1.7.3
 - org.jetbrains.compose.desktop:desktop:1.7.3
 - org.jetbrains.compose.foundation:foundation-desktop:1.7.3

@@ -38,7 +38,7 @@ class DesktopClientSnapshotStorageTest {
             ).toString(),
         )
         assertEquals(
-            "C:\\Users\\example\\AppData\\Roaming/Sillage/client-v1.json",
+        Path.of("C:\\Users\\example\\AppData\\Roaming", "Sillage", "client-v1.json").toString(),
             DesktopDataPaths.defaultSnapshotPath(
                 osName = "Windows 11",
                 userHome = "C:\\Users\\example",

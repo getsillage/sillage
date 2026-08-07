@@ -22,7 +22,6 @@ import platform.Foundation.HTTPMethod
 import platform.Foundation.HTTPShouldHandleCookies
 import platform.Foundation.NSData
 import platform.Foundation.NSHTTPURLResponse
-import platform.Foundation.NSMutableData
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSError
 import platform.Foundation.NSString
@@ -163,9 +162,8 @@ private class IosStreamingSessionDelegate(
     private val onChunk: (String) -> Unit,
     private val onComplete: (Result<SillageHttpResponse>) -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol, NSURLSessionTaskDelegateProtocol {
-    private val body = NSMutableData()
+    private val bodyBuilder = StringBuilder()
     private var response: NSHTTPURLResponse? = null
-    private var emittedCharacters = 0
     private var callbackFailure: Throwable? = null
     private var completed = false
 
@@ -173,7 +171,7 @@ private class IosStreamingSessionDelegate(
         session: NSURLSession,
         dataTask: NSURLSessionDataTask,
         didReceiveResponse: NSURLResponse,
-        completionHandler: (ULong) -> Unit,
+        completionHandler: (Long) -> Unit,
     ) {
         response = didReceiveResponse as? NSHTTPURLResponse
         completionHandler(NSURLSessionResponseAllow)
@@ -184,15 +182,12 @@ private class IosStreamingSessionDelegate(
         dataTask: NSURLSessionDataTask,
         didReceiveData: NSData,
     ) {
-        body.appendData(didReceiveData)
+        val decoded = NSString.create(data = didReceiveData, encoding = NSUTF8StringEncoding)
+            ?.toString() ?: return
+        bodyBuilder.append(decoded)
         val currentResponse = response ?: return
         if (currentResponse.statusCode.toInt() !in 200..299 || callbackFailure != null) return
-        val decoded = NSString.create(data = body, encoding = NSUTF8StringEncoding)?.toString()
-            ?: return
-        if (decoded.length <= emittedCharacters) return
-        val chunk = decoded.substring(emittedCharacters)
-        emittedCharacters = decoded.length
-        runCatching { onChunk(chunk) }
+        runCatching { onChunk(decoded) }
             .onFailure {
                 callbackFailure = it
                 dataTask.cancel()
@@ -212,26 +207,16 @@ private class IosStreamingSessionDelegate(
             response == null -> Result.failure(
                 IllegalStateException("The Sillage server returned no HTTP response."),
             )
-            else -> {
-                val decoded = NSString.create(data = body, encoding = NSUTF8StringEncoding)
-                    ?.toString()
-                if (decoded == null) {
-                    Result.failure(
-                        IllegalStateException("The Sillage server returned invalid UTF-8."),
-                    )
-                } else {
-                    Result.success(
-                        SillageHttpResponse(
-                            statusCode = response!!.statusCode.toInt(),
-                            headers = response!!.allHeaderFields.entries.groupBy(
-                                keySelector = { (name, _) -> name.toString() },
-                                valueTransform = { (_, value) -> value.toString() },
-                            ),
-                            body = decoded,
-                        ),
-                    )
-                }
-            }
+            else -> Result.success(
+                SillageHttpResponse(
+                    statusCode = response!!.statusCode.toInt(),
+                    headers = response!!.allHeaderFields.entries.groupBy(
+                        keySelector = { (name, _) -> name.toString() },
+                        valueTransform = { (_, value) -> value.toString() },
+                    ),
+                    body = bodyBuilder.toString(),
+                ),
+            )
         }
         if (!completed) {
             completed = true

@@ -57,6 +57,7 @@ fun MainViewController(): UIViewController {
                 todayProvider = ::currentLocalDate,
                 memoSyncWorkspaceFactory = repository,
                 memoSyncGatewayFactory = authenticationRepositoryFactory,
+                askClientFactory = authenticationRepositoryFactory,
             )
         }
         val backupTransfer = remember(repository) {

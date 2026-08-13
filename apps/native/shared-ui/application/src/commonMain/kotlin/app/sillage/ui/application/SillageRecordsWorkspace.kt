@@ -138,7 +138,7 @@ private fun SillageRecordSecondaryPane(
         AppDestination.MemoDetail -> SillageRecordDetailPane(
             controller = controller,
             strings = strings,
-            showBack = false,
+            showBack = controller.state.clientContext.history.lastOrNull() == AppDestination.Ask,
             modifier = modifier,
         )
         else -> SillageRecordEmptyState(
@@ -300,7 +300,7 @@ private fun SillageRecordDetailPane(
                 title = { Text(strings.recordDetails) },
                 navigationIcon = {
                     if (showBack) {
-                        IconButton(onClick = controller::navigateToRecords) {
+                        IconButton(onClick = controller::navigateBackFromRecordDetail) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = strings.back)
                         }
                     }

@@ -649,10 +649,14 @@ mapping preserves client theme/view preferences and device-held AI secrets.
 reading the outbox. `RunTwoWaySyncUseCase` owns Android's push-before-pull
 sequence while the host presents localized results.
 
-The shared desktop/iOS application shell exposes only implemented Records and
-Settings destinations. `AppDestination.Ask` remains available to Android and
-future hosts, but the shared native primary navigation does not render it until
-an Ask application port and screen exist end to end.
+The shared desktop/iOS application shell exposes Records, Ask, and Settings.
+Ask remains disabled until a checked server and authenticated account can create
+an `AskClient`; the shared controller binds each request to that server, account,
+client generation, destination session, and operation identity. The shared Ask
+screen consumes the KMP feature aggregate and Compose components for
+conversation loading, streamed answers, branches, citations, and answer saves.
+Source-record navigation retains Ask in the application history so detail and
+editor back actions return to the originating conversation.
 
 Desktop and iOS hosts load separate lockfile-derived third-party notice resources
 and pass them through `SillageNativePlatform`; `shared-ui:application` maps their

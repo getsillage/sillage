@@ -90,6 +90,7 @@ private fun runDesktopApplication(snapshotPath: Path) = application {
                     todayProvider = { LocalDate.now().toString() },
                     memoSyncWorkspaceFactory = repository,
                     memoSyncGatewayFactory = authenticationRepositoryFactory,
+                    askClientFactory = authenticationRepositoryFactory,
                 )
     }
     val primaryShortcutUsesMeta = remember { isMacOs() }

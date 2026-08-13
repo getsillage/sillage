@@ -610,7 +610,7 @@ class SillageNativeController(
     fun closeEditor() {
         val selected = state.workspace.records.selection.selectedMemo
         state = state.copy(
-            clientContext = state.clientContext.navigateTo(
+            clientContext = state.clientContext.back(
                 if (selected == null) AppDestination.Memos else AppDestination.MemoDetail,
             ),
             workspace = state.workspace.updateRecords {

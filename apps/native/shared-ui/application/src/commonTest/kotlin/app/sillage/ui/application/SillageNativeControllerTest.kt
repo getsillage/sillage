@@ -1213,6 +1213,10 @@ class SillageNativeControllerTest {
         controller.openAskSource(source.id)
         assertEquals(AppDestination.MemoDetail, controller.state.clientContext.screen)
         assertEquals(source.id, controller.state.workspace.records.selection.selectedMemo?.id)
+        controller.editSelectedRecord()
+        assertEquals(AppDestination.Editor, controller.state.clientContext.screen)
+        controller.closeEditor()
+        assertEquals(AppDestination.MemoDetail, controller.state.clientContext.screen)
         controller.navigateBackFromRecordDetail()
         assertEquals(AppDestination.Ask, controller.state.clientContext.screen)
 

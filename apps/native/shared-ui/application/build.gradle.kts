@@ -14,6 +14,7 @@ kotlin {
             implementation(project(":kmp-features:records"))
             implementation(project(":kmp-features:sync"))
             implementation(project(":shared-ui:auth"))
+            implementation(project(":shared-ui:ask"))
             implementation(project(":shared-ui:design-system"))
             implementation(project(":shared-ui:records"))
             implementation(project(":shared-ui:settings"))

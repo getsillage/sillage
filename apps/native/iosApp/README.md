@@ -49,10 +49,12 @@ record snapshot and portable backup. Successful sign-in, restored authentication
 every later foreground entry, and a confirmed unavailable-to-available
 `NWPathMonitor` transition trigger a push-then-pull sync. The monitor observes
 system network status and does not probe the configured server. Routine
-completion stays silent, while conflicts and failures remain visible. Ask,
-attachments, accessibility/device journeys, signing, and App Store packaging
+completion stays silent, while conflicts and failures remain visible.
+Authenticated users can open Ask to load and switch conversations, choose record
+context, stream or stop answers, navigate answer variants and source records,
+regenerate an answer, and save it as a local record. The same Foundation-backed
+remote repository factory used for authentication creates the Ask client, and
+the shared controller rejects results from obsolete sessions or destinations.
+Attachments, accessibility/device journeys, signing, and App Store packaging
 remain outside the implemented host. A locally built app is an engineering
 artifact, not an official release asset.
-Until Ask is wired end to end, it is omitted from primary navigation rather than
-shown as an unavailable destination.
-official release asset.

@@ -147,6 +147,8 @@ internal data class SillageNativeStrings(
     val memoSyncServerMismatch: String,
     val memoSyncSessionExpired: String,
     val memoSyncConflictResolved: String,
+    val askGenerationStopped: String,
+    val askAnswerSaved: String,
     val dataTransferFailed: String,
     val storageUnavailable: String,
     val recordFilter: SillageRecordFilterStrings,
@@ -307,6 +309,8 @@ private val englishStrings = SillageNativeStrings(
     memoSyncServerMismatch = "Pending changes remain bound to the previous server and were not sent",
     memoSyncSessionExpired = "The session expired. Sign in again before syncing.",
     memoSyncConflictResolved = "Sync conflict resolved",
+    askGenerationStopped = "Answer generation stopped",
+    askAnswerSaved = "Answer saved as a record",
     dataTransferFailed = "The backup could not be read or written. Existing data was not changed.",
     storageUnavailable = "Local data could not be read. Existing data was not changed.",
     recordFilter = SillageRecordFilterStrings(
@@ -495,6 +499,8 @@ private val chineseStrings = SillageNativeStrings(
     memoSyncServerMismatch = "待推送更改仍绑定到之前的服务器，未向当前服务器发送",
     memoSyncSessionExpired = "登录会话已过期，请重新登录后再同步。",
     memoSyncConflictResolved = "同步冲突已处理",
+    askGenerationStopped = "已停止生成回答",
+    askAnswerSaved = "回答已保存为记录",
     dataTransferFailed = "无法读取或写入备份，现有数据未被更改。",
     storageUnavailable = "无法读取本地数据，现有数据未被更改。",
     recordFilter = SillageRecordFilterStrings(

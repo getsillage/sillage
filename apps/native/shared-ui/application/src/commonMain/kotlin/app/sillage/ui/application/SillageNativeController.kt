@@ -3,6 +3,15 @@ package app.sillage.ui.application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import app.sillage.core.application.ask.AskAnswerStreamEvent
+import app.sillage.core.application.ask.AskClient
+import app.sillage.core.application.ask.AskClientFactory
+import app.sillage.core.application.ask.CreateAskConversationUseCase
+import app.sillage.core.application.ask.ListAskConversationsUseCase
+import app.sillage.core.application.ask.ListAskMessagesUseCase
+import app.sillage.core.application.ask.SetAskHeadUseCase
+import app.sillage.core.application.ask.StreamAskAnswerCommand
+import app.sillage.core.application.ask.StreamAskAnswerUseCase
 import app.sillage.core.application.auth.AuthenticationFailureException
 import app.sillage.core.application.auth.AuthenticationFailureReason
 import app.sillage.core.application.auth.ChangePasswordCommand
@@ -28,6 +37,9 @@ import app.sillage.core.application.records.RecordsRepository
 import app.sillage.core.application.records.SaveRecordCommand
 import app.sillage.core.application.records.SaveRecordUseCase
 import app.sillage.core.application.records.validateRecordDraft
+import app.sillage.core.domain.ask.AskConversation
+import app.sillage.core.domain.ask.AskMessage
+import app.sillage.core.domain.ask.isActive
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.sync.MemoSyncGatewayFactory
 import app.sillage.core.sync.MemoSyncPullFailedException
@@ -46,6 +58,18 @@ import app.sillage.features.auth.InstanceAuthenticationStateHolder
 import app.sillage.features.auth.InstanceBootstrapContext
 import app.sillage.features.auth.InstanceBootstrapStateHolder
 import app.sillage.features.auth.PasswordChangeContext
+import app.sillage.features.ask.AskMemoSaveContext
+import app.sillage.features.ask.AskMemoSaveRequest
+import app.sillage.features.ask.AskSourceNavigationContext
+import app.sillage.features.ask.AskSourceNavigationRequest
+import app.sillage.features.ask.AskStreamContext
+import app.sillage.features.ask.AskStreamRequest
+import app.sillage.features.ask.AskVariantContext
+import app.sillage.features.ask.AskVariantRequest
+import app.sillage.features.ask.askAnswerMemoContent
+import app.sillage.features.ask.askBranchLeafId
+import app.sillage.features.ask.buildAskActivePath
+import app.sillage.features.ask.lastAssistantMessageId
 import app.sillage.features.records.MemoListFilter
 import app.sillage.features.records.RecordsBrowseStateHolder
 import app.sillage.features.records.RecordsEditorStateHolder
@@ -59,7 +83,9 @@ import app.sillage.ui.appshell.AppClientContextStateHolder
 import app.sillage.ui.appshell.AppDestination
 import app.sillage.ui.appshell.AppWorkspaceStateHolder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 
 enum class SillageNativeFeedback {
     RecordSaved,
@@ -81,8 +107,20 @@ enum class SillageNativeFeedback {
     MemoSyncServerMismatch,
     MemoSyncSessionExpired,
     MemoSyncConflictResolved,
+    AskGenerationStopped,
+    AskAnswerSaved,
     DataTransferFailed,
     StorageUnavailable,
+}
+
+enum class SillageNativeAskFailure {
+    AuthenticationRequired,
+    QuestionRequired,
+    LoadFailed,
+    SendFailed,
+    VariantFailed,
+    SourceUnavailable,
+    SaveFailed,
 }
 
 data class SillageNativePlatform(
@@ -105,11 +143,18 @@ data class SillageNativeState(
     val authentication: InstanceAuthenticationStateHolder,
     val sync: SyncFeatureStateHolder = SyncFeatureStateHolder(),
     val memoSyncSupported: Boolean = false,
+    val askSupported: Boolean = false,
     val busy: Boolean = false,
     val storageAvailable: Boolean = true,
     val feedback: SillageNativeFeedback? = null,
     val editorValidationError: RecordDraftValidationError? = null,
-)
+    val askFailure: SillageNativeAskFailure? = null,
+) {
+    val askAvailable: Boolean
+        get() = askSupported &&
+            serverConnection.checkedBaseUrl != null &&
+            authentication.account != null
+}
 
 class SillageNativeController(
     private val recordsRepository: RecordsRepository,
@@ -121,6 +166,7 @@ class SillageNativeController(
     private val todayProvider: () -> String,
     private val memoSyncWorkspaceFactory: MemoSyncWorkspaceFactory? = null,
     private val memoSyncGatewayFactory: MemoSyncGatewayFactory? = null,
+    private val askClientFactory: AskClientFactory? = null,
 ) {
     private val saveRecord = SaveRecordUseCase(recordWriteRepository)
     private val mutateRecordLifecycle = MutateRecordLifecycleUseCase(recordLifecycleRepository)
@@ -132,6 +178,7 @@ class SillageNativeController(
         initialState(
             today = todayProvider(),
             memoSyncSupported = memoSyncWorkspaceFactory != null && memoSyncGatewayFactory != null,
+            askSupported = askClientFactory != null,
         ),
     )
         private set
@@ -147,14 +194,376 @@ class SillageNativeController(
     fun navigateToRecords() {
         state = state.copy(
             clientContext = state.clientContext.navigateTo(AppDestination.Memos),
+            workspace = state.workspace.afterLeavingAsk(state.clientContext.screen),
             editorValidationError = null,
+            askFailure = null,
         )
     }
 
     fun navigateToSettings() {
         state = state.copy(
             clientContext = state.clientContext.navigateTo(AppDestination.AISettings),
+            workspace = state.workspace.afterLeavingAsk(state.clientContext.screen),
             editorValidationError = null,
+            askFailure = null,
+        )
+    }
+
+    fun navigateToAsk() {
+        if (!canUseAsk()) {
+            state = state.copy(askFailure = SillageNativeAskFailure.AuthenticationRequired)
+            return
+        }
+        val ask = state.workspace.ask
+        state = state.copy(
+            clientContext = state.clientContext.navigateTo(AppDestination.Ask),
+            workspace = state.workspace.updateAsk {
+                it.enterScreen(
+                    requestInFlight = ask.loading ||
+                        ask.sending ||
+                        ask.variantLoading ||
+                        ask.sourceLoading ||
+                        ask.savingMessageId.isNotBlank(),
+                )
+            },
+            editorValidationError = null,
+            askFailure = null,
+        )
+    }
+
+    suspend fun loadAskConversations() {
+        val client = currentAskClient() ?: return
+        val key = currentAskRequestKey() ?: return
+        if (
+            state.workspace.ask.loading ||
+            state.workspace.ask.sending ||
+            state.workspace.ask.variantLoading ||
+            state.workspace.ask.savingMessageId.isNotBlank()
+        ) {
+            return
+        }
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.beginConversationCatalogLoad() },
+            askFailure = null,
+        )
+        try {
+            val conversations = ListAskConversationsUseCase(client.repository)()
+                .filter(AskConversation::isActive)
+            if (matchesAskRequest(key)) {
+                state = state.copy(
+                    workspace = state.workspace.updateAsk {
+                        it.completeConversationCatalog(conversations)
+                    },
+                )
+            }
+        } catch (error: CancellationException) {
+            if (matchesAskRequest(key)) {
+                state = state.copy(
+                    workspace = state.workspace.updateAsk {
+                        it.copy(load = it.load.cancel())
+                    },
+                )
+            }
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            if (error.invalidatesAskSession()) {
+                expireAskAuthentication(error.reason)
+            } else {
+                failAskLoad(key)
+            }
+        } catch (_: Exception) {
+            failAskLoad(key)
+        }
+    }
+
+    suspend fun selectAskConversation(conversationId: String) {
+        val client = currentAskClient() ?: return
+        currentAskRequestKey() ?: return
+        val ask = state.workspace.ask
+        if (
+            conversationId.isBlank() ||
+            ask.loading ||
+            ask.sending ||
+            ask.variantLoading ||
+            ask.sourceLoading
+        ) {
+            return
+        }
+        val conversation = ask.conversations.find { it.id == conversationId }
+        state = state.copy(
+            workspace = state.workspace.updateAsk {
+                it.beginConversationLoad(
+                    conversationId = conversationId,
+                    headMessageId = conversation?.headMessageId,
+                    contextScope = conversation?.contextScope,
+                )
+            },
+            askFailure = null,
+        )
+        val key = currentAskRequestKey() ?: return
+
+        try {
+            val messages = ListAskMessagesUseCase(client.repository)(conversationId)
+            if (
+                matchesAskRequest(key) &&
+                state.workspace.ask.activeConversationId == conversationId
+            ) {
+                state = state.copy(
+                    workspace = state.workspace.updateAsk {
+                        it.completeConversationLoad(
+                            conversationId = conversationId,
+                            headMessageId = state.workspace.ask.headMessageId,
+                            messages = messages,
+                        )
+                    },
+                )
+            }
+        } catch (error: CancellationException) {
+            if (matchesAskRequest(key)) {
+                state = state.copy(
+                    workspace = state.workspace.updateAsk {
+                        it.copy(load = it.load.cancel())
+                    },
+                )
+            }
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            if (error.invalidatesAskSession()) {
+                expireAskAuthentication(error.reason)
+            } else {
+                failAskLoad(key)
+            }
+        } catch (_: Exception) {
+            failAskLoad(key)
+        }
+    }
+
+    suspend fun retryAskLoad() {
+        val conversationId = state.workspace.ask.activeConversationId
+        if (conversationId.isNotBlank() && state.workspace.ask.messages.isEmpty()) {
+            selectAskConversation(conversationId)
+        } else {
+            loadAskConversations()
+        }
+    }
+
+    fun startNewAskConversation() {
+        val ask = state.workspace.ask
+        if (ask.loading || ask.sending || ask.variantLoading || ask.sourceLoading) return
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.startNewConversation() },
+            askFailure = null,
+        )
+    }
+
+    fun updateAskQuestion(value: String) {
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.updateQuestion(value) },
+            askFailure = null,
+        )
+    }
+
+    fun updateAskContextScope(value: String) {
+        if (value.isBlank() || !askContextControlsEnabled()) return
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.updateContextScope(value) },
+            askFailure = null,
+        )
+    }
+
+    fun updateAskSourceKind(value: String) {
+        if (value.isBlank() || !askContextControlsEnabled()) return
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.updateSourceKind(value) },
+            askFailure = null,
+        )
+    }
+
+    fun dismissAskFailure() {
+        state = state.copy(askFailure = null)
+    }
+
+    suspend fun sendAskQuestion() {
+        val question = state.workspace.ask.question.trim()
+        if (question.isBlank()) {
+            state = state.copy(askFailure = SillageNativeAskFailure.QuestionRequired)
+            return
+        }
+        streamAskAnswer(content = question, forkOfMessageId = null)
+    }
+
+    suspend fun regenerateAskAnswer(messageId: String) {
+        val message = state.workspace.ask.messages.find { it.id == messageId }
+        if (
+            message == null ||
+            message.role != "assistant" ||
+            message.deletedAt != null ||
+            message.conversationId != state.workspace.ask.activeConversationId
+        ) {
+            state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+            return
+        }
+        streamAskAnswer(content = "", forkOfMessageId = messageId)
+    }
+
+    fun stopAskStreaming() {
+        if (!state.workspace.ask.sending) return
+        state = state.copy(
+            feedback = SillageNativeFeedback.AskGenerationStopped,
+            askFailure = null,
+        )
+    }
+
+    suspend fun selectAskVariant(messageId: String) {
+        val client = currentAskClient() ?: return
+        val ask = state.workspace.ask
+        if (ask.messages.none { it.id == messageId && it.deletedAt == null }) {
+            state = state.copy(askFailure = SillageNativeAskFailure.VariantFailed)
+            return
+        }
+        val context = askVariantContext()
+        val request = ask.variant.nextRequest(context) ?: return
+        val pending = ask.variant.begin(request, context) ?: return
+        val leafId = askBranchLeafId(ask.messages, messageId)
+        val previousHeadMessageId = ask.headMessageId
+        state = state.copy(
+            workspace = state.workspace.updateAsk {
+                it.applyVariantHead(
+                    conversationId = request.conversationId,
+                    headMessageId = leafId,
+                    variant = pending,
+                )
+            },
+            askFailure = null,
+        )
+
+        try {
+            SetAskHeadUseCase(client.repository)(request.conversationId, leafId)
+            finishAskVariant(request, leafId, failure = null)
+        } catch (error: CancellationException) {
+            finishAskVariant(
+                request = request,
+                headMessageId = previousHeadMessageId,
+                failure = null,
+            )
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            if (error.invalidatesAskSession()) {
+                expireAskAuthentication(error.reason)
+            } else {
+                finishAskVariant(
+                    request = request,
+                    headMessageId = previousHeadMessageId,
+                    failure = SillageNativeAskFailure.VariantFailed,
+                )
+            }
+        } catch (_: Exception) {
+            finishAskVariant(
+                request = request,
+                headMessageId = previousHeadMessageId,
+                failure = SillageNativeAskFailure.VariantFailed,
+            )
+        }
+    }
+
+    fun openAskSource(memoId: String) {
+        val context = askSourceNavigationContext()
+        val request = state.workspace.ask.sourceNavigation.nextRequest(memoId, context) ?: return
+        val pending = state.workspace.ask.sourceNavigation.begin(request, context) ?: return
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.beginSourceNavigation(pending) },
+            askFailure = null,
+        )
+
+        val latestContext = askSourceNavigationContext()
+        if (!state.workspace.ask.sourceNavigation.canApply(request, latestContext)) return
+        val finishedAsk = state.workspace.ask.finishSourceNavigation(request) ?: return
+        val memo = allRecords.find { it.id == memoId && it.purgedAt == null }
+        if (memo == null) {
+            state = state.copy(
+                workspace = state.workspace.copy(ask = finishedAsk),
+                askFailure = SillageNativeAskFailure.SourceUnavailable,
+            )
+            return
+        }
+
+        state = state.copy(
+            clientContext = state.clientContext.navigateTo(AppDestination.MemoDetail),
+            workspace = state.workspace.copy(
+                ask = finishedAsk,
+                records = state.workspace.records.absorbVisibleMemo(memo),
+            ),
+            askFailure = null,
+        )
+    }
+
+    suspend fun saveAskAnswerAsRecord(message: AskMessage) {
+        if (!state.storageAvailable) {
+            state = state.copy(askFailure = SillageNativeAskFailure.SaveFailed)
+            return
+        }
+        val memoContent = askAnswerMemoContent(message)
+        val context = askMemoSaveContext()
+        val request = state.workspace.ask.memoSave.nextRequest(message, memoContent, context) ?: return
+        val pending = state.workspace.ask.memoSave.begin(request, context) ?: return
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.beginMemoSave(pending) },
+            busy = true,
+            feedback = null,
+            askFailure = null,
+        )
+
+        try {
+            val saved = saveRecord(
+                SaveRecordCommand.Create(
+                    RecordDraft(request.memoContent, todayProvider()),
+                ),
+            )
+            allRecords = recordsRepository.listRecords()
+            if (!canApplyAskMemoSave(request)) return
+            val finishedAsk = state.workspace.ask.finishMemoSave(request) ?: return
+            val records = state.workspace.records
+                .presentSavedMemo(
+                    memo = saved,
+                    resetEditorEntryDate = todayProvider(),
+                )
+                .replaceVisibleRecords(
+                    memosForFilter(allRecords, state.workspace.records.filter),
+                )
+            state = state.copy(
+                clientContext = state.clientContext.navigateTo(AppDestination.MemoDetail),
+                workspace = state.workspace.copy(
+                    records = records,
+                    ask = finishedAsk,
+                ),
+                feedback = SillageNativeFeedback.AskAnswerSaved,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            if (canApplyAskMemoSave(request)) {
+                state = state.copy(askFailure = SillageNativeAskFailure.SaveFailed)
+            }
+        } finally {
+            state = state.copy(
+                workspace = state.workspace.updateAsk {
+                    it.finishMemoSave(request) ?: it
+                },
+                busy = false,
+            )
+        }
+    }
+
+    fun navigateBackFromRecordDetail() {
+        if (state.clientContext.history.lastOrNull() != AppDestination.Ask) {
+            navigateToRecords()
+            return
+        }
+        state = state.copy(
+            clientContext = state.clientContext.back(AppDestination.Memos),
+            workspace = state.workspace.updateRecords { it.clearPresentedMemo() },
+            editorValidationError = null,
+            askFailure = null,
         )
     }
 
@@ -362,7 +771,11 @@ class SillageNativeController(
         state = state.copy(
             serverConnection = state.serverConnection.updateBaseUrl(value),
             authentication = state.authentication.resetForServerChange(),
+            workspace = state.workspace.updateAsk {
+                it.clearWorkspace(invalidateStream = true, invalidateVariant = true)
+            },
             sync = SyncFeatureStateHolder(),
+            askFailure = null,
         )
     }
 
@@ -639,7 +1052,11 @@ class SillageNativeController(
                         authentication = state.authentication.resetForServerChange().copy(
                             failure = error.reason.toNativeFailure(),
                         ),
+                        workspace = state.workspace.updateAsk {
+                            it.clearWorkspace(invalidateStream = true, invalidateVariant = true)
+                        },
                         sync = SyncFeatureStateHolder(),
+                        askFailure = SillageNativeAskFailure.AuthenticationRequired,
                     )
                 }
             } else {
@@ -677,7 +1094,13 @@ class SillageNativeController(
                 request,
                 authenticationContextOr(context),
             )?.let { completed ->
-                state = state.copy(authentication = completed)
+                state = state.copy(
+                    authentication = completed,
+                    workspace = state.workspace.updateAsk {
+                        it.clearWorkspace(invalidateStream = true, invalidateVariant = true)
+                    },
+                    askFailure = null,
+                )
                 activeAuthenticationRepository = null
             }
             throw error
@@ -699,7 +1122,11 @@ class SillageNativeController(
         activeAuthenticationRepository = null
         state = state.copy(
             authentication = completed,
+            workspace = state.workspace.updateAsk {
+                it.clearWorkspace(invalidateStream = true, invalidateVariant = true)
+            },
             sync = SyncFeatureStateHolder(),
+            askFailure = null,
             feedback = when (result) {
                 SignOutResult.SignedOut,
                 SignOutResult.OfflineSessionCleared,
@@ -903,12 +1330,8 @@ class SillageNativeController(
             }
             error is AuthenticationFailureException &&
                 error.reason == AuthenticationFailureReason.SessionExpired -> {
-                activeAuthenticationRepository = null
-                state = state.copy(
-                    authentication = state.authentication.resetForServerChange(),
-                    sync = SyncFeatureStateHolder(),
-                    feedback = SillageNativeFeedback.MemoSyncSessionExpired,
-                )
+                expireAskAuthentication(error.reason)
+                state = state.copy(feedback = SillageNativeFeedback.MemoSyncSessionExpired)
             }
             else -> state = state.copy(feedback = SillageNativeFeedback.MemoSyncFailed)
         }
@@ -969,6 +1392,340 @@ class SillageNativeController(
         }
     }
 
+    private suspend fun streamAskAnswer(
+        content: String,
+        forkOfMessageId: String?,
+    ) {
+        val client = currentAskClient() ?: return
+        val initialContext = askStreamContext()
+        var request = state.workspace.ask.stream.nextRequest(initialContext) ?: return
+        val pending = state.workspace.ask.stream.begin(
+            request = request,
+            context = initialContext,
+            regeneratingMessageId = forkOfMessageId.orEmpty(),
+        ) ?: return
+        val contextScope = state.workspace.ask.contextScope
+        val sourceKind = state.workspace.ask.sourceKind
+        val previousHeadMessageId = state.workspace.ask.headMessageId
+        state = state.copy(
+            workspace = state.workspace.updateAsk { it.beginStream(pending) },
+            askFailure = null,
+        )
+        if (!canApplyAskStream(request)) return
+
+        var conversationId = request.conversationId
+        var answerCompleted = false
+        var requestFailed = false
+        var cancelled = false
+        try {
+            if (conversationId.isBlank()) {
+                val created = CreateAskConversationUseCase(client.repository)(contextScope)
+                if (!canApplyAskStream(request)) return
+                state = state.copy(
+                    workspace = state.workspace.updateAsk { it.activateConversation(created) },
+                )
+                conversationId = created.id
+                request = request.copy(conversationId = conversationId)
+                if (!canApplyAskStream(request)) return
+            }
+
+            StreamAskAnswerUseCase(client.answerStreamer)(
+                command = StreamAskAnswerCommand(
+                    conversationId = conversationId,
+                    content = content,
+                    contextScope = contextScope,
+                    sourceKind = sourceKind,
+                    forkOfMessageId = forkOfMessageId,
+                ),
+            ) { event ->
+                if (canApplyAskStream(request)) {
+                    when (event) {
+                        is AskAnswerStreamEvent.Started -> {
+                            state = state.copy(
+                                workspace = state.workspace.updateAsk {
+                                    it.startStreaming(
+                                        if (event.regenerating) null else event.userMessage,
+                                    )
+                                },
+                            )
+                        }
+                        is AskAnswerStreamEvent.Delta -> {
+                            state = state.copy(
+                                workspace = state.workspace.updateAsk {
+                                    it.appendStreamDelta(event.text)
+                                },
+                            )
+                        }
+                        is AskAnswerStreamEvent.Failed -> {
+                            requestFailed = true
+                            state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+                        }
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            cancelled = true
+            throw error
+        } catch (error: AuthenticationFailureException) {
+            requestFailed = true
+            if (error.invalidatesAskSession()) {
+                expireAskAuthentication(error.reason)
+            } else if (canApplyAskStream(request)) {
+                state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+            }
+        } catch (_: Exception) {
+            requestFailed = true
+            if (canApplyAskStream(request)) {
+                state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+            }
+        } finally {
+            withContext(NonCancellable) {
+                if (conversationId.isNotBlank() && canApplyAskStream(request)) {
+                    try {
+                        val snapshot = reloadAskSnapshot(client, conversationId)
+                        if (canApplyAskStream(request)) {
+                            answerCompleted = hasNewCompletedAskAnswer(
+                                messages = snapshot.messages,
+                                headMessageId = snapshot.headMessageId,
+                                previousHeadMessageId = previousHeadMessageId,
+                            )
+                            state = state.copy(
+                                workspace = state.workspace.updateAsk {
+                                    it.replaceActiveSnapshot(
+                                        conversationId = conversationId,
+                                        conversations = snapshot.conversations,
+                                        headMessageId = snapshot.headMessageId,
+                                        messages = snapshot.messages,
+                                    )
+                                },
+                            )
+                        }
+                    } catch (error: AuthenticationFailureException) {
+                        if (error.invalidatesAskSession()) {
+                            requestFailed = true
+                            expireAskAuthentication(error.reason)
+                        } else if (!cancelled && canApplyAskStream(request)) {
+                            requestFailed = true
+                            state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+                        }
+                    } catch (_: Exception) {
+                        if (!cancelled && canApplyAskStream(request)) {
+                            requestFailed = true
+                            state = state.copy(askFailure = SillageNativeAskFailure.SendFailed)
+                        }
+                    }
+                }
+                if (canApplyAskStream(request)) {
+                    state = state.copy(
+                        workspace = state.workspace.updateAsk {
+                            it.finishStream(
+                                answerCompleted = answerCompleted && !requestFailed,
+                                clearQuestion = forkOfMessageId == null &&
+                                    !requestFailed &&
+                                    (!cancelled || answerCompleted),
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun reloadAskSnapshot(
+        client: AskClient,
+        conversationId: String,
+    ): NativeAskSnapshot {
+        val messages = ListAskMessagesUseCase(client.repository)(conversationId)
+        val conversations = ListAskConversationsUseCase(client.repository)()
+            .filter(AskConversation::isActive)
+        val headMessageId = conversations.find { it.id == conversationId }?.headMessageId
+            ?: lastAssistantMessageId(buildAskActivePath(messages, headId = null))
+        return NativeAskSnapshot(
+            conversations = conversations,
+            messages = messages,
+            headMessageId = headMessageId,
+        )
+    }
+
+    private fun finishAskVariant(
+        request: AskVariantRequest,
+        headMessageId: String?,
+        failure: SillageNativeAskFailure?,
+    ) {
+        val context = askVariantContext()
+        val variant = state.workspace.ask.variant.finish(request, context) ?: return
+        state = state.copy(
+            workspace = state.workspace.updateAsk {
+                it.applyVariantHead(
+                    conversationId = request.conversationId,
+                    headMessageId = headMessageId,
+                    variant = variant,
+                )
+            },
+            askFailure = failure,
+        )
+    }
+
+    private fun currentAskClient(): AskClient? {
+        if (!canUseAsk()) {
+            if (state.clientContext.screen == AppDestination.Ask) {
+                state = state.copy(askFailure = SillageNativeAskFailure.AuthenticationRequired)
+            }
+            return null
+        }
+        val baseUrl = state.serverConnection.checkedBaseUrl ?: return null
+        return askClientFactory?.createAskClient(baseUrl)
+    }
+
+    private fun canUseAsk(): Boolean =
+        state.askAvailable && activeAuthenticationRepository != null
+
+    private fun currentAskRequestKey(): NativeAskRequestKey? {
+        if (state.clientContext.screen != AppDestination.Ask || !canUseAsk()) return null
+        return NativeAskRequestKey(
+            screenSessionId = state.workspace.ask.screenSessionId,
+            clientContextGeneration = state.clientContext.generation,
+            baseUrl = state.serverConnection.checkedBaseUrl ?: return null,
+            accountId = state.authentication.account?.id ?: return null,
+        )
+    }
+
+    private fun matchesAskRequest(key: NativeAskRequestKey): Boolean {
+        return state.clientContext.screen == AppDestination.Ask &&
+            state.workspace.ask.screenSessionId == key.screenSessionId &&
+            state.clientContext.generation == key.clientContextGeneration &&
+            state.serverConnection.checkedBaseUrl == key.baseUrl &&
+            state.authentication.account?.id == key.accountId &&
+            canUseAsk()
+    }
+
+    private fun failAskLoad(key: NativeAskRequestKey) {
+        if (!matchesAskRequest(key)) return
+        state = state.copy(
+            workspace = state.workspace.updateAsk {
+                if (it.activeConversationId.isBlank()) {
+                    it.failConversationCatalogLoad(AskLoadFailureMarker)
+                } else {
+                    it.failConversationLoad(AskLoadFailureMarker)
+                }
+            },
+            askFailure = SillageNativeAskFailure.LoadFailed,
+        )
+    }
+
+    private fun askContextControlsEnabled(): Boolean {
+        val ask = state.workspace.ask
+        return state.clientContext.screen == AppDestination.Ask &&
+            canUseAsk() &&
+            !state.busy &&
+            !ask.loading &&
+            !ask.sending &&
+            !ask.variantLoading &&
+            !ask.sourceLoading &&
+            ask.savingMessageId.isBlank()
+    }
+
+    private fun askStreamContext(): AskStreamContext {
+        val ask = state.workspace.ask
+        return AskStreamContext(
+            screenSessionId = ask.screenSessionId,
+            conversationId = ask.activeConversationId,
+            appMode = state.clientContext.appMode,
+            clientContextGeneration = state.clientContext.generation,
+            anotherRequestInProgress = state.clientContext.screen != AppDestination.Ask ||
+                !canUseAsk() ||
+                state.busy ||
+                state.authentication.loading ||
+                ask.loading ||
+                ask.variantLoading ||
+                ask.sourceLoading ||
+                ask.savingMessageId.isNotBlank(),
+        )
+    }
+
+    private fun canApplyAskStream(request: AskStreamRequest): Boolean {
+        return state.workspace.ask.stream.canApply(request, askStreamContext())
+    }
+
+    private fun askVariantContext(): AskVariantContext {
+        val ask = state.workspace.ask
+        return AskVariantContext(
+            destinationAvailable = state.clientContext.screen == AppDestination.Ask && canUseAsk(),
+            screenSessionId = ask.screenSessionId,
+            conversationId = ask.activeConversationId,
+            appMode = state.clientContext.appMode,
+            clientContextGeneration = state.clientContext.generation,
+            anotherRequestInProgress = state.busy ||
+                state.authentication.loading ||
+                ask.loading ||
+                ask.sending ||
+                ask.sourceLoading ||
+                ask.savingMessageId.isNotBlank(),
+        )
+    }
+
+    private fun askMemoSaveContext(): AskMemoSaveContext {
+        val ask = state.workspace.ask
+        return AskMemoSaveContext(
+            destinationAvailable = state.clientContext.screen == AppDestination.Ask,
+            anotherRequestInProgress = !canUseAsk() ||
+                state.busy ||
+                state.authentication.loading ||
+                ask.loading ||
+                ask.sending ||
+                ask.variantLoading ||
+                ask.sourceLoading,
+            screenSessionId = ask.screenSessionId,
+            conversationId = ask.activeConversationId,
+            headMessageId = ask.headMessageId,
+            messages = ask.messages,
+            appMode = state.clientContext.appMode,
+            clientContextGeneration = state.clientContext.generation,
+        )
+    }
+
+    private fun canApplyAskMemoSave(request: AskMemoSaveRequest): Boolean {
+        return state.workspace.ask.memoSave.canApply(request, askMemoSaveContext())
+    }
+
+    private fun askSourceNavigationContext(): AskSourceNavigationContext {
+        val ask = state.workspace.ask
+        return AskSourceNavigationContext(
+            destinationKey = state.clientContext.screen.name,
+            destinationAvailable = state.clientContext.screen == AppDestination.Ask && canUseAsk(),
+            historyKeys = state.clientContext.history.map(AppDestination::name),
+            anotherRequestInProgress = state.busy ||
+                state.authentication.loading ||
+                ask.loading ||
+                ask.sending ||
+                ask.variantLoading ||
+                ask.savingMessageId.isNotBlank(),
+            screenSessionId = ask.screenSessionId,
+            conversationId = ask.activeConversationId,
+            appMode = state.clientContext.appMode,
+            clientContextGeneration = state.clientContext.generation,
+        )
+    }
+
+    private fun expireAskAuthentication(reason: AuthenticationFailureReason) {
+        activeAuthenticationRepository = null
+        state = state.copy(
+            clientContext = if (state.clientContext.screen == AppDestination.Ask) {
+                state.clientContext.showRoot(AppDestination.Memos)
+            } else {
+                state.clientContext
+            },
+            workspace = state.workspace.updateAsk {
+                it.clearWorkspace(invalidateStream = true, invalidateVariant = true)
+            },
+            authentication = state.authentication.resetForServerChange().copy(
+                failure = reason.toNativeFailure(),
+            ),
+            sync = SyncFeatureStateHolder(),
+            askFailure = SillageNativeAskFailure.AuthenticationRequired,
+        )
+    }
+
     private fun hydrate() {
         activeAuthenticationRepository?.captureSession()?.clearLocalSession()
         activeAuthenticationRepository = null
@@ -999,6 +1756,7 @@ class SillageNativeController(
         state = initialState(
             today = todayProvider(),
             memoSyncSupported = memoSyncWorkspaceFactory != null && memoSyncGatewayFactory != null,
+            askSupported = askClientFactory != null,
         ).copy(busy = true)
         hydrate()
     }
@@ -1075,7 +1833,24 @@ class SillageNativeController(
     }
 }
 
-private fun initialState(today: String, memoSyncSupported: Boolean): SillageNativeState {
+private data class NativeAskRequestKey(
+    val screenSessionId: Long,
+    val clientContextGeneration: Long,
+    val baseUrl: String,
+    val accountId: String,
+)
+
+private data class NativeAskSnapshot(
+    val conversations: List<AskConversation>,
+    val messages: List<AskMessage>,
+    val headMessageId: String?,
+)
+
+private fun initialState(
+    today: String,
+    memoSyncSupported: Boolean,
+    askSupported: Boolean,
+): SillageNativeState {
     val year = today.take(4).toIntOrNull() ?: 1970
     val month = today.drop(5).take(2).toIntOrNull()?.takeIf { it in 1..12 } ?: 1
     val records = RecordsFeatureStateHolder(
@@ -1095,7 +1870,44 @@ private fun initialState(today: String, memoSyncSupported: Boolean): SillageNati
         serverConnection = InstanceBootstrapStateHolder(),
         authentication = InstanceAuthenticationStateHolder(),
         memoSyncSupported = memoSyncSupported,
+        askSupported = askSupported,
     )
+}
+
+private fun AppWorkspaceStateHolder.afterLeavingAsk(
+    previousScreen: AppDestination,
+): AppWorkspaceStateHolder {
+    if (previousScreen != AppDestination.Ask) return this
+    return updateAsk { ask ->
+        ask.copy(
+            load = ask.load.cancel(),
+            sourceNavigation = ask.sourceNavigation.invalidate(),
+            memoSave = ask.memoSave.invalidate(),
+        ).invalidateStream()
+            .invalidateVariant()
+            .advanceSession()
+    }
+}
+
+private fun AuthenticationFailureException.invalidatesAskSession(): Boolean {
+    return reason == AuthenticationFailureReason.SessionExpired ||
+        reason == AuthenticationFailureReason.SecureStorageUnavailable
+}
+
+private fun hasNewCompletedAskAnswer(
+    messages: List<AskMessage>,
+    headMessageId: String?,
+    previousHeadMessageId: String?,
+): Boolean {
+    return headMessageId != null &&
+        headMessageId != previousHeadMessageId &&
+        messages.any { message ->
+            message.id == headMessageId &&
+                message.role == "assistant" &&
+                message.status == "complete" &&
+                message.deletedAt == null &&
+                message.content.isNotBlank()
+        }
 }
 
 private fun AuthenticationFailureReason.toNativeFailure(): InstanceAuthenticationFailure {
@@ -1123,3 +1935,5 @@ private fun RecordsFeatureStateHolder.searchContext(generation: Long) = RecordsS
     filter = filter,
     cacheGeneration = cacheGeneration,
 )
+
+private const val AskLoadFailureMarker = "ask_load_failed"

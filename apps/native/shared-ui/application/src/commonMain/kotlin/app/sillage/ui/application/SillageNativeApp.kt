@@ -378,6 +378,8 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.MemoSyncServerMismatch -> memoSyncServerMismatch
     SillageNativeFeedback.MemoSyncSessionExpired -> memoSyncSessionExpired
     SillageNativeFeedback.MemoSyncConflictResolved -> memoSyncConflictResolved
+    SillageNativeFeedback.AskGenerationStopped -> askGenerationStopped
+    SillageNativeFeedback.AskAnswerSaved -> askAnswerSaved
     SillageNativeFeedback.DataTransferFailed -> dataTransferFailed
     SillageNativeFeedback.StorageUnavailable -> storageUnavailable
 }

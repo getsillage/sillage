@@ -48,13 +48,23 @@ composition only. Successful checks persist the normalized address without
 silently rebinding an existing outbox. Automatic bootstrap and restore run only
 when the host advertises cross-launch authentication persistence.
 
+The controller also owns authenticated remote Ask orchestration behind an
+optional `AskClientFactory`: active-conversation loading, late-response rejection,
+conversation creation, streamed answer reconciliation, branch selection with
+rollback, source-record navigation, and saving an answer into the local records
+workspace. Ask requests are bound to the checked server, authenticated account,
+client generation, and Ask screen session. Leaving Ask invalidates outstanding
+ownership, while session expiry clears both authentication and Ask workspace
+state. The Compose Ask destination and host factory wiring are a separate
+application-shell integration step.
+
 When an account becomes authenticated, whenever the authenticated app later
 enters the foreground, or when its network status recovers from unavailable to
 available while foregrounded, the application root runs automatic push-then-pull
 memo synchronization through the same single-flight controller path. Routine
 success and no-change results do not replace authentication feedback; conflicts,
 rejections, session expiry, and failures remain visible. Ask and attachments
-remain follow-up integration slices. iOS and macOS supply Keychain adapters,
+screen integration and attachments remain follow-up slices. iOS and macOS supply Keychain adapters,
 while Windows supplies a Credential Manager adapter. All three advertise
 cross-launch authentication persistence and share the same automatic and manual
 sync paths.

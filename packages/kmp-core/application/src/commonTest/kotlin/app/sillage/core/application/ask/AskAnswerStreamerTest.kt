@@ -46,6 +46,22 @@ class AskAnswerStreamerTest {
         assertEquals(null, streamer.command)
     }
 
+    @Test
+    fun useCaseAllowsBlankContentWhenRegeneratingAnExistingAnswer() {
+        val streamer = CapturingStreamer()
+        val command = StreamAskAnswerCommand(
+            conversationId = "ask-1",
+            content = "",
+            contextScope = "recent",
+            sourceKind = "memos",
+            forkOfMessageId = "answer-1",
+        )
+
+        runAskStreamSuspend { StreamAskAnswerUseCase(streamer)(command) {} }
+
+        assertEquals(command, streamer.command)
+    }
+
     private class CapturingStreamer : AskAnswerStreamer {
         var command: StreamAskAnswerCommand? = null
         val events = listOf(

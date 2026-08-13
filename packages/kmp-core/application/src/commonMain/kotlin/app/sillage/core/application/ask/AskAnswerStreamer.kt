@@ -36,7 +36,9 @@ class StreamAskAnswerUseCase(
         onEvent: (AskAnswerStreamEvent) -> Unit,
     ) {
         require(command.conversationId.isNotBlank()) { "conversationId must not be blank" }
-        require(command.content.isNotBlank()) { "content must not be blank" }
+        require(command.content.isNotBlank() || !command.forkOfMessageId.isNullOrBlank()) {
+            "content must not be blank unless regenerating an existing answer"
+        }
         streamer.stream(command, onEvent)
     }
 }

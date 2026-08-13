@@ -10,6 +10,7 @@ kotlin {
             api(project(":kmp-core:sync"))
             api(project(":shared-ui:app-shell"))
             implementation(project(":kmp-features:auth"))
+            implementation(project(":kmp-features:ask"))
             implementation(project(":kmp-features:records"))
             implementation(project(":kmp-features:sync"))
             implementation(project(":shared-ui:auth"))

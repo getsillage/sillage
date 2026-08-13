@@ -277,7 +277,7 @@ class RemoteAskClientTest {
         val fullSse = buildString {
             appendSseEvent("start", startDataJson("um1", regenerate = false))
         }
-        val chunks = fullSse.chunked(20)
+        val chunks = fullSse.encodeToByteArray().chunkedBytes(20)
         val transport = ChunkedStreamingQueueTransport(chunks)
         val factory = RemoteInstanceAuthenticationRepositoryFactory(transport)
         factory.create("https://example.test").signIn(SignInCommand("test", "pass"))
@@ -291,6 +291,27 @@ class RemoteAskClientTest {
 
         assertEquals(1, events.size)
         assertEquals("um1", (events[0] as AskAnswerStreamEvent.Started).userMessage.id)
+    }
+
+    @Test
+    fun streamPreservesUtf8CodePointsSplitAcrossByteChunks() = runTest {
+        val expected = "\u4e2d\u6587 \ud83d\ude80"
+        val fullSse = buildString {
+            appendSseEvent("delta", """{"text":"$expected"}""")
+        }
+        val chunks = fullSse.encodeToByteArray().map { byte -> byteArrayOf(byte) }
+        val transport = ChunkedStreamingQueueTransport(chunks)
+        val factory = RemoteInstanceAuthenticationRepositoryFactory(transport)
+        factory.create("https://example.test").signIn(SignInCommand("test", "pass"))
+        val client = factory.createAskClient("https://example.test")
+
+        val events = mutableListOf<AskAnswerStreamEvent>()
+        client.answerStreamer.stream(
+            StreamAskAnswerCommand("c1", "Q", "recent", "memos"),
+            events::add,
+        )
+
+        assertEquals(expected, (events.single() as AskAnswerStreamEvent.Delta).text)
     }
 
     @Test
@@ -364,6 +385,25 @@ class RemoteAskClientTest {
                 {},
             )
         }
+    }
+
+    @Test
+    fun streamMapsIncompleteUtf8ToInvalidResponse() = runTest {
+        val transport = ChunkedStreamingQueueTransport(
+            listOf(byteArrayOf(0xf0.toByte(), 0x9f.toByte())),
+        )
+        val factory = RemoteInstanceAuthenticationRepositoryFactory(transport)
+        factory.create("https://example.test").signIn(SignInCommand("test", "pass"))
+        val client = factory.createAskClient("https://example.test")
+
+        val error = assertFailsWith<RemoteAskFailureException> {
+            client.answerStreamer.stream(
+                StreamAskAnswerCommand("c1", "Q", "recent", "memos"),
+                {},
+            )
+        }
+
+        assertEquals(RemoteAskFailureReason.InvalidResponse, error.reason)
     }
 
     @Test
@@ -504,6 +544,13 @@ class RemoteAskClientTest {
         appendLine()
     }
 
+    private fun ByteArray.chunkedBytes(size: Int): List<ByteArray> {
+        require(size > 0)
+        return indices.step(size).map { start ->
+            copyOfRange(start, minOf(start + size, this.size))
+        }
+    }
+
     private fun streamingQueueTransport(sseBody: String): QueueTransport {
         return QueueTransport(
             signInResponse(),
@@ -526,12 +573,12 @@ class RemoteAskClientTest {
 
         override suspend fun executeStreaming(
             request: SillageHttpRequest,
-            onChunk: suspend (String) -> Unit,
+            onChunk: suspend (ByteArray) -> Unit,
         ): SillageHttpResponse {
             requests += request
             val response = nextResponse()
             if (streaming && response.statusCode in 200..299 && response.body.isNotEmpty()) {
-                onChunk(response.body)
+                onChunk(response.body.encodeToByteArray())
             }
             return response
         }
@@ -545,7 +592,7 @@ class RemoteAskClientTest {
     }
 
     private class ChunkedStreamingQueueTransport(
-        private val chunks: List<String>,
+        private val chunks: List<ByteArray>,
     ) : SillageHttpTransport {
         val requests = mutableListOf<SillageHttpRequest>()
         private var signInDone = false
@@ -573,11 +620,21 @@ class RemoteAskClientTest {
 
         override suspend fun executeStreaming(
             request: SillageHttpRequest,
-            onChunk: suspend (String) -> Unit,
+            onChunk: suspend (ByteArray) -> Unit,
         ): SillageHttpResponse {
             requests += request
             for (chunk in chunks) onChunk(chunk)
-            return SillageHttpResponse(statusCode = 200, body = chunks.joinToString(""))
+            return SillageHttpResponse(statusCode = 200, body = chunks.joinedBytes().decodeToString())
         }
     }
+}
+
+private fun List<ByteArray>.joinedBytes(): ByteArray {
+    val result = ByteArray(sumOf(ByteArray::size))
+    var offset = 0
+    for (chunk in this) {
+        chunk.copyInto(result, destinationOffset = offset)
+        offset += chunk.size
+    }
+    return result
 }

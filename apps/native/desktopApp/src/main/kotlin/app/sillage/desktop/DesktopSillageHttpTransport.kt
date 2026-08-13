@@ -4,6 +4,7 @@ import app.sillage.core.network.SillageHttpResponse
 import app.sillage.core.network.SillageHttpTransport
 import app.sillage.core.network.SillageHttpMethod
 import app.sillage.core.network.SillageHttpRequest
+import java.io.ByteArrayOutputStream
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -37,31 +38,31 @@ internal class DesktopSillageHttpTransport(
 
     override suspend fun executeStreaming(
         request: SillageHttpRequest,
-        onChunk: suspend (String) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
     ): SillageHttpResponse {
         val response = client.sendAsync(
             request.toNativeRequest(Duration.ofMinutes(5)),
             HttpResponse.BodyHandlers.ofInputStream(),
         ).awaitCancellable()
-        val body = StringBuilder()
-        val reader = response.body().bufferedReader(StandardCharsets.UTF_8)
+        val body = ByteArrayOutputStream()
+        val input = response.body()
         try {
-            val buffer = CharArray(STREAM_BUFFER_CHARACTERS)
+            val buffer = ByteArray(STREAM_BUFFER_BYTES)
             while (true) {
-                val count = runInterruptible(Dispatchers.IO) { reader.read(buffer) }
+                val count = runInterruptible(Dispatchers.IO) { input.read(buffer) }
                 if (count < 0) break
                 if (count == 0) continue
-                val chunk = buffer.concatToString(0, count)
-                body.append(chunk)
+                val chunk = buffer.copyOf(count)
+                body.write(chunk)
                 if (response.statusCode() in 200..299) onChunk(chunk)
             }
         } finally {
-            reader.close()
+            input.close()
         }
         return SillageHttpResponse(
             statusCode = response.statusCode(),
             headers = response.headers().map(),
-            body = body.toString(),
+            body = String(body.toByteArray(), StandardCharsets.UTF_8),
         )
     }
 }
@@ -93,4 +94,4 @@ private suspend fun <T> CompletableFuture<T>.awaitCancellable(): T =
         }
     }
 
-private const val STREAM_BUFFER_CHARACTERS = 4_096
+private const val STREAM_BUFFER_BYTES = 4_096

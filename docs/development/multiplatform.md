@@ -532,7 +532,11 @@ cases. Android local and remote adapters translate storage and REST calls.
 Streaming answer generation and device-local AI execution stay adapter-side
 at the implementation boundary. Remote streaming crosses `AskAnswerStreamer`
 and `StreamAskAnswerUseCase` through ordered start, delta, and failure events;
-Android retains SSE parsing, HTTP/session behavior, and device-local execution.
+Android retains its existing HTTP/session adapter and device-local execution.
+For shared native hosts, `kmp-core:network` owns authenticated Ask REST/SSE
+mapping and strict incremental UTF-8 decoding, while each host transport emits
+successful response bodies as raw byte chunks. This keeps Foundation and JVM
+callback boundaries from corrupting split Unicode code points.
 Offline answer generation crosses `AskAnswerGenerator`, and completed local
 turns cross `AskTurnStore`. The shared settings snapshot selects the enabled
 active profile and the records use case supplies context; Android adapters retain

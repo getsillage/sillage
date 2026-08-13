@@ -27,16 +27,16 @@ fun interface SillageHttpTransport {
      *
      * Hosts override this for real streaming. The default keeps test and simple
      * transports source-compatible while preserving the same response contract.
-     * Chunks are emitted only for successful responses so authentication and
-     * error bodies never enter feature event parsers.
+     * Chunks contain the raw response bytes and are emitted only for successful
+     * responses so authentication and error bodies never enter protocol parsers.
      */
     suspend fun executeStreaming(
         request: SillageHttpRequest,
-        onChunk: suspend (String) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
     ): SillageHttpResponse {
         val response = execute(request)
         if (response.statusCode in 200..299 && response.body.isNotEmpty()) {
-            onChunk(response.body)
+            onChunk(response.body.encodeToByteArray())
         }
         return response
     }

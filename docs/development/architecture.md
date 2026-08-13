@@ -354,7 +354,10 @@ selection cross `AskRepository` and focused use cases in
 `packages/kmp-core/application`. Android local and remote adapters own SQLite and
 REST translation. Remote answer delivery crosses `AskAnswerStreamer` and
 `StreamAskAnswerUseCase` as ordered start, delta, and failure events. Android
-retains SSE parsing, HTTP/session behavior, and device-local AI execution.
+retains its existing HTTP/session adapter and device-local AI execution.
+`kmp-core:network` provides the authenticated remote Ask adapter for shared native
+hosts: platform transports emit successful response bodies as raw byte chunks,
+and the shared adapter performs strict incremental UTF-8 decoding and SSE parsing.
 Offline generation crosses `AskAnswerGenerator`; completed turns cross the
 separate `AskTurnStore`. Shared settings and records use cases supply the active
 profile and record context, while Android adapters own the local model client and

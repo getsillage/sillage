@@ -125,9 +125,11 @@ confirmed network recovery while foregrounded. It suppresses routine completion
 feedback and still surfaces conflicts, rejection, expiry, or failure. Its account
 settings also run authenticated password change
 through the shared feature lifecycle and base-URL-scoped repository, blocking
-other writes until the caller's rotated session is safely accepted. Broader pull
-streams, Ask, and attachments continue to arrive through ports and host-only
-implementations.
+other writes until the caller's rotated session is safely accepted. Its Ask
+destination uses the authenticated remote repository through `AskClientFactory`
+and reuses the shared Ask state and Compose components for conversations,
+streaming, branches, source navigation, and answer saves. Broader pull streams
+and attachments continue to arrive through ports and host-only implementations.
 
 Secret-free `auth.Account` is a shared domain value. Token-bearing
 `AuthSession` and public server `BootstrapInfo` are application values rather
@@ -532,7 +534,11 @@ cases. Android local and remote adapters translate storage and REST calls.
 Streaming answer generation and device-local AI execution stay adapter-side
 at the implementation boundary. Remote streaming crosses `AskAnswerStreamer`
 and `StreamAskAnswerUseCase` through ordered start, delta, and failure events;
-Android retains SSE parsing, HTTP/session behavior, and device-local execution.
+Android retains its existing HTTP/session adapter and device-local execution.
+For shared native hosts, `kmp-core:network` owns authenticated Ask REST/SSE
+mapping and strict incremental UTF-8 decoding, while each host transport emits
+successful response bodies as raw byte chunks. This keeps Foundation and JVM
+callback boundaries from corrupting split Unicode code points.
 Offline answer generation crosses `AskAnswerGenerator`, and completed local
 turns cross `AskTurnStore`. The shared settings snapshot selects the enabled
 active profile and the records use case supplies context; Android adapters retain
@@ -673,9 +679,11 @@ Shared `RunSyncPushUseCase` and `RunTwoWaySyncUseCase` enforce attachment
 preparation before push and push-before-pull ordering. Platform hosts implement
 attachment staging and present the resulting status.
 
-The shared desktop/iOS shell renders only implemented Records and Settings
-destinations; it does not expose a disabled Ask destination before the Ask
-application port and screen exist end to end.
+The shared desktop/iOS shell renders Records, Ask, and Settings. Ask is visible
+but disabled until the checked server has an authenticated client. Its controller
+rejects late results after navigation, authentication, server, client-generation,
+or operation ownership changes; source detail and editor navigation preserve the
+originating Ask destination in history.
 
 Desktop and iOS About surfaces expose separate lockfile-derived dependency
 inventories through the shared selectable licenses dialog. Desktop packages the

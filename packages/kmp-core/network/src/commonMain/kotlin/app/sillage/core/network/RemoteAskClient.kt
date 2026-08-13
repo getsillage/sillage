@@ -97,7 +97,7 @@ class RemoteAskRepository(
 class RemoteAskAnswerStreamer(
     baseUrl: String,
     private val executeAuthenticatedStreaming:
-        suspend (SillageHttpRequest, suspend (String) -> Unit) -> SillageHttpResponse,
+        suspend (SillageHttpRequest, suspend (ByteArray) -> Unit) -> SillageHttpResponse,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : AskAnswerStreamer {
     private val baseUrl = normalizeAndValidateServerBaseUrl(baseUrl)
@@ -115,6 +115,7 @@ class RemoteAskAnswerStreamer(
                 ?.let { put("forkOfId", it) }
         }
         val events = AskServerSentEventBuffer(json, onEvent)
+        val decoder = IncrementalUtf8Decoder()
         val response = executeAuthenticatedStreaming(
             SillageHttpRequest(
                 method = SillageHttpMethod.Post,
@@ -123,11 +124,26 @@ class RemoteAskAnswerStreamer(
                 headers = jsonHeaders + ("Accept" to "text/event-stream"),
                 body = payload.toString(),
             ),
-            { events.append(it) },
+            { chunk -> events.append(decoder.appendAskChunk(chunk)) },
         ).requireAskSuccess()
+        events.append(decoder.finishAskStream())
         events.finish()
     }
 }
+
+private fun IncrementalUtf8Decoder.appendAskChunk(chunk: ByteArray): String =
+    try {
+        append(chunk)
+    } catch (_: InvalidUtf8Exception) {
+        throw RemoteAskFailureException(RemoteAskFailureReason.InvalidResponse)
+    }
+
+private fun IncrementalUtf8Decoder.finishAskStream(): String =
+    try {
+        finish()
+    } catch (_: InvalidUtf8Exception) {
+        throw RemoteAskFailureException(RemoteAskFailureReason.InvalidResponse)
+    }
 
 private class AskServerSentEventBuffer(
     private val json: Json,

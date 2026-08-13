@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -141,6 +142,7 @@ fun SillageNativeApp(
                             state = state,
                             strings = strings,
                             onRecords = { guardedNavigation(controller::navigateToRecords) },
+                            onAsk = { guardedNavigation(controller::navigateToAsk) },
                             onSettings = { guardedNavigation(controller::navigateToSettings) },
                         )
                         VerticalDivider()
@@ -171,6 +173,7 @@ fun SillageNativeApp(
                                 state = state,
                                 strings = strings,
                                 onRecords = { guardedNavigation(controller::navigateToRecords) },
+                                onAsk = { guardedNavigation(controller::navigateToAsk) },
                                 onSettings = { guardedNavigation(controller::navigateToSettings) },
                             )
                         },
@@ -206,6 +209,11 @@ private fun SillageNativeContent(
     val scope = rememberCoroutineScope()
 
     when (controller.state.clientContext.screen) {
+        AppDestination.Ask -> SillageNativeAsk(
+            controller = controller,
+            strings = strings.ask,
+            modifier = modifier,
+        )
         AppDestination.AISettings -> SillageNativeSettings(
             state = controller.state,
             platform = platform,
@@ -248,6 +256,7 @@ private fun SillageNativeRail(
     state: SillageNativeState,
     strings: SillageNativeStrings,
     onRecords: () -> Unit,
+    onAsk: () -> Unit,
     onSettings: () -> Unit,
 ) {
     NavigationRail(
@@ -266,19 +275,30 @@ private fun SillageNativeRail(
             }
         },
     ) {
-        sillageNativePrimaryNavigationItems(state.clientContext.screen).forEach { item ->
+        sillageNativePrimaryNavigationItems(
+            screen = state.clientContext.screen,
+            askAvailable = state.askAvailable,
+        ).forEach { item ->
             when (item.destination) {
                 SillageNativePrimaryDestination.Records -> SillageRailItem(
                     selected = item.selected,
-                    enabled = true,
+                    enabled = item.enabled,
                     icon = Icons.Outlined.Description,
                     label = strings.records,
                     onClick = onRecords,
                 )
 
+                SillageNativePrimaryDestination.Ask -> SillageRailItem(
+                    selected = item.selected,
+                    enabled = item.enabled,
+                    icon = Icons.Outlined.QuestionAnswer,
+                    label = strings.ask.navigationLabel,
+                    onClick = onAsk,
+                )
+
                 SillageNativePrimaryDestination.Settings -> SillageRailItem(
                     selected = item.selected,
-                    enabled = true,
+                    enabled = item.enabled,
                     icon = Icons.Outlined.Settings,
                     label = strings.settings,
                     onClick = onSettings,
@@ -310,23 +330,35 @@ private fun SillageNativeBottomNavigation(
     state: SillageNativeState,
     strings: SillageNativeStrings,
     onRecords: () -> Unit,
+    onAsk: () -> Unit,
     onSettings: () -> Unit,
 ) {
     SillageNavigationBar {
-        sillageNativePrimaryNavigationItems(state.clientContext.screen).forEach { item ->
+        sillageNativePrimaryNavigationItems(
+            screen = state.clientContext.screen,
+            askAvailable = state.askAvailable,
+        ).forEach { item ->
             when (item.destination) {
                 SillageNativePrimaryDestination.Records -> SillageNavigationItem(
                     selected = item.selected,
                     onClick = onRecords,
-                    enabled = true,
+                    enabled = item.enabled,
                     icon = Icons.Outlined.Description,
                     label = strings.records,
+                )
+
+                SillageNativePrimaryDestination.Ask -> SillageNavigationItem(
+                    selected = item.selected,
+                    onClick = onAsk,
+                    enabled = item.enabled,
+                    icon = Icons.Outlined.QuestionAnswer,
+                    label = strings.ask.navigationLabel,
                 )
 
                 SillageNativePrimaryDestination.Settings -> SillageNavigationItem(
                     selected = item.selected,
                     onClick = onSettings,
-                    enabled = true,
+                    enabled = item.enabled,
                     icon = Icons.Outlined.Settings,
                     label = strings.settings,
                 )
@@ -337,24 +369,34 @@ private fun SillageNativeBottomNavigation(
 
 internal enum class SillageNativePrimaryDestination {
     Records,
+    Ask,
     Settings,
 }
 
 internal data class SillageNativePrimaryNavigationItem(
     val destination: SillageNativePrimaryDestination,
     val selected: Boolean,
+    val enabled: Boolean,
 )
 
 internal fun sillageNativePrimaryNavigationItems(
     screen: AppDestination,
+    askAvailable: Boolean,
 ): List<SillageNativePrimaryNavigationItem> = listOf(
     SillageNativePrimaryNavigationItem(
         destination = SillageNativePrimaryDestination.Records,
-        selected = screen != AppDestination.AISettings,
+        selected = screen != AppDestination.Ask && screen != AppDestination.AISettings,
+        enabled = true,
+    ),
+    SillageNativePrimaryNavigationItem(
+        destination = SillageNativePrimaryDestination.Ask,
+        selected = screen == AppDestination.Ask,
+        enabled = askAvailable,
     ),
     SillageNativePrimaryNavigationItem(
         destination = SillageNativePrimaryDestination.Settings,
         selected = screen == AppDestination.AISettings,
+        enabled = true,
     ),
 )
 
@@ -378,6 +420,8 @@ private fun SillageNativeStrings.message(feedback: SillageNativeFeedback): Strin
     SillageNativeFeedback.MemoSyncServerMismatch -> memoSyncServerMismatch
     SillageNativeFeedback.MemoSyncSessionExpired -> memoSyncSessionExpired
     SillageNativeFeedback.MemoSyncConflictResolved -> memoSyncConflictResolved
+    SillageNativeFeedback.AskGenerationStopped -> askGenerationStopped
+    SillageNativeFeedback.AskAnswerSaved -> askAnswerSaved
     SillageNativeFeedback.DataTransferFailed -> dataTransferFailed
     SillageNativeFeedback.StorageUnavailable -> storageUnavailable
 }

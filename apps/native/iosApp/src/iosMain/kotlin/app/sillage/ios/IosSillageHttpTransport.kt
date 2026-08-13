@@ -41,6 +41,7 @@ import platform.Foundation.create
 import platform.Foundation.dataTaskWithRequest
 import platform.Foundation.setValue
 import platform.darwin.NSObject
+import platform.posix.memcpy
 
 internal class IosSillageHttpTransport(
     private val session: NSURLSession = createIosSillageHttpSession(),
@@ -82,9 +83,9 @@ internal class IosSillageHttpTransport(
 
     override suspend fun executeStreaming(
         request: SillageHttpRequest,
-        onChunk: suspend (String) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
     ): SillageHttpResponse = coroutineScope {
-        val chunks = Channel<String>(Channel.UNLIMITED)
+        val chunks = Channel<ByteArray>(Channel.UNLIMITED)
         val response = async {
             try {
                 executeNativeStreaming(
@@ -136,7 +137,7 @@ private fun SillageHttpRequest.toNativeRequest(timeoutSeconds: Double): NSMutabl
 
 private suspend fun executeNativeStreaming(
     request: NSURLRequest,
-    onChunk: (String) -> Unit,
+    onChunk: (ByteArray) -> Unit,
 ): SillageHttpResponse = suspendCancellableCoroutine { continuation ->
     val delegate = IosStreamingSessionDelegate(
         onChunk = onChunk,
@@ -159,10 +160,10 @@ private suspend fun executeNativeStreaming(
 }
 
 private class IosStreamingSessionDelegate(
-    private val onChunk: (String) -> Unit,
+    private val onChunk: (ByteArray) -> Unit,
     private val onComplete: (Result<SillageHttpResponse>) -> Unit,
 ) : NSObject(), NSURLSessionDataDelegateProtocol, NSURLSessionTaskDelegateProtocol {
-    private val bodyBuilder = StringBuilder()
+    private val bodyChunks = mutableListOf<ByteArray>()
     private var response: NSHTTPURLResponse? = null
     private var callbackFailure: Throwable? = null
     private var completed = false
@@ -182,12 +183,11 @@ private class IosStreamingSessionDelegate(
         dataTask: NSURLSessionDataTask,
         didReceiveData: NSData,
     ) {
-        val decoded = NSString.create(data = didReceiveData, encoding = NSUTF8StringEncoding)
-            ?.toString() ?: return
-        bodyBuilder.append(decoded)
+        val chunk = didReceiveData.copyBytes()
+        bodyChunks += chunk
         val currentResponse = response ?: return
         if (currentResponse.statusCode.toInt() !in 200..299 || callbackFailure != null) return
-        runCatching { onChunk(decoded) }
+        runCatching { onChunk(chunk) }
             .onFailure {
                 callbackFailure = it
                 dataTask.cancel()
@@ -214,7 +214,7 @@ private class IosStreamingSessionDelegate(
                         keySelector = { (name, _) -> name.toString() },
                         valueTransform = { (_, value) -> value.toString() },
                     ),
-                    body = bodyBuilder.toString(),
+                    body = bodyChunks.decodeUtf8Body(),
                 ),
             )
         }
@@ -234,6 +234,36 @@ private class IosStreamingSessionDelegate(
     ) {
         completionHandler(null)
     }
+}
+
+private fun NSData.copyBytes(): ByteArray {
+    check(length <= Int.MAX_VALUE.toULong()) {
+        "The Sillage server response chunk is too large."
+    }
+    if (length == 0UL) return ByteArray(0)
+
+    return ByteArray(length.toInt()).also { copy ->
+        copy.usePinned { pinned ->
+            memcpy(pinned.addressOf(0), bytes, length)
+        }
+    }
+}
+
+private fun List<ByteArray>.decodeUtf8Body(): String {
+    var size = 0
+    for (chunk in this) {
+        check(chunk.size <= Int.MAX_VALUE - size) {
+            "The Sillage server response body is too large."
+        }
+        size += chunk.size
+    }
+    val body = ByteArray(size)
+    var offset = 0
+    for (chunk in this) {
+        chunk.copyInto(body, destinationOffset = offset)
+        offset += chunk.size
+    }
+    return body.decodeToString()
 }
 
 private fun createIosSillageHttpSession(): NSURLSession {

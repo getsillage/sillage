@@ -74,7 +74,10 @@ authentication, every later foreground entry, and a confirmed recovery of a
 local non-loopback network interface trigger a push-then-pull sync. The host
 polls only local interface state and does not probe the configured server.
 Routine completion stays silent, while conflicts and failures remain visible.
-Attachments and Ask remain follow-up work. Those integrations must reuse KMP
-application ports instead of introducing desktop-only business behavior.
-Until Ask is wired end to end, it is omitted from primary navigation rather than
-shown as an unavailable destination.
+Authenticated users can open Ask to load and switch conversations, choose record
+context, stream or stop answers, navigate answer variants and source records,
+regenerate an answer, and save it as a local record. The same JDK-backed remote
+repository factory used for authentication creates the Ask client; the shared
+controller rejects results from obsolete sessions or destinations. Attachment
+integration remains follow-up work and must reuse KMP application ports instead
+of introducing desktop-only business behavior.

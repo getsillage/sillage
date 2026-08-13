@@ -1,5 +1,11 @@
 package app.sillage.ui.application
 
+import app.sillage.core.application.ask.AskAnswerStreamEvent
+import app.sillage.core.application.ask.AskAnswerStreamer
+import app.sillage.core.application.ask.AskClient
+import app.sillage.core.application.ask.AskClientFactory
+import app.sillage.core.application.ask.AskRepository
+import app.sillage.core.application.ask.StreamAskAnswerCommand
 import app.sillage.core.application.auth.BootstrapInfo
 import app.sillage.core.application.auth.AuthSession
 import app.sillage.core.application.auth.AuthenticationFailureException
@@ -20,6 +26,9 @@ import app.sillage.core.application.records.RecordDraftValidationError
 import app.sillage.core.application.records.RecordLifecycleRepository
 import app.sillage.core.application.records.RecordWriteRepository
 import app.sillage.core.application.records.RecordsRepository
+import app.sillage.core.domain.ask.AskConversation
+import app.sillage.core.domain.ask.AskMessage
+import app.sillage.core.domain.ask.AskSourceRef
 import app.sillage.core.domain.records.Memo
 import app.sillage.core.domain.auth.Account
 import app.sillage.core.sync.AppliedMemoSync
@@ -42,6 +51,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
@@ -911,6 +921,320 @@ class SillageNativeControllerTest {
     }
 
     @Test
+    fun askRequiresAuthenticationAndFiltersInactiveConversations() = runTest {
+        val local = FakeRecordsRepository()
+        val ask = FakeAskService().apply {
+            conversations += askConversation("active")
+            conversations += askConversation("archived", archivedAt = "2026-08-03T12:00:00Z")
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+
+        assertTrue(controller.state.askSupported)
+        controller.navigateToAsk()
+        assertEquals(AppDestination.Memos, controller.state.clientContext.screen)
+        assertEquals(
+            SillageNativeAskFailure.AuthenticationRequired,
+            controller.state.askFailure,
+        )
+
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.loadAskConversations()
+
+        assertEquals(AppDestination.Ask, controller.state.clientContext.screen)
+        assertEquals("https://example.test", ask.requestedBaseUrl)
+        assertEquals(listOf("active"), controller.state.workspace.ask.conversations.map { it.id })
+        assertNull(controller.state.askFailure)
+    }
+
+    @Test
+    fun lateAskConversationLoadCannotApplyAfterLeavingAsk() = runTest {
+        val local = FakeRecordsRepository()
+        val conversation = askConversation("conversation-1", headMessageId = "answer-1")
+        val answer = askMessage(
+            id = "answer-1",
+            conversationId = conversation.id,
+            role = "assistant",
+            content = "late answer",
+        )
+        val loadStarted = CompletableDeferred<Unit>()
+        val releaseLoad = CompletableDeferred<Unit>()
+        val ask = FakeAskService().apply {
+            conversations += conversation
+            messages[conversation.id] = mutableListOf(answer)
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.loadAskConversations()
+        ask.beforeListMessages = {
+            loadStarted.complete(Unit)
+            releaseLoad.await()
+        }
+
+        val load = launch { controller.selectAskConversation(conversation.id) }
+        loadStarted.await()
+        assertTrue(controller.state.workspace.ask.loading)
+
+        controller.navigateToRecords()
+        releaseLoad.complete(Unit)
+        load.join()
+
+        assertEquals(AppDestination.Memos, controller.state.clientContext.screen)
+        assertFalse(controller.state.workspace.ask.loading)
+        assertTrue(controller.state.workspace.ask.messages.isEmpty())
+    }
+
+    @Test
+    fun successfulAskStreamCreatesConversationAndAppliesCanonicalSnapshot() = runTest {
+        val local = FakeRecordsRepository()
+        val ask = FakeAskService()
+        ask.onStream = { command, onEvent ->
+            val user = askMessage(
+                id = "question-1",
+                conversationId = command.conversationId,
+                role = "user",
+                content = command.content,
+            )
+            val answer = askMessage(
+                id = "answer-1",
+                conversationId = command.conversationId,
+                role = "assistant",
+                content = "Canonical answer",
+                parentId = user.id,
+            )
+            onEvent(AskAnswerStreamEvent.Started(user, regenerating = false))
+            onEvent(AskAnswerStreamEvent.Delta("Canonical "))
+            onEvent(AskAnswerStreamEvent.Delta("answer"))
+            ask.messages[command.conversationId] = mutableListOf(user, answer)
+            ask.replaceHead(command.conversationId, answer.id)
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.updateAskQuestion("What changed?")
+
+        controller.sendAskQuestion()
+
+        assertEquals("What changed?", ask.lastStreamCommand?.content)
+        assertEquals("recent_30_days", ask.lastStreamCommand?.contextScope)
+        assertEquals("records", ask.lastStreamCommand?.sourceKind)
+        assertEquals("", controller.state.workspace.ask.question)
+        assertEquals(
+            listOf("question-1", "answer-1"),
+            controller.state.workspace.ask.messages.map(AskMessage::id),
+        )
+        assertEquals("answer-1", controller.state.workspace.ask.headMessageId)
+        assertEquals(1, controller.state.workspace.ask.stream.completionEventId)
+        assertFalse(controller.state.workspace.ask.sending)
+        assertNull(controller.state.askFailure)
+    }
+
+    @Test
+    fun failedAskStreamRetainsQuestionAndUnlocksComposer() = runTest {
+        val ask = FakeAskService().apply {
+            streamError = IllegalStateException("offline")
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.updateAskQuestion("Keep this draft")
+
+        controller.sendAskQuestion()
+
+        assertEquals("Keep this draft", controller.state.workspace.ask.question)
+        assertEquals(SillageNativeAskFailure.SendFailed, controller.state.askFailure)
+        assertFalse(controller.state.workspace.ask.sending)
+        assertEquals(0, controller.state.workspace.ask.stream.completionEventId)
+    }
+
+    @Test
+    fun cancellingAskStreamReconcilesStateWithoutDroppingQuestion() = runTest {
+        val streamStarted = CompletableDeferred<Unit>()
+        val releaseStream = CompletableDeferred<Unit>()
+        val ask = FakeAskService().apply {
+            onStream = { command, onEvent ->
+                onEvent(
+                    AskAnswerStreamEvent.Started(
+                        askMessage(
+                            id = "question-1",
+                            conversationId = command.conversationId,
+                            role = "user",
+                            content = command.content,
+                        ),
+                        regenerating = false,
+                    ),
+                )
+                onEvent(AskAnswerStreamEvent.Delta("partial"))
+                streamStarted.complete(Unit)
+                releaseStream.await()
+            }
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.updateAskQuestion("Do not lose this")
+
+        val stream = launch { controller.sendAskQuestion() }
+        streamStarted.await()
+        controller.stopAskStreaming()
+        stream.cancelAndJoin()
+
+        assertEquals("Do not lose this", controller.state.workspace.ask.question)
+        assertEquals(SillageNativeFeedback.AskGenerationStopped, controller.state.feedback)
+        assertFalse(controller.state.workspace.ask.sending)
+        assertNull(controller.state.askFailure)
+    }
+
+    @Test
+    fun expiredAskSessionClearsAuthenticationAndAskWorkspace() = runTest {
+        val ask = FakeAskService().apply {
+            streamError = AuthenticationFailureException(AuthenticationFailureReason.SessionExpired)
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.updateAskQuestion("Will expire")
+
+        controller.sendAskQuestion()
+
+        assertNull(controller.state.authentication.account)
+        assertEquals(AppDestination.Memos, controller.state.clientContext.screen)
+        assertEquals("", controller.state.workspace.ask.question)
+        assertTrue(controller.state.workspace.ask.conversations.isEmpty())
+        assertEquals(
+            SillageNativeAskFailure.AuthenticationRequired,
+            controller.state.askFailure,
+        )
+    }
+
+    @Test
+    fun failedAskVariantRollsBackHeadSelection() = runTest {
+        val conversation = askConversation("conversation-1", headMessageId = "answer-1")
+        val user = askMessage(
+            id = "question-1",
+            conversationId = conversation.id,
+            role = "user",
+            content = "Question",
+        )
+        val first = askMessage(
+            id = "answer-1",
+            conversationId = conversation.id,
+            role = "assistant",
+            content = "First",
+            parentId = user.id,
+        )
+        val second = askMessage(
+            id = "answer-2",
+            conversationId = conversation.id,
+            role = "assistant",
+            content = "Second",
+            parentId = user.id,
+        )
+        val ask = FakeAskService().apply {
+            conversations += conversation
+            messages[conversation.id] = mutableListOf(user, first, second)
+            setHeadError = IllegalStateException("rejected")
+        }
+        val controller = controller(
+            repository = FakeRecordsRepository(),
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.loadAskConversations()
+        controller.selectAskConversation(conversation.id)
+
+        controller.selectAskVariant(second.id)
+
+        assertEquals(first.id, controller.state.workspace.ask.headMessageId)
+        assertEquals(SillageNativeAskFailure.VariantFailed, controller.state.askFailure)
+        assertFalse(controller.state.workspace.ask.variantLoading)
+    }
+
+    @Test
+    fun askSourceAndSavedAnswerPreserveAskBackNavigation() = runTest {
+        val source = memo("memo-source", "Source record")
+        val local = FakeRecordsRepository(mutableListOf(source))
+        val conversation = askConversation("conversation-1", headMessageId = "answer-1")
+        val answer = askMessage(
+            id = "answer-1",
+            conversationId = conversation.id,
+            role = "assistant",
+            content = "Reusable answer",
+        )
+        val ask = FakeAskService().apply {
+            conversations += conversation
+            messages[conversation.id] = mutableListOf(answer)
+        }
+        val controller = controller(
+            repository = local,
+            bootstrapRepository = initializedBootstrapRepository(),
+            authenticationRepositoryFactory = FakeAuthenticationRepositoryFactory(),
+            askClientFactory = ask,
+        )
+        signIn(controller)
+        controller.navigateToAsk()
+        controller.loadAskConversations()
+        controller.selectAskConversation(conversation.id)
+
+        controller.openAskSource(source.id)
+        assertEquals(AppDestination.MemoDetail, controller.state.clientContext.screen)
+        assertEquals(source.id, controller.state.workspace.records.selection.selectedMemo?.id)
+        controller.editSelectedRecord()
+        assertEquals(AppDestination.Editor, controller.state.clientContext.screen)
+        controller.closeEditor()
+        assertEquals(AppDestination.MemoDetail, controller.state.clientContext.screen)
+        controller.navigateBackFromRecordDetail()
+        assertEquals(AppDestination.Ask, controller.state.clientContext.screen)
+
+        controller.saveAskAnswerAsRecord(answer)
+
+        assertEquals(AppDestination.MemoDetail, controller.state.clientContext.screen)
+        assertEquals("Reusable answer", local.records.last().content)
+        assertEquals(
+            "Reusable answer",
+            controller.state.workspace.records.selection.selectedMemo?.content,
+        )
+        assertEquals(SillageNativeFeedback.AskAnswerSaved, controller.state.feedback)
+        assertFalse(controller.state.busy)
+        controller.navigateBackFromRecordDetail()
+        assertEquals(AppDestination.Ask, controller.state.clientContext.screen)
+    }
+
+    @Test
     fun expiredSyncSessionReturnsControllerToSignedOutState() = runTest {
         val localMemo = memo("memo-1", "pending")
         val local = FakeRecordsRepository(mutableListOf(localMemo))
@@ -966,6 +1290,7 @@ private fun controller(
         FakeAuthenticationRepositoryFactory(),
     memoSyncWorkspaceFactory: MemoSyncWorkspaceFactory? = null,
     memoSyncGatewayFactory: MemoSyncGatewayFactory? = null,
+    askClientFactory: AskClientFactory? = null,
 ) = SillageNativeController(
     recordsRepository = repository,
     recordWriteRepository = repository,
@@ -976,7 +1301,65 @@ private fun controller(
     todayProvider = { "2026-08-03" },
     memoSyncWorkspaceFactory = memoSyncWorkspaceFactory,
     memoSyncGatewayFactory = memoSyncGatewayFactory,
+    askClientFactory = askClientFactory,
 )
+
+private class FakeAskService : AskRepository, AskAnswerStreamer, AskClientFactory {
+    val conversations = mutableListOf<AskConversation>()
+    val messages = mutableMapOf<String, MutableList<AskMessage>>()
+    var requestedBaseUrl: String? = null
+    var beforeListMessages: suspend () -> Unit = {}
+    var streamError: Throwable? = null
+    var setHeadError: Throwable? = null
+    var lastStreamCommand: StreamAskAnswerCommand? = null
+    var onStream: suspend (
+        command: StreamAskAnswerCommand,
+        onEvent: (AskAnswerStreamEvent) -> Unit,
+    ) -> Unit = { _, _ -> }
+    private var nextConversationId = 0
+
+    override fun createAskClient(baseUrl: String): AskClient {
+        requestedBaseUrl = baseUrl
+        return AskClient(repository = this, answerStreamer = this)
+    }
+
+    override suspend fun listConversations(): List<AskConversation> = conversations.toList()
+
+    override suspend fun listMessages(conversationId: String): List<AskMessage> {
+        beforeListMessages()
+        return messages[conversationId].orEmpty().toList()
+    }
+
+    override suspend fun createConversation(contextScope: String): AskConversation {
+        val created = askConversation(
+            id = "created-${++nextConversationId}",
+            contextScope = contextScope,
+        )
+        conversations.add(0, created)
+        return created
+    }
+
+    override suspend fun setHead(conversationId: String, messageId: String) {
+        setHeadError?.let { throw it }
+        replaceHead(conversationId, messageId)
+    }
+
+    override suspend fun stream(
+        command: StreamAskAnswerCommand,
+        onEvent: (AskAnswerStreamEvent) -> Unit,
+    ) {
+        lastStreamCommand = command
+        streamError?.let { throw it }
+        onStream(command, onEvent)
+    }
+
+    fun replaceHead(conversationId: String, messageId: String?) {
+        val index = conversations.indexOfFirst { it.id == conversationId }
+        if (index >= 0) {
+            conversations[index] = conversations[index].copy(headMessageId = messageId)
+        }
+    }
+}
 
 private class FakeBootstrapRepository(
     private val result: BootstrapInfo = BootstrapInfo(
@@ -1257,5 +1640,46 @@ private fun memo(
     updatedAt = "2026-08-03T10:00:00Z",
     favoritedAt = null,
     archivedAt = archivedAt,
+    deletedAt = null,
+)
+
+private fun askConversation(
+    id: String,
+    headMessageId: String? = null,
+    contextScope: String = "recent_30_days",
+    archivedAt: String? = null,
+) = AskConversation(
+    id = id,
+    title = "Conversation $id",
+    status = "active",
+    contextScope = contextScope,
+    headMessageId = headMessageId,
+    pinnedAt = null,
+    archivedAt = archivedAt,
+    createdAt = "2026-08-03T10:00:00Z",
+    updatedAt = "2026-08-03T10:00:00Z",
+    deletedAt = null,
+)
+
+private fun askMessage(
+    id: String,
+    conversationId: String,
+    role: String,
+    content: String,
+    parentId: String? = null,
+    sourceRefs: List<AskSourceRef> = emptyList(),
+) = AskMessage(
+    id = id,
+    conversationId = conversationId,
+    role = role,
+    content = content,
+    parentId = parentId,
+    forkOfId = null,
+    status = "complete",
+    sourceRefs = sourceRefs,
+    model = "test-model",
+    promptVersion = "test-v1",
+    createdAt = "2026-08-03T10:00:00Z",
+    updatedAt = "2026-08-03T10:00:00Z",
     deletedAt = null,
 )

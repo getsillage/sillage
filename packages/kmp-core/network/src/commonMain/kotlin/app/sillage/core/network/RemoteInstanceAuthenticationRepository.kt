@@ -232,7 +232,7 @@ private class RemoteInstanceAuthenticationRepository(
 
     suspend fun executeAuthenticatedStreamingRequest(
         request: SillageHttpRequest,
-        onChunk: suspend (String) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
     ): SillageHttpResponse {
         if (!request.url.startsWith("$baseUrl/")) {
             throw IllegalArgumentException("Authenticated requests must use configured server.")

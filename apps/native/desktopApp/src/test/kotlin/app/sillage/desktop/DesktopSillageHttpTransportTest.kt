@@ -7,6 +7,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
 
@@ -82,6 +83,38 @@ class DesktopSillageHttpTransportTest {
 
             assertEquals(200, response.statusCode)
             assertEquals(2, response.headerValues("Set-Cookie").size)
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun streamsSuccessfulResponseAsRawUtf8Bytes() = runTest {
+        val server = HttpServer.create(
+            InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+            0,
+        )
+        val expected = "data: {\"text\":\"\u4e2d\u6587 \ud83d\ude80\"}\n\n"
+        val body = expected.toByteArray(StandardCharsets.UTF_8)
+        server.createContext("/api/v1/ask/messages:stream") { exchange ->
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.start()
+
+        try {
+            val chunks = mutableListOf<ByteArray>()
+            val response = DesktopSillageHttpTransport().executeStreaming(
+                SillageHttpRequest(
+                    method = SillageHttpMethod.Post,
+                    url = "http://${server.address.hostString}:${server.address.port}" +
+                        "/api/v1/ask/messages:stream",
+                ),
+                chunks::add,
+            )
+
+            assertContentEquals(body, chunks.fold(ByteArray(0), ByteArray::plus))
+            assertEquals(expected, response.body)
         } finally {
             server.stop(0)
         }

@@ -56,11 +56,16 @@ export function MarkdownEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const latestValueRef = useRef(value);
+  const selectionRef = useRef({ start: value.length, end: value.length });
   const uploadingRef = useRef(false);
   const feedbackLocaleRef = useRef(locale);
 
   useLayoutEffect(() => {
     latestValueRef.current = value;
+    selectionRef.current = {
+      start: Math.min(selectionRef.current.start, value.length),
+      end: Math.min(selectionRef.current.end, value.length),
+    };
   }, [value]);
 
   useEffect(() => {
@@ -72,12 +77,13 @@ export function MarkdownEditor({
   }, [locale]);
 
   function insertAtCursor(snippet: string) {
-    const textarea = textareaRef.current;
     const current = latestValueRef.current;
-    const start = textarea?.selectionStart ?? current.length;
-    const end = textarea?.selectionEnd ?? current.length;
+    const start = Math.min(selectionRef.current.start, current.length);
+    const end = Math.min(selectionRef.current.end, current.length);
     const next = current.slice(0, start) + snippet + current.slice(end);
+    const caret = start + snippet.length;
     latestValueRef.current = next;
+    selectionRef.current = { start: caret, end: caret };
     onChange(next);
     // Return focus to the text with the caret after the inserted snippet once
     // React has committed the new value (e.g. after the 附件 button flow).
@@ -87,9 +93,15 @@ export function MarkdownEditor({
         return;
       }
       target.focus();
-      const caret = start + snippet.length;
       target.setSelectionRange(caret, caret);
     });
+  }
+
+  function rememberSelection(target: HTMLTextAreaElement) {
+    selectionRef.current = {
+      start: target.selectionStart,
+      end: target.selectionEnd,
+    };
   }
 
   async function uploadFiles(files: FileList | File[]) {
@@ -238,9 +250,11 @@ export function MarkdownEditor({
         onChange={(event) => {
           if (!disabled) {
             latestValueRef.current = event.target.value;
+            rememberSelection(event.target);
             onChange(event.target.value);
           }
         }}
+        onSelect={(event) => rememberSelection(event.currentTarget)}
         onDrop={handleDrop}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}

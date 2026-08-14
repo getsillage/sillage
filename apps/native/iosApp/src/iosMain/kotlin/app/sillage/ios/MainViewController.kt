@@ -12,7 +12,7 @@ import app.sillage.ui.application.SillageNativePlatform
 import platform.Foundation.NSBundle
 import platform.UIKit.UIViewController
 
-internal const val FallbackIosVersion = "0.3.1"
+internal const val FallbackIosVersion = "0.4.0"
 
 fun MainViewController(): UIViewController {
     val viewControllerReference = IosViewControllerReference()

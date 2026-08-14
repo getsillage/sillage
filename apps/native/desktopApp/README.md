@@ -8,7 +8,7 @@ public bootstrap and authentication HTTP transport, and native installer
 configuration to the shared native application.
 
 Native distributions use the committed branded `Sillage.icns` on macOS and
-`Sillage.ico` on Windows. The UI reports product version `0.3.1`, matching the
+`Sillage.ico` on Windows. The UI reports product version `0.4.0`, matching the
 Android and iOS clients. The engineering installer filename retains jpackage's
 independent `1.0.0` package version because that tool requires a positive major
 version; it is not a claim that the desktop client is a stable 1.0 release.

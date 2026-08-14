@@ -214,7 +214,7 @@ docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml up -d --bui
 
 ### Run a local binary
 
-Go 1.25 is required. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
+Go 1.26 is required. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
 
 ```bash
 pnpm --dir apps/web install

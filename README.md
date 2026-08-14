@@ -76,7 +76,7 @@ See the [Documentation Hub](docs/README.md) for the complete index. Report secur
 
 ## Development
 
-The backend requires Go 1.25. Node.js 24 and pnpm 11.9 are recommended for the Web client; Android development requires JDK 17 and the Android SDK. Setup, local development, generated artifacts, and validation requirements are documented in the [Contributing Guide](CONTRIBUTING.md).
+The backend requires Go 1.26. Node.js 24 and pnpm 11.9 are recommended for the Web client; Android development requires JDK 17 and the Android SDK. Setup, local development, generated artifacts, and validation requirements are documented in the [Contributing Guide](CONTRIBUTING.md).
 
 ## Contributing
 

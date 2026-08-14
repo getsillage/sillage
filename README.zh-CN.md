@@ -77,7 +77,7 @@ Compose、反向代理、环境变量、公网部署、固定某一发布镜像�
 
 ## 开发
 
-后端需要 Go 1.25，Web 推荐 Node.js 24 与 pnpm 11.9；Android 需要 JDK 17 和 Android SDK。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
+后端需要 Go 1.26，Web 推荐 Node.js 24 与 pnpm 11.9；Android 需要 JDK 17 和 Android SDK。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
 
 ## 贡献
 

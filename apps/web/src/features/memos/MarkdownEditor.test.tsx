@@ -102,6 +102,65 @@ describe("MarkdownEditor locale feedback", () => {
     );
   });
 
+  it("uses the last editor selection when file input focus mutates the DOM selection", async () => {
+    let finishUpload:
+      | ((attachment: {
+          url: string;
+          filename: string;
+          isImage: boolean;
+        }) => void)
+      | undefined;
+    const onUpload = vi.fn(
+      () =>
+        new Promise<{
+          url: string;
+          filename: string;
+          isImage: boolean;
+        }>((resolve) => {
+          finishUpload = resolve;
+        }),
+    );
+    const onChange = vi.fn();
+    const { container } = render(
+      <I18nProvider>
+        <MarkdownEditor
+          value="不能被附件替换的正文"
+          onChange={onChange}
+          onUpload={onUpload}
+        />
+      </I18nProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "记录内容",
+    }) as HTMLTextAreaElement;
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    fireEvent.select(editor);
+
+    const fileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: {
+        files: [new File(["content"], "focus.txt", { type: "text/plain" })],
+      },
+    });
+    expect(onUpload).toHaveBeenCalledTimes(1);
+
+    // Firefox can report the blurred textarea as fully selected while the
+    // hidden file input owns focus. That DOM-only mutation must not replace
+    // the user's content when the asynchronous upload completes.
+    editor.setSelectionRange(0, editor.value.length);
+    finishUpload?.({
+      url: "/file/attachments/focus",
+      filename: "focus.txt",
+      isImage: false,
+    });
+
+    await screen.findByRole("status");
+    expect(onChange).toHaveBeenLastCalledWith(
+      "不能被附件替换的正文\n[focus.txt](/file/attachments/focus)\n",
+    );
+  });
+
   it("clears an upload error without changing editor content", async () => {
     const user = userEvent.setup();
     const onUpload = vi.fn().mockRejectedValue(new Error("上传失败"));

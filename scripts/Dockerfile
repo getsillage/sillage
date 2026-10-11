@@ -18,7 +18,7 @@ COPY apps/web ./apps/web
 COPY server/router/frontend ./server/router/frontend
 RUN pnpm --dir apps/web build
 
-FROM golang:1.26.6-alpine@sha256:af8d6740070b8906d12eae1c3e3ea0957fb63f492051ea05e354c38ef9fe88df AS backend
+FROM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS backend
 WORKDIR /src
 ARG GOPROXY=https://proxy.golang.org,direct
 ARG VERSION=dev

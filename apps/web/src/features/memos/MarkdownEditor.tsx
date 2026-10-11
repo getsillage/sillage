@@ -89,7 +89,12 @@ export function MarkdownEditor({
     // React has committed the new value (e.g. after the 附件 button flow).
     requestAnimationFrame(() => {
       const target = textareaRef.current;
-      if (!target) {
+      if (
+        !target ||
+        latestValueRef.current !== next ||
+        selectionRef.current.start !== caret ||
+        selectionRef.current.end !== caret
+      ) {
         return;
       }
       target.focus();
@@ -114,17 +119,11 @@ export function MarkdownEditor({
     onUploadingChange?.(true);
     setError(null);
     try {
-      let appended = "";
       for (const file of list) {
         const uploaded = await onUpload(file);
-        if (list.length === 1) {
-          insertAtCursor(attachmentMarkdown(uploaded));
-        } else {
-          appended += attachmentMarkdown(uploaded);
-        }
-      }
-      if (appended) {
-        insertAtCursor(appended);
+        // Keep each successful upload in the current draft even if a later
+        // file fails, so retrying the remaining files cannot lose its link.
+        insertAtCursor(attachmentMarkdown(uploaded));
       }
       toast.showToast({
         kind: "success",

@@ -38,6 +38,8 @@ Other ephemeral data is also cleaned automatically at startup and every six hour
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
+When uploading multiple attachments in the Web editor, each successful upload immediately adds its link to the current draft. If a later upload fails, the existing text and successful links remain available; select only the failed and remaining files to retry. Save the record to retain those attachment references on the server. Uploaded files that remain unreferenced for more than 24 hours are eligible for automatic cleanup, including files referenced only by an unsaved browser draft.
+
 After signing in, change the account password in Settings under Account (`账号`). Changing the password keeps all records and other data under the same account, issues a new session for the client that completed the change, and ends other refresh sessions. There is no unauthenticated forgot-password endpoint. Store the password in a password manager. If you forget it, do not delete the data directory in an attempt to initialize the instance again, because doing so breaks the relationship between the existing data and account; use the offline procedure below.
 
 ## Offline Password Recovery

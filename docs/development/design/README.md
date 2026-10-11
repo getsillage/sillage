@@ -42,6 +42,10 @@ Page headings and control labels must match the scale of their containers. Narro
 - Controlled editors must preserve the latest user input across asynchronous
   uploads and intervening renders. An upload completion may append to the
   current draft, but it must never replace newer text with an older prop value.
+- Insert each successful attachment into the draft immediately, including in
+  multi-file uploads. A later failure preserves earlier links and allows the
+  user to retry the remaining files. Delayed caret restoration must not move a
+  selection made after insertion.
 - An edit submission includes the server version associated with the draft. Version conflicts must preserve the draft and ask the user to refresh or retry; they must never overwrite silently.
 - Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
 - Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.

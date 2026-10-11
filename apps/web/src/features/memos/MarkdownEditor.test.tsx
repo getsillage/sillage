@@ -1,9 +1,34 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { I18nProvider } from "../../i18n/I18nProvider";
 import { MarkdownEditor } from "./MarkdownEditor";
+import type { UploadedAttachment } from "./MemosContext";
+
+function EditableHarness({
+  onUpload,
+}: {
+  onUpload: (file: File) => Promise<UploadedAttachment>;
+}) {
+  const [content, setContent] = useState("原有正文");
+  return (
+    <I18nProvider>
+      <MarkdownEditor
+        value={content}
+        onChange={setContent}
+        onUpload={onUpload}
+      />
+    </I18nProvider>
+  );
+}
 
 describe("MarkdownEditor locale feedback", () => {
   it("keeps the labeled editor stable across preview mode", async () => {
@@ -66,6 +91,120 @@ describe("MarkdownEditor locale feedback", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.stringContaining("[note.txt](/file/attachments/a1)"),
     );
+  });
+
+  it("inserts each uploaded file immediately and preserves typing between uploads", async () => {
+    const user = userEvent.setup();
+    let finishSecond: ((attachment: UploadedAttachment) => void) | undefined;
+    const onUpload = vi
+      .fn<(file: File) => Promise<UploadedAttachment>>()
+      .mockResolvedValueOnce({
+        url: "/file/attachments/first",
+        filename: "first.txt",
+        isImage: false,
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSecond = resolve;
+          }),
+      );
+    const { container } = render(<EditableHarness onUpload={onUpload} />);
+    const editor = screen.getByRole("textbox", {
+      name: "记录内容",
+    }) as HTMLTextAreaElement;
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    fireEvent.select(editor);
+    const fileInput = container.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+
+    await user.upload(fileInput, [
+      new File(["first"], "first.txt", { type: "text/plain" }),
+      new File(["second"], "second.txt", { type: "text/plain" }),
+    ]);
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
+    expect(editor).toHaveValue(
+      "原有正文\n[first.txt](/file/attachments/first)\n",
+    );
+    expect(fileInput).toBeDisabled();
+    await user.type(editor, "上传时补充的正文");
+
+    await act(async () => {
+      finishSecond?.({
+        url: "/file/attachments/second",
+        filename: "second.txt",
+        isImage: false,
+      });
+    });
+
+    expect(editor).toHaveValue(
+      "原有正文\n[first.txt](/file/attachments/first)\n上传时补充的正文\n[second.txt](/file/attachments/second)\n",
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "2 个附件已插入",
+    );
+    expect(fileInput).toBeEnabled();
+  });
+
+  it("keeps successful attachment links after a later failure and retries only remaining files", async () => {
+    const user = userEvent.setup();
+    const first = new File(["first"], "first.txt", { type: "text/plain" });
+    const second = new File(["second"], "second.txt", { type: "text/plain" });
+    const third = new File(["third"], "third.txt", { type: "text/plain" });
+    const onUpload = vi
+      .fn<(file: File) => Promise<UploadedAttachment>>()
+      .mockResolvedValueOnce({
+        url: "/file/attachments/first",
+        filename: first.name,
+        isImage: false,
+      })
+      .mockRejectedValueOnce(new Error("第二个附件上传失败"))
+      .mockResolvedValueOnce({
+        url: "/file/attachments/second",
+        filename: second.name,
+        isImage: false,
+      })
+      .mockResolvedValueOnce({
+        url: "/file/attachments/third",
+        filename: third.name,
+        isImage: false,
+      });
+    const { container } = render(<EditableHarness onUpload={onUpload} />);
+    const editor = screen.getByRole("textbox", {
+      name: "记录内容",
+    }) as HTMLTextAreaElement;
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    fireEvent.select(editor);
+    const fileInput = container.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+
+    await user.upload(fileInput, [first, second, third]);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "第二个附件上传失败",
+    );
+    expect(editor).toHaveValue(
+      "原有正文\n[first.txt](/file/attachments/first)\n",
+    );
+    expect(onUpload).toHaveBeenCalledTimes(2);
+    expect(fileInput).toBeEnabled();
+    expect(fileInput).toHaveValue("");
+
+    await user.upload(fileInput, [second, third]);
+
+    await waitFor(() => expect(fileInput).toBeEnabled());
+    expect(editor).toHaveValue(
+      "原有正文\n[first.txt](/file/attachments/first)\n\n[second.txt](/file/attachments/second)\n\n[third.txt](/file/attachments/third)\n",
+    );
+    expect(onUpload.mock.calls.map(([file]) => file.name)).toEqual([
+      first.name,
+      second.name,
+      second.name,
+      third.name,
+    ]);
   });
 
   it("preserves text when an upload starts before a controlled rerender", async () => {

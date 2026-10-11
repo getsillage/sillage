@@ -26,14 +26,14 @@ This inventory is generated from the resolved Go build graph and the production 
 | github.com/spf13/viper | v1.21.0 | MIT | [LICENSE](third_party/licenses/go/github.com/spf13/viper@v1.21.0/LICENSE) |
 | github.com/subosito/gotenv | v1.6.0 | MIT | [LICENSE](third_party/licenses/go/github.com/subosito/gotenv@v1.6.0/LICENSE) |
 | go.yaml.in/yaml/v3 | v3.0.4 | MIT | [LICENSE](third_party/licenses/go/go.yaml.in/yaml/v3@v3.0.4/LICENSE), [NOTICE](third_party/licenses/go/go.yaml.in/yaml/v3@v3.0.4/NOTICE) |
-| golang.org/x/crypto | v0.53.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/crypto@v0.53.0/LICENSE) |
-| golang.org/x/net | v0.56.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/net@v0.56.0/LICENSE) |
-| golang.org/x/sys | v0.46.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/sys@v0.46.0/LICENSE) |
-| golang.org/x/text | v0.39.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/text@v0.39.0/LICENSE) |
+| golang.org/x/crypto | v0.57.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/crypto@v0.57.0/LICENSE) |
+| golang.org/x/net | v0.60.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/net@v0.60.0/LICENSE) |
+| golang.org/x/sys | v0.48.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/sys@v0.48.0/LICENSE) |
+| golang.org/x/text | v0.42.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/text@v0.42.0/LICENSE) |
 | golang.org/x/time | v0.14.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/time@v0.14.0/LICENSE) |
 | google.golang.org/genproto/googleapis/api | v0.0.0-20260622175928-b703f567277d | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/api@v0.0.0-20260622175928-b703f567277d/LICENSE) |
 | google.golang.org/genproto/googleapis/rpc | v0.0.0-20260618152121-87f3d3e198d3 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260618152121-87f3d3e198d3/LICENSE) |
-| google.golang.org/grpc | v1.82.1 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/grpc@v1.82.1/LICENSE), [NOTICE.txt](third_party/licenses/go/google.golang.org/grpc@v1.82.1/NOTICE.txt) |
+| google.golang.org/grpc | v1.83.1 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/grpc@v1.83.1/LICENSE), [NOTICE.txt](third_party/licenses/go/google.golang.org/grpc@v1.83.1/NOTICE.txt) |
 | google.golang.org/protobuf | v1.36.11 | BSD-3-Clause | [LICENSE](third_party/licenses/go/google.golang.org/protobuf@v1.36.11/LICENSE) |
 | modernc.org/libc | v1.74.1 | BSD-3-Clause AND LicenseRef-modernc-libc-third-party | [LICENSE](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE), [LICENSE-3RD-PARTY.md](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE-3RD-PARTY.md) |
 | modernc.org/mathutil | v1.7.1 | BSD-3-Clause | [LICENSE](third_party/licenses/go/modernc.org/mathutil@v1.7.1/LICENSE) |

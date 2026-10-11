@@ -158,35 +158,40 @@ function useTimelineMemoList(filter: TimelineFilter) {
     setError((current) => (current ? t("records.loadFailed") : current));
   }, [locale, t]);
 
-  const refresh = useCallback(async () => {
-    const request = ++requestSeqRef.current;
-    loadMoreRequestRef.current = null;
-    cursorRef.current = "";
-    setMemos([]);
-    setLoading(true);
-    setLoadingMore(false);
-    setHasMore(false);
-    setError("");
-    try {
-      const res = await listPage(options);
-      if (request !== requestSeqRef.current) {
-        return;
+  const refresh = useCallback(
+    async (removedId?: string) => {
+      const request = ++requestSeqRef.current;
+      loadMoreRequestRef.current = null;
+      cursorRef.current = "";
+      if (removedId) {
+        setMemos((current) => current.filter((memo) => memo.id !== removedId));
       }
-      setMemos(res.memos);
-      cursorRef.current = res.nextCursor ?? "";
-      setHasMore(Boolean(res.nextCursor));
-    } catch (cause) {
-      if (request === requestSeqRef.current) {
-        const message =
-          cause instanceof Error ? cause.message : t("records.loadFailed");
-        setError(message);
+      setLoading(true);
+      setLoadingMore(false);
+      setHasMore(false);
+      setError("");
+      try {
+        const res = await listPage(options);
+        if (request !== requestSeqRef.current) {
+          return;
+        }
+        setMemos(res.memos);
+        cursorRef.current = res.nextCursor ?? "";
+        setHasMore(Boolean(res.nextCursor));
+      } catch (cause) {
+        if (request === requestSeqRef.current) {
+          const message =
+            cause instanceof Error ? cause.message : t("records.loadFailed");
+          setError(message);
+        }
+      } finally {
+        if (request === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
-    } finally {
-      if (request === requestSeqRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [listPage, options, t]);
+    },
+    [listPage, options, t],
+  );
 
   useEffect(() => {
     if (filter === "active") {
@@ -284,9 +289,18 @@ function ListView({
   const { memos, loading, error, refresh, loadMore, hasMore, loadingMore } =
     useTimelineMemoList(filter);
   const [searchParams, setSearchParams] = useSearchParams();
-  // The URL is the source of truth for the query so returning from a detail
-  // page (returnTo carries location.search) restores the search context.
-  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  // Derive the field from the URL so same-page links and browser history can
+  // restore or clear a query without the previous field writing it back.
+  const query = searchParams.get("q") ?? "";
+  function setQuery(value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) {
+      next.set("q", value);
+    } else {
+      next.delete("q");
+    }
+    setSearchParams(next, { replace: true });
+  }
   const [searchSnapshot, setSearchSnapshot] =
     useState<MemoSearchSnapshot | null>(null);
   const [searching, setSearching] = useState(false);
@@ -296,22 +310,6 @@ function ListView({
   const trimmed = query.trim();
   const memories = onThisDay(memos, today);
   const options = useMemo(() => listOptionsFor(filter), [filter]);
-
-  // Mirror the typed query into ?q= without adding history entries. Debounce is
-  // unchanged: the fetch effect below still waits on the trimmed value.
-  useEffect(() => {
-    const currentParam = searchParams.get("q") ?? "";
-    if (currentParam === trimmed) {
-      return;
-    }
-    const next = new URLSearchParams(searchParams);
-    if (trimmed) {
-      next.set("q", trimmed);
-    } else {
-      next.delete("q");
-    }
-    setSearchParams(next, { replace: true });
-  }, [trimmed, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (searchFeedbackLocaleRef.current === locale) {
@@ -432,7 +430,7 @@ function ListView({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <fieldset
-          className={`${segmentedControlClass} flex min-w-0 w-full sm:w-auto`}
+          className={`${segmentedControlClass} grid min-w-0 w-full grid-cols-2 min-[480px]:grid-cols-4 sm:flex sm:w-auto`}
         >
           <legend className="sr-only">{t("timeline.statusLabel")}</legend>
           <Link
@@ -523,8 +521,9 @@ function ListView({
           </button>
         </div>
       ) : null}
-      <section className="min-w-0 pr-14 sm:pr-0">
-        {(loading && !trimmed) || (searching && list.length === 0) ? (
+      <section className="min-w-0">
+        {(loading && !trimmed && list.length === 0) ||
+        (searching && list.length === 0) ? (
           <TimelineSkeleton announce={!trimmed} />
         ) : groups.length === 0 && !listError && !searchError ? (
           <div className={emptyStateClass}>
@@ -627,7 +626,7 @@ function RecentlyDeletedList({
   onChanged,
 }: {
   memos: Memo[];
-  onChanged: () => Promise<void>;
+  onChanged: (removedId: string) => Promise<void>;
 }) {
   const { locale, t } = useI18n();
   const { restore, purge } = useMemos();
@@ -655,7 +654,7 @@ function RecentlyDeletedList({
         await purge(memo);
       }
       setConfirmId("");
-      await onChanged();
+      await onChanged(memo.id);
     } catch (cause) {
       setActionError(
         cause instanceof Error ? cause.message : t("entry.actionFailed"),
@@ -684,7 +683,7 @@ function RecentlyDeletedList({
               key={memo.id}
               className="rounded-lg border border-gray-200 bg-white/75 p-4 dark:border-gray-800 dark:bg-gray-900/55"
             >
-              <p className="text-gray-900 leading-7 dark:text-gray-100">
+              <p className="text-gray-900 leading-7 [overflow-wrap:anywhere] dark:text-gray-100">
                 {excerpt(memo.content) || t("records.blank")}
               </p>
               <p className="mt-1 text-gray-500 text-xs dark:text-gray-400">

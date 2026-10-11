@@ -39,6 +39,9 @@ Page headings and control labels must match the scale of their containers. Narro
   reload restores an eligible session only through the server's HttpOnly
   refresh cookie; sign-out and password changes must revoke that path.
 - New and edited drafts are isolated by record. In-app navigation, closing the page, and signing out must not bypass unsaved-change protection.
+- Moving a quick capture to the full editor updates an already-open Write a
+  Record page. An existing draft, pending save, upload, or storage failure keeps
+  both drafts intact and explains how to retry the transfer.
 - Controlled editors must preserve the latest user input across asynchronous
   uploads and intervening renders. An upload completion may append to the
   current draft, but it must never replace newer text with an older prop value.
@@ -50,6 +53,10 @@ Page headings and control labels must match the scale of their containers. Narro
 - Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
 - Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.
 - After navigation, refresh, or a canonical write, a late response must not overwrite the current page or cache.
+- Record detail reads preserve newer versions and deletion tombstones already
+  held by the client. Search fields follow their URL across same-page links and
+  browser history. Refresh failures preserve loaded records in the same filter;
+  a completed restore or purge remains reflected while the list is retried.
 - AI profile connection tests and model lists belong to the configuration that
   started the request. Editing or removing that configuration invalidates its
   pending feedback. Session credential rotation preserves unsaved profile edits.

@@ -1,10 +1,53 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  Outlet,
+  RouterProvider,
+} from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasUnsavedChanges } from "../../components/UnsavedNavigationGuard";
 import { I18nProvider } from "../../i18n/I18nProvider";
+import { listMemos, uploadAttachment } from "../../lib/api";
+import { todayISO } from "../../lib/date";
+import { HomePage } from "./HomePage";
+import { MemosProvider } from "./MemosContext";
 import { QuickCapture } from "./QuickCapture";
+
+vi.mock("../../lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/api")>();
+  return { ...actual, listMemos: vi.fn(), uploadAttachment: vi.fn() };
+});
+
+function renderQuickCaptureWithHome(initialPath = "/") {
+  const user = userEvent.setup();
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <>
+            <Outlet />
+            <QuickCapture onCapture={vi.fn()} />
+          </>
+        ),
+        children: [
+          { path: "/", element: <HomePage /> },
+          { path: "/timeline", element: <main>全部记录</main> },
+        ],
+      },
+    ],
+    { initialEntries: [initialPath] },
+  );
+  const view = render(
+    <I18nProvider>
+      <MemosProvider token="t">
+        <RouterProvider router={router} />
+      </MemosProvider>
+    </I18nProvider>,
+  );
+  return { user, router, ...view };
+}
 
 function renderQuickCapture(onCapture = vi.fn().mockResolvedValue(undefined)) {
   const user = userEvent.setup();
@@ -20,7 +63,9 @@ function renderQuickCapture(onCapture = vi.fn().mockResolvedValue(undefined)) {
 
 describe("QuickCapture", () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     window.localStorage.clear();
+    vi.mocked(listMemos).mockResolvedValue({ memos: [] });
   });
 
   it("opens the dialog from the floating button and exposes dialog semantics", async () => {
@@ -141,5 +186,202 @@ describe("QuickCapture", () => {
     ).toBeNull();
     const savedUnload = new Event("beforeunload", { cancelable: true });
     expect(window.dispatchEvent(savedUnload)).toBe(true);
+  });
+
+  it("hands quick text to the already mounted home editor and focuses it", async () => {
+    const { user } = renderQuickCaptureWithHome();
+    const originalEditor = screen.getByRole("textbox", { name: "记录内容" });
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "继续写这条速记",
+    );
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const homeEditor = screen.getByRole("textbox", { name: "记录内容" });
+    expect(homeEditor).not.toBe(originalEditor);
+    expect(homeEditor).toHaveValue("继续写这条速记");
+    await waitFor(() => expect(homeEditor).toHaveFocus());
+    expect(
+      window.localStorage.getItem("sillage.quick-capture-draft"),
+    ).toBeNull();
+    await user.type(homeEditor, "，再补充一些");
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("sillage.entry-draft.memo:new") ?? "{}",
+      ).content,
+    ).toBe("继续写这条速记，再补充一些");
+  });
+
+  it("hands quick text to home when navigating from another page", async () => {
+    const { user, router } = renderQuickCaptureWithHome("/timeline");
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "从历史继续写",
+    );
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    expect(
+      await screen.findByRole("textbox", { name: "记录内容" }),
+    ).toHaveValue("从历史继续写");
+    expect(router.state.location.pathname).toBe("/");
+    expect(
+      window.localStorage.getItem("sillage.quick-capture-draft"),
+    ).toBeNull();
+  });
+
+  it("keeps both drafts and explains why an existing home draft blocks the handoff", async () => {
+    const storedDraft = {
+      version: 2,
+      content: "原有完整草稿",
+      entryDate: todayISO(),
+      baseVersion: null,
+    };
+    window.localStorage.setItem(
+      "sillage.entry-draft.memo:new",
+      JSON.stringify(storedDraft),
+    );
+    const { user } = renderQuickCaptureWithHome();
+    const homeEditor = screen.getByRole("textbox", { name: "记录内容" });
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "另一个速记",
+    );
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    const dialog = screen.getByRole("dialog", { name: "速记" });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "写记录中已有未保存草稿",
+    );
+    expect(
+      within(dialog).getByRole("textbox", { name: "速记内容" }),
+    ).toHaveValue("另一个速记");
+    expect(homeEditor).toHaveValue("原有完整草稿");
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("sillage.entry-draft.memo:new") ?? "{}",
+      ),
+    ).toEqual(storedDraft);
+    expect(window.localStorage.getItem("sillage.quick-capture-draft")).toBe(
+      "另一个速记",
+    );
+  });
+
+  it("preserves an active home upload when quick capture attempts a handoff", async () => {
+    let finishUpload:
+      | ((result: Awaited<ReturnType<typeof uploadAttachment>>) => void)
+      | undefined;
+    vi.mocked(uploadAttachment).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishUpload = resolve;
+        }),
+    );
+    const { user, container } = renderQuickCaptureWithHome();
+    const homeEditor = screen.getByRole("textbox", { name: "记录内容" });
+    await user.upload(
+      container.querySelector<HTMLInputElement>(
+        'input[type="file"]',
+      ) as HTMLInputElement,
+      new File(["image"], "photo.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "等待附件后再写",
+    );
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("alert"),
+    ).toHaveTextContent("写记录正在保存或上传附件");
+    expect(screen.getByRole("textbox", { name: "记录内容" })).toBe(homeEditor);
+    expect(
+      window.localStorage.getItem("sillage.entry-draft.memo:new"),
+    ).toBeNull();
+    await act(async () => {
+      finishUpload?.({
+        attachment: {
+          uid: "a1",
+          filename: "photo.png",
+          contentType: "image/png",
+          size: 5,
+          url: "/file/attachments/a1",
+          sha256: null,
+        },
+      });
+    });
+    expect(homeEditor).toHaveValue("\n![photo.png](/file/attachments/a1)\n");
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toHaveValue(
+      "等待附件后再写",
+    );
+  });
+
+  it("protects an in-memory home draft even when its stored copy is missing", async () => {
+    const { user } = renderQuickCaptureWithHome();
+    const homeEditor = screen.getByRole("textbox", { name: "记录内容" });
+    await user.type(homeEditor, "只保存在编辑器内存中的正文");
+    window.localStorage.removeItem("sillage.entry-draft.memo:new");
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "另外的速记",
+    );
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("alert"),
+    ).toHaveTextContent("写记录中已有未保存草稿");
+    expect(screen.getByRole("textbox", { name: "记录内容" })).toBe(homeEditor);
+    expect(homeEditor).toHaveValue("只保存在编辑器内存中的正文");
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toHaveValue(
+      "另外的速记",
+    );
+    expect(
+      window.localStorage.getItem("sillage.entry-draft.memo:new"),
+    ).toBeNull();
+    expect(window.localStorage.getItem("sillage.quick-capture-draft")).toBe(
+      "另外的速记",
+    );
+  });
+
+  it("keeps quick text visible when storing the full draft fails", async () => {
+    const setItem = window.localStorage.setItem;
+    const { user } = renderQuickCaptureWithHome();
+    await user.click(screen.getByRole("button", { name: "速记" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "速记内容" }),
+      "不能丢失的速记",
+    );
+    const storageSpy = vi
+      .spyOn(window.localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sillage.entry-draft.memo:new") {
+          throw new Error("Storage unavailable");
+        }
+        setItem(key, value);
+      });
+
+    await user.click(screen.getByRole("link", { name: "写得更完整" }));
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("alert"),
+    ).toHaveTextContent("暂时无法将速记移到写记录");
+    expect(screen.getByRole("textbox", { name: "速记内容" })).toHaveValue(
+      "不能丢失的速记",
+    );
+    expect(screen.getByRole("textbox", { name: "记录内容" })).toHaveValue("");
+    expect(window.localStorage.getItem("sillage.quick-capture-draft")).toBe(
+      "不能丢失的速记",
+    );
+    storageSpy.mockRestore();
   });
 });

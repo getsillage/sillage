@@ -153,6 +153,23 @@ function DeleteReturnTarget() {
   );
 }
 
+function TimelineNavigationHarness() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <>
+      <button type="button" onClick={() => navigate("/timeline?q=beta")}>
+        更换搜索链接
+      </button>
+      <button type="button" onClick={() => navigate(-1)}>
+        返回上次搜索
+      </button>
+      <output aria-label="当前地址">{location.search}</output>
+      <TimelinePage />
+    </>
+  );
+}
+
 function renderEntryDeleteNavigation() {
   return render(
     <MemoryRouter
@@ -305,6 +322,49 @@ describe("TimelinePage", () => {
       favorited: false,
     });
     expect(await screen.findByText("搜索命中的记录")).toBeInTheDocument();
+  });
+
+  it("follows search links, history back, and clearing from the current list link", async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchMemos).mockImplementation(async (_token, query) => ({
+      memos: [memo({ id: query, content: `${query} 搜索结果` })],
+    }));
+    renderWithMemos(<TimelineNavigationHarness />, "/timeline?q=alpha");
+
+    const searchInput = screen.getByPlaceholderText("搜索记录…");
+    const address = screen.getByLabelText("当前地址");
+    expect(await screen.findByText("alpha 搜索结果")).toBeVisible();
+    expect(searchInput).toHaveValue("alpha");
+    expect(address).toHaveTextContent(/^\?q=alpha$/);
+
+    await user.click(screen.getByRole("button", { name: "更换搜索链接" }));
+
+    expect(await screen.findByText("beta 搜索结果")).toBeVisible();
+    expect(screen.getByPlaceholderText("搜索记录…")).toBe(searchInput);
+    expect(searchInput).toHaveValue("beta");
+    expect(address).toHaveTextContent(/^\?q=beta$/);
+    expect(screen.queryByText("alpha 搜索结果")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "返回上次搜索" }));
+
+    expect(await screen.findByText("alpha 搜索结果")).toBeVisible();
+    expect(searchInput).toHaveValue("alpha");
+    expect(address).toHaveTextContent(/^\?q=alpha$/);
+    expect(screen.queryByText("beta 搜索结果")).not.toBeInTheDocument();
+    const options = { archived: false, favorited: false };
+    expect(searchMemos).toHaveBeenCalledTimes(3);
+    expect(searchMemos).toHaveBeenNthCalledWith(1, "t", "alpha", 100, options);
+    expect(searchMemos).toHaveBeenNthCalledWith(2, "t", "beta", 100, options);
+    expect(searchMemos).toHaveBeenNthCalledWith(3, "t", "alpha", 100, options);
+
+    await user.click(screen.getByRole("link", { name: "未归档" }));
+
+    expect(await screen.findByText("今天的记录内容")).toBeVisible();
+    expect(screen.getByPlaceholderText("搜索记录…")).toBe(searchInput);
+    expect(searchInput).toHaveValue("");
+    expect(address).toBeEmptyDOMElement();
+    expect(screen.queryByText("alpha 搜索结果")).not.toBeInTheDocument();
+    expect(searchMemos).toHaveBeenCalledTimes(3);
   });
 
   it("hides results from another query while a later search is pending or failed", async () => {
@@ -604,6 +664,87 @@ describe("TimelinePage", () => {
 
     expect(await screen.findByText("最近删除中没有记录。")).toBeInTheDocument();
     expect(purgeMemo).toHaveBeenCalledWith("t", purgeCandidate);
+  });
+
+  it("keeps other deleted records when refreshing after a successful restore fails", async () => {
+    const user = userEvent.setup();
+    const restored = memo({
+      id: "restored",
+      content: "恢复后应该消失的记录",
+      version: 2,
+      deletedAt: "2026-07-30T01:00:00Z",
+    });
+    const remaining = memo({
+      id: "remaining",
+      content: "刷新失败时仍然可见的记录",
+      version: 4,
+      deletedAt: "2026-07-30T02:00:00Z",
+    });
+    let deletedLoads = 0;
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    vi.mocked(listMemos).mockImplementation(
+      async (_token, _limit, _cursor, options = {}) => {
+        if (!options.deleted) {
+          return { memos: [] };
+        }
+        deletedLoads += 1;
+        if (deletedLoads === 1) {
+          return { memos: [restored, remaining] };
+        }
+        if (deletedLoads === 2) {
+          return new Promise((_resolve, reject) => {
+            rejectRefresh = reject;
+          });
+        }
+        return {
+          memos: [
+            { ...remaining, content: "重试后同步的最近删除记录", version: 5 },
+          ],
+        };
+      },
+    );
+    vi.mocked(restoreMemo).mockResolvedValue({
+      memo: { ...restored, deletedAt: null, version: 3 },
+    });
+    renderWithMemos(<TimelinePage />, "/timeline?filter=deleted");
+
+    const restoredItem = (
+      await screen.findByText("恢复后应该消失的记录")
+    ).closest("li");
+    expect(screen.getByText("刷新失败时仍然可见的记录")).toBeVisible();
+    expect(restoredItem).not.toBeNull();
+    await user.click(
+      within(restoredItem as HTMLElement).getByRole("button", { name: "恢复" }),
+    );
+
+    await waitFor(() => expect(deletedLoads).toBe(2));
+    expect(restoreMemo).toHaveBeenCalledWith("t", restored);
+    expect(screen.queryByText("恢复后应该消失的记录")).not.toBeInTheDocument();
+    expect(screen.getByText("刷新失败时仍然可见的记录")).toBeVisible();
+
+    await act(async () => {
+      rejectRefresh?.(new Error("最近删除列表暂时读取失败"));
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "最近删除列表暂时读取失败",
+    );
+    expect(screen.queryByText("恢复后应该消失的记录")).not.toBeInTheDocument();
+    expect(screen.getByText("刷新失败时仍然可见的记录")).toBeVisible();
+    expect(screen.queryByText("最近删除中没有记录。")).not.toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: "重新加载记录" });
+    expect(retry).toBeEnabled();
+
+    await user.click(retry);
+
+    expect(await screen.findByText("重试后同步的最近删除记录")).toBeVisible();
+    expect(
+      screen.queryByText("刷新失败时仍然可见的记录"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("恢复后应该消失的记录")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(deletedLoads).toBe(3);
+    expect(restoreMemo).toHaveBeenCalledTimes(1);
   });
 });
 

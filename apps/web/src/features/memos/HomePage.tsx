@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   emptyStateClass,
@@ -11,10 +11,14 @@ import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo } from "../../lib/api";
 import { formatEntryDate, todayISO } from "../../lib/date";
 import { EntryCard } from "./EntryCard";
-import { EntryComposer } from "./EntryComposer";
+import { EntryComposer, type EntryDraftState } from "./EntryComposer";
 import { useMemos } from "./MemosContext";
 import { isActive, onThisDay } from "./memos";
 import { OnThisDay } from "./OnThisDay";
+import {
+  QUICK_CAPTURE_DRAFT_TRANSFER_EVENT,
+  type QuickCaptureDraftTransfer,
+} from "./QuickCapture";
 
 function EntrySection({
   title,
@@ -31,7 +35,7 @@ function EntrySection({
 }) {
   const { t } = useI18n();
   return (
-    <section className="min-w-0 pr-16 sm:pr-0">
+    <section className="min-w-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="font-medium text-gray-700 text-sm dark:text-gray-300">
           {title}
@@ -74,6 +78,51 @@ function EntrySection({
 export function HomePage() {
   const { locale, t } = useI18n();
   const { memos, loading, error, refresh, create, upload } = useMemos();
+  const [draftRevision, setDraftRevision] = useState(0);
+  const editorStateRef = useRef<EntryDraftState>({
+    dirty: false,
+    uploading: false,
+    saving: false,
+  });
+  const composerSectionRef = useRef<HTMLElement>(null);
+  const receiveDraftState = useCallback((state: EntryDraftState) => {
+    editorStateRef.current = state;
+  }, []);
+
+  useEffect(() => {
+    function receiveQuickDraft(event: Event) {
+      const transfer = event as CustomEvent<QuickCaptureDraftTransfer>;
+      const state = editorStateRef.current;
+      if (state.uploading || state.saving || state.dirty) {
+        transfer.detail.problem =
+          state.uploading || state.saving ? "busy" : "existing";
+        event.preventDefault();
+        return;
+      }
+      setDraftRevision((current) => current + 1);
+    }
+    window.addEventListener(
+      QUICK_CAPTURE_DRAFT_TRANSFER_EVENT,
+      receiveQuickDraft,
+    );
+    return () =>
+      window.removeEventListener(
+        QUICK_CAPTURE_DRAFT_TRANSFER_EVENT,
+        receiveQuickDraft,
+      );
+  }, []);
+
+  useEffect(() => {
+    if (draftRevision === 0) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      composerSectionRef.current
+        ?.querySelector<HTMLTextAreaElement>("textarea")
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [draftRevision]);
   const today = todayISO();
   const { todayEntries, recentEntries, memories } = useMemo(() => {
     const chronological = memos.filter(isActive).sort((a, b) => {
@@ -103,10 +152,12 @@ export function HomePage() {
           </h1>
         </header>
 
-        <section aria-label={t("records.new")}>
+        <section ref={composerSectionRef} aria-label={t("records.new")}>
           <EntryComposer
+            key={draftRevision}
             draftKey="memo:new"
             submitLabel={t("common.save")}
+            onDraftStateChange={receiveDraftState}
             onSubmit={async (input) => {
               await create(input);
             }}

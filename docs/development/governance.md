@@ -138,6 +138,12 @@ Dependabot runs weekly for Go, npm (`apps/web/`), Gradle (`apps/native/`), Docke
 
 Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
 
+The supported server toolchain is Go 1.26.9. The current module graph pins
+`golang.org/x/net` 0.60.0 and gRPC 1.83.1 to keep the symbol-level vulnerability
+scan clear; the release container uses the matching digest-pinned Go 1.26.9
+Alpine builder. A toolchain or module security update must rerun the Go,
+container, supply-chain, and upgrade gates.
+
 Android third-party notices are generated from the verified Gradle dependency
 graph. JetBrains Compose and JetBrains AndroidX coordinates use the same
 reviewed JetBrains/Kotlin license classification as the other JetBrains runtime

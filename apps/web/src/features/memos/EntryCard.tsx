@@ -67,7 +67,7 @@ export function EntryCard({
 
   return (
     <article
-      className={`${rowLinkClass}${openOnCardClick ? " group cursor-pointer" : ""}`}
+      className={`${rowLinkClass} min-w-0 [overflow-wrap:anywhere]${openOnCardClick ? " group cursor-pointer" : ""}`}
       role={openOnCardClick ? "link" : undefined}
       tabIndex={openOnCardClick ? 0 : undefined}
       aria-label={

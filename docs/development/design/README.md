@@ -28,9 +28,20 @@ Hard constraints:
 - Extract a shared token only after the same style appears at least three times, and update this document at the same time. Do not scatter hex values, introduce a second component library, or hand-draw SVG icons.
 - Reuse the existing typography styles for rendered Markdown instead of creating another rich-text presentation.
 - Keep icon buttons at a stable touch size. Use segmented controls for view selection and switches or checkboxes for binary settings.
+- Shared buttons, inputs, and icon actions have a 44px height; icon actions also
+  have a 44px width. Below 640px, editable fields use at least 16px text to keep
+  mobile Safari from zooming on focus. Compact calendar dates retain the 44px
+  height while seven columns share the available width.
 - Keep the language selector in Appearance as a compact segmented control. Authentication screens may expose the same choice as a quiet utility control so language can be changed before sign-in.
 
 Page headings and control labels must match the scale of their containers. Narrow screens must not have horizontal overflow, and text must not cover adjacent content.
+
+Record lists use the full reading column on phones; floating capture actions
+reserve space at the bottom of the page. Narrow list filters wrap into two
+columns, and detail actions wrap below the return link when needed. Long text
+wraps inside records and answers; Markdown tables and code blocks scroll within
+named regions that can receive keyboard focus. Quick capture fits the dynamic
+viewport, and the Ask composer respects the bottom safe area.
 
 ## Interaction Requirements
 

@@ -177,7 +177,7 @@ export function AppShell({
           aria-label={t("nav.expandSidebar")}
           title={t("nav.expandSidebar")}
           onClick={() => setDesktopOpen(true)}
-          className="fixed top-3 left-3 z-30 hidden h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+          className="fixed top-3 left-3 z-30 hidden h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white/90 text-gray-500 shadow-sm shadow-gray-900/[0.03] transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:border-gray-800 dark:bg-gray-900/90 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
@@ -191,7 +191,7 @@ export function AppShell({
           aria-label={t("nav.open")}
           aria-expanded={drawerOpen}
           aria-controls="mobile-navigation-dialog"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           onClick={() => {
             restoreDrawerFocusRef.current = true;
             setDrawerOpen(true);

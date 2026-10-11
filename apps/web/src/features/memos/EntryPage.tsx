@@ -358,10 +358,10 @@ export function EntryPage() {
           </button>
         </div>
       ) : null}
-      <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
         <Link
           to={returnTarget}
-          className={`${ghostLinkClass} inline-flex h-10 items-center gap-2 px-2 text-sm`}
+          className={`${ghostLinkClass} inline-flex min-h-11 items-center gap-2 px-2 text-sm`}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           {returnLabel}

@@ -898,7 +898,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
         title={t("settings.unsavedTitle")}
         description={t("settings.unsavedDescription")}
       />
-      <fieldset className={segmentedControlClass}>
+      <fieldset
+        className={`${segmentedControlClass} grid! w-full grid-cols-3 sm:inline-flex! sm:w-auto`}
+      >
         <legend className="sr-only">{t("settings.category")}</legend>
         {SETTINGS_TABS.map((tab) => {
           const Icon = tab.icon;
@@ -907,10 +909,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
               key={tab.value}
               type="button"
               onClick={() => setActiveTab(tab.value)}
-              className={segmentedItemClass(activeTab === tab.value)}
+              className={`${segmentedItemClass(activeTab === tab.value)} min-w-0 px-2 sm:px-3`}
               aria-current={activeTab === tab.value ? "page" : undefined}
             >
-              <Icon className="h-4 w-4" aria-hidden="true" />
+              <Icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />
               {t(tab.labelKey)}
             </button>
           );

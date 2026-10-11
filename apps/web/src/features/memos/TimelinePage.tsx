@@ -430,7 +430,7 @@ function ListView({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <fieldset
-          className={`${segmentedControlClass} grid min-w-0 w-full grid-cols-2 min-[480px]:grid-cols-4 sm:flex sm:w-auto`}
+          className={`${segmentedControlClass} grid! min-w-0 w-full grid-cols-2 min-[480px]:grid-cols-4 sm:flex! sm:w-auto`}
         >
           <legend className="sr-only">{t("timeline.statusLabel")}</legend>
           <Link

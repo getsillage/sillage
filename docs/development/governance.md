@@ -84,6 +84,13 @@ unverified product code.
 
 Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
 
+Web release journeys also exercise 320px and 390px viewports in English and
+Simplified Chinese, in both light and dark themes. They check all primary
+screens, search filters, calendar selection, editor preview, long text, local
+Markdown scrolling, input legibility, and key touch targets. Representative
+390px English record and 320px initialization screenshots are retained in the local Playwright results
+for visual review; they are generated artifacts and are not committed.
+
 Range-sensitive document-sync policy is enforced on pull requests, where the original commit messages and `Docs-skip` trailer are available. Protected `main` still reruns every other Docs check, but does not repeat document-sync after a squash merge because GitHub may replace the reviewed commit bodies. This keeps the PR authoritative and prevents an already-green change from becoming a false failure after merge.
 
 Dependabot pull requests receive a narrow automatic documentation exemption only when every changed path is a recognized dependency surface: manifests, lockfiles, pinned workflow Actions, Gradle verification metadata, container base images, or generated license inventories. The exemption is derived from the GitHub pull request owner, not a branch name or commit message. Source and ordinary configuration changes remain subject to documentation synchronization.

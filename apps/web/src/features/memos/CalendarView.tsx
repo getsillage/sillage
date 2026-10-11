@@ -59,7 +59,7 @@ export function CalendarView({
   return (
     <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="rounded-lg border border-gray-200/80 bg-white/80 p-3 shadow-sm shadow-gray-900/[0.03] sm:p-6 dark:border-gray-800 dark:bg-gray-900/70 dark:shadow-black/10">
-        <div className="mb-4 grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-2 sm:mb-5">
+        <div className="mb-4 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 sm:mb-5">
           <Link
             to={monthHref(prev.year, prev.month)}
             className={iconButtonClass}
@@ -143,7 +143,7 @@ export function CalendarView({
                       state={{
                         returnTo: `${location.pathname}${location.search}${location.hash}`,
                       }}
-                      className="block rounded-lg px-3 py-2 text-gray-800 text-sm transition hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+                      className="block rounded-lg px-3 py-3 text-gray-800 text-sm transition [overflow-wrap:anywhere] hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/60"
                     >
                       {excerpt(memo.content, 40) || t("records.blank")}
                     </Link>
@@ -182,7 +182,7 @@ function DayCell({
   const { locale, t } = useI18n();
   const day = Number(date.slice(8));
   const base =
-    "flex aspect-square min-h-10 w-full flex-col items-center justify-center rounded-lg border text-sm transition-colors sm:min-h-12 sm:text-base";
+    "flex aspect-square min-h-11 w-full flex-col items-center justify-center rounded-lg border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:focus-visible:ring-gray-500/60 sm:min-h-12 sm:text-base";
   const state = isSelected
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
     : count > 0

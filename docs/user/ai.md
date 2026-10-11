@@ -14,6 +14,15 @@ Adding, editing, deleting, or changing the default profile updates the current d
 - Fetch Models (`获取模型`) sends the API key to request the configured endpoint's model list, but does not send any records.
 - Test Connection (`测试连接`) sends a fixed, short test prompt, but does not send any records.
 
+On the Web client, model lists and connection-test results belong to the profile
+configuration that started the request. Editing the endpoint, protocol, or API
+key cancels that request and clears its previous result; changing the model or
+generation parameters also clears the connection-test result. Late responses
+from an earlier configuration are ignored. Saving a profile cancels pending
+model-list and connection-test requests. Profile saves, automatic-summary
+changes, and password changes run one at a time, and session-token renewal
+preserves unsaved profile edits.
+
 ## Data Sent
 
 | Operation | Content sent to the provider |

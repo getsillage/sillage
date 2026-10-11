@@ -206,6 +206,13 @@ async function withTimeout<T>(
   }
 }
 
+function abortProfileRequests(requests: Map<string, AbortController>) {
+  for (const controller of requests.values()) {
+    controller.abort();
+  }
+  requests.clear();
+}
+
 function actionErrorMessage(
   cause: unknown,
   fallback: string,
@@ -220,6 +227,12 @@ function actionErrorMessage(
 export function SettingsWorkspace({ token }: { token: string }) {
   const { locale, t } = useI18n();
   const toast = useToast();
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+  const mutationRef = useRef(false);
+  const workspaceGenerationRef = useRef(0);
+  const connectionRequestsRef = useRef(new Map<string, AbortController>());
+  const modelRequestsRef = useRef(new Map<string, AbortController>());
   const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
   const [profiles, setProfiles] = useState<EditableProfile[]>([]);
   const [savedProfilesFingerprint, setSavedProfilesFingerprint] = useState<
@@ -246,7 +259,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const [autoSummaryToast, setAutoSummaryToast] = useState<ToastMessage | null>(
     null,
   );
-  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testingProfileKeys, setTestingProfileKeys] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [testResults, setTestResults] = useState<Record<string, TestState>>({});
   const [modelResults, setModelResults] = useState<Record<string, ModelState>>(
     {},
@@ -258,6 +273,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   useEffect(() => {
     void locale;
+    abortProfileRequests(connectionRequestsRef.current);
+    abortProfileRequests(modelRequestsRef.current);
+    setTestingProfileKeys(new Set());
     setLoadError((current) => (current ? t("settings.loadFailed") : current));
     setError((current) => (current ? t("errors.requestFailed") : current));
     setNotice("");
@@ -282,6 +300,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   const mutationBusy = saving || autoSummarySaving || passwordSaving;
 
   async function submitPasswordChange() {
+    if (mutationRef.current) {
+      return;
+    }
     const current = currentPassword;
     const next = newPassword;
     const confirm = confirmPassword;
@@ -304,27 +325,38 @@ export function SettingsWorkspace({ token }: { token: string }) {
       reportError(t("settings.passwordPolicy"));
       return;
     }
+    mutationRef.current = true;
+    const generation = workspaceGenerationRef.current;
     setPasswordSaving(true);
     setError("");
     setNotice("");
     try {
-      const res = await changePassword(token, {
+      const res = await changePassword(tokenRef.current, {
         currentPassword: current,
         newPassword: next,
       });
+      if (workspaceGenerationRef.current !== generation) {
+        return;
+      }
       setAccessToken(res.accessToken);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       reportNotice(t("settings.passwordChanged"), "success");
     } catch (cause) {
+      if (workspaceGenerationRef.current !== generation) {
+        return;
+      }
       reportError(
         cause instanceof Error
           ? cause.message
           : t("settings.passwordChangeFailed"),
       );
     } finally {
-      setPasswordSaving(false);
+      if (workspaceGenerationRef.current === generation) {
+        mutationRef.current = false;
+        setPasswordSaving(false);
+      }
     }
   }
 
@@ -339,7 +371,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setLoading(true);
     setLoadError("");
     try {
-      const res = await getAISettings(token);
+      const res = await getAISettings(tokenRef.current);
       if (loadRequestIdRef.current !== requestId) {
         return;
       }
@@ -359,16 +391,19 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setLoadError(message);
       setLoading(false);
     }
-  }, [token, t]);
+  }, [t]);
 
   useEffect(() => {
     void loadSettings();
     return () => {
+      workspaceGenerationRef.current += 1;
       loadRequestIdRef.current += 1;
       autoSummaryAbortRef.current?.abort();
       autoSummaryAbortRef.current = null;
       autoSummaryRequestIdRef.current += 1;
       autoSummaryMutationRef.current = false;
+      abortProfileRequests(connectionRequestsRef.current);
+      abortProfileRequests(modelRequestsRef.current);
     };
   }, [loadSettings]);
 
@@ -385,6 +420,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }, [dirty]);
 
   function updateProfile(index: number, patch: Partial<EditableProfile>) {
+    if (mutationRef.current) {
+      return;
+    }
     setConfirmDeleteKey(null);
     setNotice("");
     setError("");
@@ -397,6 +435,16 @@ export function SettingsWorkspace({ token }: { token: string }) {
     );
     if (touchesConnection) {
       const key = profileKey(profiles[index]);
+      connectionRequestsRef.current.get(key)?.abort();
+      connectionRequestsRef.current.delete(key);
+      setTestingProfileKeys((current) => {
+        if (!current.has(key)) {
+          return current;
+        }
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
       setTestResults((current) => {
         if (!(key in current)) {
           return current;
@@ -407,6 +455,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
       const touchesModelList = MODEL_LIST_FIELDS.some(
         (field) => patch[field] !== undefined,
       );
+      if (touchesModelList) {
+        modelRequestsRef.current.get(key)?.abort();
+        modelRequestsRef.current.delete(key);
+      }
       setModelResults((current) => {
         const existing = current[key];
         if (!existing) {
@@ -434,7 +486,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }
 
   function setDefaultProfile(index: number) {
-    if (mutationBusy) {
+    if (mutationRef.current) {
       return;
     }
     setConfirmDeleteKey(null);
@@ -452,6 +504,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   async function saveProfiles(
     nextProfiles: EditableProfile[],
     successNotice: string,
+    generation: number,
   ) {
     const normalizedProfiles = normalizeProfilesForSave(nextProfiles);
     const payload: AIProfileInput[] = normalizedProfiles.map((profile) => ({
@@ -466,9 +519,12 @@ export function SettingsWorkspace({ token }: { token: string }) {
       active: profile.active,
       apiKey: profile.apiKeyInput.trim() ? profile.apiKeyInput : undefined,
     }));
-    const res = await patchAISettings(token, {
+    const res = await patchAISettings(tokenRef.current, {
       profiles: payload,
     });
+    if (workspaceGenerationRef.current !== generation) {
+      return;
+    }
     const savedProfiles = res.profiles.map(toEditable);
     setProfiles(savedProfiles);
     setSavedProfilesFingerprint(profilesFingerprint(savedProfiles));
@@ -477,7 +533,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }
 
   async function toggleAutoSummary() {
-    if (mutationBusy || autoSummaryMutationRef.current) {
+    if (mutationRef.current || autoSummaryMutationRef.current) {
       return;
     }
     const previousValue = autoSummary;
@@ -486,6 +542,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     const controller = new AbortController();
     autoSummaryRequestIdRef.current = requestId;
     autoSummaryAbortRef.current = controller;
+    mutationRef.current = true;
     autoSummaryMutationRef.current = true;
     setAutoSummary(nextValue);
     setAutoSummarySaving(true);
@@ -494,7 +551,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     setError("");
     try {
       const res = await withTimeout(
-        (signal) => setAIAutoSummary(token, nextValue, signal),
+        (signal) => setAIAutoSummary(tokenRef.current, nextValue, signal),
         controller,
       );
       if (autoSummaryRequestIdRef.current !== requestId) {
@@ -535,6 +592,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     } finally {
       if (autoSummaryRequestIdRef.current === requestId) {
         autoSummaryAbortRef.current = null;
+        mutationRef.current = false;
         autoSummaryMutationRef.current = false;
         setAutoSummarySaving(false);
       }
@@ -543,11 +601,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
 
   function removeProfile(index: number) {
     const profile = profiles[index];
-    const key = profile ? profileKey(profile) : null;
     if (!profile) {
       return;
     }
-    if (mutationBusy) {
+    const key = profileKey(profile);
+    if (mutationRef.current) {
       return;
     }
     if (confirmDeleteKey !== key) {
@@ -556,6 +614,15 @@ export function SettingsWorkspace({ token }: { token: string }) {
       setError("");
       return;
     }
+    connectionRequestsRef.current.get(key)?.abort();
+    connectionRequestsRef.current.delete(key);
+    modelRequestsRef.current.get(key)?.abort();
+    modelRequestsRef.current.delete(key);
+    setTestingProfileKeys((current) => {
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
     setProfiles((current) =>
       normalizeProfilesForSave(current.filter((_, i) => i !== index)),
     );
@@ -568,7 +635,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }
 
   async function save() {
-    if (mutationBusy || !dirty) {
+    if (mutationRef.current || !dirty) {
       return;
     }
     const invalidProfileIndex = profiles.findIndex(
@@ -588,40 +655,74 @@ export function SettingsWorkspace({ token }: { token: string }) {
       return;
     }
     setInvalidProfileKey(null);
+    mutationRef.current = true;
+    const generation = workspaceGenerationRef.current;
+    abortProfileRequests(connectionRequestsRef.current);
+    setTestingProfileKeys(new Set());
+    abortProfileRequests(modelRequestsRef.current);
+    setModelResults((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([key, result]) => [
+          key,
+          { ...result, loading: false },
+        ]),
+      ),
+    );
     setSaving(true);
     setNotice("");
     setError("");
     try {
-      await saveProfiles(profiles, t("settings.profileSaved"));
-      setSelectedProfileKey(null);
+      await saveProfiles(profiles, t("settings.profileSaved"), generation);
+      if (workspaceGenerationRef.current === generation) {
+        setSelectedProfileKey(null);
+      }
     } catch (err) {
+      if (workspaceGenerationRef.current !== generation) {
+        return;
+      }
       reportError(
         err instanceof Error ? err.message : t("composer.saveFailed"),
       );
     } finally {
-      setSaving(false);
+      if (workspaceGenerationRef.current === generation) {
+        mutationRef.current = false;
+        setSaving(false);
+      }
     }
   }
 
   async function testConnection(profile: EditableProfile) {
     const key = profileKey(profile);
-    setTestingId(key);
+    if (mutationRef.current || connectionRequestsRef.current.has(key)) {
+      return;
+    }
+    const controller = new AbortController();
+    connectionRequestsRef.current.set(key, controller);
+    const canApplyResponse = () =>
+      connectionRequestsRef.current.get(key) === controller &&
+      !controller.signal.aborted;
+    setTestingProfileKeys((current) => new Set([...current, key]));
     try {
-      const res = await withTimeout((signal) =>
-        testAIConnection(
-          token,
-          {
-            id: profile.id || undefined,
-            provider: profile.provider,
-            baseUrl: profile.baseUrl,
-            model: profile.model,
-            temperature: parseTemperature(profile.temperatureText),
-            maxTokens: parseMaxTokens(profile.maxTokensText),
-            apiKey: profile.apiKeyInput.trim() || undefined,
-          },
-          signal,
-        ),
+      const res = await withTimeout(
+        (signal) =>
+          testAIConnection(
+            tokenRef.current,
+            {
+              id: profile.id || undefined,
+              provider: profile.provider,
+              baseUrl: profile.baseUrl,
+              model: profile.model,
+              temperature: parseTemperature(profile.temperatureText),
+              maxTokens: parseMaxTokens(profile.maxTokensText),
+              apiKey: profile.apiKeyInput.trim() || undefined,
+            },
+            signal,
+          ),
+        controller,
       );
+      if (!canApplyResponse()) {
+        return;
+      }
       setTestResults((current) => ({
         ...current,
         [key]: {
@@ -634,6 +735,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
         message: t("settings.connectionSuccess", { model: res.model }),
       });
     } catch (cause) {
+      if (connectionRequestsRef.current.get(key) !== controller) {
+        return;
+      }
       const message = actionErrorMessage(
         cause,
         t("settings.connectionFailed"),
@@ -648,29 +752,49 @@ export function SettingsWorkspace({ token }: { token: string }) {
       }));
       toast.showToast({ kind: "error", message });
     } finally {
-      setTestingId((current) => (current === key ? null : current));
+      if (connectionRequestsRef.current.get(key) === controller) {
+        connectionRequestsRef.current.delete(key);
+        setTestingProfileKeys((current) => {
+          const next = new Set(current);
+          next.delete(key);
+          return next;
+        });
+      }
     }
   }
 
   async function fetchModels(profile: EditableProfile) {
     const key = profileKey(profile);
+    if (mutationRef.current || modelRequestsRef.current.has(key)) {
+      return;
+    }
+    const controller = new AbortController();
+    modelRequestsRef.current.set(key, controller);
+    const canApplyResponse = () =>
+      modelRequestsRef.current.get(key) === controller &&
+      !controller.signal.aborted;
     setModelResults((current) => ({
       ...current,
       [key]: { ...(current[key] ?? { models: [] }), loading: true },
     }));
     try {
-      const res = await withTimeout((signal) =>
-        listAIModels(
-          token,
-          {
-            id: profile.id || undefined,
-            provider: profile.provider,
-            baseUrl: profile.baseUrl,
-            apiKey: profile.apiKeyInput.trim() || undefined,
-          },
-          signal,
-        ),
+      const res = await withTimeout(
+        (signal) =>
+          listAIModels(
+            tokenRef.current,
+            {
+              id: profile.id || undefined,
+              provider: profile.provider,
+              baseUrl: profile.baseUrl,
+              apiKey: profile.apiKeyInput.trim() || undefined,
+            },
+            signal,
+          ),
+        controller,
       );
+      if (!canApplyResponse()) {
+        return;
+      }
       setModelResults((current) => ({
         ...current,
         [key]: {
@@ -691,6 +815,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
         ),
       });
     } catch (cause) {
+      if (modelRequestsRef.current.get(key) !== controller) {
+        return;
+      }
       const message = actionErrorMessage(
         cause,
         t("settings.modelsFailed"),
@@ -706,6 +833,10 @@ export function SettingsWorkspace({ token }: { token: string }) {
         },
       }));
       toast.showToast({ kind: "error", message });
+    } finally {
+      if (modelRequestsRef.current.get(key) === controller) {
+        modelRequestsRef.current.delete(key);
+      }
     }
   }
 
@@ -833,7 +964,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 value={currentPassword}
                 maxLength={256}
                 onChange={(event) => setCurrentPassword(event.target.value)}
-                disabled={passwordSaving}
+                disabled={mutationBusy}
               />
             </label>
             <label className="block space-y-1.5">
@@ -846,7 +977,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 minLength={8}
                 maxLength={256}
                 onChange={(event) => setNewPassword(event.target.value)}
-                disabled={passwordSaving}
+                disabled={mutationBusy}
               />
             </label>
             <label className="block space-y-1.5">
@@ -861,14 +992,14 @@ export function SettingsWorkspace({ token }: { token: string }) {
                 minLength={8}
                 maxLength={256}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                disabled={passwordSaving}
+                disabled={mutationBusy}
               />
             </label>
             <div className="flex justify-end pt-1">
               <button
                 type="submit"
                 className={primaryButtonClass}
-                disabled={passwordSaving}
+                disabled={mutationBusy}
               >
                 {passwordSaving ? (
                   <>
@@ -900,6 +1031,9 @@ export function SettingsWorkspace({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => {
+                if (mutationRef.current) {
+                  return;
+                }
                 const profile = blankProfile();
                 setNotice("");
                 setError("");
@@ -1270,11 +1404,11 @@ export function SettingsWorkspace({ token }: { token: string }) {
                           <button
                             type="button"
                             onClick={() => testConnection(profile)}
-                            disabled={testingId === key}
+                            disabled={testingProfileKeys.has(key)}
                             className={subtleButtonClass}
                           >
                             {t(
-                              testingId === key
+                              testingProfileKeys.has(key)
                                 ? "settings.testing"
                                 : "settings.testConnection",
                             )}

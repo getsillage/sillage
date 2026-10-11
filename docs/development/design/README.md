@@ -65,6 +65,10 @@ Page headings and control labels must match the scale of their containers. Narro
 - Transient failures preserve loaded content that belongs to the current view or normalized search query, preserve user input, and offer a manual retry. Cached results from another query are never shown as current matches.
 - Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
+- A failed Ask submission restores its question only in the composer that
+  submitted it. Switching conversations invalidates that restoration, even
+  when the user returns before completion. Progress copy reflects preparation
+  before the stream starts and generation after it starts.
 - Transient operation feedback uses the global Toast queue. Successful writes,
   state changes, uploads, and non-recoverable action errors must not add local
   notification blocks inside feature layouts.

@@ -229,4 +229,8 @@ See the [Contributing Guide](../../CONTRIBUTING.md) for the development environm
 
 Identify a running binary with `./sillage --version`. Container images also include the OCI `version` and `revision` labels.
 
-The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
+The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. It uses Docker's built-in Dockerfile frontend so a build does not need to fetch a separate `docker/dockerfile` frontend image before resolving the pinned bases. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
+
+If Docker Hub is reachable only through a proxy, configure the Docker daemon or
+the selected BuildKit builder to use that proxy before building. Keep the proxy
+outside the Dockerfile and do not pass proxy credentials as image build args.

@@ -144,6 +144,11 @@ scan clear; the release container uses the matching digest-pinned Go 1.26.9
 Alpine builder. A toolchain or module security update must rerun the Go,
 container, supply-chain, and upgrade gates.
 
+The production Dockerfile uses Docker's built-in frontend instead of fetching a
+remote Dockerfile frontend image. This keeps the initial build independent of
+an extra Docker Hub request; base image pulls still follow the operator's
+Docker or BuildKit registry and proxy configuration.
+
 Android third-party notices are generated from the verified Gradle dependency
 graph. JetBrains Compose and JetBrains AndroidX coordinates use the same
 reviewed JetBrains/Kotlin license classification as the other JetBrains runtime

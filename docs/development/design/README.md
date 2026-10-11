@@ -62,6 +62,10 @@ Page headings and control labels must match the scale of their containers. Narro
   pending feedback. Session credential rotation preserves unsaved profile edits.
 - Settings writes, automatic-summary changes, and password changes share a
   single-flight lock; conflicting writes stay disabled until completion.
+- A password change locks in-app navigation and sign-out until its request
+  finishes. The contextual leave dialog offers only staying on the page;
+  attempted navigation is cancelled rather than queued. A failure preserves
+  password fields and releases the lock so the user can retry or leave.
 - Transient failures preserve loaded content that belongs to the current view or normalized search query, preserve user input, and offer a manual retry. Cached results from another query are never shown as current matches.
 - Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.

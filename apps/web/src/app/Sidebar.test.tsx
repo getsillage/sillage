@@ -2,10 +2,12 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ToastProvider } from "../components/Toast";
 import { Sidebar } from "./Sidebar";
 
-const { hasUnsavedChangesMock } = vi.hoisted(() => ({
+const { hasUnsavedChangesMock, hasBlockingOperationMock } = vi.hoisted(() => ({
   hasUnsavedChangesMock: vi.fn(),
+  hasBlockingOperationMock: vi.fn(),
 }));
 
 vi.mock("../features/ask/AskContext", () => ({
@@ -21,6 +23,7 @@ vi.mock("../features/ask/AskContext", () => ({
 
 vi.mock("../components/UnsavedNavigationGuard", () => ({
   hasUnsavedChanges: hasUnsavedChangesMock,
+  hasBlockingOperation: hasBlockingOperationMock,
 }));
 
 const account = {
@@ -34,6 +37,7 @@ const account = {
 describe("Sidebar", () => {
   beforeEach(() => {
     hasUnsavedChangesMock.mockReturnValue(false);
+    hasBlockingOperationMock.mockReturnValue(false);
     document.body.style.overflow = "";
   });
 
@@ -103,5 +107,51 @@ describe("Sidebar", () => {
     await user.click(signOut);
     await user.click(screen.getByRole("button", { name: "仍然退出" }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks sign-out during a password operation and requires a new attempt afterward", async () => {
+    const user = userEvent.setup();
+    const onSignOut = vi.fn();
+    hasBlockingOperationMock.mockReturnValue(true);
+    render(
+      <ToastProvider>
+        <MemoryRouter>
+          <Sidebar account={account} onSignOut={onSignOut} />
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+    await user.click(screen.getByText("Felix"));
+    await user.click(screen.getByRole("button", { name: "退出登录" }));
+    expect(onSignOut).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正在保存新密码。请等待完成后再离开或退出登录。",
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    hasBlockingOperationMock.mockReturnValue(false);
+    expect(onSignOut).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "退出登录" }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks a newly active password operation before confirming sign-out", async () => {
+    const user = userEvent.setup();
+    const onSignOut = vi.fn();
+    hasUnsavedChangesMock.mockReturnValue(true);
+    render(
+      <ToastProvider>
+        <MemoryRouter>
+          <Sidebar account={account} onSignOut={onSignOut} />
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+    await user.click(screen.getByText("Felix"));
+    await user.click(screen.getByRole("button", { name: "退出登录" }));
+    hasBlockingOperationMock.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "仍然退出" }));
+    expect(onSignOut).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正在保存新密码。请等待完成后再离开或退出登录。",
+    );
   });
 });

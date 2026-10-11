@@ -10,7 +10,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Toast, type ToastMessage, useToast } from "../../components/Toast";
-import { UnsavedNavigationGuard } from "../../components/UnsavedNavigationGuard";
+import {
+  registerBlockingOperation,
+  UnsavedNavigationGuard,
+} from "../../components/UnsavedNavigationGuard";
 import {
   dangerButtonClass,
   emptyStateClass,
@@ -326,6 +329,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       return;
     }
     mutationRef.current = true;
+    const releaseNavigationLock = registerBlockingOperation();
     const generation = workspaceGenerationRef.current;
     setPasswordSaving(true);
     setError("");
@@ -353,6 +357,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
           : t("settings.passwordChangeFailed"),
       );
     } finally {
+      releaseNavigationLock();
       if (workspaceGenerationRef.current === generation) {
         mutationRef.current = false;
         setPasswordSaving(false);
@@ -408,7 +413,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
   }, [loadSettings]);
 
   useEffect(() => {
-    if (!dirty) {
+    if (!dirty && !passwordSaving) {
       return;
     }
     function warnBeforeUnload(event: BeforeUnloadEvent) {
@@ -417,7 +422,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
     }
     window.addEventListener("beforeunload", warnBeforeUnload);
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [dirty]);
+  }, [dirty, passwordSaving]);
 
   function updateProfile(index: number, patch: Partial<EditableProfile>) {
     if (mutationRef.current) {
@@ -889,6 +894,7 @@ export function SettingsWorkspace({ token }: { token: string }) {
       ) : null}
       <UnsavedNavigationGuard
         when={dirty}
+        locked={passwordSaving}
         title={t("settings.unsavedTitle")}
         description={t("settings.unsavedDescription")}
       />

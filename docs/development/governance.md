@@ -84,6 +84,14 @@ unverified product code.
 
 Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
 
+CI and release workflows configure the pinned Android SDK setup action with
+`packages: platform-tools`. The action still installs the command-line tools
+and accepts SDK licenses; Gradle and the emulator runner install the build and
+device packages required by their existing gates. This explicit package list
+avoids requesting the retired `tools` package from the action's default input
+without changing the Android, API 26/API 35, native-host, or Java/Kotlin CodeQL
+checks.
+
 Web release journeys also exercise 320px and 390px viewports in English and
 Simplified Chinese, in both light and dark themes. They check all primary
 screens, search filters, calendar selection, editor preview, long text, local

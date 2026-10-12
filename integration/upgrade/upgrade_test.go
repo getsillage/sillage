@@ -52,7 +52,6 @@ type upgradeReport struct {
 	Attachment              bool   `json:"attachment"`
 	AISettings              bool   `json:"aiSettings"`
 	AIKeyDecryption         bool   `json:"aiKeyDecryption"`
-	SyncBootstrap           bool   `json:"syncBootstrap"`
 	OldBinaryRejectedSchema bool   `json:"oldBinaryRejectedSchema"`
 	RollbackIntegrity       bool   `json:"rollbackIntegrity"`
 	RollbackReady           bool   `json:"rollbackReady"`
@@ -143,8 +142,6 @@ func TestLatestStableUpgradeAndRollback(t *testing.T) {
 	report.AISettings = true
 	generateSummary(t, candidate.baseURL, upgradedToken, memo.ID)
 	report.AIKeyDecryption = true
-	assertSyncBootstrap(t, candidate.baseURL, upgradedToken, memo.ID, attachment.UID)
-	report.SyncBootstrap = true
 	stopBinary(t, candidate)
 
 	requireIntegrity(t, databasePath)
@@ -439,21 +436,6 @@ func generateSummary(t *testing.T, baseURL, token, memoID string) {
 	}
 }
 
-func assertSyncBootstrap(t *testing.T, baseURL, token, memoID, attachmentUID string) {
-	t.Helper()
-	sync := getJSON[struct {
-		Memos       []memoDTO       `json:"memos"`
-		Attachments []attachmentDTO `json:"attachments"`
-		MemoAI      []struct {
-			MemoID string `json:"memoId"`
-		} `json:"memoAi"`
-		NextCursor string `json:"nextCursor"`
-	}](t, baseURL+"/api/v1/sync?limit=200", token)
-	if !containsMemo(sync.Memos, memoID) || !containsAttachment(sync.Attachments, attachmentUID) || !containsMemoAI(sync.MemoAI, memoID) || sync.NextCursor == "" {
-		t.Fatalf("sync bootstrap missing resources: %#v", sync)
-	}
-}
-
 func newMockAIProvider(t *testing.T) *httptest.Server {
 	t.Helper()
 	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
@@ -642,35 +624,6 @@ func copyFile(source, destination string, mode fs.FileMode) error {
 		return err
 	}
 	return output.Close()
-}
-
-func containsMemo(items []memoDTO, id string) bool {
-	for _, item := range items {
-		if item.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
-func containsAttachment(items []attachmentDTO, uid string) bool {
-	for _, item := range items {
-		if item.UID == uid {
-			return true
-		}
-	}
-	return false
-}
-
-func containsMemoAI(items []struct {
-	MemoID string `json:"memoId"`
-}, memoID string) bool {
-	for _, item := range items {
-		if item.MemoID == memoID {
-			return true
-		}
-	}
-	return false
 }
 
 func freePort(t *testing.T) int {

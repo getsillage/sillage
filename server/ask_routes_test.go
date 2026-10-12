@@ -142,7 +142,7 @@ func TestAskRejectsOversizedUserInput(t *testing.T) {
 	}
 }
 
-func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
+func TestAskConversationSearchAndArchive(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 
@@ -171,17 +171,6 @@ func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 
 	active := create("当前工作问答")
 	toArchive := create("旧项目问答")
-	initialSync := doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
-	if initialSync.Code != http.StatusOK {
-		t.Fatalf("initial sync status = %d body=%s", initialSync.Code, initialSync.Body.String())
-	}
-	var initial struct {
-		NextCursor string `json:"nextCursor"`
-	}
-	if err := json.Unmarshal(initialSync.Body.Bytes(), &initial); err != nil || initial.NextCursor == "" {
-		t.Fatalf("decode initial sync cursor = %q err=%v", initial.NextCursor, err)
-	}
-
 	archivePath := "/api/v1/ask/conversations/" + toArchive["id"].(string) + ":setArchived"
 	res := doJSON(t, srv, http.MethodPost, archivePath, map[string]any{"archived": true}, bearer(token))
 	if res.Code != http.StatusOK {
@@ -214,21 +203,6 @@ func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 		t.Fatalf("invalid archived status = %d body=%s", res.Code, res.Body.String())
 	}
 
-	incremental := doJSON(t, srv, http.MethodGet,
-		"/api/v1/sync?cursor="+url.QueryEscape(initial.NextCursor), nil, bearer(token))
-	if incremental.Code != http.StatusOK {
-		t.Fatalf("incremental sync status = %d body=%s", incremental.Code, incremental.Body.String())
-	}
-	var syncPayload struct {
-		AskConversations []map[string]any `json:"askConversations"`
-	}
-	if err := json.Unmarshal(incremental.Body.Bytes(), &syncPayload); err != nil {
-		t.Fatalf("decode incremental sync: %v", err)
-	}
-	if len(syncPayload.AskConversations) != 1 || syncPayload.AskConversations[0]["id"] != toArchive["id"] || syncPayload.AskConversations[0]["archivedAt"] == nil {
-		t.Fatalf("incremental ask conversations = %#v", syncPayload.AskConversations)
-	}
-
 	res = doJSON(t, srv, http.MethodPost, archivePath, map[string]any{"archived": false}, bearer(token))
 	if res.Code != http.StatusOK || decodeAskConversationResponse(t, res.Body.Bytes())["archivedAt"] != nil {
 		t.Fatalf("restore status/body = %d %s", res.Code, res.Body.String())
@@ -248,7 +222,7 @@ func TestAskConversationSearchArchiveAndIncrementalSync(t *testing.T) {
 	}
 }
 
-func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
+func TestAskConversationMessagesAndSources(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 	mockAI := newMockAIProvider(t)
@@ -307,20 +281,6 @@ func TestAskConversationMessagesSourcesAndSync(t *testing.T) {
 		t.Fatalf("list ask messages status/body = %d %s", res.Code, res.Body.String())
 	}
 
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("sync status = %d body=%s", res.Code, res.Body.String())
-	}
-	var syncPayload map[string]any
-	if err := json.Unmarshal(res.Body.Bytes(), &syncPayload); err != nil {
-		t.Fatalf("decode sync: %v", err)
-	}
-	if len(syncPayload["askConversations"].([]any)) != 1 {
-		t.Fatalf("sync askConversations = %#v", syncPayload["askConversations"])
-	}
-	if len(syncPayload["askMessages"].([]any)) != 2 {
-		t.Fatalf("sync askMessages = %#v", syncPayload["askMessages"])
-	}
 }
 
 func TestAskInsufficientRecordsResponse(t *testing.T) {

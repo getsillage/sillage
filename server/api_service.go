@@ -21,7 +21,6 @@ var (
 	errAIKeyUnavailable = errors.New("ai key unavailable")
 	errAINotConfigured  = errors.New("ai not configured")
 	errAIOverloaded     = errors.New("ai overloaded")
-	errTooManyChanges   = errors.New("too many sync changes")
 	errValidation       = errors.New("validation error")
 )
 
@@ -727,13 +726,6 @@ func normalizeLimit(limit, fallback int) int {
 	}
 	if limit > store.MaxMemoListLimit {
 		return store.MaxMemoListLimit
-	}
-	return limit
-}
-
-func normalizeSyncPageLimit(limit int) int {
-	if limit <= 0 || limit > store.MaxSyncPageLimit {
-		return store.MaxSyncPageLimit
 	}
 	return limit
 }

@@ -29,27 +29,14 @@ VALUES ('test', 'expired', '1', ?), ('test', 'current', '1', ?)`,
 		now.Add(-time.Minute).UnixMilli(), now.Add(time.Hour).UnixMilli()); err != nil {
 		t.Fatalf("seed runtime_kv: %v", err)
 	}
-	for _, mutationID := range []string{"old", "current"} {
-		if err := s.PutSyncMutation(ctx, &store.SyncMutation{
-			AccountID: accountID, MutationID: mutationID, ResourceType: "memo", Result: `{}`,
-		}); err != nil {
-			t.Fatalf("PutSyncMutation(%s) error = %v", mutationID, err)
-		}
-	}
-	if _, err := s.GetDriver().GetDB().ExecContext(ctx, `
-UPDATE sync_mutation SET created_at = ? WHERE mutation_id = 'old'`,
-		now.Add(-store.SyncMutationRetention-time.Hour).UnixMilli()); err != nil {
-		t.Fatalf("age sync mutation: %v", err)
-	}
-
 	stats, err := s.CleanupEphemeralData(ctx, now)
 	if err != nil {
 		t.Fatalf("CleanupEphemeralData() error = %v", err)
 	}
-	if stats.Sessions != 1 || stats.RuntimeValues != 1 || stats.SyncMutations != 1 {
+	if stats.Sessions != 1 || stats.RuntimeValues != 1 {
 		t.Fatalf("CleanupEphemeralData() stats = %+v", stats)
 	}
-	for table, want := range map[string]int{"session": 1, "runtime_kv": 1, "sync_mutation": 1} {
+	for table, want := range map[string]int{"session": 1, "runtime_kv": 1} {
 		var count int
 		if err := s.GetDriver().GetDB().QueryRowContext(ctx, "SELECT COUNT(1) FROM "+table).Scan(&count); err != nil {
 			t.Fatalf("count %s: %v", table, err)

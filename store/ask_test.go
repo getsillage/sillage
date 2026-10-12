@@ -215,31 +215,3 @@ VALUES (?, 'other', 'Other', 'hash', 'test', ?, ?)`, otherAccount, now, now); er
 		t.Fatalf("deleted SetAskConversationArchived() error = %v, want sql.ErrNoRows", err)
 	}
 }
-
-func TestSyncMutationIdempotencyRoundTrip(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-	account := newTestAccount(t, s)
-
-	if _, ok, err := s.GetSyncMutation(ctx, account, "mut-1"); err != nil || ok {
-		t.Fatalf("GetSyncMutation before put = ok:%v err:%v, want not found", ok, err)
-	}
-
-	if err := s.PutSyncMutation(ctx, &store.SyncMutation{
-		AccountID:    account,
-		MutationID:   "mut-1",
-		ResourceType: "memo",
-		ResourceID:   "memo-1",
-		Result:       `{"status":"applied"}`,
-	}); err != nil {
-		t.Fatalf("PutSyncMutation() error = %v", err)
-	}
-
-	got, ok, err := s.GetSyncMutation(ctx, account, "mut-1")
-	if err != nil || !ok {
-		t.Fatalf("GetSyncMutation after put = ok:%v err:%v", ok, err)
-	}
-	if got.Result != `{"status":"applied"}` || got.ResourceID != "memo-1" {
-		t.Fatalf("stored mutation = %+v", got)
-	}
-}

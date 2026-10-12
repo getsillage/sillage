@@ -162,22 +162,6 @@ func askMessagePB(message *store.AskMessage) *apiv1.AskMessage {
 	}
 }
 
-func syncResultPB(result syncResult) *apiv1.SyncResult {
-	return &apiv1.SyncResult{
-		MutationId:     result.MutationID,
-		ResourceType:   result.ResourceType,
-		ResourceId:     result.ResourceID,
-		Status:         result.Status,
-		Reason:         result.Reason,
-		Message:        result.Message,
-		Idempotent:     result.Idempotent,
-		Resource:       memoPB(result.Resource),
-		ServerResource: memoPB(result.ServerResource),
-		ClientVersion:  result.ClientVersion,
-		ServerVersion:  result.ServerVersion,
-	}
-}
-
 func askSourceRefsPB(raw string) []*apiv1.AskSourceRef {
 	var refs []askSourceRef
 	if err := json.Unmarshal([]byte(raw), &refs); err != nil {

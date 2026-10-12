@@ -35,10 +35,9 @@ func TestHealthzAndReadyz(t *testing.T) {
 		t.Fatalf("secret.Load() error = %v", err)
 	}
 	srv, err := server.NewWithBuildInfo(ctx, p, storeInstance, secrets, server.BuildInfo{
-		Version:                   "v0.3.0-test",
-		Revision:                  "0123456789abcdef",
-		APIVersion:                "v1",
-		MinimumAndroidVersionCode: 9,
+		Version:    "v0.3.0-test",
+		Revision:   "0123456789abcdef",
+		APIVersion: "v1",
 	})
 	if err != nil {
 		t.Fatalf("server.New() error = %v", err)
@@ -68,9 +67,6 @@ func TestHealthzAndReadyz(t *testing.T) {
 		}
 		if rec.Header().Get("X-Request-ID") == "" {
 			t.Fatalf("GET %s missing request id", path)
-		}
-		if got := rec.Header().Get("X-Sillage-Min-Android-Version-Code"); got != "9" {
-			t.Fatalf("GET %s minimum Android version code = %q, want 9", path, got)
 		}
 
 		var body map[string]string
@@ -103,6 +99,23 @@ func TestLegacyBackupRoutesReturn404(t *testing.T) {
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusNotFound {
 			t.Fatalf("GET %s status = %d, want 404; body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestRetiredOperationsAreUnavailable(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	for _, operation := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/sync"},
+		{http.MethodPost, "/api/v1/sync:push"},
+		{http.MethodGet, "/sillage.api.v1.SyncService/PullSync"},
+		{http.MethodPost, "/sillage.api.v1.SyncService/PullSync"},
+		{http.MethodPost, "/sillage.api.v1.SyncService/PushSync"},
+	} {
+		res := doJSON(t, srv, operation.method, operation.path, nil, bearer(token))
+		if res.Code != http.StatusNotFound && res.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("%s %s status/body = %d %s, want unavailable route", operation.method, operation.path, res.Code, res.Body.String())
 		}
 	}
 }

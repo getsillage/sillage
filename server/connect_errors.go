@@ -27,8 +27,6 @@ func connectError(err error) error {
 	case isValidationError(err):
 		// Domain validation errors carry vetted, user-facing messages.
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, errTooManyChanges):
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("一次提交的变更过多"))
 	case errors.Is(err, sql.ErrNoRows):
 		return connect.NewError(connect.CodeNotFound, errors.New("资源不存在"))
 	case errors.Is(err, errAINotConfigured):

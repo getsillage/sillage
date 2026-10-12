@@ -166,7 +166,7 @@ func (s *Server) accountFromBearer(c *echo.Context) (*store.Account, error) {
 	return s.accountFromAccessToken(c, token)
 }
 
-// accountFromRequest authenticates browser-native requests that cannot send an
+// accountFromRequest authenticates browser requests that cannot send an
 // Authorization header (img tags, download links). It prefers the bearer header
 // and falls back to the HttpOnly access cookie. Use it only for safe GET reads;
 // mutating endpoints stay bearer-only so the cookie is never a CSRF write path.

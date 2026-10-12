@@ -526,9 +526,9 @@ func TestMemoSummaryAndKeyUnavailable(t *testing.T) {
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"summary"`) || !strings.Contains(res.Body.String(), `"inputTokens":11`) {
 		t.Fatalf("generate summary status/body = %d %s", res.Code, res.Body.String())
 	}
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"memoAi"`) || !strings.Contains(res.Body.String(), `"inputTokens":11`) {
-		t.Fatalf("sync memo ai status/body = %d %s", res.Code, res.Body.String())
+	res = doJSON(t, srv, http.MethodGet, "/api/v1/memos/"+memo["id"].(string), nil, bearer(token))
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"ai"`) || !strings.Contains(res.Body.String(), `"inputTokens":11`) {
+		t.Fatalf("memo detail ai status/body = %d %s", res.Code, res.Body.String())
 	}
 
 	srv.Secrets.EncryptionSecret = "different-secret"

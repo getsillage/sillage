@@ -100,7 +100,7 @@ make print-affected     # show gates without running them
 | Gate | Make target | What it runs |
 | --- | --- | --- |
 | Go | `make check-go` | `go mod tidy -diff`, tests, vet, govulncheck, build |
-| Proto | `make check-proto` | Buf lint/breaking/generate, and `contracts/proto/gen` drift |
+| Proto | `make check-proto` | Retirement boundary tests, Buf lint/breaking/generate, and `contracts/proto/gen` drift |
 | Web | `make check-web` | lint, typecheck, unit tests, production build, route-split/size budgets, embed policy |
 | Scale | `make check-scale` | 10,000 active records, 2,000 recoverable deletions, HTTP list/search pagination, and SQLite integrity budgets |
 | Upgrade | `make check-upgrade` | latest stable binary/data creation, candidate migration, representative data checks, old-binary schema rejection, and complete-backup rollback |

@@ -16,6 +16,4 @@ func (s *Server) registerConnectRoutes(e *echo.Echo) {
 	e.Any(memoPath+"*", echo.WrapHandler(memoHandler))
 	settingsPath, settingsHandler := apiv1connect.NewSettingsServiceHandler(&settingsService{server: s})
 	e.Any(settingsPath+"*", echo.WrapHandler(settingsHandler))
-	syncPath, syncHandler := apiv1connect.NewSyncServiceHandler(&syncService{server: s})
-	e.Any(syncPath+"*", echo.WrapHandler(syncHandler))
 }

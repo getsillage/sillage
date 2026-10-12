@@ -108,46 +108,6 @@ func (s *Store) GetMemoAI(ctx context.Context, memoID string) (*MemoAI, error) {
 WHERE memo_id = ? AND deleted_at IS NULL`, memoID))
 }
 
-type ListMemoAIOptions struct {
-	Limit             int
-	LookaheadPageSize int
-	UpdatedAfter      int64
-	UpdatedAfterID    string
-}
-
-func (s *Store) ListMemoAI(ctx context.Context, opts *ListMemoAIOptions) ([]*MemoAI, error) {
-	limit := opts.Limit
-	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
-		limit = 50
-	}
-	query := memoAISelect() + " WHERE 1 = 1"
-	args := []any{}
-	if opts.UpdatedAfter > 0 || opts.UpdatedAfterID != "" {
-		query += " AND (updated_at > ? OR (updated_at = ? AND memo_id > ?))"
-		args = append(args, opts.UpdatedAfter, opts.UpdatedAfter, opts.UpdatedAfterID)
-	}
-	query += " ORDER BY updated_at ASC, memo_id ASC LIMIT ?"
-	args = append(args, limit)
-	rows, err := s.driver.GetDB().QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list memo ai: %w", err)
-	}
-	defer rows.Close()
-
-	var items []*MemoAI
-	for rows.Next() {
-		item, err := scanMemoAI(rows)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate memo ai: %w", err)
-	}
-	return items, nil
-}
-
 func scanMemoAI(row interface {
 	Scan(dest ...any) error
 }) (*MemoAI, error) {

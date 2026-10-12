@@ -733,68 +733,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-    /api/v1/sync:
-        get:
-            tags:
-                - SyncService
-            description: |-
-                PullSync returns changes after the given cursor, including tombstones, in
-                 pages. Attachments are pull-only (metadata).
-            operationId: SyncService_PullSync
-            parameters:
-                - name: cursor
-                  in: query
-                  description: |-
-                    cursor is an opaque position from a prior response; empty means from the
-                     beginning.
-                  schema:
-                    type: string
-                - name: limit
-                  in: query
-                  schema:
-                    type: integer
-                    format: int32
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PullSyncResponse'
-                default:
-                    description: Default error response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Status'
-    /api/v1/sync:push:
-        post:
-            tags:
-                - SyncService
-            description: |-
-                PushSync applies a batch of client mutations. Each is keyed by mutation_id;
-                 a stored prior result can be replayed, while a stale base_version yields a
-                 conflict result rather than an error.
-            operationId: SyncService_PushSync
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/PushSyncRequest'
-                required: true
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PushSyncResponse'
-                default:
-                    description: Default error response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Status'
 components:
     schemas:
         AIProfile:
@@ -1042,8 +980,7 @@ components:
                     format: date-time
             description: |-
                 Attachment is a file stored alongside a memo. Bytes live on disk; this
-                 message carries only metadata. In sync, attachments are pull-only (the
-                 server never accepts attachment pushes).
+                 message carries only metadata; uploads use the multipart REST endpoint.
         AttachmentResponse:
             type: object
             properties:
@@ -1069,15 +1006,12 @@ components:
                 serverVersion:
                     type: string
                     description: |-
-                        Public build metadata lets operators and clients diagnose a stale bundle
-                         or an unsupported mobile client without relying on container logs.
+                        Public build metadata lets operators diagnose a stale Web bundle or server
+                         without relying on container logs.
                 serverRevision:
                     type: string
                 apiVersion:
                     type: string
-                minimumAndroidVersionCode:
-                    type: integer
-                    format: int32
         ChangePasswordRequest:
             type: object
             properties:
@@ -1129,11 +1063,6 @@ components:
         CreateMemoRequest:
             type: object
             properties:
-                id:
-                    type: string
-                    description: |-
-                        id may be client-supplied so an offline memo keeps the same identity after
-                         sync. A duplicate id is not itself an idempotency key.
                 content:
                     type: string
                 entryDate:
@@ -1234,7 +1163,7 @@ components:
                 Memo is Sillage's only content unit; user-facing clients present it as a record.
                  Deletion first creates a recoverable tombstone. After permanent purge,
                  purged_time is set and user content has been scrubbed while the minimal row
-                 remains so sync clients can converge.
+                 remains for deletion and version checks.
         MemoAI:
             type: object
             properties:
@@ -1308,38 +1237,6 @@ components:
                     description: |-
                         Deprecated for new clients: use SetAIAutoSummary. Kept so older clients can
                          update the global setting while replacing the profile set.
-        PullSyncResponse:
-            type: object
-            properties:
-                memos:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/Memo'
-                attachments:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/Attachment'
-                memoAi:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/MemoAI'
-                askConversations:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/AskConversation'
-                askMessages:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/AskMessage'
-                cursor:
-                    type: string
-                    description: |-
-                        cursor and next_cursor are the server position after this page. Clients
-                         should persist next_cursor only after applying the returned resources.
-                nextCursor:
-                    type: string
-                hasMore:
-                    type: boolean
         PurgeMemoRequest:
             type: object
             properties:
@@ -1347,20 +1244,6 @@ components:
                     type: string
                 expectedVersion:
                     type: string
-        PushSyncRequest:
-            type: object
-            properties:
-                changes:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/SyncChange'
-        PushSyncResponse:
-            type: object
-            properties:
-                results:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/SyncResult'
         RefreshRequest:
             type: object
             properties: {}
@@ -1432,82 +1315,6 @@ components:
                         $ref: '#/components/schemas/GoogleProtobufAny'
                     description: A list of messages that carry the error details.  There is a common set of message types for APIs to use.
             description: 'The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).'
-        SyncChange:
-            type: object
-            properties:
-                mutationId:
-                    type: string
-                    description: mutation_id is a client-generated unique key used to find a stored result.
-                resourceType:
-                    type: string
-                resourceId:
-                    type: string
-                action:
-                    type: string
-                    description: action is "create" | "update" | "delete" | "restore" | "purge".
-                baseVersion:
-                    type: string
-                    description: |-
-                        base_version is the memo version the client based this change on; used for
-                         conflict detection on update/delete/restore/purge. Create omits it.
-                localChangedAt:
-                    type: string
-                memo:
-                    $ref: '#/components/schemas/SyncMemoPayload'
-            description: |-
-                SyncChange is one client mutation. Only resource_type "memo" is accepted on
-                 push today.
-        SyncMemoPayload:
-            type: object
-            properties:
-                id:
-                    type: string
-                content:
-                    type: string
-                entryDate:
-                    type: string
-                pinned:
-                    type: boolean
-                    description: Deprecated compatibility alias for clients released before favorites.
-                archived:
-                    type: boolean
-                favorited:
-                    type: boolean
-        SyncResult:
-            type: object
-            properties:
-                mutationId:
-                    type: string
-                resourceType:
-                    type: string
-                resourceId:
-                    type: string
-                status:
-                    type: string
-                    description: status is "applied" | "conflict" | "rejected".
-                reason:
-                    type: string
-                    description: reason is a machine code complementing a non-applied status.
-                message:
-                    type: string
-                idempotent:
-                    type: boolean
-                    description: |-
-                        idempotent is true when this mutation_id was already applied and the stored
-                         result was replayed.
-                resource:
-                    allOf:
-                        - $ref: '#/components/schemas/Memo'
-                    description: resource is the server state after a successful apply.
-                serverResource:
-                    allOf:
-                        - $ref: '#/components/schemas/Memo'
-                    description: server_resource is the current server state when status is "conflict".
-                clientVersion:
-                    type: string
-                serverVersion:
-                    type: string
-            description: SyncResult is the per-change outcome, returned in request order.
         UpdateMemoRequest:
             type: object
             properties:
@@ -1545,17 +1352,8 @@ tags:
         MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
          favoriting, and archiving carry expected_version for optimistic concurrency;
          a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
-         Creation may use a caller-supplied id for offline identity. SyncService uses
-         mutation_id to correlate retries and replay a previously stored result.
-         Summary generation only writes derived AI data and carries no
-         expected_version.
     - name: SettingsService
       description: |-
         SettingsService manages AI profiles and account-wide AI behavior. Get never
          returns API keys; Patch replaces the full profile set (api_key omitted = keep
          the stored key), while SetAIAutoSummary never mutates profiles.
-    - name: SyncService
-      description: |-
-        SyncService is the offline-sync surface used by mobile clients. Pull
-         streams server changes since a cursor; push applies client mutations with
-         stored-result replay and version-based conflict detection.

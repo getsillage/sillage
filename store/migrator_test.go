@@ -34,8 +34,8 @@ func TestMigrateFreshInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version != "0.1.5" {
-		t.Fatalf("schema version = %q, want 0.1.5", version)
+	if version != "0.1.6" {
+		t.Fatalf("schema version = %q, want 0.1.6", version)
 	}
 	if !columnExists(t, s, "memo", "favorited_at") {
 		t.Fatal("fresh memo schema is missing favorited_at")
@@ -66,7 +66,7 @@ func TestMigrateFreshInstall(t *testing.T) {
 			t.Fatalf("expected table %s to exist", table)
 		}
 	}
-	for _, table := range []string{"tag", "memo_relation", "reaction", "memo_share"} {
+	for _, table := range []string{"tag", "memo_relation", "reaction", "memo_share", "sync_mutation"} {
 		if tableExists(t, s, table) {
 			t.Fatalf("table %s must not exist in Sillage schema", table)
 		}
@@ -229,8 +229,8 @@ VALUES ('m1', 'a1', 'legacy favorite', '2026-07-10', 1, ?, ?, ?);`,
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() after compat migration error = %v", err)
 	}
-	if version != "0.1.5" {
-		t.Fatalf("schema version after compat migration = %q, want 0.1.5", version)
+	if version != "0.1.6" {
+		t.Fatalf("schema version after compat migration = %q, want 0.1.6", version)
 	}
 	memo, err = s.GetMemo(ctx, "a1", "m1", false)
 	if err != nil {
@@ -320,8 +320,8 @@ INSERT INTO ask_messages (
 	if err != nil {
 		t.Fatalf("GetSchemaVersion() error = %v", err)
 	}
-	if version != "0.1.5" {
-		t.Fatalf("schema version = %q, want 0.1.5", version)
+	if version != "0.1.6" {
+		t.Fatalf("schema version = %q, want 0.1.6", version)
 	}
 	legacy, err := s.GetAskMessage(ctx, "legacy-message")
 	if err != nil {
@@ -420,4 +420,33 @@ func columnExists(t *testing.T, s *store.Store, table, column string) bool {
 		t.Fatalf("columnExists(%s.%s) rows error = %v", table, column, err)
 	}
 	return false
+}
+
+func TestMigrateRetiresUnusedMutationLogAndPreservesContent(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	accountID := newTestAccount(t, s)
+	memo := seedMemo(t, s, accountID, "existing record")
+	if _, err := s.GetDriver().GetDB().ExecContext(ctx, `
+CREATE TABLE sync_mutation (account_id TEXT, mutation_id TEXT, result TEXT);
+INSERT INTO sync_mutation VALUES (?, 'old-operation', '{}');
+UPDATE system_setting SET value = '0.1.5' WHERE key = 'schema_version';`, accountID); err != nil {
+		t.Fatalf("seed existing database: %v", err)
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := s.Migrate(ctx); err != nil {
+			t.Fatalf("Migrate() attempt %d: %v", attempt, err)
+		}
+		if tableExists(t, s, "sync_mutation") {
+			t.Fatal("retired mutation log remains in migrated database")
+		}
+		got, err := s.GetMemo(ctx, accountID, memo.ID, false)
+		if err != nil || got.Content != memo.Content || got.Version != memo.Version {
+			t.Fatalf("migration changed record: got=%#v err=%v", got, err)
+		}
+		version, err := s.GetSchemaVersion(ctx)
+		if err != nil || version != "0.1.6" {
+			t.Fatalf("schema version = %q, err=%v", version, err)
+		}
+	}
 }

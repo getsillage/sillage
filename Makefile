@@ -55,6 +55,7 @@ check-go:
 	go build ./cmd/sillage
 
 check-proto:
+	node --test scripts/prepare-proto-baseline.test.mjs
 	bash scripts/check-proto.sh
 
 check-web:

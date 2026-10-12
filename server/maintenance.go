@@ -53,11 +53,10 @@ func (s *Server) runMaintenance(ctx context.Context, now time.Time) {
 	stats, err := s.Store.CleanupEphemeralData(ctx, now)
 	if err != nil {
 		slog.Warn("cleanup ephemeral data", "error", err)
-	} else if stats.Sessions+stats.RuntimeValues+stats.SyncMutations > 0 {
+	} else if stats.Sessions+stats.RuntimeValues > 0 {
 		slog.Info("cleaned ephemeral data",
 			"sessions", stats.Sessions,
 			"runtime_values", stats.RuntimeValues,
-			"sync_mutations", stats.SyncMutations,
 		)
 	}
 	refs, err := s.Store.ListAttachmentStorageRefs(ctx)

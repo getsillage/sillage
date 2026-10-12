@@ -66,7 +66,6 @@ func (s *memoService) CreateMemo(ctx context.Context, req *connect.Request[apiv1
 		return nil, err
 	}
 	memo, err := s.server.memos.Create(ctx, account.ID, memoapp.CreateInput{
-		ID:        req.Msg.GetId(),
 		Content:   req.Msg.GetContent(),
 		EntryDate: req.Msg.GetEntryDate(),
 	})

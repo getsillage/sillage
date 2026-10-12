@@ -13,10 +13,19 @@ fi
 buf lint
 
 BASE_SHA="${BASE_SHA:-${BASE_REF:-}}"
+PROTO_BASE_REF=""
 if [[ -n "$BASE_SHA" ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-  buf breaking --against ".git#ref=${BASE_SHA}"
+  PROTO_BASE_REF="$BASE_SHA"
 elif [[ -n "${GITHUB_BASE_REF:-}" ]]; then
-  buf breaking --against ".git#branch=${GITHUB_BASE_REF}"
+  PROTO_BASE_REF="$GITHUB_BASE_REF"
+fi
+
+if [[ -n "$PROTO_BASE_REF" ]]; then
+  baseline_dir="$(mktemp -d)"
+  trap 'rm -rf "$baseline_dir"' EXIT
+  git archive "$PROTO_BASE_REF" buf.yaml buf.lock contracts/proto | tar -x -C "$baseline_dir"
+  node scripts/prepare-proto-baseline.mjs "$baseline_dir/contracts/proto" contracts/proto
+  buf breaking --against "$baseline_dir"
 else
   echo "check-proto: no BASE_SHA; skipping buf breaking (lint + generate only)."
 fi

@@ -34,7 +34,7 @@ Permanent deletion cannot be undone through Sillage. It immediately scrubs the r
 
 The server retains a minimal purged tombstone containing structural metadata rather than the original body. This prevents stale requests from restoring permanently deleted content. Shared attachment bytes are retained while another non-purged record still references them. When the last live reference is permanently deleted, the attachment metadata is tombstoned and the maintenance task removes the server file bytes. Deleting an AI profile separately clears the encrypted API key envelope stored in the current server database, but older backups may still contain it.
 
-Other ephemeral data is also cleaned automatically at startup and every six hours. Expired or revoked refresh sessions and expired runtime values are removed. The existing server bulk-operation retry log retains results for 90 days; a retry beyond that window is not a guaranteed replay. Deleted attachment metadata remains as a tombstone, while its file bytes are removed; unreferenced attachment files older than 24 hours are also removed to recover from interrupted uploads or metadata writes.
+Other ephemeral data is also cleaned automatically at startup and every six hours. Expired or revoked refresh sessions and expired runtime values are removed. Deleted attachment metadata remains as a tombstone, while its file bytes are removed; unreferenced attachment files older than 24 hours are also removed to recover from interrupted uploads or metadata writes.
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
@@ -156,9 +156,9 @@ Only remove or otherwise handle `ROLLBACK` after confirming that sign-in, record
 
 Stop the instance and verify a complete backup before changing its image or
 binary. Startup applies compatible schema upgrades automatically. The current
-schema is `0.1.5`. The client and toolchain cleanup does not migrate the database
-or remove server records, attachments, account data, sessions, deletion
-tombstones, or legacy retry logs. Check `/readyz`, sign-in, representative records, search, attachments, and
+schema is `0.1.6`; upgrading from `0.1.5` preserves records, attachment bytes,
+account data, sessions, and deletion tombstones while removing an unused retry
+log. Check `/readyz`, sign-in, representative records, search, attachments, and
 AI settings before opening the upgraded instance to traffic.
 
 An older binary rejects a database whose schema is newer than it supports.

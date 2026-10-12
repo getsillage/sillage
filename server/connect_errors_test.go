@@ -17,7 +17,6 @@ func TestConnectErrorMapping(t *testing.T) {
 		want connect.Code
 	}{
 		{"validation", validationError{message: "字段非法"}, connect.CodeInvalidArgument},
-		{"too many changes", errTooManyChanges, connect.CodeInvalidArgument},
 		{"not found", sql.ErrNoRows, connect.CodeNotFound},
 		{"conflict", &store.MemoConflictError{}, connect.CodeAborted},
 		{"ai not configured", errAINotConfigured, connect.CodeFailedPrecondition},

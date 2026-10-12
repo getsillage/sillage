@@ -32,7 +32,6 @@ export type BootstrapInfo = {
   serverVersion?: string;
   serverRevision?: string;
   apiVersion?: string;
-  minimumAndroidVersionCode?: number;
 };
 
 export type Memo = {

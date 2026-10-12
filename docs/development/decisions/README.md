@@ -18,6 +18,7 @@ Link any superseded ADR. Do not use ADRs for task plans, routine implementation 
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-12 | [Web as the sole application client](2026-10-12-web-only-client.md) |
 | 2026-07-30 | [Recoverable record deletion and scrubbed tombstones](2026-07-30-record-deletion-lifecycle.md) |
 | 2026-07-30 | [Unified verification entry](2026-07-30-unified-verification-entry.md) |
 | 2026-07-30 | [Limited Dependabot PRs](2026-07-30-dependabot-limited-prs.md) |

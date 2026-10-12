@@ -15,9 +15,6 @@ type Store struct {
 	tx      *sql.Tx
 }
 
-// MaxSyncPageLimit caps each resource stream returned by one sync pull.
-const MaxSyncPageLimit = 200
-
 func New(driver Driver, profile *profile.Profile) *Store {
 	return &Store{driver: driver, profile: profile}
 }
@@ -55,9 +52,8 @@ func (s *Store) db() dbRunner {
 	return s.driver.GetDB()
 }
 
-// WithTransaction runs fn against a transaction-scoped Store. Memo and sync
-// mutation methods use the same transaction so an idempotency result can never
-// commit separately from the resource write it describes.
+// WithTransaction runs fn against a transaction-scoped Store so related
+// resource writes commit atomically.
 func (s *Store) WithTransaction(ctx context.Context, fn func(*Store) error) error {
 	if s.tx != nil {
 		return fmt.Errorf("nested store transactions are not supported")

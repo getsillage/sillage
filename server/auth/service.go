@@ -368,7 +368,7 @@ func RefreshTokenFromCookie(r *http.Request) string {
 }
 
 // SetAccessCookie mirrors the access token into an HttpOnly cookie so that
-// browser-native requests (img tags, download links) that cannot send an
+// browser requests (img tags, download links) that cannot send an
 // Authorization header can still be authenticated. It shares the access
 // token's lifetime and is refreshed alongside it.
 func SetAccessCookie(w http.ResponseWriter, r *http.Request, token string) {

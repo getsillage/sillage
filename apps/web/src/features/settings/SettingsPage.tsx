@@ -74,14 +74,6 @@ export function SettingsPage({
                 {buildInfo?.apiVersion || "v1"}
               </dd>
             </div>
-            <div>
-              <dt className="text-gray-500 dark:text-gray-400">
-                {t("settings.minimumAndroidVersion")}
-              </dt>
-              <dd className="mt-1 font-mono text-gray-900 dark:text-gray-100">
-                {buildInfo?.minimumAndroidVersionCode ?? 9}
-              </dd>
-            </div>
           </dl>
           {!buildsMatch ? (
             <p

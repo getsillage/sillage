@@ -124,14 +124,8 @@ type ListMemoOptions struct {
 	LookaheadPageSize int
 	IncludeDeleted    bool
 	Deleted           *bool
-	// Sync selects the forward updated_at walk (oldest first) used by sync pull
-	// and the Ask candidate scan. Without it, listing is reverse-chronological
-	// by entry date.
-	Sync           bool
-	UpdatedAfter   int64
-	UpdatedAfterID string
-	Archived       *bool
-	Favorited      *bool
+	Archived          *bool
+	Favorited         *bool
 	// LegacyFavoritedFirst continues a v1 pinned-first cursor after pinned_at
 	// has been migrated to favorited_at. New list requests leave it false.
 	LegacyFavoritedFirst bool
@@ -175,29 +169,22 @@ WHERE creator_id = ?`
 			query += " AND deleted_at IS NULL"
 		}
 	}
-	if opts.Sync {
-		if opts.UpdatedAfter > 0 || opts.UpdatedAfterID != "" {
-			query += " AND (updated_at > ? OR (updated_at = ? AND id > ?))"
-			args = append(args, opts.UpdatedAfter, opts.UpdatedAfter, opts.UpdatedAfterID)
-		}
-		query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
-	} else {
-		query += memoStateFilterClause("", opts.Archived, opts.Favorited)
-		deletedOnly := opts.Deleted != nil && *opts.Deleted
-		if deletedOnly {
-			if opts.BeforeID != "" {
-				query += ` AND (deleted_at < ?
+	query += memoStateFilterClause("", opts.Archived, opts.Favorited)
+	deletedOnly := opts.Deleted != nil && *opts.Deleted
+	if deletedOnly {
+		if opts.BeforeID != "" {
+			query += ` AND (deleted_at < ?
 	  OR (deleted_at = ? AND id < ?))`
-				args = append(args, opts.BeforeDeletedAt, opts.BeforeDeletedAt, opts.BeforeID)
+			args = append(args, opts.BeforeDeletedAt, opts.BeforeDeletedAt, opts.BeforeID)
+		}
+		query += " ORDER BY deleted_at DESC, id DESC LIMIT ?"
+	} else if opts.BeforeID != "" {
+		if opts.LegacyFavoritedFirst && opts.BeforeFavorited != nil {
+			beforeFavorited := 0
+			if *opts.BeforeFavorited {
+				beforeFavorited = 1
 			}
-			query += " ORDER BY deleted_at DESC, id DESC LIMIT ?"
-		} else if opts.BeforeID != "" {
-			if opts.LegacyFavoritedFirst && opts.BeforeFavorited != nil {
-				beforeFavorited := 0
-				if *opts.BeforeFavorited {
-					beforeFavorited = 1
-				}
-				query += ` AND (
+			query += ` AND (
   CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END < ?
   OR (CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END = ? AND (
     entry_date < ?
@@ -205,31 +192,30 @@ WHERE creator_id = ?`
 	OR (entry_date = ? AND created_at = ? AND id < ?)
   ))
 )`
-				args = append(args,
-					beforeFavorited, beforeFavorited,
-					opts.BeforeEntryDate,
-					opts.BeforeEntryDate, opts.BeforeCreatedAt,
-					opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
-				)
-			} else {
-				query += ` AND (entry_date < ?
+			args = append(args,
+				beforeFavorited, beforeFavorited,
+				opts.BeforeEntryDate,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
+			)
+		} else {
+			query += ` AND (entry_date < ?
 	  OR (entry_date = ? AND created_at < ?)
 	  OR (entry_date = ? AND created_at = ? AND id < ?))`
-				args = append(args,
-					opts.BeforeEntryDate,
-					opts.BeforeEntryDate, opts.BeforeCreatedAt,
-					opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
-				)
-			}
+			args = append(args,
+				opts.BeforeEntryDate,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt,
+				opts.BeforeEntryDate, opts.BeforeCreatedAt, opts.BeforeID,
+			)
 		}
-		if deletedOnly {
-			// The deleted-only branch already selected its lifecycle ordering.
-		} else if opts.LegacyFavoritedFirst {
-			query += ` ORDER BY CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END DESC,
+	}
+	if deletedOnly {
+		// The deleted-only branch already selected its lifecycle ordering.
+	} else if opts.LegacyFavoritedFirst {
+		query += ` ORDER BY CASE WHEN favorited_at IS NOT NULL THEN 1 ELSE 0 END DESC,
   entry_date DESC, created_at DESC, id DESC LIMIT ?`
-		} else {
-			query += " ORDER BY entry_date DESC, created_at DESC, id DESC LIMIT ?"
-		}
+	} else {
+		query += " ORDER BY entry_date DESC, created_at DESC, id DESC LIMIT ?"
 	}
 	args = append(args, limit)
 

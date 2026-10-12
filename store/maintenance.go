@@ -8,13 +8,11 @@ import (
 	"time"
 )
 
-const SyncMutationRetention = 90 * 24 * time.Hour
 const DeletedMemoRetention = 30 * 24 * time.Hour
 
 type MaintenanceStats struct {
 	Sessions      int64
 	RuntimeValues int64
-	SyncMutations int64
 }
 
 type AttachmentStorageRef struct {
@@ -23,7 +21,7 @@ type AttachmentStorageRef struct {
 }
 
 // PurgeExpiredMemos scrubs records after the recovery window while retaining
-// a minimal tombstone so long-offline clients can still converge.
+// a minimal tombstone to prevent restoring permanently removed content.
 func (s *Store) PurgeExpiredMemos(ctx context.Context, now time.Time) (int64, error) {
 	rows, err := s.driver.GetDB().QueryContext(ctx, `
 SELECT id, creator_id, version
@@ -67,8 +65,7 @@ ORDER BY deleted_at ASC, id ASC`, now.Add(-DeletedMemoRetention).UTC().UnixMilli
 }
 
 // CleanupEphemeralData removes rows that are no longer part of durable user
-// state. Resource tombstones are intentionally excluded because offline clients
-// need them to converge after long gaps.
+// state. Resource tombstones remain available for deletion and version checks.
 func (s *Store) CleanupEphemeralData(ctx context.Context, now time.Time) (MaintenanceStats, error) {
 	tx, err := s.driver.GetDB().BeginTx(ctx, nil)
 	if err != nil {
@@ -88,12 +85,6 @@ DELETE FROM runtime_kv
 WHERE expires_at IS NOT NULL AND expires_at <= ?`, now.UTC().UnixMilli())
 	if err != nil {
 		return MaintenanceStats{}, fmt.Errorf("cleanup runtime values: %w", err)
-	}
-	stats.SyncMutations, err = deleteAndCount(ctx, tx, `
-DELETE FROM sync_mutation
-WHERE created_at < ?`, now.Add(-SyncMutationRetention).UTC().UnixMilli())
-	if err != nil {
-		return MaintenanceStats{}, fmt.Errorf("cleanup sync mutations: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return MaintenanceStats{}, fmt.Errorf("commit ephemeral cleanup: %w", err)

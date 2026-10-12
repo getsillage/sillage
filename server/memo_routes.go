@@ -15,7 +15,6 @@ import (
 )
 
 type memoRequest struct {
-	ID              string  `json:"id"`
 	Content         *string `json:"content"`
 	EntryDate       *string `json:"entryDate"`
 	ExpectedVersion int64   `json:"expectedVersion"`
@@ -30,8 +29,6 @@ func (s *Server) registerMemoRoutes(e *echo.Echo) {
 	e.PATCH("/api/v1/memos/:memo", s.handleUpdateMemo)
 	e.DELETE("/api/v1/memos/:memo", s.handleDeleteMemo)
 	e.POST("/api/v1/memos/:memo", s.handleMemoAction)
-	e.GET("/api/v1/sync", s.handleSyncPull)
-	e.POST("/api/v1/sync:push", s.handleSyncPush)
 }
 
 func (s *Server) handleListMemos(c *echo.Context) error {
@@ -102,7 +99,6 @@ func (s *Server) handleCreateMemo(c *echo.Context) error {
 	content := stringValue(req.Content)
 	entryDate := stringValue(req.EntryDate)
 	memo, err := s.memos.Create(c.Request().Context(), account.ID, memoapp.CreateInput{
-		ID:        req.ID,
 		Content:   content,
 		EntryDate: entryDate,
 	})

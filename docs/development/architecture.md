@@ -102,8 +102,8 @@ The repository commits generated Proto projections in `contracts/proto/gen/`; th
 - Connect v1: `/sillage.api.v1.<Service>/<Method>`.
 - Protobuf is the Connect contract source. `contracts/proto/gen/openapi/openapi.yaml` is only a generated projection of Proto HTTP annotations, not the complete REST contract.
 - See the [REST API Guide](api/README.md) for REST v1 authentication, error models, versioning rules, and handwritten extensions. The implementation sources of truth are `server/*_routes.go`.
-- The Web client maintains handwritten types in `apps/web/src/lib/api.ts`. Legacy bulk record-transfer handlers and compatibility fields remain server-side until the separate API cleanup; the Web client does not use them.
-- Public bootstrap metadata and `X-Sillage-*` response headers currently expose the server version, revision, API generation, and a legacy minimum-client compatibility value; they must never contain secrets or deployment identifiers.
+- The Web client maintains handwritten types in `apps/web/src/lib/api.ts`.
+- Public bootstrap metadata and `X-Sillage-*` response headers currently expose the server version, revision, and API generation; they must never contain secrets or deployment identifiers.
 
 Contract changes must update Proto, generated artifacts, affected REST/Connect adapters, clients, and tests. See the [Contributing Guide](../../CONTRIBUTING.md) for the procedure.
 
@@ -115,7 +115,6 @@ Contract changes must update Proto, generated artifacts, affected REST/Connect a
 | Database schema and upgrades | `store/migration/sqlite/LATEST.sql`, `store/migrator.go` |
 | REST routes | `server/*_routes.go` |
 | Business services | `server/memo/`, `server/auth/`, `server/api_service.go` |
-| Legacy bulk-transfer handlers | `server/sync_routes.go`, `server/sync_apply.go` |
 | Connect / OpenAPI projection | `contracts/proto/api/v1/`, `contracts/proto/gen/openapi/openapi.yaml` |
 | REST contract | `docs/development/api/README.md`, `server/*_routes.go`, REST behavior tests |
 | Web theme and component styles | `apps/web/src/styles/app.css`, `apps/web/src/components/ui.ts` |

@@ -170,12 +170,9 @@ func (x *ListMemosResponse) GetNextCursor() string {
 }
 
 type CreateMemoRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// id may be client-supplied so an offline memo keeps the same identity after
-	// sync. A duplicate id is not itself an idempotency key.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	EntryDate     string `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	EntryDate     string                 `protobuf:"bytes,3,opt,name=entry_date,json=entryDate,proto3" json:"entry_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,13 +205,6 @@ func (x *CreateMemoRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateMemoRequest.ProtoReflect.Descriptor instead.
 func (*CreateMemoRequest) Descriptor() ([]byte, []int) {
 	return file_api_v1_memo_service_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *CreateMemoRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
 }
 
 func (x *CreateMemoRequest) GetContent() string {
@@ -799,12 +789,11 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\x11ListMemosResponse\x12*\n" +
 	"\x05memos\x18\x01 \x03(\v2\x14.sillage.api.v1.MemoR\x05memos\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\"\\\n" +
-	"\x11CreateMemoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"nextCursor\"R\n" +
+	"\x11CreateMemoRequest\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
-	"entry_date\x18\x03 \x01(\tR\tentryDate\" \n" +
+	"entry_date\x18\x03 \x01(\tR\tentryDateJ\x04\b\x01\x10\x02\" \n" +
 	"\x0eGetMemoRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x99\x02\n" +
 	"\x11UpdateMemoRequest\x12\x0e\n" +

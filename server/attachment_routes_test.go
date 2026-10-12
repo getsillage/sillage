@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestAttachmentUploadDownloadDeleteAndSync(t *testing.T) {
+func TestAttachmentUploadDownloadAndDelete(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 
@@ -88,13 +88,6 @@ func TestAttachmentUploadDownloadDeleteAndSync(t *testing.T) {
 		t.Fatalf("download deleted status = %d, want 404", rec.Code)
 	}
 
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("sync status = %d body=%s", res.Code, res.Body.String())
-	}
-	if !strings.Contains(res.Body.String(), `"attachments"`) || !strings.Contains(res.Body.String(), `"deletedAt"`) {
-		t.Fatalf("sync response missing attachment tombstone: %s", res.Body.String())
-	}
 }
 
 func TestAttachmentRejectsUnsafeFilename(t *testing.T) {
@@ -245,7 +238,7 @@ func TestAttachmentDownloadAuthenticatesViaAccessCookie(t *testing.T) {
 	}
 	cookie := findCookie(initRes, "sillage_access")
 	if cookie == nil || cookie.Value == "" {
-		t.Fatal("initialize should set an access cookie for browser-native requests")
+		t.Fatal("initialize should set an access cookie for browser requests")
 	}
 
 	body, contentType := multipartBody(t, "note.txt", "cookie attachment", map[string]string{

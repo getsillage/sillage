@@ -65,10 +65,8 @@ test.describe("fresh-instance release journeys", () => {
       serverVersion: string;
       serverRevision: string;
       apiVersion: string;
-      minimumAndroidVersionCode: number;
     }>(bootstrapResponse);
     expect(bootstrap.apiVersion).toBe("v1");
-    expect(bootstrap.minimumAndroidVersionCode).toBe(9);
     expect(bootstrap.serverVersion).toBeTruthy();
     expect(bootstrap.serverRevision).toBeTruthy();
     expect(bootstrapResponse.headers()["cache-control"]).toBe("no-store");
@@ -1092,25 +1090,6 @@ async function cleanupE2EState(
         data: { expectedVersion: memo.version },
       }),
     );
-  }
-
-  const sync = await json<{
-    attachments: Array<{
-      uid: string;
-      filename: string;
-      deletedAt: string | null;
-    }>;
-  }>(
-    await request.get("/api/v1/sync?limit=500", {
-      headers: bearer(token),
-    }),
-  );
-  for (const attachment of sync.attachments) {
-    if (attachment.filename === ATTACHMENT_FILENAME && !attachment.deletedAt) {
-      await request.delete(`/api/v1/attachments/${attachment.uid}`, {
-        headers: bearer(token),
-      });
-    }
   }
 }
 

@@ -103,7 +103,7 @@ func (x *Account) GetUpdatedTime() *timestamppb.Timestamp {
 // Memo is Sillage's only content unit; user-facing clients present it as a record.
 // Deletion first creates a recoverable tombstone. After permanent purge,
 // purged_time is set and user content has been scrubbed while the minimal row
-// remains so sync clients can converge.
+// remains for deletion and version checks.
 type Memo struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -226,8 +226,7 @@ func (x *Memo) GetPurgedTime() *timestamppb.Timestamp {
 }
 
 // Attachment is a file stored alongside a memo. Bytes live on disk; this
-// message carries only metadata. In sync, attachments are pull-only (the
-// server never accepts attachment pushes).
+// message carries only metadata; uploads use the multipart REST endpoint.
 type Attachment struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

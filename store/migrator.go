@@ -18,7 +18,7 @@ var migrationFS embed.FS
 const (
 	latestSchemaFileName = "migration/sqlite/LATEST.sql"
 	minimumSchemaVersion = "0.1.0"
-	currentSchemaVersion = "0.1.5"
+	currentSchemaVersion = "0.1.6"
 	schemaVersionKey     = "schema_version"
 )
 
@@ -146,6 +146,9 @@ func (s *Store) EnsureCompatSchema(ctx context.Context) error {
 	}
 	if err := s.ensureAskMessageCompat(ctx); err != nil {
 		return err
+	}
+	if _, err := s.driver.GetDB().ExecContext(ctx, "DROP TABLE IF EXISTS sync_mutation"); err != nil {
+		return fmt.Errorf("remove retired mutation log: %w", err)
 	}
 	return nil
 }

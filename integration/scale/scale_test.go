@@ -117,13 +117,9 @@ func TestLongTermPersonalUseScale(t *testing.T) {
 		t.Fatalf("deleted first page = %d records, cursor=%q", len(deleted.Memos), deleted.NextCursor)
 	}
 
-	syncIDs := traverseSync(t, client, httpServer.URL, auth.AccessToken)
-	if len(syncIDs) != activeMemoCount+deletedMemoCount {
-		t.Fatalf(
-			"sync traversal returned %d records, want %d",
-			len(syncIDs),
-			activeMemoCount+deletedMemoCount,
-		)
+	deletedIDs := traverseMemoPages(t, client, httpServer.URL, auth.AccessToken, true)
+	if len(deletedIDs) != deletedMemoCount {
+		t.Fatalf("deleted traversal returned %d records, want %d", len(deletedIDs), deletedMemoCount)
 	}
 
 	if elapsed := time.Since(started); elapsed > totalLimit {
@@ -250,35 +246,6 @@ func traverseMemoPages(
 		}
 		if payload.NextCursor == cursor {
 			t.Fatalf("memo traversal cursor did not advance: %q", cursor)
-		}
-		cursor = payload.NextCursor
-	}
-}
-
-func traverseSync(t *testing.T, client *http.Client, baseURL, accessToken string) map[string]struct{} {
-	t.Helper()
-	seen := make(map[string]struct{})
-	cursor := ""
-	for page := 0; ; page += 1 {
-		endpoint := baseURL + "/api/v1/sync?limit=200"
-		if cursor != "" {
-			endpoint += "&cursor=" + url.QueryEscape(cursor)
-		}
-		payload := timedGET[memoPage](t, client, endpoint, accessToken, fmt.Sprintf("sync page %d", page+1))
-		for _, memo := range payload.Memos {
-			if _, duplicate := seen[memo.ID]; duplicate {
-				t.Fatalf("sync traversal returned duplicate %s", memo.ID)
-			}
-			seen[memo.ID] = struct{}{}
-		}
-		if !payload.HasMore {
-			return seen
-		}
-		if payload.NextCursor == "" {
-			t.Fatal("sync traversal reported more data without a next cursor")
-		}
-		if payload.NextCursor == cursor {
-			t.Fatalf("sync cursor did not advance: %q", cursor)
 		}
 		cursor = payload.NextCursor
 	}

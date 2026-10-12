@@ -144,52 +144,6 @@ WHERE creator_id = ? AND idempotency_key = ?`, accountID, key))
 	return attachment, true, nil
 }
 
-type ListAttachmentOptions struct {
-	AccountID         string
-	Limit             int
-	LookaheadPageSize int
-	IncludeDeleted    bool
-	UpdatedAfter      int64
-	UpdatedAfterID    string
-}
-
-func (s *Store) ListAttachments(ctx context.Context, opts *ListAttachmentOptions) ([]*Attachment, error) {
-	limit := opts.Limit
-	if (limit <= 0 || limit > MaxSyncPageLimit) && !isPageLookahead(limit, opts.LookaheadPageSize, MaxSyncPageLimit) {
-		limit = 50
-	}
-	query := attachmentSelectBase() + " WHERE creator_id = ?"
-	args := []any{opts.AccountID}
-	if !opts.IncludeDeleted {
-		query += " AND deleted_at IS NULL"
-	}
-	if opts.UpdatedAfter > 0 || opts.UpdatedAfterID != "" {
-		query += " AND (updated_at > ? OR (updated_at = ? AND id > ?))"
-		args = append(args, opts.UpdatedAfter, opts.UpdatedAfter, opts.UpdatedAfterID)
-	}
-	query += " ORDER BY updated_at ASC, id ASC LIMIT ?"
-	args = append(args, limit)
-
-	rows, err := s.driver.GetDB().QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list attachments: %w", err)
-	}
-	defer rows.Close()
-
-	var attachments []*Attachment
-	for rows.Next() {
-		attachment, err := scanAttachment(rows)
-		if err != nil {
-			return nil, err
-		}
-		attachments = append(attachments, attachment)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate attachments: %w", err)
-	}
-	return attachments, nil
-}
-
 func (s *Store) DeleteAttachment(ctx context.Context, accountID, uid string) (*Attachment, error) {
 	now := time.Now().UTC().UnixMilli()
 	result, err := s.driver.GetDB().ExecContext(ctx, `

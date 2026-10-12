@@ -51,7 +51,6 @@ type drillReport struct {
 	Attachment        bool   `json:"attachment"`
 	AISettings        bool   `json:"aiSettings"`
 	AIKeyDecryption   bool   `json:"aiKeyDecryption"`
-	SyncBootstrap     bool   `json:"syncBootstrap"`
 	RollbackPreserved bool   `json:"rollbackPreserved"`
 	Result            string `json:"result"`
 }
@@ -157,20 +156,6 @@ func TestBackupRestoreDrill(t *testing.T) {
 
 	generateSummary(t, restored.baseURL, restoredToken, memo.ID)
 	report.AIKeyDecryption = true
-
-	sync := getJSON[struct {
-		Memos       []memoDTO       `json:"memos"`
-		Attachments []attachmentDTO `json:"attachments"`
-		MemoAI      []struct {
-			MemoID  string `json:"memoId"`
-			Summary string `json:"summary"`
-		} `json:"memoAi"`
-		NextCursor string `json:"nextCursor"`
-	}](t, restored.baseURL+"/api/v1/sync?limit=200", restoredToken)
-	if !containsMemo(sync.Memos, memo.ID) || !containsAttachment(sync.Attachments, attachment.UID) || !containsMemoAI(sync.MemoAI, memo.ID) || sync.NextCursor == "" {
-		t.Fatalf("restored sync bootstrap missing resources: memos=%#v attachments=%#v memoAI=%#v cursor=%q", sync.Memos, sync.Attachments, sync.MemoAI, sync.NextCursor)
-	}
-	report.SyncBootstrap = true
 
 	requireIntegrity(t, filepath.Join(rollbackDir, profile.DefaultSQLiteFile))
 	if !databaseContainsMemo(t, filepath.Join(rollbackDir, profile.DefaultSQLiteFile), postBackupMarker) {
@@ -601,36 +586,6 @@ func databaseContainsMemo(t *testing.T, databasePath, marker string) bool {
 		t.Fatal(err)
 	}
 	return count > 0
-}
-
-func containsMemo(memos []memoDTO, id string) bool {
-	for _, memo := range memos {
-		if memo.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
-func containsAttachment(attachments []attachmentDTO, uid string) bool {
-	for _, attachment := range attachments {
-		if attachment.UID == uid {
-			return true
-		}
-	}
-	return false
-}
-
-func containsMemoAI(items []struct {
-	MemoID  string `json:"memoId"`
-	Summary string `json:"summary"`
-}, memoID string) bool {
-	for _, item := range items {
-		if item.MemoID == memoID && item.Summary == "restore-drill summary" {
-			return true
-		}
-	}
-	return false
 }
 
 func freePort(t *testing.T) int {

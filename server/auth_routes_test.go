@@ -27,7 +27,7 @@ func TestAuthInitializeSignInRefreshSignOut(t *testing.T) {
 	if err := json.Unmarshal(res.Body.Bytes(), &bootstrap); err != nil {
 		t.Fatalf("decode bootstrap response: %v", err)
 	}
-	if bootstrap["serverVersion"] != "dev" || bootstrap["apiVersion"] != "v1" || bootstrap["minimumAndroidVersionCode"] != float64(9) {
+	if bootstrap["serverVersion"] != "dev" || bootstrap["apiVersion"] != "v1" {
 		t.Fatalf("bootstrap build metadata = %#v", bootstrap)
 	}
 	if got := res.Header().Get("Cache-Control"); got != "no-store" {

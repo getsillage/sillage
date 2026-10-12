@@ -15,7 +15,7 @@ import (
 	"github.com/getsillage/sillage/store"
 )
 
-func TestMemoCRUDAndSyncPull(t *testing.T) {
+func TestMemoCRUDAndLifecycle(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 	mockAI := newMockAIProvider(t)
@@ -133,28 +133,6 @@ func TestMemoCRUDAndSyncPull(t *testing.T) {
 		t.Fatalf("purged memo was not scrubbed: %#v", purged)
 	}
 
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync", nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("sync pull status = %d body=%s", res.Code, res.Body.String())
-	}
-	var syncRes map[string]any
-	if err := json.Unmarshal(res.Body.Bytes(), &syncRes); err != nil {
-		t.Fatalf("decode sync response: %v", err)
-	}
-	memos := syncRes["memos"].([]any)
-	if len(memos) != 1 {
-		t.Fatalf("sync memos len = %d, want 1", len(memos))
-	}
-	syncedMemo := memos[0].(map[string]any)
-	if syncedMemo["deletedAt"] == nil {
-		t.Fatal("sync must include tombstone")
-	}
-	if syncedMemo["purgedAt"] == nil || syncedMemo["content"] != "" {
-		t.Fatalf("sync must include scrubbed purge tombstone: %#v", syncedMemo)
-	}
-	if syncRes["cursor"].(string) == "" || syncRes["hasMore"].(bool) {
-		t.Fatalf("unexpected sync cursor/hasMore: %#v", syncRes)
-	}
 }
 
 func TestMemoCanonicalBoolActionsUseBodyAndCAS(t *testing.T) {
@@ -291,7 +269,7 @@ func TestMemoPinActionsAreRemoved(t *testing.T) {
 	}
 }
 
-func TestMemoListAndSyncMaxLimitLookahead(t *testing.T) {
+func TestMemoListMaxLimitLookahead(t *testing.T) {
 	srv := newTestServer(t)
 	token := initializeAndToken(t, srv)
 	ctx := context.Background()
@@ -341,47 +319,6 @@ func TestMemoListAndSyncMaxLimitLookahead(t *testing.T) {
 		t.Fatalf("second list len/cursor = %d/%q", len(second.Memos), second.NextCursor)
 	}
 
-	decodeSync := func(resBody []byte) struct {
-		Memos      []map[string]any `json:"memos"`
-		NextCursor string           `json:"nextCursor"`
-		HasMore    bool             `json:"hasMore"`
-	} {
-		t.Helper()
-		var payload struct {
-			Memos      []map[string]any `json:"memos"`
-			NextCursor string           `json:"nextCursor"`
-			HasMore    bool             `json:"hasMore"`
-		}
-		if err := json.Unmarshal(resBody, &payload); err != nil {
-			t.Fatalf("decode sync response: %v", err)
-		}
-		return payload
-	}
-
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync?limit=500", nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("first sync status = %d body=%s", res.Code, res.Body.String())
-	}
-	firstSync := decodeSync(res.Body.Bytes())
-	if len(firstSync.Memos) != store.MaxSyncPageLimit || !firstSync.HasMore || firstSync.NextCursor == "" {
-		t.Fatalf("first sync len/hasMore/cursor = %d/%t/%q", len(firstSync.Memos), firstSync.HasMore, firstSync.NextCursor)
-	}
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync?limit=500&cursor="+url.QueryEscape(firstSync.NextCursor), nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("second sync status = %d body=%s", res.Code, res.Body.String())
-	}
-	secondSync := decodeSync(res.Body.Bytes())
-	if len(secondSync.Memos) != store.MaxSyncPageLimit || !secondSync.HasMore || secondSync.NextCursor == "" {
-		t.Fatalf("second sync len/hasMore/cursor = %d/%t/%q", len(secondSync.Memos), secondSync.HasMore, secondSync.NextCursor)
-	}
-	res = doJSON(t, srv, http.MethodGet, "/api/v1/sync?limit=500&cursor="+url.QueryEscape(secondSync.NextCursor), nil, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("third sync status = %d body=%s", res.Code, res.Body.String())
-	}
-	thirdSync := decodeSync(res.Body.Bytes())
-	if len(thirdSync.Memos) != store.MaxMemoListLimit+1-(2*store.MaxSyncPageLimit) || thirdSync.HasMore {
-		t.Fatalf("third sync len/hasMore = %d/%t", len(thirdSync.Memos), thirdSync.HasMore)
-	}
 }
 
 func TestMemoListIsChronologicalAndAcceptsLegacyCursors(t *testing.T) {
@@ -632,224 +569,6 @@ func TestRecentlyDeletedUsesDeletionOrderAndLifecycleCursor(t *testing.T) {
 	second := readPage("/api/v1/memos?limit=2&deleted=true&favorited=false&cursor=" + url.QueryEscape(first.NextCursor))
 	if len(second.Memos) != 1 || second.Memos[0].ID != seeded[0].id || second.NextCursor != "" {
 		t.Fatalf("second recently deleted page = %+v cursor=%q", second.Memos, second.NextCursor)
-	}
-}
-
-func TestSyncPushIdempotencyAndConflict(t *testing.T) {
-	srv := newTestServer(t)
-	token := initializeAndToken(t, srv)
-
-	pushCreate := map[string]any{
-		"changes": []map[string]any{{
-			"mutationId":   "m-create-1",
-			"resourceType": "memo",
-			"resourceId":   "01800000-0000-7000-8000-000000000001",
-			"action":       "create",
-			"memo": map[string]any{
-				"id":        "01800000-0000-7000-8000-000000000001",
-				"content":   "离线创建的记录",
-				"entryDate": "2026-06-26",
-				"pinned":    true,
-			},
-		}},
-	}
-	res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushCreate, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"applied"`) || !strings.Contains(res.Body.String(), `"favoritedAt":`) {
-		t.Fatalf("sync create status/body = %d %s", res.Code, res.Body.String())
-	}
-
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushCreate, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"idempotent":true`) {
-		t.Fatalf("sync idempotent status/body = %d %s", res.Code, res.Body.String())
-	}
-
-	pushUpdate := map[string]any{
-		"changes": []map[string]any{{
-			"mutationId":   "m-update-1",
-			"resourceType": "memo",
-			"resourceId":   "01800000-0000-7000-8000-000000000001",
-			"action":       "update",
-			"baseVersion":  1,
-			"memo": map[string]any{
-				"id":        "01800000-0000-7000-8000-000000000001",
-				"content":   "第一次同步更新",
-				"entryDate": "2026-06-26",
-			},
-		}},
-	}
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushUpdate, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"applied"`) {
-		t.Fatalf("sync update status/body = %d %s", res.Code, res.Body.String())
-	}
-
-	pushConflict := map[string]any{
-		"changes": []map[string]any{{
-			"mutationId":   "m-update-conflict",
-			"resourceType": "memo",
-			"resourceId":   "01800000-0000-7000-8000-000000000001",
-			"action":       "update",
-			"baseVersion":  1,
-			"memo": map[string]any{
-				"id":        "01800000-0000-7000-8000-000000000001",
-				"content":   "过期同步更新",
-				"entryDate": "2026-06-26",
-			},
-		}},
-	}
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushConflict, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"conflict"`) {
-		t.Fatalf("sync conflict status/body = %d %s", res.Code, res.Body.String())
-	}
-
-	pushMissingBaseVersion := map[string]any{
-		"changes": []map[string]any{{
-			"mutationId":   "m-update-missing-base",
-			"resourceType": "memo",
-			"resourceId":   "01800000-0000-7000-8000-000000000001",
-			"action":       "update",
-			"memo": map[string]any{
-				"id":        "01800000-0000-7000-8000-000000000001",
-				"content":   "缺少版本的同步更新",
-				"entryDate": "2026-06-26",
-			},
-		}},
-	}
-	res = doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", pushMissingBaseVersion, bearer(token))
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"reason":"missing_base_version"`) {
-		t.Fatalf("sync missing base version status/body = %d %s", res.Code, res.Body.String())
-	}
-}
-
-func TestSyncPushLifecycleActionsConvergeToDesiredState(t *testing.T) {
-	srv := newTestServer(t)
-	token := initializeAndToken(t, srv)
-
-	createMemo := func(content string) map[string]any {
-		res := doJSON(t, srv, http.MethodPost, "/api/v1/memos", map[string]any{
-			"content":   content,
-			"entryDate": "2026-07-30",
-		}, bearer(token))
-		if res.Code != http.StatusOK {
-			t.Fatalf("create memo status = %d body=%s", res.Code, res.Body.String())
-		}
-		return decodeMemoResponse(t, res.Body.Bytes())
-	}
-	type lifecycleResource struct {
-		ID        string  `json:"id"`
-		Content   string  `json:"content"`
-		Version   int64   `json:"version"`
-		DeletedAt *string `json:"deletedAt"`
-		PurgedAt  *string `json:"purgedAt"`
-	}
-	pushLifecycle := func(mutationID, action, id string, baseVersion int64) lifecycleResource {
-		t.Helper()
-		res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", map[string]any{
-			"changes": []map[string]any{{
-				"mutationId":   mutationID,
-				"resourceType": "memo",
-				"resourceId":   id,
-				"action":       action,
-				"baseVersion":  baseVersion,
-				"memo": map[string]any{
-					"id": id,
-				},
-			}},
-		}, bearer(token))
-		if res.Code != http.StatusOK {
-			t.Fatalf("sync %s status = %d body=%s", action, res.Code, res.Body.String())
-		}
-		var body struct {
-			Results []struct {
-				Status   string            `json:"status"`
-				Reason   string            `json:"reason"`
-				Resource lifecycleResource `json:"resource"`
-			} `json:"results"`
-		}
-		if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
-			t.Fatal(err)
-		}
-		if len(body.Results) != 1 || body.Results[0].Status != "applied" {
-			t.Fatalf("sync %s results = %+v", action, body.Results)
-		}
-		return body.Results[0].Resource
-	}
-
-	active := createMemo("连续离线生命周期")
-	id := active["id"].(string)
-	version := int64(active["version"].(float64))
-	restored := pushLifecycle("lifecycle-restore-active", "restore", id, version)
-	if restored.Version != version || restored.DeletedAt != nil || restored.PurgedAt != nil {
-		t.Fatalf("restore active resource = %+v, want unchanged active memo", restored)
-	}
-	purged := pushLifecycle("lifecycle-purge-active", "purge", id, version)
-	if purged.Version != version+2 || purged.DeletedAt == nil || purged.PurgedAt == nil || purged.Content != "" {
-		t.Fatalf("purge active resource = %+v, want scrubbed tombstone at version %d", purged, version+2)
-	}
-
-	deletedMemo := createMemo("删除幂等收敛")
-	deletedID := deletedMemo["id"].(string)
-	deletedVersion := int64(deletedMemo["version"].(float64))
-	res := doJSON(
-		t,
-		srv,
-		http.MethodDelete,
-		fmt.Sprintf("/api/v1/memos/%s?expectedVersion=%d", deletedID, deletedVersion),
-		nil,
-		bearer(token),
-	)
-	if res.Code != http.StatusOK {
-		t.Fatalf("delete memo status = %d body=%s", res.Code, res.Body.String())
-	}
-	deleted := decodeMemoResponse(t, res.Body.Bytes())
-	deletedVersion = int64(deleted["version"].(float64))
-	deletedAgain := pushLifecycle("lifecycle-delete-deleted", "delete", deletedID, deletedVersion)
-	if deletedAgain.Version != deletedVersion || deletedAgain.DeletedAt == nil {
-		t.Fatalf("delete deleted resource = %+v, want unchanged deleted memo", deletedAgain)
-	}
-	restoredDeleted := pushLifecycle("lifecycle-restore-deleted", "restore", deletedID, deletedVersion)
-	if restoredDeleted.Version != deletedVersion+1 || restoredDeleted.DeletedAt != nil {
-		t.Fatalf("restore deleted resource = %+v, want active version %d", restoredDeleted, deletedVersion+1)
-	}
-}
-
-func TestSyncPushFavoritedOverridesLegacyPinned(t *testing.T) {
-	srv := newTestServer(t)
-	token := initializeAndToken(t, srv)
-
-	res := doJSON(t, srv, http.MethodPost, "/api/v1/sync:push", map[string]any{
-		"changes": []map[string]any{{
-			"mutationId":   "m-favorite-precedence",
-			"resourceType": "memo",
-			"resourceId":   "01800000-0000-7000-8000-000000000002",
-			"action":       "create",
-			"memo": map[string]any{
-				"id":        "01800000-0000-7000-8000-000000000002",
-				"content":   "规范收藏字段优先",
-				"entryDate": "2026-06-27",
-				"pinned":    true,
-				"favorited": false,
-			},
-		}},
-	}, bearer(token))
-	if res.Code != http.StatusOK {
-		t.Fatalf("sync create status = %d body=%s", res.Code, res.Body.String())
-	}
-	var body struct {
-		Results []struct {
-			Status   string `json:"status"`
-			Resource struct {
-				FavoritedAt *string `json:"favoritedAt"`
-			} `json:"resource"`
-		} `json:"results"`
-	}
-	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if len(body.Results) != 1 || body.Results[0].Status != "applied" {
-		t.Fatalf("sync results = %+v, want one applied result", body.Results)
-	}
-	if body.Results[0].Resource.FavoritedAt != nil {
-		t.Fatalf("favoritedAt = %q, want nil because canonical favorited=false overrides pinned=true", *body.Results[0].Resource.FavoritedAt)
 	}
 }
 

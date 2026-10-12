@@ -1,25 +1,19 @@
 package server
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v5"
 )
 
-const (
-	currentAPIVersion               = "v1"
-	minimumAndroidVersionCode int32 = 9
-)
+const currentAPIVersion = "v1"
 
-// BuildInfo identifies the running server and the oldest mobile client that
-// this API generation intentionally supports. It is public operational
+// BuildInfo identifies the running server and its API generation. It is public operational
 // metadata: never place secrets or environment-specific identifiers here.
 type BuildInfo struct {
-	Version                   string
-	Revision                  string
-	APIVersion                string
-	MinimumAndroidVersionCode int32
+	Version    string
+	Revision   string
+	APIVersion string
 }
 
 func normalizeBuildInfo(info BuildInfo) BuildInfo {
@@ -35,9 +29,6 @@ func normalizeBuildInfo(info BuildInfo) BuildInfo {
 	if info.APIVersion == "" {
 		info.APIVersion = currentAPIVersion
 	}
-	if info.MinimumAndroidVersionCode <= 0 {
-		info.MinimumAndroidVersionCode = minimumAndroidVersionCode
-	}
 	return info
 }
 
@@ -48,10 +39,6 @@ func (s *Server) buildInfoMiddleware() echo.MiddlewareFunc {
 			header.Set("X-Sillage-Version", s.Build.Version)
 			header.Set("X-Sillage-Revision", s.Build.Revision)
 			header.Set("X-Sillage-API-Version", s.Build.APIVersion)
-			header.Set(
-				"X-Sillage-Min-Android-Version-Code",
-				strconv.FormatInt(int64(s.Build.MinimumAndroidVersionCode), 10),
-			)
 			return next(c)
 		}
 	}
@@ -59,10 +46,9 @@ func (s *Server) buildInfoMiddleware() echo.MiddlewareFunc {
 
 func buildInfoJSON(info BuildInfo) map[string]any {
 	return map[string]any{
-		"serverVersion":             info.Version,
-		"serverRevision":            info.Revision,
-		"apiVersion":                info.APIVersion,
-		"minimumAndroidVersionCode": info.MinimumAndroidVersionCode,
+		"serverVersion":  info.Version,
+		"serverRevision": info.Revision,
+		"apiVersion":     info.APIVersion,
 	}
 }
 

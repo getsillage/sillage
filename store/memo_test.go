@@ -20,11 +20,11 @@ func TestMemoDeleteRestoreAndPurgeLifecycle(t *testing.T) {
 	account := newTestAccount(t, s)
 	memo := seedMemo(t, s, account, "private body")
 	attachment, err := s.CreateAttachment(ctx, &store.CreateAttachment{
-		CreatorID:  account,
-		StorageRef: "assets/attachments/private-file",
-		Filename:   "private.txt",
+		CreatorID:   account,
+		StorageRef:  "assets/attachments/private-file",
+		Filename:    "private.txt",
 		ContentType: "text/plain",
-		Size:       7,
+		Size:        7,
 	})
 	if err != nil {
 		t.Fatalf("CreateAttachment() error = %v", err)

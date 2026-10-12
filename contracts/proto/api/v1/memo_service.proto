@@ -8,10 +8,6 @@ import "google/api/annotations.proto";
 // MemoService is the CRUD + lifecycle surface for memos. Updates, deletion,
 // favoriting, and archiving carry expected_version for optimistic concurrency;
 // a stale version is rejected as a conflict (HTTP 409 / Connect Aborted).
-// Creation may use a caller-supplied id for offline identity. SyncService uses
-// mutation_id to correlate retries and replay a previously stored result.
-// Summary generation only writes derived AI data and carries no
-// expected_version.
 service MemoService {
   rpc ListMemos(ListMemosRequest) returns (ListMemosResponse) {
     option (google.api.http) = {get: "/api/v1/memos"};
@@ -101,9 +97,7 @@ message ListMemosResponse {
 }
 
 message CreateMemoRequest {
-  // id may be client-supplied so an offline memo keeps the same identity after
-  // sync. A duplicate id is not itself an idempotency key.
-  string id = 1;
+  reserved 1;
   string content = 2;
   string entry_date = 3;
 }

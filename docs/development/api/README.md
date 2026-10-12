@@ -56,7 +56,7 @@ configuration fields have stricter per-field limits and return the normal
 
 ## Record Writes
 
-The Web client sends the user-selected date and Markdown body to `POST /api/v1/memos`, leaving ID assignment to the server. The server still accepts the legacy optional `id` input until a separate contract cleanup. Record updates include `expectedVersion`; a stale version returns a conflict and must preserve the browser draft.
+`POST /api/v1/memos` assigns each new record ID on the server. The request contains the user-selected date and Markdown body. Record updates include `expectedVersion`; a stale version returns a conflict and must preserve the browser draft.
 
 Attachment uploads retain their separate `mutation_id` retry identifier so a retried upload can return the original canonical attachment rather than creating a duplicate.
 
@@ -72,7 +72,7 @@ The corresponding Connect methods are `DeleteMemo`, `RestoreMemo`, and `PurgeMem
 
 ## Versioning and Compatibility
 
-The maintained client uses the Web-facing `/api/v1` surface. The current server contract remains unchanged by client and toolchain removal. Additions must preserve existing field meanings, authentication, and errors; future contract retirement requires explicit compatibility documentation and verification.
+The supported `/api/v1` surface serves the Web application. Additions must preserve existing field meanings, authentication, and errors. Retirement of unused endpoints or fields must be verified against Web consumers, reserve removed Proto identifiers, and document compatibility impact, migration, and rollback in the release notes.
 
 `GET /api/v1/auth/bootstrap` is public and returns initialization state plus operational compatibility metadata:
 
@@ -81,25 +81,10 @@ The maintained client uses the Web-facing `/api/v1` surface. The current server 
   "initialized": true,
   "serverVersion": "v0.3.0",
   "serverRevision": "0123456789abcdef",
-  "apiVersion": "v1",
-  "minimumAndroidVersionCode": 9
+  "apiVersion": "v1"
 }
 ```
 
-The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and the legacy `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. The Web client must tolerate additive bootstrap fields and must not infer API compatibility from a display version alone; `apiVersion` identifies the contract generation.
+The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, and `X-Sillage-API-Version`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. The Web client must tolerate additive bootstrap fields and must not infer API compatibility from a display version alone; `apiVersion` identifies the contract generation.
 
 Proto changes must run `buf lint`, `buf breaking`, and `buf generate`. When REST and Connect share semantics, tests must cover both transports. Handwritten REST-only extensions must also retain equivalent REST regression coverage.
-
-## Legacy Server Surface
-
-The client and toolchain cleanup leaves these server contract elements in place
-until their separate removal:
-
-- `GET /api/v1/sync`, `POST /api/v1/sync:push`, and the corresponding Connect bulk operations;
-- `minimumAndroidVersionCode` in bootstrap and `X-Sillage-Min-Android-Version-Code` in responses;
-- the optional record-create `id` input.
-
-The Web application uses standard record operations and does not use these
-legacy elements. Existing pagination, mutation replay, and conflict behavior is
-still defined in the [Legacy Sync API](sync.md); this is retained protocol
-documentation, not a supported application-client development guide.

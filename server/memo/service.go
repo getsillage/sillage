@@ -77,7 +77,6 @@ type SearchInput struct {
 }
 
 type CreateInput struct {
-	ID        string
 	Content   string
 	EntryDate string
 	Favorited bool
@@ -198,7 +197,6 @@ func (s *Service) Create(ctx context.Context, accountID string, input CreateInpu
 		return nil, err
 	}
 	memo, err := s.repository.CreateMemo(ctx, &store.CreateMemo{
-		ID:        input.ID,
 		CreatorID: accountID,
 		Content:   input.Content,
 		EntryDate: input.EntryDate,

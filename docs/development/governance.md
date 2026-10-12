@@ -56,12 +56,17 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Agent session | [CLAUDE.md](../../CLAUDE.md) | Maintainer process | Active |
 | Path → gate matrix | [../../scripts/change-matrix.yml](../../scripts/change-matrix.yml) | `make print-affected` / `check-affected` | Active |
 
-The responsive Web application is the sole maintained client. This cleanup
-changes client code, tooling, verification, and release boundaries; the current
-server API and SQLite schema remain unchanged. Legacy bulk record-transfer
-operations and client compatibility fields remain server-side for a separate
-contract cleanup. Buf `FILE` compatibility checks still cover the current
-structured contract without a retirement exception.
+The Web-only contract retirement retains Buf `FILE` compatibility checks for
+all maintained APIs. Its baseline adapter permits only the removed bulk
+record-transfer service, bootstrap field 5, and record-create field 1, and
+requires the historical declarations to match reviewed SHA-256 fingerprints
+and compiled current descriptors to reserve the removed fields. Future path
+or field-number reuse does not inherit the exemption. See
+[Protobuf compatibility checks](../../contracts/proto/README.md#compatibility-checks)
+for the exact enforcement boundary.
+Every `make check-proto` run executes the retirement boundary tests before Buf
+lint, breaking, generation, and generated-artifact drift checks. The Proto CI
+job explicitly installs Node 24 and Buf for these tests and the baseline adapter.
 
 ## Unified verification
 

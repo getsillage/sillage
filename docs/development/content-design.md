@@ -1,7 +1,7 @@
 # Content Design
 
 This document defines the stable rules for user-facing content across the Web
-client, Android client, website, user documentation, and release-facing
+client, website, user documentation, and release-facing
 surfaces. Product scope and AI behavior remain defined by
 [Product Guidance](product-guidance.md); the organization-wide public voice and
 positioning remain defined by the
@@ -21,7 +21,7 @@ can do next, and where their data goes.
 4. **Explain boundaries at the point of choice.** State external data transfer,
    destructive effects, and unavailable behavior before the user acts.
 5. **Describe only verified behavior.** Do not imply official hosting,
-   background sync, built-in AI, diagnosis, or guarantees the product does not
+   built-in AI, diagnosis, or guarantees the product does not
    provide.
 6. **Keep English and Simplified Chinese semantically aligned.** The two
    versions may differ in sentence structure, but not in scope, risk, or
@@ -48,7 +48,7 @@ Use the narrowest term that accurately identifies the object or location.
 
 Do not use **cloud** (`云端`) as a synonym for a user's Sillage server. A
 self-hosted server may be local, on a home network, or on a remote host. Use
-`Sillage server` / `Sillage 服务端` for sync destinations and `configured AI
+`Sillage server` / `Sillage 服务端` for instance requests and `configured AI
 endpoint` / `配置的 AI 端点` for external model requests.
 
 ## Interface Patterns
@@ -197,13 +197,7 @@ Avoid:
 
 > 数据保存在本机。
 
-Use `this device` only for Android offline data, cached attachments, and other
-state that is actually stored on that Android device. Use `Sillage server` for
-sync destinations. Native account initialization and sign-in supporting copy
-must say that authentication pushes local changes before pulling current server
-records, because automatic synchronization starts without a separate
-Sync action. Use `localhost` only when describing the default network binding,
-not as a synonym for the deployment host.
+Use `this device` only for browser drafts and other state that is actually stored on the current device. Use `Sillage server` for the instance storing records. Use `localhost` only when describing the default network binding, not as a synonym for the deployment host.
 
 ## English Style
 
@@ -223,7 +217,7 @@ not as a synonym for the deployment host.
 - Use full-width Chinese punctuation in sentences. Keep product names, URLs,
   commands, protocol names, and code identifiers unchanged.
 - Add spaces between Chinese and Latin product or protocol names where it aids
-  readability: `AI 端点`, `Android 客户端`, `OpenAI 兼容接口`.
+  readability: `AI 端点`, `Web 界面`, `OpenAI 兼容接口`.
 - Do not add a full stop to short labels, buttons, tabs, or navigation items.
 - Use `…` for visible in-progress or input placeholder text, not three periods.
 - Prefer `无法…` for a failed capability and `请…` only when the user has a

@@ -39,7 +39,6 @@ body:
         - Docker or Compose
         - Deployment networking
         - Web interface
-        - Android app
         - AI provider configuration
         - Backup, restore, or migration
         - Development setup

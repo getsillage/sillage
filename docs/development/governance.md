@@ -12,7 +12,7 @@ This document is the **standards registry** for Sillage. It explains how norms a
 | Layer | Role | Examples |
 | --- | --- | --- |
 | L0 Constitution | Slow-changing identity and red lines | [constitution.md](constitution.md) |
-| L1 Contracts | Machine-checkable technical interfaces | Proto, SQLite schema, sync semantics, env surface |
+| L1 Contracts | Machine-checkable technical interfaces | Proto, SQLite schema, write concurrency, env surface |
 | L2 Procedures | Human workflows | PR template, release steps, security disclosure, ADRs |
 | L3 Execution | Single verification surface | `Makefile`, `scripts/`, `.github/workflows/` |
 
@@ -28,7 +28,7 @@ This document is the **standards registry** for Sillage. It explains how norms a
 Rules that apply to **both** tracks:
 
 1. Do not lower CI standards or skip failing gates by weakening tests.
-2. Do not commit secrets, user data, keystores, or live databases.
+2. Do not commit secrets, user data, or live databases.
 3. Update canonical docs in the same change as feature, contract, config, or architecture changes.
 4. Preserve the constitution boundaries (single-user private records, source-grounded personal AI claims).
 
@@ -41,11 +41,9 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Product boundary | [constitution.md](constitution.md), [product-guidance.md](product-guidance.md) | Review + `scripts/check-terminology.mjs` (light) | Active |
 | Terminology (`memo` / record / 记录) | product-guidance, architecture | Terminology check + review | Active |
 | Module boundaries | [architecture.md](architecture.md) | Review | Active |
-| Native client architecture | [multiplatform.md](multiplatform.md) | Shared convention and dependency checks through the Android gate today; platform gates added with each buildable host | Migrating |
 | API / Proto | `contracts/proto/api/v1/`, [api/README.md](api/README.md) | `make check-proto` | Active |
 | Database schema | `store/migration/sqlite/LATEST.sql`, migrator | `make check-go` + migration tests | Active |
-| Sync | [api/sync.md](api/sync.md) | Go/Android tests + review | Active |
-| Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + govulncheck + Go/TypeScript/Kotlin CodeQL + remote-settings audit + review | Active |
+| Security | [security.md](security.md), [SECURITY.md](../../SECURITY.md) | Tests + gitleaks + govulncheck + Go/TypeScript CodeQL + remote-settings audit + review | Active |
 | Web UI | [design/README.md](design/README.md) | Web lint/tests, production build, route-split and raw/gzip bundle budgets, Chromium/Firefox/WebKit E2E, manual checklist | Active |
 | Long-term personal-use scale | [release-readiness.md](release-readiness.md) | `make check-scale` / CI Scale job | Active |
 | Commits | Conventional Commits (below) | `make check-commits` / CI commits job | Active |
@@ -54,9 +52,16 @@ There is no third informal rulebook. Chat-only instructions are not durable proj
 | Dependencies | Dependabot config | Weekly PRs (limited) | Active |
 | Dependencies and release supply chain | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases, [deployment.md](../user/deployment.md) | `make check-supply-chain`, pinned Syft/Grype, signed provenance and SPDX attestations | Active |
 | Release artifacts and curated notes | [CONTRIBUTING.md](../../CONTRIBUTING.md) Releases | checked `.github/release-notes/vX.Y.Z.md` input + `release.yml` only | Active |
-| Release acceptance | [release-readiness.md](release-readiness.md) | CI-required jobs including API 26/API 35 Android journeys + release-candidate and published-artifact verification | Active |
+| Release acceptance | [release-readiness.md](release-readiness.md) | CI-required jobs including three-engine Web journeys + release-candidate and published-artifact verification | Active |
 | Agent session | [CLAUDE.md](../../CLAUDE.md) | Maintainer process | Active |
 | Path → gate matrix | [../../scripts/change-matrix.yml](../../scripts/change-matrix.yml) | `make print-affected` / `check-affected` | Active |
+
+The responsive Web application is the sole maintained client. This cleanup
+changes client code, tooling, verification, and release boundaries; the current
+server API and SQLite schema remain unchanged. Legacy bulk record-transfer
+operations and client compatibility fields remain server-side for a separate
+contract cleanup. Buf `FILE` compatibility checks still cover the current
+structured contract without a retirement exception.
 
 ## Unified verification
 
@@ -67,30 +72,14 @@ The repository root `Makefile` is the **single entry** for local and CI-equivale
 | `make check` | all CI-equivalent code, secret, artifact, and E2E gates (requires Docker, gitleaks, and Playwright dependencies) |
 | `make check-fast` | go + proto + web + docs |
 | `make check-affected` | gates implied by the working tree or `BASE_SHA...HEAD` |
-| `make check-go` / `check-proto` / `check-web` / `check-android` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` / `check-upgrade` | Individual local gates |
+| `make check-go` / `check-proto` / `check-web` / `check-scale` / `check-docs` / `check-actions` / `check-container` / `check-supply-chain` / `check-e2e` / `check-restore` / `check-upgrade` | Individual local gates |
 | `make check-repository-settings` | Authenticated audit of organization profile metadata, least privilege, 2FA, Actions policy, repository descriptions/homepages and merge policy, branch protection, required CI contexts, GitHub security features, private vulnerability reporting, and Pages HTTPS |
 | `make check-commits` | Conventional Commits for `BASE_SHA..HEAD` |
 | `make print-affected` | Print matched rules and gates without running them |
 
 CI jobs call the same scripts and Make targets. Prefer fixing a script once over copying commands into workflow YAML. Pull requests use the change matrix to run only affected gates, while pushes to protected `main` remain full verification runs. A new commit automatically cancels the older in-progress CI run for the same pull request.
 
-The iOS, Windows, and macOS application directories and Kotlin Multiplatform
-package directories are documented placeholders during the initial migration.
-Their path rules require architecture documentation and the closest available
-Android shared-code gate. The first commit that makes another platform host
-buildable must add its dedicated Make target, CI job, release checks, and path
-mapping in the same change; placeholder status is not permission to land
-unverified product code.
-
-Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
-
-CI and release workflows configure the pinned Android SDK setup action with
-`packages: platform-tools`. The action still installs the command-line tools
-and accepts SDK licenses; Gradle and the emulator runner install the build and
-device packages required by their existing gates. This explicit package list
-avoids requesting the retired `tools` package from the action's default input
-without changing the Android, API 26/API 35, native-host, or Java/Kotlin CodeQL
-checks.
+Required check names remain stable: unaffected jobs are reported as skipped. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web selection on pull requests and runs both languages on `main`.
 
 Web release journeys also exercise 320px and 390px viewports in English and
 Simplified Chinese, in both light and dark themes. They check all primary
@@ -101,7 +90,7 @@ for visual review; they are generated artifacts and are not committed.
 
 Range-sensitive document-sync policy is enforced on pull requests, where the original commit messages and `Docs-skip` trailer are available. Protected `main` still reruns every other Docs check, but does not repeat document-sync after a squash merge because GitHub may replace the reviewed commit bodies. This keeps the PR authoritative and prevents an already-green change from becoming a false failure after merge.
 
-Dependabot pull requests receive a narrow automatic documentation exemption only when every changed path is a recognized dependency surface: manifests, lockfiles, pinned workflow Actions, Gradle verification metadata, container base images, or generated license inventories. The exemption is derived from the GitHub pull request owner, not a branch name or commit message. Source and ordinary configuration changes remain subject to documentation synchronization.
+Dependabot pull requests receive a narrow automatic documentation exemption only when every changed path is a recognized dependency surface: manifests, lockfiles, pinned workflow Actions, container base images, or generated license inventories. The exemption is derived from the GitHub pull request owner, not a branch name or commit message. Source and ordinary configuration changes remain subject to documentation synchronization.
 
 ### Change matrix
 
@@ -127,7 +116,7 @@ Subject line format:
 ```
 
 Allowed types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `style`, `perf`, `build`, `revert`.
-Scope is optional (`web`, `android`, `server`, `proto`, `docs`, …).
+Scope is optional (`web`, `server`, `proto`, `docs`, …).
 Do not end the subject with a period. Merge and Revert commits are allowed as generated by Git/GitHub.
 
 ## ADRs
@@ -142,7 +131,7 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 
 ## Dependencies
 
-Dependabot runs weekly for Go, npm (`apps/web/`), Gradle (`apps/native/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
+Dependabot runs weekly for Go, npm (`apps/web/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
 Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
 
@@ -159,24 +148,11 @@ remote Dockerfile frontend image. This keeps the initial build independent of
 an extra Docker Hub request; base image pulls still follow the operator's
 Docker or BuildKit registry and proxy configuration.
 
-Android third-party notices are generated from the verified Gradle dependency
-graph. JetBrains Compose and JetBrains AndroidX coordinates use the same
-reviewed JetBrains/Kotlin license classification as the other JetBrains runtime
-artifacts; they are not silently omitted from the packaged inventory. Changes
-to this classification must regenerate the checked-in Android notice asset and
-pass the dependency-verification and notice-drift checks before merge.
-
-The main CI workflow also performs CodeQL analysis for Go, JavaScript/TypeScript, and Java/Kotlin. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires all three language jobs on the exact release commit.
+The main CI workflow also performs CodeQL analysis for Go and JavaScript/TypeScript. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires both language jobs on the exact release commit.
 
 Files under `third_party/licenses/` are copied byte-for-byte from upstream packages and are therefore exempt from Sillage's whitespace normalization rule. The notice generator's byte comparison remains authoritative for those files; all project-authored files continue to pass `git diff --check`.
 
 The release workflow adds signed GitHub provenance and SPDX attestations to the published image digest, and uploads the SBOMs, scanner report, and SHA-256 manifest as release assets. BuildKit's OCI provenance and SBOM attestations remain enabled as an additional registry-native record.
-
-Desktop and iOS third-party notices are generated separately from their host
-Gradle lockfiles because their packaged graphs differ from Android. The native
-generator selects desktop runtime and iOS device-compile configurations, rejects
-unreviewed coordinate families, and byte-checks both packaged notice resources.
-The shared Apache-2.0 source also covers JNA under its Apache license option.
 
 ## Secrets scanning
 

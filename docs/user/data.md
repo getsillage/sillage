@@ -28,13 +28,13 @@ When `SESSION_SECRET` / `ENCRYPTION_SECRET` or their corresponding `_FILE` varia
 
 ## Deletion and Browser Drafts
 
-Deleting a record moves it to Recently Deleted. The record body and its related data remain available for recovery for 30 days. During that window, the Web and Android clients can restore the record or permanently delete it. A restored record returns to the normal library and receives a new version so offline clients can converge on the restored state.
+Deleting a record moves it to Recently Deleted. The record body and its related data remain available for recovery for 30 days. During that window, the Web interface can restore the record or permanently delete it. A restored record returns to the normal library and receives a new version so concurrent edits can detect the restored state.
 
 Permanent deletion cannot be undone through Sillage. It immediately scrubs the record body, user-selected date, favorite/archive state, AI summary, generated summaries that cite the record, and Ask answers whose retained source references point to it. After 30 days, the server performs the same permanent-deletion operation during the next maintenance cycle, which runs at startup and every six hours. Backups made before permanent deletion may still contain the original data and must be expired under the operator's backup-retention policy.
 
-The server retains a minimal purged tombstone containing structural synchronization metadata rather than the original body. This lets a device that has been offline longer than the recovery window learn that the record must remain deleted. Shared attachment bytes are retained while another non-purged record still references them. When the last live reference is permanently deleted, the attachment metadata is tombstoned and the maintenance task removes the server file bytes; Android also removes an unshared pending offline attachment from device storage. Deleting an AI profile separately clears the encrypted API key envelope stored in the current server database, but older backups may still contain it.
+The server retains a minimal purged tombstone containing structural metadata rather than the original body. This prevents stale requests from restoring permanently deleted content. Shared attachment bytes are retained while another non-purged record still references them. When the last live reference is permanently deleted, the attachment metadata is tombstoned and the maintenance task removes the server file bytes. Deleting an AI profile separately clears the encrypted API key envelope stored in the current server database, but older backups may still contain it.
 
-Other ephemeral data is also cleaned automatically at startup and every six hours. Expired or revoked refresh sessions and expired runtime values are removed. Sync mutation results provide a 90-day idempotency window and are deleted afterward, so a retry older than 90 days must be treated as a new reconciliation event rather than a guaranteed replay. Deleted attachment metadata remains as a tombstone, while its file bytes are removed; unreferenced attachment files older than 24 hours are also removed to recover from interrupted uploads or metadata writes.
+Other ephemeral data is also cleaned automatically at startup and every six hours. Expired or revoked refresh sessions and expired runtime values are removed. The existing server bulk-operation retry log retains results for 90 days; a retry beyond that window is not a guaranteed replay. Deleted attachment metadata remains as a tombstone, while its file bytes are removed; unreferenced attachment files older than 24 hours are also removed to recover from interrupted uploads or metadata writes.
 
 To recover unsaved records and quick captures, the Web app stores the draft content, date, and baseline version in plaintext browser `localStorage`. Drafts are not included in server backups and may remain in the same browser profile after sign-out. Avoid using the Web app on a shared device, or save or discard drafts and clear the site's browser data before leaving.
 
@@ -87,27 +87,6 @@ unset NEW_PASSWORD
 ```
 
 If the instance uses a custom `SILLAGE_DSN`, pass the same value or `_FILE` setting to the command. Back up the instance before recovery when practical. After restart, sign in with the new password. Previously issued access tokens may continue working until their 15-minute lifetime ends; after that, confirm that old devices must authenticate again.
-
-## Native Client Portable Backups
-
-iOS, Windows, and macOS can export and restore a JSON record backup through the
-native file picker. The file contains the portable record and appearance subset
-and remains sensitive plaintext; store and transfer it through protected media.
-It does not contain the account, access or refresh credentials, checked server
-address, server binding, cloud versions, pending mutation identifiers, Ask data,
-or server attachment bytes.
-
-Restore validates the complete file before replacing readable local records. It
-preserves the device's current server address and any preference omitted by the
-backup, but deliberately clears the private sync binding, cloud baselines, and
-outbox. Consequently, restored records remain local changes until a later
-authenticated synchronization pushes them before pulling current server records.
-That may be automatic sync after the next sign-in, a later foreground entry, or
-confirmed network recovery, or it may be a manual sync; do not assume the JSON
-file is a continuation of an existing server queue. A failed
-or unsupported import leaves current local state intact.
-This portable file is not a substitute for the complete server data-directory
-backup below.
 
 ## Back Up
 
@@ -173,6 +152,20 @@ SH
 
 Only remove or otherwise handle `ROLLBACK` after confirming that sign-in, records, and attachments all work correctly. If the restore fails, stop the service, move the failed data directory aside, and move `ROLLBACK` back to its original path. This procedure assumes the default DSN and automatically generated runtime secrets. External databases and external secrets must be restored to the same values they had when the backup was created.
 
+## Upgrade and Rollback
+
+Stop the instance and verify a complete backup before changing its image or
+binary. Startup applies compatible schema upgrades automatically. The current
+schema is `0.1.5`. The client and toolchain cleanup does not migrate the database
+or remove server records, attachments, account data, sessions, deletion
+tombstones, or legacy retry logs. Check `/readyz`, sign-in, representative records, search, attachments, and
+AI settings before opening the upgraded instance to traffic.
+
+An older binary rejects a database whose schema is newer than it supports.
+Rollback requires stopping the candidate, restoring the complete pre-upgrade
+backup with its external DSN and secrets, and then starting the older version.
+Replacing only the image or only the database is not a supported downgrade.
+
 ## Migrate an Instance
 
 To move an instance to another directory or host:
@@ -185,14 +178,10 @@ To move an instance to another directory or host:
 
 `.thumbnail_cache/` is currently only a reserved directory; the server recreates it as an empty directory at startup. The database, attachments, and `runtime/` cannot be reset independently.
 
-Android and shared native JSON exports and manual synchronization do not include
-server attachment bytes, the account, sessions, or runtime secrets. They cannot
-replace a complete server data-directory backup.
-
 ## Recovery Objectives and Drills
 
 For a typical personal deployment, use a backup schedule that targets an RPO of 24 hours or less and an RTO of 2 hours or less. These are operator targets, not guarantees from the application: the actual data-loss window equals the time since the last complete, readable backup, and restore time depends on data size and host availability.
 
-Run a restore drill at least quarterly and before a high-risk upgrade. Restore the latest backup into an isolated directory or host, start one Sillage instance against it, then verify SQLite integrity, sign-in, representative records, search, attachments, AI settings, and sync bootstrap. Record the backup timestamp, restore duration, result, and any missing external secret or DSN dependency. Do not point the drill instance and production instance at the same SQLite files.
+Run a restore drill at least quarterly and before a high-risk upgrade. Restore the latest backup into an isolated directory or host, start one Sillage instance against it, then verify SQLite integrity, sign-in, representative records, search, attachments, AI settings, and public bootstrap. Record the backup timestamp, restore duration, result, and any missing external secret or DSN dependency. Do not point the drill instance and production instance at the same SQLite files.
 
 Maintainers can run the repository's disposable recovery drill with `make check-restore`. It creates a temporary instance, writes a representative record, attachment, encrypted AI profile, and summary, copies the complete stopped data directory, creates a post-backup change, restores with a preserved rollback directory, restarts the service, and verifies the checks above through HTTP plus SQLite integrity checks. `make check-upgrade` separately builds the latest stable tag, creates representative data with that binary, starts the candidate against the copied data, verifies the schema and user journeys, proves that the old binary rejects the upgraded schema, and then restores the complete pre-upgrade backup before starting the old binary again. Both drills use isolated temporary directories and never read or modify an operator's data directory.

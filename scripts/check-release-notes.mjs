@@ -3,21 +3,14 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { auditReleaseVersion } from "./check-release-version.mjs";
 
-export function auditReleaseNotes({ tag, notes, build, previousTag = "", release = false }) {
-  const failures = [];
+export function auditReleaseNotes({ tag, notes, version, previousTag = "", release = false }) {
+  const failures = auditReleaseVersion({ tag, version });
   const parsedTag = parseTag(tag);
   if (!parsedTag) {
     return [`release tag must match vX.Y.Z or vX.Y.Z-prerelease: ${tag}`];
   }
-  const versionName = match(build, /versionName\s*=\s*"([^"]+)"/, "versionName", failures);
-  const versionCode = match(build, /versionCode\s*=\s*(\d+)/, "versionCode", failures);
-  const minSdk = match(build, /minSdk\s*=\s*(\d+)/, "minSdk", failures);
-  const targetSdk = match(build, /targetSdk\s*=\s*(\d+)/, "targetSdk", failures);
-  if (versionName && versionName !== parsedTag.version) {
-    failures.push(`Android versionName ${versionName} does not match ${tag}`);
-  }
-
   const requiredSections = ["主要更新", "兼容性与升级", "已知限制", "验证"];
   for (const section of requiredSections) {
     const body = sectionBody(notes, section);
@@ -28,18 +21,7 @@ export function auditReleaseNotes({ tag, notes, build, previousTag = "", release
     }
   }
 
-  for (const [label, value] of [
-    ["versionName", versionName],
-    ["versionCode", versionCode],
-    ["minSdk", minSdk],
-    ["targetSdk", targetSdk],
-  ]) {
-    if (value && !notes.includes(`${label} \`${value}\``)) {
-      failures.push(`release notes must state Android ${label} ${value}`);
-    }
-  }
-
-  for (const phrase of ["完整备份", "回滚", "API 26", "API 35", "物理设备"]) {
+  for (const phrase of ["完整备份", "回滚", "Chromium", "Firefox", "WebKit", "linux/amd64", "linux/arm64"]) {
     if (!notes.includes(phrase)) failures.push(`release notes must mention ${phrase}`);
   }
   if (previousTag) {
@@ -65,15 +47,6 @@ function sectionBody(notes, heading) {
   const rest = notes.slice(start);
   const next = /^##\s+/m.exec(rest);
   return next ? rest.slice(0, next.index) : rest;
-}
-
-function match(text, pattern, label, failures) {
-  const result = pattern.exec(text);
-  if (!result) {
-    failures.push(`Android build config is missing ${label}`);
-    return "";
-  }
-  return result[1];
 }
 
 function parseTag(value) {
@@ -111,9 +84,8 @@ function escapeRegExp(value) {
 }
 
 function main() {
-  const build = readFileSync("apps/native/androidApp/build.gradle.kts", "utf8");
-  const configuredVersion = match(build, /versionName\s*=\s*"([^"]+)"/, "versionName", []);
-  const tag = process.argv.slice(2).find((value) => !value.startsWith("--")) || `v${configuredVersion}`;
+  const { version } = JSON.parse(readFileSync("apps/web/package.json", "utf8"));
+  const tag = process.argv.slice(2).find((value) => !value.startsWith("--")) || `v${version}`;
   const parsedTag = parseTag(tag);
   const notesPath = `.github/release-notes/${tag}.md`;
   let notes = "";
@@ -126,7 +98,7 @@ function main() {
   const failures = auditReleaseNotes({
     tag,
     notes,
-    build,
+    version,
     previousTag: parsedTag ? previousStableTag(parsedTag) : "",
     release: process.argv.includes("--release"),
   });

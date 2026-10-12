@@ -1,11 +1,12 @@
 # Contracts
 
-`contracts/` is the repository boundary for public protocol definitions,
-generated projections, compatibility policy, and language-neutral conformance
-fixtures.
+`contracts/proto/` contains Sillage's public Protobuf API definitions and their
+committed Go, Connect, Gateway, and OpenAPI projections.
 
-The existing Protobuf contract lives under `proto/` and remains the structured
-API source of truth until an ADR explicitly replaces it. HTTP-only surfaces
-such as uploads, authenticated files, and SSE are documented under `http/` and
-`events/` so they can be consolidated into a complete contract without
-inventing missing APIs.
+Proto defines the structured Connect API. The complete REST contract also
+includes multipart uploads, authenticated file downloads, bootstrap metadata,
+and Ask SSE, documented in the [REST API Guide](../docs/development/api/README.md)
+and implemented in `server/*_routes.go`.
+
+Contract changes must update the Web client, server adapters, generated
+artifacts, behavior tests, and documentation together.

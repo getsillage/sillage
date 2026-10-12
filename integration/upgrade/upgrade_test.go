@@ -82,7 +82,7 @@ func TestLatestStableUpgradeAndRollback(t *testing.T) {
 	if fromTag == "" {
 		t.Fatal("SILLAGE_UPGRADE_FROM_TAG is required")
 	}
-	candidateVersion := currentAndroidVersion(t, repoRoot)
+	candidateVersion := currentWebVersion(t, repoRoot)
 	report := &upgradeReport{FromTag: fromTag, CandidateVersion: candidateVersion, Result: "failed"}
 	defer writeUpgradeReport(t, report)
 
@@ -188,17 +188,19 @@ func repositoryRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
-func currentAndroidVersion(t *testing.T, root string) string {
+func currentWebVersion(t *testing.T, root string) string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join(root, "apps", "native", "androidApp", "build.gradle.kts"))
+	content, err := os.ReadFile(filepath.Join(root, "apps", "web", "package.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	match := regexp.MustCompile(`versionName\s*=\s*"([^"]+)"`).FindSubmatch(content)
-	if len(match) != 2 {
-		t.Fatal("Android versionName is missing")
+	var manifest struct {
+		Version string `json:"version"`
 	}
-	return string(match[1])
+	if err := json.Unmarshal(content, &manifest); err != nil || manifest.Version == "" {
+		t.Fatalf("Web package version is missing or invalid: %v", err)
+	}
+	return manifest.Version
 }
 
 func schemaVersion(t *testing.T, root string) string {

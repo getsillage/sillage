@@ -16,8 +16,6 @@ paths = [
   '''^\.env$''',
   '''^\.env\..*''',
   '''^runtime/.*''',
-  '''^apps/native/signing\.properties$''',
-  '''^apps/native/local\.properties$''',
   '''^\.data-dev/.*''',
   '''coverage/.*''',
 ]

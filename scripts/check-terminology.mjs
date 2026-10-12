@@ -46,22 +46,6 @@ if (existsSync(resolve(root, webMessagesPath))) {
   }
 }
 
-// --- Android zh strings ---
-const androidZh = "apps/native/androidApp/src/main/res/values-zh/strings.xml";
-const androidZhAlt = "apps/native/androidApp/src/main/res/values-zh-rCN/strings.xml";
-for (const rel of [androidZh, androidZhAlt]) {
-  if (!existsSync(resolve(root, rel))) continue;
-  const xml = read(rel);
-  const values = [...xml.matchAll(/<string\b[^>]*>([\s\S]*?)<\/string>/g)].map((m) =>
-    m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"),
-  );
-  for (const value of values) {
-    if (/\bmemo\b/i.test(value)) {
-      failures.push(`${rel}: string contains "memo": ${truncate(value)}`);
-    }
-  }
-}
-
 // --- Forbidden product-scope claims in root READMEs (keep scope honest) ---
 const scopeFiles = ["README.md", "README.zh-CN.md"];
 const forbiddenClaims = [

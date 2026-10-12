@@ -13,13 +13,10 @@ Choose an entry point based on your task:
 | Validate a stable release candidate and published artifacts | [Release Readiness](development/release-readiness.md) |
 | Product and engineering red lines | [Constitution](development/constitution.md) |
 | Understand module, data, and contract boundaries | [Architecture Guide](development/architecture.md) |
-| Change native client structure or UI technology | [Multiplatform Client Architecture](development/multiplatform.md) |
 | Change product semantics | [Product Guidance](development/product-guidance.md) |
 | Change authentication, attachments, secrets, or external requests | [Security Development Boundaries](development/security.md) |
-| Change synchronization behavior | [Sync API](development/api/sync.md) |
 | Change REST routes or clients | [REST API Guide](development/api/README.md) |
 | Change the Web interface | [Web Design Guidelines](development/design/README.md) |
-| Build the Android app | [Sillage Android Guide](../apps/native/androidApp/README.md) |
 | Download releases and review changes | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 | Report a security issue | [Security Policy](../SECURITY.md) |
 

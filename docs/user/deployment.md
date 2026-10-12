@@ -128,57 +128,7 @@ X-Forwarded-For
 
 Do not simply append untrusted forwarding headers. Sillage ignores them when the direct peer is outside the configured CIDRs; for a trusted peer it uses `X-Forwarded-Proto` to mark Cookies as Secure and `X-Forwarded-For` for sign-in rate limiting. Only the operator-managed entry point should be able to reach the backend port. Its installation, credentials, DNS, TLS certificates, and network path must be configured outside this repository.
 
-The iOS, Windows, and macOS engineering clients can check this address from
-Settings before sending credentials. The check calls only
-`GET /api/v1/auth/bootstrap`; it sends no records or credentials and remembers
-the normalized address only on that device. Use the external HTTPS address for
-this check. Plain HTTP is for explicit loopback or trusted-LAN engineering use
-only, and iOS App Transport Security may reject it.
-
-After the check succeeds, these engineering clients can initialize the single
-account or sign in and sign out. An authenticated user can also change the
-password under Account in Settings; success keeps the current client signed in
-with a rotated device credential and ends every other refresh session. Their
-record workspace remains local-first, but
-an authenticated user can manually synchronize records from Settings. Each run
-pushes pending creates, updates, deletions, restorations, and permanent deletions
-before pulling every page of current server records. It does not run
-automatically. A local sync workspace is bound to the normalized server used for
-its cloud baselines and refuses to retarget that state when the address changes.
-Access tokens always remain in memory, and no authentication credential, server
-binding, cloud baseline, or mutation ID is included in portable record backups.
-
-iOS and macOS store only the refresh credential in non-synchronizing Keychain
-Generic Password items. Windows stores only that credential as a non-roaming
-Generic Credential in the current user's Credential Manager. All three can
-restore a valid session after public bootstrap on a later launch; the iOS item
-is additionally device-bound. Use in-app sign-out or revoke the server session
-when sign-out must be guaranteed because operating-system vault items may
-survive application removal. No platform has a plaintext credential fallback.
-
-## Probes and Upgrades
-
-```bash
-curl --fail http://localhost:5231/healthz
-curl --fail http://localhost:5231/readyz
-```
-
-`healthz` checks only the process, while `readyz` also checks SQLite. Before upgrading:
-
-1. Note the image you are running (`docker inspect` digest or the tag you started with) so you can roll back.
-2. Follow [Data, Backup, and Recovery](data.md) to stop the service and back up the complete data directory.
-3. Pull the new image (`docker pull ghcr.io/getsillage/sillage:latest` or a pinned tag), start it, then confirm that probes, sign-in, records, and attachments work correctly.
-4. If the upgrade fails, stop the new instance, restore the corresponding data backup, and start the preserved old image.
-
-If a startup migration fails, the service does not enter the ready state. An older binary may not be compatible with an upgraded database, so you cannot roll back only the image without restoring the matching data.
-
-After an upgrade, open Settings → Version and compatibility, or inspect the public bootstrap metadata:
-
-```bash
-curl --fail --silent http://localhost:5231/api/v1/auth/bootstrap
-```
-
-The server and Web revisions should match for a published build. If the application reports a mismatch, hard-refresh the browser and verify that a reverse proxy or CDN is not caching the HTML entry document. Hashed assets may be cached immutably, but `index.html` and client-side routes must be revalidated. The bootstrap response also reports the API generation and minimum supported Android `versionCode`; update an older Android client before relying on it for sync.
+The server and Web revisions should match for a published build. If the application reports a mismatch, hard-refresh the browser and verify that a reverse proxy or CDN is not caching the HTML entry document. Hashed assets may be cached immutably, but `index.html` and client-side routes must be revalidated. The bootstrap response also reports the API generation.
 
 Probes do not require authentication, and `readyz` may include diagnostic text when a dependency fails. A public reverse proxy should allow only monitoring sources to access `/healthz` and `/readyz`; do not expose them as a public status page.
 

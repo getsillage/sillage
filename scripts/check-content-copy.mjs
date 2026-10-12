@@ -11,45 +11,38 @@ import { root } from "./lib/repo.mjs";
 
 export const contentPaths = {
   web: "apps/web/src/i18n/messages.ts",
-  androidEn: "apps/native/androidApp/src/main/res/values/strings.xml",
-  androidZh: "apps/native/androidApp/src/main/res/values-zh-rCN/strings.xml",
 };
 
 const forbiddenPatterns = [
   {
-    targets: ["web", "androidEn"],
+    targets: ["web"],
     pattern: /\bAI reflection\b/i,
     message: "describe AI as source-grounded, not as reflection",
   },
   {
-    targets: ["web", "androidZh"],
+    targets: ["web"],
     pattern: /AI\s*反思/,
     message: "不要使用含义模糊的“AI 反思”",
   },
   {
-    targets: ["web", "androidEn"],
+    targets: ["web"],
     pattern: /\b(?:my|your) state changed\b/i,
     message: "suggestions must ask about observable record content, not infer personal state",
   },
   {
-    targets: ["web", "androidZh"],
+    targets: ["web"],
     pattern: /(?:我的|你的)状态有什么变化/,
     message: "示例问题应询问可观察的记录内容，不应推断个人状态",
   },
   {
-    targets: ["web", "androidEn"],
+    targets: ["web"],
     pattern: /\blocal server\b/i,
     message: "use Sillage server because the instance may run remotely",
   },
   {
-    targets: ["web", "androidZh"],
+    targets: ["web"],
     pattern: /本地服务端/,
     message: "使用“Sillage 服务端”，实例可能运行在远程机器上",
-  },
-  {
-    targets: ["androidZh"],
-    pattern: /云端/,
-    message: "不要把自托管服务端或用户配置的 AI 端点统称为“云端”",
   },
   {
     targets: ["web"],
@@ -70,16 +63,6 @@ const requiredFragments = {
     "正在查找相关记录",
     "Personal claims cite only relevant records",
     "涉及个人事实时，仅引用",
-  ],
-  androidEn: [
-    "Send this record to your configured AI endpoint",
-    "default AI profile",
-    "For personal facts, relevant records",
-  ],
-  androidZh: [
-    "将这条记录发送到你配置的 AI 端点",
-    "默认 AI 档案",
-    "涉及个人事实时，只引用",
   ],
 };
 

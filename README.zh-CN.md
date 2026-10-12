@@ -25,9 +25,9 @@ Sillage 是一个自托管的单人记录空间：保存日常记录、回看历
 - 使用 Markdown 写记录，上传图片或文件，并恢复未提交草稿。
 - 按列表、日历和搜索回看记录，使用收藏与归档整理内容。
 - 配置兼容 Anthropic 或 OpenAI 接口协议的端点，生成记录总结和有来源的回答。
-- 使用支持简体中文和英文的响应式 Web 界面或原生 Android 客户端，在线、离线写记录并手动同步记录。
+- 在桌面或移动浏览器中使用支持简体中文和英文的响应式 Web 界面。
 
-Sillage 不提供多人协作、公开主页、社交分享、后台自动同步或官方托管服务。公网入口、TLS、DNS、隧道、CDN 和其他边缘网络服务由部署者在项目外独立管理，不属于 Sillage 产品或仓库；仓库不内置第三方网络平台连接器、凭据或厂商专属部署配置。
+Sillage 不提供多人协作、公开主页、社交分享或官方托管服务。公网入口、TLS、DNS、隧道、CDN 和其他边缘网络服务由部署者在项目外独立管理，不属于 Sillage 产品或仓库；仓库不内置第三方网络平台连接器、凭据或厂商专属部署配置。
 
 ## 快速开始
 
@@ -50,7 +50,6 @@ Compose、反向代理、环境变量、公网部署、固定某一发布镜像�
 - Go + Echo 单体后端
 - SQLite 数据库与本地附件目录
 - React + TypeScript + Vite Web 客户端，构建产物嵌入 Go 二进制
-- Kotlin + Jetpack Compose Android 客户端
 - Protobuf API 契约，同时提供 REST v1 与 Connect v1
 
 详细边界和事实来源见[架构说明](docs/development/architecture.md)。
@@ -68,16 +67,14 @@ Compose、反向代理、环境变量、公网部署、固定某一发布镜像�
 | 参与开发 | [贡献指南](CONTRIBUTING.md) |
 | 理解系统边界 | [架构说明](docs/development/architecture.md) |
 | 修改认证、附件或密钥 | [安全开发边界](docs/development/security.md) |
-| 修改同步客户端 | [同步 API](docs/development/api/sync.md) |
 | 修改产品或界面 | [产品指导](docs/development/product-guidance.md) / [Web 设计规范](docs/development/design/README.md) |
-| 构建 Android | [Android 说明](apps/native/androidApp/README.md) |
 | 下载版本与查看变更 | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 
 完整索引见[文档中心](docs/README.md)。安全问题请按[安全策略](SECURITY.md)私下报告。
 
 ## 开发
 
-后端需要 Go 1.26，Web 推荐 Node.js 24 与 pnpm 11.9；Android 需要 JDK 17 和 Android SDK。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
+后端需要 Go 1.26，Web 推荐 Node.js 24 与 pnpm 11.9。安装、启动、生成物与验证规则统一写在[贡献指南](CONTRIBUTING.md)中。
 
 ## 贡献
 

@@ -1,6 +1,6 @@
 # AI Usage and Privacy
 
-Sillage's AI features are optional. Sillage does not provide a built-in model. After you configure an AI profile, the server or Android client calls the configured Anthropic-compatible or OpenAI-compatible endpoint directly. Once a request reaches the provider, that provider's policies govern logging, retention, and training.
+Sillage's AI features are optional. Sillage does not provide a built-in model. After you configure an AI profile, the server calls the configured Anthropic-compatible or OpenAI-compatible endpoint directly. Once a request reaches the provider, that provider's policies govern logging, retention, and training.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ preserves unsaved profile edits.
 
 Each Ask turn first uses the same configured provider to classify the question as `general`, `records`, or `mixed` and produce retrieval phrases. This routing request receives the system prompt, current question, and current branch history, but Sillage does not add record bodies, stored summaries, or excerpts. Conversation history may itself contain sensitive text from earlier turns, so the routing request is still private data sent to the provider. If the routing response cannot be parsed, Sillage safely falls back to `records` instead of treating the question as general.
 
-For `general`, Sillage makes the answer request without looking up or attaching records. For `records` and `mixed`, it uses the generated phrases to search locally within the selected time range before making the answer request. Server-side retrieval reuses the instance's SQLite FTS5/LIKE search, broadens the query with a bounded set of terms, then supplements it with recent records. It ranks at most 200 local candidates and does not use an external embedding or vector service. Time-range boundaries match loosely: record dates follow your local calendar while the server may run in a different timezone, so the 7-day and 30-day ranges include one extra boundary day rather than dropping records near the cutoff. Server-side Ask sends at most 5 relevant sources; in record mode, it sends a raw excerpt around the matching content from each selected record, while summary mode sends the stored summary associated with each selected record. Android offline Ask selects at most 8 relevant source records and sends raw record excerpts. Selecting All Records (`全部记录`) removes the date cutoff but still uses the bounded local candidate set; it does not send every record in the database. If no relevant record is selected for a record-dependent question, the answer request still contains the question and branch history but no record excerpt. Attachment bytes are not sent as summary or Ask content, but file names, links, or descriptions in the Markdown body may be sent with that body.
+For `general`, Sillage makes the answer request without looking up or attaching records. For `records` and `mixed`, it uses the generated phrases to search locally within the selected time range before making the answer request. Server-side retrieval reuses the instance's SQLite FTS5/LIKE search, broadens the query with a bounded set of terms, then supplements it with recent records. It ranks at most 200 local candidates and does not use an external embedding or vector service. Time-range boundaries match loosely: record dates follow your local calendar while the server may run in a different timezone, so the 7-day and 30-day ranges include one extra boundary day rather than dropping records near the cutoff. Server-side Ask sends at most 5 relevant sources; in record mode, it sends a raw excerpt around the matching content from each selected record, while summary mode sends the stored summary associated with each selected record. Selecting All Records (`全部记录`) removes the date cutoff but still uses the bounded local candidate set; it does not send every record in the database. If no relevant record is selected for a record-dependent question, the answer request still contains the question and branch history but no record excerpt. Attachment bytes are not sent as summary or Ask content, but file names, links, or descriptions in the Markdown body may be sent with that body.
 
 The prompt requires claims about the user's records or personal history to use the supplied sources. Greetings and general-knowledge questions may be answered from the model's general knowledge without a source citation, and mixed questions should separate record-backed observations from general guidance. If a personal question cannot be answered from the supplied sources, the answer should say that the records do not provide enough information. Only valid source citations actually used in the answer are retained and displayed; a general answer has no source references. The model may still omit information or produce incorrect content, so verify important personal conclusions against the source records. Sillage does not treat AI output as a diagnosis or proof of fact.
 
@@ -45,34 +45,16 @@ returns to the current conversation's input for retry. Switching conversations
 or leaving Ask prevents that earlier request from restoring its question into
 another conversation or changing the current destination.
 
-Android displays Ask answer chunks while generation is active. Stopping generation
-cancels the active client job and shows explicit feedback. Navigating away,
-switching conversations, or changing client context invalidates the captured
-request, so late stream chunks and late source-record loads are ignored. A
-completion event is published only for an available, successfully completed
-answer.
-
-The Android Ask surface uses the same shared presentation contract for online
-and offline conversations. It keeps the selected answer branch, regeneration
-variants, source references, save-as-record progress, and composer context
-controls together while a turn is active. A new or growing answer follows the
-bottom of the conversation until you drag away; returning near the bottom
-resumes automatic following. Completed assistant answers render Markdown, while
-partial streaming text remains plain until generation finishes. Source links
-open only after the current conversation and client context still own the
-request.
-
 ## Automatic Summaries
 
 When Automatically Summarize New Records (`新建记录后自动总结`) is enabled, the server sends a new record's content asynchronously after the record has been saved successfully. A generation failure does not roll back the record and is not retried indefinitely. Disabling the setting only prevents future automatic calls; it does not delete existing summaries or data already received by the provider.
 
-Generating a summary manually makes one external request. An Ask turn normally makes two external requests to the same configured provider: one to route the question and generate retrieval phrases, and one to produce the answer. Both requests include the current question and current branch history. A general answer includes no attached record content in either request; record and mixed answers attach relevant source content only to the second request. Sillage does not call a provider when no usable default profile or API key is available. In Android offline mode, the device makes both requests directly instead of routing them through the Sillage server.
+Generating a summary manually makes one external request. An Ask turn normally makes two external requests to the same configured provider: one to route the question and generate retrieval phrases, and one to produce the answer. Both requests include the current question and current branch history. A general answer includes no attached record content in either request; record and mixed answers attach relevant source content only to the second request. Sillage does not call a provider when no usable default profile or API key is available.
 
 ## Secrets and Local Data
 
 - The server encrypts AI API keys with a key derived from `ENCRYPTION_SECRET`. The API reports only whether a key is configured and never returns the plaintext value.
 - If `ENCRYPTION_SECRET` is lost or changed, existing API keys may no longer be decryptable and must be saved again. See [Data, Backup, and Recovery](data.md) for backup requirements.
-- Android offline profiles and local data are protected with Android Keystore. Exported JSON removes API keys, but records, summaries, and Ask content remain plaintext sensitive data.
 - These protections do not provide encryption at rest for the entire database, attachment directory, or backups.
 
 When you stop using a provider, disable automatic summaries and delete the corresponding profile to prevent future calls. Deletion clears the encrypted API key envelope from the current server database, but historical backups may still contain the envelope and AI-derived data may remain. This is not permanent deletion from every historical copy. Data that has already been sent remains subject to the provider's policies.

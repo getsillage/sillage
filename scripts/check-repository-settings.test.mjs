@@ -31,7 +31,7 @@ test("reports organization, repository, security, and branch protection drift", 
     (check) =>
       check.context !== "Supply Chain" &&
       check.context !== "Upgrade" &&
-      check.context !== "Android Device (API 26)",
+      check.context !== "CodeQL (javascript-typescript)",
   );
   snapshot.repositories[
     "getsillage.github.io"
@@ -85,7 +85,7 @@ test("reports organization, repository, security, and branch protection drift", 
   assert.ok(failures.includes("getsillage/sillage: missing required status check Supply Chain"));
   assert.ok(failures.includes("getsillage/sillage: missing required status check Upgrade"));
   assert.ok(
-    failures.includes("getsillage/sillage: missing required status check Android Device (API 26)"),
+    failures.includes("getsillage/sillage: missing required status check CodeQL (javascript-typescript)"),
   );
   assert.ok(
     failures.includes(

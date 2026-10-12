@@ -6,15 +6,6 @@ const exactDependencyPaths = new Set([
   "scripts/Dockerfile",
   "apps/web/package.json",
   "apps/web/pnpm-lock.yaml",
-  "apps/native/build.gradle.kts",
-  "apps/native/settings.gradle.kts",
-  "apps/native/gradle.properties",
-  "apps/native/androidApp/build.gradle.kts",
-  "apps/native/androidApp/gradle.lockfile",
-  "apps/native/gradle/verification-metadata.xml",
-  "apps/native/gradle/wrapper/gradle-wrapper.jar",
-  "apps/native/gradle/wrapper/gradle-wrapper.properties",
-  "apps/native/androidApp/src/main/res/raw/third_party_notices.txt",
 ]);
 
 const dependencyPathPrefixes = [".github/workflows/", "third_party/licenses/"];

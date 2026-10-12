@@ -24,7 +24,7 @@ One-line description:
 5. **AI is optional and source-grounded for personal claims.** General questions may use model knowledge without citations; claims about the user's life or history require cited records. Do not diagnose users or present speculation as fact.
 6. **AI services for edge platforms** may only be reached as operator-configured compatible endpoints. No named provider presets, adapters, or defaults for those platforms.
 7. **No built-in backup UI, server backup API, or backup CLI.** Backup remains an operator data-directory procedure.
-8. **Do not commit secrets, live databases, attachments, keystores, or unsigned release binaries** into the repository.
+8. **Do not commit secrets, live databases, attachments or unsigned release binaries** into the repository.
 
 ## Engineering red lines
 
@@ -33,7 +33,7 @@ One-line description:
 | API contracts | Proto is the Connect contract source; generated `contracts/proto/gen` is committed and must match `buf generate` | CI `check-proto` |
 | Schema | New DBs use `LATEST.sql`; upgrades go through idempotent migrator steps | Go migration tests |
 | Concurrency | Memo writes use `version`; deletions use tombstones; no silent overwrite | Tests + review |
-| Secrets | AI API keys only as encrypted envelopes; never returned by API or sync | Security tests + review |
+| Secrets | AI API keys only as encrypted envelopes; never returned by API | Security tests + review |
 | Web embed | `server/router/frontend/dist/` is generated and gitignored | CI embed policy |
 | Releases | User-visible artifacts come from the Release workflow only | Release policy |
 

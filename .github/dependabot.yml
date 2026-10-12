@@ -10,7 +10,6 @@ updates:
       infrastructure-actions:
         patterns:
           - "docker/*"
-          - "reactivecircus/android-emulator-runner"
     labels:
       - dependencies
 
@@ -57,29 +56,6 @@ updates:
       # runtime used by local tooling, CI, and the production build image.
       - dependency-name: "@types/node"
         update-types:
-          - "version-update:semver-major"
-    labels:
-      - dependencies
-
-  - package-ecosystem: gradle
-    directory: /apps/native
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      kotlin:
-        patterns:
-          - "org.jetbrains.kotlin*"
-    ignore:
-      # Kotlin and Compose compiler plugins are a coordinated toolchain. Allow
-      # 2.2.x patches, but require deliberate review for minor/major upgrades.
-      - dependency-name: "org.jetbrains.kotlin.android"
-        update-types:
-          - "version-update:semver-minor"
-          - "version-update:semver-major"
-      - dependency-name: "org.jetbrains.kotlin.plugin.compose"
-        update-types:
-          - "version-update:semver-minor"
           - "version-update:semver-major"
     labels:
       - dependencies

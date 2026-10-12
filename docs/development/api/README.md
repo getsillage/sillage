@@ -16,7 +16,7 @@ Except for `GET /healthz`, `GET /readyz`, and authentication bootstrap/initializ
 Authorization: Bearer <access_token>
 ```
 
-Protected reads initiated natively by the browser, currently `/file/attachments/...`, may fall back to an HttpOnly access cookie. Cookies cannot be used for application write operations. Echo REST errors for unauthenticated requests, validation failures, conflicts, rate limits, and similar conditions use a consistent structure:
+Protected reads initiated directly by the browser, currently `/file/attachments/...`, may fall back to an HttpOnly access cookie. Cookies cannot be used for application write operations. Echo REST errors for unauthenticated requests, validation failures, conflicts, rate limits, and similar conditions use a consistent structure:
 
 ```json
 {
@@ -34,14 +34,14 @@ The message value is localized, user-facing text. The example above is a placeho
 | Area | Route source of truth | Notes |
 | --- | --- | --- |
 | Authentication | `server/auth_routes.go`, `contracts/proto/api/v1/auth_service.proto` | Initialization, sign-in, refresh, sign-out, password change, and the current account |
-| Records and sync | `server/memo_routes.go`, `server/sync_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
+| Records | `server/memo_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
 | Attachments | `server/attachment_routes.go` | Multipart upload, metadata, deletion, and authenticated download |
 | AI settings | `server/ai_routes.go` | Configuration, model listing, connection tests, and automatic summaries |
 | Ask | `server/ask_routes.go` | Conversations, messages, branches, head, and SSE streaming answers |
 
 SSE routes return `text/event-stream`. Uploads, attachment downloads, SSE, and action-style `POST` endpoints are all handwritten REST extensions; changes must update both this table and the tests.
 
-Ask message objects returned by list, create, stream, and sync routes use camelCase fields. `promptVersion` identifies the prompt semantics used to generate an answer: newly generated assistant answers use `ask-answer-v2`, while user messages and historical rows that were not backfilled return an empty string. `sourceRefs` contains only valid record citations retained from the answer and is empty for a general answer. The SSE `done` event carries the same message shape as the non-streaming routes.
+Ask message objects returned by list, create, and stream routes use camelCase fields. `promptVersion` identifies the prompt semantics used to generate an answer: newly generated assistant answers use `ask-answer-v2`, while user messages and historical rows that were not backfilled return an empty string. `sourceRefs` contains only valid record citations retained from the answer and is empty for a general answer. The SSE `done` event carries the same message shape as the non-streaming routes.
 
 Authentication password changes are exposed through both the REST route
 `POST /api/v1/auth/change-password` and the Connect `AuthService.ChangePassword`
@@ -54,6 +54,12 @@ uploads use the separate configured upload limit. Record, Ask, search, and AI
 configuration fields have stricter per-field limits and return the normal
 `invalid_field` error when exceeded.
 
+## Record Writes
+
+The Web client sends the user-selected date and Markdown body to `POST /api/v1/memos`, leaving ID assignment to the server. The server still accepts the legacy optional `id` input until a separate contract cleanup. Record updates include `expectedVersion`; a stale version returns a conflict and must preserve the browser draft.
+
+Attachment uploads retain their separate `mutation_id` retry identifier so a retried upload can return the original canonical attachment rather than creating a duplicate.
+
 ## Record Lifecycle
 
 Normal record listing and search omit deleted records. `GET /api/v1/memos?deleted=true` returns recoverable records newest-deletion first; it excludes already purged tombstones and does not subdivide the lifecycle view by favorite/archive state. The response shape includes both `deletedAt` and `purgedAt`. A pagination cursor is tied to the filter set that produced it and must not be reused across normal and Recently Deleted views.
@@ -62,11 +68,11 @@ Normal record listing and search omit deleted records. `GET /api/v1/memos?delete
 - `POST /api/v1/memos/{id}:restore` with `{"expectedVersion": version}` restores a recoverable record.
 - `POST /api/v1/memos/{id}:purge` with `{"expectedVersion": version}` permanently scrubs a deleted record.
 
-The corresponding Connect methods are `DeleteMemo`, `RestoreMemo`, and `PurgeMemo`. Restore and purge require optimistic concurrency and return the normalized record. After the 30-day recovery window, server maintenance performs purge automatically. Purged rows retain a minimal tombstone for synchronization; they do not reappear in normal or Recently Deleted REST lists. See the [Sync API](sync.md) for offline convergence semantics.
+The corresponding Connect methods are `DeleteMemo`, `RestoreMemo`, and `PurgeMemo`. Restore and purge require optimistic concurrency and return the normalized record. After the 30-day recovery window, server maintenance performs purge automatically. Purged rows retain a minimal tombstone so stale requests cannot revive deleted content; they do not reappear in normal or Recently Deleted REST lists.
 
 ## Versioning and Compatibility
 
-`/api/v1` permits only backward-compatible additions of fields, optional parameters, and endpoints. Removing or renaming contract elements, changing a field's type or meaning, or changing the authentication or error model requires a new version path. The release notes must document migration and rollback requirements.
+The maintained client uses the Web-facing `/api/v1` surface. The current server contract remains unchanged by client and toolchain removal. Additions must preserve existing field meanings, authentication, and errors; future contract retirement requires explicit compatibility documentation and verification.
 
 `GET /api/v1/auth/bootstrap` is public and returns initialization state plus operational compatibility metadata:
 
@@ -80,6 +86,20 @@ The corresponding Connect methods are `DeleteMemo`, `RestoreMemo`, and `PurgeMem
 }
 ```
 
-The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. Clients must tolerate additive bootstrap fields and must not infer compatibility from a display version alone: `apiVersion` and the platform-specific minimum remain authoritative. Android blocks online connection and synchronization when its `versionCode` is below `minimumAndroidVersionCode`, links users to GitHub Releases, and keeps Offline mode available.
+The route is served with `Cache-Control: no-store`. Every HTTP response also carries `X-Sillage-Version`, `X-Sillage-Revision`, `X-Sillage-API-Version`, and the legacy `X-Sillage-Min-Android-Version-Code`. Web requests identify their build with `X-Sillage-Client`, `X-Sillage-Client-Version`, and `X-Sillage-Client-Revision`; these headers are diagnostic metadata, not authentication. The Web client must tolerate additive bootstrap fields and must not infer API compatibility from a display version alone; `apiVersion` identifies the contract generation.
 
 Proto changes must run `buf lint`, `buf breaking`, and `buf generate`. When REST and Connect share semantics, tests must cover both transports. Handwritten REST-only extensions must also retain equivalent REST regression coverage.
+
+## Legacy Server Surface
+
+The client and toolchain cleanup leaves these server contract elements in place
+until their separate removal:
+
+- `GET /api/v1/sync`, `POST /api/v1/sync:push`, and the corresponding Connect bulk operations;
+- `minimumAndroidVersionCode` in bootstrap and `X-Sillage-Min-Android-Version-Code` in responses;
+- the optional record-create `id` input.
+
+The Web application uses standard record operations and does not use these
+legacy elements. Existing pagination, mutation replay, and conflict behavior is
+still defined in the [Legacy Sync API](sync.md); this is retained protocol
+documentation, not a supported application-client development guide.

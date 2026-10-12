@@ -56,8 +56,6 @@ The Web client has only two primary navigation destinations:
 
 Ask is entered through Start Ask (`开始问答`) and the conversation area instead of taking another primary navigation slot. Settings live in the user menu. A quick-capture entry point is globally available outside the Ask page.
 
-The Android bottom bar uses Records / Calendar / Ask / Settings (`记录 / 日历 / 问答 / 设置`), with list states and search inside the Records screen. System Back returns from Calendar, Ask, or Settings to the starting Records destination before leaving the app. The client may connect to an instance online or save locally while offline. Sync is currently triggered manually; background sync and push notifications are not provided.
-
 ## Summaries and Ask
 
 A summary must state what it is based on and provide a path back to its source records. It summarizes events, recurring themes, and content worth revisiting; it must not diagnose the user or present uncertain conclusions as facts.
@@ -111,15 +109,11 @@ See [Content Design](content-design.md) for interface patterns, localization sty
 
 ## Accessibility and Status Feedback
 
-Android keeps the Record search and Ask composer field names visible as persistent labels and exposes actual screen and section titles as accessibility headings. Visual emphasis alone does not make a label a heading.
-
-Web and Android search results belong to the exact query that completed successfully; cached results from another query are never shown as current matches. On Android, the localized result count remains visible and readable by assistive technology, but is announced only once for each new successful completion. Editing the query, a failed search, returning to the screen, or an unrelated record update must not replay a stale success announcement.
-
-On Android, system Back is intercepted while an attachment upload or another blocking operation is active in the editor, and the user is told why. Back does not cancel or queue the operation; normal navigation resumes when the operation finishes.
+Web search results belong to the exact query that completed successfully; cached results from another query are never shown as current matches.
 
 ## Interface Languages
 
-The Web and Android clients support English and Simplified Chinese. Simplified Chinese remains the default for existing and new installations until the user chooses English. The selected interface language is stored only on the current browser or Android device; it is not an account setting and does not sync through the server.
+The Web interface supports English and Simplified Chinese. Simplified Chinese remains the default for existing and new installations until the user chooses English. The selected interface language is stored only on the current browser; it is not an account setting and is not stored on the server.
 
 - `Sillage` is never translated.
 - English UI uses Record / All Records / Ask / Summary / Source. Simplified Chinese UI uses `记录 / 全部记录 / 问答 / 总结 / 来源`.

@@ -4,7 +4,7 @@
 
 ## Context
 
-Dependabot ecosystems were configured for Go, npm, Gradle, Docker, and GitHub Actions, but `open-pull-requests-limit` was set to `0`, so the dependency policy existed only on paper. Fully opening unlimited PRs would flood a small maintainer queue.
+Dependabot ecosystems were configured for Go, npm, Docker, and GitHub Actions, but `open-pull-requests-limit` was set to `0`, so the dependency policy existed only on paper. Fully opening unlimited PRs would flood a small maintainer queue.
 
 ## Decision
 

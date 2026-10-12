@@ -25,9 +25,9 @@ The first time an instance is opened, you create its only account. After that, a
 - Write records in Markdown, upload images or files, and recover unsaved drafts.
 - Revisit records through lists, a calendar, and search, then organize them with favorites and archives.
 - Configure an Anthropic-compatible or OpenAI-compatible API endpoint to generate record summaries and source-grounded answers.
-- Use the responsive Web interface or the native Android client in English or Simplified Chinese, with online and offline writing and manual record sync.
+- Use the responsive Web interface in English or Simplified Chinese from a desktop or mobile browser.
 
-Sillage does not provide multi-user collaboration, public profiles, social sharing, background automatic sync, or an official hosted service. Public ingress, TLS, DNS, tunneling, CDNs, and other edge-network services are infrastructure operated separately by the deployer. They are outside the Sillage product and repository, which does not bundle third-party network connectors, credentials, or vendor-specific deployment configuration.
+Sillage does not provide multi-user collaboration, public profiles, social sharing, or an official hosted service. Public ingress, TLS, DNS, tunneling, CDNs, and other edge-network services are infrastructure operated separately by the deployer. They are outside the Sillage product and repository, which does not bundle third-party network connectors, credentials, or vendor-specific deployment configuration.
 
 ## Quick Start
 
@@ -51,7 +51,6 @@ For Compose, reverse proxy, environment variables, public exposure, pinning a re
 - Go and Echo monolithic backend
 - SQLite database and local attachment storage
 - React, TypeScript, and Vite Web client embedded in the Go binary
-- Kotlin and Jetpack Compose Android client
 - Protobuf API contract exposed through both REST v1 and Connect v1
 
 See the [Architecture Guide](docs/development/architecture.md) for detailed boundaries and sources of truth.
@@ -67,16 +66,14 @@ See the [Architecture Guide](docs/development/architecture.md) for detailed boun
 | Contribute to the project | [Contributing Guide](CONTRIBUTING.md) |
 | Understand system boundaries | [Architecture Guide](docs/development/architecture.md) |
 | Modify authentication, attachments, or secrets | [Security Development Boundaries](docs/development/security.md) |
-| Modify sync clients | [Sync API](docs/development/api/sync.md) |
 | Modify the product or interface | [Product Guidance](docs/development/product-guidance.md) / [Web Design Guidelines](docs/development/design/README.md) |
-| Build the Android client | [Sillage Android Guide](apps/native/androidApp/README.md) |
 | Download releases and view changes | [GitHub Releases](https://github.com/getsillage/sillage/releases) |
 
 See the [Documentation Hub](docs/README.md) for the complete index. Report security issues privately according to the [Security Policy](SECURITY.md).
 
 ## Development
 
-The backend requires Go 1.26. Node.js 24 and pnpm 11.9 are recommended for the Web client; Android development requires JDK 17 and the Android SDK. Setup, local development, generated artifacts, and validation requirements are documented in the [Contributing Guide](CONTRIBUTING.md).
+The backend requires Go 1.26. Node.js 24 and pnpm 11.9 are recommended for the Web client. Setup, local development, generated artifacts, and validation requirements are documented in the [Contributing Guide](CONTRIBUTING.md).
 
 ## Contributing
 

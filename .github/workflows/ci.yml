@@ -24,9 +24,6 @@ jobs:
       go: ${{ steps.affected.outputs.go }}
       proto: ${{ steps.affected.outputs.proto }}
       web: ${{ steps.affected.outputs.web }}
-      android: ${{ steps.affected.outputs.android }}
-      desktop: ${{ steps.affected.outputs.desktop }}
-      ios: ${{ steps.affected.outputs.ios }}
       scale: ${{ steps.affected.outputs.scale }}
       docs: ${{ steps.affected.outputs.docs }}
       container: ${{ steps.affected.outputs.container }}
@@ -127,6 +124,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
 
       - name: Set up Buf
         uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 # v1.50.0
@@ -308,194 +310,6 @@ jobs:
       - name: Fresh-instance E2E
         run: make check-e2e
 
-  android:
-    name: Android
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24
-
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-
-      - name: Check Android
-        run: make check-android
-
-  desktop:
-    name: Desktop
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.desktop == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-
-      - name: Check Desktop
-        run: make check-desktop
-
-  desktop-macos-package:
-    name: Desktop package (macOS)
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.desktop == 'true' }}
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-      - name: Check DMG package
-        working-directory: apps/native
-        run: ./gradlew checkDesktopPackage -Pcompose.desktop.packaging.checkJdkVendor=false
-      - name: Upload DMG
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sillage-macos-dmg
-          path: apps/native/desktopApp/build/compose/binaries/main/dmg/*.dmg
-          if-no-files-found: error
-          retention-days: 7
-
-  desktop-windows-package:
-    name: Desktop package (Windows)
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.desktop == 'true' }}
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-      - name: Check MSI package
-        working-directory: apps/native
-        run: .\gradlew.bat checkDesktopPackage "-Pcompose.desktop.packaging.checkJdkVendor=false"
-      - name: Upload MSI
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sillage-windows-msi
-          path: apps/native/desktopApp/build/compose/binaries/main/msi/*.msi
-          if-no-files-found: error
-          retention-days: 7
-
-  ios:
-    name: iOS
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.ios == 'true' }}
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-      - name: Check iOS
-        run: make check-ios
-
-  android-device:
-    name: Android Device (API ${{ matrix.api-level }})
-    needs: commits
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        api-level: [26, 35]
-    steps:
-      - name: Skip unaffected Android device gate
-        if: ${{ github.event_name == 'pull_request' && needs.commits.outputs.android != 'true' }}
-        run: echo "Android device verification is not required for this change set."
-
-      - name: Checkout
-        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up JDK
-        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Set up Android SDK
-        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-
-      - name: Enable KVM acceleration
-        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-        run: |
-          if [ -e /dev/kvm ]; then
-            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-            sudo udevadm control --reload-rules
-            sudo udevadm trigger --name-match=kvm
-            sudo chmod 666 /dev/kvm
-          else
-            echo "::warning::/dev/kvm is unavailable; the emulator will use software acceleration."
-          fi
-
-      - name: Android device journeys
-        if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
-          api-level: ${{ matrix.api-level }}
-          arch: x86_64
-          disable-animations: true
-          script: make check-android-device
-
   codeql-go:
     name: CodeQL (go)
     needs: commits
@@ -571,43 +385,3 @@ jobs:
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         with:
           category: /language:javascript-typescript
-
-  codeql-android:
-    name: CodeQL (java-kotlin)
-    needs: commits
-    if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      actions: read
-      contents: read
-      packages: read
-      security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          packages: platform-tools
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
-        with:
-          languages: java-kotlin
-
-      - name: Build Android
-        run: cd apps/native && ./gradlew :androidApp:assembleDebug --no-daemon
-
-      - name: Analyze
-        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
-        with:
-          category: /language:java-kotlin

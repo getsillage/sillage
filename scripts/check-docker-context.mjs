@@ -38,12 +38,6 @@ const requiredDockerRules = [
   "**/*.db-shm",
   "**/*.db-wal",
   "**/*.db.bak-*",
-  "apps/native/local.properties",
-  "apps/native/signing.properties",
-  "*.keystore",
-  "*.jks",
-  "**/*.keystore",
-  "**/*.jks",
 ];
 
 const gitRules = readRules(gitignorePath)

@@ -36,7 +36,7 @@ ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w -X main.version=$VERSION -X main.revision=$REVISION" -tags netgo,osusergo -o sillage ./cmd/sillage
 
-FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d AS runtime
+FROM alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 AS runtime
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Sillage" \
@@ -46,7 +46,8 @@ LABEL org.opencontainers.image.title="Sillage" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$REVISION"
-RUN apk add --no-cache ca-certificates tzdata su-exec && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates tzdata su-exec && \
     addgroup -g 10001 -S sillage && \
     adduser -u 10001 -S -G sillage -h /var/opt/sillage sillage && \
     mkdir -p /var/opt/sillage /usr/local/sillage && \

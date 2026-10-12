@@ -33,7 +33,7 @@ This inventory is generated from the resolved Go build graph and the production 
 | golang.org/x/time | v0.14.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/golang.org/x/time@v0.14.0/LICENSE) |
 | google.golang.org/genproto/googleapis/api | v0.0.0-20260622175928-b703f567277d | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/api@v0.0.0-20260622175928-b703f567277d/LICENSE) |
 | google.golang.org/genproto/googleapis/rpc | v0.0.0-20260618152121-87f3d3e198d3 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260618152121-87f3d3e198d3/LICENSE) |
-| google.golang.org/grpc | v1.83.1 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/grpc@v1.83.1/LICENSE), [NOTICE.txt](third_party/licenses/go/google.golang.org/grpc@v1.83.1/NOTICE.txt) |
+| google.golang.org/grpc | v1.83.2 | Apache-2.0 | [LICENSE](third_party/licenses/go/google.golang.org/grpc@v1.83.2/LICENSE), [NOTICE.txt](third_party/licenses/go/google.golang.org/grpc@v1.83.2/NOTICE.txt) |
 | google.golang.org/protobuf | v1.36.11 | BSD-3-Clause | [LICENSE](third_party/licenses/go/google.golang.org/protobuf@v1.36.11/LICENSE) |
 | modernc.org/libc | v1.74.1 | BSD-3-Clause AND LicenseRef-modernc-libc-third-party | [LICENSE](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE), [LICENSE-3RD-PARTY.md](third_party/licenses/go/modernc.org/libc@v1.74.1/LICENSE-3RD-PARTY.md) |
 | modernc.org/mathutil | v1.7.1 | BSD-3-Clause | [LICENSE](third_party/licenses/go/modernc.org/mathutil@v1.7.1/LICENSE) |

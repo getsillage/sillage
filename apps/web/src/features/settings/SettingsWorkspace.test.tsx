@@ -1,14 +1,28 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createMemoryRouter, Link, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../../components/Toast";
+import {
+  hasBlockingOperation,
+  UnsavedNavigationGuard,
+} from "../../components/UnsavedNavigationGuard";
 import type { AIProfile } from "../../lib/api";
+import { clearAccessToken, getAccessToken } from "../../lib/auth";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
   return {
     ...actual,
+    changePassword: vi.fn(),
     getAISettings: vi.fn(),
     listAIModels: vi.fn(),
     patchAISettings: vi.fn(),
@@ -17,18 +31,32 @@ vi.mock("../../lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("../../components/UnsavedNavigationGuard", () => ({
-  UnsavedNavigationGuard: () => null,
-  useUnsavedChangesRegistration: () => undefined,
-}));
+vi.mock("../../components/UnsavedNavigationGuard", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("../../components/UnsavedNavigationGuard")
+    >();
+  return { ...actual, UnsavedNavigationGuard: vi.fn(() => null) };
+});
 
 import {
+  changePassword,
   getAISettings,
   listAIModels,
   patchAISettings,
   setAIAutoSummary,
   testAIConnection,
 } from "../../lib/api";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (cause: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function profile(overrides: Partial<AIProfile> = {}): AIProfile {
   return {
@@ -52,6 +80,7 @@ function profile(overrides: Partial<AIProfile> = {}): AIProfile {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(UnsavedNavigationGuard).mockImplementation(() => null);
   vi.mocked(getAISettings).mockResolvedValue({
     profiles: [profile()],
     autoSummary: false,
@@ -727,6 +756,309 @@ describe("SettingsWorkspace", () => {
       ),
     );
     expect(await screen.findByText(/连接成功/)).toBeInTheDocument();
+  });
+
+  it("ignores an old connection test after editing its configuration", async () => {
+    const user = userEvent.setup();
+    const oldTest = deferred<{ ok: boolean; model: string }>();
+    const newTest = deferred<{ ok: boolean; model: string }>();
+    vi.mocked(testAIConnection)
+      .mockReturnValueOnce(oldTest.promise)
+      .mockReturnValueOnce(newTest.promise);
+    renderSettingsWithToast();
+    await openDefaultProfile(user);
+
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+    const oldSignal = vi.mocked(testAIConnection).mock.calls[0][2];
+    await user.type(screen.getByLabelText("接口地址"), "https://new.example");
+    expect(oldSignal?.aborted).toBe(true);
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+
+    await act(async () => {
+      oldTest.resolve({ ok: true, model: "old-model" });
+      await oldTest.promise;
+    });
+    expect(screen.queryByText(/old-model/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "测试中…" })).toBeDisabled();
+
+    await act(async () => {
+      newTest.resolve({ ok: true, model: "new-model" });
+      await newTest.promise;
+    });
+    expect(screen.getAllByText("连接成功（new-model）")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "测试连接" })).toBeEnabled();
+  });
+
+  it("ignores a stale model list and allows a request for the edited endpoint", async () => {
+    const user = userEvent.setup();
+    const oldModels = deferred<{ models: string[] }>();
+    const newModels = deferred<{ models: string[] }>();
+    vi.mocked(listAIModels)
+      .mockReturnValueOnce(oldModels.promise)
+      .mockReturnValueOnce(newModels.promise);
+    renderSettingsWithToast();
+    await openDefaultProfile(user);
+
+    await user.click(screen.getByRole("button", { name: "获取模型" }));
+    const oldSignal = vi.mocked(listAIModels).mock.calls[0][2];
+    await user.type(screen.getByLabelText("API 密钥"), "new-test-key");
+    expect(oldSignal?.aborted).toBe(true);
+    await user.click(screen.getByRole("button", { name: "获取模型" }));
+
+    await act(async () => {
+      oldModels.resolve({ models: ["old-model"] });
+      await oldModels.promise;
+    });
+    expect(screen.queryByLabelText("选择模型")).not.toBeInTheDocument();
+    expect(screen.queryByText("已获取模型列表")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "获取中…" })).toBeDisabled();
+
+    await act(async () => {
+      newModels.resolve({ models: ["new-model"] });
+      await newModels.promise;
+    });
+    expect(
+      screen.getByRole("option", { name: "new-model" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "old-model" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores a late connection failure after the profile is deleted", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<{ ok: boolean; model: string }>();
+    vi.mocked(testAIConnection).mockReturnValueOnce(pending.promise);
+    renderSettingsWithToast();
+    await openDefaultProfile(user);
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+    const signal = vi.mocked(testAIConnection).mock.calls[0][2];
+    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    expect(signal?.aborted).toBe(true);
+
+    await act(async () => {
+      pending.reject(new Error("过期的连接失败"));
+      await pending.promise.catch(() => undefined);
+    });
+    expect(screen.queryByText("过期的连接失败")).not.toBeInTheDocument();
+  });
+
+  it("reports a connection timeout and makes retry available", async () => {
+    const user = userEvent.setup();
+    vi.mocked(testAIConnection).mockImplementationOnce(
+      (_token, _input, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+    renderSettings();
+    await openDefaultProfile(user);
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "测试连接" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(65_000);
+      });
+      expect(screen.getByText("请求超时，请稍后重试。")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "测试连接" })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels endpoint requests on unmount without notifying another page", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<{ models: string[] }>();
+    vi.mocked(listAIModels).mockReturnValueOnce(pending.promise);
+    const rendered = renderSettingsWithToast();
+    await openDefaultProfile(user);
+    await user.click(screen.getByRole("button", { name: "获取模型" }));
+    const signal = vi.mocked(listAIModels).mock.calls[0][2];
+    rendered.rerender(
+      <ToastProvider>
+        <p>其他页面</p>
+      </ToastProvider>,
+    );
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      pending.reject(new Error("已离开页面的失败"));
+      await pending.promise.catch(() => undefined);
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("starts only one profile save for synchronous repeated clicks", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<{ profiles: AIProfile[]; autoSummary: boolean }>();
+    vi.mocked(patchAISettings).mockReturnValueOnce(pending.promise);
+    renderSettings();
+    await openDefaultProfile(user);
+    await user.type(screen.getByLabelText("名称"), "更改");
+    const button = screen.getByRole("button", { name: "保存设置" });
+    act(() => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    expect(patchAISettings).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      pending.resolve({
+        profiles: [profile({ name: "默认更改" })],
+        autoSummary: false,
+      });
+      await pending.promise;
+    });
+    expect(screen.queryByText("有未保存更改")).not.toBeInTheDocument();
+  });
+
+  it("keeps AI profile drafts when the access token rotates", async () => {
+    const user = userEvent.setup();
+    const rendered = renderSettings();
+    await openDefaultProfile(user);
+    await user.type(screen.getByLabelText("名称"), "草稿");
+    rendered.rerender(<SettingsWorkspace token="rotated-token" />);
+    expect(getAISettings).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("名称")).toHaveValue("默认草稿");
+    expect(screen.getByText("有未保存更改")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "测试连接" }));
+    expect(vi.mocked(testAIConnection).mock.calls[0][0]).toBe("rotated-token");
+  });
+
+  it("keeps password changes single-flight and blocks competing settings writes", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<Awaited<ReturnType<typeof changePassword>>>();
+    vi.mocked(changePassword).mockReturnValueOnce(pending.promise);
+    renderSettings();
+    await openDefaultProfile(user);
+    await user.type(screen.getByLabelText("名称"), "草稿");
+    await user.click(screen.getByRole("button", { name: "账号" }));
+    await user.type(screen.getByLabelText("当前密码"), "current-password");
+    await user.type(screen.getByLabelText("新密码"), "changed-password");
+    await user.type(screen.getByLabelText("确认新密码"), "changed-password");
+    const form = screen
+      .getByRole("button", { name: "保存新密码" })
+      .closest("form");
+    act(() => {
+      fireEvent.submit(form as HTMLFormElement);
+      fireEvent.submit(form as HTMLFormElement);
+    });
+    expect(changePassword).toHaveBeenCalledTimes(1);
+    expect(hasBlockingOperation()).toBe(true);
+    expect(screen.getByRole("button", { name: "保存设置" })).toBeDisabled();
+    expect(screen.getByLabelText("当前密码")).toBeDisabled();
+
+    await act(async () => {
+      pending.reject(new Error("修改密码失败"));
+      await pending.promise.catch(() => undefined);
+    });
+    expect(screen.getByLabelText("当前密码")).toHaveValue("current-password");
+    expect(screen.getByLabelText("新密码")).toHaveValue("changed-password");
+    expect(screen.getByRole("button", { name: "保存设置" })).toBeEnabled();
+    expect(patchAISettings).not.toHaveBeenCalled();
+    expect(hasBlockingOperation()).toBe(false);
+  });
+
+  it("keeps a password request on its page and discards attempted departures", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<Awaited<ReturnType<typeof changePassword>>>();
+    vi.mocked(changePassword).mockReturnValueOnce(pending.promise);
+    const actualGuards = await vi.importActual<
+      typeof import("../../components/UnsavedNavigationGuard")
+    >("../../components/UnsavedNavigationGuard");
+    vi.mocked(UnsavedNavigationGuard).mockImplementation(
+      actualGuards.UnsavedNavigationGuard,
+    );
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/settings",
+          element: (
+            <>
+              <Link to="/timeline">离开设置</Link>
+              <SettingsWorkspace token="t" />
+            </>
+          ),
+        },
+        { path: "/timeline", element: <p>全部记录页面</p> },
+      ],
+      { initialEntries: ["/settings"] },
+    );
+    render(<RouterProvider router={router} />);
+    await screen.findByRole("button", { name: "配置" });
+    await user.click(screen.getByRole("button", { name: "账号" }));
+    await user.type(screen.getByLabelText("当前密码"), "current-password");
+    await user.type(screen.getByLabelText("新密码"), "changed-password");
+    await user.type(screen.getByLabelText("确认新密码"), "changed-password");
+    await user.click(screen.getByRole("button", { name: "保存新密码" }));
+    expect(hasBlockingOperation()).toBe(true);
+    const unloading = new Event("beforeunload", { cancelable: true });
+    expect(window.dispatchEvent(unloading)).toBe(false);
+    await user.click(screen.getByRole("link", { name: "离开设置" }));
+    expect(
+      screen.getByRole("alertdialog", { name: "正在修改密码…" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "离开此页" }),
+    ).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/settings");
+    await act(async () => {
+      pending.reject(new Error("密码请求失败"));
+      await pending.promise.catch(() => undefined);
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(router.state.location.pathname).toBe("/settings");
+    expect(hasBlockingOperation()).toBe(false);
+    expect(screen.getByLabelText("当前密码")).toHaveValue("current-password");
+    expect(screen.getByLabelText("新密码")).toHaveValue("changed-password");
+    expect(screen.getByLabelText("确认新密码")).toHaveValue("changed-password");
+    expect(
+      window.dispatchEvent(new Event("beforeunload", { cancelable: true })),
+    ).toBe(true);
+    await user.click(screen.getByRole("link", { name: "离开设置" }));
+    expect(await screen.findByText("全部记录页面")).toBeInTheDocument();
+  });
+
+  it("releases the password lock after success without discarding AI profile drafts", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<Awaited<ReturnType<typeof changePassword>>>();
+    vi.mocked(changePassword).mockReturnValueOnce(pending.promise);
+    const rendered = renderSettings();
+    await openDefaultProfile(user);
+    await user.type(screen.getByLabelText("名称"), "草稿");
+    await user.click(screen.getByRole("button", { name: "账号" }));
+    await user.type(screen.getByLabelText("当前密码"), "current-password");
+    await user.type(screen.getByLabelText("新密码"), "changed-password");
+    await user.type(screen.getByLabelText("确认新密码"), "changed-password");
+    await user.click(screen.getByRole("button", { name: "保存新密码" }));
+    expect(hasBlockingOperation()).toBe(true);
+    await act(async () => {
+      pending.resolve({
+        accessToken: "rotated-token",
+        expiresAt: "later",
+        account: {
+          id: "a1",
+          username: "felix",
+          displayName: "Felix",
+          createdAt: "1",
+          updatedAt: "1",
+        },
+      });
+      await pending.promise;
+    });
+    expect(hasBlockingOperation()).toBe(false);
+    expect(getAccessToken()).toBe("rotated-token");
+    expect(screen.getByLabelText("当前密码")).toHaveValue("");
+    expect(screen.getByLabelText("新密码")).toHaveValue("");
+    expect(screen.getByLabelText("确认新密码")).toHaveValue("");
+    rendered.rerender(<SettingsWorkspace token="rotated-token" />);
+    await user.click(screen.getByRole("button", { name: "AI" }));
+    expect(screen.getByLabelText("名称")).toHaveValue("默认草稿");
+    expect(getAISettings).toHaveBeenCalledTimes(1);
+    clearAccessToken();
   });
 
   it("preserves an explicit zero temperature", async () => {

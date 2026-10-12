@@ -2,10 +2,12 @@ import {
   type APIRequestContext,
   type APIResponse,
   expect,
+  type Locator,
   type Page,
   request as requestFactory,
   test,
 } from "@playwright/test";
+import { type Locale, translate } from "../src/i18n/messages";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5231";
 const USERNAME = "felix-e2e";
@@ -15,7 +17,22 @@ const UPDATED_PASSWORD = "a-new-strong-password";
 const LIFECYCLE_MARKER = "E2ELifecycleJourney";
 const CONFLICT_MARKER = "E2EConflictJourney";
 const AI_MARKER = "E2EAIJourney";
+const RESPONSIVE_MARKER = "E2EResponsiveJourney";
 const ATTACHMENT_FILENAME = "e2e-attachment.txt";
+const RESPONSIVE_CONTINUOUS_TEXT = `LongContinuousText${"x".repeat(600)}`;
+const RESPONSIVE_CONTENT = [
+  `# ${RESPONSIVE_MARKER}`,
+  "",
+  RESPONSIVE_CONTINUOUS_TEXT,
+  "",
+  "```text",
+  `LongCodeLine${"0123456789".repeat(90)}`,
+  "```",
+  "",
+  `| ${Array.from({ length: 12 }, (_, index) => `Column ${index + 1}`).join(" | ")} |`,
+  `| ${Array.from({ length: 12 }, () => "---").join(" | ")} |`,
+  `| ${Array.from({ length: 12 }, (_, index) => `Value${index}${"x".repeat(40)}`).join(" | ")} |`,
+].join("\n");
 
 type AuthPayload = { accessToken: string };
 type Memo = {
@@ -70,6 +87,26 @@ test.describe("fresh-instance release journeys", () => {
     await expect(
       page.getByRole("heading", { name: "Create the only account" }),
     ).toBeVisible();
+
+    await page.setViewportSize({ width: 320, height: 844 });
+    for (const colorScheme of ["dark", "light"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.evaluate((preference) => {
+        localStorage.setItem("sillage-theme", preference);
+      }, colorScheme);
+      await page.reload();
+      await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme);
+      await expectPhoneInput(page.getByLabel("Username"));
+      await expectPhoneInput(page.getByLabel("Display name"));
+      await expectPhoneInput(page.getByLabel("Password", { exact: true }));
+      await expectTouchTarget(
+        page.getByRole("button", { name: "Create and continue" }),
+      );
+      await expectNoHorizontalPageScroll(page);
+      await page.screenshot({
+        path: test.info().outputPath(`mobile-initialize-${colorScheme}.png`),
+      });
+    }
 
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -408,6 +445,323 @@ test.describe("fresh-instance release journeys", () => {
     await deleteMemoAPI(request, token, memo.id);
   });
 
+  for (const width of [320, 390]) {
+    for (const locale of ["zh-CN", "en"] as const) {
+      for (const theme of ["light", "dark"] as const) {
+        test(`keeps mobile journeys usable at ${width}px in ${locale} ${theme}`, async ({
+          page,
+          request,
+        }) => {
+          test.setTimeout(90_000);
+          const t = (key: Parameters<typeof translate>[1]) =>
+            translate(locale, key);
+          const pageErrors: string[] = [];
+          page.on("pageerror", (error) => pageErrors.push(error.message));
+          const token = await signInAPI(request, PASSWORD);
+          await cleanupE2EState(request, token, RESPONSIVE_MARKER);
+          const memo = await createMemoAPI(request, token, RESPONSIVE_CONTENT);
+
+          try {
+            await page.setViewportSize({ width, height: 844 });
+            await page.emulateMedia({ colorScheme: theme });
+            await setLocale(page, locale);
+            await page.addInitScript((preference) => {
+              localStorage.setItem("sillage-theme", preference);
+            }, theme);
+
+            await test.step("login fields and action fit the phone", async () => {
+              await page.goto("/login");
+              await expect(
+                page.getByRole("heading", { name: t("auth.loginTitle") }),
+              ).toBeVisible();
+              await expect(page.locator("html")).toHaveAttribute(
+                "lang",
+                locale,
+              );
+              await expect(page.locator("html")).toHaveCSS(
+                "color-scheme",
+                theme,
+              );
+              await expectPhoneInput(page.getByLabel(t("auth.account")));
+              await expectPhoneInput(
+                page.getByLabel(t("auth.password"), { exact: true }),
+              );
+              await expectTouchTarget(
+                page.getByRole("button", {
+                  name: t("auth.loginAction"),
+                  exact: true,
+                }),
+              );
+              await expectNoHorizontalPageScroll(page);
+            });
+
+            await signInThroughUI(page, PASSWORD, locale);
+            await test.step("home and mobile navigation remain usable", async () => {
+              await expect(
+                page.getByText(RESPONSIVE_MARKER).first(),
+              ).toBeVisible();
+              await expectPhoneInput(
+                page.getByRole("textbox", {
+                  name: t("editor.contentLabel"),
+                  exact: true,
+                }),
+              );
+              await expectTouchTarget(
+                page.getByRole("button", {
+                  name: t("common.save"),
+                  exact: true,
+                }),
+              );
+              await expectNoHorizontalPageScroll(page);
+
+              const openNavigation = page.getByRole("button", {
+                name: t("nav.open"),
+              });
+              await expectTouchTarget(openNavigation);
+              await openNavigation.click();
+              const navigation = page.getByRole("dialog", {
+                name: t("nav.navigation"),
+              });
+              await expect(navigation).toBeVisible();
+              const allRecords = navigation.getByRole("link", {
+                name: t("nav.allRecords"),
+              });
+              await expectTouchTarget(allRecords);
+              await expectNoHorizontalPageScroll(page);
+              await allRecords.click();
+              await expect(navigation).toHaveCount(0);
+            });
+
+            await test.step("record search and each list filter fit", async () => {
+              const search = page.getByPlaceholder(
+                t("timeline.searchPlaceholder"),
+              );
+              await expectPhoneInput(search);
+              await search.fill(RESPONSIVE_MARKER);
+              await expect(
+                page.getByText(translate(locale, "timeline.foundOne")),
+              ).toBeVisible();
+              await expect(
+                page.getByText(RESPONSIVE_MARKER).first(),
+              ).toBeVisible();
+              await expectTouchTarget(
+                page.getByRole("link", {
+                  name: t("timeline.calendar"),
+                  exact: true,
+                }),
+              );
+              for (const filterLink of await page
+                .getByRole("group", { name: t("timeline.statusLabel") })
+                .getByRole("link")
+                .all()) {
+                await expectTouchTarget(filterLink);
+              }
+              await expectNoHorizontalPageScroll(page);
+
+              for (const filter of ["archived", "favorite", "deleted"]) {
+                await page.goto(
+                  `/timeline?filter=${filter}&q=${RESPONSIVE_MARKER}`,
+                );
+                await expect(
+                  page.getByText(
+                    translate(locale, "timeline.foundMany", { count: 0 }),
+                  ),
+                ).toBeVisible();
+                await expectPhoneInput(
+                  page.getByPlaceholder(t("timeline.searchPlaceholder")),
+                );
+                await expectNoHorizontalPageScroll(page);
+              }
+            });
+
+            await test.step("calendar dates can be selected without page overflow", async () => {
+              const [year, month] = memo.entryDate.split("-").map(Number);
+              await page.goto(`/timeline?view=calendar&y=${year}&m=${month}`);
+              const calendar = page.getByRole("table");
+              await expect(calendar).toBeVisible();
+              const dateLabel = new Intl.DateTimeFormat(locale, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }).format(new Date(`${memo.entryDate}T12:00:00`));
+              const day = calendar.getByRole("link", {
+                name: new RegExp(`^${dateLabel}`),
+              });
+              // Seven date columns share a narrow viewport; their height remains
+              // generous while width meets the 24px minimum target size.
+              await expectTouchTarget(day, 24);
+              await expectNoHorizontalPageScroll(page);
+              await day.click();
+              await expect(page).toHaveURL(
+                new RegExp(`date=${memo.entryDate}`),
+              );
+              await expect(
+                page.getByText(RESPONSIVE_MARKER).first(),
+              ).toBeVisible();
+              await expectNoHorizontalPageScroll(page);
+            });
+
+            await test.step("long record content scrolls locally in detail and preview", async () => {
+              await page.goto(`/entries/${memo.id}`);
+              await expect(
+                page.getByRole("heading", { name: RESPONSIVE_MARKER }),
+              ).toBeVisible();
+              const longParagraph = page.getByText(RESPONSIVE_CONTINUOUS_TEXT, {
+                exact: true,
+              });
+              await expect(longParagraph).toBeVisible();
+              const paragraphOverflow = await longParagraph.evaluate(
+                (element) => element.scrollWidth - element.clientWidth,
+              );
+              expect(
+                paragraphOverflow,
+                "continuous text should wrap without clipping",
+              ).toBeLessThanOrEqual(1);
+              await expectNoHorizontalPageScroll(page);
+              await expectLocalHorizontalScroll(page.locator("article pre"));
+              await expectLocalHorizontalScroll(page.locator("article table"));
+              await expectNoHorizontalPageScroll(page);
+              if (width === 390 && locale === "en") {
+                await page.screenshot({
+                  path: test.info().outputPath("mobile-record.png"),
+                  fullPage: true,
+                });
+              }
+
+              const edit = page.getByRole("button", {
+                name: t("common.edit"),
+                exact: true,
+              });
+              await expectTouchTarget(edit);
+              await edit.click();
+              await expectPhoneInput(
+                page.getByRole("textbox", {
+                  name: t("editor.contentLabel"),
+                  exact: true,
+                }),
+              );
+              await page
+                .getByRole("button", { name: t("editor.preview"), exact: true })
+                .click();
+              await expect(
+                page.getByRole("heading", { name: RESPONSIVE_MARKER }),
+              ).toBeVisible();
+              await expectNoHorizontalPageScroll(page);
+              await expectLocalHorizontalScroll(page.locator("main pre"));
+              await expectLocalHorizontalScroll(page.locator("main table"));
+              await page
+                .getByRole("button", { name: t("common.cancel"), exact: true })
+                .click();
+            });
+
+            await test.step("question composer and source selectors fit", async () => {
+              await page.goto("/ask");
+              const question = page.getByPlaceholder(t("ask.placeholder"));
+              await expectPhoneInput(question);
+              await question.fill(`Mobile question ${"x".repeat(300)}`);
+              await expect(question).toHaveValue(
+                `Mobile question ${"x".repeat(300)}`,
+              );
+              await expectPhoneInput(
+                page.getByRole("combobox", {
+                  name: t("ask.source"),
+                  exact: true,
+                }),
+              );
+              await expectPhoneInput(
+                page.getByRole("combobox", {
+                  name: t("ask.range"),
+                  exact: true,
+                }),
+              );
+              await expectTouchTarget(
+                page.getByRole("button", { name: t("ask.send"), exact: true }),
+              );
+              await expectNoHorizontalPageScroll(page);
+            });
+
+            await test.step("AI, account, and appearance settings fit", async () => {
+              await page.goto("/settings");
+              await expect(
+                page.getByRole("heading", {
+                  name: t("settings.title"),
+                  exact: true,
+                }),
+              ).toBeVisible();
+              const addProfile = page.getByRole("button", {
+                name: t("settings.addProfile"),
+                exact: true,
+              });
+              await expectTouchTarget(addProfile);
+              const configure = page
+                .getByRole("button", {
+                  name: t("settings.configure"),
+                  exact: true,
+                })
+                .first();
+              if (await configure.count()) {
+                await configure.click();
+              } else {
+                await addProfile.click();
+              }
+              const settingsInputs = page.locator(
+                'main input:not([type="checkbox"]):enabled:visible, main select:enabled:visible',
+              );
+              await expect(settingsInputs.first()).toBeVisible();
+              for (const input of await settingsInputs.all()) {
+                await expectPhoneInput(input);
+              }
+              await expectNoHorizontalPageScroll(page);
+
+              const account = page.getByRole("button", {
+                name: t("settings.accountTab"),
+                exact: true,
+              });
+              await expectTouchTarget(account);
+              await account.click();
+              await expectPhoneInput(
+                page.getByLabel(t("settings.currentPassword")),
+              );
+              await expectTouchTarget(
+                page.getByRole("button", {
+                  name: t("settings.changePassword"),
+                  exact: true,
+                }),
+              );
+              await expectNoHorizontalPageScroll(page);
+
+              const appearance = page.getByRole("button", {
+                name: t("settings.appearanceTab"),
+                exact: true,
+              });
+              await expectTouchTarget(appearance);
+              await appearance.click();
+              await expect(
+                page.getByRole("heading", {
+                  name: t("theme.sectionTitle"),
+                  exact: true,
+                }),
+              ).toBeVisible();
+              await expectTouchTarget(
+                page.getByRole("button", {
+                  name: t("language.english"),
+                  exact: true,
+                }),
+              );
+              await expectNoHorizontalPageScroll(page);
+            });
+            expect(
+              pageErrors,
+              "mobile journeys should have no page errors",
+            ).toEqual([]);
+          } finally {
+            await cleanupE2EState(request, token, RESPONSIVE_MARKER);
+          }
+        });
+      }
+    }
+  }
+
   test("changing the password revokes another browser session", async ({
     browser,
     request,
@@ -483,23 +837,130 @@ test.describe("fresh-instance release journeys", () => {
 });
 
 async function setEnglishLocale(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("sillage-language", "en");
-  });
+  await setLocale(page, "en");
 }
 
-async function signInThroughUI(page: Page, password: string) {
-  await setEnglishLocale(page);
+async function setLocale(page: Page, locale: Locale) {
+  await page.addInitScript((language) => {
+    localStorage.setItem("sillage-language", language);
+  }, locale);
+}
+
+async function signInThroughUI(
+  page: Page,
+  password: string,
+  locale: Locale = "en",
+) {
+  await setLocale(page, locale);
   await page.goto("/login");
   await expect(
-    page.getByRole("heading", { name: "Sign in to Sillage" }),
+    page.getByRole("heading", { name: translate(locale, "auth.loginTitle") }),
   ).toBeVisible();
-  await page.getByLabel("Username").fill(USERNAME);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel(translate(locale, "auth.account")).fill(USERNAME);
+  await page
+    .getByLabel(translate(locale, "auth.password"), { exact: true })
+    .fill(password);
+  await page
+    .getByRole("button", {
+      name: translate(locale, "auth.loginAction"),
+      exact: true,
+    })
+    .click();
   await expect(
-    page.getByPlaceholder("Write what you want to remember..."),
+    page.getByRole("textbox", {
+      name: translate(locale, "editor.contentLabel"),
+      exact: true,
+    }),
   ).toBeVisible();
+}
+
+async function expectNoHorizontalPageScroll(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+  }));
+  expect(
+    dimensions.document,
+    `document overflow on ${page.url()}`,
+  ).toBeLessThanOrEqual(dimensions.viewport + 1);
+  expect(dimensions.body, `body overflow on ${page.url()}`).toBeLessThanOrEqual(
+    dimensions.viewport + 1,
+  );
+}
+
+async function expectTouchTarget(target: Locator, minimumWidth = 44) {
+  await expect(target).toBeVisible();
+  const dimensions = await target.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      // Fractional viewport scaling can report 43.99997 for a 44px target.
+      width: Number(rect.width.toFixed(3)),
+      height: Number(rect.height.toFixed(3)),
+      left: rect.left,
+      right: rect.right,
+      viewport: document.documentElement.clientWidth,
+    };
+  });
+  expect(dimensions.width, "touch target width").toBeGreaterThanOrEqual(
+    minimumWidth,
+  );
+  expect(dimensions.height, "touch target height").toBeGreaterThanOrEqual(44);
+  expect(dimensions.left, "touch target left edge").toBeGreaterThanOrEqual(-1);
+  expect(dimensions.right, "touch target right edge").toBeLessThanOrEqual(
+    dimensions.viewport + 1,
+  );
+}
+
+async function expectPhoneInput(input: Locator) {
+  await expectTouchTarget(input);
+  const fontSize = await input.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).fontSize),
+  );
+  expect(
+    fontSize,
+    "phone inputs should not trigger Safari focus zoom",
+  ).toBeGreaterThanOrEqual(16);
+}
+
+async function expectLocalHorizontalScroll(content: Locator) {
+  await expect(content).toBeVisible();
+  await content.scrollIntoViewIfNeeded();
+  const result = await content.evaluate((element) => {
+    let container: HTMLElement | null = element as HTMLElement;
+    while (
+      container &&
+      container !== document.body &&
+      container !== document.documentElement
+    ) {
+      const overflow = getComputedStyle(container).overflowX;
+      if (
+        (overflow === "auto" || overflow === "scroll") &&
+        container.scrollWidth > container.clientWidth + 1
+      ) {
+        container.scrollLeft = 80;
+        const rect = container.getBoundingClientRect();
+        return {
+          scrollLeft: container.scrollLeft,
+          left: rect.left,
+          right: rect.right,
+          viewport: document.documentElement.clientWidth,
+        };
+      }
+      container = container.parentElement;
+    }
+    return null;
+  });
+  expect(
+    result,
+    "wide Markdown content must have a local horizontal scroller",
+  ).not.toBeNull();
+  expect(
+    result?.scrollLeft,
+    "wide Markdown content remains reachable by scrolling",
+  ).toBeGreaterThan(0);
+  expect(result?.left).toBeGreaterThanOrEqual(-1);
+  expect(result?.right).toBeLessThanOrEqual((result?.viewport ?? 0) + 1);
 }
 
 async function signInAPI(request: APIRequestContext, password: string) {

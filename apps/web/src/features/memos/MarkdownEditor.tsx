@@ -89,7 +89,12 @@ export function MarkdownEditor({
     // React has committed the new value (e.g. after the 附件 button flow).
     requestAnimationFrame(() => {
       const target = textareaRef.current;
-      if (!target) {
+      if (
+        !target ||
+        latestValueRef.current !== next ||
+        selectionRef.current.start !== caret ||
+        selectionRef.current.end !== caret
+      ) {
         return;
       }
       target.focus();
@@ -114,17 +119,11 @@ export function MarkdownEditor({
     onUploadingChange?.(true);
     setError(null);
     try {
-      let appended = "";
       for (const file of list) {
         const uploaded = await onUpload(file);
-        if (list.length === 1) {
-          insertAtCursor(attachmentMarkdown(uploaded));
-        } else {
-          appended += attachmentMarkdown(uploaded);
-        }
-      }
-      if (appended) {
-        insertAtCursor(appended);
+        // Keep each successful upload in the current draft even if a later
+        // file fails, so retrying the remaining files cannot lose its link.
+        insertAtCursor(attachmentMarkdown(uploaded));
       }
       toast.showToast({
         kind: "success",
@@ -304,7 +303,7 @@ function TabButton({ active, disabled, onClick, children }: TabButtonProps) {
       disabled={disabled}
       onClick={onClick}
       aria-pressed={active}
-      className={`h-10 rounded-lg px-3 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`h-11 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:focus-visible:ring-gray-500/60 disabled:cursor-not-allowed disabled:opacity-50 ${
         active
           ? "bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
           : "text-gray-500 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"

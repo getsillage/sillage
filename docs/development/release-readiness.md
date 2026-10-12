@@ -50,6 +50,8 @@ The release commit must have a successful CI run containing every required job c
 
 - commit policy and secret scanning;
 - Go tests, vet, build, and vulnerability scan;
+- the supported Go 1.26.9 toolchain and pinned module graph must report no
+  reachable vulnerabilities;
 - Proto lint, breaking-change check, generation, and drift detection;
 - Web lint, typecheck, unit tests, production build, bundle budgets, and three-engine E2E;
 - shared KMP common tests and native architecture dependency checks, plus Android unit tests, lint, APK builds, dependency verification, vulnerability scan, and independently required API 26/API 35 device journeys;

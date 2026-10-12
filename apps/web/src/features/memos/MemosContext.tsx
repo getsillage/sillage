@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import {
+  ApiError,
   createMemo as apiCreate,
   deleteMemo as apiDelete,
   getMemo as apiGetMemo,
@@ -103,6 +104,19 @@ export function MemosProvider({
     promise: Promise<boolean>;
   } | null>(null);
   const loadMoreRequestSeq = useRef(0);
+  const detailRequestSeqRef = useRef(new Map<string, number>());
+  const summaryRequestSeqRef = useRef(new Map<string, number>());
+  const memoGenerationRef = useRef(new Map<string, number>());
+  const memoSnapshotsRef = useRef(new Map<string, Memo>());
+
+  const rememberSnapshot = useCallback((memo: Memo) => {
+    const current = memoSnapshotsRef.current.get(memo.id);
+    if (current && current.version > memo.version) {
+      return current;
+    }
+    memoSnapshotsRef.current.set(memo.id, memo);
+    return memo;
+  }, []);
 
   useEffect(() => {
     void locale;
@@ -131,10 +145,11 @@ export function MemosProvider({
         if (cacheGeneration !== cacheGenerationRef.current) {
           continue;
         }
+        const freshMemos = res.memos.map(rememberSnapshot);
         setMemos((current) =>
           mergeMemos(
             current.filter((memo) => !isActive(memo)),
-            res.memos,
+            freshMemos,
           ),
         );
         cursorRef.current = res.nextCursor ?? "";
@@ -154,7 +169,7 @@ export function MemosProvider({
         setLoading(false);
       }
     }
-  }, [token, t]);
+  }, [token, t, rememberSnapshot]);
 
   // Appends the next older page. A concurrent refresh (newer seq) discards the
   // result so pages from a stale list never leak into a fresh one.
@@ -195,7 +210,8 @@ export function MemosProvider({
             request.cacheGeneration = cacheGenerationRef.current;
             continue;
           }
-          setMemos((current) => mergeMemos(current, res.memos));
+          const freshMemos = res.memos.map(rememberSnapshot);
+          setMemos((current) => mergeMemos(current, freshMemos));
           cursorRef.current = res.nextCursor ?? "";
           setHasMore(Boolean(res.nextCursor));
           setError("");
@@ -223,7 +239,7 @@ export function MemosProvider({
       }
     })();
     return request.promise;
-  }, [token, t]);
+  }, [token, t, rememberSnapshot]);
 
   const loadAll = useCallback(async () => {
     const seenCursors = new Set<string>();
@@ -241,11 +257,22 @@ export function MemosProvider({
     void refresh();
   }, [refresh]);
 
-  const apply = useCallback((memo: Memo) => {
-    cacheGenerationRef.current += 1;
-    setMemos((current) => sortMemos(upsertMemo(current, memo)));
-    return memo;
-  }, []);
+  const apply = useCallback(
+    (memo: Memo) => {
+      const current = rememberSnapshot(memo);
+      if (current !== memo) {
+        return current;
+      }
+      cacheGenerationRef.current += 1;
+      memoGenerationRef.current.set(
+        memo.id,
+        (memoGenerationRef.current.get(memo.id) ?? 0) + 1,
+      );
+      setMemos((existing) => sortMemos(upsertMemo(existing, memo)));
+      return memo;
+    },
+    [rememberSnapshot],
+  );
 
   const getById = useCallback(
     (id: string) => memos.find((memo) => memo.id === id),
@@ -256,14 +283,33 @@ export function MemosProvider({
     async (id: string) => {
       // Always hit the detail endpoint: it returns the freshest memo plus any
       // stored summary, which the list payload omits. Cache both.
+      const request = (detailRequestSeqRef.current.get(id) ?? 0) + 1;
+      detailRequestSeqRef.current.set(id, request);
+      const generation = memoGenerationRef.current.get(id) ?? 0;
       const res = await apiGetMemo(token, id);
-      if (res.ai) {
-        const ai = res.ai;
-        setSummaries((current) => ({ ...current, [id]: ai }));
+      const current = memoSnapshotsRef.current.get(id);
+      if (
+        detailRequestSeqRef.current.get(id) !== request ||
+        (memoGenerationRef.current.get(id) ?? 0) !== generation ||
+        (current && current.version > res.memo.version)
+      ) {
+        // Preserve canonical writes and newer reads, including deletion. The
+        // caller may still await this request after leaving and returning.
+        if (current?.deletedAt) {
+          throw new ApiError(t("entry.missing"), 404, "not_found");
+        }
+        return current ?? res.memo;
       }
+      setSummaries((existing) => {
+        if (res.ai) {
+          return { ...existing, [id]: res.ai };
+        }
+        const { [id]: _removed, ...rest } = existing;
+        return rest;
+      });
       return apply(res.memo);
     },
-    [token, apply],
+    [token, apply, t],
   );
 
   const create = useCallback(
@@ -311,11 +357,16 @@ export function MemosProvider({
 
   const remove = useCallback(
     async (memo: Memo) => {
-      await apiDelete(token, memo);
+      const res = await apiDelete(token, memo);
+      rememberSnapshot(res.memo);
       cacheGenerationRef.current += 1;
+      memoGenerationRef.current.set(
+        memo.id,
+        (memoGenerationRef.current.get(memo.id) ?? 0) + 1,
+      );
       setMemos((current) => current.filter((item) => item.id !== memo.id));
     },
-    [token],
+    [token, rememberSnapshot],
   );
 
   const restore = useCallback(
@@ -328,8 +379,13 @@ export function MemosProvider({
 
   const purge = useCallback(
     async (memo: Memo) => {
-      await apiPurge(token, memo);
+      const res = await apiPurge(token, memo);
+      rememberSnapshot(res.memo);
       cacheGenerationRef.current += 1;
+      memoGenerationRef.current.set(
+        memo.id,
+        (memoGenerationRef.current.get(memo.id) ?? 0) + 1,
+      );
       setMemos((current) => current.filter((item) => item.id !== memo.id));
       setSummaries((current) => {
         if (!(memo.id in current)) {
@@ -339,12 +395,29 @@ export function MemosProvider({
         return rest;
       });
     },
-    [token],
+    [token, rememberSnapshot],
   );
 
   const summarize = useCallback(
     async (memo: Memo) => {
+      const request = (summaryRequestSeqRef.current.get(memo.id) ?? 0) + 1;
+      summaryRequestSeqRef.current.set(memo.id, request);
       const res = await apiSummary(token, memo);
+      const current = memoSnapshotsRef.current.get(memo.id);
+      if (
+        summaryRequestSeqRef.current.get(memo.id) !== request ||
+        current?.deletedAt ||
+        (current && current.version !== memo.version)
+      ) {
+        return res.ai;
+      }
+      // A same-version detail read can finish while generation is pending;
+      // the new summary still wins. Reads started before this canonical result
+      // must not replace it with their earlier summary snapshot.
+      memoGenerationRef.current.set(
+        memo.id,
+        (memoGenerationRef.current.get(memo.id) ?? 0) + 1,
+      );
       setSummaries((current) => ({ ...current, [memo.id]: res.ai }));
       return res.ai;
     },

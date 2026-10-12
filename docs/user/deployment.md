@@ -214,7 +214,7 @@ docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml up -d --bui
 
 ### Run a local binary
 
-Go 1.26 is required. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
+Go 1.26.9 is required for the current supported server build. The ignored Web output is generated locally rather than stored in Git. Before a production-style run, generate the embedded Web assets and include the version and commit in the release build:
 
 ```bash
 pnpm --dir apps/web install
@@ -229,4 +229,8 @@ See the [Contributing Guide](../../CONTRIBUTING.md) for the development environm
 
 Identify a running binary with `./sillage --version`. Container images also include the OCI `version` and `revision` labels.
 
-The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
+The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. It uses Docker's built-in Dockerfile frontend so a build does not need to fetch a separate `docker/dockerfile` frontend image before resolving the pinned bases. The runtime upgrades the packages already present in its Alpine base before installing certificates, timezone data, and the privilege-switching utility. This applies security fixes to inherited OpenSSL, zlib, and other base packages as well as newly installed packages. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
+
+If Docker Hub is reachable only through a proxy, configure the Docker daemon or
+the selected BuildKit builder to use that proxy before building. Keep the proxy
+outside the Dockerfile and do not pass proxy credentials as image build args.

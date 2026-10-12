@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS frontend
 WORKDIR /src
 ARG PNPM_VERSION=11.9.0
@@ -18,7 +16,7 @@ COPY apps/web ./apps/web
 COPY server/router/frontend ./server/router/frontend
 RUN pnpm --dir apps/web build
 
-FROM golang:1.26.6-alpine@sha256:af8d6740070b8906d12eae1c3e3ea0957fb63f492051ea05e354c38ef9fe88df AS backend
+FROM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS backend
 WORKDIR /src
 ARG GOPROXY=https://proxy.golang.org,direct
 ARG VERSION=dev
@@ -38,7 +36,7 @@ ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w -X main.version=$VERSION -X main.revision=$REVISION" -tags netgo,osusergo -o sillage ./cmd/sillage
 
-FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d AS runtime
+FROM alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 AS runtime
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Sillage" \
@@ -48,7 +46,8 @@ LABEL org.opencontainers.image.title="Sillage" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$REVISION"
-RUN apk add --no-cache ca-certificates tzdata su-exec && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates tzdata su-exec && \
     addgroup -g 10001 -S sillage && \
     adduser -u 10001 -S -G sillage -h /var/opt/sillage sillage && \
     mkdir -p /var/opt/sillage /usr/local/sillage && \

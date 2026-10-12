@@ -219,7 +219,7 @@ describe("AppShell mobile navigation", () => {
     );
 
     const firstLink = within(dialog).getByRole("link", { name: /Sillage/ });
-    expect(firstLink).toHaveClass("h-10", "-my-1");
+    expect(firstLink).toHaveClass("h-11", "-my-1");
     const themeButton = within(dialog).getByRole("button", {
       name: /切换主题/,
     });

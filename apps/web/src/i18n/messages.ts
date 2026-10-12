@@ -23,6 +23,12 @@ const zhCN = {
   "common.deleteFailed": "删除失败",
   "common.loading": "正在加载…",
   "common.unnamed": "未命名",
+  "operations.waitTitle": "正在修改密码…",
+  "operations.waitDescription":
+    "正在保存新密码。请等待完成后再离开或退出登录。",
+  "operations.stay": "留在此页",
+  "markdown.table": "表格，可横向滚动",
+  "markdown.code": "代码块，可横向滚动",
   "theme.light": "浅色",
   "theme.dark": "深色",
   "theme.system": "跟随系统",
@@ -204,6 +210,12 @@ const zhCN = {
   "editor.uploadedOne": "附件已插入",
   "editor.uploadedMany": "{count} 个附件已插入",
   "quick.title": "速记",
+  "quick.existingDraft":
+    "写记录中已有未保存草稿。速记内容仍保留在这里，请先保存或放弃原草稿。",
+  "quick.transferBusy":
+    "写记录正在保存或上传附件。速记内容仍保留在这里，请等待完成后重试。",
+  "quick.transferFailed":
+    "暂时无法将速记移到写记录。内容仍保留在这里，请重试，或在这里保存。",
   "quick.shortcutTitle": "速记（⌘/Ctrl + J）",
   "quick.close": "关闭速记",
   "quick.prompt": "想记录什么？",
@@ -437,6 +449,12 @@ const en = {
   "common.deleteFailed": "Could not delete",
   "common.loading": "Loading...",
   "common.unnamed": "Unnamed",
+  "operations.waitTitle": "Changing password…",
+  "operations.waitDescription":
+    "Your new password is being saved. Wait for it to finish before leaving or signing out.",
+  "operations.stay": "Stay on this page",
+  "markdown.table": "Table, scroll horizontally",
+  "markdown.code": "Code block, scroll horizontally",
   "theme.light": "Light",
   "theme.dark": "Dark",
   "theme.system": "System",
@@ -625,6 +643,12 @@ const en = {
   "editor.uploadedOne": "Attachment inserted",
   "editor.uploadedMany": "{count} attachments inserted",
   "quick.title": "Quick capture",
+  "quick.existingDraft":
+    "Write a record already has an unsaved draft. Your quick capture remains here. Save or discard the existing draft first.",
+  "quick.transferBusy":
+    "Write a record is saving or uploading an attachment. Your quick capture remains here. Wait for it to finish, then retry.",
+  "quick.transferFailed":
+    "Could not move your quick capture to Write a record. Your text remains here. Retry or save it here.",
   "quick.shortcutTitle": "Quick capture (⌘/Ctrl + J)",
   "quick.close": "Close quick capture",
   "quick.prompt": "What would you like to record?",

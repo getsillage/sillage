@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  hasBlockingOperation,
   hasUnsavedChanges,
+  registerBlockingOperation,
   UnsavedNavigationGuard,
 } from "./UnsavedNavigationGuard";
 
@@ -85,5 +87,76 @@ describe("UnsavedNavigationGuard", () => {
     await waitFor(() => expect(hasUnsavedChanges()).toBe(true));
     view.unmount();
     expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  it("blocks departure while locked without offering a discard action", async () => {
+    const user = userEvent.setup();
+    render(
+      <UnsavedNavigationGuard
+        when={false}
+        locked
+        title="未保存"
+        description="草稿"
+      />,
+    );
+    const dialog = screen.getByRole("alertdialog", { name: "正在修改密码…" });
+    expect(dialog).toHaveTextContent(
+      "正在保存新密码。请等待完成后再离开或退出登录。",
+    );
+    expect(
+      screen.queryByRole("button", { name: "离开此页" }),
+    ).not.toBeInTheDocument();
+    const stay = screen.getByRole("button", { name: "留在此页" });
+    expect(stay).toHaveFocus();
+    await user.tab();
+    expect(stay).toHaveFocus();
+    expect(
+      useBlockerMock.mock.calls[0][0]({
+        currentLocation: { pathname: "/settings", search: "", hash: "" },
+        nextLocation: { pathname: "/other", search: "", hash: "" },
+      }),
+    ).toBe(true);
+    await user.keyboard("{Escape}");
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(proceed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    false,
+    true,
+  ])("cancels a locked departure after completion instead of queueing it (dirty=%s)", async (dirty) => {
+    const view = render(
+      <UnsavedNavigationGuard
+        when={dirty}
+        locked
+        title="未保存"
+        description="草稿"
+      />,
+    );
+    view.rerender(
+      <UnsavedNavigationGuard
+        when={dirty}
+        locked={false}
+        title="未保存"
+        description="草稿"
+      />,
+    );
+    await waitFor(() => expect(reset).toHaveBeenCalledTimes(1));
+    expect(proceed).not.toHaveBeenCalled();
+  });
+
+  it("keeps blocking operations registered until every captured request finishes", () => {
+    const releaseFirst = registerBlockingOperation();
+    const releaseSecond = registerBlockingOperation();
+    try {
+      expect(hasBlockingOperation()).toBe(true);
+      releaseFirst();
+      expect(hasBlockingOperation()).toBe(true);
+      releaseSecond();
+      expect(hasBlockingOperation()).toBe(false);
+    } finally {
+      releaseFirst();
+      releaseSecond();
+    }
   });
 });

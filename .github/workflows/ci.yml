@@ -331,6 +331,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Check Android
         run: make check-android
@@ -353,6 +355,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Check Desktop
         run: make check-desktop
@@ -374,6 +378,8 @@ jobs:
           cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - name: Check DMG package
         working-directory: apps/native
         run: ./gradlew checkDesktopPackage -Pcompose.desktop.packaging.checkJdkVendor=false
@@ -402,6 +408,8 @@ jobs:
           cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - name: Check MSI package
         working-directory: apps/native
         run: .\gradlew.bat checkDesktopPackage "-Pcompose.desktop.packaging.checkJdkVendor=false"
@@ -430,6 +438,8 @@ jobs:
           cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
       - name: Check iOS
         run: make check-ios
 
@@ -462,6 +472,8 @@ jobs:
       - name: Set up Android SDK
         if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Enable KVM acceleration
         if: ${{ github.event_name == 'push' || needs.commits.outputs.android == 'true' }}
@@ -584,6 +596,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3

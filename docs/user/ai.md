@@ -14,6 +14,15 @@ Adding, editing, deleting, or changing the default profile updates the current d
 - Fetch Models (`获取模型`) sends the API key to request the configured endpoint's model list, but does not send any records.
 - Test Connection (`测试连接`) sends a fixed, short test prompt, but does not send any records.
 
+On the Web client, model lists and connection-test results belong to the profile
+configuration that started the request. Editing the endpoint, protocol, or API
+key cancels that request and clears its previous result; changing the model or
+generation parameters also clears the connection-test result. Late responses
+from an earlier configuration are ignored. Saving a profile cancels pending
+model-list and connection-test requests. Profile saves, automatic-summary
+changes, and password changes run one at a time, and session-token renewal
+preserves unsaved profile edits.
+
 ## Data Sent
 
 | Operation | Content sent to the provider |
@@ -29,6 +38,12 @@ Each Ask turn first uses the same configured provider to classify the question a
 For `general`, Sillage makes the answer request without looking up or attaching records. For `records` and `mixed`, it uses the generated phrases to search locally within the selected time range before making the answer request. Server-side retrieval reuses the instance's SQLite FTS5/LIKE search, broadens the query with a bounded set of terms, then supplements it with recent records. It ranks at most 200 local candidates and does not use an external embedding or vector service. Time-range boundaries match loosely: record dates follow your local calendar while the server may run in a different timezone, so the 7-day and 30-day ranges include one extra boundary day rather than dropping records near the cutoff. Server-side Ask sends at most 5 relevant sources; in record mode, it sends a raw excerpt around the matching content from each selected record, while summary mode sends the stored summary associated with each selected record. Android offline Ask selects at most 8 relevant source records and sends raw record excerpts. Selecting All Records (`全部记录`) removes the date cutoff but still uses the bounded local candidate set; it does not send every record in the database. If no relevant record is selected for a record-dependent question, the answer request still contains the question and branch history but no record excerpt. Attachment bytes are not sent as summary or Ask content, but file names, links, or descriptions in the Markdown body may be sent with that body.
 
 The prompt requires claims about the user's records or personal history to use the supplied sources. Greetings and general-knowledge questions may be answered from the model's general knowledge without a source citation, and mixed questions should separate record-backed observations from general guidance. If a personal question cannot be answered from the supplied sources, the answer should say that the records do not provide enough information. Only valid source citations actually used in the answer are retained and displayed; a general answer has no source references. The model may still omit information or produce incorrect content, so verify important personal conclusions against the source records. Sillage does not treat AI output as a diagnosis or proof of fact.
+
+Web Ask shows the preparation state before an answer starts and the generation
+state once streaming begins. If a question fails before it is accepted, it
+returns to the current conversation's input for retry. Switching conversations
+or leaving Ask prevents that earlier request from restoring its question into
+another conversation or changing the current destination.
 
 Android displays Ask answer chunks while generation is active. Stopping generation
 cancels the active client job and shows explicit feedback. Navigating away,

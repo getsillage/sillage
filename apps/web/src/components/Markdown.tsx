@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
+import { useI18n } from "../i18n/I18nProvider";
 
 interface MarkdownProps {
   content: string;
@@ -18,8 +19,36 @@ function ExternalLink({ href, children }: ComponentPropsWithoutRef<"a">) {
   );
 }
 
+function ScrollableTable({ children }: ComponentPropsWithoutRef<"table">) {
+  const { t } = useI18n();
+  return (
+    <section
+      aria-label={t("markdown.table")}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: horizontal scrolling must be reachable by keyboard
+      tabIndex={0}
+      className="max-w-full overflow-x-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:focus-visible:ring-gray-500/60"
+    >
+      <table className="min-w-max">{children}</table>
+    </section>
+  );
+}
+
+function ScrollableCode({ children }: ComponentPropsWithoutRef<"pre">) {
+  const { t } = useI18n();
+  return (
+    <section
+      aria-label={t("markdown.code")}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: horizontal scrolling must be reachable by keyboard
+      tabIndex={0}
+      className="my-6 max-w-full overflow-x-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:focus-visible:ring-gray-500/60"
+    >
+      <pre className="my-0 w-max min-w-full overflow-visible">{children}</pre>
+    </section>
+  );
+}
+
 const proseBase =
-  "prose prose-neutral max-w-none dark:prose-invert prose-headings:font-semibold prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 prose-pre:text-gray-900 prose-hr:border-gray-200 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-950 dark:prose-pre:text-gray-100 dark:prose-hr:border-gray-700";
+  "prose prose-neutral min-w-0 max-w-none [overflow-wrap:anywhere] dark:prose-invert prose-headings:font-semibold prose-code:rounded prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 prose-pre:text-gray-900 prose-hr:border-gray-200 dark:prose-code:bg-gray-800 dark:prose-pre:bg-gray-950 dark:prose-pre:text-gray-100 dark:prose-hr:border-gray-700";
 
 const markdownClass = {
   reading: `${proseBase} leading-7`,
@@ -36,7 +65,11 @@ export function Markdown({ content, variant = "reading" }: MarkdownProps) {
     <div className={markdownClass[variant]}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        components={{ a: ExternalLink }}
+        components={{
+          a: ExternalLink,
+          table: ScrollableTable,
+          pre: ScrollableCode,
+        }}
       >
         {content}
       </ReactMarkdown>

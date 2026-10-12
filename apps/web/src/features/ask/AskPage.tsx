@@ -95,8 +95,35 @@ export function AskPage() {
   const endRef = useRef<HTMLDivElement>(null);
   const followOutputRef = useRef(true);
   const mountedRef = useRef(true);
+  const submissionGenerationRef = useRef(0);
+  const submissionRef = useRef<{
+    generation: number;
+    conversationId: string;
+  } | null>(null);
+  const composerContextRef = useRef({ activeId, conversationParam });
   const activeIdRef = useRef(activeId);
   const conversationParamRef = useRef(conversationParam);
+  const previousContext = composerContextRef.current;
+  if (
+    previousContext.activeId !== activeId ||
+    previousContext.conversationParam !== conversationParam
+  ) {
+    const submission = submissionRef.current;
+    if (
+      submission &&
+      !submission.conversationId &&
+      !previousContext.activeId &&
+      activeId &&
+      !previousContext.conversationParam &&
+      !conversationParam
+    ) {
+      // A blank Ask adopts the conversation created by its pending submission.
+      submission.conversationId = activeId;
+    } else {
+      submissionGenerationRef.current += 1;
+    }
+    composerContextRef.current = { activeId, conversationParam };
+  }
   activeIdRef.current = activeId;
   conversationParamRef.current = conversationParam;
   const liveUserMessage = shouldShowLiveUser(entries, liveUser)
@@ -110,6 +137,7 @@ export function AskPage() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      submissionGenerationRef.current += 1;
     };
   }, []);
 
@@ -151,28 +179,42 @@ export function AskPage() {
   }, [entries.length, liveUser, liveAnswer]);
 
   async function submit() {
-    if (busy || variantLoading) {
+    if (busy || variantLoading || submissionRef.current) {
       return;
     }
     const text = question.trim();
     if (!text) {
       return;
     }
+    const submission = {
+      generation: ++submissionGenerationRef.current,
+      conversationId: activeIdRef.current,
+    };
+    submissionRef.current = submission;
     setQuestion("");
     followOutputRef.current = true;
-    const accepted = await send(text);
-    if (!accepted) {
-      setQuestion((current) => current || text);
-      return;
-    }
-    // A send from a blank ask created a conversation; reflect it in the URL so
-    // refresh and Back keep working. Skipped when the page moved on meanwhile.
-    if (
-      mountedRef.current &&
-      !conversationParamRef.current &&
-      activeIdRef.current
-    ) {
-      navigate(`/ask?conversation=${activeIdRef.current}`, { replace: true });
+    try {
+      const accepted = await send(text);
+      if (
+        !mountedRef.current ||
+        submissionGenerationRef.current !== submission.generation ||
+        activeIdRef.current !== submission.conversationId
+      ) {
+        return;
+      }
+      if (!accepted) {
+        setQuestion((current) => current || text);
+        return;
+      }
+      // Reflect the new conversation in the URL only while its submission
+      // still owns this composer; late completions cannot navigate another Ask.
+      if (!conversationParamRef.current && activeIdRef.current) {
+        navigate(`/ask?conversation=${activeIdRef.current}`, { replace: true });
+      }
+    } finally {
+      if (submissionRef.current === submission) {
+        submissionRef.current = null;
+      }
     }
   }
 
@@ -315,6 +357,7 @@ export function AskPage() {
               streamingText={
                 regeneratingId === entry.message.id ? liveAnswer : undefined
               }
+              preparing={!streaming}
               canRegenerate={
                 entry.message.role === "assistant" &&
                 entry.message.id === lastAssistantId &&
@@ -334,22 +377,25 @@ export function AskPage() {
             {liveUserMessage ? (
               <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
                 <h2 className="sr-only">{t("ask.youSaid")}</h2>
-                <p className="whitespace-pre-wrap text-[15px] leading-7">
+                <p className="whitespace-pre-wrap text-[15px] [overflow-wrap:anywhere] leading-7">
                   {liveUserMessage.content}
                 </p>
               </div>
             ) : null}
-            <div className="max-w-[92%] px-1">
+            <div className="min-w-0 max-w-full px-1 sm:max-w-[92%]">
               <h2 className="sr-only">{t("ask.sillageReplied")}</h2>
               {liveAnswer ? (
                 <Markdown content={liveAnswer} variant="chat" />
               ) : (
-                <p className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400">
+                <p
+                  className="inline-flex items-center gap-2 text-gray-500 text-sm dark:text-gray-400"
+                  role="status"
+                >
                   <LoaderCircle
                     className="h-4 w-4 animate-spin"
                     aria-hidden="true"
                   />
-                  {t("ask.organizing")}
+                  {t("ask.generating")}
                 </p>
               )}
             </div>
@@ -361,13 +407,13 @@ export function AskPage() {
             role="status"
           >
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            {t("ask.loadingSources")}
+            {t("ask.organizing")}
           </p>
         ) : null}
         <div ref={endRef} aria-hidden="true" />
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-gray-50 via-gray-50 to-gray-50/0 px-4 pt-6 pb-4 sm:-mx-6 sm:px-6 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950/0">
+      <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-gray-50 via-gray-50 to-gray-50/0 px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950/0">
         <div className="space-y-2 rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-xl shadow-gray-900/[0.07] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/25">
           <label className="sr-only" htmlFor={questionInputId}>
             {t("ask.questionLabel")}
@@ -409,7 +455,7 @@ export function AskPage() {
             >
               {t("ask.sourceConstraint")}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {streaming ? (
                 <button
                   type="button"
@@ -498,6 +544,7 @@ export function shouldShowLiveUser(
 interface MessageBubbleProps {
   entry: ActiveEntry;
   streamingText?: string;
+  preparing: boolean;
   canRegenerate: boolean;
   onRegenerate: () => void;
   onSelectVariant: (messageId: string) => void;
@@ -510,6 +557,7 @@ interface MessageBubbleProps {
 function MessageBubble({
   entry,
   streamingText,
+  preparing,
   canRegenerate,
   onRegenerate,
   onSelectVariant,
@@ -564,7 +612,7 @@ function MessageBubble({
     return (
       <div className="ml-auto max-w-[82%] rounded-2xl bg-gray-200/70 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-50">
         <h2 className="sr-only">{t("ask.youSaid")}</h2>
-        <p className="whitespace-pre-wrap text-[15px] leading-7">
+        <p className="whitespace-pre-wrap text-[15px] [overflow-wrap:anywhere] leading-7">
           {message.content}
         </p>
       </div>
@@ -613,7 +661,7 @@ function MessageBubble({
   const hasVariants = variants.length > 1;
 
   return (
-    <div className="max-w-[92%] px-1">
+    <div className="min-w-0 max-w-full px-1 sm:max-w-[92%]">
       <h2 className="sr-only">{t("ask.sillageReplied")}</h2>
       {streamingText !== undefined && !streamingText ? (
         <p
@@ -621,7 +669,7 @@ function MessageBubble({
           role="status"
         >
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          {t("ask.organizing")}
+          {t(preparing ? "ask.organizing" : "ask.generating")}
         </p>
       ) : (
         <Markdown content={content} variant="chat" />

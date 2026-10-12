@@ -25,6 +25,13 @@ interface EntryComposerProps {
   onSubmit: (input: { content: string; entryDate: string }) => Promise<void>;
   onUpload: (file: File) => Promise<UploadedAttachment>;
   onCancel?: () => void;
+  onDraftStateChange?: (state: EntryDraftState) => void;
+}
+
+export interface EntryDraftState {
+  dirty: boolean;
+  uploading: boolean;
+  saving: boolean;
 }
 
 interface StoredEntryDraft {
@@ -128,6 +135,7 @@ export function EntryComposer({
   onSubmit,
   onUpload,
   onCancel,
+  onDraftStateChange,
 }: EntryComposerProps) {
   const { locale, t } = useI18n();
   const toast = useToast();
@@ -173,6 +181,14 @@ export function EntryComposer({
   const submittingRef = useRef(false);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const feedbackLocaleRef = useRef(locale);
+
+  useEffect(() => {
+    onDraftStateChange?.({
+      dirty: dirty || Boolean(conflictingDraft),
+      uploading,
+      saving: busy,
+    });
+  }, [busy, conflictingDraft, dirty, onDraftStateChange, uploading]);
 
   useEffect(() => {
     if (feedbackLocaleRef.current === locale) {

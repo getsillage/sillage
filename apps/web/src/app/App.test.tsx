@@ -20,7 +20,10 @@ vi.mock("../lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("../components/UnsavedNavigationGuard", () => ({
+vi.mock("../components/UnsavedNavigationGuard", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../components/UnsavedNavigationGuard")
+  >()),
   UnsavedNavigationGuard: () => null,
   useUnsavedChangesRegistration: () => undefined,
 }));
@@ -72,6 +75,10 @@ describe("App bootstrap", () => {
         <App />
       </MemoryRouter>,
     );
+    // Await the route chunk explicitly before checking the authenticated view.
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
     expect(await screen.findByText("今天想记录什么？")).toBeInTheDocument();
     expect(screen.getAllByText("Sillage").length).toBeGreaterThan(0);
   });

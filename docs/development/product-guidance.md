@@ -43,6 +43,10 @@ Writing takes priority over organization: entry points should be direct, and sho
 
 Unsaved Web drafts must be recoverable. When a client leaves a dirty editor, detects that a draft's baseline version has changed, or abandons an in-progress attachment upload, it must preserve the content and show a clear warning instead of silently overwriting it.
 
+Continuing a quick capture in the full Web editor transfers the same text even when Write a Record is already open. An existing full-editor draft or an active save or upload blocks the transfer; both drafts remain intact and the quick-capture dialog explains how to continue. A storage failure likewise keeps the quick text available for retry or saving in place.
+
+The Web record cache preserves the latest accepted version and canonical writes. A detail response from an earlier request must not replace a newer detail, restore content deleted while it was in flight, or bring back a summary invalidated by an edit. A current detail without a stored summary clears any older cached summary.
+
 ## Information Architecture
 
 The Web client has only two primary navigation destinations:

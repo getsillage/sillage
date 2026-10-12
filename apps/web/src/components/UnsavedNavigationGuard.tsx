@@ -4,9 +4,22 @@ import { useI18n } from "../i18n/I18nProvider";
 import { dangerButtonClass, secondaryButtonClass } from "./ui";
 
 const activeUnsavedGuards = new Set<symbol>();
+const activeBlockingOperations = new Set<symbol>();
 
 export function hasUnsavedChanges(): boolean {
   return activeUnsavedGuards.size > 0;
+}
+
+export function hasBlockingOperation(): boolean {
+  return activeBlockingOperations.size > 0;
+}
+
+// Register synchronously at the operation entry point so sign-out cannot race
+// the render that displays its in-progress state.
+export function registerBlockingOperation(): () => void {
+  const registration = Symbol("blocking-operation");
+  activeBlockingOperations.add(registration);
+  return () => activeBlockingOperations.delete(registration);
 }
 
 export function useUnsavedChangesRegistration(when: boolean): void {
@@ -25,35 +38,49 @@ export function useUnsavedChangesRegistration(when: boolean): void {
 
 interface UnsavedNavigationGuardProps {
   when: boolean;
+  locked?: boolean;
   title: string;
   description: string;
 }
 
 export function UnsavedNavigationGuard({
   when,
+  locked = false,
   title,
   description,
 }: UnsavedNavigationGuardProps) {
   const { t } = useI18n();
   const shouldBlock = useCallback<BlockerFunction>(
     ({ currentLocation, nextLocation }) =>
-      when &&
+      (when || locked) &&
       `${currentLocation.pathname}${currentLocation.search}${currentLocation.hash}` !==
         `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`,
-    [when],
+    [when, locked],
   );
   const blocker = useBlocker(shouldBlock);
   const dialogRef = useRef<HTMLDivElement>(null);
   const stayButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const proceedingRef = useRef(false);
+  const blockedWhileLockedRef = useRef(false);
+  if (blocker.state === "blocked" && locked) {
+    blockedWhileLockedRef.current = true;
+  }
   useUnsavedChangesRegistration(when);
 
   useEffect(() => {
-    if (blocker.state === "blocked" && !when) {
+    if (blocker.state !== "blocked") {
+      blockedWhileLockedRef.current = false;
+      return;
+    }
+    if (!locked && blockedWhileLockedRef.current) {
+      // Finishing an operation releases the lock but never queues a departure.
+      blockedWhileLockedRef.current = false;
+      blocker.reset?.();
+    } else if (!when && !locked) {
       blocker.proceed?.();
     }
-  }, [blocker, when]);
+  }, [blocker, when, locked]);
 
   useEffect(() => {
     if (blocker.state !== "blocked") {
@@ -127,13 +154,13 @@ export function UnsavedNavigationGuard({
           id="unsaved-navigation-title"
           className="font-semibold text-gray-900 text-lg dark:text-gray-50"
         >
-          {title}
+          {locked ? t("operations.waitTitle") : title}
         </h2>
         <p
           id="unsaved-navigation-description"
           className="mt-2 text-gray-500 text-sm leading-6 dark:text-gray-400"
         >
-          {description}
+          {locked ? t("operations.waitDescription") : description}
         </p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
@@ -142,18 +169,20 @@ export function UnsavedNavigationGuard({
             className={secondaryButtonClass}
             onClick={() => blocker.reset?.()}
           >
-            {t("unsaved.keepEditing")}
+            {t(locked ? "operations.stay" : "unsaved.keepEditing")}
           </button>
-          <button
-            type="button"
-            className={dangerButtonClass}
-            onClick={() => {
-              proceedingRef.current = true;
-              blocker.proceed?.();
-            }}
-          >
-            {t("unsaved.leave")}
-          </button>
+          {!locked ? (
+            <button
+              type="button"
+              className={dangerButtonClass}
+              onClick={() => {
+                proceedingRef.current = true;
+                blocker.proceed?.();
+              }}
+            >
+              {t("unsaved.leave")}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

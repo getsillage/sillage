@@ -15,7 +15,11 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { hasUnsavedChanges } from "../components/UnsavedNavigationGuard";
+import { useToast } from "../components/Toast";
+import {
+  hasBlockingOperation,
+  hasUnsavedChanges,
+} from "../components/UnsavedNavigationGuard";
 import { dangerButtonClass, secondaryButtonClass } from "../components/ui";
 import { useAsk } from "../features/ask/AskContext";
 import { useI18n } from "../i18n/I18nProvider";
@@ -42,7 +46,7 @@ const newAskClass =
 
 function navClass({ isActive }: { isActive: boolean }): string {
   const base =
-    "flex h-10 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40";
+    "flex h-11 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40";
   return isActive
     ? `${base} bg-white font-medium text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50 dark:shadow-black/10`
     : `${base} text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-gray-50`;
@@ -60,7 +64,7 @@ export function Wordmark({
     <Link
       to="/"
       onClick={onClick}
-      className="-my-1 flex h-10 items-center gap-2 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40"
+      className="-my-1 flex h-11 items-center gap-2 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40"
     >
       <img src="/sillage-icon.svg" alt="" className="h-8 w-8 flex-none" />
       <span className="min-w-0">
@@ -93,6 +97,7 @@ export function Sidebar({
   onSignOut: () => void;
 }) {
   const { locale, t } = useI18n();
+  const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const {
@@ -382,6 +387,13 @@ export function Sidebar({
   }, [confirmingSignOut]);
 
   function requestSignOut() {
+    if (hasBlockingOperation()) {
+      toast.showToast({
+        kind: "info",
+        message: t("operations.waitDescription"),
+      });
+      return;
+    }
     if (hasUnsavedChanges()) {
       setConfirmingSignOut(true);
       return;
@@ -405,7 +417,7 @@ export function Sidebar({
             aria-label={t("nav.close")}
             title={t("nav.close")}
             data-drawer-initial-focus
-            className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-lg text-gray-500 transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           >
             <X className="h-5 w-5" />
           </button>
@@ -415,7 +427,7 @@ export function Sidebar({
             onClick={onCollapse}
             aria-label={t("nav.collapseSidebar")}
             title={t("nav.collapseSidebar")}
-            className="hidden h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+            className="hidden h-11 w-11 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 lg:flex dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
@@ -467,7 +479,7 @@ export function Sidebar({
       </div>
 
       <section className="mt-4 flex min-h-0 flex-1 flex-col border-gray-200/80 border-t pt-3 dark:border-gray-800">
-        <div className="flex min-h-10 items-center justify-between gap-2 pl-3">
+        <div className="flex min-h-11 items-center justify-between gap-2 pl-3">
           <h2 className="font-medium text-gray-500 text-xs dark:text-gray-500">
             {t(archivedView ? "ask.archivedSection" : "ask.section")}
           </h2>
@@ -486,7 +498,7 @@ export function Sidebar({
               aria-label={t(searchOpen ? "ask.collapseSearch" : "ask.search")}
               aria-expanded={searchOpen}
               title={t(searchOpen ? "ask.collapseSearchTitle" : "ask.search")}
-              className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/70 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-white/70 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -504,7 +516,7 @@ export function Sidebar({
               )}
               aria-pressed={archivedView}
               title={t(archivedView ? "ask.backToAsk" : "ask.viewArchived")}
-              className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-gray-500/40 ${
+              className={`flex h-11 w-11 flex-none items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-gray-500/40 ${
                 archivedView
                   ? "bg-white text-gray-900 shadow-sm shadow-gray-900/[0.03] dark:bg-gray-800 dark:text-gray-50"
                   : "text-gray-500 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-50"
@@ -540,7 +552,7 @@ export function Sidebar({
               disabled={askNavigationDisabled}
               aria-label={t("ask.search")}
               placeholder={t("ask.searchPlaceholder")}
-              className="h-10 w-full rounded-lg border border-gray-200 bg-white pr-10 pl-9 text-gray-900 text-sm transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50 dark:disabled:bg-gray-800"
+              className="h-11 w-full rounded-lg border border-gray-200 bg-white pr-10 pl-9 text-gray-900 text-sm transition placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300/55 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-600/50 dark:disabled:bg-gray-800"
             />
             {query ? (
               <button
@@ -552,7 +564,7 @@ export function Sidebar({
                 disabled={askNavigationDisabled}
                 aria-label={t("ask.clearSearch")}
                 title={t("ask.clearSearchTitle")}
-                className="absolute top-0 right-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-50"
+                className="absolute top-0 right-1 flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-50"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -613,7 +625,7 @@ export function Sidebar({
                 const active = onAskPage && activeId === conversation.id;
                 const label = conversation.title || t("ask.newConversation");
                 const archived = Boolean(conversation.archivedAt);
-                const conversationTargetClass = `h-10 min-w-0 flex-1 truncate rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
+                const conversationTargetClass = `h-11 min-w-0 flex-1 truncate rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:focus-visible:ring-gray-500/40 ${
                   active
                     ? "font-medium text-gray-900 dark:text-gray-50"
                     : "text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-50"
@@ -660,7 +672,7 @@ export function Sidebar({
                       disabled={askMutationDisabled}
                       aria-label={`${t(archived ? "ask.unarchive" : "ask.archive")}：${label}`}
                       title={t(archived ? "ask.unarchive" : "ask.archive")}
-                      className="flex h-10 w-10 flex-none items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
+                      className="flex h-11 w-11 flex-none items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-50 dark:focus-visible:ring-gray-500/40"
                     >
                       {archived ? (
                         <ArchiveRestore
@@ -684,7 +696,7 @@ export function Sidebar({
 
       <div className="mt-3 flex items-center border-gray-200/80 border-t pt-3 dark:border-gray-800">
         <details ref={accountMenuRef} className="group relative min-w-0 flex-1">
-          <summary className="flex h-10 min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40">
+          <summary className="flex h-11 min-w-0 cursor-pointer list-none items-center gap-2 rounded-lg px-2 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:hover:bg-gray-900 dark:focus-visible:ring-gray-500/40">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-gray-900 font-medium text-white text-xs dark:bg-gray-100 dark:text-gray-900">
               {(account.displayName || account.username || "S")
                 .slice(0, 1)
@@ -704,7 +716,7 @@ export function Sidebar({
                 }
                 onNavigate?.();
               }}
-              className="flex h-10 items-center gap-2 rounded-lg px-3 text-gray-700 text-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-gray-50"
+              className="flex h-11 items-center gap-2 rounded-lg px-3 text-gray-700 text-sm transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-gray-50"
             >
               <Settings className="h-4 w-4" />
               {t("nav.settings")}
@@ -713,7 +725,7 @@ export function Sidebar({
               ref={signOutButtonRef}
               type="button"
               onClick={requestSignOut}
-              className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-red-600 text-sm transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:text-red-400 dark:hover:bg-red-950/30"
+              className="flex h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-red-600 text-sm transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:text-red-400 dark:hover:bg-red-950/30"
             >
               <LogOut className="h-4 w-4" />
               {t("nav.signOut")}
@@ -764,6 +776,14 @@ export function Sidebar({
                     type="button"
                     className={dangerButtonClass}
                     onClick={() => {
+                      if (hasBlockingOperation()) {
+                        setConfirmingSignOut(false);
+                        toast.showToast({
+                          kind: "info",
+                          message: t("operations.waitDescription"),
+                        });
+                        return;
+                      }
                       signingOutRef.current = true;
                       setConfirmingSignOut(false);
                       if (accountMenuRef.current) {

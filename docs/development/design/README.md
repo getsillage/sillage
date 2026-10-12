@@ -28,9 +28,20 @@ Hard constraints:
 - Extract a shared token only after the same style appears at least three times, and update this document at the same time. Do not scatter hex values, introduce a second component library, or hand-draw SVG icons.
 - Reuse the existing typography styles for rendered Markdown instead of creating another rich-text presentation.
 - Keep icon buttons at a stable touch size. Use segmented controls for view selection and switches or checkboxes for binary settings.
+- Shared buttons, inputs, and icon actions have a 44px height; icon actions also
+  have a 44px width. Below 640px, editable fields use at least 16px text to keep
+  mobile Safari from zooming on focus. Compact calendar dates retain the 44px
+  height while seven columns share the available width.
 - Keep the language selector in Appearance as a compact segmented control. Authentication screens may expose the same choice as a quiet utility control so language can be changed before sign-in.
 
 Page headings and control labels must match the scale of their containers. Narrow screens must not have horizontal overflow, and text must not cover adjacent content.
+
+Record lists use the full reading column on phones; floating capture actions
+reserve space at the bottom of the page. Narrow list filters wrap into two
+columns, and detail actions wrap below the return link when needed. Long text
+wraps inside records and answers; Markdown tables and code blocks scroll within
+named regions that can receive keyboard focus. Quick capture fits the dynamic
+viewport, and the Ask composer respects the bottom safe area.
 
 ## Interaction Requirements
 
@@ -39,16 +50,40 @@ Page headings and control labels must match the scale of their containers. Narro
   reload restores an eligible session only through the server's HttpOnly
   refresh cookie; sign-out and password changes must revoke that path.
 - New and edited drafts are isolated by record. In-app navigation, closing the page, and signing out must not bypass unsaved-change protection.
+- Moving a quick capture to the full editor updates an already-open Write a
+  Record page. An existing draft, pending save, upload, or storage failure keeps
+  both drafts intact and explains how to retry the transfer.
 - Controlled editors must preserve the latest user input across asynchronous
   uploads and intervening renders. An upload completion may append to the
   current draft, but it must never replace newer text with an older prop value.
+- Insert each successful attachment into the draft immediately, including in
+  multi-file uploads. A later failure preserves earlier links and allows the
+  user to retry the remaining files. Delayed caret restoration must not move a
+  selection made after insertion.
 - An edit submission includes the server version associated with the draft. Version conflicts must preserve the draft and ask the user to refresh or retry; they must never overwrite silently.
 - Saving, sending, regenerating, and quick capture enforce single-flight behavior at the event entry point so repeated clicks cannot create duplicate writes.
 - Conflicting actions are disabled while a save or upload is in progress, with a clear in-progress state.
 - After navigation, refresh, or a canonical write, a late response must not overwrite the current page or cache.
+- Record detail reads preserve newer versions and deletion tombstones already
+  held by the client. Search fields follow their URL across same-page links and
+  browser history. Refresh failures preserve loaded records in the same filter;
+  a completed restore or purge remains reflected while the list is retried.
+- AI profile connection tests and model lists belong to the configuration that
+  started the request. Editing or removing that configuration invalidates its
+  pending feedback. Session credential rotation preserves unsaved profile edits.
+- Settings writes, automatic-summary changes, and password changes share a
+  single-flight lock; conflicting writes stay disabled until completion.
+- A password change locks in-app navigation and sign-out until its request
+  finishes. The contextual leave dialog offers only staying on the page;
+  attempted navigation is cancelled rather than queued. A failure preserves
+  password fields and releases the lock so the user can retry or leave.
 - Transient failures preserve loaded content that belongs to the current view or normalized search query, preserve user input, and offer a manual retry. Cached results from another query are never shown as current matches.
 - Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
+- A failed Ask submission restores its question only in the composer that
+  submitted it. Switching conversations invalidates that restoration, even
+  when the user returns before completion. Progress copy reflects preparation
+  before the stream starts and generation after it starts.
 - Transient operation feedback uses the global Toast queue. Successful writes,
   state changes, uploads, and non-recoverable action errors must not add local
   notification blocks inside feature layouts.

@@ -212,6 +212,7 @@ describe("EntryComposer", () => {
 
   it("locks every editing control and keeps the draft while save is pending", async () => {
     const user = userEvent.setup();
+    const onDraftStateChange = vi.fn();
     let finishSubmit: (() => void) | undefined;
     const onSubmit = vi.fn(
       () =>
@@ -226,6 +227,7 @@ describe("EntryComposer", () => {
         onSubmit={onSubmit}
         onUpload={vi.fn()}
         onCancel={vi.fn()}
+        onDraftStateChange={onDraftStateChange}
       />,
     );
 
@@ -242,6 +244,11 @@ describe("EntryComposer", () => {
     expect(
       await screen.findByRole("button", { name: "保存中…" }),
     ).toBeDisabled();
+    expect(onDraftStateChange).toHaveBeenLastCalledWith({
+      dirty: true,
+      uploading: false,
+      saving: true,
+    });
     expect(editor).toBeDisabled();
     expect(date).toBeDisabled();
     expect(screen.getByRole("button", { name: "编辑" })).toBeDisabled();
@@ -266,6 +273,13 @@ describe("EntryComposer", () => {
 
     finishSubmit?.();
     await waitFor(() => expect(window.localStorage.length).toBe(0));
+    await waitFor(() =>
+      expect(onDraftStateChange).toHaveBeenLastCalledWith({
+        dirty: false,
+        uploading: false,
+        saving: false,
+      }),
+    );
   });
 
   it("confirms before cancelling edits and clears the discarded draft", async () => {
@@ -383,6 +397,7 @@ describe("EntryComposer", () => {
   it("asks before restoring a draft based on an older server version", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
+    const onDraftStateChange = vi.fn();
     window.localStorage.setItem(
       "sillage.entry-draft.memo:m1",
       JSON.stringify({
@@ -402,10 +417,16 @@ describe("EntryComposer", () => {
         initialVersion={2}
         onSubmit={onSubmit}
         onUpload={vi.fn()}
+        onDraftStateChange={onDraftStateChange}
       />,
     );
 
     expect(screen.getByRole("textbox")).toHaveValue("其他客户端更新后的正文");
+    expect(onDraftStateChange).toHaveBeenLastCalledWith({
+      dirty: true,
+      uploading: false,
+      saving: false,
+    });
     expect(screen.getByText("这条记录已在其他位置更新")).toBeInTheDocument();
     const submit = screen.getByRole("button", { name: "保存" });
     expect(submit).toBeDisabled();

@@ -84,6 +84,21 @@ unverified product code.
 
 Required check names remain stable: unaffected jobs are reported as skipped, while the API 26/API 35 matrix emits fast no-op checks because GitHub does not expand a job-level-skipped matrix name. Branch protection therefore stays explicit without starting an emulator. Affected Android device jobs enable KVM acceleration before starting the emulators. Ordinary affected Web pull requests run the release journey in Chromium; CI workflow changes and `main` run Chromium, Firefox, and WebKit. CodeQL follows the same affected Go/Web/Android selection on pull requests and runs all three languages on `main`.
 
+CI and release workflows configure the pinned Android SDK setup action with
+`packages: platform-tools`. The action still installs the command-line tools
+and accepts SDK licenses; Gradle and the emulator runner install the build and
+device packages required by their existing gates. This explicit package list
+avoids requesting the retired `tools` package from the action's default input
+without changing the Android, API 26/API 35, native-host, or Java/Kotlin CodeQL
+checks.
+
+Web release journeys also exercise 320px and 390px viewports in English and
+Simplified Chinese, in both light and dark themes. They check all primary
+screens, search filters, calendar selection, editor preview, long text, local
+Markdown scrolling, input legibility, and key touch targets. Representative
+390px English record and 320px initialization screenshots are retained in the local Playwright results
+for visual review; they are generated artifacts and are not committed.
+
 Range-sensitive document-sync policy is enforced on pull requests, where the original commit messages and `Docs-skip` trailer are available. Protected `main` still reruns every other Docs check, but does not repeat document-sync after a squash merge because GitHub may replace the reviewed commit bodies. This keeps the PR authoritative and prevents an already-green change from becoming a false failure after merge.
 
 Dependabot pull requests receive a narrow automatic documentation exemption only when every changed path is a recognized dependency surface: manifests, lockfiles, pinned workflow Actions, Gradle verification metadata, container base images, or generated license inventories. The exemption is derived from the GitHub pull request owner, not a branch name or commit message. Source and ordinary configuration changes remain subject to documentation synchronization.
@@ -130,6 +145,19 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 Dependabot runs weekly for Go, npm (`apps/web/`), Gradle (`apps/native/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
 Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
+
+The supported server toolchain is Go 1.26.9. The current module graph pins
+`golang.org/x/net` 0.60.0 and gRPC 1.83.2 to satisfy both the symbol-level and
+final-image vulnerability checks. The runtime applies Alpine package upgrades
+before installing its additional packages, including fixes to inherited
+OpenSSL and zlib. The release container uses the matching digest-pinned Go 1.26.9
+Alpine builder. A toolchain or module security update must rerun the Go,
+container, supply-chain, and upgrade gates.
+
+The production Dockerfile uses Docker's built-in frontend instead of fetching a
+remote Dockerfile frontend image. This keeps the initial build independent of
+an extra Docker Hub request; base image pulls still follow the operator's
+Docker or BuildKit registry and proxy configuration.
 
 Android third-party notices are generated from the verified Gradle dependency
 graph. JetBrains Compose and JetBrains AndroidX coordinates use the same

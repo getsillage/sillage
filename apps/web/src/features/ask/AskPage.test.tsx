@@ -739,9 +739,7 @@ describe("AskPage", () => {
     await user.type(input, firstQuestion.content);
     await user.click(screen.getByRole("button", { name: "发送" }));
 
-    expect(
-      await screen.findByText("正在判断是否需要查找记录"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("生成中")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "你说", level: 2 }),
     ).toBeInTheDocument();
@@ -754,7 +752,7 @@ describe("AskPage", () => {
     await waitFor(() =>
       expect(screen.getAllByText(firstQuestion.content)).toHaveLength(1),
     );
-    expect(screen.getByText("正在判断是否需要查找记录")).toBeInTheDocument();
+    expect(screen.getByText("生成中")).toBeInTheDocument();
 
     await act(async () => {
       finishStream?.();
@@ -802,6 +800,104 @@ describe("AskPage", () => {
     expect(input).toHaveValue("");
     finishStream?.();
     await waitFor(() => expect(streamAskMessage).toHaveBeenCalled());
+  });
+
+  it.each([
+    false,
+    true,
+  ])("does not restore a cancelled question after switching conversations (return=%s)", async (returnToOriginal) => {
+    const user = userEvent.setup();
+    let rejectStream: ((cause: unknown) => void) | undefined;
+    vi.mocked(listAskConversations).mockResolvedValue({
+      conversations: [
+        conversation(),
+        { ...conversation(), id: "c2", title: "第二个问答" },
+      ],
+    });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectStream = reject;
+        }),
+    );
+    renderConversationSwitcher();
+    await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+    await screen.findByRole("heading", { name: "对话" });
+    const input = screen.getByRole("textbox", { name: "要问的问题" });
+    await user.type(input, "属于第一个问答的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await user.click(screen.getByRole("button", { name: "打开第二个对话" }));
+    await screen.findByRole("heading", { name: "第二个问答" });
+    if (returnToOriginal) {
+      await user.click(screen.getByRole("button", { name: "打开第一个对话" }));
+      await screen.findByRole("heading", { name: "对话" });
+    }
+    await act(async () => {
+      rejectStream?.(new DOMException("Aborted", "AbortError"));
+    });
+    expect(input).toHaveValue("");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("restores a failed first question in the conversation it just created", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listAskConversations).mockResolvedValue({ conversations: [] });
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(createAskConversation).mockResolvedValue({
+      conversation: conversation(),
+    });
+    let rejectStream: ((cause: unknown) => void) | undefined;
+    vi.mocked(streamAskMessage).mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectStream = reject;
+        }),
+    );
+    renderAsk("/ask");
+    const input = await screen.findByRole("textbox", { name: "要问的问题" });
+    await user.type(input, "尚未发送成功的问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await screen.findByRole("heading", { name: "对话" });
+    await act(async () => rejectStream?.(new Error("回答请求失败")));
+    expect(input).toHaveValue("尚未发送成功的问题");
+    expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
+  });
+
+  it("shows preparation before streaming and generation after the answer starts", async () => {
+    const user = userEvent.setup();
+    let handlers: Parameters<typeof streamAskMessage>[3] | undefined;
+    let finishStream: (() => void) | undefined;
+    vi.mocked(listAskMessages).mockResolvedValue({ messages: [] });
+    vi.mocked(streamAskMessage).mockImplementationOnce(
+      async (_token, _conversation, _input, streamHandlers) => {
+        handlers = streamHandlers;
+        await new Promise<void>((resolve) => {
+          finishStream = resolve;
+        });
+      },
+    );
+    renderAsk();
+    await user.type(
+      await screen.findByRole("textbox", { name: "要问的问题" }),
+      "一般问题",
+    );
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正在判断是否需要查找记录",
+    );
+    expect(screen.queryByText("正在查找相关记录")).not.toBeInTheDocument();
+    act(() =>
+      handlers?.onStart?.({
+        userMessage: message("u9", "user", null, "一般问题", "09"),
+        sources: [],
+      }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("生成中");
+    expect(
+      screen.queryByText("正在判断是否需要查找记录"),
+    ).not.toBeInTheDocument();
+    await act(async () => finishStream?.());
   });
 
   it("does not start a second stream when Enter is pressed while busy", async () => {
@@ -906,6 +1002,15 @@ describe("AskPage", () => {
     );
     expect(screen.queryByText("原回答")).not.toBeInTheDocument();
 
+    act(() =>
+      streamHandlers?.onStart?.({
+        userMessage: message("u1", "user", null, "问题", "1"),
+        sources: [],
+        regenerate: true,
+      }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("生成中");
+
     act(() => streamHandlers?.onDelta?.("新回答"));
     expect(await screen.findByText("新回答")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -941,8 +1046,8 @@ describe("AskPage", () => {
 
     const previousButton = screen.getByRole("button", { name: "上一个回答" });
     const nextButton = screen.getByRole("button", { name: "下一个回答" });
-    expect(previousButton).toHaveClass("h-10", "w-10");
-    expect(nextButton).toHaveClass("h-10", "w-10");
+    expect(previousButton).toHaveClass("h-11", "w-11");
+    expect(nextButton).toHaveClass("h-11", "w-11");
 
     await user.click(previousButton);
     await waitFor(() =>

@@ -19,7 +19,20 @@ interface QuickCaptureProps {
 
 const QUICK_CAPTURE_DRAFT_KEY = "sillage.quick-capture-draft";
 const ENTRY_DRAFT_KEY = "sillage.entry-draft.memo:new";
-const TEXTAREA_MAX_HEIGHT = "40vh";
+const TEXTAREA_MAX_HEIGHT = "40dvh";
+export const QUICK_CAPTURE_DRAFT_TRANSFER_EVENT =
+  "sillage:quick-capture-transfer";
+
+export interface QuickCaptureDraftTransfer {
+  problem?: "existing" | "busy";
+}
+
+type DraftTransferResult =
+  | "transferred"
+  | "empty"
+  | "existing"
+  | "busy"
+  | "failed";
 
 function readDraft(): string {
   try {
@@ -44,13 +57,13 @@ function writeDraft(body: string): void {
 // Hands the quick draft over to the full editor ("写得更完整") using the exact
 // stored format EntryComposer reads for draftKey "memo:new". An existing entry
 // draft wins: the quick draft is kept rather than overwriting it.
-function transferDraftToEntryComposer(body: string): boolean {
+function transferDraftToEntryComposer(body: string): DraftTransferResult {
   if (!body) {
-    return false;
+    return "empty";
   }
   try {
     if (window.localStorage.getItem(ENTRY_DRAFT_KEY) !== null) {
-      return false;
+      return "existing";
     }
     window.localStorage.setItem(
       ENTRY_DRAFT_KEY,
@@ -61,9 +74,19 @@ function transferDraftToEntryComposer(body: string): boolean {
         baseVersion: null,
       }),
     );
-    return true;
+    // A mounted home editor must accept the stored draft before quick capture
+    // releases it. Its listener can reject a transfer while a write is active.
+    const event = new CustomEvent<QuickCaptureDraftTransfer>(
+      QUICK_CAPTURE_DRAFT_TRANSFER_EVENT,
+      { cancelable: true, detail: {} },
+    );
+    if (!window.dispatchEvent(event)) {
+      window.localStorage.removeItem(ENTRY_DRAFT_KEY);
+      return event.detail.problem ?? "busy";
+    }
+    return "transferred";
   } catch {
-    return false;
+    return "failed";
   }
 }
 
@@ -80,6 +103,9 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
   const [body, setBody] = useState(readDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [transferProblem, setTransferProblem] = useState<
+    "existing" | "busy" | "failed" | null
+  >(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -264,7 +290,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
             aria-modal="true"
             aria-label={t("quick.title")}
             onKeyDown={onDialogKeyDown}
-            className="surface-enter absolute right-3 bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] left-3 rounded-xl border border-gray-200/80 bg-white/95 p-3 shadow-xl shadow-gray-900/10 backdrop-blur-xl sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/30"
+            className="surface-enter absolute right-3 bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] left-3 max-h-[calc(100dvh-6rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-xl border border-gray-200/80 bg-white/95 p-3 shadow-xl shadow-gray-900/10 backdrop-blur-xl sm:right-5 sm:left-auto sm:w-[min(92vw,26rem)] dark:border-gray-800 dark:bg-gray-900/95 dark:shadow-black/30"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3 px-1">
@@ -275,7 +301,7 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   type="button"
                   onClick={() => setOpen(false)}
                   disabled={busy}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/35 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50"
                   aria-label={t("quick.close")}
                   title={t("common.close")}
                 >
@@ -289,7 +315,10 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                 id={textareaId}
                 ref={textareaRef}
                 value={body}
-                onChange={(event) => setBody(event.target.value)}
+                onChange={(event) => {
+                  setBody(event.target.value);
+                  setTransferProblem(null);
+                }}
                 disabled={busy}
                 onKeyDown={(event) => {
                   if (
@@ -312,24 +341,49 @@ export function QuickCapture({ onCapture, visible = true }: QuickCaptureProps) {
                   {error}
                 </p>
               ) : null}
+              {transferProblem ? (
+                <p
+                  role="alert"
+                  className="text-gray-600 text-sm dark:text-gray-300"
+                >
+                  {t(
+                    transferProblem === "existing"
+                      ? "quick.existingDraft"
+                      : transferProblem === "busy"
+                        ? "quick.transferBusy"
+                        : "quick.transferFailed",
+                  )}
+                </p>
+              ) : null}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link
                   to="/"
                   aria-disabled={busy}
                   onClick={(event) => {
-                    if (busy) {
+                    if (submittingRef.current) {
                       event.preventDefault();
                       return;
                     }
                     // Carry the quick draft into the full editor so "write
                     // more" continues the same text instead of dropping it.
-                    if (transferDraftToEntryComposer(body)) {
+                    const result = transferDraftToEntryComposer(body);
+                    if (
+                      result === "existing" ||
+                      result === "busy" ||
+                      result === "failed"
+                    ) {
+                      event.preventDefault();
+                      setTransferProblem(result);
+                      return;
+                    }
+                    if (result === "transferred") {
                       writeDraft("");
                       setBody("");
                     }
+                    setTransferProblem(null);
                     setOpen(false);
                   }}
-                  className={`${ghostLinkClass} text-xs`}
+                  className={`${ghostLinkClass} inline-flex min-h-11 items-center gap-1 text-xs`}
                 >
                   {t("quick.writeMore")}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />

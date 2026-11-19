@@ -1,0 +1,197 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/memo",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "memo",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 2,
+      "name": "creator_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 3,
+      "name": "content",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 4,
+      "name": "entry_date",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 5,
+      "name": "version",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false,
+      "default_expression": "1"
+    },
+    {
+      "ordinal": 6,
+      "name": "favorited_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    },
+    {
+      "ordinal": 7,
+      "name": "archived_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    },
+    {
+      "ordinal": 8,
+      "name": "created_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 9,
+      "name": "updated_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 10,
+      "name": "deleted_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    },
+    {
+      "ordinal": 11,
+      "name": "purged_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "id"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [
+    {
+      "name": "sqlite_foreign_key_0",
+      "columns": [
+        "creator_id"
+      ],
+      "referenced_object": "database://sillage/main/account",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "set null"
+    }
+  ],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_memo_archived_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "archived_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_deleted_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "deleted_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_entry_date",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "entry_date"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_favorited_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "favorited_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_purged_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "purged_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_updated_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "updated_at"
+        },
+        {
+          "position": 2,
+          "column": "id"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_memo_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "id"
+        }
+      ]
+    }
+  ]
+}

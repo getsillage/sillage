@@ -1,0 +1,208 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/summaries",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "summaries",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 2,
+      "name": "creator_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 3,
+      "name": "scope",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 4,
+      "name": "period_type",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 5,
+      "name": "start_date",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 6,
+      "name": "end_date",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 7,
+      "name": "title",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 8,
+      "name": "content",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 9,
+      "name": "source_memo_ids",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'[]'"
+    },
+    {
+      "ordinal": 10,
+      "name": "style",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'brief'"
+    },
+    {
+      "ordinal": 11,
+      "name": "trigger",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'manual'"
+    },
+    {
+      "ordinal": 12,
+      "name": "version",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false,
+      "default_expression": "1"
+    },
+    {
+      "ordinal": 13,
+      "name": "created_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 14,
+      "name": "updated_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 15,
+      "name": "deleted_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "id"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [
+    {
+      "name": "sqlite_foreign_key_0",
+      "columns": [
+        "creator_id"
+      ],
+      "referenced_object": "database://sillage/main/account",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "set null"
+    }
+  ],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_summaries_deleted_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "deleted_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_summaries_scope_period",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "scope"
+        },
+        {
+          "position": 2,
+          "column": "period_type"
+        },
+        {
+          "position": 3,
+          "column": "start_date"
+        },
+        {
+          "position": 4,
+          "column": "end_date"
+        }
+      ]
+    },
+    {
+      "name": "idx_summaries_updated_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "updated_at"
+        },
+        {
+          "position": 2,
+          "column": "id"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_summaries_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "id"
+        }
+      ]
+    }
+  ]
+}

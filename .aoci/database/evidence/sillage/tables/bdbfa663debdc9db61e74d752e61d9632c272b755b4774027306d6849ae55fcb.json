@@ -1,0 +1,216 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/ask_messages",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "ask_messages",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 2,
+      "name": "conversation_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 3,
+      "name": "role",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 4,
+      "name": "content",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 5,
+      "name": "parent_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 6,
+      "name": "fork_of_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 7,
+      "name": "status",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'complete'"
+    },
+    {
+      "ordinal": 8,
+      "name": "source_refs",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'[]'"
+    },
+    {
+      "ordinal": 9,
+      "name": "model",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 10,
+      "name": "prompt_version",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 11,
+      "name": "created_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 12,
+      "name": "updated_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 13,
+      "name": "deleted_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "id"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [
+    {
+      "name": "sqlite_foreign_key_0",
+      "columns": [
+        "fork_of_id"
+      ],
+      "referenced_object": "database://sillage/main/ask_messages",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "set null"
+    },
+    {
+      "name": "sqlite_foreign_key_1",
+      "columns": [
+        "parent_id"
+      ],
+      "referenced_object": "database://sillage/main/ask_messages",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "set null"
+    },
+    {
+      "name": "sqlite_foreign_key_2",
+      "columns": [
+        "conversation_id"
+      ],
+      "referenced_object": "database://sillage/main/ask_conversations",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "cascade"
+    }
+  ],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_ask_messages_conversation_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "conversation_id"
+        }
+      ]
+    },
+    {
+      "name": "idx_ask_messages_deleted_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "deleted_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_ask_messages_parent_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "parent_id"
+        }
+      ]
+    },
+    {
+      "name": "idx_ask_messages_updated_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "updated_at"
+        },
+        {
+          "position": 2,
+          "column": "id"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_ask_messages_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "id"
+        }
+      ]
+    }
+  ]
+}

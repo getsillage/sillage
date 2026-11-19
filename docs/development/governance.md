@@ -169,6 +169,16 @@ Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a st
 
 Public-facing website links use `https://getsillage.github.io/`. Source and contribution links use `https://github.com/getsillage/getsillage.github.io`. Retired project-site subpaths are not canonical addresses and must not appear in current public copy or documentation.
 
+## AOCI repository index
+
+The repository versions the AOCI root manifest, metadata, Code and Database
+volumes, and their governance baselines. The canonical SQLite evidence in
+`.aoci/database/evidence/sillage/` records schema metadata from a disposable
+copy initialized with [`LATEST.sql`](../../store/migration/sqlite/LATEST.sql).
+Use that schema source for database evidence. Run `aoci ui --detach` from the
+repository to get the local panel link. The current AOCI tools and Guide define
+the index maintenance workflow in [AGENTS.md](../../AGENTS.md).
+
 ## Quality severity
 
 | Level | Meaning | CI |

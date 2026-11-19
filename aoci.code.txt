@@ -1,0 +1,325 @@
+#AOCI-CODE-VOLUME: 1
+
+===/<repository>/===
+.dockerignore[FV4T]: F:从容器构建上下文排除本机配置、AOCI 工作目录、运行数据及预构建产物 | R:code:.gitignore,code:scripts/check-docker-context.mjs | A:- | S:Git 允许追踪的数据库夹具仍须排除在 Docker 上下文外
+.editorconfig[FQ3T]: F:统一文本编码、换行和缩进，并为 Go、Makefile 和批处理覆盖规则 | R:code:.gitattributes | A:- | S:-
+.env.example[FC4T]: F:给 Compose 部署提供镜像和宿主端口的示例值 | R:- | A:SILLAGE_IMAGE,SILLAGE_HOST_PORT | S:生产升级宜固定发布标签或摘要，默认只发布回环端口
+.gitattributes[FQ3T]: F:统一 Git 文本换行为 LF，为批处理保留 CRLF 并标记常见二进制文件 | R:code:.editorconfig | A:- | S:-
+.gitignore[FQ4T]: F:排除环境文件、依赖、构建产物和本机运行数据，保留可提交的环境样例 | R:code:.dockerignore,code:.env.example | A:- | S:Codex MCP 配置与接入备份属于本机产物，正式索引文件可追踪
+.gitleaks.toml[FS5T]: F:扩展 Gitleaks 默认规则并声明允许的测试、文档、占位秘密和历史提交 | R:code:Makefile,code:SECURITY.md | A:- | S:正式运行密钥仍不得提交；允许项用于样例和已知误报
+AGENTS.md[SQ5S]: F:引导代理先读 CLAUDE.md，并定义 AOCI 建立、传输证明、稳定检查点和维护规则 | R:code:CLAUDE.md | A:- | S:语义创作需绑定当次 Guide、证据与完整候选；上下文压缩后重新交付索引并验证
+CLAUDE.md[SQ6S]: F:定义代理协作方式、事实源、Sillage 产品边界及验证门禁 | R:code:docs/development/governance.md,code:Makefile,code:docs/development/constitution.md | A:- | S:数据库变更须同时更新新库、兼容迁移和测试；现有写操作的版本检查与删除墓碑不可绕开
+CODE_OF_CONDUCT.md[SQ2S]: F:定义贡献者行为标准、适用场景、社区责任和分级处置 | R:code:CONTRIBUTING.md | A:- | S:-
+CONTRIBUTING.md[SQ6S]: F:说明开发准备、贡献流程以及代码、契约、数据库和 Web 产物的验证入口 | R:code:go.mod,code:Makefile,code:docs/development/governance.md,code:docs/development/architecture.md | A:- | S:Go 工具链以 go.mod 为准；生成 OpenAPI 只覆盖 Proto HTTP 注解，Echo 扩展须对照 REST 指南和路由代码
+LICENSE[SV3T]: F:提供 Sillage 的 MIT 许可、版权声明和免责声明 | R:code:NOTICE | A:- | S:-
+Makefile[XQ7S]: F:提供与 CI 同源的开发验证入口并按改动分派门禁 | R:code:scripts/change-matrix.yml,code:.github/workflows/ci.yml | A:check,check-affected,print-affected,check-fast | S:PR 范围可传 BASE_SHA；受影响检查不替代发布级全门禁
+NOTICE[SV2T]: F:声明项目版权和许可，并指向第三方依赖声明与保留文档 | R:code:LICENSE,code:THIRD_PARTY_NOTICES.md | A:- | S:-
+README.md[SG5T]: F:用英文介绍单人私密记录的产品能力、容器启动和 Go 加 Web 架构 | R:code:README.zh-CN.md,code:docs/user/deployment.md,code:SECURITY.md | A:- | S:自托管公网入口由部署者在仓库外管理
+README.zh-CN.md[SG5T]: F:用中文说明记录、历史回看与有来源的 AI 问答，并给出自托管启动入口 | R:code:README.md,code:docs/user/deployment.md,code:docs/user/ai.md | A:- | S:产品仅服务单用户，第三方网络入口与凭据由部署者独立管理
+SECURITY.md[SS5T]: F:规定漏洞私下报告、受支持版本和部署责任 | R:code:docs/development/security.md,code:docs/user/deployment.md | A:GitHub Private Vulnerability Reporting | S:数据目录与备份没有额外的全盘静态加密，应限制宿主权限
+SUPPORT.md[SQ3T]: F:引导自托管用户查阅文档、脱敏并选择缺陷、功能、支持或漏洞渠道 | R:code:SECURITY.md,code:docs/README.md | A:- | S:-
+THIRD_PARTY_NOTICES.md[SV4S]: F:登记发布分发使用的 Go 与 Web 运行依赖、许可证和保留文件 | R:code:NOTICE,code:scripts/generate-third-party-notices.mjs,code:scripts/third-party-license-policy.json | A:- | S:用生产依赖图生成，版本变动时同步保留相应版本的上游许可证
+buf.gen.yaml[FV5T]: F:固定 Proto 的 Go、gRPC、Connect、Gateway 和 OpenAPI 生成器及目标目录 | R:code:buf.yaml,code:contracts/proto/README.md | A:- | S:clean 会重建生成物，外部 googleapis 保留原 go_package
+buf.lock[FV3T]: F:锁定 googleapis Proto 依赖的提交及内容摘要 | R:code:buf.yaml,code:buf.gen.yaml | A:- | S:-
+buf.yaml[FQ5T]: F:声明 Proto 模块、googleapis 依赖、基础 lint 及文件级兼容检查 | R:code:buf.gen.yaml,code:scripts/check-proto.sh | A:- | S:兼容门禁使用 FILE 模式；部分命名与目录约定显式例外
+go.mod[FV5T]: F:声明 Sillage Go 模块与安全工具链下限，记录 Echo、SQLite 和 Proto 等依赖 | R:code:scripts/Dockerfile,code:.github/workflows/ci.yml,code:Makefile | A:github.com/getsillage/sillage | S:CI 读取这里的 Go 补丁版本，容器 Go 构建器同步固定；SQLite 使用纯 Go 驱动
+lefthook.yml[FQ3T]: F:可选本地钩子运行提交消息、术语和空白检查 | R:code:scripts/check-commit-msg.mjs,code:Makefile | A:- | S:最终门禁由 CI 执行
+
+===/<repository>/.github/ISSUE_TEMPLATE/===
+bug_report.yml[FQ2T]: F:收集可复现缺陷的版本、环境、复现步骤及脱敏材料 | R:code:SECURITY.md | A:- | S:-
+config.yml[FQ2T]: F:关闭空白 Issue，并将支持和安全漏洞报告分流到对应入口 | R:code:SUPPORT.md,code:SECURITY.md | A:- | S:-
+feature_request.yml[FQ2T]: F:收集符合单用户私密产品边界的功能提案及备选方案 | R:code:SUPPORT.md,code:CLAUDE.md | A:- | S:-
+question.yml[FQ2T]: F:引导用户提交查过文档且已脱敏的部署与使用问题 | R:code:SUPPORT.md | A:- | S:-
+
+===/<repository>/.github/===
+PULL_REQUEST_TEMPLATE.md[SQ3T]: F:要求外部贡献说明变更、影响和验证，并提示文档、生成物及隐私门禁 | R:code:CONTRIBUTING.md,code:Makefile | A:- | S:-
+dependabot.yml[FV5T]: F:按生态发起每周依赖更新，将耦合的 Docker、React 和 Tailwind 依赖分组 | R:code:apps/web/package.json,code:.github/workflows/ci.yml | A:- | S:React 与 React DOM 必须精确同版本，拒用版本需同步抑制；Node 类型须匹配 Node 24
+
+===/<repository>/.github/release-notes/===
+v0.3.0.md[SV3T]: F:记录最近删除、离线密码重置和发布验证，以及旧版本升级与恢复要求 | R:code:.github/workflows/release.yml | A:- | S:旧二进制拒绝已升级数据库，回滚需还原完整备份
+v0.3.1.md[SV3T]: F:记录双语文案、AI 数据提示和依赖更新，以及与上一版数据目录的兼容性 | R:code:README.zh-CN.md | A:- | S:-
+v0.4.0.md[SV4T]: F:说明仅保留 Web 与 Go 后端、附件编辑修复、接口精简和 SQLite schema 0.1.6 升级 | R:code:store/migrator.go,code:README.zh-CN.md | A:- | S:升级备份含 WAL/SHM、附件和 runtime；回滚需恢复整套备份
+
+===/<repository>/.github/workflows/===
+ci.yml[OV7M]: F:校验提交并按改动触发 Go、Proto、Web、文档、容器、供应链、E2E 和 CodeQL 门禁 | R:code:Makefile,code:scripts/change-matrix.yml | A:CI 工作流 | S:push 配置执行对应的全量门禁，PR 按提交任务给出的影响布尔值裁剪；本地 Make 目标与 CI 共用
+release.yml[OV7M]: F:预检签名标签、版本和 CI 后推送多架构容器，并发布附带 SBOM 和证明的 GitHub Release | R:code:.github/workflows/ci.yml,code:.github/release-notes/v0.4.0.md | A:Release 工作流 | S:已有不可变标签拒绝覆盖；发布证据绑定到已推送镜像摘要
+
+===/<repository>/apps/===
+README.md[SG3T]: F:定位唯一的 Web 客户端和仓库根 Go 后端，说明生产制品随服务端一起发布 | R:code:apps/server/README.md,code:apps/web/package.json | A:- | S:-
+
+===/<repository>/apps/server/===
+README.md[SG3T]: F:解释 Go 单体按进程、共享基础、HTTP 与 SQLite 持久化划分的职责 | R:code:docs/development/architecture.md,code:cmd/sillage/main.go | A:- | S:-
+
+===/<repository>/apps/web/===
+biome.json[FQ3T]: F:为 Web 源码、E2E 和工具配置指定 Biome 推荐 lint 与两空格格式 | R:code:apps/web/package.json | A:- | S:-
+index.html[EU4T]: F:声明 Web 文档、移动视口与 PWA 资源，预先加载主题并挂载 React | R:code:apps/web/src/main.tsx,code:apps/web/public/theme-init.js | A:root | S:主题脚本先于 React 入口执行
+package.json[FV6T]: F:声明私有 Web 工作区的运行依赖、开发与构建工具版本及验证命令 | R:code:apps/web/pnpm-workspace.yaml,code:Makefile | A:dev,dev:lan,build,typecheck,test:e2e | S:Vite 默认仅监听 127.0.0.1；开发依赖也纳入高危审计，修复版本下限记录在清单
+playwright.config.ts[FQ5T]: F:配置 Chromium、Firefox 和 WebKit 的全流程浏览器验证 | R:code:apps/web/package.json,code:Makefile | A:PLAYWRIGHT_BASE_URL | S:目标是已启动的单账号实例，串行单 worker 避免共享状态竞态
+pnpm-workspace.yaml[FV4T]: F:授权 esbuild 安装构建并为间接依赖固定安全版本覆盖 | R:code:apps/web/package.json,code:scripts/check-supply-chain.sh | A:allowBuilds,overrides | S:Undici 的安全版本下限在工作区落实，由锁文件约束测试工具链
+tsconfig.json[FV4T]: F:配置面向 ES2022 与 DOM 的 TypeScript 严格检查和打包解析 | R:code:apps/web/package.json | A:- | S:tsc 只检查类型，产物交给 Vite
+vite.config.ts[FV5T]: F:安装 React 与 Tailwind 插件，配置 API 代理和 Go 嵌入产物目录 | R:code:apps/web/package.json,code:server/router/frontend/frontend.go | A:/api,/file,/sillage.api.v1 | S:构建会清空并重写 server/router/frontend/dist
+vitest.config.ts[FQ4T]: F:配置 jsdom 单测环境、初始化文件和 v8 覆盖范围 | R:code:apps/web/src/test/setup.ts,code:apps/web/package.json | A:- | S:单测不处理 CSS，入口和测试辅助文件不计覆盖率
+
+===/<repository>/apps/web/public/===
+manifest.en.webmanifest[FU3T]: F:提供英文 PWA 安装名称、独立窗口、主题色和图标规格 | R:code:apps/web/src/i18n/I18nProvider.tsx | A:/manifest.en.webmanifest | S:-
+manifest.webmanifest[FU3T]: F:给默认中文 Web 入口提供 PWA 安装元数据和图标 | R:code:apps/web/index.html,code:apps/web/src/i18n/I18nProvider.tsx | A:/manifest.webmanifest | S:-
+theme-init.js[EU4T]: F:预加载存储偏好或系统配色，在首次绘制前设置根元素主题 | R:code:apps/web/index.html,code:apps/web/src/components/ThemeToggle.tsx | A:sillage-theme | S:存储访问异常时仍会按系统配色初始化
+
+===/<repository>/apps/web/src/app/===
+App.tsx[EU8M]: F:解析实例初始化及账号会话状态，懒加载记录、时间线、问答与设置路由 | R:code:apps/web/src/lib/api.ts,code:apps/web/src/lib/auth.ts,code:apps/web/src/app/AppShell.tsx | A:App,/initialize,/login,/entries/:id,/ask,/settings | S:只有刷新后仍为 401 才将账号判为登出；短暂请求故障保留会话
+AppShell.tsx[AU6M]: F:编排桌面导航、移动抽屉、快速记录、内容区域与会话退出交互 | R:code:apps/web/src/app/Sidebar.tsx,code:apps/web/src/app/RouteAccessibility.tsx,code:apps/web/src/features/memos/QuickCapture.tsx | A:AppShell | S:问答路由隐藏全局快速记录，打开移动抽屉时也不会展示快速记录入口
+RouteAccessibility.tsx[CU5S]: F:根据路由切换可读页面标签、辅助公告和内容焦点 | R:code:apps/web/src/lib/modal.ts,code:apps/web/src/app/AppShell.tsx | A:RouteAccessibility,routeAccessibilityIdentity | S:首选主标题作为焦点，模态框可见时延迟执行避免抢焦点
+Sidebar.tsx[AU6L]: F:提供产品导航、搜索入口、筛选入口和账号退出确认 | R:code:apps/web/src/app/AppShell.tsx,code:apps/web/src/lib/api.ts,code:apps/web/src/components/ThemeToggle.tsx | A:Sidebar,Wordmark | S:账号菜单退场与退出确认有独立的 Escape 处理，确认界面限制 Tab 焦点并在关闭后归还
+
+===/<repository>/apps/web/src/components/===
+LanguageSwitcher.tsx[CU3T]: F:渲染简体中文与英文的可访问切换控件 | R:code:apps/web/src/i18n/I18nProvider.tsx | A:LanguageSwitcher | S:-
+Markdown.tsx[CU5T]: F:为阅读和预览渲染 GFM Markdown 及软换行，并统一链接与媒体样式 | R:code:apps/web/src/features/memos/MarkdownEditor.tsx,code:apps/web/src/styles/app.css | A:Markdown | S:外链打开新窗口时带 noopener noreferrer
+ThemeToggle.tsx[CU4S]: F:切换亮色、暗色与跟随系统，广播偏好并同步页面配色 | R:code:apps/web/public/theme-init.js,code:apps/web/src/styles/app.css | A:ThemeToggle | S:跟随系统时删除持久化覆盖项
+Toast.tsx[CU5M]: F:提供通知队列、定时关闭及不同级别的辅助播报 | R:code:apps/web/src/i18n/I18nProvider.tsx | A:ToastProvider,useToast | S:错误和普通通知使用不同的实时区域角色与显示时长
+UnsavedNavigationGuard.tsx[CU6S]: F:跟踪未保存内容和阻塞操作，拦截路由离开并让用户确认继续 | R:code:apps/web/src/features/memos/EntryComposer.tsx,code:apps/web/src/features/memos/QuickCapture.tsx | A:UnsavedNavigationGuard,registerBlockingOperation,useUnsavedChangesRegistration | S:处理中操作与普通草稿不同，前者须先结束才解锁离开
+ui.ts[CU4T]: F:统一阅读布局、表单、卡片与按钮的 Tailwind 样式常量 | R:code:apps/web/src/styles/app.css | A:- | S:-
+
+===/<repository>/apps/web/src/features/ask/===
+AskContext.tsx[AA7L]: F:管理会话、消息树、变体选择及 AI SSE 生成生命周期 | R:code:apps/web/src/lib/api.ts,code:apps/web/src/features/ask/askTree.ts,code:apps/web/src/features/ask/AskPage.tsx | A:AskProvider,useAsk | S:会话、元数据和消息加载按请求序号与取消信号隔离，生成中止不能让旧响应覆盖当前分支
+AskPage.tsx[EA6L]: F:呈现会话问答、分支浏览、生成状态与记录来源，收集提问 | R:code:apps/web/src/features/ask/AskContext.tsx,code:apps/web/src/features/ask/askTree.ts,code:apps/web/src/components/Markdown.tsx | A:AskPage | S:提交失败时恢复问题文本，但保留等待期间用户输入的新文本
+askTree.ts[DA5T]: F:从父子消息关系计算当前可见分支、同层变体与叶节点 | R:code:apps/web/src/features/ask/AskContext.tsx | A:buildActivePath,branchLeafId | S:依 parentId 形成对话路径，沿分支选择最近子节点
+
+===/<repository>/apps/web/src/features/auth/===
+AuthPages.tsx[EI6M]: F:实现首次创建唯一账号和已有账号登录的表单、校验与反馈 | R:code:apps/web/src/app/App.tsx,code:apps/web/src/lib/api.ts | A:InitializePage,LoginPage | S:密码控件关闭自动大写和拼写检查，显隐仅作用于展示
+
+===/<repository>/apps/web/src/features/memos/===
+CalendarView.tsx[EU5M]: F:绘制月份网格、活跃记录数、日期链接与选中状态，承载月反馈和日面板 | R:code:apps/web/src/features/memos/TimelineCalendar.tsx,code:apps/web/src/lib/date.ts | A:CalendarView | S:未知计数不标记为零，月份和日期导航在计数未就绪时仍可用
+EntryCard.tsx[EU4S]: F:展示记录摘要、日期和收藏等状态并提供详情导航 | R:code:apps/web/src/features/memos/memos.ts,code:apps/web/src/features/memos/LocalDateTime.tsx | A:EntryCard | S:交互子节点阻止整卡点击劫持原操作
+EntryComposer.tsx[AB7L]: F:编辑记录和发生日期、挂载附件，并保存可恢复的本地草稿 | R:code:apps/web/src/features/memos/MarkdownEditor.tsx,code:apps/web/src/features/memos/MemosContext.tsx,code:apps/web/src/components/UnsavedNavigationGuard.tsx | A:EntryComposer,EntryDraftState | S:草稿的 baseVersion 与服务端版本不符时进入显式冲突状态；上传、冲突或提交中禁用再次提交
+EntryPage.tsx[EB7L]: F:加载记录详情，处理编辑、收藏归档、AI 摘要和删除状态的交互 | R:code:apps/web/src/features/memos/MemosContext.tsx,code:apps/web/src/features/memos/EntryComposer.tsx | A:EntryPage | S:仅 404 展示记录缺失，其他加载失败可重试；切换记录时清掉旧详情操作状态并丢弃迟到结果
+HomePage.tsx[EU5M]: F:组织记录编辑器、今天和近期记录及往年今日，按需加载共享活动列表 | R:code:apps/web/src/features/memos/EntryComposer.tsx,code:apps/web/src/features/memos/MemosContext.tsx,code:apps/web/src/features/memos/QuickCapture.tsx,code:apps/web/src/features/memos/OnThisDay.tsx | A:HomePage | S:快速草稿交接先检查已有编辑状态，避免覆盖正在编辑或提交的内容
+LocalDateTime.tsx[CU3T]: F:按浏览器时区与语言输出分钟精度的读者时间及机器可读 ISO 时间 | R:code:apps/web/src/i18n/I18nProvider.tsx | A:LocalDateTime,formatLocalDateTime | S:无效日期不渲染
+MarkdownEditor.tsx[CU6M]: F:在 Markdown 文本输入、预览与附件上传间切换并支持把附件链接插回正文 | R:code:apps/web/src/components/Markdown.tsx,code:apps/web/src/features/memos/EntryComposer.tsx | A:MarkdownEditor | S:文件选择器改变焦点时保留上一次选区，附件返回后按当前文本和选区插入
+MemosContext.tsx[AB7L]: F:管理共享活动列表和详情缓存，协调记录变更、按月计数、按日读页和附件上传 | R:code:apps/web/src/lib/api.ts,code:apps/web/src/features/memos/TimelineCalendar.tsx,code:apps/web/src/features/memos/TimelinePage.tsx,code:apps/web/src/features/memos/EntryPage.tsx | A:MemosProvider,useMemos,useActiveMemos | S:共享列表按需初始化；日历数据独立读取，成功写入后推进日历代次。迟到的详情和分页不得覆盖较新版本
+OnThisDay.tsx[EU3T]: F:呈现往年同日记录摘要并链接到详情，保留返回地址 | R:code:apps/web/src/features/memos/memos.ts | A:OnThisDay | S:没有往年同日记录时不占布局
+QuickCapture.tsx[AB6L]: F:提供全局快速记录面板、本地草稿保存及向完整编辑器交接 | R:code:apps/web/src/features/memos/EntryComposer.tsx,code:apps/web/src/features/memos/HomePage.tsx,code:apps/web/src/components/UnsavedNavigationGuard.tsx | A:QuickCapture,QUICK_CAPTURE_DRAFT_TRANSFER_EVENT | S:完整编辑已有草稿时保留速记；跳转前交接沿完整编辑器的持久化格式并检查接收结果
+TimelinePage.tsx[EU7L]: F:按 URL 组织记录时间线、日历、收藏、归档、最近删除及搜索视图 | R:code:apps/web/src/features/memos/TimelineCalendar.tsx,code:apps/web/src/features/memos/MemosContext.tsx,code:apps/web/src/lib/api.ts | A:TimelinePage | S:默认活动列表共享首页缓存，其他状态列表独立分页；搜索和列表在参数切换后丢弃旧响应
+memos.ts[DB4T]: F:提取记录摘要，按日期排序和按 ID 合并记录，筛选活动记录及往年同日 | R:code:apps/web/src/features/memos/MemosContext.tsx | A:excerpt,sortMemos,mergeMemos,upsertMemo,isActive,onThisDay | S:活动集排除归档、收藏和已删除记录
+TimelineCalendar.tsx[AU7M]: F:解析日历深链接，独立读取可见月份计数和选定日期的记录页 | R:code:apps/web/src/features/memos/CalendarView.tsx,code:apps/web/src/features/memos/MemosContext.tsx,code:apps/web/src/lib/date.ts | A:TimelineCalendar | S:同月换日复用计数，换月或换日隔离迟到结果；单日分页失败后保留已读记录并重试原游标
+
+===/<repository>/apps/web/src/features/settings/===
+SettingsPage.tsx[EU4T]: F:为账号与 AI 设置提供页面外壳、版本展示和入口 | R:code:apps/web/src/features/settings/SettingsWorkspace.tsx,code:apps/web/src/lib/buildInfo.ts | A:SettingsPage | S:-
+SettingsWorkspace.tsx[AU7L]: F:编辑 AI 服务配置、测试连接及取回模型，管理自动总结和账号密码 | R:code:apps/web/src/lib/api.ts,code:apps/web/src/features/settings/SettingsPage.tsx,code:apps/web/src/components/UnsavedNavigationGuard.tsx | A:SettingsWorkspace | S:API key 空输入按未提供处理；配置变化后丢弃针对旧参数的连接结论，异步变更期间锁定冲突操作
+
+===/<repository>/apps/web/src/i18n/===
+I18nProvider.tsx[CL5T]: F:提供中英翻译上下文并把语言选择同步到存储、文档语言和 PWA 清单 | R:code:apps/web/src/i18n/messages.ts,code:apps/web/public/manifest.en.webmanifest | A:I18nProvider,useI18n | S:切换语言同步替换 manifest 链接，避免安装文案维持另一语言
+messages.ts[FL5L]: F:维护简体中文和英文的产品术语、界面状态、错误文案及插值 | R:code:apps/web/src/i18n/I18nProvider.tsx,code:docs/development/content-design.md | A:SUPPORTED_LOCALES,Locale,TranslationKey | S:月计数失败与当天记录失败有各自的反馈和重试文案；API 错误映射共享双语目录
+
+===/<repository>/apps/web/src/lib/===
+api.ts[IN8L]: F:封装 Sillage REST 的身份、记录、日历、附件与 AI 客户端，集中处理错误和 SSE | R:code:apps/web/src/lib/auth.ts,code:docs/development/api/README.md,code:server/api_service.go | A:getBootstrap,listMemos,getMemoCalendarCounts,updateMemo,uploadAttachment,streamAskMessage | S:访问令牌常驻内存，401 通过刷新 Cookie 恢复会话；日历读请求支持取消，取消 SSE 会结束流读取
+auth.ts[CI5T]: F:集中维护浏览器内存中的访问令牌并让订阅者感知变化 | R:code:apps/web/src/lib/api.ts,code:apps/web/src/app/App.tsx | A:getAccessToken,setAccessToken,clearAccessToken,subscribeAccessToken | S:不把 Bearer 令牌写入 Web Storage，重载只依赖 HttpOnly 刷新 Cookie
+buildInfo.ts[CV3T]: F:归一化构建注入的 Web 版本和修订号并生成短显示格式 | R:code:apps/web/src/vite-env.d.ts | A:webBuildInfo,shortRevision | S:-
+date.ts[CL4S]: F:将本地日期转换、比较与格式化为记录、相对日期和月份标题 | R:code:apps/web/src/features/memos/CalendarView.tsx | A:formatEntryDate,formatShortDate,formatMonth | S:日历日期先按本地年月日解析，跨日差再用 UTC 日数计算
+modal.ts[CU3T]: F:判断是否有可见模态框并支持排除当前元素 | R:code:apps/web/src/app/RouteAccessibility.tsx | A:hasVisibleModal | S:-
+
+===/<repository>/apps/web/src/===
+main.tsx[EU5T]: F:挂载 React 严格模式、语言 Provider 与浏览器路由，并加载全局样式 | R:code:apps/web/src/app/App.tsx,code:apps/web/src/i18n/I18nProvider.tsx | A:root | S:外层用单通配路径交由 App 处理路由
+vite-env.d.ts[FV2T]: F:为 Vite 中注入的版本和修订变量补充类型 | R:code:apps/web/src/lib/buildInfo.ts | A:ImportMetaEnv | S:-
+
+===/<repository>/apps/web/src/styles/===
+app.css[FU5S]: F:定义 Tailwind 主题、暗色选择器和读写页面的全局样式 | R:code:apps/web/src/components/ui.ts,code:apps/web/src/main.tsx | A:- | S:配色采用显式 dark class 并尊重减少动态效果偏好
+
+===/<repository>/apps/web/src/test/===
+setup.ts[TQ4T]: F:安装 DOM 断言，隔离测试 DOM、语言和 Web Storage | R:code:apps/web/vitest.config.ts | A:- | S:用内存 Storage 避开无后备文件的 Node 全局 getter
+
+===/<repository>/cmd/sillage/===
+admin.go[EI7S]: F:提供停服条件下的账号密码恢复命令并撤销该账号既有会话 | R:code:internal/instancelock/lock.go,code:store/account.go,code:store/migrator.go | A:admin reset-password | S:要求已有普通数据库文件并取得实例锁；拒绝符号链接密码文件，非 Windows 上拒绝组及其他用户可读权限
+main.go[ER9M]: F:启动 Sillage CLI，装配实例配置、锁、数据库迁移、密钥和 HTTP 生命周期 | R:code:internal/profile/profile.go,code:store/migrator.go,code:server/server.go,code:cmd/sillage/admin.go | A:sillage,--addr,--port,--data,--driver | S:拿到数据目录和数据库的实例锁后才迁移；加载运行密钥后开放服务，退出信号触发带超时的关闭
+
+===/<repository>/contracts/===
+README.md[SN4T]: F:索引公共 Proto、提交的生成制品及完整 REST 契约的入口 | R:code:contracts/proto/README.md,code:docs/development/api/README.md | A:- | S:-
+
+===/<repository>/contracts/proto/===
+README.md[SN5T]: F:说明 Proto 生成边界与兼容性检查，并记录退役离线客户端的临时基线规范化 | R:code:scripts/prepare-proto-baseline.mjs,code:buf.gen.yaml,code:docs/development/api/README.md | A:- | S:仅历史三处精确指纹与当前字段号保留同时成立才适用例外，比较时不改源码和历史版本
+
+===/<repository>/contracts/proto/api/v1/===
+ask_service.proto[FA6S]: F:声明问答会话、归档、消息列表和同步消息创建的 RPC 与 HTTP 注解 | R:code:contracts/proto/api/v1/common.proto,code:server/ask_routes.go | A:AskService | S:流式生成、分支和 head 相关的手写 REST 扩展由 Echo 路由与 API 指南另行定义
+attachment_service.proto[FB5T]: F:声明根据附件 ID 读取元数据的 RPC 与 HTTP 投影 | R:code:contracts/proto/api/v1/common.proto,code:server/attachment_routes.go | A:GetAttachment,/api/v1/attachments/{uid} | S:鉴权后的附件字节从独立文件路由读取
+auth_service.proto[FI7S]: F:声明实例启动状态、初始化、登录、刷新、撤销与密码修改的身份契约 | R:code:contracts/proto/api/v1/common.proto,code:server/auth_routes.go,code:server/api_service.go | A:AuthService,BootstrapResponse,AuthResponse | S:保留退役的 bootstrap 字段编号 5；浏览器 Cookie 边界以服务端适配实现为准
+common.proto[FG7S]: F:统一账号、记录、附件、AI 状态、问答消息与来源的跨服务消息契约 | R:code:contracts/proto/api/v1/memo_service.proto,code:contracts/proto/api/v1/ask_service.proto,code:server/api_service.go | A:Account,Memo,Attachment,MemoAI,AIProfile,AskMessage | S:记录版本覆盖正文和状态，AI 结果另表保存且不改变记录版本或更新时间
+memo_service.proto[FB7S]: F:定义记录列表、创建与读取、乐观写入、恢复、清除和生成摘要的 API | R:code:contracts/proto/api/v1/common.proto,code:server/memo_routes.go | A:MemoService,UpdateMemoRequest,CreateMemoRequest | S:更新和生命周期操作携带读到的版本；已退役的创建 ID 字段号不能复用
+settings_service.proto[FC6T]: F:声明 AI 档案全集读取与替换，以及自动总结开关的 RPC | R:code:contracts/proto/api/v1/common.proto,code:server/ai_routes.go | A:SettingsService,AIProfileInput | S:档案替换时省略 api_key 保留旧密钥，响应不携带密钥
+
+===/<repository>/contracts/proto/gen/api/v1/apiv1connect/===
+ask_service.connect.go[IN4M]: F:生成问答会话和消息 RPC 的 Connect 客户端、服务 handler 与过程地址 | R:code:contracts/proto/api/v1/ask_service.proto | A:NewAskServiceClient,NewAskServiceHandler | S:-
+attachment_service.connect.go[IN4S]: F:生成读取附件元数据的 Connect 单过程客户端和处理器 | R:code:contracts/proto/api/v1/attachment_service.proto | A:NewAttachmentServiceClient,NewAttachmentServiceHandler | S:-
+auth_service.connect.go[IN5M]: F:生成引导、登录、刷新、退出、当前账号和密码修改的 Connect 路由适配 | R:code:contracts/proto/api/v1/auth_service.proto,code:server/api_service.go | A:NewAuthServiceClient,NewAuthServiceHandler | S:请求鉴权和会话策略由手写服务层提供
+memo_service.connect.go[IN5M]: F:将记录读写、生命周期和摘要 RPC 暴露为生成的 Connect 客户端和 HTTP handler | R:code:contracts/proto/api/v1/memo_service.proto,code:server/api_service.go | A:NewMemoServiceClient,NewMemoServiceHandler | S:-
+settings_service.connect.go[IN4S]: F:生成 AI 档案读写及自动总结开关的 Connect 分发与调用代码 | R:code:contracts/proto/api/v1/settings_service.proto | A:NewSettingsServiceClient,NewSettingsServiceHandler | S:-
+
+===/<repository>/contracts/proto/gen/api/v1/===
+ask_service.pb.go[LN4L]: F:承载问答请求响应的 Go 值类型、可选字段访问器和 Protobuf 描述符 | R:code:contracts/proto/api/v1/ask_service.proto | A:ListAskConversationsRequest,CreateAskMessageRequest,CreateAskMessageResponse | S:-
+ask_service.pb.gw.go[IN3L]: F:按会话与消息 RPC 的 HTTP 注解生成 Gateway 匹配规则和请求转发 | R:code:contracts/proto/api/v1/ask_service.proto | A:RegisterAskServiceHandlerServer | S:覆盖注解的同步接口，SSE 由 Echo 实现
+ask_service_grpc.pb.go[IN3M]: F:生成 AskService 的一元 gRPC 方法、注册信息与客户端 stub | R:code:contracts/proto/api/v1/ask_service.proto | A:NewAskServiceClient,RegisterAskServiceServer | S:-
+attachment_service.pb.go[LN3S]: F:生成附件 UID 查询请求、附件元数据响应及其反射描述符 | R:code:contracts/proto/api/v1/attachment_service.proto | A:GetAttachmentRequest,AttachmentResponse | S:-
+attachment_service.pb.gw.go[IN3S]: F:把 HTTP 路径中的 uid 转换为 Gateway 附件查询请求 | R:code:contracts/proto/api/v1/attachment_service.proto | A:RegisterAttachmentServiceHandlerServer | S:-
+attachment_service_grpc.pb.go[IN3S]: F:生成 GetAttachment 的 gRPC 调用、服务定义与注册 | R:code:contracts/proto/api/v1/attachment_service.proto | A:NewAttachmentServiceClient,RegisterAttachmentServiceServer | S:-
+auth_service.pb.go[LN4L]: F:提供实例引导、会话命令与账号读取所需的 Go 消息和描述符 | R:code:contracts/proto/api/v1/auth_service.proto | A:BootstrapResponse,SignInRequest,RefreshRequest,AuthResponse | S:-
+auth_service.pb.gw.go[IN3L]: F:为身份 RPC 的引导、登录、刷新等注解路径生成 Gateway 请求绑定 | R:code:contracts/proto/api/v1/auth_service.proto | A:RegisterAuthServiceHandlerServer | S:-
+auth_service_grpc.pb.go[IN3M]: F:生成 AuthService 的 gRPC 客户端、服务注册和方法分发 | R:code:contracts/proto/api/v1/auth_service.proto | A:NewAuthServiceClient,RegisterAuthServiceServer | S:-
+common.pb.go[LN5L]: F:生成账号、记录、附件、AI 档案与问答公共消息的 Go 类型和反射描述符 | R:code:contracts/proto/api/v1/common.proto | A:Account,Memo,Attachment,MemoAI,AIProfile,AskMessage | S:-
+memo_service.pb.go[LN4L]: F:生成记录列表、增改、版本化生命周期和摘要 RPC 的数据绑定 | R:code:contracts/proto/api/v1/memo_service.proto | A:ListMemosRequest,CreateMemoRequest,UpdateMemoRequest,PurgeMemoRequest | S:-
+memo_service.pb.gw.go[IN3L]: F:将 Proto 记录方法的路径参数、过滤参数和 JSON 请求接到 Gateway 调用 | R:code:contracts/proto/api/v1/memo_service.proto | A:RegisterMemoServiceHandlerServer | S:-
+memo_service_grpc.pb.go[IN3L]: F:生成 MemoService 的读写、生命周期和摘要一元调用与注册分发 | R:code:contracts/proto/api/v1/memo_service.proto | A:NewMemoServiceClient,RegisterMemoServiceServer | S:-
+settings_service.pb.go[LN4L]: F:生成 AI 档案输入、配置读取和自动总结开关的请求响应与描述信息 | R:code:contracts/proto/api/v1/settings_service.proto | A:PatchAISettingsRequest,AIProfileInput,SetAIAutoSummaryRequest | S:-
+settings_service.pb.gw.go[IN3M]: F:按配置读取、替换和自动总结的 HTTP 注解注册 Gateway 请求转发 | R:code:contracts/proto/api/v1/settings_service.proto | A:RegisterSettingsServiceHandlerServer | S:-
+settings_service_grpc.pb.go[IN3M]: F:生成 SettingsService 的 gRPC 方法调用接口、服务器 stub 与描述符 | R:code:contracts/proto/api/v1/settings_service.proto | A:NewSettingsServiceClient,RegisterSettingsServiceServer | S:-
+
+===/<repository>/contracts/proto/gen/openapi/===
+openapi.yaml[FN5L]: F:将 Proto HTTP 注解投影为 OpenAPI 3.0.3 路径、操作与消息 schema | R:code:buf.gen.yaml,code:docs/development/api/README.md | A:- | S:上传、鉴权文件下载、SSE 与其他手写 Echo 扩展不在该投影中
+
+===/<repository>/docs/===
+README.md[SG3T]: F:按使用、开发、安全和发布任务索引仓库文档与权威位置 | R:code:docs/development/README.md,code:CONTRIBUTING.md | A:- | S:-
+
+===/<repository>/docs/development/===
+README.md[SQ4T]: F:划分开发治理、架构、REST、设计与 ADR 的长期事实来源 | R:code:docs/README.md,code:docs/development/governance.md | A:- | S:显著难逆的跨模块决定与实现同提交记录 ADR
+architecture.md[SG7S]: F:说明 Go 单体启动、Web 与 API 接缝、SQLite 持久化及主要事实来源 | R:code:cmd/sillage/main.go,code:server/server.go,code:store/migrator.go,code:docs/development/api/README.md | A:- | S:单实例单账号，记录日期独立于创建时间，AI 衍生数据独立持久化且不改变记录写入版本
+constitution.md[SG7T]: F:定义产品身份、单用户私密边界、工程红线与文档优先级 | R:code:docs/development/product-guidance.md,code:docs/development/architecture.md | A:- | S:每类事实有一个权威文档，冲突时以实现为准并同次修正文档
+content-design.md[SL6M]: F:规定双语术语、状态、错误、删除确认、自托管和 AI 数据披露文案 | R:code:apps/web/src/i18n/messages.ts,code:docs/development/product-guidance.md,code:docs/user/ai.md | A:- | S:调用外置 AI 端点前在实际操作位置说明发送内容；个人事实断言须有记录来源
+governance.md[SQ6S]: F:规定工程治理层级、贡献双轨、验证门禁、安全与仓库认知资产的维护 | R:code:CLAUDE.md,code:Makefile,code:scripts/change-matrix.yml,code:scripts/grype-alpine-openssl.vex.json,code:store/migration/sqlite/LATEST.sql | A:- | S:CI 与 Go 构建镜像对齐 go.mod，VEX 声明绑定回补包；数据库认知证据取自 LATEST.sql 初始化的结构副本
+product-guidance.md[SB6S]: F:定义私密记录、浏览组织、问答与总结的产品范围和用户术语 | R:code:docs/development/constitution.md,code:docs/development/content-design.md,code:docs/user/ai.md | A:- | S:通用答案可不引用个人记录；对用户历史的断言必须有相关记录来源
+release-readiness.md[SV5T]: F:规定发布支持环境、万条记录规模、候选验收和制品校验 | R:code:.github/workflows/release.yml,code:Makefile,code:scripts/check-release-notes.mjs,code:go.mod | A:- | S:用 go.mod 声明的工具链检查可达漏洞；精确候选提交须通过备份回滚演练，供应链证据绑定最终镜像
+security.md[SS7T]: F:定义账号会话、附件、加密密钥和外部请求的开发信任边界 | R:code:server/auth_routes.go,code:server/attachment_routes.go,code:internal/secret/secret.go,code:docs/user/deployment.md | A:- | S:首次初始化限受控入口，账号检查和创建在同一事务；线下改密使用同一实例锁并原子撤销刷新会话
+
+===/<repository>/docs/development/api/===
+README.md[SN6S]: F:规定 REST v1 鉴权、错误、日历读取、版本化写入及 Echo 扩展契约 | R:code:server/auth_routes.go,code:server/memo_routes.go,code:server/ask_routes.go,code:contracts/proto/README.md | A:REST v1 | S:月计数只含活动记录，按日读取的游标绑定日期和列表模式；Proto 生成文档不覆盖手写 Echo 扩展
+
+===/<repository>/docs/development/decisions/===
+2026-07-30-dependabot-limited-prs.md[SV3T]: F:记录按生态每周启用且限制为两条依赖更新 PR 的治理决定 | R:code:.github/dependabot.yml | A:- | S:-
+2026-07-30-dual-track-contribution.md[SQ4T]: F:区分外部 PR 与维护者直接提交路径，并保持共同质量门禁 | R:code:docs/development/governance.md,code:CLAUDE.md | A:- | S:-
+2026-07-30-record-deletion-lifecycle.md[SB6T]: F:规定记录可恢复删除、到期清除和最小墓碑的生命周期 | R:code:store/memo.go,code:server/memo_routes.go,code:docs/user/data.md | A:- | S:永久删除清理相关 AI 引用，最后活引用消失才清理附件；迟到请求不可恢复墓碑
+2026-07-30-unified-verification-entry.md[SQ4T]: F:确定 Make 为同一验证入口，并把路径映射和复杂门禁保留在脚本 | R:code:Makefile,code:scripts/change-matrix.yml,code:scripts/affected.mjs | A:- | S:-
+2026-10-12-web-only-client.md[SG5T]: F:记录仅保留响应式 Web 客户端、标准 API 和嵌入式容器发布的决定 | R:code:docs/development/architecture.md,code:docs/development/constitution.md | A:- | S:记录和 AI 计算在服务端，草稿与偏好留在浏览器；保留附件重试标识
+README.md[SQ3T]: F:规定 ADR 文件名、三段结构和应当成文的重大决策边界 | R:code:docs/development/governance.md | A:- | S:-
+
+===/<repository>/docs/development/design/===
+README.md[SU5S]: F:规定记录型 Web 界面布局、异步交互、双主题及响应式验收 | R:code:apps/web/src/components/ui.ts,code:apps/web/src/app/RouteAccessibility.tsx,code:apps/web/src/styles/app.css,code:apps/web/src/features/memos/TimelineCalendar.tsx | A:- | S:路由播报和焦点等待覆盖层关闭；月计数失败时网格仍可用，日分页失败保留已加载记录
+
+===/<repository>/docs/user/===
+ai.md[SA5T]: F:说明配置 AI 端点、密钥处理和各项模型调用会发送的数据 | R:code:server/ai_routes.go,code:server/ask_routes.go,code:docs/development/content-design.md | A:- | S:模型枚举与连通性测试使用档案凭据，不附带用户记录；问答路由阶段使用问题和分支历史
+data.md[SR6S]: F:说明实例数据组成、删除行为、离线密码恢复和备份恢复步骤 | R:code:internal/instancelock/lock.go,code:cmd/sillage/admin.go,code:store/migrator.go,code:docs/user/deployment.md | A:- | S:备份包含数据库及 WAL/SHM、附件和 runtime 密钥；锁文件存在与持锁不是同一状态
+deployment.md[SO6S]: F:说明容器、Compose 及源码运行、实例配置、首次初始化和健康探针 | R:code:scripts/compose.yaml,code:internal/profile/profile.go,code:docs/user/data.md,code:go.mod,code:.dockerignore | A:- | S:宿主默认只发布回环 5231，公网 HTTPS 由部署者管理；构建上下文排除 AOCI 工作目录、Codex 本机配置及备份
+
+===/<repository>/internal/instancelock/===
+lock.go[PR6S]: F:为数据目录和实际 SQLite 路径获取并释放跨进程排他锁 | R:code:internal/instancelock/lock_unix.go,code:internal/instancelock/lock_windows.go,code:cmd/sillage/main.go,code:cmd/sillage/admin.go | A:Acquire,Lock.Release,ErrInUse | S:锁路径归一化并解析符号链接，外置数据库仍有独立锁；部分获取失败时释放已占用的锁
+lock_unix.go[RR4T]: F:以 Unix 非阻塞排他 flock 实现实例文件锁并辨认锁忙 | R:code:internal/instancelock/lock.go | A:- | S:EWOULDBLOCK 与 EAGAIN 视为锁被占用
+lock_windows.go[RR4T]: F:用 Windows LockFileEx 和 UnlockFileEx 实现实例锁及冲突判定 | R:code:internal/instancelock/lock.go | A:- | S:-
+
+===/<repository>/internal/profile/===
+profile.go[RC7S]: F:规范监听、数据目录、SQLite DSN、上传限额和可信代理 CIDR | R:code:cmd/sillage/main.go,code:docs/user/deployment.md,code:scripts/compose.yaml | A:Profile,Profile.Validate,DefaultAddr,DefaultPort,DefaultSQLiteFile | S:默认直连只绑定回环；相对 DSN 按数据目录展开，并为附件、缩略图和 runtime 建目录
+
+===/<repository>/internal/secret/===
+envelope.go[KS7S]: F:通过 HKDF 派生密钥并使用 AES-256-GCM 封装、验签解密 AI 凭据 | R:code:internal/secret/secret.go,code:server/ai_routes.go | A:EncryptEnvelope,DecryptEnvelope,Envelope | S:每次封装随机 nonce；解封前校验算法和派生 key ID，密钥变动时无法解读旧密文
+secret.go[RS7T]: F:按环境变量、已有文件及生成值确定会话签名和数据加密密钥 | R:code:cmd/sillage/main.go,code:internal/secret/envelope.go,code:docs/user/data.md | A:Load,Secrets,SESSION_SECRET,ENCRYPTION_SECRET | S:现有文件损坏应报错，缺失时保存为 runtime/secrets.json 并限制为 0600
+
+===/<repository>/scripts/===
+Dockerfile[OV6T]: F:分阶段构建 Web 和嵌入式 Go 服务，并打包 Alpine 运行时及第三方许可 | R:code:go.mod,code:apps/web/package.json,code:scripts/entrypoint.sh,code:.dockerignore | A:TARGETOS,TARGETARCH,VERSION,REVISION | S:Go 构建镜像与仓库工具链一致并固定摘要；最终阶段先更新 Alpine 软件包，运行入口准备卷后切换到应用 UID/GID
+affected.mjs[XQ5T]: F:将 Git 变更映射为 Make 门禁，支持列表、执行和 GitHub 输出 | R:code:scripts/change-matrix.yml,code:Makefile,code:scripts/affected.test.mjs | A:--json,--run,--github-output,--base | S:提供基准引用时按提交范围判断影响
+affected.test.mjs[TQ3T]: F:验证 Web、Go 依赖和 Proto 等路径触发的门禁组合 | R:code:scripts/affected.mjs,code:scripts/change-matrix.yml | A:- | S:-
+change-matrix.yml[FQ6M]: F:映射改动路径到 Go、Web、容器、供应链与文档同步门禁 | R:code:scripts/affected.mjs,code:scripts/check-doc-sync.mjs,code:Makefile,code:scripts/grype-alpine-openssl.vex.json | A:- | S:范围判断和文档同步共用矩阵；修改 VEX 声明触发供应链与文档门禁
+check-actions-pinned.mjs[XQ4T]: F:检查 GitHub workflows 的外部 Action 均固定为 40 位提交 SHA | R:code:.github/workflows/ci.yml,code:.github/workflows/release.yml | A:- | S:-
+check-commit-msg.mjs[XQ4T]: F:校验单条消息或提交范围的 Conventional Commits 标题 | R:code:lefthook.yml,code:docs/development/governance.md | A:--file,--range | S:允许默认合并、回退和 Dependabot 的标题格式
+check-content-copy.mjs[XQ5S]: F:检查文档与前端中的术语、可观察记录表达和 AI 发送披露 | R:code:apps/web/src/i18n/messages.ts,code:docs/development/content-design.md,code:scripts/check-content-copy.test.mjs | A:auditContentCopy,contentPaths | S:核验实际操作位置的必要片段，避免仅在隐私说明中披露
+check-content-copy.test.mjs[TQ3T]: F:覆盖脱离来源的个人状态语言与缺失操作位置数据披露的失败场景 | R:code:scripts/check-content-copy.mjs | A:- | S:-
+check-doc-sync.mjs[XQ5T]: F:检查契约敏感路径变更是否附带对应文档 | R:code:scripts/change-matrix.yml,code:scripts/check-doc-sync.test.mjs,code:CONTRIBUTING.md | A:BASE_SHA,HEAD_SHA,Docs-skip | S:受信任 Dependabot 只改维护表面或明确写明 Docs-skip 原因时可跳过
+check-doc-sync.test.mjs[TQ3T]: F:测试文档同步检查的 PR 边界和受信任 Dependabot 例外 | R:code:scripts/check-doc-sync.mjs | A:- | S:-
+check-docker-context.mjs[XQ4T]: F:审核 Docker ignore 对数据库、秘密、运行时和构建产物的排除规则 | R:code:.dockerignore,code:.gitignore,code:scripts/Dockerfile | A:- | S:Git 允许的数据库 fixture 仍需从 Docker 上下文排除
+check-markdown-links.mjs[XQ3T]: F:扫描文档的相对链接并报告缺失的本地目标 | R:code:Makefile,code:docs/README.md | A:- | S:-
+check-proto.sh[XQ6T]: F:运行 Buf lint、兼容比较和重生成，并检测已提交产物漂移 | R:code:buf.yaml,code:buf.gen.yaml,code:scripts/prepare-proto-baseline.mjs | A:BASE_SHA,PROTO_BASE_REF | S:兼容比较使用临时基线树；没有可用基准时仍执行 lint 和生成校验
+check-release-notes.mjs[XV5S]: F:验证版本笔记的发行范围、必备段落、兼容与回滚说明和比较链接 | R:code:scripts/check-release-notes.test.mjs,code:docs/development/release-readiness.md,code:.github/workflows/release.yml | A:auditReleaseNotes | S:候选期间可有待完证据，正式 release 模式拒绝占位标记
+check-release-notes.test.mjs[TQ3T]: F:覆盖完整笔记、候选待办、缺失支持和版本错配的发布检查 | R:code:scripts/check-release-notes.mjs | A:- | S:-
+check-release-version.mjs[XV4T]: F:验证发布标签格式及其与 Web package 版本的精确一致性 | R:code:apps/web/package.json,code:scripts/check-release-version.test.mjs | A:auditReleaseVersion | S:-
+check-release-version.test.mjs[TQ3T]: F:测试稳定与预发布标签、缺失或不匹配的 Web 版本和清单读取 | R:code:scripts/check-release-version.mjs | A:- | S:-
+check-repository-settings.mjs[XQ5M]: F:通过 GitHub CLI 读取并审计组织与仓库的 Actions、分支、Pages 和安全策略 | R:code:scripts/check-repository-settings.test.mjs,code:docs/development/release-readiness.md | A:auditRepositorySettings,repositoryPolicies | S:组织要求 Action 固定 SHA，默认工作流只读且不能批准 PR；只读取设置并报告差异
+check-repository-settings.test.mjs[TQ3S]: F:用完备和偏离的快照测试组织、仓库安全与分支门禁结论 | R:code:scripts/check-repository-settings.mjs | A:- | S:-
+check-sbom.mjs[XV4T]: F:检查 SPDX、CycloneDX 和 Grype 制品的结构并汇总风险项 | R:code:scripts/scan-container.sh,code:.github/workflows/release.yml | A:- | S:扫描门禁由扫描脚本决定，报告本身需可解析
+check-supply-chain.sh[XV5T]: F:审计 Web 依赖、第三方许可和最终容器镜像，再验证镜像内许可文件 | R:code:scripts/scan-container.sh,code:scripts/generate-third-party-notices.mjs,code:Makefile | A:SUPPLY_CHAIN_IMAGE | S:检查最终运行镜像，扫描报告放在临时目录
+check-terminology.mjs[XQ4T]: F:对照仓库术语规范校验文档及简体中文 Web 文案 | R:code:docs/development/content-design.md,code:apps/web/src/i18n/messages.ts | A:- | S:-
+check-upgrade.sh[TR5T]: F:选择上一稳定标签并运行真实升级和备份回滚测试 | R:code:Makefile,code:docs/development/release-readiness.md | A:SILLAGE_UPGRADE_FROM_TAG | S:默认排除预发布标签，有明确覆盖标签时先验证引用存在
+check-web-assets.sh[XV4T]: F:校验 Web 嵌入产物已生成而且仍被 Git 忽略 | R:code:apps/web/vite.config.ts,code:.gitignore | A:- | S:-
+check-web-bundle.mjs[XP5T]: F:验证 Web 单入口、按路由拆出的懒加载块和 raw/gzip 字节预算 | R:code:apps/web/src/app/App.tsx,code:apps/web/vite.config.ts,code:Makefile | A:- | S:入口、样式与懒加载脚本采用独立预算
+check-whitespace.sh[XQ3T]: F:在提交范围或当前暂存与工作树执行 Git 空白校验 | R:code:Makefile,code:lefthook.yml | A:BASE_SHA,HEAD_SHA | S:保留的第三方许可证排除在检查外
+compose-release-notes.mjs[XV4T]: F:生成带镜像摘要、供应链材料及证明验证命令的安装块 | R:code:.github/workflows/release.yml,code:scripts/compose-release-notes.test.mjs | A:- | S:优先保留人工笔记，替换已有标记块
+compose-release-notes.test.mjs[TQ3T]: F:验证安装块摘要固定、可替换和旧制品说明迁移 | R:code:scripts/compose-release-notes.mjs | A:- | S:-
+compose.build.yaml[OV4T]: F:为 Compose 提供源码构建覆盖，传递版本和提交修订号 | R:code:scripts/compose.yaml,code:scripts/Dockerfile | A:SILLAGE_VERSION,SILLAGE_REVISION,SILLAGE_IMAGE | S:-
+compose.yaml[OO5T]: F:定义 Sillage 自托管镜像、数据卷、宿主端口和就绪探针 | R:code:scripts/Dockerfile,code:.env.example,code:docs/user/deployment.md | A:SILLAGE_IMAGE,SILLAGE_HOST_PORT | S:容器内监听全接口，宿主默认仅发布 127.0.0.1；启动探针检查 ready 状态
+e2e-mock-ai.mjs[TA4S]: F:在回环启动浏览器测试用模型端点，模拟模型列表、摘要、问答与流式响应 | R:code:apps/web/playwright.config.ts,code:server/ai_routes.go | A:E2E_MOCK_AI_PORT | S:使用固定测试凭据和回答
+entrypoint.sh[OR5T]: F:解析文件型配置、准备容器数据卷，并切换用户执行 Sillage | R:code:scripts/Dockerfile,code:docs/user/deployment.md | A:SILLAGE_UID,SILLAGE_GID,SILLAGE_DSN_FILE,SESSION_SECRET_FILE,ENCRYPTION_SECRET_FILE | S:同时设置明文与对应 _FILE 时失败；root 只用于卷初始化和切换身份
+generate-third-party-notices.mjs[XV5M]: F:清点 Go 与 Web 运行依赖许可、保存上游通知并生成分发声明 | R:code:scripts/third-party-license-policy.json,code:THIRD_PARTY_NOTICES.md,code:scripts/check-supply-chain.sh | A:--check | S:核对依赖与许可策略的预期集合，检查模式比较生成结果
+prepare-proto-baseline.mjs[XQ5T]: F:为退役离线同步构建边界明确的 Buf 兼容比较基线 | R:code:scripts/check-proto.sh,code:contracts/proto/README.md | A:prepareProtoBaseline | S:仅在历史 SHA-256 匹配且当前编译描述符保留旧字段编号时才规范化三处比较输入
+prepare-proto-baseline.test.mjs[TQ4S]: F:验证离线同步退役例外以及其余 RPC 兼容性仍受 Buf 保护 | R:code:scripts/prepare-proto-baseline.mjs | A:- | S:覆盖注释伪保留、字段重用和历史摘要不符
+run-e2e.mjs[TQ5M]: F:构建并编排 Go 服务、模拟 AI 与 Playwright 的独立浏览器旅程 | R:code:scripts/e2e-mock-ai.mjs,code:apps/web/playwright.config.ts,code:Makefile | A:E2E_PROJECTS,PLAYWRIGHT_BASE_URL | S:每个浏览器用新数据目录，等待回环就绪探针并清理子进程
+scan-container.sh[XV5T]: F:用固定镜像为目标制品生成 SPDX、CycloneDX 和执行 Grype 门禁 | R:code:scripts/grype-alpine-openssl.vex.json,code:scripts/check-sbom.mjs,code:scripts/check-supply-chain.sh | A:SYFT_IMAGE,GRYPE_IMAGE,GRYPE_FAIL_ON | S:默认 high 阈值；将精确 VEX 文件复制到扫描容器，兼容 Docker 守护进程位于远端的情况，保留扫描进程退出码
+third-party-license-policy.json[FV3T]: F:登记 Web 运行依赖的许可允许列表和 Go 模块的许可映射 | R:code:scripts/generate-third-party-notices.mjs,code:THIRD_PARTY_NOTICES.md | A:- | S:-
+grype-alpine-openssl.vex.json[FS5T]: F:按 Alpine 官方安全库记录 OpenSSL 子包已回补的四项 CVE | R:code:scripts/scan-container.sh,code:docs/development/governance.md | A:OpenVEX 0.2 | S:每条 fixed 精确绑定 Alpine 发行版、架构和补丁版本，超出绑定的包继续按原高危规则扫描
+
+===/<repository>/scripts/lib/===
+doc-sync-policy.mjs[XQ3T]: F:判断一次已获信任的 Dependabot 修改是否仅限允许的依赖维护路径 | R:code:scripts/check-doc-sync.mjs | A:isDependabotMaintenance | S:要求显式启用且改动集合非空
+repo.mjs[XQ5M]: F:封装仓库 Git 读操作、矩阵 YAML 子集、改动筛选与门禁匹配 | R:code:scripts/change-matrix.yml,code:scripts/affected.mjs | A:loadChangeMatrix,parseSimpleYaml,changedFiles,resolveGates | S:无基准时包含暂存、未暂存及 Git 可见新文件；矩阵语法限嵌套映射与字符串列表
+
+===/<repository>/server/===
+ai_helpers.go[DA7M]: F:定义总结、问题分流和问答提示词，管理档案选择和 AI 并发占位 | R:code:server/ask_routes.go,code:server/ask_retrieval.go,code:server/api_service.go | A:memoSummarySystemPrompt,askSystemPrompt,askRouterSystemPrompt | S:提示语义版本随结果保存；并发占位区分问答和总结，温度 0 保留为有效值
+ai_provider.go[IA7M]: F:运行 Anthropic 与 OpenAI 兼容调用、拉取模型并解析响应 | R:code:server/ai_provider_stream.go,code:internal/secret/envelope.go,code:server/api_service.go | A:callAI,fetchAIModels,normalizeAIBaseURL | S:请求使用选定档案的端点和解封密钥，自定义地址由操作者配置；密钥失效状态单独记录
+ai_provider_stream.go[IA7M]: F:把两个 AI 协议的流式事件转换为文本增量和累计结果 | R:code:server/ai_provider.go,code:server/ask_routes.go | A:callAIStream | S:流式客户端以请求 Context 控制取消，不采用整个答案的固定 HTTP 总超时
+ai_routes.go[EC6M]: F:接入 Echo 的 AI 档案查询、保存、自动总结、模型枚举和连接测试 | R:code:server/api_service.go,code:server/ai_provider.go,code:apps/web/src/lib/api.ts | A:/api/v1/settings/ai,/api/v1/settings/ai:setAutoSummary | S:配置响应使用脱敏 DTO，真实密钥只用于已鉴权的配置写入及外部调用
+api_service.go[AG8L]: F:为 REST 与 Connect 共用身份流程、AI 配置及摘要、问答会话与附件查询 | R:code:server/auth/service.go,code:server/settings_service.go,code:server/ai_provider.go,code:store/ai_profile.go,code:store/memo_ai.go | A:patchAISettings,generateMemoSummary,getAttachment | S:自动总结是创建后的尽力任务；AI 密钥以加密封套存储，API 对外只返回可用状态
+ask_retrieval.go[KA7M]: F:以日期范围、检索词、相关度和摘要定位问答候选，筛选最终引用 | R:code:server/ask_routes.go,code:server/ai_helpers.go,code:store/memo.go | A:listAskCandidateMemos,selectAskCandidateSourceRefs,citedAskSourceRefs | S:查询词和候选数有限；最终来源从实际提供给模型的候选中按回答引用选择
+ask_routes.go[EA8L]: F:实现问答会话、消息、分支 head 和 SSE 生成并组织有来源的回答 | R:code:server/ask_retrieval.go,code:server/ai_provider_stream.go,code:server/ai_helpers.go,code:store/ask.go | A:/api/v1/ask/conversations,/api/v1/ask/conversations/:conversation/messages:stream | S:问答分流后才决定是否检索记录，回答来源从候选引用解析；支持通过请求取消流
+ask_service.go[EA6S]: F:将 Connect 的会话、归档和同步消息请求委托给共用问答逻辑并转成 Proto | R:code:server/api_service.go,code:server/ask_routes.go,code:server/proto_convert.go | A:AskService | S:Connect 方法依契约覆盖同步问答，实时流走单独的 REST SSE 路由
+attachment_routes.go[EB8M]: F:处理附件上传、元数据、删除和已鉴权的字节读取 | R:code:store/attachment.go,code:internal/profile/profile.go,code:server/auth_routes.go,code:apps/web/src/lib/api.ts | A:/api/v1/attachments,/file/attachments/:uid/:filename | S:上传受读取字节限额和账号幂等键保护；读取对存储引用做路径限制，并按媒体类型决定下载方式
+attachment_service.go[EB4T]: F:将已认证的 Connect 元数据查询转给附件服务，映射未找到和内部错误 | R:code:server/api_service.go,code:contracts/proto/api/v1/attachment_service.proto | A:GetAttachment | S:-
+auth_routes.go[EI8M]: F:接入 Echo 身份与实例初始化路由，统一 Bearer 和浏览器 Cookie 流程 | R:code:server/auth/service.go,code:server/api_service.go,code:apps/web/src/lib/api.ts | A:/api/v1/auth/bootstrap,/api/v1/auth/initialize,/api/v1/auth/refresh,/api/v1/auth/change-password | S:普通受保护写入由 Bearer 认证，文件等浏览器读取可回落到 access cookie
+auth_service.go[EI6S]: F:把 Connect 初始化、登录、轮换与改密请求接到共用身份服务 | R:code:server/api_service.go,code:server/auth/service.go,code:contracts/proto/api/v1/auth_service.proto | A:AuthService | S:刷新响应同时支持结构化令牌与浏览器刷新 Cookie；操作错误按 Connect 码映射
+build_info.go[RO4T]: F:归一化服务器版本、修订和 API 代际，并写公开响应元数据 | R:code:cmd/sillage/main.go,code:server/server.go | A:BuildInfo,X-Sillage-Version,X-Sillage-Revision | S:公开元数据只包含构建身份
+connect_errors.go[EN5T]: F:把领域错误映射到 Connect 状态及可展示消息 | R:code:server/api_service.go,code:store/memo.go | A:connectError | S:记录版本冲突映射 Aborted；未识别错误只向客户端返回通用消息
+connect_routes.go[EN5T]: F:把五个生成的 Connect 服务前缀和手写适配装入 Echo | R:code:server/server.go,code:server/api_service.go | A:registerConnectRoutes | S:-
+legacy_routes.go[EN3T]: F:为已退役的远程备份路径返回结构化 404 | R:code:server/server.go,code:docs/user/data.md | A:/download-backup,/api/backup,/api/backups | S:-
+maintenance.go[AR7S]: F:调度记录到期清除、短期状态回收和孤立附件文件扫描 | R:code:store/maintenance.go,code:store/memo.go,code:server/server.go | A:startMaintenance,stopMaintenance,runMaintenance | S:启动立即执行并每六小时复查，孤立附件有 24 小时宽限以避开进行中的写入
+memo_routes.go[EB8L]: F:提供已认证的记录检索、日期分页、月计数、编辑、恢复、清除和总结 REST 接口 | R:code:server/memo/service.go,code:apps/web/src/lib/api.ts,code:server/api_service.go | A:/api/v1/memos,/api/v1/memos/calendar/counts,/api/v1/memos/:memo | S:月计数响应只含账号内活动记录的数字，精确日期仅用于列表。记录生命周期写入需要期望版本，冲突返回 409
+memo_service.go[EB7M]: F:将 Connect 记录的分页、增改、状态与摘要调用映射到共用服务 | R:code:server/memo/service.go,code:server/proto_convert.go,code:contracts/proto/api/v1/memo_service.proto | A:MemoService | S:保留可选字段更新语义以及 expected_version 校验，冲突转换为 Connect Aborted
+proto_convert.go[IN6M]: F:把 SQLite 模型、时间、可空值和问答来源转换为公共 Proto DTO | R:code:contracts/proto/api/v1/common.proto,code:server/api_service.go,code:server/timeutil.go | A:memoPB,accountPB,aiProfilePB,askMessagePB | S:配置只暴露密钥可用状态；UTC 毫秒字段转为 Proto 时间戳并保留空值语义
+proxy_middleware.go[MS7T]: F:根据远端 IP 和配置 CIDR 对转发头建立信任边界 | R:code:internal/profile/profile.go,code:server/server.go,code:server/auth/service.go | A:trustedProxyHeadersMiddleware,isTrustedProxy | S:不受信连接的转发头和信任标记均被丢弃，可信条件按实际连接地址判定
+server.go[EN9M]: F:装配 Echo 路由、代理、安全和观测中间件、存储健康探针及 HTTP 生命周期 | R:code:cmd/sillage/main.go,code:server/connect_routes.go,code:server/proxy_middleware.go,code:server/maintenance.go,code:server/router/frontend/frontend.go | A:NewWithBuildInfo,Start,Shutdown,/healthz,/readyz | S:就绪探针依赖存储可用性；运行中维护随服务生命周期停止，SPA 注册在 API 路由之后
+settings_service.go[EC5T]: F:把 Connect 的 AI 档案查询、替换及自动总结开关委托给共享配置逻辑 | R:code:server/api_service.go,code:contracts/proto/api/v1/settings_service.proto | A:SettingsService | S:保留可选 API key 的省略语义
+timeutil.go[CG2T]: F:把持久化的 Unix 毫秒统一转为 UTC 时间 | R:code:server/proto_convert.go | A:unixMilliTime | S:-
+
+===/<repository>/server/auth/===
+errors.go[DI3T]: F:共享凭据无效、认证缺失和限流的身份错误分类 | R:code:server/auth/service.go | A:ErrInvalidCredentials,ErrUnauthenticated,ErrRateLimited | S:-
+password.go[KS7S]: F:校验新密码并用随机盐执行 Argon2id 哈希与恒时比对 | R:code:server/auth/service.go,code:cmd/sillage/admin.go | A:HashPassword,VerifyPassword,ValidateNewPassword,MaxPasswordBytes | S:新密码长度同时约束 Unicode 字符数和 UTF-8 字节上限，校验旧哈希不套用新密码最短规则
+service.go[DI9L]: F:实现单账号初始化、身份校验、登录节流、会话轮换、退出与改密 | R:code:server/auth/password.go,code:store/account.go,code:store/session.go,code:server/proxy_middleware.go | A:Service,TokenPair,Initialize,SignIn,Refresh,ChangePassword | S:访问令牌 15 分钟，刷新令牌只存摘要且轮换；密码修改原子撤销旧刷新会话，Cookie 的 Secure 受 TLS 和可信代理判定
+
+===/<repository>/server/memo/===
+service.go[DB8M]: F:协调 REST 与 Connect 的记录分页、创造与生命周期操作，校验日历日期并生成月份查询范围 | R:code:store/memo.go,code:server/memo_routes.go,code:server/memo_service.go | A:Service,List,CalendarCounts,Search,Create,Update | S:日期游标单独版本化并绑定日期及删除视图，普通列表保留旧版游标排序，修改和生命周期写入校验读到的记录版本
+
+===/<repository>/server/router/frontend/===
+dist_placeholder.txt[FV2T]: F:给 Go embed 保留默认匹配对象以支持未打包 Web 时的后备页面 | R:code:server/router/frontend/frontend.go | A:- | S:-
+frontend.go[EU6T]: F:提供嵌入 Web 静态文件、SPA 路由回落及无制品时的提示页 | R:code:apps/web/vite.config.ts,code:server/server.go,code:server/router/frontend/dist_placeholder.txt | A:Register | S:API 与文件路径不落入 SPA；入口页面和指纹资源采用不同缓存策略
+
+===/<repository>/store/===
+account.go[PI8S]: F:以事务持久化唯一账号、查询有效账号并更新密码和撤销会话 | R:code:store/session.go,code:store/migration/sqlite/LATEST.sql,code:server/auth/service.go | A:HasAccount,CreateAccount,GetAccountByID,GetAccountByUsername,UpdateAccountPasswordAndRevokeSessions | S:检查有效账号数量与账号插入共用事务；改密和撤销刷新会话原子完成
+account_setting.go[PC4T]: F:按账号和键读写设置并保留更新时间 | R:code:store/migration/sqlite/LATEST.sql,code:server/api_service.go | A:GetAccountSetting,PutAccountSetting | S:读取过滤软删除；冲突写入更新并清除删除标记
+ai_profile.go[PC7M]: F:按账号持久化 AI 档案、现用状态、密钥封套与软删除 | R:code:server/api_service.go,code:internal/secret/envelope.go,code:store/migration/sqlite/LATEST.sql | A:UpsertAIProfile,ListAIProfiles,DeleteAIProfilesExcept,MarkAIProfileKeyUnavailable | S:激活档案在同一事务取消本账号其他档案的激活状态；密钥状态单独维护
+ask.go[PA7M]: F:持久化问答会话、列表与归档、分支消息和当前 head | R:code:server/ask_routes.go,code:store/migration/sqlite/LATEST.sql | A:CreateAskConversation,CreateAskMessage,SetAskConversationHead,RetractAskMessage,ListAskMessages | S:归档查询与更新按账号和存活状态过滤，失败流式轮次可撤回消息并恢复原 head
+attachment.go[PB7M]: F:保存附件元数据、存储引用和按账号幂等查找，并标记删除 | R:code:server/attachment_routes.go,code:store/memo.go,code:store/migration/sqlite/LATEST.sql | A:CreateAttachment,GetAttachmentByUID,GetAttachmentByIdempotencyKey,DeleteAttachment | S:幂等键按上传账号查找，物理文件和可共享引用由服务路径及维护处理
+driver.go[PD4T]: F:定义 Store 打开后的数据库句柄、探测与关闭边界 | R:code:store/db/sqlite/sqlite.go,code:store/store.go | A:Driver | S:-
+maintenance.go[PR7S]: F:清除到期可恢复记录，回收过期会话与临时状态并列出附件引用 | R:code:store/memo.go,code:store/session.go,code:store/runtime_kv.go,code:server/maintenance.go | A:DeletedMemoRetention,PurgeExpiredMemos,CleanupEphemeralData,ListAttachmentStorageRefs | S:30 天后走相同永久清除路径并保留最小墓碑，已清除记录不重复处理
+memo.go[PB9L]: F:持久化记录，提供分页、日期聚合和搜索，并处理带版本的编辑、恢复与永久清除 | R:code:store/migration/sqlite/LATEST.sql,code:store/memo_ai.go,code:store/attachment.go,code:store/ask.go,code:server/memo/service.go | A:CreateMemo,ListMemos,CountActiveMemosByDate,SearchMemos,UpdateMemo,PurgeMemo | S:月计数只扫描账号内未删除、未归档、未收藏的日期区间；永久清除保留墓碑并擦除派生引用，共享附件在最后有效引用消失后清理
+memo_ai.go[PA7S]: F:按记录 ID 持久化摘要、状态、来源、提示词版本与模型用量 | R:code:store/migration/sqlite/LATEST.sql,code:store/memo.go,code:server/api_service.go | A:UpsertMemoAI,GetMemoAI | S:总结按 memo_id 单行 upsert，不推进记录本身的版本和更新时间
+migrator.go[PR8L]: F:嵌入最新 SQLite DDL、写 schema 版本并对受支持旧库执行兼容升级 | R:code:store/migration/sqlite/LATEST.sql,code:store/db/sqlite/sqlite.go,code:cmd/sillage/main.go | A:Store.Migrate,Store.EnsureCompatSchema,Store.GetSchemaVersion | S:支持 0.1.0 至 0.1.6，拒绝超范围版本；升级才执行兼容结构清理，空库在事务中建表并写版本
+runtime_kv.go[PD5T]: F:按 namespace 与 key 查询、写入和删除可过期运行状态 | R:code:store/maintenance.go,code:server/auth/service.go,code:store/migration/sqlite/LATEST.sql | A:RuntimeKVGet,RuntimeKVPut,RuntimeKVDelete | S:读取时惰性删除已过期键，TTL 非正时写入无过期值
+session.go[PI8S]: F:保存刷新会话摘要，读取有效会话、撤销和轮换令牌 | R:code:store/account.go,code:server/auth/service.go,code:store/migration/sqlite/LATEST.sql | A:HashRefreshToken,CreateSession,GetSessionByRefreshToken,DeleteSessionByRefreshToken,RotateSession | S:按 SHA-256 摘要查找且要求未删除未过期；轮换事务撤销旧摘要并插入新会话
+store.go[PD7T]: F:封装持久化驱动、数据目录、就绪检查和事务化 Store | R:code:store/driver.go,code:store/migrator.go,code:server/server.go | A:New,Store.Ready,Store.Close,Store.WithTransaction | S:事务内的 CRUD 使用事务句柄；事务 Store 拒绝嵌套事务，就绪同时要求可读取 schema 版本
+
+===/<repository>/store/db/===
+db.go[PD5T]: F:将配置分派到 SQLite 驱动并解析实例锁需用的数据库文件 | R:code:store/db/sqlite/sqlite.go,code:internal/profile/profile.go | A:NewDBDriver,DatabaseFilePath | S:仅注册 SQLite，连接查询参数不属于锁目标路径
+
+===/<repository>/store/db/sqlite/===
+sqlite.go[PD7T]: F:打开 SQLite 并设定连接、PRAGMA、文件路径和初始化探测 | R:code:store/db/db.go,code:store/driver.go,code:store/migrator.go | A:New,DatabaseFilePath,DB.IsInitialized | S:单连接，启用外键和 WAL，设定 busy_timeout 并关闭 mmap
+
+===/<repository>/store/migration/sqlite/===
+LATEST.sql[FD9M]: F:定义 schema 0.1.6 的新实例 SQLite 表、约束、索引和全文搜索触发器 | R:code:store/migrator.go,code:store/memo.go,code:store/memo_ai.go,code:store/db/sqlite/sqlite.go | A:memo,account,session,attachments,memo_fts,ai_profile | S:memo 与 memo_ai 的触发器共同更新 FTS 内容和摘要，只收录存活记录；附件上传幂等与 mutation 标识按非空键部分唯一

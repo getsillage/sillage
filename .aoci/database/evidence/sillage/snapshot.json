@@ -1,0 +1,180 @@
+{
+  "version": "database-snapshot/v1",
+  "evidence_version": "database-evidence/v1",
+  "source_id": "sillage",
+  "engine": "sqlite",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespaces": [
+    "main"
+  ],
+  "include_namespaces": [],
+  "exclude_namespaces": [],
+  "include_tables": [],
+  "exclude_tables": [
+    "attachments",
+    "memo_fts",
+    "memo_fts_*"
+  ],
+  "case_semantics": {
+    "identifier_case": "preserve_ascii_case_insensitive"
+  },
+  "state": "present",
+  "tables": [
+    {
+      "object_ref": "database://sillage/main/account",
+      "table_evidence_sha256": "d9504d269303dfe43dfdc1b1b012c84e2c74b70a70c8328c99ebf48b2f9d65a7",
+      "component_hashes": {
+        "columns": "b86df2a74389271b7f7516fe244be0433e46446213dab528d16b23294c9f5f97",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "e7163eaf9ef1526a6ba056e8aa7e740dbb7251b6596ac41b9ca37679e506794e",
+        "foreign_keys": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "75b71d5ee986467646712df795fa44f6d2aefbbf8a37c8b9d6dcb3b85dc7b2d9",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/d9504d269303dfe43dfdc1b1b012c84e2c74b70a70c8328c99ebf48b2f9d65a7.json"
+    },
+    {
+      "object_ref": "database://sillage/main/account_setting",
+      "table_evidence_sha256": "a66830d239a7b4779ad65163b97df91dfd9af348c7161060efe56a539a9014dc",
+      "component_hashes": {
+        "columns": "646476052341bda7872b726095740e33aeb7b852443d639a626998a3b7b225f9",
+        "primary_key": "4b9adfda9b3a228ac8b2795eb2273c72701843aa69e73dfdf8df3fbf3dc91a11",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "9d81b0148ced6e4d90e5036777d377b86c3ab4d40dc8dbcf232ee086aa772ef3",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "31f912e5a2427b4f7eeda61dc40f5ccc61a0d72e5b1ada174e2cc4531095a6a8",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/a66830d239a7b4779ad65163b97df91dfd9af348c7161060efe56a539a9014dc.json"
+    },
+    {
+      "object_ref": "database://sillage/main/ai_profile",
+      "table_evidence_sha256": "191e6b427f3bdf4ec695d4add6f23f99e8c6688b4929306a73585d220e8e7847",
+      "component_hashes": {
+        "columns": "495df4a04ad112dc2940387ff11a585541709b2a291fdfe0f1a45c5d9ff3a1c5",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "9d81b0148ced6e4d90e5036777d377b86c3ab4d40dc8dbcf232ee086aa772ef3",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "86711fa55a497c7f5d29ed7cd55e36de507cc3b9e3831956af7499d8f170dd68",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/191e6b427f3bdf4ec695d4add6f23f99e8c6688b4929306a73585d220e8e7847.json"
+    },
+    {
+      "object_ref": "database://sillage/main/ask_conversations",
+      "table_evidence_sha256": "e5b14298f0132034f3cd97dfdc333b8fb3b961df22d01e275dc377e18fc1a3ca",
+      "component_hashes": {
+        "columns": "db79ff1c68d0e654348e58da38f5b17d55ca817be057cacb82c71e37313b0a2d",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "c3e72ba45c5b2d475717ecc5287f4ff1dd9e05320fa770f12bf9c4b61e1f9c51",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "91c7aee24d3a9e0531132d416d8c05af70202cd58504b3a9bc74422c4e9faaae",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/e5b14298f0132034f3cd97dfdc333b8fb3b961df22d01e275dc377e18fc1a3ca.json"
+    },
+    {
+      "object_ref": "database://sillage/main/ask_messages",
+      "table_evidence_sha256": "bdbfa663debdc9db61e74d752e61d9632c272b755b4774027306d6849ae55fcb",
+      "component_hashes": {
+        "columns": "784abeba800e0775fe8bcd3db3c070618c3aa220845d3085fd5851e44e67650c",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "4a0d71fa95c73a748ec84e40f780e3a3607b9a14ce792345f6865304b1427192",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "e636cf72b319e7342f36aab25e5629b9da4f4541b95bb496c543ba87bfd1710f",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/bdbfa663debdc9db61e74d752e61d9632c272b755b4774027306d6849ae55fcb.json"
+    },
+    {
+      "object_ref": "database://sillage/main/memo",
+      "table_evidence_sha256": "66541544d315d5f3eb055cbcbd02f9f4638629e0dee1f295209f6f72bc48c850",
+      "component_hashes": {
+        "columns": "8baa822079a523c0f6b34731619cda0f57501997728c98159cc606bdc2b02a94",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "c3e72ba45c5b2d475717ecc5287f4ff1dd9e05320fa770f12bf9c4b61e1f9c51",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "ac3f3bbf2fdc06aa5a5a4f8c287012adad7a243f004e2eab01cfd4a16c37dbff",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/66541544d315d5f3eb055cbcbd02f9f4638629e0dee1f295209f6f72bc48c850.json"
+    },
+    {
+      "object_ref": "database://sillage/main/memo_ai",
+      "table_evidence_sha256": "a7581866f9628d8817c09fc9c622d859b1cf845d9e1cca48839d213c07a014cf",
+      "component_hashes": {
+        "columns": "6b5b7a838e7c92215c55bed0b76a3d3ec120bbd2a6c0a1ec67469424bbf1b692",
+        "primary_key": "11fadd86b75979c08224672a15922f62828481649d71af215761d8f9cd340d4e",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "48e63fd41853b3c00070da1650b6ff7447ea33431d14a20b999bc5557b358060",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "2f6cf093a238c234f4bc4231e7d1a4059b67ac14858f8d09b3d4aefda9ced487",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/a7581866f9628d8817c09fc9c622d859b1cf845d9e1cca48839d213c07a014cf.json"
+    },
+    {
+      "object_ref": "database://sillage/main/runtime_kv",
+      "table_evidence_sha256": "5990c0626f17ee7d12b9daa3c0c379db49fa73e666f90188b51a714b5504a9e6",
+      "component_hashes": {
+        "columns": "ca11afeb3bde0c387676dcffc36c244e6f4f34f6f13a81cd593a3854d5bdc817",
+        "primary_key": "224295ef4144df411a5e9a9c1686f84e5ec471293dc8a968a94032b441f3432e",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "9954e391033924763030de6426a4ea112775d9ed98b21d6a02203a96a82f8770",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/5990c0626f17ee7d12b9daa3c0c379db49fa73e666f90188b51a714b5504a9e6.json"
+    },
+    {
+      "object_ref": "database://sillage/main/session",
+      "table_evidence_sha256": "805934b9a7dc2f926505c2196e698702e22eb8a87f4d4a7c1ab687a9763fb169",
+      "component_hashes": {
+        "columns": "5ce1a5f2ffe1979f8324e2981106167d141c22f790ca6f6b7b3cfd8d9213ec92",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "dcd1da5ae844958e0c8d91151104fe54966fbd2c5a602a28dbbaa52217ab8036",
+        "foreign_keys": "9d81b0148ced6e4d90e5036777d377b86c3ab4d40dc8dbcf232ee086aa772ef3",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "4ecbb960a07372452fa54f48fccb068565dac642a50b2b94088a6e3e1d431b26",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/805934b9a7dc2f926505c2196e698702e22eb8a87f4d4a7c1ab687a9763fb169.json"
+    },
+    {
+      "object_ref": "database://sillage/main/summaries",
+      "table_evidence_sha256": "8b063ba1e75ab65bda7f97996d18bf9d7d4ffca89c93fee8a8ca973f526c3e13",
+      "component_hashes": {
+        "columns": "e60b571ce09e2a692fb62501267490d3afbcc52bc8fc28f73408647f5933f12a",
+        "primary_key": "72600e39cee054d3648366236e95614b07942c37d7913e85a2b0be9ad3abe0ed",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "c3e72ba45c5b2d475717ecc5287f4ff1dd9e05320fa770f12bf9c4b61e1f9c51",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "37b93fca2bc9b3167f1b9256b8efe7828a543e600f27802c5be1e045d4d97e7a",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/8b063ba1e75ab65bda7f97996d18bf9d7d4ffca89c93fee8a8ca973f526c3e13.json"
+    },
+    {
+      "object_ref": "database://sillage/main/system_setting",
+      "table_evidence_sha256": "841151875bade7e199e265f3b6656a608ab01350945cb58855ea1c83a8d953ee",
+      "component_hashes": {
+        "columns": "ba530e03bbc981ac647ac3f3593b025dc78ce2a2379bd81a285468eed0b2ae50",
+        "primary_key": "7e257908cc00de098713acc9865a67e638f7568006688b7322078fcfc0c81435",
+        "unique_constraints": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "foreign_keys": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "checks": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "indexes": "5a8b5c8ad96fe0e98c9821c4c4025f75b2bd94104f235161fd119e9b7e7c0f40",
+        "partition": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+      },
+      "evidence_ref": "sillage/tables/841151875bade7e199e265f3b6656a608ab01350945cb58855ea1c83a8d953ee.json"
+    }
+  ],
+  "source_snapshot_sha256": "cb58f2773904ad7474b87d686cbb75b871be328d337943200eab715cf950c762",
+  "business_data_read": false
+}

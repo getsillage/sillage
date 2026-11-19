@@ -1,0 +1,14 @@
+#AOCI-DATABASE-VOLUME: 1
+
+===sillage/main/database://sillage/main/===
+account[EI9T]: F:保存实例唯一登录账号及其身份凭据信息 | R:code:store/account.go,database://sillage/main/session,code:server/auth/service.go | A:account.id,username | S:单账号约束由初始化写事务强制，username 唯一性不能替代它；改密和旧刷新会话撤销一起提交
+account_setting[KC5T]: F:保存账号范围内的全局产品设置 | R:database://sillage/main/account,code:store/account_setting.go,code:server/api_service.go | A:account_id+key,ai.auto_summary | S:已写的 false 覆盖旧档案设置；只有该键无活跃值时从历史 AI 档案的标记回退
+ai_profile[KC8T]: F:持久化每个账号的 AI 服务档案和加密凭据 | R:database://sillage/main/account,code:store/ai_profile.go,code:internal/secret/envelope.go,code:server/api_service.go | A:ai_profile.id,account_id | S:应用在激活档案的事务里取消该账号其他档案的激活；省略密钥保留旧封套，应用响应只暴露密钥状态
+ask_conversations[EA7T]: F:为用户保留问答会话及其当前阅读分支 | R:database://sillage/main/ask_messages,code:store/ask.go,code:server/ask_routes.go | A:ask_conversations.id,head_message_id | S:head 无数据库外键，切换时由更新条件校验目标消息在本会话内且存活；归档作为列表过滤状态保留会话与消息
+ask_messages[MA8T]: F:持久化问答轮次内容、可分支消息关系及回答使用的来源 | R:database://sillage/main/ask_conversations,database://sillage/main/memo,code:store/ask.go,code:server/ask_routes.go | A:ask_messages.id,conversation_id | S:沿 parent_id 构建对话上下文，fork_of_id 记录变体出处；记录清除时按已存来源软删命中回答并擦除内容和引用
+memo[EK9T]: F:保存 Sillage 唯一内容单位记录并承载其完整生命周期 | R:code:store/memo.go,database://sillage/main/memo_ai,database://sillage/main/ask_messages,code:store/migration/sqlite/LATEST.sql | A:memo.id,version | S:发生日期与创建时钟独立；编辑和状态切换校验读到的版本。进入最近删除仍可恢复，清除后保留最小墓碑并擦除内容和派生引用
+memo_ai[AA7T]: F:维护每条记录的模型总结及生成生命周期 | R:database://sillage/main/memo,code:store/memo_ai.go,code:server/api_service.go,code:store/migration/sqlite/LATEST.sql | A:memo_id | S:同一记录只更新这一行，总结写入不推进记录版本或更新时间；FTS5 触发器会重建可检索的摘要
+runtime_kv[SI5T]: F:保存具有可选过期时间的运行态键值，如登录失败计数 | R:code:store/runtime_kv.go,code:server/auth/service.go,code:store/maintenance.go | A:namespace+key | S:读到过期键时尝试立即删除并按不存在返回；维护任务同时清扫到期键
+session[SI8T]: F:保存账号可续期登录的刷新会话 | R:database://sillage/main/account,code:store/session.go,code:store/account.go,code:server/auth/service.go | A:session.id,refresh_token_hash | S:只持久化刷新令牌的 SHA-256 摘要；验证排除已撤销及过期会话，轮换在一个事务里标记旧会话并创建新会话
+summaries[AA5T]: F:保留按范围或周期组织的历史 AI 总结及来源 | R:database://sillage/main/memo,database://sillage/main/memo_ai,code:store/memo.go | A:summaries.id | S:当前单记录总结写入 memo_ai；清除来源记录时擦除命中总结的标题、内容和来源并标为删除
+system_setting[KC7T]: F:为实例级持久化元数据提供稳定键值位置 | R:code:store/migrator.go,code:store/store.go | A:schema_version | S:schema_version 是启动迁移与就绪判定的读点；新库结构和初始版本在同一事务落盘

@@ -58,3 +58,8 @@ profile.cov
 /sillage.db-shm
 /sillage.db-wal
 /sillage.db.bak-*
+
+# AOCI agent host integration (machine-bound; do not commit)
+.codex/config.toml
+.codex/config.toml.backup.*
+/AGENTS.md.backup.*

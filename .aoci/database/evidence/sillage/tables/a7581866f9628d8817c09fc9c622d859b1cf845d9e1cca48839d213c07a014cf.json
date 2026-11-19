@@ -1,0 +1,209 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/memo_ai",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "memo_ai",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "memo_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 2,
+      "name": "summary",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 3,
+      "name": "sentiment",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 4,
+      "name": "provider",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 5,
+      "name": "model",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 6,
+      "name": "profile_id",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 7,
+      "name": "prompt_version",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 8,
+      "name": "source_memo_ids",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'[]'"
+    },
+    {
+      "ordinal": 9,
+      "name": "status",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "'pending'"
+    },
+    {
+      "ordinal": 10,
+      "name": "error_code",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 11,
+      "name": "started_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    },
+    {
+      "ordinal": 12,
+      "name": "finished_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    },
+    {
+      "ordinal": 13,
+      "name": "input_tokens",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false,
+      "default_expression": "0"
+    },
+    {
+      "ordinal": 14,
+      "name": "output_tokens",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false,
+      "default_expression": "0"
+    },
+    {
+      "ordinal": 15,
+      "name": "total_tokens",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false,
+      "default_expression": "0"
+    },
+    {
+      "ordinal": 16,
+      "name": "created_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 17,
+      "name": "updated_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 18,
+      "name": "deleted_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "memo_id"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [
+    {
+      "name": "sqlite_foreign_key_0",
+      "columns": [
+        "memo_id"
+      ],
+      "referenced_object": "database://sillage/main/memo",
+      "referenced_columns": [
+        "id"
+      ],
+      "update_action": "no action",
+      "delete_action": "cascade"
+    }
+  ],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_memo_ai_deleted_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "deleted_at"
+        }
+      ]
+    },
+    {
+      "name": "idx_memo_ai_updated_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "updated_at"
+        },
+        {
+          "position": 2,
+          "column": "memo_id"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_memo_ai_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "memo_id"
+        }
+      ]
+    }
+  ]
+}

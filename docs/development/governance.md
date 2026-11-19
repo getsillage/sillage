@@ -146,6 +146,11 @@ applies Alpine package upgrades before installing additional packages.
 A toolchain or module security update must rerun the Go, container,
 supply-chain, and upgrade gates.
 
+Keep Vitest and its coverage provider at the same resolved version. When a
+Web build dependency pins a vulnerable transitive version, constrain the
+override to the vulnerable range and verify the resolved graph with
+`pnpm --dir apps/web audit`.
+
 The production Dockerfile uses Docker's built-in frontend instead of fetching a
 remote Dockerfile frontend image. This keeps the initial build independent of
 an extra Docker Hub request; base image pulls still follow the operator's

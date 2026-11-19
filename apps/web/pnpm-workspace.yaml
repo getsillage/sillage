@@ -6,3 +6,4 @@ overrides:
   "browserslist@<4.28.7": "4.28.7"
   "undici@<8.12.2": "8.12.2"
   "source-map-js@<1.2.2": "1.2.2"
+  "postcss-selector-parser@<6.1.5": "6.1.5"

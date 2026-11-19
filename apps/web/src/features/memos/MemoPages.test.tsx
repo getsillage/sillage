@@ -14,7 +14,7 @@ import { I18nProvider } from "../../i18n/I18nProvider";
 import { ApiError, type Memo, type MemoAI } from "../../lib/api";
 import { EntryPage } from "./EntryPage";
 import { HomePage } from "./HomePage";
-import { MemosProvider } from "./MemosContext";
+import { MemosProvider, useActiveMemos, useMemos } from "./MemosContext";
 import { TimelinePage } from "./TimelinePage";
 
 vi.mock("../../lib/api", async (importOriginal) => {
@@ -22,6 +22,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
   return {
     ...actual,
     listMemos: vi.fn(),
+    getMemoCalendarCounts: vi.fn(),
     searchMemos: vi.fn(),
     getMemo: vi.fn(),
     createMemo: vi.fn(),
@@ -46,6 +47,7 @@ import {
   deleteMemo,
   generateMemoSummary,
   getMemo,
+  getMemoCalendarCounts,
   listMemos,
   purgeMemo,
   restoreMemo,
@@ -124,6 +126,18 @@ function renderLocalizedWithMemos(
   );
 }
 
+function ActiveListConsumer() {
+  useActiveMemos();
+  return null;
+}
+
+const entryWithActiveCache = (
+  <>
+    <ActiveListConsumer />
+    <EntryPage />
+  </>
+);
+
 function renderTimelineWithEntry(initialPath: InitialEntry) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -197,6 +211,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   vi.mocked(listMemos).mockResolvedValue({ memos: [memo()] });
+  vi.mocked(getMemoCalendarCounts).mockResolvedValue({ counts: {} });
   vi.mocked(searchMemos).mockResolvedValue({ memos: [] });
   vi.mocked(getMemo).mockResolvedValue({ memo: memo() });
 });
@@ -749,144 +764,219 @@ describe("TimelinePage", () => {
 });
 
 describe("TimelinePage calendar view", () => {
-  it("renders the month grid and the selected day's records", async () => {
-    renderWithMemos(
-      <TimelinePage />,
-      "/timeline?view=calendar&y=2026&m=6&date=2026-06-27",
+  it("reads only counts for the month until a date is selected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMemoCalendarCounts).mockResolvedValue({
+      counts: { "2026-06-27": 1 },
+    });
+    vi.mocked(listMemos).mockImplementation(
+      async (_token, _limit, _cursor, options) => ({
+        memos: options?.entryDate === "2026-06-27" ? [memo()] : [],
+      }),
     );
-    expect(await screen.findByText("2026年6月")).toBeInTheDocument();
-    // The selected day panel lists the seeded record (entry date 2026-06-27).
-    expect(await screen.findByText("6月27日 周六")).toBeInTheDocument();
-    expect(screen.getByText("今天的记录内容")).toBeInTheDocument();
+    renderWithMemos(<TimelinePage />, "/timeline?view=calendar&y=2026&m=6");
+
+    const day = await screen.findByRole("link", {
+      name: /2026年6月27日，1 条记录/,
+    });
+    expect(getMemoCalendarCounts).toHaveBeenCalledExactlyOnceWith(
+      "t",
+      "2026-06",
+      expect.any(AbortSignal),
+    );
+    expect(listMemos).not.toHaveBeenCalled();
+
+    await user.click(day);
     expect(
-      screen.getByRole("link", { name: /2026年6月27日，1 条记录/ }),
-    ).toBeInTheDocument();
+      await screen.findByRole("link", { name: "今天的记录内容" }),
+    ).toHaveAttribute("href", "/entries/m1");
+    expect(listMemos).toHaveBeenCalledExactlyOnceWith(
+      "t",
+      50,
+      undefined,
+      {
+        entryDate: "2026-06-27",
+        archived: false,
+        favorited: false,
+      },
+      expect.any(AbortSignal),
+    );
+
+    await user.click(screen.getByRole("link", { name: /2026年6月28日，没/ }));
+    expect(await screen.findByText("这一天没有记录。")).toBeInTheDocument();
+    expect(screen.queryByText("今天的记录内容")).not.toBeInTheDocument();
+    expect(getMemoCalendarCounts).toHaveBeenCalledTimes(1);
   });
 
-  it("normalizes out-of-range month params", async () => {
-    renderWithMemos(<TimelinePage />, "/timeline?view=calendar&y=2026&m=13");
-
-    expect(await screen.findByText("2027年1月")).toBeInTheDocument();
-    expect(screen.queryByText("2026年13月")).not.toBeInTheDocument();
+  it.each([
+    ["y=2026&m=13", "2027年1月", "2027-01"],
+    ["y=2026&m=0", "2025年12月", "2025-12"],
+  ])("normalizes month parameters (%s)", (params, label, month) => {
+    renderWithMemos(<TimelinePage />, `/timeline?view=calendar&${params}`);
+    expect(screen.getByRole("heading", { name: label })).toBeInTheDocument();
+    expect(getMemoCalendarCounts).toHaveBeenCalledExactlyOnceWith(
+      "t",
+      month,
+      expect.any(AbortSignal),
+    );
   });
 
-  it("normalizes zero month params instead of falling back to today", async () => {
-    renderWithMemos(<TimelinePage />, "/timeline?view=calendar&y=2026&m=0");
-
-    expect(await screen.findByText("2025年12月")).toBeInTheDocument();
-    expect(screen.queryByText("2026年0月")).not.toBeInTheDocument();
-  });
-
-  it("loads all pages before rendering an older selected day", async () => {
-    let finishOlder:
-      | ((value: { memos: Memo[]; nextCursor?: string }) => void)
-      | undefined;
+  it("keeps the first day page and retries only the failed cursor", async () => {
+    const user = userEvent.setup();
     vi.mocked(listMemos)
       .mockResolvedValueOnce({
-        memos: [memo({ id: "recent", content: "最新一页" })],
-        nextCursor: "older",
+        memos: [memo({ content: "当天第一页" })],
+        nextCursor: "more",
       })
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        memos: [memo({ id: "m2", content: "当天第二页" })],
+      });
+    renderWithMemos(
+      <TimelinePage />,
+      "/timeline?view=calendar&date=2026-06-27",
+    );
+
+    expect(await screen.findByText("当天第一页")).toBeInTheDocument();
+    expect(listMemos).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "加载当天更多记录" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "读取更多记录失败",
+    );
+    expect(screen.getByText("当天第一页")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重试加载更多" }));
+    expect(await screen.findByText("当天第二页")).toBeInTheDocument();
+    expect(vi.mocked(listMemos).mock.calls.map((call) => call[2])).toEqual([
+      undefined,
+      "more",
+      "more",
+    ]);
+    expect(
+      screen.queryByRole("button", { name: "加载当天更多记录" }),
+    ).not.toBeInTheDocument();
+    expect(getMemoCalendarCounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries monthly counts and the selected date independently", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getMemoCalendarCounts).mockRejectedValueOnce(
+      new Error("offline"),
+    );
+    vi.mocked(listMemos).mockRejectedValueOnce(new Error("offline"));
+    renderWithMemos(
+      <TimelinePage />,
+      "/timeline?view=calendar&date=2026-06-27",
+    );
+
+    const retryMonth = await screen.findByRole("button", {
+      name: "重试读取本月记录数",
+    });
+    const retryDay = await screen.findByRole("button", {
+      name: "重试读取当天记录",
+    });
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByText("这一天没有记录。")).not.toBeInTheDocument();
+    await user.click(retryDay);
+    expect(await screen.findByText("今天的记录内容")).toBeInTheDocument();
+    expect(getMemoCalendarCounts).toHaveBeenCalledTimes(1);
+    await user.click(retryMonth);
+    expect(await screen.findByText("这个月没有记录。")).toBeInTheDocument();
+    expect(listMemos).toHaveBeenCalledTimes(2);
+    expect(getMemoCalendarCounts).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards pending month and day responses after navigation", async () => {
+    const user = userEvent.setup();
+    let finishJune:
+      | ((value: { counts: Record<string, number> }) => void)
+      | undefined;
+    let finishDay: ((value: { memos: Memo[] }) => void) | undefined;
+    vi.mocked(getMemoCalendarCounts)
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
-            finishOlder = resolve;
+            finishJune = resolve;
           }),
-      );
+      )
+      .mockResolvedValueOnce({ counts: { "2026-07-01": 1 } });
+    vi.mocked(listMemos)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishDay = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        memos: [
+          memo({ id: "m2", content: "七月记录", entryDate: "2026-07-01" }),
+        ],
+      });
     renderWithMemos(
       <TimelinePage />,
-      "/timeline?view=calendar&y=2025&m=1&date=2025-01-02",
+      "/timeline?view=calendar&date=2026-06-27",
     );
+    expect(screen.getByText("正在读取当天记录…")).toBeInTheDocument();
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "已读取 1 条，正在继续",
+    await user.click(screen.getByRole("link", { name: "下一个月，2026年7月" }));
+    await user.click(
+      await screen.findByRole("link", { name: /2026年7月1日，1 条记录/ }),
     );
-    expect(screen.queryByText("2025年1月")).not.toBeInTheDocument();
-    await waitFor(() => expect(listMemos).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("七月记录")).toBeInTheDocument();
+    expect(vi.mocked(getMemoCalendarCounts).mock.calls[0][2].aborted).toBe(
+      true,
+    );
+    expect(vi.mocked(listMemos).mock.calls[0][4]?.aborted).toBe(true);
 
     await act(async () => {
-      finishOlder?.({
-        memos: [
-          memo({
-            id: "older",
-            content: "第二页旧记录",
-            entryDate: "2025-01-02",
-          }),
-        ],
-      });
+      finishJune?.({ counts: { "2026-06-27": 3 } });
+      finishDay?.({ memos: [memo({ content: "过期的六月记录" })] });
     });
-    expect(await screen.findByText("2025年1月")).toBeInTheDocument();
-    expect(screen.getByText("第二页旧记录")).toBeInTheDocument();
-    expect(listMemos).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByRole("link", { name: /2026年7月1日，1 条记录/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("七月记录")).toBeInTheDocument();
+    expect(screen.queryByText("过期的六月记录")).not.toBeInTheDocument();
   });
 
-  it("stops after a page failure and retries only on request", async () => {
+  it("refreshes calendar counts and the open day after recording from the shell", async () => {
     const user = userEvent.setup();
+    const created = memo({ id: "created", content: "新写下的日历记录" });
+    vi.mocked(createMemo).mockResolvedValueOnce({ memo: created });
+    vi.mocked(getMemoCalendarCounts)
+      .mockResolvedValueOnce({ counts: {} })
+      .mockResolvedValueOnce({ counts: { "2026-06-27": 1 } });
     vi.mocked(listMemos)
-      .mockResolvedValueOnce({
-        memos: [memo({ id: "recent", content: "最新一页" })],
-        nextCursor: "older",
-      })
-      .mockRejectedValueOnce(new Error("读取旧页失败"))
-      .mockResolvedValueOnce({
-        memos: [memo({ id: "recent", content: "重试后的最新一页" })],
-        nextCursor: "older",
-      })
-      .mockResolvedValueOnce({
-        memos: [
-          memo({
-            id: "older",
-            content: "重试后的旧记录",
-            entryDate: "2025-01-02",
-          }),
-        ],
-      });
+      .mockResolvedValueOnce({ memos: [] })
+      .mockResolvedValueOnce({ memos: [created] });
+    function CaptureControl() {
+      const { create } = useMemos();
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            void create({
+              content: created.content,
+              entryDate: created.entryDate,
+            })
+          }
+        >
+          快速记录
+        </button>
+      );
+    }
     renderWithMemos(
-      <TimelinePage />,
-      "/timeline?view=calendar&y=2025&m=1&date=2025-01-02",
+      <>
+        <CaptureControl />
+        <TimelinePage />
+      </>,
+      "/timeline?view=calendar&date=2026-06-27",
     );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("读取旧页失败");
-    expect(listMemos).toHaveBeenCalledTimes(2);
-    await user.click(screen.getByRole("button", { name: "重新加载全部记录" }));
-
-    expect(await screen.findByText("重试后的旧记录")).toBeInTheDocument();
-    expect(listMemos).toHaveBeenCalledTimes(4);
-    expect(vi.mocked(listMemos).mock.calls[2][2]).toBeUndefined();
-    expect(vi.mocked(listMemos).mock.calls[3][2]).toBe("older");
-  });
-
-  it("shows an initial page error and retries refresh before loading all", async () => {
-    const user = userEvent.setup();
-    vi.mocked(listMemos)
-      .mockRejectedValueOnce(new Error("首页读取失败"))
-      .mockResolvedValueOnce({
-        memos: [memo({ id: "recent", content: "重试后的最新一页" })],
-        nextCursor: "older",
-      })
-      .mockResolvedValueOnce({
-        memos: [
-          memo({
-            id: "older",
-            content: "重试后的完整历史",
-            entryDate: "2025-01-02",
-          }),
-        ],
-      });
-    renderWithMemos(
-      <TimelinePage />,
-      "/timeline?view=calendar&y=2025&m=1&date=2025-01-02",
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("首页读取失败");
-    expect(screen.queryByText("2025年1月")).not.toBeInTheDocument();
-    expect(listMemos).toHaveBeenCalledTimes(1);
-
-    await user.click(screen.getByRole("button", { name: "重新加载全部记录" }));
-
-    expect(await screen.findByText("重试后的完整历史")).toBeInTheDocument();
-    expect(listMemos).toHaveBeenCalledTimes(3);
-    expect(vi.mocked(listMemos).mock.calls[1][2]).toBeUndefined();
-    expect(vi.mocked(listMemos).mock.calls[2][2]).toBe("older");
+    expect(await screen.findByText("这一天没有记录。")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "快速记录" }));
+    expect(await screen.findByText("新写下的日历记录")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: /2026年6月27日，1 条记录/ }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -960,7 +1050,7 @@ describe("EntryPage", () => {
         memos: [memo({ id: "active", content: "未归档列表记录" })],
       });
     vi.mocked(getMemo).mockResolvedValue({ memo: favorite });
-    renderWithMemos(<EntryPage />, "/entries/m1");
+    renderWithMemos(entryWithActiveCache, "/entries/m1");
 
     expect(await screen.findByText("直接打开的收藏记录")).toBeInTheDocument();
     await act(async () => {
@@ -996,7 +1086,7 @@ describe("EntryPage", () => {
     vi.mocked(updateMemo).mockResolvedValue({
       memo: memo({ content: "最新正文 + 修改", version: 3 }),
     });
-    renderWithMemos(<EntryPage />, "/entries/m1");
+    renderWithMemos(entryWithActiveCache, "/entries/m1");
 
     expect(await screen.findByText("今天的记录内容")).toBeInTheDocument();
     const edit = screen.getByRole("button", { name: "编辑" });
@@ -1025,7 +1115,7 @@ describe("EntryPage", () => {
     vi.mocked(getMemo)
       .mockRejectedValueOnce(new ApiError("网络暂时不可用", 503, "unavailable"))
       .mockResolvedValueOnce({ memo: memo({ content: "重试后的正文" }) });
-    renderWithMemos(<EntryPage />, "/entries/m1");
+    renderWithMemos(entryWithActiveCache, "/entries/m1");
 
     expect(await screen.findByText("今天的记录内容")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -1096,7 +1186,7 @@ describe("EntryPage", () => {
     vi.mocked(getMemo).mockRejectedValue(
       new ApiError("网络暂时不可用", 503, "unavailable"),
     );
-    renderWithMemos(<EntryPage />, {
+    renderWithMemos(entryWithActiveCache, {
       pathname: "/entries/m1",
       state: {
         returnTo: "/timeline?filter=favorite",
@@ -1268,7 +1358,7 @@ describe("localized memo feedback", () => {
   it("relocalizes a detail error without reloading or dropping cached content", async () => {
     const user = userEvent.setup();
     vi.mocked(getMemo).mockRejectedValue(new Error("详情读取失败"));
-    renderLocalizedWithMemos(<EntryPage />, "/entries/m1");
+    renderLocalizedWithMemos(entryWithActiveCache, "/entries/m1");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "最新内容读取失败：详情读取失败",

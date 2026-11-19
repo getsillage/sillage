@@ -12,7 +12,7 @@ import type { Memo } from "../../lib/api";
 import { formatEntryDate, todayISO } from "../../lib/date";
 import { EntryCard } from "./EntryCard";
 import { EntryComposer, type EntryDraftState } from "./EntryComposer";
-import { useMemos } from "./MemosContext";
+import { useActiveMemos } from "./MemosContext";
 import { isActive, onThisDay } from "./memos";
 import { OnThisDay } from "./OnThisDay";
 import {
@@ -77,7 +77,7 @@ function EntrySection({
 
 export function HomePage() {
   const { locale, t } = useI18n();
-  const { memos, loading, error, refresh, create, upload } = useMemos();
+  const { memos, loading, error, refresh, create, upload } = useActiveMemos();
   const [draftRevision, setDraftRevision] = useState(0);
   const editorStateRef = useRef<EntryDraftState>({
     dirty: false,

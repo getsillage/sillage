@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type Memo, type MemoAI } from "../../lib/api";
-import { MemosProvider, useMemos } from "./MemosContext";
+import { MemosProvider, useActiveMemos, type useMemos } from "./MemosContext";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -73,7 +73,7 @@ function ObserveCache({
 }: {
   onContext: (context: MemoContext) => void;
 }) {
-  const context = useMemos();
+  const context = useActiveMemos();
   onContext(context);
   return (
     <>
@@ -107,11 +107,10 @@ function Harness() {
     hasMore,
     loadingMore,
     loadMore,
-    loadAll,
     refresh,
     create,
     setFavorited,
-  } = useMemos();
+  } = useActiveMemos();
   return (
     <div>
       <p data-testid="memo-list">
@@ -131,9 +130,6 @@ function Harness() {
       </button>
       <button type="button" onClick={() => void refresh()}>
         刷新
-      </button>
-      <button type="button" onClick={() => void loadAll()}>
-        加载完整历史
       </button>
       <button
         type="button"
@@ -209,39 +205,6 @@ describe("MemosProvider pagination", () => {
       expect(screen.queryByText(/过期分页记录/)).not.toBeInTheDocument(),
     );
     expect(screen.getByText("刷新后的记录")).toBeInTheDocument();
-  });
-
-  it("loads every remaining page serially", async () => {
-    const user = userEvent.setup();
-    vi.mocked(listMemos)
-      .mockResolvedValueOnce({
-        memos: [memo("page-1", "第一页")],
-        nextCursor: "cursor-2",
-      })
-      .mockResolvedValueOnce({
-        memos: [memo("page-2", "第二页")],
-        nextCursor: "cursor-3",
-      })
-      .mockResolvedValueOnce({ memos: [memo("page-3", "第三页")] });
-
-    render(
-      <MemosProvider token="t">
-        <Harness />
-      </MemosProvider>,
-    );
-    expect(await screen.findByText("第一页")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "加载完整历史" }));
-    expect(await screen.findByText("第一页|第二页|第三页")).toBeInTheDocument();
-    expect(listMemos).toHaveBeenNthCalledWith(2, "t", 200, "cursor-2", {
-      archived: false,
-      favorited: false,
-    });
-    expect(listMemos).toHaveBeenNthCalledWith(3, "t", 200, "cursor-3", {
-      archived: false,
-      favorited: false,
-    });
-    expect(screen.getByText("没有更多")).toBeInTheDocument();
   });
 
   it("restarts a stale refresh after a canonical mutation response", async () => {

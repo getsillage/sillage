@@ -51,21 +51,3 @@ export function onThisDay(memos: readonly Memo[], todayISO: string): Memo[] {
     )
     .sort((a, b) => b.entryDate.localeCompare(a.entryDate));
 }
-
-/** Counts active memos per entry date (YYYY-MM-DD). */
-export function entryDateCounts(
-  memos: readonly Memo[],
-): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const memo of memos) {
-    if (isActive(memo)) {
-      counts[memo.entryDate] = (counts[memo.entryDate] ?? 0) + 1;
-    }
-  }
-  return counts;
-}
-
-/** Active memos written on a specific entry date. */
-export function entriesByDate(memos: readonly Memo[], date: string): Memo[] {
-  return memos.filter((memo) => isActive(memo) && memo.entryDate === date);
-}

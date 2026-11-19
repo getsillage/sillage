@@ -1,0 +1,22 @@
+{
+  "version": "database-source-manifest/v1",
+  "source_id": "sillage",
+  "engine": "sqlite",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespaces": [
+    "main"
+  ],
+  "include_namespaces": [],
+  "exclude_namespaces": [],
+  "include_tables": [],
+  "exclude_tables": [
+    "attachments",
+    "memo_fts",
+    "memo_fts_*"
+  ],
+  "case_semantics": {
+    "identifier_case": "preserve_ascii_case_insensitive"
+  },
+  "server_version": "3.54.1",
+  "business_data_read": false
+}

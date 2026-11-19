@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Memo } from "../../lib/api";
-import {
-  entriesByDate,
-  entryDateCounts,
-  excerpt,
-  isActive,
-  onThisDay,
-  sortMemos,
-  upsertMemo,
-} from "./memos";
+import { excerpt, isActive, onThisDay, sortMemos, upsertMemo } from "./memos";
 
 function memo(overrides: Partial<Memo> = {}): Memo {
   return {
@@ -89,25 +81,6 @@ describe("onThisDay", () => {
     expect(onThisDay(memos, todayISO).map((m) => m.id)).toEqual([
       "2025",
       "2024",
-    ]);
-  });
-});
-
-describe("entryDateCounts / entriesByDate", () => {
-  it("counts and groups only active memos by entry date", () => {
-    const memos = [
-      memo({ id: "a", entryDate: "2026-06-27" }),
-      memo({ id: "b", entryDate: "2026-06-27" }),
-      memo({ id: "c", entryDate: "2026-06-26" }),
-      memo({ id: "d", entryDate: "2026-06-27", deletedAt: "x" }),
-    ];
-    expect(entryDateCounts(memos)).toEqual({
-      "2026-06-27": 2,
-      "2026-06-26": 1,
-    });
-    expect(entriesByDate(memos, "2026-06-27").map((m) => m.id)).toEqual([
-      "a",
-      "b",
     ]);
   });
 });

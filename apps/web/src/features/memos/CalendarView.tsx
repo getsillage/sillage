@@ -1,10 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { iconButtonClass } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
-import type { Memo } from "../../lib/api";
-import { formatEntryDate, formatMonth, formatWeekday } from "../../lib/date";
-import { excerpt } from "./memos";
+import { formatMonth, formatWeekday } from "../../lib/date";
 
 function clampMonth(
   year: number,
@@ -24,17 +23,17 @@ function monthHref(year: number, month: number, date?: string): string {
   return date ? `${base}&date=${date}` : base;
 }
 
-export interface CalendarViewProps {
+interface CalendarViewProps {
   year: number;
   month: number;
   today: string;
   selectedDate: string | null;
   weeks: (string | null)[][];
-  counts: Record<string, number>;
-  dayEntries: Memo[];
+  counts?: Record<string, number>;
+  monthFeedback: ReactNode;
+  dayPanel: ReactNode;
 }
 
-/** Month grid for 历史's calendar view: dotted day cells + the selected day's records. */
 export function CalendarView({
   year,
   month,
@@ -42,10 +41,10 @@ export function CalendarView({
   selectedDate,
   weeks,
   counts,
-  dayEntries,
+  monthFeedback,
+  dayPanel,
 }: CalendarViewProps) {
   const { locale, t } = useI18n();
-  const location = useLocation();
   const prev = clampMonth(year, month - 1);
   const next = clampMonth(year, month + 1);
   const monthLabel = formatMonth(year, month, locale);
@@ -108,7 +107,7 @@ export function CalendarView({
                       {date ? (
                         <DayCell
                           date={date}
-                          count={counts[date] ?? 0}
+                          count={counts && (counts[date] ?? 0)}
                           isToday={date === today}
                           isSelected={date === selectedDate}
                           year={year}
@@ -122,41 +121,11 @@ export function CalendarView({
             })}
           </tbody>
         </table>
+        {monthFeedback}
       </section>
 
       <aside className="self-start rounded-lg border border-gray-200/80 bg-white/80 p-3 shadow-sm shadow-gray-900/[0.03] sm:p-5 dark:border-gray-800 dark:bg-gray-900/70 dark:shadow-black/10">
-        {selectedDate ? (
-          <>
-            <h3 className="mb-2 font-medium text-gray-700 text-sm dark:text-gray-300">
-              {formatEntryDate(selectedDate, today, locale)}
-            </h3>
-            {dayEntries.length === 0 ? (
-              <p className="text-gray-400 text-sm dark:text-gray-500">
-                {t("calendar.noRecordsDay")}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {dayEntries.map((memo) => (
-                  <li key={memo.id}>
-                    <Link
-                      to={`/entries/${memo.id}`}
-                      state={{
-                        returnTo: `${location.pathname}${location.search}${location.hash}`,
-                      }}
-                      className="block rounded-lg px-3 py-3 text-gray-800 text-sm transition [overflow-wrap:anywhere] hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:text-gray-100 dark:hover:bg-gray-800 dark:focus-visible:ring-gray-500/60"
-                    >
-                      {excerpt(memo.content, 40) || t("records.blank")}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        ) : (
-          <p className="text-gray-400 text-sm dark:text-gray-500">
-            {t("calendar.selectDay")}
-          </p>
-        )}
+        {dayPanel}
       </aside>
     </div>
   );
@@ -164,7 +133,7 @@ export function CalendarView({
 
 interface DayCellProps {
   date: string;
-  count: number;
+  count?: number;
   isToday: boolean;
   isSelected: boolean;
   year: number;
@@ -181,11 +150,12 @@ function DayCell({
 }: DayCellProps) {
   const { locale, t } = useI18n();
   const day = Number(date.slice(8));
+  const hasRecords = count !== undefined && count > 0;
   const base =
     "flex aspect-square min-h-11 w-full flex-col items-center justify-center rounded-lg border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 dark:focus-visible:ring-gray-500/60 sm:min-h-12 sm:text-base";
   const state = isSelected
     ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
-    : count > 0
+    : hasRecords
       ? "border-gray-200 bg-white hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
       : "border-transparent text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800";
 
@@ -197,11 +167,13 @@ function DayCell({
   }).format(new Date(dateYear, dateMonth - 1, dateDay));
   const details = [
     dateLabel,
-    count === 0
-      ? t("calendar.dayNoRecords")
-      : t(count === 1 ? "calendar.dayCountOne" : "calendar.dayCountMany", {
-          count,
-        }),
+    count === undefined
+      ? ""
+      : count === 0
+        ? t("calendar.dayNoRecords")
+        : t(count === 1 ? "calendar.dayCountOne" : "calendar.dayCountMany", {
+            count,
+          }),
     isToday ? t("calendar.today") : "",
     isSelected ? t("calendar.selected") : "",
   ].filter(Boolean);
@@ -223,22 +195,15 @@ function DayCell({
       >
         {day}
       </span>
-      {count > 0 ? (
-        <span className="mt-0.5 inline-flex items-center">
-          <span
-            aria-hidden="true"
-            className={`h-1.5 w-1.5 rounded-full ${
-              isSelected
-                ? "bg-white dark:bg-gray-950"
-                : "bg-gray-500 dark:bg-gray-400"
-            }`}
-          />
-          <span className="sr-only">
-            {t(count === 1 ? "calendar.dayCountOne" : "calendar.dayCountMany", {
-              count,
-            })}
-          </span>
-        </span>
+      {hasRecords ? (
+        <span
+          aria-hidden="true"
+          className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
+            isSelected
+              ? "bg-white dark:bg-gray-950"
+              : "bg-gray-500 dark:bg-gray-400"
+          }`}
+        />
       ) : null}
     </Link>
   );

@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,6 +16,146 @@ import (
 
 	"github.com/getsillage/sillage/store"
 )
+
+func TestMemoCalendarCounts(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	ctx := context.Background()
+	account, err := srv.Store.GetAccountByUsername(ctx, "felix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, record := range []struct {
+		date   string
+		status string
+	}{
+		{"2024-01-31", ""},
+		{"2024-02-01", ""},
+		{"2024-02-29", ""},
+		{"2024-02-29", ""},
+		{"2024-02-29", "archived"},
+		{"2024-02-29", "favorited"},
+		{"2024-02-29", "deleted"},
+		{"2024-02-29", "purged"},
+		{"2024-02-29", "unowned"},
+		{"2024-03-01", ""},
+	} {
+		creator := account.ID
+		if record.status == "unowned" {
+			creator = ""
+		}
+		memo, err := srv.Store.CreateMemo(ctx, &store.CreateMemo{
+			CreatorID: creator,
+			Content:   "calendar count must not expose this text",
+			EntryDate: record.date,
+			Archived:  record.status == "archived",
+			Favorited: record.status == "favorited",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if record.status == "deleted" || record.status == "purged" {
+			deleted := true
+			memo, err = srv.Store.UpdateMemo(ctx, &store.UpdateMemo{
+				ID: memo.ID, CreatorID: creator, ExpectedVersion: memo.Version, Deleted: &deleted,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if record.status == "purged" {
+				if _, err := srv.Store.PurgeMemo(ctx, creator, memo.ID, memo.Version); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	path := "/api/v1/memos/calendar/counts?month="
+	if res := doJSON(t, srv, http.MethodGet, path+"2024-02", nil, nil); res.Code != http.StatusUnauthorized || !strings.Contains(res.Body.String(), `"unauthenticated"`) {
+		t.Fatalf("unauthenticated calendar = %d %s", res.Code, res.Body)
+	}
+	for _, month := range []string{"", "2024-2", "2024-13"} {
+		if res := doJSON(t, srv, http.MethodGet, path+month, nil, bearer(token)); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), `"invalid_field"`) {
+			t.Fatalf("invalid month %q = %d %s", month, res.Code, res.Body)
+		}
+	}
+	for month, want := range map[string]map[string]int{
+		"2024-02": {"2024-02-01": 1, "2024-02-29": 2},
+		"2024-04": {},
+	} {
+		res := doJSON(t, srv, http.MethodGet, path+month, nil, bearer(token))
+		var payload map[string]map[string]int
+		if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil || res.Code != http.StatusOK || len(payload) != 1 || payload["counts"] == nil || !maps.Equal(payload["counts"], want) {
+			t.Fatalf("calendar %q = %d %s, want only %v", month, res.Code, res.Body, want)
+		}
+	}
+}
+
+func TestMemoListByEntryDate(t *testing.T) {
+	srv := newTestServer(t)
+	token := initializeAndToken(t, srv)
+	ctx := context.Background()
+	account, err := srv.Store.GetAccountByUsername(ctx, "felix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const date = "2024-02-29"
+	for _, record := range []struct {
+		id        string
+		date      string
+		favorited bool
+	}{
+		{"earlier", "2024-02-28", false},
+		{"record-1", date, false},
+		{"record-2", date, false},
+		{"favorite", date, true},
+		{"later", "2024-03-01", false},
+	} {
+		if _, err := srv.Store.CreateMemo(ctx, &store.CreateMemo{
+			ID: record.id, CreatorID: account.ID, Content: record.id, EntryDate: record.date, Favorited: record.favorited,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readPage := func(path string) ([]string, string) {
+		t.Helper()
+		res := doJSON(t, srv, http.MethodGet, path, nil, bearer(token))
+		var page struct {
+			Memos      []struct{ ID string } `json:"memos"`
+			NextCursor string                `json:"nextCursor"`
+		}
+		if err := json.Unmarshal(res.Body.Bytes(), &page); err != nil || res.Code != http.StatusOK {
+			t.Fatalf("list = %d %s", res.Code, res.Body)
+		}
+		ids := make([]string, 0, len(page.Memos))
+		for _, memo := range page.Memos {
+			ids = append(ids, memo.ID)
+		}
+		return ids, page.NextCursor
+	}
+	base := "/api/v1/memos?archived=false&favorited=false&limit=1"
+	day := base + "&entryDate=" + date
+	ids, cursor := readPage(day)
+	if !slices.Equal(ids, []string{"record-2"}) || cursor == "" {
+		t.Fatalf("day first page = %v, cursor=%q", ids, cursor)
+	}
+	continuation := "&cursor=" + url.QueryEscape(cursor)
+	ids, cursor = readPage(day + continuation)
+	if !slices.Equal(ids, []string{"record-1"}) || cursor != "" {
+		t.Fatalf("day last page = %v, cursor=%q", ids, cursor)
+	}
+	_, listCursor := readPage(base)
+	for _, path := range []string{
+		base + "&entryDate=2023-02-29",
+		base + "&entryDate=2024-02-28" + continuation,
+		base + continuation,
+		day + "&cursor=" + url.QueryEscape(listCursor),
+		day + "&q=record",
+	} {
+		if res := doJSON(t, srv, http.MethodGet, path, nil, bearer(token)); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), `"invalid_field"`) {
+			t.Fatalf("invalid date list = %d %s", res.Code, res.Body)
+		}
+	}
+}
 
 func TestMemoCRUDAndLifecycle(t *testing.T) {
 	srv := newTestServer(t)

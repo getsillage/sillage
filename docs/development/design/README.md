@@ -77,7 +77,11 @@ viewport, and the Ask composer respects the bottom safe area.
   attempted navigation is cancelled rather than queued. A failure preserves
   password fields and releases the lock so the user can retry or leave.
 - Transient failures preserve loaded content that belongs to the current view or normalized search query, preserve user input, and offer a manual retry. Cached results from another query are never shown as current matches.
-- Only one pagination request may run for a given list cursor. The calendar reads every page before presenting results.
+- Only one pagination request may run for a given list cursor. The calendar
+  shows counts for the visible month and requests record pages for the selected
+  date. The month grid remains usable while counts load or fail. Selecting
+  another day in the same month reuses its counts. The day panel offers an
+  explicit action to load more and keeps loaded records when a later page fails.
 - Ask creation, streaming answers, regeneration, and conversation switching must isolate stale requests.
 - A failed Ask submission restores its question only in the composer that
   submitted it. Switching conversations invalidates that restoration, even
@@ -112,5 +116,8 @@ See the [Contributing Guide](../../../CONTRIBUTING.md) for automated quality gat
 - narrow-screen overflow, keyboard navigation, focus restoration, layered Escape behavior, and dialog semantics;
 - loading, empty, failure, retry, unsaved, version-conflict, and in-progress states;
 - browser console and page errors, plus accessible names for buttons and icons.
+
+For CSS build dependency changes, run the production build and responsive
+browser checks even when the authored styles have not changed.
 
 Temporary screenshots and Playwright debugging cases are not committed. Changes to navigation, naming, or product shape must also update [Product Guidance](../product-guidance.md).

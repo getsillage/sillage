@@ -1,0 +1,86 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/system_setting",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "system_setting",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "key",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": true
+    },
+    {
+      "ordinal": 2,
+      "name": "value",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false,
+      "default_expression": "''"
+    },
+    {
+      "ordinal": 3,
+      "name": "created_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 4,
+      "name": "updated_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": false
+    },
+    {
+      "ordinal": 5,
+      "name": "deleted_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "key"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_system_setting_updated_id",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "updated_at"
+        },
+        {
+          "position": 2,
+          "column": "key"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_system_setting_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "key"
+        }
+      ]
+    }
+  ]
+}

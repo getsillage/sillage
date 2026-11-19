@@ -26,25 +26,13 @@ import {
 } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { Memo, MemoListOptions } from "../../lib/api";
-import {
-  formatEntryDate,
-  monthGrid,
-  normalizeYearMonth,
-  todayISO,
-} from "../../lib/date";
-import { CalendarView } from "./CalendarView";
+import { formatEntryDate, todayISO } from "../../lib/date";
 import { EntryCard } from "./EntryCard";
 import { formatLocalDateTime } from "./LocalDateTime";
-import { useMemos } from "./MemosContext";
-import {
-  entriesByDate,
-  entryDateCounts,
-  excerpt,
-  isActive,
-  mergeMemos,
-  onThisDay,
-} from "./memos";
+import { useActiveMemos, useMemos } from "./MemosContext";
+import { excerpt, isActive, mergeMemos, onThisDay } from "./memos";
 import { OnThisDay } from "./OnThisDay";
+import { TimelineCalendar } from "./TimelineCalendar";
 
 type TimelineFilter = "active" | "archived" | "favorite" | "deleted";
 
@@ -101,7 +89,6 @@ function ViewToggle({ calendar }: { calendar: boolean }) {
 export function TimelinePage() {
   const { t } = useI18n();
   const [searchParams] = useSearchParams();
-  const { memos, loading, error, refresh, loadAll } = useMemos();
   const today = todayISO();
   const calendar = searchParams.get("view") === "calendar";
   const filter = timelineFilter(searchParams);
@@ -118,15 +105,7 @@ export function TimelinePage() {
         </header>
 
         {calendar ? (
-          <CalendarMonth
-            searchParams={searchParams}
-            memos={memos}
-            today={today}
-            loading={loading}
-            error={error}
-            refresh={refresh}
-            loadAll={loadAll}
-          />
+          <TimelineCalendar searchParams={searchParams} today={today} />
         ) : (
           <ListView key={filter} today={today} filter={filter} />
         )}
@@ -137,7 +116,7 @@ export function TimelinePage() {
 
 function useTimelineMemoList(filter: TimelineFilter) {
   const { locale, t } = useI18n();
-  const context = useMemos();
+  const context = useActiveMemos(filter === "active");
   const { listPage } = context;
   const options = useMemo(() => listOptionsFor(filter), [filter]);
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -800,145 +779,4 @@ function TimelineSkeleton({ announce = true }: { announce?: boolean }) {
       ))}
     </div>
   );
-}
-
-function CalendarMonth({
-  searchParams,
-  memos,
-  today,
-  loading,
-  error,
-  refresh,
-  loadAll,
-}: {
-  searchParams: URLSearchParams;
-  memos: Memo[];
-  today: string;
-  loading: boolean;
-  error: string;
-  refresh: () => Promise<void>;
-  loadAll: () => Promise<void>;
-}) {
-  const { locale, t } = useI18n();
-  const [fullLoadState, setFullLoadState] = useState<
-    "loading" | "ready" | "error"
-  >("loading");
-  const [fullLoadError, setFullLoadError] = useState("");
-  const fullLoadRequestRef = useRef(0);
-  const feedbackLocaleRef = useRef(locale);
-
-  useEffect(() => {
-    if (feedbackLocaleRef.current === locale) {
-      return;
-    }
-    feedbackLocaleRef.current = locale;
-    setFullLoadError((current) =>
-      current ? t("records.loadAllFailed") : current,
-    );
-  }, [locale, t]);
-
-  const startFullLoad = useCallback(() => {
-    const request = fullLoadRequestRef.current + 1;
-    fullLoadRequestRef.current = request;
-    setFullLoadState("loading");
-    setFullLoadError("");
-    void loadAll()
-      .then(() => {
-        if (fullLoadRequestRef.current === request) {
-          setFullLoadState("ready");
-        }
-      })
-      .catch((cause) => {
-        if (fullLoadRequestRef.current === request) {
-          const message =
-            cause instanceof Error ? cause.message : t("records.loadAllFailed");
-          setFullLoadError(message);
-          setFullLoadState("error");
-        }
-      });
-  }, [loadAll, t]);
-
-  const retryFullLoad = useCallback(() => {
-    fullLoadRequestRef.current += 1;
-    setFullLoadState("loading");
-    setFullLoadError("");
-    // A successful refresh clears the context error and lets the effect below
-    // continue with loadAll. Keep rejection contained for future refresh APIs.
-    void refresh().catch(() => undefined);
-  }, [refresh]);
-
-  useEffect(() => {
-    if (loading) {
-      fullLoadRequestRef.current += 1;
-      setFullLoadState("loading");
-      return;
-    }
-    if (error) {
-      fullLoadRequestRef.current += 1;
-      setFullLoadError(error);
-      setFullLoadState("error");
-      return;
-    }
-    startFullLoad();
-    return () => {
-      fullLoadRequestRef.current += 1;
-    };
-  }, [error, loading, startFullLoad]);
-
-  if (fullLoadState === "loading") {
-    return (
-      <div
-        className="py-12 text-center text-gray-500 text-sm dark:text-gray-400"
-        role="status"
-      >
-        {memos.length > 0
-          ? t("timeline.loadedContinuing", { count: memos.length })
-          : t("timeline.loadingAll")}
-      </div>
-    );
-  }
-
-  if (fullLoadState === "error") {
-    return (
-      <div className={`${emptyStateClass} space-y-3`}>
-        <p role="alert">{fullLoadError}</p>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          onClick={retryFullLoad}
-        >
-          {t("timeline.reloadAll")}
-        </button>
-      </div>
-    );
-  }
-
-  const rawYear = queryNumber(searchParams, "y", Number(today.slice(0, 4)));
-  const rawMonth = queryNumber(searchParams, "m", Number(today.slice(5, 7)));
-  const { year, month } = normalizeYearMonth(rawYear, rawMonth);
-  const selectedDate = searchParams.get("date");
-  return (
-    <CalendarView
-      year={year}
-      month={month}
-      today={today}
-      selectedDate={selectedDate}
-      weeks={monthGrid(year, month)}
-      counts={entryDateCounts(memos)}
-      dayEntries={selectedDate ? entriesByDate(memos, selectedDate) : []}
-    />
-  );
-}
-
-function queryNumber(
-  searchParams: URLSearchParams,
-  key: string,
-  fallback: number,
-): number {
-  const raw = searchParams.get(key);
-  if (raw === null || raw.trim() === "") {
-    return fallback;
-  }
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : fallback;
 }

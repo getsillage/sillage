@@ -6,7 +6,7 @@ This document is the single entry point for this repository's development enviro
 
 | Area | Requirement |
 | --- | --- |
-| Go | Go 1.26 |
+| Go | Version declared in `go.mod` |
 | Web | Node.js 24, pnpm 11.9 |
 | Proto | Buf CLI 1.71 |
 | Containers | Docker; Compose is optional |
@@ -113,6 +113,19 @@ make print-affected     # show gates without running them
 | Remote settings | `make check-repository-settings` | authenticated branch-protection, security-feature, vulnerability-reporting, and Pages HTTPS audit |
 
 The full `make check` requires Docker, gitleaks, Playwright system dependencies, complete Git tags, and `tar`. CI also validates pull request titles as Conventional Commits subjects.
+
+If Docker can reach a trusted Go module proxy but not the default proxy,
+set `SILLAGE_BUILD_GOPROXY` to its URL for `make check-container` or
+`make check-affected`. This only changes the container build; the host Go
+toolchain uses its own `GOPROXY`. Do not put credentials in a build argument.
+
+If the host can reach Anchore's database service but Docker cannot, download
+the current Grype v6 `.tar.zst` archive and its SHA-256 from the official
+database listing. Set `SILLAGE_GRYPE_DB_ARCHIVE` to the local archive and
+`SILLAGE_GRYPE_DB_SHA256` to the listed checksum, then rerun the gate.
+The scanner verifies both the archive and the imported database, still
+rejects stale databases, and keeps the same severity threshold. CI and release
+jobs use the normal online database path.
 
 Pull request CI resolves the affected gates from `scripts/change-matrix.yml`; pushes to `main` always run the complete gate set. Superseded runs for the same pull request are cancelled automatically. Required check names remain visible when a gate is skipped. CI runs Chromium E2E for ordinary affected pull requests and reserves the full Chromium/Firefox/WebKit and Go/JavaScript/TypeScript CodeQL sweep for relevant CI changes and protected `main`.
 

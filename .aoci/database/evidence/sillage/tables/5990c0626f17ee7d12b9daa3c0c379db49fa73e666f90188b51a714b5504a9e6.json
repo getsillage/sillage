@@ -1,0 +1,79 @@
+{
+  "version": "database-evidence/v1",
+  "object_ref": "database://sillage/main/runtime_kv",
+  "engine": "sqlite",
+  "source_id": "sillage",
+  "database": ".aoci/local/sillage-schema.db",
+  "namespace": "main",
+  "name": "runtime_kv",
+  "kind": "base_table",
+  "columns": [
+    {
+      "ordinal": 1,
+      "name": "namespace",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 2,
+      "name": "key",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 3,
+      "name": "value",
+      "native_type": "TEXT",
+      "canonical_type": "text",
+      "nullable": false
+    },
+    {
+      "ordinal": 4,
+      "name": "expires_at",
+      "native_type": "INTEGER",
+      "canonical_type": "integer",
+      "nullable": true
+    }
+  ],
+  "primary_key": {
+    "name": "sqlite_primary_key",
+    "columns": [
+      "namespace",
+      "key"
+    ]
+  },
+  "unique_constraints": [],
+  "foreign_keys": [],
+  "checks": [],
+  "indexes": [
+    {
+      "name": "idx_runtime_kv_expires_at",
+      "unique": false,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "expires_at"
+        }
+      ]
+    },
+    {
+      "name": "sqlite_autoindex_runtime_kv_1",
+      "unique": true,
+      "primary": true,
+      "method": "btree",
+      "elements": [
+        {
+          "position": 1,
+          "column": "namespace"
+        },
+        {
+          "position": 2,
+          "column": "key"
+        }
+      ]
+    }
+  ]
+}

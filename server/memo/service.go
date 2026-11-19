@@ -15,6 +15,7 @@ import (
 const (
 	defaultPageSize       = 50
 	memoListCursorVersion = 3
+	memoDateCursorVersion = 4
 	maxMemoContentBytes   = 1 << 20
 	maxMemoQueryBytes     = 512
 )
@@ -38,6 +39,7 @@ func (e validationError) Unwrap() error {
 
 type Repository interface {
 	ListMemos(context.Context, *store.ListMemoOptions) ([]*store.Memo, error)
+	CountActiveMemosByDate(context.Context, string, string, string) (map[string]int, error)
 	SearchMemos(context.Context, *store.SearchMemoOptions) ([]*store.Memo, error)
 	CreateMemo(context.Context, *store.CreateMemo) (*store.Memo, error)
 	GetMemo(context.Context, string, string, bool) (*store.Memo, error)
@@ -64,6 +66,7 @@ type ListInput struct {
 	Archived  *bool
 	Favorited *bool
 	Deleted   *bool
+	EntryDate string
 	Limit     int
 	Cursor    string
 }
@@ -106,6 +109,11 @@ type Detail struct {
 // List returns one reverse-chronological page plus an opaque cursor for the
 // next page. An empty NextCursor means the list is exhausted.
 func (s *Service) List(ctx context.Context, accountID string, input ListInput) (*Page, error) {
+	if input.EntryDate != "" {
+		if err := validateEntryDate(input.EntryDate); err != nil {
+			return nil, err
+		}
+	}
 	pageSize := normalizeLimit(input.Limit, defaultPageSize)
 	opts := &store.ListMemoOptions{
 		AccountID:         accountID,
@@ -114,6 +122,7 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 		Archived:          input.Archived,
 		Favorited:         input.Favorited,
 		Deleted:           input.Deleted,
+		EntryDate:         input.EntryDate,
 	}
 	deletedOnly := input.Deleted != nil && *input.Deleted
 	if deletedOnly {
@@ -123,24 +132,22 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 		opts.Archived = nil
 		opts.Favorited = nil
 	}
-	legacyV1 := false
-	if cursor, ok := decodeListCursor(input.Cursor); ok {
-		cursorMatchesView := (!deletedOnly && (cursor.Version < 3 || !cursor.Deleted)) ||
-			(deletedOnly && cursor.Version >= 3 && cursor.Deleted)
-		if !cursorMatchesView {
-			ok = false
+	cursor, validCursor := decodeListCursor(input.Cursor)
+	cursorMatchesView := validCursor && deletedOnly == (cursor.Version >= memoListCursorVersion && cursor.Deleted)
+	dateCursor := validCursor && cursor.Version == memoDateCursorVersion
+	if input.Cursor != "" && (input.EntryDate != "" || dateCursor) {
+		if !dateCursor || !cursorMatchesView || cursor.EntryDate != input.EntryDate || input.EntryDate == "" {
+			return nil, validationError{message: "分页游标与当前记录日期或列表不匹配"}
 		}
-		if ok && deletedOnly {
+	}
+	legacyV1 := cursorMatchesView && cursor.Version == 1
+	if cursorMatchesView {
+		if deletedOnly {
 			opts.BeforeDeletedAt = cursor.DeletedAt
 			opts.BeforeID = cursor.ID
-		} else if ok && cursor.Version == 1 {
-			legacyV1 = true
-			opts.LegacyFavoritedFirst = true
+		} else {
+			opts.LegacyFavoritedFirst = legacyV1
 			opts.BeforeFavorited = cursor.Pinned
-			opts.BeforeEntryDate = cursor.EntryDate
-			opts.BeforeCreatedAt = cursor.CreatedAt
-			opts.BeforeID = cursor.ID
-		} else if ok {
 			opts.BeforeEntryDate = cursor.EntryDate
 			opts.BeforeCreatedAt = cursor.CreatedAt
 			opts.BeforeID = cursor.ID
@@ -164,6 +171,9 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 		if deletedOnly {
 			nextCursor.DeletedAt = last.DeletedAt.Int64
 		}
+		if input.EntryDate != "" {
+			nextCursor.Version = memoDateCursorVersion
+		}
 		if legacyV1 {
 			favorited := last.FavoritedAt.Valid
 			nextCursor.Version = 1
@@ -172,6 +182,15 @@ func (s *Service) List(ctx context.Context, accountID string, input ListInput) (
 		next = encodeListCursor(nextCursor)
 	}
 	return &Page{Memos: memos, NextCursor: next}, nil
+}
+
+func (s *Service) CalendarCounts(ctx context.Context, accountID, month string) (map[string]int, error) {
+	first, err := time.Parse("2006-01", month)
+	if err != nil {
+		return nil, validationError{message: "月份必须是 YYYY-MM"}
+	}
+	last := first.AddDate(0, 1, -1)
+	return s.repository.CountActiveMemosByDate(ctx, accountID, first.Format(time.DateOnly), last.Format(time.DateOnly))
 }
 
 func (s *Service) Search(ctx context.Context, accountID string, input SearchInput) ([]*store.Memo, error) {
@@ -323,7 +342,7 @@ func decodeListCursor(raw string) (listCursor, bool) {
 		return listCursor{}, false
 	}
 	switch cursor.Version {
-	case 0, 2, memoListCursorVersion:
+	case 0, 2, memoListCursorVersion, memoDateCursorVersion:
 	case 1:
 		if cursor.Pinned == nil {
 			return listCursor{}, false

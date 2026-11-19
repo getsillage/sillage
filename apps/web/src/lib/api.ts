@@ -211,7 +211,8 @@ export async function listMemos(
   accessToken: string,
   limit = 200,
   cursor?: string,
-  options: MemoListOptions = {},
+  options: MemoListOptions & { entryDate?: string } = {},
+  signal?: AbortSignal,
 ): Promise<{ memos: Memo[]; nextCursor?: string }> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) {
@@ -226,8 +227,24 @@ export async function listMemos(
   if (options.deleted !== undefined) {
     params.set("deleted", String(options.deleted));
   }
+  if (options.entryDate) {
+    params.set("entryDate", options.entryDate);
+  }
   return request(`/api/v1/memos?${params.toString()}`, {
     headers: authHeaders(accessToken),
+    signal,
+  });
+}
+
+export function getMemoCalendarCounts(
+  accessToken: string,
+  month: string,
+  signal: AbortSignal,
+): Promise<{ counts: Record<string, number> }> {
+  const params = new URLSearchParams({ month });
+  return request(`/api/v1/memos/calendar/counts?${params}`, {
+    headers: authHeaders(accessToken),
+    signal,
   });
 }
 

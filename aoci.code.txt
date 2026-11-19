@@ -10,19 +10,19 @@
 AGENTS.md[SQ5S]: F:引导代理先读 CLAUDE.md，并定义 AOCI 建立、传输证明、稳定检查点和维护规则 | R:code:CLAUDE.md | A:- | S:语义创作需绑定当次 Guide、证据与完整候选；上下文压缩后重新交付索引并验证
 CLAUDE.md[SQ6S]: F:定义代理协作方式、事实源、Sillage 产品边界及验证门禁 | R:code:docs/development/governance.md,code:Makefile,code:docs/development/constitution.md | A:- | S:数据库变更须同时更新新库、兼容迁移和测试；现有写操作的版本检查与删除墓碑不可绕开
 CODE_OF_CONDUCT.md[SQ2S]: F:定义贡献者行为标准、适用场景、社区责任和分级处置 | R:code:CONTRIBUTING.md | A:- | S:-
-CONTRIBUTING.md[SQ6S]: F:说明开发准备、贡献流程以及代码、契约、数据库和 Web 产物的验证入口 | R:code:go.mod,code:Makefile,code:docs/development/governance.md,code:docs/development/architecture.md | A:- | S:Go 工具链以 go.mod 为准；生成 OpenAPI 只覆盖 Proto HTTP 注解，Echo 扩展须对照 REST 指南和路由代码
+CONTRIBUTING.md[SQ6S]: F:说明开发准备、验证、贡献和发布流程，以及受限网络下的容器门禁重跑方式 | R:code:go.mod,code:Makefile,code:scripts/scan-container.sh,code:docs/development/governance.md | A:- | S:容器构建代理与宿主 GOPROXY 独立；本机漏洞库必须校验摘要及数据库时效，发布仍使用在线验证
 LICENSE[SV3T]: F:提供 Sillage 的 MIT 许可、版权声明和免责声明 | R:code:NOTICE | A:- | S:-
-Makefile[XQ7S]: F:提供与 CI 同源的开发验证入口并按改动分派门禁 | R:code:scripts/change-matrix.yml,code:.github/workflows/ci.yml | A:check,check-affected,print-affected,check-fast | S:PR 范围可传 BASE_SHA；受影响检查不替代发布级全门禁
+Makefile[XQ7S]: F:提供与 CI 同源的检查入口，按改动分派门禁并编排容器构建和扫描 | R:code:scripts/change-matrix.yml,code:.github/workflows/ci.yml,code:scripts/check-supply-chain.sh | A:check,check-affected,print-affected,check-container,SILLAGE_BUILD_GOPROXY | S:容器代理仅从显式构建专用变量传入，不继承宿主 GOPROXY；供应链目标依赖候选镜像构建
 NOTICE[SV2T]: F:声明项目版权和许可，并指向第三方依赖声明与保留文档 | R:code:LICENSE,code:THIRD_PARTY_NOTICES.md | A:- | S:-
 README.md[SG5T]: F:用英文介绍单人私密记录的产品能力、容器启动和 Go 加 Web 架构 | R:code:README.zh-CN.md,code:docs/user/deployment.md,code:SECURITY.md | A:- | S:自托管公网入口由部署者在仓库外管理
 README.zh-CN.md[SG5T]: F:用中文说明记录、历史回看与有来源的 AI 问答，并给出自托管启动入口 | R:code:README.md,code:docs/user/deployment.md,code:docs/user/ai.md | A:- | S:产品仅服务单用户，第三方网络入口与凭据由部署者独立管理
 SECURITY.md[SS5T]: F:规定漏洞私下报告、受支持版本和部署责任 | R:code:docs/development/security.md,code:docs/user/deployment.md | A:GitHub Private Vulnerability Reporting | S:数据目录与备份没有额外的全盘静态加密，应限制宿主权限
 SUPPORT.md[SQ3T]: F:引导自托管用户查阅文档、脱敏并选择缺陷、功能、支持或漏洞渠道 | R:code:SECURITY.md,code:docs/README.md | A:- | S:-
-THIRD_PARTY_NOTICES.md[SV4S]: F:登记发布分发使用的 Go 与 Web 运行依赖、许可证和保留文件 | R:code:NOTICE,code:scripts/generate-third-party-notices.mjs,code:scripts/third-party-license-policy.json | A:- | S:用生产依赖图生成，版本变动时同步保留相应版本的上游许可证
+THIRD_PARTY_NOTICES.md[SV4S]: F:列出分发制品使用的 Go 与 Web 生产依赖、版本及许可证 | R:code:NOTICE,code:scripts/generate-third-party-notices.mjs,code:scripts/third-party-license-policy.json | A:- | S:版本变动时必须同步保留对应版本的上游许可原文；Web 开发依赖不进入清单
 buf.gen.yaml[FV5T]: F:固定 Proto 的 Go、gRPC、Connect、Gateway 和 OpenAPI 生成器及目标目录 | R:code:buf.yaml,code:contracts/proto/README.md | A:- | S:clean 会重建生成物，外部 googleapis 保留原 go_package
 buf.lock[FV3T]: F:锁定 googleapis Proto 依赖的提交及内容摘要 | R:code:buf.yaml,code:buf.gen.yaml | A:- | S:-
 buf.yaml[FQ5T]: F:声明 Proto 模块、googleapis 依赖、基础 lint 及文件级兼容检查 | R:code:buf.gen.yaml,code:scripts/check-proto.sh | A:- | S:兼容门禁使用 FILE 模式；部分命名与目录约定显式例外
-go.mod[FV5T]: F:声明 Sillage Go 模块与安全工具链下限，记录 Echo、SQLite 和 Proto 等依赖 | R:code:scripts/Dockerfile,code:.github/workflows/ci.yml,code:Makefile | A:github.com/getsillage/sillage | S:CI 读取这里的 Go 补丁版本，容器 Go 构建器同步固定；SQLite 使用纯 Go 驱动
+go.mod[FV5T]: F:声明 Sillage Go 模块、构建工具链下限与 Echo、SQLite、Proto 等依赖 | R:code:scripts/Dockerfile,code:.github/workflows/ci.yml,code:Makefile | A:github.com/getsillage/sillage | S:CI 读取本文件的 Go 补丁版本，容器构建器保持一致；SQLite 使用纯 Go 驱动
 lefthook.yml[FQ3T]: F:可选本地钩子运行提交消息、术语和空白检查 | R:code:scripts/check-commit-msg.mjs,code:Makefile | A:- | S:最终门禁由 CI 执行
 
 ===/<repository>/.github/ISSUE_TEMPLATE/===
@@ -39,6 +39,7 @@ dependabot.yml[FV5T]: F:按生态发起每周依赖更新，将耦合的 Docker�
 v0.3.0.md[SV3T]: F:记录最近删除、离线密码重置和发布验证，以及旧版本升级与恢复要求 | R:code:.github/workflows/release.yml | A:- | S:旧二进制拒绝已升级数据库，回滚需还原完整备份
 v0.3.1.md[SV3T]: F:记录双语文案、AI 数据提示和依赖更新，以及与上一版数据目录的兼容性 | R:code:README.zh-CN.md | A:- | S:-
 v0.4.0.md[SV4T]: F:说明仅保留 Web 与 Go 后端、附件编辑修复、接口精简和 SQLite schema 0.1.6 升级 | R:code:store/migrator.go,code:README.zh-CN.md | A:- | S:升级备份含 WAL/SHM、附件和 runtime；回滚需恢复整套备份
+v0.5.0.md[SV4T]: F:记录日历按需读取、安全更新、原生接口退役及升级回滚条件 | R:code:docs/development/release-readiness.md,code:scripts/check-release-notes.mjs | A:- | S:候选保留未完成的镜像安全与远端验收，正式发布校验拒绝待完成标记
 
 ===/<repository>/.github/workflows/===
 ci.yml[OV7M]: F:校验提交并按改动触发 Go、Proto、Web、文档、容器、供应链、E2E 和 CodeQL 门禁 | R:code:Makefile,code:scripts/change-matrix.yml | A:CI 工作流 | S:push 配置执行对应的全量门禁，PR 按提交任务给出的影响布尔值裁剪；本地 Make 目标与 CI 共用
@@ -53,9 +54,9 @@ README.md[SG3T]: F:解释 Go 单体按进程、共享基础、HTTP 与 SQLite �
 ===/<repository>/apps/web/===
 biome.json[FQ3T]: F:为 Web 源码、E2E 和工具配置指定 Biome 推荐 lint 与两空格格式 | R:code:apps/web/package.json | A:- | S:-
 index.html[EU4T]: F:声明 Web 文档、移动视口与 PWA 资源，预先加载主题并挂载 React | R:code:apps/web/src/main.tsx,code:apps/web/public/theme-init.js | A:root | S:主题脚本先于 React 入口执行
-package.json[FV6T]: F:声明私有 Web 工作区的运行依赖、开发与构建工具版本及验证命令 | R:code:apps/web/pnpm-workspace.yaml,code:Makefile | A:dev,dev:lan,build,typecheck,test:e2e | S:Vite 默认仅监听 127.0.0.1；开发依赖也纳入高危审计，修复版本下限记录在清单
+package.json[FV6T]: F:定义 Sillage Web 应用版本、依赖与开发、打包、测试入口 | R:code:apps/web/pnpm-workspace.yaml,code:scripts/check-release-version.mjs,code:Makefile | A:dev,dev:lan,build,typecheck,test:e2e | S:Web 版本必须精确匹配释放标签；Vitest 和覆盖率插件须同版本，开发依赖也纳入安全审计
 playwright.config.ts[FQ5T]: F:配置 Chromium、Firefox 和 WebKit 的全流程浏览器验证 | R:code:apps/web/package.json,code:Makefile | A:PLAYWRIGHT_BASE_URL | S:目标是已启动的单账号实例，串行单 worker 避免共享状态竞态
-pnpm-workspace.yaml[FV4T]: F:授权 esbuild 安装构建并为间接依赖固定安全版本覆盖 | R:code:apps/web/package.json,code:scripts/check-supply-chain.sh | A:allowBuilds,overrides | S:Undici 的安全版本下限在工作区落实，由锁文件约束测试工具链
+pnpm-workspace.yaml[FV4T]: F:授权 esbuild 构建，并为受影响的间接依赖版本范围设定安全下限 | R:code:apps/web/package.json,code:scripts/check-supply-chain.sh | A:allowBuilds,overrides | S:选择器解析器的版本下限覆盖 Tailwind 排版插件的固定依赖，锁文件须同步重算
 tsconfig.json[FV4T]: F:配置面向 ES2022 与 DOM 的 TypeScript 严格检查和打包解析 | R:code:apps/web/package.json | A:- | S:tsc 只检查类型，产物交给 Vite
 vite.config.ts[FV5T]: F:安装 React 与 Tailwind 插件，配置 API 代理和 Go 嵌入产物目录 | R:code:apps/web/package.json,code:server/router/frontend/frontend.go | A:/api,/file,/sillage.api.v1 | S:构建会清空并重写 server/router/frontend/dist
 vitest.config.ts[FQ4T]: F:配置 jsdom 单测环境、初始化文件和 v8 覆盖范围 | R:code:apps/web/src/test/setup.ts,code:apps/web/package.json | A:- | S:单测不处理 CSS，入口和测试辅助文件不计覆盖率
@@ -181,7 +182,7 @@ README.md[SQ4T]: F:划分开发治理、架构、REST、设计与 ADR 的长期�
 architecture.md[SG7S]: F:说明 Go 单体启动、Web 与 API 接缝、SQLite 持久化及主要事实来源 | R:code:cmd/sillage/main.go,code:server/server.go,code:store/migrator.go,code:docs/development/api/README.md | A:- | S:单实例单账号，记录日期独立于创建时间，AI 衍生数据独立持久化且不改变记录写入版本
 constitution.md[SG7T]: F:定义产品身份、单用户私密边界、工程红线与文档优先级 | R:code:docs/development/product-guidance.md,code:docs/development/architecture.md | A:- | S:每类事实有一个权威文档，冲突时以实现为准并同次修正文档
 content-design.md[SL6M]: F:规定双语术语、状态、错误、删除确认、自托管和 AI 数据披露文案 | R:code:apps/web/src/i18n/messages.ts,code:docs/development/product-guidance.md,code:docs/user/ai.md | A:- | S:调用外置 AI 端点前在实际操作位置说明发送内容；个人事实断言须有记录来源
-governance.md[SQ6S]: F:规定工程治理层级、贡献双轨、验证门禁、安全与仓库认知资产的维护 | R:code:CLAUDE.md,code:Makefile,code:scripts/change-matrix.yml,code:scripts/grype-alpine-openssl.vex.json,code:store/migration/sqlite/LATEST.sql | A:- | S:CI 与 Go 构建镜像对齐 go.mod，VEX 声明绑定回补包；数据库认知证据取自 LATEST.sql 初始化的结构副本
+governance.md[SQ6M]: F:登记工程规范、贡献双轨、验证门禁、供应链和 AOCI 认知资产维护 | R:code:CONTRIBUTING.md,code:Makefile,code:scripts/change-matrix.yml,code:scripts/scan-container.sh,code:store/migration/sqlite/LATEST.sql | A:- | S:本地网络覆盖不改变 CI、发布或漏洞阈值；VEX 精确关联发行版回补包，数据库认知取自空结构副本
 product-guidance.md[SB6S]: F:定义私密记录、浏览组织、问答与总结的产品范围和用户术语 | R:code:docs/development/constitution.md,code:docs/development/content-design.md,code:docs/user/ai.md | A:- | S:通用答案可不引用个人记录；对用户历史的断言必须有相关记录来源
 release-readiness.md[SV5T]: F:规定发布支持环境、万条记录规模、候选验收和制品校验 | R:code:.github/workflows/release.yml,code:Makefile,code:scripts/check-release-notes.mjs,code:go.mod | A:- | S:用 go.mod 声明的工具链检查可达漏洞；精确候选提交须通过备份回滚演练，供应链证据绑定最终镜像
 security.md[SS7T]: F:定义账号会话、附件、加密密钥和外部请求的开发信任边界 | R:code:server/auth_routes.go,code:server/attachment_routes.go,code:internal/secret/secret.go,code:docs/user/deployment.md | A:- | S:首次初始化限受控入口，账号检查和创建在同一事务；线下改密使用同一实例锁并原子撤销刷新会话
@@ -198,7 +199,7 @@ README.md[SN6S]: F:规定 REST v1 鉴权、错误、日历读取、版本化写�
 README.md[SQ3T]: F:规定 ADR 文件名、三段结构和应当成文的重大决策边界 | R:code:docs/development/governance.md | A:- | S:-
 
 ===/<repository>/docs/development/design/===
-README.md[SU5S]: F:规定记录型 Web 界面布局、异步交互、双主题及响应式验收 | R:code:apps/web/src/components/ui.ts,code:apps/web/src/app/RouteAccessibility.tsx,code:apps/web/src/styles/app.css,code:apps/web/src/features/memos/TimelineCalendar.tsx | A:- | S:路由播报和焦点等待覆盖层关闭；月计数失败时网格仍可用，日分页失败保留已加载记录
+README.md[SU5S]: F:规定 Web 记录页面的布局、异步状态、无障碍和跨主题响应式验收 | R:code:apps/web/src/components/ui.ts,code:apps/web/src/app/RouteAccessibility.tsx,code:apps/web/src/styles/app.css,code:apps/web/src/features/memos/TimelineCalendar.tsx | A:- | S:路由焦点等待覆盖层关闭；月计数失败时日历仍可用，CSS 构建依赖变化也需验证生产产物及响应式行为
 
 ===/<repository>/docs/user/===
 ai.md[SA5T]: F:说明配置 AI 端点、密钥处理和各项模型调用会发送的数据 | R:code:server/ai_routes.go,code:server/ask_routes.go,code:docs/development/content-design.md | A:- | S:模型枚举与连通性测试使用档案凭据，不附带用户记录；问答路由阶段使用问题和分支历史
@@ -220,8 +221,8 @@ secret.go[RS7T]: F:按环境变量、已有文件及生成值确定会话签名�
 ===/<repository>/scripts/===
 Dockerfile[OV6T]: F:分阶段构建 Web 和嵌入式 Go 服务，并打包 Alpine 运行时及第三方许可 | R:code:go.mod,code:apps/web/package.json,code:scripts/entrypoint.sh,code:.dockerignore | A:TARGETOS,TARGETARCH,VERSION,REVISION | S:Go 构建镜像与仓库工具链一致并固定摘要；最终阶段先更新 Alpine 软件包，运行入口准备卷后切换到应用 UID/GID
 affected.mjs[XQ5T]: F:将 Git 变更映射为 Make 门禁，支持列表、执行和 GitHub 输出 | R:code:scripts/change-matrix.yml,code:Makefile,code:scripts/affected.test.mjs | A:--json,--run,--github-output,--base | S:提供基准引用时按提交范围判断影响
-affected.test.mjs[TQ3T]: F:验证 Web、Go 依赖和 Proto 等路径触发的门禁组合 | R:code:scripts/affected.mjs,code:scripts/change-matrix.yml | A:- | S:-
-change-matrix.yml[FQ6M]: F:映射改动路径到 Go、Web、容器、供应链与文档同步门禁 | R:code:scripts/affected.mjs,code:scripts/check-doc-sync.mjs,code:Makefile,code:scripts/grype-alpine-openssl.vex.json | A:- | S:范围判断和文档同步共用矩阵；修改 VEX 声明触发供应链与文档门禁
+affected.test.mjs[TQ3T]: F:验证 Web、Go、Proto、容器和 CI 路径解析到正确的门禁集合 | R:code:scripts/affected.mjs,code:scripts/change-matrix.yml | A:- | S:单独修改 pnpm 覆盖文件也触发供应链门禁
+change-matrix.yml[FQ6M]: F:把仓库路径变更映射到验证门禁及契约文档同步要求 | R:code:scripts/affected.mjs,code:scripts/check-doc-sync.mjs,code:Makefile,code:apps/web/pnpm-workspace.yaml | A:- | S:影响评估和文档同步共用规则；间接依赖覆盖与 VEX 变动触发供应链检查
 check-actions-pinned.mjs[XQ4T]: F:检查 GitHub workflows 的外部 Action 均固定为 40 位提交 SHA | R:code:.github/workflows/ci.yml,code:.github/workflows/release.yml | A:- | S:-
 check-commit-msg.mjs[XQ4T]: F:校验单条消息或提交范围的 Conventional Commits 标题 | R:code:lefthook.yml,code:docs/development/governance.md | A:--file,--range | S:允许默认合并、回退和 Dependabot 的标题格式
 check-content-copy.mjs[XQ5S]: F:检查文档与前端中的术语、可观察记录表达和 AI 发送披露 | R:code:apps/web/src/i18n/messages.ts,code:docs/development/content-design.md,code:scripts/check-content-copy.test.mjs | A:auditContentCopy,contentPaths | S:核验实际操作位置的必要片段，避免仅在隐私说明中披露
@@ -254,9 +255,10 @@ generate-third-party-notices.mjs[XV5M]: F:清点 Go 与 Web 运行依赖许可�
 prepare-proto-baseline.mjs[XQ5T]: F:为退役离线同步构建边界明确的 Buf 兼容比较基线 | R:code:scripts/check-proto.sh,code:contracts/proto/README.md | A:prepareProtoBaseline | S:仅在历史 SHA-256 匹配且当前编译描述符保留旧字段编号时才规范化三处比较输入
 prepare-proto-baseline.test.mjs[TQ4S]: F:验证离线同步退役例外以及其余 RPC 兼容性仍受 Buf 保护 | R:code:scripts/prepare-proto-baseline.mjs | A:- | S:覆盖注释伪保留、字段重用和历史摘要不符
 run-e2e.mjs[TQ5M]: F:构建并编排 Go 服务、模拟 AI 与 Playwright 的独立浏览器旅程 | R:code:scripts/e2e-mock-ai.mjs,code:apps/web/playwright.config.ts,code:Makefile | A:E2E_PROJECTS,PLAYWRIGHT_BASE_URL | S:每个浏览器用新数据目录，等待回环就绪探针并清理子进程
-scan-container.sh[XV5T]: F:用固定镜像为目标制品生成 SPDX、CycloneDX 和执行 Grype 门禁 | R:code:scripts/grype-alpine-openssl.vex.json,code:scripts/check-sbom.mjs,code:scripts/check-supply-chain.sh | A:SYFT_IMAGE,GRYPE_IMAGE,GRYPE_FAIL_ON | S:默认 high 阈值；将精确 VEX 文件复制到扫描容器，兼容 Docker 守护进程位于远端的情况，保留扫描进程退出码
+scan-container.sh[XV5T]: F:用固定 Syft 与 Grype 镜像生成两种 SBOM，并对实际运行镜像执行漏洞门禁 | R:code:scripts/grype-alpine-openssl.vex.json,code:scripts/check-sbom.mjs,code:scripts/check-supply-chain.sh | A:SYFT_IMAGE,GRYPE_IMAGE,GRYPE_FAIL_ON,SILLAGE_GRYPE_DB_ARCHIVE,SILLAGE_GRYPE_DB_SHA256 | S:离线库先验 SHA-256 再经共享临时卷导入，年龄与内容检测照常；扫描退出码决定门禁
 third-party-license-policy.json[FV3T]: F:登记 Web 运行依赖的许可允许列表和 Go 模块的许可映射 | R:code:scripts/generate-third-party-notices.mjs,code:THIRD_PARTY_NOTICES.md | A:- | S:-
 grype-alpine-openssl.vex.json[FS5T]: F:按 Alpine 官方安全库记录 OpenSSL 子包已回补的四项 CVE | R:code:scripts/scan-container.sh,code:docs/development/governance.md | A:OpenVEX 0.2 | S:每条 fixed 精确绑定 Alpine 发行版、架构和补丁版本，超出绑定的包继续按原高危规则扫描
+container-verification.test.mjs[TQ4S]: F:用记录调用的 Docker 替身验证构建代理和漏洞库导入的默认、异常及清理行为 | R:code:Makefile,code:scripts/scan-container.sh | A:- | S:错误摘要必须在任何 Docker 调用前失败，导入或扫描出错保留退出状态
 
 ===/<repository>/scripts/lib/===
 doc-sync-policy.mjs[XQ3T]: F:判断一次已获信任的 Dependabot 修改是否仅限允许的依赖维护路径 | R:code:scripts/check-doc-sync.mjs | A:isDependabotMaintenance | S:要求显式启用且改动集合非空

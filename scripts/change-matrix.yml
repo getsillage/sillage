@@ -134,6 +134,7 @@ rules:
       - "go.sum"
       - "apps/web/package.json"
       - "apps/web/pnpm-lock.yaml"
+      - "apps/web/pnpm-workspace.yaml"
       - "NOTICE"
       - "THIRD_PARTY_NOTICES.md"
       - "third_party/licenses/**"

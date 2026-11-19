@@ -117,4 +117,7 @@ See the [Contributing Guide](../../../CONTRIBUTING.md) for automated quality gat
 - loading, empty, failure, retry, unsaved, version-conflict, and in-progress states;
 - browser console and page errors, plus accessible names for buttons and icons.
 
+For CSS build dependency changes, run the production build and responsive
+browser checks even when the authored styles have not changed.
+
 Temporary screenshots and Playwright debugging cases are not committed. Changes to navigation, naming, or product shape must also update [Product Guidance](../product-guidance.md).

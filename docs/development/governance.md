@@ -156,6 +156,11 @@ remote Dockerfile frontend image. This keeps the initial build independent of
 an extra Docker Hub request; base image pulls still follow the operator's
 Docker or BuildKit registry and proxy configuration.
 
+For local network failures, the [Contributing Guide](../../CONTRIBUTING.md#verification)
+documents opt-in settings for a Docker Go module proxy and a verified Grype
+database archive. These settings do not change the CI or release defaults or
+the scanner's vulnerability threshold.
+
 The main CI workflow also performs CodeQL analysis for Go and JavaScript/TypeScript. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires both language jobs on the exact release commit.
 
 Files under `third_party/licenses/` are copied byte-for-byte from upstream packages and are therefore exempt from Sillage's whitespace normalization rule. The notice generator's byte comparison remains authoritative for those files; all project-authored files continue to pass `git diff --check`.

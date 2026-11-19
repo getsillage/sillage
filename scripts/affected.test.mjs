@@ -39,6 +39,10 @@ test("the release version manifest verifies the Web build, notes, and upgrade dr
   }
 });
 
+test("pnpm overrides trigger the supply-chain gate even without a manifest change", () => {
+  assert.ok(gatesFor("apps/web/pnpm-workspace.yaml").includes("supply-chain"));
+});
+
 test("authentication changes include browser and server acceptance", () => {
   const gates = gatesFor("server/auth_routes.go");
   for (const gate of ["go", "proto", "web", "e2e"]) {

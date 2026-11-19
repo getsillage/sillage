@@ -24,6 +24,7 @@ type memoRequest struct {
 
 func (s *Server) registerMemoRoutes(e *echo.Echo) {
 	e.GET("/api/v1/memos", s.handleListMemos)
+	e.GET("/api/v1/memos/calendar/counts", s.handleMemoCalendarCounts)
 	e.POST("/api/v1/memos", s.handleCreateMemo)
 	e.GET("/api/v1/memos/:memo", s.handleGetMemo)
 	e.PATCH("/api/v1/memos/:memo", s.handleUpdateMemo)
@@ -55,7 +56,11 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 	if err != nil {
 		return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
 	}
+	entryDate := c.QueryParam("entryDate")
 	if query != "" {
+		if entryDate != "" {
+			return apiError(c, http.StatusBadRequest, "invalid_field", "搜索不支持按记录日期筛选")
+		}
 		memos, err := s.memos.Search(ctx, account.ID, memoapp.SearchInput{
 			Query:     query,
 			Archived:  archived,
@@ -75,16 +80,35 @@ func (s *Server) handleListMemos(c *echo.Context) error {
 		Archived:  archived,
 		Favorited: favorited,
 		Deleted:   deleted,
+		EntryDate: entryDate,
 		Limit:     limit,
 		Cursor:    c.QueryParam("cursor"),
 	})
 	if err != nil {
+		if isValidationError(err) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
 		return apiError(c, http.StatusInternalServerError, "internal", "读取记录失败")
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"memos":      memoDTOs(page.Memos),
 		"nextCursor": page.NextCursor,
 	})
+}
+
+func (s *Server) handleMemoCalendarCounts(c *echo.Context) error {
+	account, err := s.accountFromBearer(c)
+	if err != nil {
+		return apiError(c, http.StatusUnauthorized, "unauthenticated", "请重新登录")
+	}
+	counts, err := s.memos.CalendarCounts(c.Request().Context(), account.ID, c.QueryParam("month"))
+	if err != nil {
+		if isValidationError(err) {
+			return apiError(c, http.StatusBadRequest, "invalid_field", err.Error())
+		}
+		return apiError(c, http.StatusInternalServerError, "internal", "读取日历记录数失败")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"counts": counts})
 }
 
 func (s *Server) handleCreateMemo(c *echo.Context) error {

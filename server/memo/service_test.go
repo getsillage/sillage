@@ -25,6 +25,10 @@ func (f *fakeRepository) ListMemos(ctx context.Context, opts *store.ListMemoOpti
 	return f.listMemos(ctx, opts)
 }
 
+func (f *fakeRepository) CountActiveMemosByDate(context.Context, string, string, string) (map[string]int, error) {
+	panic("unexpected CountActiveMemosByDate call")
+}
+
 func (f *fakeRepository) SearchMemos(ctx context.Context, opts *store.SearchMemoOptions) ([]*store.Memo, error) {
 	return f.searchMemos(ctx, opts)
 }

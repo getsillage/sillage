@@ -35,13 +35,18 @@ docker run --rm \
   -o cyclonedx-json \
   > "$output_dir/${file_prefix}.cyclonedx.json"
 
-docker run --rm \
+grype_container="$(docker create \
   -v /var/run/docker.sock:/var/run/docker.sock \
   "$grype_image" \
   "$source_ref" \
+  --vex /sillage-alpine-openssl.vex.json \
   --fail-on "$fail_on" \
-  -o json \
-  > "$output_dir/${file_prefix}.grype.json"
+  -o json)"
+trap 'docker rm -f "$grype_container" >/dev/null' EXIT
+
+# Copy the VEX document so Docker can run on a VM or other daemon host.
+docker cp "$script_dir/grype-alpine-openssl.vex.json" "$grype_container:/sillage-alpine-openssl.vex.json"
+docker start -a "$grype_container" > "$output_dir/${file_prefix}.grype.json"
 
 node "$repo_root/scripts/check-sbom.mjs" \
   "$output_dir/${file_prefix}.spdx.json" \

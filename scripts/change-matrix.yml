@@ -141,6 +141,7 @@ rules:
       - "scripts/check-supply-chain.sh"
       - "scripts/generate-third-party-notices.mjs"
       - "scripts/scan-container.sh"
+      - "scripts/grype-alpine-openssl.vex.json"
       - "scripts/third-party-license-policy.json"
     gates: [supply-chain, docs]
     docs:

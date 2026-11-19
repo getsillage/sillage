@@ -6,7 +6,7 @@ This document is the single entry point for this repository's development enviro
 
 | Area | Requirement |
 | --- | --- |
-| Go | Go 1.26 |
+| Go | Version declared in `go.mod` |
 | Web | Node.js 24, pnpm 11.9 |
 | Proto | Buf CLI 1.71 |
 | Containers | Docker; Compose is optional |

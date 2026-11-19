@@ -138,15 +138,13 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 
 Dependabot runs weekly for Go, npm (`apps/web/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
-Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
+Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. Web runtime and development dependencies are checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together. The image scan applies [OpenVEX findings for specific Alpine packages](../../scripts/grype-alpine-openssl.vex.json) backed by the Alpine security database. The statements bind each CVE to its patched package version, architecture, and release.
 
-The supported server toolchain is Go 1.26.9. The current module graph pins
-`golang.org/x/net` 0.60.0 and gRPC 1.83.2 to satisfy both the symbol-level and
-final-image vulnerability checks. The runtime applies Alpine package upgrades
-before installing its additional packages, including fixes to inherited
-OpenSSL and zlib. The release container uses the matching digest-pinned Go 1.26.9
-Alpine builder. A toolchain or module security update must rerun the Go,
-container, supply-chain, and upgrade gates.
+CI reads the Go version from `go.mod`. The production Dockerfile pins a
+matching Go builder and a supported Alpine runtime by digest. The runtime
+applies Alpine package upgrades before installing additional packages.
+A toolchain or module security update must rerun the Go, container,
+supply-chain, and upgrade gates.
 
 The production Dockerfile uses Docker's built-in frontend instead of fetching a
 remote Dockerfile frontend image. This keeps the initial build independent of

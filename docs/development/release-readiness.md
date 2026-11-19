@@ -41,7 +41,7 @@ The release commit must have a successful CI run containing every required job c
 
 - commit policy and secret scanning;
 - Go tests, vet, build, and vulnerability scan;
-- the supported Go 1.26.9 toolchain and pinned module graph must report no
+- the Go toolchain declared in `go.mod` and pinned module graph must report no
   reachable vulnerabilities;
 - Proto lint, breaking-change check, generation, and drift detection;
 - Web lint, typecheck, unit tests, production build, bundle budgets, and three-engine E2E;

@@ -16,7 +16,7 @@ COPY apps/web ./apps/web
 COPY server/router/frontend ./server/router/frontend
 RUN pnpm --dir apps/web build
 
-FROM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS backend
+FROM golang:1.26.11-alpine3.24@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS backend
 WORKDIR /src
 ARG GOPROXY=https://proxy.golang.org,direct
 ARG VERSION=dev
@@ -36,7 +36,7 @@ ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w -X main.version=$VERSION -X main.revision=$REVISION" -tags netgo,osusergo -o sillage ./cmd/sillage
 
-FROM alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 AS runtime
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS runtime
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Sillage" \

@@ -18,11 +18,11 @@ README.md[SG5T]: F:用英文介绍单人私密记录的产品能力、容器启�
 README.zh-CN.md[SG5T]: F:用中文说明记录、历史回看与有来源的 AI 问答，并给出自托管启动入口 | R:code:README.md,code:docs/user/deployment.md,code:docs/user/ai.md | A:- | S:产品仅服务单用户，第三方网络入口与凭据由部署者独立管理
 SECURITY.md[SS5T]: F:规定漏洞私下报告、受支持版本和部署责任 | R:code:docs/development/security.md,code:docs/user/deployment.md | A:GitHub Private Vulnerability Reporting | S:数据目录与备份没有额外的全盘静态加密，应限制宿主权限
 SUPPORT.md[SQ3T]: F:引导自托管用户查阅文档、脱敏并选择缺陷、功能、支持或漏洞渠道 | R:code:SECURITY.md,code:docs/README.md | A:- | S:-
-THIRD_PARTY_NOTICES.md[SV4S]: F:列出分发制品使用的 Go 与 Web 生产依赖、版本及许可证 | R:code:NOTICE,code:scripts/generate-third-party-notices.mjs,code:scripts/third-party-license-policy.json | A:- | S:版本变动时必须同步保留对应版本的上游许可原文；Web 开发依赖不进入清单
+THIRD_PARTY_NOTICES.md[SV4S]: F:列出服务端二进制与容器分发的 Go 和 Web 运行依赖版本及许可证 | R:code:NOTICE,code:scripts/generate-third-party-notices.mjs,code:scripts/third-party-license-policy.json | A:- | S:依赖升级时重新生成版本清单及该版本原始许可文件；只收录 Web 生产图上依赖
 buf.gen.yaml[FV5T]: F:固定 Proto 的 Go、gRPC、Connect、Gateway 和 OpenAPI 生成器及目标目录 | R:code:buf.yaml,code:contracts/proto/README.md | A:- | S:clean 会重建生成物，外部 googleapis 保留原 go_package
 buf.lock[FV3T]: F:锁定 googleapis Proto 依赖的提交及内容摘要 | R:code:buf.yaml,code:buf.gen.yaml | A:- | S:-
 buf.yaml[FQ5T]: F:声明 Proto 模块、googleapis 依赖、基础 lint 及文件级兼容检查 | R:code:buf.gen.yaml,code:scripts/check-proto.sh | A:- | S:兼容门禁使用 FILE 模式；部分命名与目录约定显式例外
-go.mod[FV5T]: F:声明 Sillage Go 模块、构建工具链下限与 Echo、SQLite、Proto 等依赖 | R:code:scripts/Dockerfile,code:.github/workflows/ci.yml,code:Makefile | A:github.com/getsillage/sillage | S:CI 读取本文件的 Go 补丁版本，容器构建器保持一致；SQLite 使用纯 Go 驱动
+go.mod[FV5T]: F:声明 Go 模块与工具链下限，并固定 Echo HTTP、SQLite 和协议库的依赖版本 | R:code:scripts/Dockerfile,code:.github/workflows/ci.yml,code:Makefile,code:THIRD_PARTY_NOTICES.md | A:github.com/getsillage/sillage | S:CI 使用此处 Go 补丁版本，容器构建工具链须同步；运行依赖变动须重生成第三方许可，SQLite 保持纯 Go 驱动
 lefthook.yml[FQ3T]: F:可选本地钩子运行提交消息、术语和空白检查 | R:code:scripts/check-commit-msg.mjs,code:Makefile | A:- | S:最终门禁由 CI 执行
 
 ===/<repository>/.github/ISSUE_TEMPLATE/===
@@ -42,7 +42,7 @@ v0.4.0.md[SV4T]: F:说明仅保留 Web 与 Go 后端、附件编辑修复、接�
 v0.5.0.md[SV4T]: F:记录按需日历、无 Shell 镜像、旧客户端退役及升级回滚，并汇总候选验收证据 | R:code:docs/development/release-readiness.md,code:.github/workflows/release.yml | A:- | S:候选的双架构与浏览器证据不取代最终提交的完整远端 CI 和标签签名核验
 
 ===/<repository>/.github/workflows/===
-ci.yml[OV7M]: F:校验提交并按改动触发 Go、Proto、Web、文档、容器、供应链、E2E 和 CodeQL 门禁 | R:code:Makefile,code:scripts/change-matrix.yml | A:CI 工作流 | S:push 配置执行对应的全量门禁，PR 按提交任务给出的影响布尔值裁剪；本地 Make 目标与 CI 共用
+ci.yml[OV7M]: F:校验提交与密钥泄漏，编排 Go、Proto、Web、文档、容器、供应链、端到端及 CodeQL 门禁 | R:code:Makefile,code:scripts/change-matrix.yml,code:scripts/check-doc-sync.mjs | A:CI 工作流 | S:主分支推送执行完整门禁，PR 按影响矩阵挑选任务，供应链已构建容器时跳过重复作业；更新 setup-node Action 不改变各任务显式安装的 Node 24
 release.yml[OV7M]: F:预检签名标签、版本和 CI 后推送多架构容器，并发布附带 SBOM 和证明的 GitHub Release | R:code:.github/workflows/ci.yml,code:.github/release-notes/v0.4.0.md | A:Release 工作流 | S:已有不可变标签拒绝覆盖；发布证据绑定到已推送镜像摘要
 
 ===/<repository>/apps/===

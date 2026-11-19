@@ -14,7 +14,7 @@ This inventory is generated from the resolved Go build graph and the production 
 | github.com/go-viper/mapstructure/v2 | v2.4.0 | MIT | [LICENSE](third_party/licenses/go/github.com/go-viper/mapstructure/v2@v2.4.0/LICENSE) |
 | github.com/google/uuid | v1.6.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/github.com/google/uuid@v1.6.0/LICENSE) |
 | github.com/grpc-ecosystem/grpc-gateway/v2 | v2.29.0 | BSD-3-Clause | [LICENSE](third_party/licenses/go/github.com/grpc-ecosystem/grpc-gateway/v2@v2.29.0/LICENSE) |
-| github.com/labstack/echo/v5 | v5.4.1 | MIT | [LICENSE](third_party/licenses/go/github.com/labstack/echo/v5@v5.4.1/LICENSE) |
+| github.com/labstack/echo/v5 | v5.4.6 | MIT | [LICENSE](third_party/licenses/go/github.com/labstack/echo/v5@v5.4.6/LICENSE) |
 | github.com/pelletier/go-toml/v2 | v2.2.4 | MIT | [LICENSE](third_party/licenses/go/github.com/pelletier/go-toml/v2@v2.2.4/LICENSE) |
 | github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause | [LICENSE](third_party/licenses/go/github.com/remyoudompheng/bigfft@v0.0.0-20230129092748-24d4a6f8daec/LICENSE) |
 | github.com/sagikazarmark/locafero | v0.11.0 | MIT | [LICENSE](third_party/licenses/go/github.com/sagikazarmark/locafero@v0.11.0/LICENSE) |

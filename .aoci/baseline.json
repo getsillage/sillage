@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-11-18T17:04:44Z",
-  "updated_at": "2026-11-19T10:39:15Z",
+  "updated_at": "2026-11-19T12:02:09Z",
   "files": {
     ".dockerignore": {
       "role": "index",
@@ -89,9 +89,9 @@
     },
     ".github/workflows/ci.yml": {
       "role": "index",
-      "sha256": "43c3658db719d0085e63f5f4323fa144c6012631b7a7418c305d6e002f395926",
-      "size": 12154,
-      "normalized_sha256": "43c3658db719d0085e63f5f4323fa144c6012631b7a7418c305d6e002f395926"
+      "sha256": "97aad4f06c2af89c7efbf343c573d533d5e4913dc914ff2428b89b2a2c8be9c9",
+      "size": 12182,
+      "normalized_sha256": "97aad4f06c2af89c7efbf343c573d533d5e4913dc914ff2428b89b2a2c8be9c9"
     },
     ".github/workflows/release.yml": {
       "role": "index",
@@ -179,15 +179,15 @@
     },
     "THIRD_PARTY_NOTICES.md": {
       "role": "index",
-      "sha256": "7c7290a553cbce85baa555913f7478f0971b6ec1b4ce6182aab1aef25263a51e",
+      "sha256": "b4486f1903981e02e234b0c346a081d720676dab7e3885f3b70768b47b3603c3",
       "size": 24256,
-      "normalized_sha256": "7c7290a553cbce85baa555913f7478f0971b6ec1b4ce6182aab1aef25263a51e"
+      "normalized_sha256": "b4486f1903981e02e234b0c346a081d720676dab7e3885f3b70768b47b3603c3"
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "b16af6b9b525e3295e2ca9d658c39c963c7f72fb50a01c423d2c0829d9e52324",
-      "size": 67417,
-      "normalized_sha256": "b16af6b9b525e3295e2ca9d658c39c963c7f72fb50a01c423d2c0829d9e52324"
+      "sha256": "f1a3004b1fd05a5d389c5bd1e908648d6c0c46d68982dcee44e66718b450343f",
+      "size": 67619,
+      "normalized_sha256": "f1a3004b1fd05a5d389c5bd1e908648d6c0c46d68982dcee44e66718b450343f"
     },
     "aoci.database.txt": {
       "role": "index",
@@ -1171,15 +1171,15 @@
     },
     "go.mod": {
       "role": "index",
-      "sha256": "95dfbbfd82dfb8d82eb3c05831a2e643cd102224f5ca9722b61f20a6703f2902",
+      "sha256": "4b22f3c76f3db08e208f5af7c31fca4f822167fa50a74b0de123bb90c790aea1",
       "size": 1638,
-      "normalized_sha256": "95dfbbfd82dfb8d82eb3c05831a2e643cd102224f5ca9722b61f20a6703f2902"
+      "normalized_sha256": "4b22f3c76f3db08e208f5af7c31fca4f822167fa50a74b0de123bb90c790aea1"
     },
     "go.sum": {
       "role": "observe",
-      "sha256": "a44a2bb9e4c606693c5496c81cd3235b62ff14acd3c7bff8f1f9849034b7e7b6",
+      "sha256": "f39295fb305276920222dd31a49af47ddfa0fe1485793de0a624895520499b31",
       "size": 12554,
-      "normalized_sha256": "a44a2bb9e4c606693c5496c81cd3235b62ff14acd3c7bff8f1f9849034b7e7b6"
+      "normalized_sha256": "f39295fb305276920222dd31a49af47ddfa0fe1485793de0a624895520499b31"
     },
     "integration/restore_drill/restore_drill_test.go": {
       "role": "observe",
@@ -2175,7 +2175,7 @@
       "size": 1511,
       "normalized_sha256": "a15b1d1b168954c92ff7fb1620382418f7c72f4f4d251ee791d1098ad68ab0c4"
     },
-    "third_party/licenses/go/github.com/labstack/echo/v5@v5.4.1/LICENSE": {
+    "third_party/licenses/go/github.com/labstack/echo/v5@v5.4.6/LICENSE": {
       "role": "observe",
       "sha256": "51c0c8970bd5ae68440750607821d2b10eae53e9adca442384139132d221860a",
       "size": 1075,

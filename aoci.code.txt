@@ -39,7 +39,7 @@ dependabot.yml[FV5T]: F:按生态发起每周依赖更新，将耦合的 Docker�
 v0.3.0.md[SV3T]: F:记录最近删除、离线密码重置和发布验证，以及旧版本升级与恢复要求 | R:code:.github/workflows/release.yml | A:- | S:旧二进制拒绝已升级数据库，回滚需还原完整备份
 v0.3.1.md[SV3T]: F:记录双语文案、AI 数据提示和依赖更新，以及与上一版数据目录的兼容性 | R:code:README.zh-CN.md | A:- | S:-
 v0.4.0.md[SV4T]: F:说明仅保留 Web 与 Go 后端、附件编辑修复、接口精简和 SQLite schema 0.1.6 升级 | R:code:store/migrator.go,code:README.zh-CN.md | A:- | S:升级备份含 WAL/SHM、附件和 runtime；回滚需恢复整套备份
-v0.5.0.md[SV4T]: F:记录按需日历、无 Shell 镜像、旧客户端退役与升级回滚要求 | R:code:docs/development/release-readiness.md,code:scripts/check-release-notes.mjs | A:- | S:本地双架构零发现不替代精确提交的远端验收，正式发布拒绝待完成标记
+v0.5.0.md[SV4T]: F:记录按需日历、无 Shell 镜像、旧客户端退役及升级回滚，并汇总候选验收证据 | R:code:docs/development/release-readiness.md,code:.github/workflows/release.yml | A:- | S:候选的双架构与浏览器证据不取代最终提交的完整远端 CI 和标签签名核验
 
 ===/<repository>/.github/workflows/===
 ci.yml[OV7M]: F:校验提交并按改动触发 Go、Proto、Web、文档、容器、供应链、E2E 和 CodeQL 门禁 | R:code:Makefile,code:scripts/change-matrix.yml | A:CI 工作流 | S:push 配置执行对应的全量门禁，PR 按提交任务给出的影响布尔值裁剪；本地 Make 目标与 CI 共用

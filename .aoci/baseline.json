@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-11-18T17:04:44Z",
-  "updated_at": "2026-11-19T09:20:44Z",
+  "updated_at": "2026-11-19T10:39:15Z",
   "files": {
     ".dockerignore": {
       "role": "index",
@@ -83,9 +83,9 @@
     },
     ".github/release-notes/v0.5.0.md": {
       "role": "index",
-      "sha256": "6c1153c76da36e803430c8fffc544610e09076e1efd73c5638f3d863cb2f6379",
-      "size": 2316,
-      "normalized_sha256": "6c1153c76da36e803430c8fffc544610e09076e1efd73c5638f3d863cb2f6379"
+      "sha256": "254e5c800716ede1c72e80a6a9a886950753ceb9daeffeeae1f2979f6e9e1d68",
+      "size": 2784,
+      "normalized_sha256": "254e5c800716ede1c72e80a6a9a886950753ceb9daeffeeae1f2979f6e9e1d68"
     },
     ".github/workflows/ci.yml": {
       "role": "index",
@@ -185,9 +185,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "f090c4237b6227fa245e6ddde66aae486b97339001bfaffa36fe33df901440d5",
-      "size": 67394,
-      "normalized_sha256": "f090c4237b6227fa245e6ddde66aae486b97339001bfaffa36fe33df901440d5"
+      "sha256": "b16af6b9b525e3295e2ca9d658c39c963c7f72fb50a01c423d2c0829d9e52324",
+      "size": 67417,
+      "normalized_sha256": "b16af6b9b525e3295e2ca9d658c39c963c7f72fb50a01c423d2c0829d9e52324"
     },
     "aoci.database.txt": {
       "role": "index",

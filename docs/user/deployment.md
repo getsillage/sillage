@@ -75,6 +75,12 @@ docker compose -f scripts/compose.yaml start sillage
 
 Compose defaults `SILLAGE_HOST_PORT` to `127.0.0.1:5231`; it controls only the host publish address. `SILLAGE_IMAGE` selects the container image. Application environment variables are declared explicitly in `scripts/compose.yaml`. Check that file before making changes, and do not assume that host variables with the same names are passed through automatically.
 
+The image includes a shell-free health check that requests `/readyz` on the
+internal loopback port. Remove any custom Compose probe that invokes `wget`
+or `/bin/sh` when upgrading, or use `/usr/local/sillage/sillage healthcheck`.
+The image does not include an interactive shell; use `docker logs` and the
+documented Sillage commands directly.
+
 After changing the port binding or image, run `docker compose -f scripts/compose.yaml up -d sillage` again to recreate the existing container, then use `docker compose -f scripts/compose.yaml ps` to confirm the publish address. Changing the YAML alone does not alter a running container.
 
 ## First-Time Initialization and External Access
@@ -110,7 +116,7 @@ When running directly on the host, the application uses `/var/opt/sillage` by de
 
 `SILLAGE_DSN`, `SESSION_SECRET`, and `ENCRYPTION_SECRET` support corresponding `_FILE` variables, such as `ENCRYPTION_SECRET_FILE=/run/secrets/encryption`. A direct value and its `_FILE` variable cannot be set at the same time. To use `_FILE` in a container, mount the file and pass the variable explicitly; the host environment is not passed through automatically. External databases and secret files are outside `SILLAGE_DATA` and must be included in the same backup and restore process.
 
-The container entrypoint also supports `SILLAGE_UID` and `SILLAGE_GID`, both defaulting to `10001`. They adjust ownership of the mounted directory and run the process as a non-root user. Compose does not pass through these two variables; to customize them, explicitly change the Compose `environment` or use `docker run -e`.
+The container entrypoint also supports `SILLAGE_UID` and `SILLAGE_GID`, both defaulting to `10001`. Use positive numeric IDs. When started as root, the entrypoint prepares the mounted data directory and drops privileges before running Sillage. It does not follow symbolic links when changing ownership and fails rather than changing the owner of a multiply linked file; prepare the volume ownership before startup if needed. With `docker run --user`, prepare a writable volume for that user yourself. Compose does not pass through these two variables; to customize them, explicitly change the Compose `environment` or use `docker run -e`.
 
 The server holds exclusive advisory locks at `runtime/instance.lock` and beside the SQLite database (`<database-path>.sillage.lock`) for its full process lifetime. A second server or an offline administrative command pointed at the same data directory or external DSN fails closed. The files remain after a normal or abnormal exit and record the last process ID; their presence alone does not mean the instance is running.
 
@@ -181,7 +187,7 @@ See the [Contributing Guide](../../CONTRIBUTING.md) for the development environm
 
 Identify a running binary with `./sillage --version`. Container images also include the OCI `version` and `revision` labels.
 
-The Dockerfile pins the base-image digest, pnpm lockfile, and Go module checksums. It uses Docker's built-in Dockerfile frontend so a build does not need to fetch a separate `docker/dockerfile` frontend image before resolving the pinned bases. The runtime upgrades the packages already present in its Alpine base before installing certificates, timezone data, and the privilege-switching utility. This applies security fixes to inherited OpenSSL, zlib, and other base packages as well as newly installed packages. Alpine system packages are still resolved from the repositories configured by the base image. When updating the base image or system packages, rebuild the image, document the reason, and update the pinned values in the same change.
+The Dockerfile pins the base-image digests, pnpm lockfile, and Go module checksums. It uses Docker's built-in Dockerfile frontend so a build does not need to fetch a separate `docker/dockerfile` frontend image before resolving the pinned bases. The final stage uses a static runtime base with CA certificates, and the Go binary embeds timezone data. Build-only packages do not enter the final image. Rebuild and scan the final image when updating a pinned base.
 
 If Docker Hub is reachable only through a proxy, configure the Docker daemon or
 the selected BuildKit builder to use that proxy before building. Keep the proxy

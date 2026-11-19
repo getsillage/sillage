@@ -49,6 +49,12 @@ The release commit must have a successful CI run containing every required job c
 - container build, supply-chain inventory, SBOM generation, and vulnerability scan;
 - long-term scale acceptance, isolated backup/restore recovery, and a real latest-stable-to-candidate upgrade plus backup-backed rollback.
 
+When changing the container runtime, build and scan the final image for both
+`linux/amd64` and `linux/arm64`. Also verify the bundled probe, numeric UID/GID
+overrides, `_FILE` settings, and record persistence across container replacement
+with a disposable volume. A scan of the unmodified base image is not evidence
+for either final image.
+
 Do not release from a locally green commit that lacks the matching successful remote CI run. Local environment failures may be diagnosed independently, but the release workflow must never waive a required job.
 
 The same commit must contain `.github/release-notes/vX.Y.Z.md`. Candidate notes may explicitly identify unfinished manual evidence while work continues, but Release preflight validates the version metadata, required sections, comparison link, upgrade/rollback language, supported browser and container boundaries, and absence of pending markers before any image or GitHub Release is published.

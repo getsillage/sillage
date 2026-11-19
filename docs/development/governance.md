@@ -138,11 +138,14 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 
 Dependabot runs weekly for Go, npm (`apps/web/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
-Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. Web runtime and development dependencies are checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together. The image scan applies [OpenVEX findings for specific Alpine packages](../../scripts/grype-alpine-openssl.vex.json) backed by the Alpine security database. The statements bind each CVE to its patched package version, architecture, and release.
+Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. Web runtime and development dependencies are checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also verifies the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. It checks the in-image notices and starts the final image on a fresh, network-isolated volume to verify readiness. Dependency changes must update the reviewed policy and preserved notice files together.
 
 CI reads the Go version from `go.mod`. The production Dockerfile pins a
-matching Go builder and a supported Alpine runtime by digest. The runtime
-applies Alpine package upgrades before installing additional packages.
+matching Go builder and a shell-free runtime base by digest. The build stages
+may use Alpine packages, but the final stage does not copy them or apply
+exceptions for them in the runtime scan.
+The Web build and Go compiler run on the build platform; Go cross-compiles
+the binary for each target runtime architecture.
 A toolchain or module security update must rerun the Go, container,
 supply-chain, and upgrade gates.
 

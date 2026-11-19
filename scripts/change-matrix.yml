@@ -120,7 +120,8 @@ rules:
   - id: container-deploy
     paths:
       - "scripts/Dockerfile"
-      - "scripts/entrypoint.sh"
+      - "cmd/sillage/container*.go"
+      - "cmd/sillage/healthcheck*.go"
       - "scripts/compose.yaml"
       - "scripts/compose.build.yaml"
       - ".dockerignore"
@@ -142,7 +143,6 @@ rules:
       - "scripts/check-supply-chain.sh"
       - "scripts/generate-third-party-notices.mjs"
       - "scripts/scan-container.sh"
-      - "scripts/grype-alpine-openssl.vex.json"
       - "scripts/third-party-license-policy.json"
     gates: [supply-chain, docs]
     docs:

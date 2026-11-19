@@ -120,4 +120,4 @@ Contract changes must update Proto, generated artifacts, affected REST/Connect a
 | Web theme and component styles | `apps/web/src/styles/app.css`, `apps/web/src/components/ui.ts` |
 | Interface language catalogs | `apps/web/src/i18n/messages.ts` |
 | Automated quality gates | `.github/workflows/ci.yml` |
-| Container behavior | `scripts/Dockerfile`, `scripts/entrypoint.sh`, `scripts/compose.yaml` |
+| Container behavior | `scripts/Dockerfile`, `cmd/sillage/container_linux.go`, `cmd/sillage/healthcheck.go`, `scripts/compose.yaml` |

@@ -66,7 +66,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-set -- "$grype_image" "$source_ref" --vex /sillage-alpine-openssl.vex.json --fail-on "$fail_on" -o json
+set -- "$grype_image" "$source_ref" --fail-on "$fail_on" -o json
 if [[ -n "$db_archive" ]]; then
   # Keep the imported DB on a disposable volume shared by the two containers.
   # docker cp works even when the Docker daemon is on another host.
@@ -83,8 +83,6 @@ fi
 
 grype_container="$(docker create -v /var/run/docker.sock:/var/run/docker.sock "$@")"
 
-# Copy the VEX document so Docker can run on a VM or other daemon host.
-docker cp "$script_dir/grype-alpine-openssl.vex.json" "$grype_container:/sillage-alpine-openssl.vex.json"
 docker start -a "$grype_container" > "$output_dir/${file_prefix}.grype.json"
 
 node "$repo_root/scripts/check-sbom.mjs" \

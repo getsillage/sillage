@@ -126,6 +126,7 @@ type ListMemoOptions struct {
 	Deleted           *bool
 	Archived          *bool
 	Favorited         *bool
+	EntryDate         string
 	// LegacyFavoritedFirst continues a v1 pinned-first cursor after pinned_at
 	// has been migrated to favorited_at. New list requests leave it false.
 	LegacyFavoritedFirst bool
@@ -170,6 +171,10 @@ WHERE creator_id = ?`
 		}
 	}
 	query += memoStateFilterClause("", opts.Archived, opts.Favorited)
+	if opts.EntryDate != "" {
+		query += " AND entry_date = ?"
+		args = append(args, opts.EntryDate)
+	}
 	deletedOnly := opts.Deleted != nil && *opts.Deleted
 	if deletedOnly {
 		if opts.BeforeID != "" {
@@ -225,6 +230,31 @@ WHERE creator_id = ?`
 	}
 	defer rows.Close()
 	return scanMemos(rows)
+}
+
+func (s *Store) CountActiveMemosByDate(ctx context.Context, accountID, firstDate, lastDate string) (map[string]int, error) {
+	// Status columns are usually NULL. Let SQLite favor the date range over
+	// the status indexes without requiring a particular index on older DBs.
+	rows, err := s.db().QueryContext(ctx, `
+SELECT entry_date, COUNT(*)
+FROM memo
+WHERE creator_id = ? AND entry_date BETWEEN ? AND ?
+  AND likely(deleted_at IS NULL) AND likely(archived_at IS NULL) AND likely(favorited_at IS NULL)
+GROUP BY entry_date`, accountID, firstDate, lastDate)
+	if err != nil {
+		return nil, fmt.Errorf("count active memos by date: %w", err)
+	}
+	defer rows.Close()
+	counts := make(map[string]int)
+	for rows.Next() {
+		var date string
+		var count int
+		if err := rows.Scan(&date, &count); err != nil {
+			return nil, fmt.Errorf("read active memo count: %w", err)
+		}
+		counts[date] = count
+	}
+	return counts, rows.Err()
 }
 
 func (s *Store) SearchMemos(ctx context.Context, opts *SearchMemoOptions) ([]*Memo, error) {

@@ -138,20 +138,31 @@ Required sections only: **Context**, **Decision**, **Consequences**. Link supers
 
 Dependabot runs weekly for Go, npm (`apps/web/`), Docker (`scripts/`), and GitHub Actions. Open PR limits are intentionally low to keep the queue reviewable. Security-critical updates may still be applied out of band with the same gates.
 
-Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. The production Web graph is checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also regenerates and checks the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. Dependency changes must update the reviewed policy and preserved notice files together.
+Third-party GitHub Actions are pinned to full commit SHAs, with the corresponding upstream release tag retained as a comment. `scripts/check-actions-pinned.mjs` prevents mutable tags or branches from entering workflow files. Go code is scanned with the module-version-pinned `govulncheck` command as part of `make check-go`. Web runtime and development dependencies are checked with `pnpm audit --audit-level=high`. `make check-supply-chain` also verifies the Go/Web license inventory, builds the final container, emits SPDX and CycloneDX SBOMs with the pinned Syft image, and blocks high-severity findings from the pinned Grype image. It checks the in-image notices and starts the final image on a fresh, network-isolated volume to verify readiness. Dependency changes must update the reviewed policy and preserved notice files together.
 
-The supported server toolchain is Go 1.26.9. The current module graph pins
-`golang.org/x/net` 0.60.0 and gRPC 1.83.2 to satisfy both the symbol-level and
-final-image vulnerability checks. The runtime applies Alpine package upgrades
-before installing its additional packages, including fixes to inherited
-OpenSSL and zlib. The release container uses the matching digest-pinned Go 1.26.9
-Alpine builder. A toolchain or module security update must rerun the Go,
-container, supply-chain, and upgrade gates.
+CI reads the Go version from `go.mod`. The production Dockerfile pins a
+matching Go builder and a shell-free runtime base by digest. The build stages
+may use Alpine packages, but the final stage does not copy them or apply
+exceptions for them in the runtime scan.
+The Web build and Go compiler run on the build platform; Go cross-compiles
+the binary for each target runtime architecture.
+A toolchain or module security update must rerun the Go, container,
+supply-chain, and upgrade gates.
+
+Keep Vitest and its coverage provider at the same resolved version. When a
+Web build dependency pins a vulnerable transitive version, constrain the
+override to the vulnerable range and verify the resolved graph with
+`pnpm --dir apps/web audit`.
 
 The production Dockerfile uses Docker's built-in frontend instead of fetching a
 remote Dockerfile frontend image. This keeps the initial build independent of
 an extra Docker Hub request; base image pulls still follow the operator's
 Docker or BuildKit registry and proxy configuration.
+
+For local network failures, the [Contributing Guide](../../CONTRIBUTING.md#verification)
+documents opt-in settings for a Docker Go module proxy and a verified Grype
+database archive. These settings do not change the CI or release defaults or
+the scanner's vulnerability threshold.
 
 The main CI workflow also performs CodeQL analysis for Go and JavaScript/TypeScript. CodeQL is a remote GitHub security gate rather than a local `make check` step because its database extraction and SARIF upload run in GitHub Actions. The Release workflow requires both language jobs on the exact release commit.
 
@@ -170,6 +181,16 @@ gitleaks detect --source . --config .gitleaks.toml --verbose --redact
 Gitleaks does not replace GitHub Secret Scanning or Push Protection. Before a stable release, authenticate `gh`, add organization administration scope with `gh auth refresh -h github.com -s admin:org`, then run `make check-repository-settings` and correct every reported remote setting. The audit covers the `getsillage` organization display name, description, canonical website, and policy settings, plus repository metadata and controls for `sillage`, `getsillage.github.io`, and `.github`. The organization Pages repository publishes the canonical product site at `https://getsillage.github.io/`. The audit is intentionally separate from ordinary local checks because organization profile metadata and policy, branch protection, merge policy, Actions permissions, repository security controls, and Pages configuration are external state.
 
 Public-facing website links use `https://getsillage.github.io/`. Source and contribution links use `https://github.com/getsillage/getsillage.github.io`. Retired project-site subpaths are not canonical addresses and must not appear in current public copy or documentation.
+
+## AOCI repository index
+
+The repository versions the AOCI root manifest, metadata, Code and Database
+volumes, and their governance baselines. The canonical SQLite evidence in
+`.aoci/database/evidence/sillage/` records schema metadata from a disposable
+copy initialized with [`LATEST.sql`](../../store/migration/sqlite/LATEST.sql).
+Use that schema source for database evidence. Run `aoci ui --detach` from the
+repository to get the local panel link. The current AOCI tools and Guide define
+the index maintenance workflow in [AGENTS.md](../../AGENTS.md).
 
 ## Quality severity
 

@@ -1,16 +1,16 @@
 module github.com/getsillage/sillage
 
-go 1.26.9
+go 1.26.11
 
 require (
 	connectrpc.com/connect v1.20.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
-	github.com/labstack/echo/v5 v5.2.1
+	github.com/labstack/echo/v5 v5.4.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	golang.org/x/crypto v0.57.0
-	golang.org/x/sys v0.48.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/sys v0.50.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.11
@@ -33,9 +33,9 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3 // indirect
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

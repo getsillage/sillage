@@ -21,6 +21,7 @@ import {
   setMemoFavorited as apiSetFavorited,
   generateMemoSummary as apiSummary,
   updateMemo as apiUpdate,
+  getMemoCalendarCounts,
   listMemos,
   type Memo,
   type MemoAI,
@@ -48,9 +49,19 @@ interface MemosContextValue {
   hasMore: boolean;
   error: string;
   summaries: Record<string, MemoAI>;
+  refreshIfNeeded: () => void;
   refresh: () => Promise<void>;
   loadMore: () => Promise<boolean>;
-  loadAll: () => Promise<void>;
+  calendarRevision: number;
+  calendarCounts: (
+    month: string,
+    signal: AbortSignal,
+  ) => Promise<Record<string, number>>;
+  calendarDay: (
+    entryDate: string,
+    cursor: string | undefined,
+    signal: AbortSignal,
+  ) => Promise<{ memos: Memo[]; nextCursor?: string }>;
   getById: (id: string) => Memo | undefined;
   fetchMemo: (id: string) => Promise<Memo>;
   create: (input: { content: string; entryDate: string }) => Promise<Memo>;
@@ -88,6 +99,8 @@ export function MemosProvider({
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
   const [summaries, setSummaries] = useState<Record<string, MemoAI>>({});
+  const [calendarRevision, setCalendarRevision] = useState(0);
+  const activeListTokenRef = useRef<string>(undefined);
   // Monotonic id so a slow earlier refresh can't overwrite a newer one
   // (e.g. StrictMode's double-invoke, or a manual refresh racing the mount).
   const refreshSeq = useRef(0);
@@ -124,6 +137,7 @@ export function MemosProvider({
   }, [locale, t]);
 
   const refresh = useCallback(async () => {
+    activeListTokenRef.current = token;
     const seq = ++refreshSeq.current;
     loadMoreRequestRef.current = null;
     cursorRef.current = "";
@@ -241,21 +255,11 @@ export function MemosProvider({
     return request.promise;
   }, [token, t, rememberSnapshot]);
 
-  const loadAll = useCallback(async () => {
-    const seenCursors = new Set<string>();
-    while (cursorRef.current) {
-      const cursor = cursorRef.current;
-      if (seenCursors.has(cursor)) {
-        throw new Error(t("records.paginationFailed"));
-      }
-      seenCursors.add(cursor);
-      await loadMore();
+  const refreshIfNeeded = useCallback(() => {
+    if (activeListTokenRef.current !== token) {
+      void refresh();
     }
-  }, [loadMore, t]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  }, [refresh, token]);
 
   const apply = useCallback(
     (memo: Memo) => {
@@ -272,6 +276,14 @@ export function MemosProvider({
       return memo;
     },
     [rememberSnapshot],
+  );
+
+  const applyWrite = useCallback(
+    (memo: Memo) => {
+      setCalendarRevision((current) => current + 1);
+      return apply(memo);
+    },
+    [apply],
   );
 
   const getById = useCallback(
@@ -315,9 +327,9 @@ export function MemosProvider({
   const create = useCallback(
     async (input: { content: string; entryDate: string }) => {
       const res = await apiCreate(token, input);
-      return apply(res.memo);
+      return applyWrite(res.memo);
     },
-    [token, apply],
+    [token, applyWrite],
   );
 
   const update = useCallback(
@@ -334,25 +346,25 @@ export function MemosProvider({
           return rest;
         });
       }
-      return apply(res.memo);
+      return applyWrite(res.memo);
     },
-    [token, apply],
+    [token, applyWrite],
   );
 
   const setFavorited = useCallback(
     async (memo: Memo, favorited: boolean) => {
       const res = await apiSetFavorited(token, memo, favorited);
-      return apply(res.memo);
+      return applyWrite(res.memo);
     },
-    [token, apply],
+    [token, applyWrite],
   );
 
   const setArchived = useCallback(
     async (memo: Memo, archived: boolean) => {
       const res = await apiSetArchived(token, memo, archived);
-      return apply(res.memo);
+      return applyWrite(res.memo);
     },
-    [token, apply],
+    [token, applyWrite],
   );
 
   const remove = useCallback(
@@ -365,6 +377,7 @@ export function MemosProvider({
         (memoGenerationRef.current.get(memo.id) ?? 0) + 1,
       );
       setMemos((current) => current.filter((item) => item.id !== memo.id));
+      setCalendarRevision((current) => current + 1);
     },
     [token, rememberSnapshot],
   );
@@ -372,9 +385,9 @@ export function MemosProvider({
   const restore = useCallback(
     async (memo: Memo) => {
       const res = await apiRestore(token, memo);
-      return apply(res.memo);
+      return applyWrite(res.memo);
     },
-    [token, apply],
+    [token, applyWrite],
   );
 
   const purge = useCallback(
@@ -432,6 +445,26 @@ export function MemosProvider({
     [token],
   );
 
+  const calendarCounts = useCallback(
+    async (month: string, signal: AbortSignal) => {
+      const result = await getMemoCalendarCounts(token, month, signal);
+      return result.counts;
+    },
+    [token],
+  );
+
+  const calendarDay = useCallback(
+    (entryDate: string, cursor: string | undefined, signal: AbortSignal) =>
+      listMemos(
+        token,
+        50,
+        cursor,
+        { ...ACTIVE_LIST_OPTIONS, entryDate },
+        signal,
+      ),
+    [token],
+  );
+
   // Server-side FTS search. Results are returned to the caller, not merged into
   // the main list, so a search view never disturbs the cached timeline.
   const search = useCallback(
@@ -462,9 +495,12 @@ export function MemosProvider({
       hasMore,
       error,
       summaries,
+      refreshIfNeeded,
       refresh,
       loadMore,
-      loadAll,
+      calendarRevision,
+      calendarCounts,
+      calendarDay,
       getById,
       fetchMemo,
       create,
@@ -486,9 +522,12 @@ export function MemosProvider({
       hasMore,
       error,
       summaries,
+      refreshIfNeeded,
       refresh,
       loadMore,
-      loadAll,
+      calendarRevision,
+      calendarCounts,
+      calendarDay,
       getById,
       fetchMemo,
       create,
@@ -516,4 +555,16 @@ export function useMemos(): MemosContextValue {
     throw new Error("useMemos must be used within a MemosProvider");
   }
   return value;
+}
+
+/** The home and active timeline share a list cache, loaded only on demand. */
+export function useActiveMemos(enabled = true): MemosContextValue {
+  const context = useMemos();
+  const { refreshIfNeeded } = context;
+  useEffect(() => {
+    if (enabled) {
+      refreshIfNeeded();
+    }
+  }, [enabled, refreshIfNeeded]);
+  return context;
 }

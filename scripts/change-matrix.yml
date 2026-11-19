@@ -120,7 +120,8 @@ rules:
   - id: container-deploy
     paths:
       - "scripts/Dockerfile"
-      - "scripts/entrypoint.sh"
+      - "cmd/sillage/container*.go"
+      - "cmd/sillage/healthcheck*.go"
       - "scripts/compose.yaml"
       - "scripts/compose.build.yaml"
       - ".dockerignore"
@@ -134,6 +135,7 @@ rules:
       - "go.sum"
       - "apps/web/package.json"
       - "apps/web/pnpm-lock.yaml"
+      - "apps/web/pnpm-workspace.yaml"
       - "NOTICE"
       - "THIRD_PARTY_NOTICES.md"
       - "third_party/licenses/**"

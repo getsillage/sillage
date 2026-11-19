@@ -64,6 +64,8 @@ func newRootCommand() *cobra.Command {
 	mustBindFlag(cmd, "log-format")
 	mustBindFlag(cmd, "log-level")
 	cmd.AddCommand(newAdminCommand())
+	cmd.AddCommand(newHealthcheckCommand())
+	registerContainerCommand(cmd)
 
 	viper.SetEnvPrefix("sillage")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
@@ -189,6 +191,10 @@ func trustedProxyCIDRs() []string {
 }
 
 func expandFileEnv(names ...string) error {
+	return expandFileEnvWithTrim(strings.TrimSpace, names...)
+}
+
+func expandFileEnvWithTrim(trim func(string) string, names ...string) error {
 	for _, name := range names {
 		value := os.Getenv(name)
 		fileValue := os.Getenv(name + "_FILE")
@@ -202,7 +208,7 @@ func expandFileEnv(names ...string) error {
 		if err != nil {
 			return fmt.Errorf("read %s_FILE: %w", name, err)
 		}
-		if err := os.Setenv(name, strings.TrimSpace(string(b))); err != nil {
+		if err := os.Setenv(name, trim(string(b))); err != nil {
 			return fmt.Errorf("set %s from file: %w", name, err)
 		}
 		if err := os.Unsetenv(name + "_FILE"); err != nil {

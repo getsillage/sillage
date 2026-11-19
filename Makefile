@@ -35,7 +35,9 @@ help:
 		'  make print-affected   Show gates for the current change set' \
 		'' \
 		'Environment:' \
-		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected'
+		'  BASE_SHA / BASE_REF   Git base for breaking, doc-sync, whitespace, commits, affected' \
+		'  SILLAGE_BUILD_GOPROXY  Optional Go module proxy for Docker builds' \
+		'  SILLAGE_GRYPE_DB_ARCHIVE / SILLAGE_GRYPE_DB_SHA256  Optional verified Grype DB snapshot'
 
 check: check-go check-proto check-web check-scale check-docs check-secrets check-container check-supply-chain check-e2e check-restore check-upgrade
 
@@ -73,6 +75,7 @@ check-docs: check-actions
 	$(MAKE) --no-print-directory help >/dev/null
 	node scripts/check-docker-context.mjs
 	node --test scripts/check-content-copy.test.mjs
+	node --test scripts/container-verification.test.mjs
 	node --test scripts/check-doc-sync.test.mjs
 	node --test scripts/check-release-version.test.mjs
 	node --test scripts/check-release-notes.test.mjs
@@ -94,7 +97,11 @@ check-repository-settings:
 
 check-container:
 	node scripts/check-docker-context.mjs
-	docker build --build-arg VERSION=dev --build-arg REVISION="$$(git rev-parse HEAD)" -t sillage:dev -f scripts/Dockerfile .
+	@set -- --build-arg VERSION=dev --build-arg REVISION="$$(git rev-parse HEAD)"; \
+	if [[ -n "$${SILLAGE_BUILD_GOPROXY:-}" ]]; then \
+		set -- "$$@" --build-arg "GOPROXY=$${SILLAGE_BUILD_GOPROXY}"; \
+	fi; \
+	docker build "$$@" -t sillage:dev -f scripts/Dockerfile .
 	docker compose -f scripts/compose.yaml config >/dev/null
 	docker compose -f scripts/compose.yaml -f scripts/compose.build.yaml config >/dev/null
 

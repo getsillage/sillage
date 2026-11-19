@@ -34,7 +34,7 @@ The message value is localized, user-facing text. The example above is a placeho
 | Area | Route source of truth | Notes |
 | --- | --- | --- |
 | Authentication | `server/auth_routes.go`, `contracts/proto/api/v1/auth_service.proto` | Initialization, sign-in, refresh, sign-out, password change, and the current account |
-| Records | `server/memo_routes.go` | `memoDTO` uses `createdAt`, `updatedAt`, and a numeric `version` |
+| Records | `server/memo_routes.go` | Lists, calendar counts, and versioned writes; `memoDTO` uses `createdAt` and `updatedAt` |
 | Attachments | `server/attachment_routes.go` | Multipart upload, metadata, deletion, and authenticated download |
 | AI settings | `server/ai_routes.go` | Configuration, model listing, connection tests, and automatic summaries |
 | Ask | `server/ask_routes.go` | Conversations, messages, branches, head, and SSE streaming answers |
@@ -53,6 +53,22 @@ bytes. Non-multipart requests over 8 MiB are rejected with HTTP 413; attachment
 uploads use the separate configured upload limit. Record, Ask, search, and AI
 configuration fields have stricter per-field limits and return the normal
 `invalid_field` error when exceeded.
+
+## Calendar Reads
+
+- `GET /api/v1/memos/calendar/counts?month=2024-02` returns
+  `{"counts":{"2024-02-29":2}}`, keyed by the stored record date. It returns
+  only nonzero counts of the authenticated account's active records (excluding
+  favorites, archives, and deletions). An empty month returns `{"counts":{}}`.
+- To read a day, use
+  `GET /api/v1/memos?entryDate=2024-02-29&archived=false&favorited=false&limit=50`.
+  This returns the standard `{memos, nextCursor}` page. Keep the date and
+  filters when following `nextCursor`. An invalid date or a cursor belonging to
+  another date or list mode returns `400 invalid_field`. Use `entryDate`
+  separately from search parameters `query` and `q`.
+
+Both reads use calendar dates (`YYYY-MM` and `YYYY-MM-DD`) rather than timestamps.
+They are handwritten REST extensions.
 
 ## Record Writes
 

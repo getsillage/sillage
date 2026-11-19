@@ -16,9 +16,3 @@ services:
       SILLAGE_LOG_LEVEL: "info"
       # SESSION_SECRET and ENCRYPTION_SECRET are optional.
       # When omitted, Sillage generates and persists them on first start.
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5231/readyz | grep -q '\"status\":\"ready\"'"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 10s
